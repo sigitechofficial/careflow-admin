@@ -308,6 +308,13 @@ export async function patchEmployment(employeeId: string, body: EmploymentPayloa
   })
 }
 
+export async function patchEmployeeStatus(employeeId: string, body: { statusId: string }): Promise<void> {
+  await apiJson(`/employees/${employeeId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
 /* ─── Emergency contacts ─────────────────────────────────────── */
 
 export type EmergencyContactRow = {

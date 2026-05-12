@@ -13,6 +13,7 @@ import {
   fetchEmployeeChartSummary,
   fetchEmployeeLookups,
   listEmployees,
+  patchEmployeeStatus,
   type EmployeeChartSummary,
   type EmployeeListRow,
   type EmployeeLookupsBundle,
@@ -21,6 +22,7 @@ import { EmployeeSkillsTab } from '@/components/employee/EmployeeSkillsTab'
 import { EmployeeNonCoreActivityTab } from '@/components/employee/EmployeeNonCoreActivityTab'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/toggle-controls'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -480,6 +482,27 @@ function statusIdForFilter(lookups: EmployeeLookupsBundle | null, filter: string
   return lookups.employeeStatuses.find(s => s.name.toLowerCase() === want)?.id
 }
 
+function activeInactiveLookups(L: EmployeeLookupsBundle | null) {
+  if (!L) return { active: undefined, inactive: undefined } as const
+  const active = L.employeeStatuses.find(s => s.name.toLowerCase() === 'active')
+  const inactive = L.employeeStatuses.find(s => s.name.toLowerCase() === 'inactive')
+  return { active, inactive } as const
+}
+
+function staffRowEffectiveStatus(emp: EmployeeListRow) {
+  const label = emp.status?.name ?? (emp.isActive ? 'Active' : 'Inactive')
+  return { label, norm: label.toLowerCase() }
+}
+
+function staffRowIsActive(emp: EmployeeListRow): boolean {
+  return staffRowEffectiveStatus(emp).norm === 'active'
+}
+
+function staffStatusToggleable(emp: EmployeeListRow): boolean {
+  const { norm } = staffRowEffectiveStatus(emp)
+  return norm === 'active' || norm === 'inactive'
+}
+
 /* ─── Staff List Tab ─────────────────────────────────────────── */
 function StaffListTab({ statusFilter, setStatusFilter }: {
   statusFilter: string
@@ -489,17 +512,56 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
   const accessToken = useAuthStore(s => s.accessToken)
   const canCreateEmployee = useAuthStore(s => s.can('employees.create'))
   const canUpdateEmployee = useAuthStore(s => s.can('employees.update'))
+  const canUpdateEmployeeStatus = useAuthStore(s => s.can('employees.status.update'))
   const apiConfigured = Boolean(getApiBaseUrl())
   const jwtPresent = Boolean(accessToken?.includes('.'))
 
   const [rows, setRows] = React.useState<EmployeeListRow[]>([])
   const [meta, setMeta] = React.useState<{ total: number }>({ total: 0 })
+  const [lookups, setLookups] = React.useState<EmployeeLookupsBundle | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null)
+  const [statusUpdateError, setStatusUpdateError] = React.useState<string | null>(null)
+
+  const silentRefetchList = React.useCallback(async (L: EmployeeLookupsBundle) => {
+    const statusId = statusIdForFilter(L, statusFilter)
+    const { rows: next, meta: m } = await listEmployees({
+      page: 1,
+      limit: 100,
+      statusId,
+      sortOrder: 'desc',
+    })
+    setRows(next)
+    setMeta({ total: m.total })
+  }, [statusFilter])
+
+  const handleStatusToggle = React.useCallback(
+    async (emp: EmployeeListRow, checked: boolean) => {
+      if (!lookups || !apiConfigured || !jwtPresent) return
+      const { active: activeSt, inactive: inactiveSt } = activeInactiveLookups(lookups)
+      if (!activeSt || !inactiveSt) return
+      if (staffRowIsActive(emp) === checked) return
+      const nextId = checked ? activeSt.id : inactiveSt.id
+      setStatusBusyId(emp.id)
+      setStatusUpdateError(null)
+      try {
+        await patchEmployeeStatus(emp.id, { statusId: nextId })
+        await silentRefetchList(lookups)
+      } catch (e) {
+        const msg = e instanceof ApiError ? e.message : 'Could not update status.'
+        setStatusUpdateError(msg)
+      } finally {
+        setStatusBusyId(null)
+      }
+    },
+    [lookups, apiConfigured, jwtPresent, silentRefetchList],
+  )
 
   React.useEffect(() => {
     if (!apiConfigured || !jwtPresent) {
       setRows([])
+      setLookups(null)
       setMeta({ total: 0 })
       setLoading(false)
       setError(
@@ -518,6 +580,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
       try {
         const L = await fetchEmployeeLookups()
         if (cancelled) return
+        setLookups(L)
         const statusId = statusIdForFilter(L, statusFilter)
         const { rows: next, meta: m } = await listEmployees({
           page: 1,
@@ -536,6 +599,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
         }
         setError(msg)
         setRows([])
+        setLookups(null)
         setMeta({ total: 0 })
       } finally {
         if (!cancelled) setLoading(false)
@@ -547,6 +611,11 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
       cancelled = true
     }
   }, [apiConfigured, jwtPresent, statusFilter])
+
+  const { active: activeStatusLookup, inactive: inactiveStatusLookup } = activeInactiveLookups(lookups)
+  const showStatusSwitch = Boolean(
+    canUpdateEmployeeStatus && activeStatusLookup && inactiveStatusLookup && apiConfigured && jwtPresent,
+  )
 
   return (
     <div>
@@ -578,6 +647,9 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
 
       {error ? (
         <p className="mb-3 text-sm text-amber-800 dark:text-amber-200">{error}</p>
+      ) : null}
+      {statusUpdateError ? (
+        <p className="mb-3 text-sm text-destructive">{statusUpdateError}</p>
       ) : null}
       {!loading && !error && apiConfigured && jwtPresent ? (
         <p className="mb-3 text-xs text-muted-foreground">
@@ -624,9 +696,19 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
             ) : (
               rows.map(emp => {
                 const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '—'
-                const statusLabel = emp.status?.name ?? (emp.isActive ? 'Active' : 'Inactive')
-                const statusNorm = statusLabel.toLowerCase()
+                const { label: statusLabel, norm: statusNorm } = staffRowEffectiveStatus(emp)
                 const photoSrc = resolveMediaUrl(emp.photoUrl)
+                const rowStatusSwitch =
+                  showStatusSwitch && staffStatusToggleable(emp) ? (
+                    <Switch
+                      size="sm"
+                      checked={staffRowIsActive(emp)}
+                      disabled={statusBusyId === emp.id}
+                      title={staffRowIsActive(emp) ? 'Set inactive' : 'Set active'}
+                      aria-label={`Set ${name} to ${staffRowIsActive(emp) ? 'inactive' : 'active'}`}
+                      onCheckedChange={checked => void handleStatusToggle(emp, checked)}
+                    />
+                  ) : null
                 return (
                   <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-3 py-3">
@@ -647,12 +729,15 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                     </td>
                     <td className="px-3 py-3 font-medium whitespace-nowrap">{name}</td>
                     <td className="px-3 py-3">
-                      <Badge
-                        variant={statusNorm === 'active' ? 'success' : statusNorm === 'inactive' ? 'secondary' : 'info'}
-                        size="sm"
-                      >
-                        {statusLabel}
-                      </Badge>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant={statusNorm === 'active' ? 'success' : statusNorm === 'inactive' ? 'secondary' : 'info'}
+                          size="sm"
+                        >
+                          {statusLabel}
+                        </Badge>
+                        {rowStatusSwitch}
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? '—'}</td>
                     <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? '—'}</td>
