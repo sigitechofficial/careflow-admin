@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background & Surface */
+    --background: 0 0% 97%;
+    --foreground: 220 13% 10%;
+
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 220 13% 10%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 10%;
+
+    /* Primary — Shopify Green */
+    --primary: 160 100% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 220 13% 94%;
+    --secondary-foreground: 220 13% 20%;
+
+    /* Muted */
+    --muted: 220 13% 93%;
+    --muted-foreground: 220 8% 46%;
+
+    /* Accent */
+    --accent: 160 60% 94%;
+    --accent-foreground: 160 100% 22%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Success */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Info */
+    --info: 210 100% 56%;
+    --info-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 160 100% 25%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 13% 20%;
+    --sidebar-primary: 160 100% 25%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 60% 95%;
+    --sidebar-accent-foreground: 160 100% 22%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 160 100% 25%;
+  }
+
+  .dark {
+    /* Background & Surface */
+    --background: 220 15% 8%;
+    --foreground: 210 20% 92%;
+
+    /* Card */
+    --card: 220 13% 11%;
+    --card-foreground: 210 20% 92%;
+
+    /* Popover */
+    --popover: 220 13% 12%;
+    --popover-foreground: 210 20% 92%;
+
+    /* Primary */
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 220 13% 16%;
+    --secondary-foreground: 210 20% 82%;
+
+    /* Muted */
+    --muted: 220 13% 15%;
+    --muted-foreground: 210 10% 55%;
+
+    /* Accent */
+    --accent: 160 40% 15%;
+    --accent-foreground: 160 84% 60%;
+
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Success */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Info */
+    --info: 210 100% 56%;
+    --info-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --border: 220 13% 18%;
+    --input: 220 13% 18%;
+    --ring: 160 84% 39%;
+
+    /* Sidebar */
+    --sidebar-background: 220 13% 10%;
+    --sidebar-foreground: 210 16% 80%;
+    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 30% 14%;
+    --sidebar-accent-foreground: 160 84% 60%;
+    --sidebar-border: 220 13% 17%;
+    --sidebar-ring: 160 84% 39%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variation-settings: "opsz" 32;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+
+  /* Focus visible */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-1 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .animate-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted rounded;
+  }
+  .skeleton::after {
+    @apply absolute inset-0;
+    content: "";
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--muted-foreground) / 0.08) 50%,
+      transparent 100%
+    );
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Status indicator pulse */
+  .status-online {
+    @apply relative;
+  }
+  .status-online::after {
+    content: "";
+    @apply absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card;
+  }
+
+  /* Glass effect */
+  .glass {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: hsl(var(--card) / 0.8);
+  }
+
+  /* Sidebar collapsed transition */
+  .sidebar-transition {
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
