@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Progress, Skeleton, Separator, TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/misc'
 import { Alert } from '@/components/ui/feedback'
+import { toastError, toastSuccess, toastWarning } from '@/lib/toast'
 import { PageHeader, EmptyState, LoadingSpinner, Section, StatusIndicator } from '@/components/ui/page-elements'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -537,6 +538,24 @@ export default function ComponentShowcase() {
               A fall incident was reported by James Carter at Meadow House at 09:42.
             </Alert>
           </div>
+        </ShowSection>
+
+        {/* ── Toasts (toastr) ───────────────────────────────── */}
+        <ShowSection
+          title="Toasts (toastr)"
+          description="Transient notifications used after form submits in Service Users and elsewhere. Triggered via toastSuccess / toastError from @/lib/toast."
+        >
+          <Row>
+            <Button type="button" variant="success" onClick={() => toastSuccess('Saved', 'Your changes were applied successfully.')}>
+              Show success toast
+            </Button>
+            <Button type="button" variant="destructive" onClick={() => toastError('Save failed', 'We could not reach the server. Check your connection.')}>
+              Show error toast
+            </Button>
+            <Button type="button" variant="warning" onClick={() => toastWarning('Attention', 'This action will affect live rota data.')}>
+              Show warning toast
+            </Button>
+          </Row>
         </ShowSection>
 
         {/* ── Status Indicators ────────────────────────────── */}

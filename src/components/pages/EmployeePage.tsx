@@ -165,14 +165,15 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
       {/* ── Tab Navigation + Content ───────────────────────────── */}
       <div className="bg-card rounded-xl border border-border shadow-sm">
         {/* Tab bar */}
-        <div className="flex border-b border-border overflow-x-auto">
+        <div className="flex h-16 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b border-border">
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => handleTab(tab.id)}
               className={cn(
-                'flex flex-col items-center gap-1 px-5 py-3 text-xs font-medium whitespace-nowrap',
-                'border-b-2 -mb-px transition-colors min-w-[90px]',
+                'flex h-full min-w-[90px] flex-col items-center justify-center gap-1 px-5 text-xs font-medium whitespace-nowrap',
+                'border-b-2 -mb-px transition-colors',
                 activeTab === tab.id
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -383,17 +384,6 @@ function SkillsChartCard({
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-2 flex max-h-[72px] w-full flex-wrap justify-center gap-x-3 gap-y-1 overflow-y-auto text-[10px]">
-            {pieData.map(d => (
-              <div key={d.name} className="flex max-w-[140px] items-center gap-1">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: d.color }} />
-                <span className="truncate text-muted-foreground" title={d.name}>
-                  {d.name}
-                </span>
-                <span className="shrink-0 font-medium text-foreground">({d.value})</span>
-              </div>
-            ))}
           </div>
         </>
       )}

@@ -128,10 +128,16 @@ function backendRolesToRoleId(roles: string[], accountKind?: string): RoleId {
   if (accountKind === 'temporary_inspector') return 'temporary_inspector'
   const lower = roles.map(r => r.toLowerCase())
   if (lower.some(r => r.includes('super') && r.includes('admin'))) return 'super_admin'
-  if (lower.some(r => r === 'admin')) return 'admin'
+  if (lower.some(r => r === 'admin' || r === 'administrator' || r === 'system admin')) return 'admin'
   if (lower.some(r => r.includes('manager'))) return 'manager'
   if (lower.some(r => r.includes('auditor'))) return 'auditor'
   return 'staff'
+}
+
+function mergeBackendPermissions(mappedRole: RoleId, apiPermissions: string[]): Permission[] {
+  return Array.from(
+    new Set([...permissionsForRole(mappedRole), ...(apiPermissions as unknown as Permission[])]),
+  )
 }
 
 function seedSso(): SsoProvider[] {
@@ -223,9 +229,7 @@ export const useAuthStore = create<AuthState>()(
             const { accessToken, refreshToken } = await backendLogin(key, password)
             const me = await backendMe(accessToken)
             const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
-            const mergedPerms = Array.from(
-              new Set([...permissionsForRole(mappedRole), ...(me.permissions as unknown as Permission[])])
-            )
+            const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
             const displayName =
               me.accountKind === 'temporary_inspector'
                 ? [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Temporary inspector'
@@ -409,9 +413,7 @@ export const useAuthStore = create<AuthState>()(
           const { accessToken, refreshToken } = await backendTemporaryInspectorLogin(username, password)
           const me = await backendMe(accessToken)
           const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
-          const mergedPerms = Array.from(
-            new Set([...permissionsForRole(mappedRole), ...(me.permissions as unknown as Permission[])]),
-          )
+          const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
           const displayName =
             me.accountKind === 'temporary_inspector'
               ? [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Temporary inspector'
@@ -513,11 +515,29 @@ export const useAuthStore = create<AuthState>()(
             const { accessToken, refreshToken } = await backendRefresh(s.refreshToken)
             const accessExpiresAt = accessTokenExpiryMs(accessToken) ?? t + ACCESS_MS
             const refreshExpiresAt = accessTokenExpiryMs(refreshToken) ?? t + REFRESH_MS
+            let userPatch: Partial<Pick<AuthState, 'user'>> = {}
+            if (s.user) {
+              try {
+                const me = await backendMe(accessToken)
+                const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
+                const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
+                userPatch = {
+                  user: {
+                    ...s.user,
+                    role: mappedRole,
+                    permissions: mergedPerms,
+                  },
+                }
+              } catch {
+                // Keep existing user on transient /me failure after refresh
+              }
+            }
             set({
               accessToken,
               refreshToken,
               accessExpiresAt,
               refreshExpiresAt,
+              ...userPatch,
             })
             get().appendLocalAudit({
               at: t,

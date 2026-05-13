@@ -81,10 +81,10 @@ const navItems: NavItem[] = [
     href: '/service-users',
     badge: 12,
     children: [
-      { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all' },
+      { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all', permission: 'service_users.read' },
       { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar' },
       { label: 'Initial Assessment Checklist',  icon: <ClipboardList className="h-3.5 w-3.5" />, href: '/showcase' },
-      { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add' },
+      { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add', permission: 'service_users.create' },
     ],
   },
   {

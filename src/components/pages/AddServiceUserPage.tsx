@@ -1,139 +1,302 @@
 import * as React from 'react'
-import { Info, Plus, Calendar, Search, Upload, User, ChevronUp } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ApiError } from '@/lib/api-client'
+import { toastApiError, toastError, toastSuccess } from '@/lib/toast'
+import { getApiBaseUrl } from '@/lib/api-base'
+import { fetchEmployeeLookups, listEmployees, type EmployeeListRow, type LookupRow } from '@/lib/employees-api'
+import {
+  createServiceUser,
+  fetchServiceUserLookups,
+  patchServiceUserAddress,
+  type CreateServiceUserPayload,
+  type ServiceUserLookupsBundle,
+} from '@/lib/service-users-api'
 
-/* ─── Design tokens ─────────────────────────────────────────── */
-const BLUE_DARK = '#4a6fa5'
-
-/* ─── Atomic building blocks ────────────────────────────────── */
-
-/** Blue circle info icon */
-function InfoIcon() {
-  return (
-    <div className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 cursor-pointer select-none"
-      style={{ background: '#3b82f6' }}>i</div>
-  )
+type FormState = {
+  firstName: string
+  middleName: string
+  lastName: string
+  preferredName: string
+  nhsNumber: string
+  nationalInsuranceNumber: string
+  email: string
+  phone: string
+  mobile: string
+  dateOfBirth: string
+  serviceStartDate: string
+  serviceEndDate: string
+  serviceUserNumber: string
+  notes: string
+  statusId: string
+  titleId: string
+  genderId: string
+  maritalStatusId: string
+  careTypeId: string
+  fundingTypeId: string
+  riskLevelId: string
+  locationId: string
+  keyWorkerId: string
+  namedNurseId: string
+  addressLine1: string
+  addressLine2: string
+  town: string
+  county: string
+  country: string
+  postcode: string
+  keySafeNumber: string
+  accessInstructions: string
 }
 
-/** Blue circle + button */
-function AddCircle({ onClick }: { onClick?: () => void }) {
-  return (
-    <button onClick={onClick}
-      className="h-8 w-8 rounded-full flex items-center justify-center text-white shrink-0 hover:opacity-90 transition-opacity"
-      style={{ background: '#3b82f6' }}>
-      <Plus className="h-4 w-4" />
-    </button>
-  )
+const emptyForm: FormState = {
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  preferredName: '',
+  nhsNumber: '',
+  nationalInsuranceNumber: '',
+  email: '',
+  phone: '',
+  mobile: '',
+  dateOfBirth: '',
+  serviceStartDate: '',
+  serviceEndDate: '',
+  serviceUserNumber: '',
+  notes: '',
+  statusId: '',
+  titleId: '',
+  genderId: '',
+  maritalStatusId: '',
+  careTypeId: '',
+  fundingTypeId: '',
+  riskLevelId: '',
+  locationId: '',
+  keyWorkerId: '',
+  namedNurseId: '',
+  addressLine1: '',
+  addressLine2: '',
+  town: '',
+  county: '',
+  country: '',
+  postcode: '',
+  keySafeNumber: '',
+  accessInstructions: '',
 }
 
-/** Text input */
-function TInput({ placeholder = '', disabled }: { placeholder?: string; disabled?: boolean }) {
-  return (
-    <input
-      placeholder={placeholder}
-      disabled={disabled}
-      className={cn(
-        'h-9 w-full rounded border border-slate-300 bg-white px-3 text-sm',
-        'placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400',
-        disabled && 'bg-slate-100 cursor-not-allowed text-slate-400'
-      )}
-    />
-  )
-}
-
-/** Select dropdown */
-function TSelect({ placeholder, options = [] }: { placeholder?: string; options?: string[] }) {
-  return (
-    <select className="h-9 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400">
-      {placeholder && <option value="">{placeholder}</option>}
-      {options.map(o => <option key={o} className="text-slate-900">{o}</option>)}
-    </select>
-  )
-}
-
-/** Date input with calendar button */
-function TDate() {
-  return (
-    <div className="flex w-full">
-      <input placeholder="DD-MM-YYYY"
-        className="h-9 flex-1 min-w-0 rounded-l border border-r-0 border-slate-300 bg-white px-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" />
-      <button className="h-9 w-10 flex items-center justify-center rounded-r text-white shrink-0" style={{ background: BLUE_DARK }}>
-        <Calendar className="h-4 w-4" />
-      </button>
-    </div>
-  )
-}
-
-/** Search input with search button */
-function TSearch({ placeholder }: { placeholder?: string }) {
-  return (
-    <div className="flex w-full">
-      <input placeholder={placeholder}
-        className="h-9 flex-1 min-w-0 rounded-l border border-r-0 border-slate-300 bg-white px-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" />
-      <button className="h-9 w-10 flex items-center justify-center rounded-r text-white shrink-0" style={{ background: BLUE_DARK }}>
-        <Search className="h-4 w-4" />
-      </button>
-    </div>
-  )
-}
-
-/** Section card */
 function Section({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 dark:bg-card dark:border-border">
       {children}
     </div>
   )
 }
 
-/** Blue section heading */
 function SHead({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-base font-semibold text-blue-600 mb-6">{children}</h2>
+  return <h2 className="text-base font-semibold text-blue-600 mb-4 dark:text-blue-400">{children}</h2>
 }
 
-/** Field label */
-function FL({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <p className="text-sm font-medium text-slate-700 mb-1.5 whitespace-nowrap">
-      {children}{required && <span className="text-red-500 ml-0.5">*</span>}
+    <p className="text-sm font-medium text-slate-700 mb-1.5 dark:text-muted-foreground">
+      {children}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
     </p>
   )
 }
 
-/** Field wrapper – vertical stack of label then control */
-function F({ label, required, info, children, className }: {
-  label: string; required?: boolean; info?: boolean
-  children: React.ReactNode; className?: string
-}) {
-  return (
-    <div className={cn('flex flex-col', className)}>
-      <FL required={required}>{label}</FL>
-      <div className={cn('flex items-center gap-2', info && 'gap-1.5')}>
-        <div className="flex-1 min-w-0">{children}</div>
-        {info && <InfoIcon />}
-      </div>
-    </div>
-  )
+function buildPayload(f: FormState): CreateServiceUserPayload {
+  const p: CreateServiceUserPayload = {
+    firstName: f.firstName.trim(),
+    lastName: f.lastName.trim(),
+  }
+  const opt = (s: string) => {
+    const t = s.trim()
+    return t === '' ? undefined : t
+  }
+  const optId = (s: string) => (s.trim() === '' ? undefined : s.trim())
+  p.middleName = opt(f.middleName)
+  p.preferredName = opt(f.preferredName)
+  p.nhsNumber = opt(f.nhsNumber)
+  p.nationalInsuranceNumber = opt(f.nationalInsuranceNumber)
+  p.email = opt(f.email)
+  p.phone = opt(f.phone)
+  p.mobile = opt(f.mobile)
+  p.dateOfBirth = opt(f.dateOfBirth)
+  p.serviceStartDate = opt(f.serviceStartDate)
+  p.serviceEndDate = opt(f.serviceEndDate)
+  p.serviceUserNumber = opt(f.serviceUserNumber)
+  p.notes = opt(f.notes)
+  p.titleId = optId(f.titleId)
+  p.genderId = optId(f.genderId)
+  p.maritalStatusId = optId(f.maritalStatusId)
+  p.statusId = optId(f.statusId)
+  p.careTypeId = optId(f.careTypeId)
+  p.fundingTypeId = optId(f.fundingTypeId)
+  p.riskLevelId = optId(f.riskLevelId)
+  p.locationId = optId(f.locationId)
+  p.keyWorkerId = optId(f.keyWorkerId)
+  p.namedNurseId = optId(f.namedNurseId)
+  return p
 }
 
-/** YES/NO toggle */
-function Toggle() {
-  const [on, setOn] = React.useState(false)
-  return (
-    <button onClick={() => setOn(v => !v)}
-      className={cn('relative h-7 w-16 rounded-full transition-colors flex items-center shrink-0', on ? 'bg-blue-500' : 'bg-slate-400')}>
-      <span className={cn('absolute h-5 w-5 rounded-full bg-white shadow transition-all', on ? 'left-[calc(100%-22px)]' : 'left-1')} />
-      <span className={cn('absolute text-[9px] font-bold text-white', on ? 'left-2' : 'right-2')}>{on ? 'YES' : 'NO'}</span>
-    </button>
-  )
+function hasAddressData(f: FormState): boolean {
+  return [
+    f.addressLine1,
+    f.addressLine2,
+    f.town,
+    f.county,
+    f.country,
+    f.postcode,
+    f.keySafeNumber,
+    f.accessInstructions,
+  ].some((s) => s.trim() !== '')
 }
 
-/* ─── Page ───────────────────────────────────────────────────── */
 export default function AddServiceUserPage() {
+  const navigate = useNavigate()
+  const apiConfigured = Boolean(getApiBaseUrl())
+  const [form, setForm] = React.useState<FormState>({ ...emptyForm })
+  const [lookups, setLookups] = React.useState<ServiceUserLookupsBundle | null>(null)
+  const [locations, setLocations] = React.useState<LookupRow[]>([])
+  const [loadError, setLoadError] = React.useState<string | null>(null)
+  const [submitError, setSubmitError] = React.useState<string | null>(null)
+  const [submitting, setSubmitting] = React.useState(false)
+
+  const [kwSearch, setKwSearch] = React.useState('')
+  const [nnSearch, setNnSearch] = React.useState('')
+  const [kwHits, setKwHits] = React.useState<EmployeeListRow[]>([])
+  const [nnHits, setNnHits] = React.useState<EmployeeListRow[]>([])
+  const [keyWorkerLabel, setKeyWorkerLabel] = React.useState('')
+  const [namedNurseLabel, setNamedNurseLabel] = React.useState('')
+
+  React.useEffect(() => {
+    if (!apiConfigured) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [su, emp] = await Promise.all([fetchServiceUserLookups(), fetchEmployeeLookups()])
+        if (cancelled) return
+        setLookups(su)
+        setLocations(emp.locations ?? [])
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof ApiError ? e.message : 'Failed to load lookups')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [apiConfigured])
+
+  React.useEffect(() => {
+    if (!apiConfigured || kwSearch.trim().length < 2) {
+      setKwHits([])
+      return
+    }
+    const t = window.setTimeout(() => {
+      listEmployees({ search: kwSearch.trim(), limit: 15 })
+        .then(({ rows }) => setKwHits(rows))
+        .catch(() => setKwHits([]))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [kwSearch, apiConfigured])
+
+  React.useEffect(() => {
+    if (!apiConfigured || nnSearch.trim().length < 2) {
+      setNnHits([])
+      return
+    }
+    const t = window.setTimeout(() => {
+      listEmployees({ search: nnSearch.trim(), limit: 15 })
+        .then(({ rows }) => setNnHits(rows))
+        .catch(() => setNnHits([]))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [nnSearch, apiConfigured])
+
+  const set =
+    (key: keyof FormState) =>
+    (v: string): void => {
+      setForm((prev) => ({ ...prev, [key]: v }))
+    }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitError(null)
+    if (!apiConfigured) {
+      setSubmitError('Set VITE_API_BASE_URL in .env and restart Vite.')
+      toastError('Cannot create service user', 'Set VITE_API_BASE_URL in .env and restart Vite.')
+      return
+    }
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setSubmitError('First name and last name are required.')
+      toastError('Cannot create service user', 'First name and last name are required.')
+      return
+    }
+    if (!form.statusId.trim()) {
+      setSubmitError('Please select a service user status.')
+      toastError('Cannot create service user', 'Please select a service user status.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const payload = buildPayload(form)
+      const { id } = await createServiceUser(payload)
+      if (hasAddressData(form)) {
+        await patchServiceUserAddress(id, {
+          addressLine1: form.addressLine1.trim() || undefined,
+          addressLine2: form.addressLine2.trim() || undefined,
+          town: form.town.trim() || undefined,
+          county: form.county.trim() || undefined,
+          country: form.country.trim() || undefined,
+          postcode: form.postcode.trim() || undefined,
+          keySafeNumber: form.keySafeNumber.trim() || undefined,
+          accessInstructions: form.accessInstructions.trim() || undefined,
+        })
+      }
+      toastSuccess('Service user created', 'Redirecting to the service user list.')
+      await navigate({ to: '/service-users/all' })
+    } catch (err) {
+      setSubmitError(err instanceof ApiError ? err.message : 'Could not create service user')
+      toastApiError(err, 'Could not create service user')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const mapSelect = (field: keyof FormState, placeholder: string, rows: Array<{ id: string; name: string }>) => (
+    <Select
+      value={form[field] ? String(form[field]) : '__none__'}
+      onValueChange={(v) => set(field)(v === '__none__' ? '' : v)}
+      disabled={!rows.length}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">— None —</SelectItem>
+        {rows.map((r) => (
+          <SelectItem key={r.id} value={r.id}>
+            {r.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+
   return (
-    <div className="space-y-4 pb-16">
-      {/* Consistent page header + spacing */}
+    <form className="space-y-4 pb-16" onSubmit={onSubmit}>
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="p-5 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -141,299 +304,324 @@ export default function AddServiceUserPage() {
             Add Service User
           </div>
           <p className="text-sm text-muted-foreground">
-            Enter personal, contact, and reference details to create a new service user.
+            Creates a service user via the CareAdmin API. Fields marked * are required for save.
           </p>
         </div>
       </div>
 
-      {/* ── Top: Picture / NHS / Status ── */}
+      {!apiConfigured && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+          Add <code className="rounded bg-muted px-1">VITE_API_BASE_URL</code> to <code className="rounded bg-muted px-1">.env</code>, restart Vite, and sign in with an account that has{' '}
+          <code className="rounded bg-muted px-1">service_users.create</code>.
+        </div>
+      )}
+      {loadError && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {loadError}
+        </div>
+      )}
+      {submitError && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {submitError}
+        </div>
+      )}
+
       <Section>
-        <div className="flex flex-wrap items-center gap-8">
-          {/* Picture */}
-          <div className="flex items-center gap-3 shrink-0">
-            <p className="text-sm font-medium text-slate-700">Picture</p>
-            <div className="h-16 w-16 rounded-full border-2 border-slate-300 bg-slate-100 flex flex-col items-center justify-center">
-              <User className="h-5 w-5 text-slate-400 mb-0.5" strokeWidth={1.5} />
-              <span className="text-[6.5px] text-slate-400 font-medium text-center leading-tight px-1">NO IMAGE<br />AVAILABLE</span>
-            </div>
-            <button className="h-9 w-9 rounded border border-slate-300 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors">
-              <Upload className="h-4 w-4" />
-            </button>
+        <SHead>Identity and status</SHead>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel required>First name</FieldLabel>
+            <Input value={form.firstName} onChange={(e) => set('firstName')(e.target.value)} autoComplete="given-name" />
           </div>
-
-          {/* NHS Number */}
-          <div className="flex items-center gap-3 flex-1 min-w-[200px]">
-            <p className="text-sm font-medium text-slate-700 shrink-0">NHS Number</p>
-            <div className="flex-1 max-w-sm"><TInput /></div>
+          <div>
+            <FieldLabel>Middle name</FieldLabel>
+            <Input value={form.middleName} onChange={(e) => set('middleName')(e.target.value)} />
           </div>
-
-          {/* Status */}
-          <div className="flex items-center gap-3 flex-1 min-w-[260px]">
-            <p className="text-sm font-medium text-slate-700 shrink-0">
-              Status<span className="text-red-500 ml-0.5">*</span>
-            </p>
-            <div className="flex-1 max-w-sm">
-              <TSelect placeholder="Please select a Service User Status"
-                options={['In Service','Discharged','Deceased','Suspended']} />
-            </div>
+          <div>
+            <FieldLabel required>Last name</FieldLabel>
+            <Input value={form.lastName} onChange={(e) => set('lastName')(e.target.value)} autoComplete="family-name" />
+          </div>
+          <div>
+            <FieldLabel>Preferred name</FieldLabel>
+            <Input value={form.preferredName} onChange={(e) => set('preferredName')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>NHS number</FieldLabel>
+            <Input value={form.nhsNumber} onChange={(e) => set('nhsNumber')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>NI number</FieldLabel>
+            <Input value={form.nationalInsuranceNumber} onChange={(e) => set('nationalInsuranceNumber')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel required>Status</FieldLabel>
+            {lookups ? mapSelect('statusId', 'Select status', lookups.statuses) : <Input disabled placeholder="Loading statuses…" />}
+          </div>
+          <div>
+            <FieldLabel>Date of birth</FieldLabel>
+            <Input type="date" value={form.dateOfBirth} onChange={(e) => set('dateOfBirth')(e.target.value)} />
           </div>
         </div>
       </Section>
 
-      {/* ── Personal Details ── */}
       <Section>
-        <SHead>Personal Details</SHead>
-
-        {/* Row 1: First / Middle */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="First Name" required info><TInput /></F>
-          <F label="Middle Name" info><TInput /></F>
-        </div>
-
-        {/* Row 2: Last / Preferred */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Last Name" required info><TInput /></F>
-          <F label="Preferred Name"><TInput /></F>
-        </div>
-
-        {/* Row 3: Title / Suffix */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Title" required info>
-            <TSelect placeholder="Select" options={['Mr','Mrs','Miss','Ms','Dr','Prof']} />
-          </F>
-          <F label="Suffix" info><TInput /></F>
-        </div>
-
-        {/* Row 4: Maiden / Place of Birth */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Maiden Name" info><TInput /></F>
-          <F label="Place of Birth">
-            <TSelect placeholder="Please select place of birth" />
-          </F>
-        </div>
-
-        {/* Row 5: DOB / Marital */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          {/* DOB with age */}
-          <div className="flex flex-col">
-            <FL required>Date of Birth</FL>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0"><TDate /></div>
-              <span className="text-sm text-slate-500 whitespace-nowrap shrink-0">0 years</span>
-            </div>
+        <SHead>Lookups</SHead>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>Title</FieldLabel>
+            {lookups ? mapSelect('titleId', 'Select title', lookups.titles) : <Input disabled />}
           </div>
-          <F label="Marital Status">
-            <TSelect placeholder="Please select a Marital Status"
-              options={['Single','Married','Divorced','Widowed','Civil Partnership']} />
-          </F>
-        </div>
-
-        {/* Row 6: Gender / Religion */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Gender" required>
-            <TSelect placeholder="Please select a Gender"
-              options={['Male','Female','Non-binary','Prefer not to say']} />
-          </F>
-          <F label="Religion">
-            <TSelect placeholder="Please select a Religion"
-              options={['Christianity','Islam','Hinduism','Buddhism','Judaism','Sikhism','No religion','Other']} />
-          </F>
-        </div>
-
-        {/* Row 7: Ethnicity */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-          <F label="Ethnicity">
-            <TSelect placeholder="Please select a Ethnicity" />
-          </F>
-          <div />
+          <div>
+            <FieldLabel>Gender</FieldLabel>
+            {lookups ? mapSelect('genderId', 'Select gender', lookups.genders) : <Input disabled />}
+          </div>
+          <div>
+            <FieldLabel>Marital status</FieldLabel>
+            {lookups ? mapSelect('maritalStatusId', 'Select marital status', lookups.maritalStatuses) : <Input disabled />}
+          </div>
+          <div>
+            <FieldLabel>Care type</FieldLabel>
+            {lookups ? mapSelect('careTypeId', 'Select care type', lookups.careTypes) : <Input disabled />}
+          </div>
+          <div>
+            <FieldLabel>Funding type</FieldLabel>
+            {lookups ? mapSelect('fundingTypeId', 'Select funding', lookups.fundingTypes) : <Input disabled />}
+          </div>
+          <div>
+            <FieldLabel>Risk level</FieldLabel>
+            {lookups ? mapSelect('riskLevelId', 'Select risk level', lookups.riskLevels) : <Input disabled />}
+          </div>
         </div>
       </Section>
 
-      {/* ── Contact Details ── */}
       <Section>
-        <SHead>Contact Details</SHead>
-
-        {/* Preferred contact */}
-        <div className="flex items-center gap-4 mb-5">
-          <p className="text-sm font-medium text-slate-700 shrink-0">Preferred Contact Method</p>
-          <div className="w-56">
-            <TSelect placeholder="Please select contact method"
-              options={['Phone','Email','Post','In Person']} />
+        <SHead>Contact</SHead>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>Email</FieldLabel>
+            <Input type="email" value={form.email} onChange={(e) => set('email')(e.target.value)} autoComplete="email" />
           </div>
-        </div>
-
-        {/* Address */}
-        <div className="flex items-center gap-3 mb-5">
-          <p className="text-sm font-medium text-slate-700">
-            Address<span className="text-red-500 ml-0.5">*</span>
-          </p>
-          <AddCircle />
-        </div>
-
-        {/* Phone row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5 items-end">
-          <F label="Phone Number"><TInput /></F>
-          <F label="Phone Type">
-            <TSelect placeholder="Please select phone type."
-              options={['Mobile','Home','Work','Other']} />
-          </F>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5 items-end">
-          <div className="flex flex-col">
-            <FL>Preference</FL>
-            <div className="flex items-center gap-2">
-              <div className="w-16"><TInput /></div>
-              <AddCircle />
-            </div>
+          <div>
+            <FieldLabel>Phone</FieldLabel>
+            <Input value={form.phone} onChange={(e) => set('phone')(e.target.value)} />
           </div>
-          <div />
-        </div>
-
-        {/* Email row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5 items-end">
-          <F label="Email"><TInput /></F>
-          <F label="Email Type">
-            <TSelect placeholder="Please select email type."
-              options={['Personal','Work','Other']} />
-          </F>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5 items-end">
-          <div className="flex flex-col">
-            <FL>Preference</FL>
-            <div className="flex items-center gap-2">
-              <div className="w-16"><TInput /></div>
-              <AddCircle />
-            </div>
+          <div>
+            <FieldLabel>Mobile</FieldLabel>
+            <Input value={form.mobile} onChange={(e) => set('mobile')(e.target.value)} />
           </div>
-          <div />
-        </div>
-
-        {/* Other contact */}
-        <div className="flex items-end gap-3">
-          <div className="flex flex-col flex-1 max-w-2xl">
-            <FL>Other Contact Method</FL>
-            <TInput />
-          </div>
-          <AddCircle />
         </div>
       </Section>
 
-      {/* ── Service User Login App Settings ── */}
       <Section>
-        <SHead>Service User Login App Settings</SHead>
-        <div className="flex items-center gap-4">
-          <p className="text-sm font-medium text-slate-700">Access Service User Application</p>
-          <Toggle />
-          <InfoIcon />
-        </div>
-      </Section>
-
-      {/* ── Reference Information ── */}
-      <Section>
-        <SHead>Reference Information</SHead>
-
-        {/* Row 1: ID / Location */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Service User ID"><TInput /></F>
-          <F label="Location">
-            <TSelect placeholder="Please select location" />
-          </F>
-        </div>
-
-        {/* Row 2: Start / End / Death */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Service Start Date" required><TDate /></F>
-          <F label="Service End Date"><TDate /></F>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Date of Death"><TDate /></F>
-          <div />
-        </div>
-
-        {/* Row 3: Key Worker / Named Nurse */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Key Worker"><TSearch placeholder="Employee name..." /></F>
-          <F label="Named Nurse"><TSearch placeholder="Nurse name..." /></F>
-        </div>
-
-        {/* Row 4: Funding / Category / NI */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Funding Route">
-            <TSelect placeholder="Please select a Funding Route"
-              options={['Self-funded','Local Authority','NHS','Other']} />
-          </F>
-          <F label="Category of Care">
-            <TSelect placeholder="Please select a Category of Care" />
-          </F>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="NI Number"><TInput /></F>
-          <div />
-        </div>
-
-        {/* Change Preference */}
-        <div className="flex items-start gap-2 mb-5">
-          <div className="flex flex-col flex-1 max-w-xs">
-            <FL>Change Preference</FL>
-            <textarea rows={4}
-              className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+        <SHead>Service and assignment</SHead>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>Service user number</FieldLabel>
+            <Input value={form.serviceUserNumber} onChange={(e) => set('serviceUserNumber')(e.target.value)} />
           </div>
-          <div className="mt-8"><InfoIcon /></div>
-        </div>
-
-        {/* Row: Order / AS Number */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Order Number"><TInput /></F>
-          <F label="AS Number"><TInput /></F>
-        </div>
-
-        {/* Row: Scan Type / Scan Code */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Scan Type">
-            <TSelect placeholder="None" options={['None','Barcode','QR Code']} />
-          </F>
-          <F label="Scan Code"><TInput disabled /></F>
-        </div>
-
-        {/* Row: Case / SPROC / LAS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Case Number"><TInput /></F>
-          <F label="SPROC Number"><TInput /></F>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="LAS number"><TInput /></F>
-          <div />
-        </div>
-
-        {/* Row: NHS refs / Sexual Orientation / Disability */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="NHS references"><TInput /></F>
-          <F label="Sexual Orientation"><TInput /></F>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-5">
-          <F label="Disability"><TInput /></F>
-          <div />
-        </div>
-
-        {/* Row: Pregnant / Language */}
-        <div className="grid grid-cols-2 gap-x-6">
-          <F label="Pregnant/Maternity"><TInput /></F>
-          <F label="Language"><TInput /></F>
+          <div>
+            <FieldLabel>Location</FieldLabel>
+            <Select
+              value={form.locationId ? form.locationId : '__none__'}
+              onValueChange={(v) => set('locationId')(v === '__none__' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— None —</SelectItem>
+                {locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel>Service start</FieldLabel>
+            <Input type="date" value={form.serviceStartDate} onChange={(e) => set('serviceStartDate')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Service end</FieldLabel>
+            <Input type="date" value={form.serviceEndDate} onChange={(e) => set('serviceEndDate')(e.target.value)} />
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <FieldLabel>Key worker (search employees)</FieldLabel>
+            <Input
+              placeholder="Type at least 2 characters…"
+              value={kwSearch}
+              onChange={(e) => {
+                setKwSearch(e.target.value)
+                if (!e.target.value.trim()) {
+                  setForm((p) => ({ ...p, keyWorkerId: '' }))
+                  setKeyWorkerLabel('')
+                }
+              }}
+            />
+            {form.keyWorkerId && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {keyWorkerLabel || form.keyWorkerId}{' '}
+                <button
+                  type="button"
+                  className="text-blue-600 underline"
+                  onClick={() => {
+                    setForm((p) => ({ ...p, keyWorkerId: '' }))
+                    setKeyWorkerLabel('')
+                    setKwSearch('')
+                  }}
+                >
+                  Clear
+                </button>
+              </p>
+            )}
+            {kwHits.length > 0 && !form.keyWorkerId && (
+              <ul className="max-h-40 overflow-auto rounded border bg-popover text-sm">
+                {kwHits.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left hover:bg-muted"
+                      onClick={() => {
+                        setForm((p) => ({ ...p, keyWorkerId: r.id }))
+                        setKeyWorkerLabel(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim())
+                        setKwSearch('')
+                        setKwHits([])
+                      }}
+                    >
+                      {(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()) || r.id}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <FieldLabel>Named nurse (search employees)</FieldLabel>
+            <Input
+              placeholder="Type at least 2 characters…"
+              value={nnSearch}
+              onChange={(e) => {
+                setNnSearch(e.target.value)
+                if (!e.target.value.trim()) {
+                  setForm((p) => ({ ...p, namedNurseId: '' }))
+                  setNamedNurseLabel('')
+                }
+              }}
+            />
+            {form.namedNurseId && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {namedNurseLabel || form.namedNurseId}{' '}
+                <button
+                  type="button"
+                  className="text-blue-600 underline"
+                  onClick={() => {
+                    setForm((p) => ({ ...p, namedNurseId: '' }))
+                    setNamedNurseLabel('')
+                    setNnSearch('')
+                  }}
+                >
+                  Clear
+                </button>
+              </p>
+            )}
+            {nnHits.length > 0 && !form.namedNurseId && (
+              <ul className="max-h-40 overflow-auto rounded border bg-popover text-sm">
+                {nnHits.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left hover:bg-muted"
+                      onClick={() => {
+                        setForm((p) => ({ ...p, namedNurseId: r.id }))
+                        setNamedNurseLabel(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim())
+                        setNnSearch('')
+                        setNnHits([])
+                      }}
+                    >
+                      {(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()) || r.id}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="md:col-span-2">
+            <FieldLabel>Notes</FieldLabel>
+            <textarea
+              rows={3}
+              className={cn(
+                'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
+                'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              )}
+              value={form.notes}
+              onChange={(e) => set('notes')(e.target.value)}
+            />
+          </div>
         </div>
       </Section>
 
-      {/* ── Footer ── */}
+      <Section>
+        <SHead>Address (optional — saved after create)</SHead>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <FieldLabel>Address line 1</FieldLabel>
+            <Input value={form.addressLine1} onChange={(e) => set('addressLine1')(e.target.value)} />
+          </div>
+          <div className="md:col-span-2">
+            <FieldLabel>Address line 2</FieldLabel>
+            <Input value={form.addressLine2} onChange={(e) => set('addressLine2')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Town</FieldLabel>
+            <Input value={form.town} onChange={(e) => set('town')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>County</FieldLabel>
+            <Input value={form.county} onChange={(e) => set('county')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Country</FieldLabel>
+            <Input value={form.country} onChange={(e) => set('country')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Postcode</FieldLabel>
+            <Input value={form.postcode} onChange={(e) => set('postcode')(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Key safe number</FieldLabel>
+            <Input value={form.keySafeNumber} onChange={(e) => set('keySafeNumber')(e.target.value)} autoComplete="off" />
+          </div>
+          <div className="md:col-span-2">
+            <FieldLabel>Access instructions</FieldLabel>
+            <textarea
+              rows={2}
+              className={cn(
+                'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
+                'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              )}
+              value={form.accessInstructions}
+              onChange={(e) => set('accessInstructions')(e.target.value)}
+            />
+          </div>
+        </div>
+      </Section>
+
       <div className="flex justify-end gap-3 pt-2">
-        <Button variant="outline" className="px-8">Close</Button>
-        <Button className="px-8">Save</Button>
+        <Button type="button" variant="outline" className="px-8" onClick={() => void navigate({ to: '/service-users/all' })}>
+          Cancel
+        </Button>
+        <Button type="submit" className="px-8" disabled={submitting || !apiConfigured}>
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            'Save'
+          )}
+        </Button>
       </div>
-
-      {/* Scroll-to-top */}
-      <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-6 right-6 h-10 w-10 rounded bg-slate-600 text-white flex items-center justify-center shadow-lg hover:bg-slate-700 transition-colors z-50">
-        <span className="text-lg leading-none">↑</span>
-      </button>
-    </div>
+    </form>
   )
 }

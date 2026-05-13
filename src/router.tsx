@@ -12,6 +12,7 @@ import {
 import { useEffect } from 'react'
 
 import { AppLayout } from '@/components/layout/AppLayout'
+import { AppToaster } from '@/components/layout/AppToaster'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { SessionRefresh } from '@/components/auth/SessionRefresh'
 import { useUIStore } from '@/store/ui.store'
@@ -23,6 +24,7 @@ import HomePage from '@/components/pages/HomePage'
 import ServiceUsersPage from '@/components/pages/ServiceUsersPage'
 import CalendarPage from '@/components/pages/CalendarPage'
 import AddServiceUserPage from '@/components/pages/AddServiceUserPage'
+import EditServiceUserPage from '@/components/pages/EditServiceUserPage'
 import EmployeePage from '@/components/pages/EmployeePage'
 import TempInspectorPage from '@/components/pages/TempInspectorPage'
 import GeneralEmployeeDocumentsPage from '@/components/pages/GeneralEmployeeDocumentsPage'
@@ -50,6 +52,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/all': 'Service Users',
   '/service-users/calendar': 'Calendar',
   '/service-users/add': 'Add Service User',
+  '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
   '/scheduling/report': 'Scheduling Reports',
   '/scheduling/jobs': 'Scheduled Jobs Housekeeping',
@@ -92,12 +95,20 @@ function AppRootShell() {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const pageTitle =
     pageTitles[pathname] ??
-    (/^\/employee\/[^/]+\/edit$/.test(pathname) ? 'Edit Employee' : 'CareAdmin')
-  const fullBleed = pathname === '/service-users/all' || pathname === '/scheduling/view'
+    (/^\/employee\/[^/]+\/edit$/.test(pathname)
+      ? 'Edit Employee'
+      : /^\/service-users\/[^/]+$/.test(pathname)
+        ? 'Edit Service User'
+        : 'CareAdmin')
+  const fullBleed =
+    pathname === '/service-users/all' ||
+    pathname === '/scheduling/view' ||
+    /^\/service-users\/[^/]+$/.test(pathname)
 
   return (
     <>
       <SessionRefresh />
+      <AppToaster />
       <AppLayout pageTitle={pageTitle} fullBleed={fullBleed}>
         <Outlet />
       </AppLayout>
@@ -180,6 +191,7 @@ const serviceUsersRoute = createRoute({
 const serviceUsersAllRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/all',
+  beforeLoad: requirePermission('service_users.read'),
   component: ServiceUsersPage,
 })
 
@@ -192,8 +204,15 @@ const serviceUsersCalendarRoute = createRoute({
 const serviceUsersAddRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/add',
-  beforeLoad: requirePermission('employees.read'),
+  beforeLoad: requirePermission('service_users.create'),
   component: AddServiceUserPage,
+})
+
+const serviceUsersEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId',
+  beforeLoad: requirePermission('service_users.read'),
+  component: EditServiceUserPage,
 })
 
 const schedulingViewRoute = createRoute({
@@ -356,6 +375,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersAllRoute,
     serviceUsersCalendarRoute,
     serviceUsersAddRoute,
+    serviceUsersEditRoute,
     schedulingViewRoute,
     schedulingReportRoute,
     schedulingJobsRoute,
