@@ -55,6 +55,20 @@ jobs:
           test -f "$BUILD_DIR/index.html"
           echo "Build output verified from $BUILD_DIR"
 
+      - name: Create release metadata
+        run: |
+          cat > "$BUILD_DIR/release.json" <<EOF
+          {
+            "app": "careflow-admin",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "deployedBy": "${{ github.actor }}",
+            "runId": "${{ github.run_id }}",
+            "runNumber": "${{ github.run_number }}",
+            "deployedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
       - name: Package release
         run: |
           tar -czf careflow-admin-release.tar.gz -C "$BUILD_DIR" .
@@ -72,6 +86,13 @@ jobs:
     needs: build
     environment: production
 
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      ADMIN_DEPLOY_PATH: ${{ secrets.ADMIN_DEPLOY_PATH }}
+      ADMIN_APP_URL: ${{ secrets.ADMIN_APP_URL }}
+
     steps:
       - name: Download release artifact
         uses: actions/download-artifact@v4
@@ -80,38 +101,93 @@ jobs:
 
       - name: Configure SSH access
         run: |
+          set -e
+
           mkdir -p ~/.ssh
+
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          echo "Adding VPS host key to known_hosts..."
+
+          for i in 1 2 3 4 5; do
+            ssh-keyscan -T 20 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts && break
+            echo "ssh-keyscan failed. Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "Failed to add VPS host key."
+            exit 1
+          fi
+
+          echo "SSH access configured."
+
+      - name: Verify SSH connection
+        run: |
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "whoami && pwd && ls -ld '$ADMIN_DEPLOY_PATH'"
 
       - name: Prepare remote deployment folders
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            mkdir -p /home/sigisolutions/deployments/careflow-admin/incoming
-            mkdir -p /home/sigisolutions/deployments/careflow-admin/releases
-            mkdir -p /home/sigisolutions/deployments/careflow-admin/backups
-          "
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/incoming
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/releases
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/backups
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/logs
+            "
 
       - name: Upload release package
         run: |
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
           scp -i ~/.ssh/deploy_key \
+            -P "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
             careflow-admin-release.tar.gz \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/home/sigisolutions/deployments/careflow-admin/incoming/${{ github.sha }}.tar.gz
+            "$VPS_USER@$VPS_HOST:/home/sigisolutions/deployments/careflow-admin/incoming/${{ github.sha }}.tar.gz"
 
       - name: Deploy release with backup and rollback protection
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" << 'REMOTE_SCRIPT'
           set -euo pipefail
 
           APP_NAME="careflow-admin"
           RELEASE_ID="${{ github.sha }}"
           LIVE_PATH="${{ secrets.ADMIN_DEPLOY_PATH }}"
+          APP_URL="${{ secrets.ADMIN_APP_URL }}"
           DEPLOY_ROOT="/home/sigisolutions/deployments/careflow-admin"
           INCOMING_FILE="$DEPLOY_ROOT/incoming/$RELEASE_ID.tar.gz"
           RELEASE_PATH="$DEPLOY_ROOT/releases/$RELEASE_ID"
           BACKUP_FILE="$DEPLOY_ROOT/backups/backup-$(date +%Y%m%d%H%M%S).tar.gz"
           ROLLBACK_DIR="$DEPLOY_ROOT/rollback-temp"
+          DEPLOY_LOG="$DEPLOY_ROOT/logs/deployments.log"
 
           rollback() {
             echo "Deployment failed. Starting rollback..."
@@ -126,6 +202,10 @@ jobs:
                 --exclude=".htaccess" \
                 --exclude=".well-known" \
                 --exclude="cgi-bin" \
+                --exclude=".env" \
+                --exclude=".env.*" \
+                --exclude="*.pem" \
+                --exclude="*.key" \
                 "$ROLLBACK_DIR/" "$LIVE_PATH/"
 
               echo "Rollback completed."
@@ -152,6 +232,10 @@ jobs:
           tar \
             --exclude=".well-known" \
             --exclude="cgi-bin" \
+            --exclude=".env" \
+            --exclude=".env.*" \
+            --exclude="*.pem" \
+            --exclude="*.key" \
             -czf "$BACKUP_FILE" \
             -C "$LIVE_PATH" .
 
@@ -160,16 +244,46 @@ jobs:
             --exclude=".htaccess" \
             --exclude=".well-known" \
             --exclude="cgi-bin" \
+            --exclude=".env" \
+            --exclude=".env.*" \
+            --exclude="*.pem" \
+            --exclude="*.key" \
             "$RELEASE_PATH/" "$LIVE_PATH/"
+
+          if [ ! -f "$LIVE_PATH/.htaccess" ]; then
+            echo "Creating default React .htaccess..."
+            cat > "$LIVE_PATH/.htaccess" <<'HTACCESS'
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+
+            RewriteCond %{REQUEST_FILENAME} -f [OR]
+            RewriteCond %{REQUEST_FILENAME} -d
+            RewriteRule ^ - [L]
+
+            RewriteRule ^ index.html [L]
+          </IfModule>
+          HTACCESS
+            chmod 644 "$LIVE_PATH/.htaccess"
+          fi
 
           echo "$RELEASE_ID" > "$DEPLOY_ROOT/current-release.txt"
 
+          {
+            echo "release=$RELEASE_ID"
+            echo "backup=$BACKUP_FILE"
+            echo "actor=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "---"
+          } >> "$DEPLOY_LOG"
+
           echo "Checking live website..."
-          curl -fsS --retry 3 https://careflowadmin.sigisolutions.net/ > /dev/null
+          curl -fsS --retry 3 "$APP_URL" > /dev/null
 
           echo "Cleaning old releases and backups..."
-          ls -1dt "$DEPLOY_ROOT/releases"/* 2>/dev/null | tail -n +6 | xargs -r rm -rf
-          ls -1t "$DEPLOY_ROOT/backups"/backup-*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+          ls -1dt "$DEPLOY_ROOT/releases"/* 2>/dev/null | tail -n +11 | xargs -r rm -rf
+          ls -1t "$DEPLOY_ROOT/backups"/backup-*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
 
           echo "Deployment completed successfully."
-          EOF
+          REMOTE_SCRIPT
