@@ -175,54 +175,192 @@ export async function fetchServiceUser(id: string): Promise<ServiceUserDetail> {
   return res.data
 }
 
-export type FundingBillingType = 'SINGLE_FUNDER' | 'SPLIT_SU_WEEKLY_CONTRIBUTION'
-export type FundingFunderKind = 'SERVICE_USER' | 'CONTACT' | 'EXTERNAL_FUNDER'
+export type EnterpriseFundingStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'ENDED'
+  | 'REJECTED'
+  | 'UNKNOWN'
 
-export type FundingCareServiceRow = { id: string; name: string; code: string }
-export type FundingRateCardRow = {
+export type EnterpriseFundingTypeRow = {
+  id: string
+  name: string
+  code: string
+  description?: string | null
+}
+
+export type EnterpriseFunderRow = {
   id: string
   name: string
   code: string | null
-  isCustom: boolean
-  serviceUserId: string | null
+  fundingType?: { id: string; name: string; code: string } | null
 }
 
-export type ServiceUserFundingProfileRow = {
+export type EnterpriseServiceUserFundingRow = {
   id: string
-  billingType: FundingBillingType
-  funder1Kind: FundingFunderKind
-  funder1ContactId: string | null
-  funder1ExternalName: string | null
-  invoiceMileage: boolean
-  sortOrder: number
-  careService: FundingCareServiceRow
-  rateCard: { id: string; name: string; code: string | null; isCustom: boolean }
-  funder1Contact: { id: string; firstName: string; lastName: string | null } | null
+  serviceUserId: string
+  fundingTypeId: string
+  funderId: string | null
+  status: EnterpriseFundingStatus
+  fundingReference: string | null
+  approvalReference: string | null
+  packageName: string | null
+  startDate: string | null
+  endDate: string | null
+  weeklyBudget: string | null
+  hourlyRate: string | null
+  contributionAmount: string | null
+  isPrimary: boolean
+  isActive: boolean
+  approvedAt: string | null
+  approvedById: string | null
+  reviewDate: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  fundingType: { id: string; name: string; code: string }
+  funder: { id: string; name: string; code: string | null } | null
+  approvedBy: { id: string; email: string; firstName: string | null; lastName: string | null } | null
 }
 
-export type ServiceUserFundingBundle = {
-  nhsNumber: string | null
-  socialServicesRef: string | null
-  profiles: ServiceUserFundingProfileRow[]
+export type FundingPaginationMeta = {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNextPage?: boolean
+  hasPrevPage?: boolean
 }
 
-export type ServiceUserFundingLookups = {
-  careServices: FundingCareServiceRow[]
-  rateCards: FundingRateCardRow[]
+export async function listEnterpriseFundingTypes(options?: { limit?: number }): Promise<EnterpriseFundingTypeRow[]> {
+  const qs = new URLSearchParams()
+  qs.set('limit', String(options?.limit ?? 200))
+  const res = await apiJson<ApiEnvelope<EnterpriseFundingTypeRow[]>>(`/funding-types?${qs}`, { method: 'GET' })
+  return res.data
 }
 
-export async function fetchServiceUserFundingLookups(serviceUserId: string): Promise<ServiceUserFundingLookups> {
-  const res = await apiJson<ApiEnvelope<ServiceUserFundingLookups>>(
-    `/service-users/${serviceUserId}/funding/lookups`,
+export async function listEnterpriseFunders(options?: { limit?: number }): Promise<EnterpriseFunderRow[]> {
+  const qs = new URLSearchParams()
+  qs.set('limit', String(options?.limit ?? 200))
+  const res = await apiJson<ApiEnvelope<EnterpriseFunderRow[]>>(`/funders?${qs}`, { method: 'GET' })
+  return res.data
+}
+
+export async function listServiceUserEnterpriseFundings(
+  serviceUserId: string,
+  params?: { page?: number; limit?: number },
+): Promise<{ rows: EnterpriseServiceUserFundingRow[]; meta: FundingPaginationMeta }> {
+  const qs = new URLSearchParams()
+  if (params?.page != null) qs.set('page', String(params.page))
+  if (params?.limit != null) qs.set('limit', String(params.limit))
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow[]>>(
+    `/service-users/${serviceUserId}/funding${q ? `?${q}` : ''}`,
+    { method: 'GET' },
+  )
+  const meta = (res.meta ?? {}) as Partial<FundingPaginationMeta>
+  return {
+    rows: res.data,
+    meta: {
+      page: meta.page ?? 1,
+      limit: meta.limit ?? 20,
+      total: meta.total ?? res.data.length,
+      totalPages: meta.totalPages ?? 1,
+      hasNextPage: meta.hasNextPage,
+      hasPrevPage: meta.hasPrevPage,
+    },
+  }
+}
+
+export async function getServiceUserEnterpriseFunding(
+  serviceUserId: string,
+  fundingId: string,
+): Promise<EnterpriseServiceUserFundingRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow>>(
+    `/service-users/${serviceUserId}/funding/${fundingId}`,
     { method: 'GET' },
   )
   return res.data
 }
 
-export async function fetchServiceUserFunding(serviceUserId: string): Promise<ServiceUserFundingBundle> {
-  const res = await apiJson<ApiEnvelope<ServiceUserFundingBundle>>(`/service-users/${serviceUserId}/funding`, {
-    method: 'GET',
-  })
+export type CreateEnterpriseServiceUserFundingBody = {
+  fundingTypeId: string
+  funderId?: string | null
+  status?: EnterpriseFundingStatus
+  fundingReference?: string | null
+  approvalReference?: string | null
+  packageName?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  weeklyBudget?: number | null
+  hourlyRate?: number | null
+  contributionAmount?: number | null
+  isPrimary?: boolean
+  reviewDate?: string | null
+  notes?: string | null
+}
+
+export async function createServiceUserEnterpriseFunding(
+  serviceUserId: string,
+  body: CreateEnterpriseServiceUserFundingBody,
+): Promise<EnterpriseServiceUserFundingRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow>>(
+    `/service-users/${serviceUserId}/funding`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserEnterpriseFunding(
+  serviceUserId: string,
+  fundingId: string,
+  body: Partial<CreateEnterpriseServiceUserFundingBody>,
+): Promise<EnterpriseServiceUserFundingRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow>>(
+    `/service-users/${serviceUserId}/funding/${fundingId}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserEnterpriseFunding(serviceUserId: string, fundingId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/funding/${fundingId}`, { method: 'DELETE' })
+}
+
+export async function setPrimaryServiceUserEnterpriseFunding(
+  serviceUserId: string,
+  fundingId: string,
+): Promise<EnterpriseServiceUserFundingRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow>>(
+    `/service-users/${serviceUserId}/funding/${fundingId}/set-primary`,
+    { method: 'PATCH', body: JSON.stringify({}) },
+  )
+  return res.data
+}
+
+export async function approveServiceUserEnterpriseFunding(
+  serviceUserId: string,
+  fundingId: string,
+  body?: { approvalReference?: string | null; notes?: string | null },
+): Promise<EnterpriseServiceUserFundingRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow>>(
+    `/service-users/${serviceUserId}/funding/${fundingId}/approve`,
+    { method: 'PATCH', body: JSON.stringify(body ?? {}) },
+  )
+  return res.data
+}
+
+export async function endServiceUserEnterpriseFunding(
+  serviceUserId: string,
+  fundingId: string,
+  body: { endDate: string; reason?: string | null; notes?: string | null },
+): Promise<EnterpriseServiceUserFundingRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseServiceUserFundingRow>>(
+    `/service-users/${serviceUserId}/funding/${fundingId}/end`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
   return res.data
 }
 
@@ -234,55 +372,6 @@ export async function patchServiceUserFundingRefs(
     `/service-users/${serviceUserId}/funding`,
     { method: 'PATCH', body: JSON.stringify(body) },
   )
-  return res.data
-}
-
-export type CreateFundingProfileBody = {
-  careServiceId: string
-  billingType: FundingBillingType
-  funder1Kind: FundingFunderKind
-  funder1ContactId?: string | null
-  funder1ExternalName?: string | null
-  rateCardId: string
-  invoiceMileage?: boolean
-}
-
-export async function createServiceUserFundingProfile(
-  serviceUserId: string,
-  body: CreateFundingProfileBody,
-): Promise<ServiceUserFundingProfileRow> {
-  const res = await apiJson<ApiEnvelope<ServiceUserFundingProfileRow>>(
-    `/service-users/${serviceUserId}/funding/profiles`,
-    { method: 'POST', body: JSON.stringify(body) },
-  )
-  return res.data
-}
-
-export async function updateServiceUserFundingProfile(
-  serviceUserId: string,
-  profileId: string,
-  body: Partial<CreateFundingProfileBody>,
-): Promise<ServiceUserFundingProfileRow> {
-  const res = await apiJson<ApiEnvelope<ServiceUserFundingProfileRow>>(
-    `/service-users/${serviceUserId}/funding/profiles/${profileId}`,
-    { method: 'PATCH', body: JSON.stringify(body) },
-  )
-  return res.data
-}
-
-export async function deleteServiceUserFundingProfile(serviceUserId: string, profileId: string): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/funding/profiles/${profileId}`, {
-    method: 'DELETE',
-  })
-}
-
-export async function createServiceUserCustomRateCard(
-  serviceUserId: string,
-  body: { name: string; careServiceId: string; startDate: string; standardHourlyRate: number; mileageRatePerUnit?: number | null },
-): Promise<{ id: string; name: string; code: string | null; isCustom: boolean; serviceUserId: string | null }> {
-  const res = await apiJson<
-    ApiEnvelope<{ id: string; name: string; code: string | null; isCustom: boolean; serviceUserId: string | null }>
-  >(`/service-users/${serviceUserId}/funding/rate-cards`, { method: 'POST', body: JSON.stringify(body) })
   return res.data
 }
 
@@ -408,6 +497,113 @@ export async function listServiceUserAllergies(serviceUserId: string): Promise<S
   const res = await apiJson<ApiEnvelope<ServiceUserAllergyRow[]>>(`/service-users/${serviceUserId}/allergies`, {
     method: 'GET',
   })
+  return res.data
+}
+
+export type ServiceUserMedicationLookupNested = {
+  id: string
+  name: string
+  code: string
+} | null
+
+/** List row from `GET /service-users/:id/medications` (aligned with Prisma + Nest includes). */
+export type ServiceUserMedicationRow = {
+  id: string
+  serviceUserId: string
+  medicationName: string
+  dose: string | null
+  strength: string | null
+  status: string
+  startDate: string | null
+  endDate: string | null
+  instructions: string | null
+  frequencyText: string | null
+  isControlledMedication: boolean
+  route?: ServiceUserMedicationLookupNested
+  frequency?: ServiceUserMedicationLookupNested
+  medicationType?: ServiceUserMedicationLookupNested
+  category?: ServiceUserMedicationLookupNested
+}
+
+export type ListServiceUserMedicationsParams = {
+  page?: number
+  limit?: number
+  search?: string
+  showPastEndDate?: boolean
+}
+
+export async function listServiceUserMedications(
+  serviceUserId: string,
+  params: ListServiceUserMedicationsParams = {},
+): Promise<{ rows: ServiceUserMedicationRow[]; meta: ServiceUserListMeta }> {
+  const qs = new URLSearchParams()
+  if (params.page != null) qs.set('page', String(params.page))
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.showPastEndDate === true) qs.set('showPastEndDate', 'true')
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<ServiceUserMedicationRow[]>>(
+    `/service-users/${serviceUserId}/medications${q ? `?${q}` : ''}`,
+    { method: 'GET' },
+  )
+  const meta = (res.meta ?? {}) as Partial<ServiceUserListMeta>
+  return {
+    rows: res.data,
+    meta: {
+      page: meta.page ?? 1,
+      limit: meta.limit ?? 20,
+      total: meta.total ?? res.data.length,
+      totalPages: meta.totalPages ?? 1,
+      hasNextPage: meta.hasNextPage ?? false,
+      hasPrevPage: meta.hasPrevPage ?? false,
+    },
+  }
+}
+
+export type MedicationLookupRow = { id: string; name: string; code: string }
+
+export type MedicationLookupsBundle = {
+  types: MedicationLookupRow[]
+  routes: MedicationLookupRow[]
+  categories: MedicationLookupRow[]
+  frequencies: MedicationLookupRow[]
+  rounds: MedicationLookupRow[]
+  notGivenReasons: MedicationLookupRow[]
+}
+
+export async function fetchMedicationLookups(): Promise<MedicationLookupsBundle> {
+  const res = await apiJson<ApiEnvelope<MedicationLookupsBundle>>('/medication-lookups', { method: 'GET' })
+  return res.data
+}
+
+/** Body for `POST /service-users/:id/medications` (Nest `CreateServiceUserMedicationDto`). */
+export type CreateServiceUserMedicationPayload = {
+  medicationName: string
+  medicationKind: 'REGULAR' | 'PRN'
+  dose?: string
+  strength?: string
+  startDate?: string
+  endDate?: string
+  medicationTypeId?: string
+  routeId?: string
+  categoryId?: string
+  frequencyId?: string
+  frequencyText?: string
+  instructions?: string
+  notes?: string
+  isControlledMedication?: boolean
+  medicationPackId?: string
+  status?: 'ACTIVE' | 'ENDED' | 'PAUSED' | 'CANCELLED'
+}
+
+export async function createServiceUserMedication(
+  serviceUserId: string,
+  body: CreateServiceUserMedicationPayload,
+): Promise<ServiceUserMedicationRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserMedicationRow>>(
+    `/service-users/${serviceUserId}/medications`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
   return res.data
 }
 
@@ -1136,4 +1332,240 @@ export async function uploadServiceUserInitialAssessmentPicture(
   }
   const envelope = bodyJson as ApiEnvelope<ServiceUserInitialAssessmentData>
   return envelope.data
+}
+
+// --- Live-in Service Profile (Nest: service-user-live-in-profiles, live-in-lookups) ---
+
+export type LiveInLookupRow = { id: string; name: string; code: string; description?: string | null; sortOrder?: number }
+
+export type LiveInLookupsBundle = {
+  serviceTypes: LiveInLookupRow[]
+  levelsOfCare: LiveInLookupRow[]
+  scanTypes: LiveInLookupRow[]
+}
+
+export async function fetchLiveInLookupsBundle(): Promise<LiveInLookupsBundle> {
+  const res = await apiJson<ApiEnvelope<LiveInLookupsBundle>>(`/live-in-lookups`, { method: 'GET' })
+  return res.data
+}
+
+export type LiveInProfileStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'CANCELLED'
+
+export type LiveInCarerLink = {
+  id: string
+  employeeId: string
+  reason: string | null
+  employee?: { personalDetail?: { firstName: string; lastName: string } | null } | null
+}
+
+export type LiveInContractDoc = {
+  id: string
+  fileName: string
+  originalName: string
+  fileUrl: string
+  mimeType: string
+  fileSize: number
+  uploadedAt: string
+}
+
+export type ServiceUserLiveInProfileDetail = {
+  id: string
+  serviceUserId: string
+  isLiveInEnabled: boolean
+  isCustom: boolean
+  serviceTypeId: string | null
+  residentContactId: string | null
+  levelOfCareId: string | null
+  scanTypeId: string | null
+  numberOfCarers: number
+  careInstructions: string | null
+  startDate: string | null
+  endDate: string | null
+  reviewDate: string | null
+  status: LiveInProfileStatus
+  notes: string | null
+  serviceType?: { id: string; name: string; code: string } | null
+  residentContact?: { id: string; firstName: string; lastName: string | null; phone?: string | null; mobile?: string | null; email?: string | null } | null
+  levelOfCare?: { id: string; name: string; code: string } | null
+  scanType?: { id: string; name: string; code: string } | null
+  preferredCarers: LiveInCarerLink[]
+  blockedCarers: LiveInCarerLink[]
+  contractDocuments: LiveInContractDoc[]
+}
+
+export async function fetchServiceUserLiveInProfile(
+  serviceUserId: string,
+): Promise<ServiceUserLiveInProfileDetail | null> {
+  const res = await apiJson<ApiEnvelope<ServiceUserLiveInProfileDetail | null>>(
+    `/service-users/${serviceUserId}/live-in-profile`,
+    { method: 'GET' },
+  )
+  return res.data ?? null
+}
+
+export type PatchServiceUserLiveInProfilePayload = {
+  isLiveInEnabled?: boolean
+  isCustom?: boolean
+  serviceTypeId?: string | null
+  residentContactId?: string | null
+  levelOfCareId?: string | null
+  scanTypeId?: string | null
+  numberOfCarers?: number
+  careInstructions?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  reviewDate?: string | null
+  status?: LiveInProfileStatus
+  notes?: string | null
+}
+
+export async function createServiceUserLiveInProfile(
+  serviceUserId: string,
+  body: PatchServiceUserLiveInProfilePayload = {},
+): Promise<ServiceUserLiveInProfileDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserLiveInProfileDetail>>(
+    `/service-users/${serviceUserId}/live-in-profile`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function patchServiceUserLiveInProfile(
+  serviceUserId: string,
+  body: PatchServiceUserLiveInProfilePayload,
+): Promise<ServiceUserLiveInProfileDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserLiveInProfileDetail>>(
+    `/service-users/${serviceUserId}/live-in-profile`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserLiveInProfile(serviceUserId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/live-in-profile`, { method: 'DELETE' })
+}
+
+export async function patchServiceUserLiveInProfileStatus(
+  serviceUserId: string,
+  body: { status: LiveInProfileStatus; reason?: string },
+): Promise<ServiceUserLiveInProfileDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserLiveInProfileDetail>>(
+    `/service-users/${serviceUserId}/live-in-profile/status`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function addServiceUserLiveInPreferredCarer(
+  serviceUserId: string,
+  body: { employeeId: string; reason?: string },
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/live-in-profile/preferred-carers`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function removeServiceUserLiveInPreferredCarer(
+  serviceUserId: string,
+  employeeId: string,
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/live-in-profile/preferred-carers/${employeeId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function addServiceUserLiveInBlockedCarer(
+  serviceUserId: string,
+  body: { employeeId: string; reason?: string },
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/live-in-profile/blocked-carers`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function removeServiceUserLiveInBlockedCarer(
+  serviceUserId: string,
+  employeeId: string,
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/live-in-profile/blocked-carers/${employeeId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function uploadServiceUserLiveInContract(serviceUserId: string, file: File): Promise<unknown> {
+  const base = getApiBaseUrl()
+  if (!base) {
+    throw new ApiError('API base URL is not configured (set VITE_API_BASE_URL).', 0)
+  }
+  const url = `${base}/service-users/${serviceUserId}/live-in-profile/contract-documents`
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(url, { method: 'POST', headers, body: form })
+  const text = await res.text()
+  let bodyJson: unknown = null
+  try {
+    bodyJson = text ? JSON.parse(text) : null
+  } catch {
+    bodyJson = text
+  }
+  if (!res.ok) {
+    const msg =
+      typeof bodyJson === 'object' && bodyJson !== null && 'message' in bodyJson
+        ? String((bodyJson as { message: unknown }).message)
+        : res.statusText
+    throw new ApiError(msg || 'Upload failed', res.status, bodyJson)
+  }
+  return (bodyJson as ApiEnvelope<{ id: string }>).data
+}
+
+export async function deleteServiceUserLiveInContract(serviceUserId: string, documentId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(
+    `/service-users/${serviceUserId}/live-in-profile/contract-documents/${documentId}`,
+    { method: 'DELETE' },
+  )
+}
+
+/** Opens a save dialog for the contract file (requires `service_users.live_in_profile.documents.download`). */
+export async function downloadServiceUserLiveInContract(
+  serviceUserId: string,
+  documentId: string,
+  originalName: string,
+): Promise<void> {
+  const base = getApiBaseUrl()
+  if (!base) {
+    throw new ApiError('API base URL is not configured (set VITE_API_BASE_URL).', 0)
+  }
+  const token = useAuthStore.getState().accessToken
+  const url = `${base}/service-users/${serviceUserId}/live-in-profile/contract-documents/${documentId}/download`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let bodyJson: unknown = null
+    try {
+      bodyJson = text ? JSON.parse(text) : null
+    } catch {
+      bodyJson = text
+    }
+    const msg =
+      typeof bodyJson === 'object' && bodyJson !== null && 'message' in bodyJson
+        ? String((bodyJson as { message: unknown }).message)
+        : res.statusText
+    throw new ApiError(msg || 'Download failed', res.status, bodyJson)
+  }
+  const blob = await res.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = originalName || 'contract'
+  a.click()
+  URL.revokeObjectURL(a.href)
 }

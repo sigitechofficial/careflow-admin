@@ -15,6 +15,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { AppToaster } from '@/components/layout/AppToaster'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { SessionRefresh } from '@/components/auth/SessionRefresh'
+import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import { rootAuthBeforeLoad } from '@/auth/guard'
@@ -25,6 +26,8 @@ import ServiceUsersPage from '@/components/pages/ServiceUsersPage'
 import CalendarPage from '@/components/pages/CalendarPage'
 import AddServiceUserPage from '@/components/pages/AddServiceUserPage'
 import EditServiceUserPage from '@/components/pages/EditServiceUserPage'
+import ViewServiceUserPage from '@/components/pages/ViewServiceUserPage'
+import ServiceUserMedicationPage from '@/components/pages/ServiceUserMedicationPage'
 import EmployeePage from '@/components/pages/EmployeePage'
 import TempInspectorPage from '@/components/pages/TempInspectorPage'
 import GeneralEmployeeDocumentsPage from '@/components/pages/GeneralEmployeeDocumentsPage'
@@ -43,6 +46,7 @@ import ForgotPasswordPage from '@/components/pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '@/components/pages/auth/ResetPasswordPage'
 import BlockedIpPage from '@/components/pages/auth/BlockedIpPage'
 import ComponentShowcase from '@/components/pages/ComponentShowcase'
+import InProgressPage from '@/components/pages/InProgressPage'
 
 type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
 
@@ -71,6 +75,8 @@ const pageTitles: Record<string, string> = {
   '/account': 'My account',
   '/admin/security': 'Security administration',
   '/admin/audit': 'Audit log',
+  '/in-progress': 'Page in progress',
+  '/showcase': 'UI showcase',
 }
 
 function RootDocument() {
@@ -92,17 +98,24 @@ function RootDocument() {
 }
 
 function AppRootShell() {
+  useNotificationSocket()
   const pathname = useRouterState({ select: s => s.location.pathname })
   const pageTitle =
     pageTitles[pathname] ??
     (/^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
-      : /^\/service-users\/[^/]+$/.test(pathname)
-        ? 'Edit Service User'
-        : 'CareAdmin')
+      : /^\/service-users\/[^/]+\/view$/.test(pathname)
+        ? 'Service User'
+        : /^\/service-users\/[^/]+\/medication$/.test(pathname)
+          ? 'Medication'
+          : /^\/service-users\/[^/]+$/.test(pathname)
+            ? 'Edit Service User'
+            : 'CareAdmin')
   const fullBleed =
     pathname === '/service-users/all' ||
     pathname === '/scheduling/view' ||
+    /^\/service-users\/[^/]+\/view$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
 
   return (
@@ -206,6 +219,20 @@ const serviceUsersAddRoute = createRoute({
   path: '/service-users/add',
   beforeLoad: requirePermission('service_users.create'),
   component: AddServiceUserPage,
+})
+
+const serviceUsersViewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/view',
+  beforeLoad: requirePermission('service_users.read'),
+  component: ViewServiceUserPage,
+})
+
+const serviceUsersMedicationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/medication',
+  beforeLoad: requirePermission('service_users.read'),
+  component: ServiceUserMedicationPage,
 })
 
 const serviceUsersEditRoute = createRoute({
@@ -356,6 +383,16 @@ const adminAuditRoute = createRoute({
   component: AuditLogPage,
 })
 
+const inProgressRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/in-progress',
+  validateSearch: (raw: Record<string, unknown>): { title?: string } => {
+    const t = raw.title
+    return { title: typeof t === 'string' ? t : undefined }
+  },
+  component: InProgressPage,
+})
+
 const showcaseRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/showcase',
@@ -375,6 +412,8 @@ const routeTree = rootRoute.addChildren([
     serviceUsersAllRoute,
     serviceUsersCalendarRoute,
     serviceUsersAddRoute,
+    serviceUsersViewRoute,
+    serviceUsersMedicationRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
     schedulingReportRoute,
@@ -395,11 +434,16 @@ const routeTree = rootRoute.addChildren([
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
+    inProgressRoute,
     showcaseRoute,
   ]),
 ])
 
-const router = createRouter({ routeTree })
+const router = createRouter({
+  routeTree,
+  /** Replace library default "Not Found" with the same in-progress experience as deliberate placeholders. */
+  defaultNotFoundComponent: InProgressPage,
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

@@ -43,6 +43,7 @@ import { ServiceUserAbsencesTab } from '@/components/service-user/ServiceUserAbs
 import { ServiceUserDomCareTab } from '@/components/service-user/ServiceUserDomCareTab'
 import { ServiceUserInitialAssessmentTab } from '@/components/service-user/ServiceUserInitialAssessmentTab'
 import { ServiceUserFundingTab } from '@/components/service-user/ServiceUserFundingTab'
+import { ServiceUserLiveInProfileTab } from '@/components/service-user/ServiceUserLiveInProfileTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 
@@ -378,11 +379,13 @@ export default function EditServiceUserPage() {
                 serviceUserId={serviceUserId}
                 displayName={(detail.preferredName?.trim() || [detail.firstName, detail.lastName].filter(Boolean).join(' ')).trim()}
                 contacts={detail.contacts}
+                initialNhsNumber={detail.nhsNumber}
+                initialSocialServicesRef={detail.socialServicesRef}
                 onDetailPatch={(patch) => setDetail((d) => (d ? { ...d, ...patch } : d))}
               />
             </TabsContent>
             <TabsContent value="livein" className="mt-6">
-              <PlaceholderTab title="Live in Service Profile" />
+              <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />
             </TabsContent>
           </Tabs>
         </div>

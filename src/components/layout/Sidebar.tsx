@@ -31,6 +31,7 @@ import {
   Activity,
   TrendingUp,
   Shield,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -45,9 +46,12 @@ import { useAuthStore } from '@/store/auth.store'
 interface SubNavItem {
   label: string
   icon: React.ReactNode
+  /** Real route when `ready` is not false; ignored for navigation when `ready === false`. */
   href: string
   /** If set, submenu is only shown when the user has this permission. */
   permission?: Permission
+  /** When false, opens the in-progress page with this row's label as context. */
+  ready?: boolean
 }
 
 interface NavItem {
@@ -57,6 +61,40 @@ interface NavItem {
   badge?: string | number
   badgeVariant?: 'default' | 'destructive' | 'warning' | 'success'
   children?: SubNavItem[]
+  /** When false (no children) or for a parent when collapsed, opens in-progress with `label` as context. */
+  ready?: boolean
+}
+
+function getTitleFromSearch(search: unknown): string | undefined {
+  if (search && typeof search === 'object' && 'title' in search) {
+    const t = (search as { title?: unknown }).title
+    return typeof t === 'string' ? t : undefined
+  }
+  return undefined
+}
+
+function navLinkProps(
+  label: string,
+  href: string,
+  ready?: boolean,
+): { to: string; search?: { title: string } } {
+  if (ready === false) {
+    return { to: '/in-progress', search: { title: label } }
+  }
+  return { to: href }
+}
+
+function matchNavTarget(
+  label: string,
+  href: string,
+  ready: boolean | undefined,
+  pathname: string,
+  search: unknown,
+): boolean {
+  if (ready === false) {
+    return pathname === '/in-progress' && getTitleFromSearch(search) === label
+  }
+  return pathname === href
 }
 
 const inspectorOnlyNavItems: NavItem[] = [
@@ -83,7 +121,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all', permission: 'service_users.read' },
       { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar' },
-      { label: 'Initial Assessment Checklist',  icon: <ClipboardList className="h-3.5 w-3.5" />, href: '/showcase' },
+      { label: 'Initial Assessment Checklist',  icon: <ClipboardList className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
       { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add', permission: 'service_users.create' },
     ],
   },
@@ -95,21 +133,22 @@ const navItems: NavItem[] = [
     badgeVariant: 'warning',
     children: [
       { label: 'View Schedule',          icon: <Eye className="h-3.5 w-3.5" />,        href: '/scheduling/view' },
-      { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-3.5 w-3.5" />, href: '/showcase' },
-      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/showcase' },
+      { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
+      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
       { label: 'Report',                 icon: <FileText className="h-3.5 w-3.5" />,   href: '/scheduling/report' },
       { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-3.5 w-3.5" />,  href: '/scheduling/jobs' },
-      { label: 'List View of Schedule',  icon: <List className="h-3.5 w-3.5" />,       href: '/showcase' },
-      { label: 'Build Schedule',         icon: <Hammer className="h-3.5 w-3.5" />,     href: '/showcase' },
+      { label: 'List View of Schedule',  icon: <List className="h-3.5 w-3.5" />,       href: '/in-progress', ready: false },
+      { label: 'Build Schedule',         icon: <Hammer className="h-3.5 w-3.5" />,     href: '/in-progress', ready: false },
     ],
   },
   {
     label: 'Operations',
     icon: <Settings2 className="h-4 w-4" />,
-    href: '/showcase',
+    href: '/in-progress',
+    ready: false,
     children: [
-      { label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/showcase' },
-      { label: 'Service Overview',             icon: <Eye className="h-3.5 w-3.5" />,         href: '/showcase' },
+      { label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
+      { label: 'Service Overview',             icon: <Eye className="h-3.5 w-3.5" />,         href: '/in-progress', ready: false },
     ],
   },
   {
@@ -120,17 +159,18 @@ const navItems: NavItem[] = [
       { label: 'All Employee', icon: <Users className="h-3.5 w-3.5" />, href: '/employee/staff-list', permission: 'employees.read' },
       { label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/temp-inspector', permission: 'employees.read' },
       { label: 'General Employee Documents', icon: <FileText className="h-3.5 w-3.5" />, href: '/employee/documents', permission: 'employees.documents.read' },
-      { label: 'Send Message', icon: <PlusCircle className="h-3.5 w-3.5" />, href: '/showcase' },
+      { label: 'Send Message', icon: <PlusCircle className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
       { label: 'Add Employee', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/add', permission: 'employees.create' },
     ],
   },
-  { label: 'Recruitment',       icon: <UserPlus className="h-4 w-4" />,      href: '/showcase', badge: 5 },
+  { label: 'Recruitment',       icon: <UserPlus className="h-4 w-4" />,      href: '/in-progress', ready: false, badge: 5 },
   {
     label: 'Reports',
     icon: <BarChart3 className="h-4 w-4" />,
-    href: '/showcase',
+    href: '/in-progress',
+    ready: false,
     children: [
-      { label: 'Run Report', icon: <TrendingUp className="h-3.5 w-3.5" />, href: '/showcase' },
+      { label: 'Run Report', icon: <TrendingUp className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
     ],
   },
   {
@@ -144,7 +184,8 @@ const navItems: NavItem[] = [
       { label: 'Raise Accidents/Incidents', icon: <PlusCircle className="h-3.5 w-3.5" />, href: '/accidents-incidents/raise' },
     ],
   },
-  { label: 'Policies',          icon: <BookOpen className="h-4 w-4" />,      href: '/showcase' },
+  { label: 'Policies',          icon: <BookOpen className="h-4 w-4" />,      href: '/in-progress', ready: false },
+  { label: 'UI Showcase',       icon: <Sparkles className="h-4 w-4" />,      href: '/showcase' },
   {
     label: 'Administration',
     icon: <Shield className="h-4 w-4" />,
@@ -170,7 +211,9 @@ function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, sidebarMobileOpen, setSidebarMobileOpen } = useUIStore()
   const navigate = useNavigate()
-  const activeHref = useRouterState({ select: (s) => s.location.pathname })
+  const location = useRouterState({ select: (s) => s.location })
+  const { pathname, search } = location
+  const searchKey = React.useMemo(() => JSON.stringify(search ?? {}), [search])
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
   const can = useAuthStore(s => s.can)
@@ -184,16 +227,18 @@ export function Sidebar() {
     setOpenGroups(prev => {
       const next = new Set(prev)
       for (const item of navSource) {
-        if (item.children?.some(c => c.href === activeHref)) next.add(item.href)
+        if (item.children?.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search))) {
+          next.add(item.label)
+        }
       }
       return next
     })
-  }, [activeHref, navSource])
+  }, [pathname, searchKey, navSource])
 
-  const toggleGroup = (href: string) => {
+  const toggleGroup = (groupLabel: string) => {
     setOpenGroups(prev => {
       const next = new Set(prev)
-      next.has(href) ? next.delete(href) : next.add(href)
+      next.has(groupLabel) ? next.delete(groupLabel) : next.add(groupLabel)
       return next
     })
   }
@@ -248,17 +293,19 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2">
           <ul className="flex flex-col gap-0.5">
             {navItemsFiltered.map((item) => {
-              const isActive = activeHref === item.href || item.children?.some(c => c.href === activeHref)
-              const isOpen = openGroups.has(item.href)
               const hasChildren = !!item.children?.length
+              const isActive = hasChildren
+                ? item.children!.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search))
+                : matchNavTarget(item.label, item.href, item.ready, pathname, search)
+              const isOpen = openGroups.has(item.label)
 
               return (
-                <li key={`${item.href}-${item.label}`}>
+                <li key={item.label}>
                   {sidebarCollapsed ? (
                     /* ── Collapsed: tooltip only, no sub-nav ── */
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Link to={item.href} onClick={handleNav} className="block">
+                        <Link {...navLinkProps(item.label, item.href, item.ready)} onClick={handleNav} className="block">
                           <NavButton
                             item={item}
                             isActive={!!isActive}
@@ -281,16 +328,16 @@ export function Sidebar() {
                         isActive={!!isActive}
                         isOpen={isOpen}
                         hasChildren
-                        onClick={() => toggleGroup(item.href)}
+                        onClick={() => toggleGroup(item.label)}
                       />
                       {isOpen && (
                         <ul className="mt-0.5 ml-3 pl-3 border-l border-sidebar-border space-y-0.5 pb-1">
                           {item.children!.map(child => {
-                            const childActive = activeHref === child.href
+                            const childActive = matchNavTarget(child.label, child.href, child.ready, pathname, search)
                             return (
-                              <li key={`${child.href}-${child.label}`}>
+                              <li key={child.label}>
                                 <Link
-                                  to={child.href}
+                                  {...navLinkProps(child.label, child.href, child.ready)}
                                   onClick={handleNav}
                                   className={cn(
                                     'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
@@ -313,7 +360,7 @@ export function Sidebar() {
                     </div>
                   ) : (
                     /* ── Expanded: plain link ── */
-                    <Link to={item.href} onClick={handleNav} className="block">
+                    <Link {...navLinkProps(item.label, item.href, item.ready)} onClick={handleNav} className="block">
                       <NavButton
                         item={item}
                         isActive={!!isActive}

@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   UsersRound,
   History,
+  Pill,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
@@ -184,7 +185,7 @@ function SuActionStrip({ user, className }: { user: ServiceUserListRow; classNam
   return (
     <div className={cn('flex flex-nowrap items-center justify-end gap-1', className)}>
       <Link
-        to="/service-users/$serviceUserId"
+        to="/service-users/$serviceUserId/view"
         params={{ serviceUserId: user.id }}
         title="View"
         className={profileLinkClassName()}
@@ -201,6 +202,14 @@ function SuActionStrip({ user, className }: { user: ServiceUserListRow; classNam
         className={profileLinkClassName()}
       >
         <User />
+      </Link>
+      <Link
+        to="/service-users/$serviceUserId/medication"
+        params={{ serviceUserId: user.id }}
+        title="Medication"
+        className={profileLinkClassName()}
+      >
+        <Pill />
       </Link>
       <TealCircleBtn title="Appointments">
         <Calendar />
