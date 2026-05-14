@@ -57,7 +57,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h1 className="text-lg font-semibold text-foreground">Sign in</h1>
+      <h1 className="text-lg font-semibold text-foreground">Sign innnn</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {apiUrl
           ? `API mode: ${apiUrl} — staff use email; temporary inspectors use the username issued by your organisation.`

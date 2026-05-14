@@ -1,0 +1,289 @@
+name: Deploy Careflow Admin
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+concurrency:
+  group: careflow-admin-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build React Admin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout admin repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production files
+        run: npm run build
+        env:
+          CI: true
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
+
+      - name: Detect build folder
+        run: |
+          if [ -d "dist" ]; then
+            echo "BUILD_DIR=dist" >> $GITHUB_ENV
+          elif [ -d "build" ]; then
+            echo "BUILD_DIR=build" >> $GITHUB_ENV
+          else
+            echo "Build folder not found. Expected dist or build."
+            exit 1
+          fi
+
+      - name: Validate build output
+        run: |
+          test -f "$BUILD_DIR/index.html"
+          echo "Build output verified from $BUILD_DIR"
+
+      - name: Create release metadata
+        run: |
+          cat > "$BUILD_DIR/release.json" <<EOF
+          {
+            "app": "careflow-admin",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "deployedBy": "${{ github.actor }}",
+            "runId": "${{ github.run_id }}",
+            "runNumber": "${{ github.run_number }}",
+            "deployedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
+      - name: Package release
+        run: |
+          tar -czf careflow-admin-release.tar.gz -C "$BUILD_DIR" .
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: careflow-admin-release
+          path: careflow-admin-release.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to cPanel VPS
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      ADMIN_DEPLOY_PATH: ${{ secrets.ADMIN_DEPLOY_PATH }}
+      ADMIN_APP_URL: ${{ secrets.ADMIN_APP_URL }}
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: careflow-admin-release
+
+      - name: Configure SSH access
+        run: |
+          set -e
+
+          mkdir -p ~/.ssh
+
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          echo "Adding VPS host key to known_hosts..."
+
+          for i in 1 2 3 4 5; do
+            ssh-keyscan -T 20 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts && break
+            echo "ssh-keyscan failed. Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "Failed to add VPS host key."
+            exit 1
+          fi
+
+          echo "SSH access configured."
+
+      - name: Verify SSH connection
+        run: |
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "whoami && pwd && ls -ld '$ADMIN_DEPLOY_PATH'"
+
+      - name: Prepare remote deployment folders
+        run: |
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/incoming
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/releases
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/backups
+              mkdir -p /home/sigisolutions/deployments/careflow-admin/logs
+            "
+
+      - name: Upload release package
+        run: |
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          scp -i ~/.ssh/deploy_key \
+            -P "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            careflow-admin-release.tar.gz \
+            "$VPS_USER@$VPS_HOST:/home/sigisolutions/deployments/careflow-admin/incoming/${{ github.sha }}.tar.gz"
+
+      - name: Deploy release with backup and rollback protection
+        run: |
+          set -e
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" << 'REMOTE_SCRIPT'
+          set -euo pipefail
+
+          APP_NAME="careflow-admin"
+          RELEASE_ID="${{ github.sha }}"
+          LIVE_PATH="${{ secrets.ADMIN_DEPLOY_PATH }}"
+          APP_URL="${{ secrets.ADMIN_APP_URL }}"
+          DEPLOY_ROOT="/home/sigisolutions/deployments/careflow-admin"
+          INCOMING_FILE="$DEPLOY_ROOT/incoming/$RELEASE_ID.tar.gz"
+          RELEASE_PATH="$DEPLOY_ROOT/releases/$RELEASE_ID"
+          BACKUP_FILE="$DEPLOY_ROOT/backups/backup-$(date +%Y%m%d%H%M%S).tar.gz"
+          ROLLBACK_DIR="$DEPLOY_ROOT/rollback-temp"
+          DEPLOY_LOG="$DEPLOY_ROOT/logs/deployments.log"
+
+          rollback() {
+            echo "Deployment failed. Starting rollback..."
+
+            if [ -f "$BACKUP_FILE" ]; then
+              rm -rf "$ROLLBACK_DIR"
+              mkdir -p "$ROLLBACK_DIR"
+
+              tar -xzf "$BACKUP_FILE" -C "$ROLLBACK_DIR"
+
+              rsync -az --delete \
+                --exclude=".htaccess" \
+                --exclude=".well-known" \
+                --exclude="cgi-bin" \
+                --exclude=".env" \
+                --exclude=".env.*" \
+                --exclude="*.pem" \
+                --exclude="*.key" \
+                "$ROLLBACK_DIR/" "$LIVE_PATH/"
+
+              echo "Rollback completed."
+            else
+              echo "No backup file found. Rollback skipped."
+            fi
+          }
+
+          trap rollback ERR
+
+          echo "Starting deployment for $APP_NAME"
+          echo "Release ID: $RELEASE_ID"
+
+          test -f "$INCOMING_FILE"
+
+          rm -rf "$RELEASE_PATH"
+          mkdir -p "$RELEASE_PATH"
+
+          tar -xzf "$INCOMING_FILE" -C "$RELEASE_PATH"
+
+          test -f "$RELEASE_PATH/index.html"
+
+          echo "Creating backup of current live files..."
+          tar \
+            --exclude=".well-known" \
+            --exclude="cgi-bin" \
+            --exclude=".env" \
+            --exclude=".env.*" \
+            --exclude="*.pem" \
+            --exclude="*.key" \
+            -czf "$BACKUP_FILE" \
+            -C "$LIVE_PATH" .
+
+          echo "Syncing release to live folder..."
+          rsync -az --delete \
+            --exclude=".htaccess" \
+            --exclude=".well-known" \
+            --exclude="cgi-bin" \
+            --exclude=".env" \
+            --exclude=".env.*" \
+            --exclude="*.pem" \
+            --exclude="*.key" \
+            "$RELEASE_PATH/" "$LIVE_PATH/"
+
+          if [ ! -f "$LIVE_PATH/.htaccess" ]; then
+            echo "Creating default React .htaccess..."
+            cat > "$LIVE_PATH/.htaccess" <<'HTACCESS'
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+
+            RewriteCond %{REQUEST_FILENAME} -f [OR]
+            RewriteCond %{REQUEST_FILENAME} -d
+            RewriteRule ^ - [L]
+
+            RewriteRule ^ index.html [L]
+          </IfModule>
+          HTACCESS
+            chmod 644 "$LIVE_PATH/.htaccess"
+          fi
+
+          echo "$RELEASE_ID" > "$DEPLOY_ROOT/current-release.txt"
+
+          {
+            echo "release=$RELEASE_ID"
+            echo "backup=$BACKUP_FILE"
+            echo "actor=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "---"
+          } >> "$DEPLOY_LOG"
+
+          echo "Checking live website..."
+          curl -fsS --retry 3 "$APP_URL" > /dev/null
+
+          echo "Cleaning old releases and backups..."
+          ls -1dt "$DEPLOY_ROOT/releases"/* 2>/dev/null | tail -n +11 | xargs -r rm -rf
+          ls -1t "$DEPLOY_ROOT/backups"/backup-*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
+
+          echo "Deployment completed successfully."
+          REMOTE_SCRIPT
