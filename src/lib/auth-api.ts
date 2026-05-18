@@ -10,12 +10,6 @@ function nestErrorMessage(body: unknown, fallback: string): string {
   return fallback
 }
 
-type ApiEnvelope<T> = {
-  success?: boolean
-  message?: string
-  data: T
-}
-
 export type BackendMeUser = {
   id: string
   email: string
@@ -57,7 +51,10 @@ async function readJsonResponse(res: Response): Promise<unknown> {
 }
 
 /** Public POST /auth/login — no Bearer. */
-export async function backendLogin(email: string, password: string): Promise<{ accessToken: string; refreshToken: string }> {
+export async function backendLogin(
+  email: string,
+  password: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
   const base = getApiBaseUrl()
   if (!base) throw new Error('VITE_API_BASE_URL is not set')
 
@@ -70,10 +67,13 @@ export async function backendLogin(email: string, password: string): Promise<{ a
     },
     { retry: { maxRetries: 0 } },
   )
+
   const body: unknown = await readJsonResponse(res)
+
   if (!res.ok) {
     throw new Error(nestErrorMessage(body, res.statusText || 'Login failed'))
   }
+
   const env = parseJsonEnvelope<{ accessToken: string; refreshToken: string }>(body)
   return env.data
 }
@@ -95,10 +95,13 @@ export async function backendTemporaryInspectorLogin(
     },
     { retry: { maxRetries: 0 } },
   )
+
   const body: unknown = await readJsonResponse(res)
+
   if (!res.ok) {
     throw new Error(nestErrorMessage(body, res.statusText || 'Login failed'))
   }
+
   const env = parseJsonEnvelope<{ accessToken: string; refreshToken: string }>(body)
   return env.data
 }
@@ -115,16 +118,21 @@ export async function backendMe(accessToken: string): Promise<BackendMeUser> {
     },
     {},
   )
+
   const body: unknown = await readJsonResponse(res)
+
   if (!res.ok) {
     throw new Error(nestErrorMessage(body, res.statusText || 'Session check failed'))
   }
+
   const env = parseJsonEnvelope<BackendMeUser>(body)
   return env.data
 }
 
 /** POST /auth/refresh with current refresh token. */
-export async function backendRefresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+export async function backendRefresh(
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
   const base = getApiBaseUrl()
   if (!base) throw new Error('VITE_API_BASE_URL is not set')
 
@@ -137,16 +145,22 @@ export async function backendRefresh(refreshToken: string): Promise<{ accessToke
     },
     { retry: { maxRetries: 0 } },
   )
+
   const body: unknown = await readJsonResponse(res)
+
   if (!res.ok) {
     throw new Error(nestErrorMessage(body, res.statusText || 'Refresh failed'))
   }
+
   const env = parseJsonEnvelope<{ accessToken: string; refreshToken: string }>(body)
   return env.data
 }
 
 /** POST /auth/change-password */
-export async function backendChangePassword(currentPassword: string, newPassword: string): Promise<void> {
+export async function backendChangePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
   await apiJson<ApiEnvelope<Record<string, never>>>(
     '/auth/change-password',
     {
@@ -166,6 +180,7 @@ export async function backendUpdateProfile(patch: {
     method: 'PATCH',
     body: JSON.stringify(patch),
   })
+
   return res.data
 }
 
@@ -179,8 +194,10 @@ export function accessTokenExpiryMs(token: string): number | null {
   try {
     const part = token.split('.')[1]
     if (!part) return null
+
     const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'))
     const payload = JSON.parse(json) as { exp?: number }
+
     return typeof payload.exp === 'number' ? payload.exp * 1000 : null
   } catch {
     return null
