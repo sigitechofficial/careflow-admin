@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '@/lib/api-base'
+import { apiJson, type ApiEnvelope } from '@/lib/api-client'
 import { fetchWithResilience } from '@/lib/http-client'
 
 function nestErrorMessage(body: unknown, fallback: string): string {
@@ -24,6 +25,18 @@ export type BackendMeUser = {
   firstName?: string
   lastName?: string
   username?: string
+}
+
+export type LoginHistoryRow = {
+  id: string
+  userId: string | null
+  email: string
+  event: string
+  status: string
+  failureReason: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  createdAt: string
 }
 
 function parseJsonEnvelope<T>(body: unknown): ApiEnvelope<T> {
@@ -130,6 +143,36 @@ export async function backendRefresh(refreshToken: string): Promise<{ accessToke
   }
   const env = parseJsonEnvelope<{ accessToken: string; refreshToken: string }>(body)
   return env.data
+}
+
+/** POST /auth/change-password */
+export async function backendChangePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiJson<ApiEnvelope<Record<string, never>>>(
+    '/auth/change-password',
+    {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    },
+    { retry: { maxRetries: 0 } },
+  )
+}
+
+/** PATCH /auth/me */
+export async function backendUpdateProfile(patch: {
+  firstName?: string
+  lastName?: string
+}): Promise<BackendMeUser> {
+  const res = await apiJson<ApiEnvelope<BackendMeUser>>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+  return res.data
+}
+
+/** GET /auth/me/login-history */
+export async function backendMyLoginHistory(): Promise<LoginHistoryRow[]> {
+  const res = await apiJson<ApiEnvelope<LoginHistoryRow[]>>('/auth/me/login-history')
+  return res.data
 }
 
 export function accessTokenExpiryMs(token: string): number | null {

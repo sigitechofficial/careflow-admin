@@ -281,7 +281,7 @@ export default function AddServiceUserPage() {
       onValueChange={(v) => set(field)(v === '__none__' ? '' : v)}
       disabled={!rows.length}
     >
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" data-testid={`service-user-${field}-select`}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
@@ -296,7 +296,7 @@ export default function AddServiceUserPage() {
   )
 
   return (
-    <form className="space-y-4 pb-16" onSubmit={onSubmit}>
+    <form className="space-y-4 pb-16" data-testid="service-user-add-form" onSubmit={onSubmit}>
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="p-5 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -331,7 +331,12 @@ export default function AddServiceUserPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <FieldLabel required>First name</FieldLabel>
-            <Input value={form.firstName} onChange={(e) => set('firstName')(e.target.value)} autoComplete="given-name" />
+            <Input
+              data-testid="service-user-first-name"
+              value={form.firstName}
+              onChange={(e) => set('firstName')(e.target.value)}
+              autoComplete="given-name"
+            />
           </div>
           <div>
             <FieldLabel>Middle name</FieldLabel>
@@ -339,7 +344,12 @@ export default function AddServiceUserPage() {
           </div>
           <div>
             <FieldLabel required>Last name</FieldLabel>
-            <Input value={form.lastName} onChange={(e) => set('lastName')(e.target.value)} autoComplete="family-name" />
+            <Input
+              data-testid="service-user-last-name"
+              value={form.lastName}
+              onChange={(e) => set('lastName')(e.target.value)}
+              autoComplete="family-name"
+            />
           </div>
           <div>
             <FieldLabel>Preferred name</FieldLabel>
@@ -359,7 +369,12 @@ export default function AddServiceUserPage() {
           </div>
           <div>
             <FieldLabel>Date of birth</FieldLabel>
-            <Input type="date" value={form.dateOfBirth} onChange={(e) => set('dateOfBirth')(e.target.value)} />
+            <Input
+              data-testid="service-user-date-of-birth"
+              type="date"
+              value={form.dateOfBirth}
+              onChange={(e) => set('dateOfBirth')(e.target.value)}
+            />
           </div>
         </div>
       </Section>
@@ -399,7 +414,13 @@ export default function AddServiceUserPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <FieldLabel>Email</FieldLabel>
-            <Input type="email" value={form.email} onChange={(e) => set('email')(e.target.value)} autoComplete="email" />
+            <Input
+              data-testid="service-user-email"
+              type="email"
+              value={form.email}
+              onChange={(e) => set('email')(e.target.value)}
+              autoComplete="email"
+            />
           </div>
           <div>
             <FieldLabel>Phone</FieldLabel>
@@ -425,7 +446,7 @@ export default function AddServiceUserPage() {
               value={form.locationId ? form.locationId : '__none__'}
               onValueChange={(v) => set('locationId')(v === '__none__' ? '' : v)}
             >
-              <SelectTrigger>
+              <SelectTrigger data-testid="service-user-locationId-select">
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
@@ -440,7 +461,12 @@ export default function AddServiceUserPage() {
           </div>
           <div>
             <FieldLabel>Service start</FieldLabel>
-            <Input type="date" value={form.serviceStartDate} onChange={(e) => set('serviceStartDate')(e.target.value)} />
+            <Input
+              data-testid="service-user-service-start"
+              type="date"
+              value={form.serviceStartDate}
+              onChange={(e) => set('serviceStartDate')(e.target.value)}
+            />
           </div>
           <div>
             <FieldLabel>Service end</FieldLabel>
@@ -566,7 +592,11 @@ export default function AddServiceUserPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <FieldLabel>Address line 1</FieldLabel>
-            <Input value={form.addressLine1} onChange={(e) => set('addressLine1')(e.target.value)} />
+            <Input
+              data-testid="service-user-address-line1"
+              value={form.addressLine1}
+              onChange={(e) => set('addressLine1')(e.target.value)}
+            />
           </div>
           <div className="md:col-span-2">
             <FieldLabel>Address line 2</FieldLabel>
@@ -574,7 +604,7 @@ export default function AddServiceUserPage() {
           </div>
           <div>
             <FieldLabel>Town</FieldLabel>
-            <Input value={form.town} onChange={(e) => set('town')(e.target.value)} />
+            <Input data-testid="service-user-town" value={form.town} onChange={(e) => set('town')(e.target.value)} />
           </div>
           <div>
             <FieldLabel>County</FieldLabel>
@@ -586,7 +616,11 @@ export default function AddServiceUserPage() {
           </div>
           <div>
             <FieldLabel>Postcode</FieldLabel>
-            <Input value={form.postcode} onChange={(e) => set('postcode')(e.target.value)} />
+            <Input
+              data-testid="service-user-postcode"
+              value={form.postcode}
+              onChange={(e) => set('postcode')(e.target.value)}
+            />
           </div>
           <div>
             <FieldLabel>Key safe number</FieldLabel>
@@ -611,7 +645,7 @@ export default function AddServiceUserPage() {
         <Button type="button" variant="outline" className="px-8" onClick={() => void navigate({ to: '/service-users/all' })}>
           Cancel
         </Button>
-        <Button type="submit" className="px-8" disabled={submitting || !apiConfigured}>
+        <Button type="submit" className="px-8" data-testid="service-user-save" disabled={submitting || !apiConfigured}>
           {submitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

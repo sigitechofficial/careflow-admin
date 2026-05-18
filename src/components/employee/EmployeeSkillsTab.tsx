@@ -245,12 +245,15 @@ export function EmployeeSkillsTab() {
   }, [overviewRows, overviewNameFilter])
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-1 border-b border-border">
+    <div className="space-y-6" data-testid="employee-skills-panel">
+      <div className="flex gap-1 border-b border-border" role="tablist" aria-label="Skills views">
         {(['manage', 'overview'] as const).map(tab => (
           <button
             key={tab}
             type="button"
+            role="tab"
+            aria-selected={skillsSubTab === tab}
+            data-testid={`employee-skills-subtab-${tab}`}
             onClick={() => {
               setSkillsSubTab(tab)
               setBanner(null)

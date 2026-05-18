@@ -24,6 +24,7 @@ import type { Permission } from '@/auth/types'
 import HomePage from '@/components/pages/HomePage'
 import ServiceUsersPage from '@/components/pages/ServiceUsersPage'
 import CalendarPage from '@/components/pages/CalendarPage'
+import InitialAssessmentChecklistPage from '@/components/pages/InitialAssessmentChecklistPage'
 import AddServiceUserPage from '@/components/pages/AddServiceUserPage'
 import EditServiceUserPage from '@/components/pages/EditServiceUserPage'
 import ViewServiceUserPage from '@/components/pages/ViewServiceUserPage'
@@ -55,6 +56,7 @@ const pageTitles: Record<string, string> = {
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
   '/service-users/calendar': 'Calendar',
+  '/service-users/initial-assessment-checklist': 'Initial Assessment Checklist',
   '/service-users/add': 'Add Service User',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
@@ -211,7 +213,19 @@ const serviceUsersAllRoute = createRoute({
 const serviceUsersCalendarRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/calendar',
+  beforeLoad: requirePermission('service_users.calendar.read'),
   component: CalendarPage,
+})
+
+const serviceUsersInitialAssessmentRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/initial-assessment-checklist',
+  validateSearch: (raw: Record<string, unknown>): { serviceUserId?: string } => {
+    const id = raw.serviceUserId
+    return { serviceUserId: typeof id === 'string' && id.trim() ? id.trim() : undefined }
+  },
+  beforeLoad: requireAnyPermission('service_users.initial_assessment.read', 'service_users.read'),
+  component: InitialAssessmentChecklistPage,
 })
 
 const serviceUsersAddRoute = createRoute({
@@ -411,6 +425,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersRoute,
     serviceUsersAllRoute,
     serviceUsersCalendarRoute,
+    serviceUsersInitialAssessmentRoute,
     serviceUsersAddRoute,
     serviceUsersViewRoute,
     serviceUsersMedicationRoute,

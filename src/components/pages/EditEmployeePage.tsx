@@ -7,7 +7,11 @@ export default function EditEmployeePage() {
   const employeeId = params.employeeId ?? ''
   if (!employeeId) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+      <div
+        className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground"
+        data-testid="employee-edit-missing-id"
+        role="alert"
+      >
         Missing employee id in the URL.
       </div>
     )

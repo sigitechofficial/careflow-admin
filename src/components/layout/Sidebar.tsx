@@ -52,6 +52,8 @@ interface SubNavItem {
   permission?: Permission
   /** When false, opens the in-progress page with this row's label as context. */
   ready?: boolean
+  /** Stable hook for Playwright / automation (employee module readiness). */
+  navTestId?: string
 }
 
 interface NavItem {
@@ -105,7 +107,7 @@ const inspectorOnlyNavItems: NavItem[] = [
     href: '/service-users',
     children: [
       { label: 'All Service Users', icon: <Users className="h-3.5 w-3.5" />, href: '/service-users/all' },
-      { label: 'Calendar', icon: <CalendarDays className="h-3.5 w-3.5" />, href: '/service-users/calendar' },
+      { label: 'Calendar', icon: <CalendarDays className="h-3.5 w-3.5" />, href: '/service-users/calendar', permission: 'service_users.calendar.read' },
     ],
   },
 ]
@@ -120,8 +122,13 @@ const navItems: NavItem[] = [
     badge: 12,
     children: [
       { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all', permission: 'service_users.read' },
-      { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar' },
-      { label: 'Initial Assessment Checklist',  icon: <ClipboardList className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
+      { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar', permission: 'service_users.calendar.read' },
+      {
+        label: 'Initial Assessment Checklist',
+        icon: <ClipboardList className="h-3.5 w-3.5" />,
+        href: '/service-users/initial-assessment-checklist',
+        permission: 'service_users.initial_assessment.read',
+      },
       { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add', permission: 'service_users.create' },
     ],
   },
@@ -156,11 +163,11 @@ const navItems: NavItem[] = [
     icon: <UserCheck className="h-4 w-4" />,
     href: '/employee',
     children: [
-      { label: 'All Employee', icon: <Users className="h-3.5 w-3.5" />, href: '/employee/staff-list', permission: 'employees.read' },
+      { label: 'All Employee', icon: <Users className="h-3.5 w-3.5" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
       { label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/temp-inspector', permission: 'employees.read' },
-      { label: 'General Employee Documents', icon: <FileText className="h-3.5 w-3.5" />, href: '/employee/documents', permission: 'employees.documents.read' },
+      { label: 'General Employee Documents', icon: <FileText className="h-3.5 w-3.5" />, href: '/employee/documents', permission: 'employees.documents.read', navTestId: 'nav-employee-documents' },
       { label: 'Send Message', icon: <PlusCircle className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
-      { label: 'Add Employee', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/add', permission: 'employees.create' },
+      { label: 'Add Employee', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
     ],
   },
   { label: 'Recruitment',       icon: <UserPlus className="h-4 w-4" />,      href: '/in-progress', ready: false, badge: 5 },
@@ -339,6 +346,7 @@ export function Sidebar() {
                                 <Link
                                   {...navLinkProps(child.label, child.href, child.ready)}
                                   onClick={handleNav}
+                                  data-testid={child.navTestId}
                                   className={cn(
                                     'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
                                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',

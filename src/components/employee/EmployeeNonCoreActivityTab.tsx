@@ -269,7 +269,7 @@ export function EmployeeNonCoreActivityTab() {
   const reasons = lookups?.nonCoreActivityReasons ?? []
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="employee-non-core-activity-panel">
       {banner ? (
         <div
           role="status"
@@ -287,7 +287,12 @@ export function EmployeeNonCoreActivityTab() {
       <div className="flex flex-wrap items-center gap-1.5 text-sm">
         <span className="font-medium">Non Core Activity Records</span>
         {canUpdate ? (
-          <button type="button" onClick={openCreate} className="text-primary hover:underline font-medium">
+          <button
+            type="button"
+            data-testid="employee-non-core-add"
+            onClick={openCreate}
+            className="text-primary hover:underline font-medium"
+          >
             Add non-core activity
           </button>
         ) : null}

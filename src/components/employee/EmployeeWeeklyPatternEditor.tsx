@@ -195,7 +195,7 @@ export function EmployeeWeeklyPatternEditor({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="employee-weekly-pattern-editor">
       <p className="text-xs text-muted-foreground">
         One saved row per weekday (standard week). Fortnight grids above remain a quick visual; this block is what the
         server stores.
@@ -244,7 +244,13 @@ export function EmployeeWeeklyPatternEditor({
           </tbody>
         </table>
       </div>
-      <Button type="button" size="sm" disabled={saving || loading} onClick={() => void saveWeek()}>
+      <Button
+        type="button"
+        size="sm"
+        data-testid="employee-save-working-week"
+        disabled={saving || loading}
+        onClick={() => void saveWeek()}
+      >
         {saving ? 'Saving…' : 'Save week to server'}
       </Button>
     </div>

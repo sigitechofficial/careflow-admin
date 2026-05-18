@@ -44,6 +44,7 @@ import { ServiceUserDomCareTab } from '@/components/service-user/ServiceUserDomC
 import { ServiceUserInitialAssessmentTab } from '@/components/service-user/ServiceUserInitialAssessmentTab'
 import { ServiceUserFundingTab } from '@/components/service-user/ServiceUserFundingTab'
 import { ServiceUserLiveInProfileTab } from '@/components/service-user/ServiceUserLiveInProfileTab'
+import { ServiceUserCalendarTab } from '@/features/service-users/calendar/components/ServiceUserCalendarTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 
@@ -56,6 +57,7 @@ const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
   { id: 'documents', label: 'Documents', Icon: FileText },
   { id: 'absences', label: 'Record Absences', Icon: CalendarOff },
+  { id: 'calendar', label: 'Calendar', Icon: Calendar },
   { id: 'privacy', label: 'Privacy', Icon: Shield },
   { id: 'dom', label: 'DOM Care', Icon: Home },
   { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
@@ -360,6 +362,9 @@ export default function EditServiceUserPage() {
                 serviceUserId={serviceUserId}
                 absenceReasons={lookups?.absenceReasons ?? []}
               />
+            </TabsContent>
+            <TabsContent value="calendar" className="mt-6">
+              <ServiceUserCalendarTab serviceUserId={serviceUserId} />
             </TabsContent>
             <TabsContent value="privacy" className="mt-6">
               <PlaceholderTab title="Privacy" />

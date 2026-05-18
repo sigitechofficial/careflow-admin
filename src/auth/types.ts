@@ -50,6 +50,16 @@ export type Permission =
   | 'service_users.absences.create'
   | 'service_users.absences.update'
   | 'service_users.absences.delete'
+  | 'service_users.calendar.read'
+  | 'service_users.calendar.create'
+  | 'service_users.calendar.update'
+  | 'service_users.calendar.delete'
+  | 'service_users.calendar.status.update'
+  | 'service_users.calendar.export'
+  | 'service_users.calendar_event_types.read'
+  | 'service_users.calendar_event_types.create'
+  | 'service_users.calendar_event_types.update'
+  | 'service_users.calendar_event_types.delete'
   | 'service_users.dom_care.read'
   | 'service_users.dom_care.update'
   | 'service_users.initial_assessment.read'
@@ -105,6 +115,8 @@ export interface AuthUser {
   displayName: string
   role: RoleId
   permissions: Permission[]
+  firstName?: string
+  lastName?: string
   jobTitle?: string
   avatarUrl?: string
 }

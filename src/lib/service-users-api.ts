@@ -66,6 +66,7 @@ export type ListServiceUsersParams = {
   search?: string
   statusId?: string
   showInactive?: boolean
+  showDeleted?: boolean
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
@@ -173,6 +174,10 @@ export type ServiceUserDetail = {
 export async function fetchServiceUser(id: string): Promise<ServiceUserDetail> {
   const res = await apiJson<ApiEnvelope<ServiceUserDetail>>(`/service-users/${id}`, { method: 'GET' })
   return res.data
+}
+
+export async function deleteServiceUser(serviceUserId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}`, { method: 'DELETE' })
 }
 
 export type EnterpriseFundingStatus =
@@ -966,6 +971,7 @@ export async function listServiceUsers(params: ListServiceUsersParams = {}): Pro
   if (params.search?.trim()) qs.set('search', params.search.trim())
   if (params.statusId) qs.set('statusId', params.statusId)
   if (params.showInactive === true) qs.set('showInactive', 'true')
+  if (params.showDeleted === true) qs.set('showDeleted', 'true')
   if (params.sortBy) qs.set('sortBy', params.sortBy)
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
   const q = qs.toString()

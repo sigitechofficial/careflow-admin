@@ -72,7 +72,7 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
         {/* Theme toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="Theme">
               {theme === 'dark' ? (
                 <Moon className="h-4 w-4" />
               ) : theme === 'light' ? (

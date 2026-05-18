@@ -141,7 +141,7 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="employee-management-page">
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="p-5 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -165,11 +165,19 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
       {/* ── Tab Navigation + Content ───────────────────────────── */}
       <div className="bg-card rounded-xl border border-border shadow-sm">
         {/* Tab bar */}
-        <div className="flex h-16 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b border-border">
+        <div
+          className="flex h-16 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b border-border"
+          role="tablist"
+          aria-label="Employee sections"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              id={`employee-tab-${tab.id}`}
+              data-testid={`employee-tab-${tab.id}`}
               onClick={() => handleTab(tab.id)}
               className={cn(
                 'flex h-full min-w-[90px] flex-col items-center justify-center gap-1 px-5 text-xs font-medium whitespace-nowrap',
@@ -188,7 +196,7 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
         </div>
 
         {/* Content area */}
-        <div className="p-5">
+        <div className="p-5" role="tabpanel" aria-labelledby={`employee-tab-${activeTab}`}>
           {activeTab === 'staff-list' && (
             <StaffListTab statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
           )}
@@ -608,7 +616,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
   )
 
   return (
-    <div>
+    <div data-testid="employee-staff-list-panel">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-sm">Employee Management</span>
@@ -616,16 +624,22 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
             <button
               type="button"
               title="Add employee"
+              aria-label="Add employee"
+              data-testid="employee-add-button"
               onClick={() => navigate({ to: '/employee/add' })}
               className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" aria-hidden />
             </button>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Status</span>
+          <label htmlFor="employee-status-filter" className="text-sm text-muted-foreground">
+            Status
+          </label>
           <select
+            id="employee-status-filter"
+            data-testid="employee-status-filter"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             className="border border-border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -648,7 +662,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" data-testid="employee-staff-table">
           <thead>
             <tr className="border-b border-border bg-muted/40">
               {[
@@ -672,13 +686,13 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
+              <tr data-testid="employee-staff-loading">
                 <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
-              <tr>
+              <tr data-testid="employee-staff-empty">
                 <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">
                   {error ? '—' : 'No employees match this filter.'}
                 </td>
@@ -700,7 +714,11 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                     />
                   ) : null
                 return (
-                  <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                  <tr
+                    key={emp.id}
+                    data-testid={`employee-row-${emp.id}`}
+                    className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
+                  >
                     <td className="px-3 py-3">
                       {photoSrc ? (
                         <img
@@ -738,8 +756,10 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                     <td className="px-3 py-3">
                       <button
                         type="button"
+                        data-testid={`employee-edit-${emp.id}`}
                         className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                         title="Edit employee"
+                        aria-label={`Edit ${name}`}
                         disabled={!apiConfigured || !jwtPresent || !canUpdateEmployee}
                         onClick={() =>
                           navigate({
@@ -748,7 +768,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                           })
                         }
                       >
-                        <PenLine className="h-4 w-4" />
+                        <PenLine className="h-4 w-4" aria-hidden />
                       </button>
                     </td>
                   </tr>
@@ -772,7 +792,7 @@ function ComplianceTab({ allEmployee, setAllEmployee, hideNoLonger, setHideNoLon
   setComplianceSelect: (v: string) => void
 }) {
   return (
-    <div>
+    <div data-testid="employee-compliance-panel">
       <h2 className="font-bold text-base mb-5">Employee Compliance</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5">
         {/* Left column */}
@@ -794,6 +814,10 @@ function ComplianceTab({ allEmployee, setAllEmployee, hideNoLonger, setHideNoLon
           <div className="flex items-center gap-3">
             <span className="text-sm">Hide No Longer Required Compliances</span>
             <button
+              type="button"
+              data-testid="employee-compliance-hide-no-longer-toggle"
+              aria-pressed={hideNoLonger}
+              aria-label={hideNoLonger ? 'Hide no longer required compliances: on' : 'Hide no longer required compliances: off'}
               onClick={() => setHideNoLonger(!hideNoLonger)}
               className={cn(
                 'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors shrink-0',
@@ -846,7 +870,7 @@ function ComplianceTab({ allEmployee, setAllEmployee, hideNoLonger, setHideNoLon
 /* ─── Review Status Tab ──────────────────────────────────────── */
 function ReviewStatusTab() {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="overflow-x-auto rounded-lg border border-border" data-testid="employee-review-status-table">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40">
@@ -891,12 +915,18 @@ function ReviewStatusTab() {
 /* ─── Reports Tab ───────────────────────────────────────────── */
 function ReportsTab() {
   return (
-    <div>
+    <div data-testid="employee-reports-panel">
       <h2 className="font-bold text-base mb-4">Employee Reports</h2>
       <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
         {employeeReports.map(report => (
           <div key={report.title} className="px-4 py-3 hover:bg-muted/30 transition-colors flex items-start gap-1.5 text-sm">
-            <button className="text-primary hover:underline font-medium shrink-0 text-left">{report.title}</button>
+            <button
+              type="button"
+              className="text-primary hover:underline font-medium shrink-0 text-left"
+              aria-label={`Open report: ${report.title}`}
+            >
+              {report.title}
+            </button>
             <span className="text-muted-foreground">- {report.desc}</span>
           </div>
         ))}

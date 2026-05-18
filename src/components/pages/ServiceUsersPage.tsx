@@ -30,9 +30,22 @@ import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api-base'
 import { ApiError } from '@/lib/api-client'
+import { toastApiError, toastSuccess } from '@/lib/toast'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { useAuthStore } from '@/store/auth.store'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/dialog'
 import {
   fetchServiceUserLookups,
+  deleteServiceUser,
   listServiceUsers,
   uploadServiceUserPhoto,
   type ServiceUserListRow,
@@ -85,16 +98,25 @@ function TealCircleBtn({
   title,
   active = false,
   activeClass = '',
+  onClick,
+  disabled,
+  testId,
 }: {
   children: React.ReactNode
   title?: string
   active?: boolean
   activeClass?: string
+  onClick?: () => void
+  disabled?: boolean
+  testId?: string
 }) {
   return (
     <button
       type="button"
       title={title}
+      onClick={onClick}
+      disabled={disabled}
+      data-testid={testId}
       className={cn(
         'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0 leading-none transition-colors',
         '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5',
@@ -136,7 +158,13 @@ function highRiskAlert(r: ServiceUserListRow): boolean {
   return r.riskLevel?.code === 'HIGH' || r.riskLevel?.code === 'CRITICAL'
 }
 
-function SuUserDetailsBlock({ user }: { user: ServiceUserListRow }) {
+function SuUserDetailsBlock({
+  user,
+  archived,
+}: {
+  user: ServiceUserListRow
+  archived?: boolean
+}) {
   const kw = employeeLabel(user.keyWorker)
   const nn = employeeLabel(user.namedNurse)
   const loc = user.location?.name?.trim()
@@ -145,13 +173,17 @@ function SuUserDetailsBlock({ user }: { user: ServiceUserListRow }) {
   return (
     <div className="min-w-0 space-y-1 pr-2">
       <div className="font-medium leading-snug text-foreground">
-        <Link
-          to="/service-users/$serviceUserId"
-          params={{ serviceUserId: user.id }}
-          className="hover:underline"
-        >
-          {displayName(user)}
-        </Link>
+        {archived ? (
+          <span>{displayName(user)}</span>
+        ) : (
+          <Link
+            to="/service-users/$serviceUserId"
+            params={{ serviceUserId: user.id }}
+            className="hover:underline"
+          >
+            {displayName(user)}
+          </Link>
+        )}
         {user.serviceUserNumber && (
           <span className="text-muted-foreground font-normal"> · #{user.serviceUserNumber}</span>
         )}
@@ -161,6 +193,7 @@ function SuUserDetailsBlock({ user }: { user: ServiceUserListRow }) {
         {risk && (
           <span className="text-destructive font-normal"> · {user.riskLevel?.name ?? 'Risk'}</span>
         )}
+        {archived && <span className="font-normal text-destructive"> · Deleted</span>}
       </div>
       <div className="space-y-0.5 text-sm text-muted-foreground leading-relaxed">
         <div>
@@ -180,59 +213,121 @@ function SuUserDetailsBlock({ user }: { user: ServiceUserListRow }) {
   )
 }
 
-function SuActionStrip({ user, className }: { user: ServiceUserListRow; className?: string }) {
+function SuActionStrip({
+  user,
+  className,
+  onSoftDeleted,
+  archived,
+}: {
+  user: ServiceUserListRow
+  className?: string
+  onSoftDeleted?: () => void
+  archived?: boolean
+}) {
   const suspended = !user.isActive
+  const can = useAuthStore((s) => s.can)
+  const canDelete = can('service_users.delete')
+
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
+  const [deleteSaving, setDeleteSaving] = React.useState(false)
+
+  if (archived) {
+    return (
+      <p className="text-xs text-muted-foreground italic">Archived record — restore not available in admin yet.</p>
+    )
+  }
+
+  async function confirmDelete() {
+    if (deleteSaving) return
+    setDeleteSaving(true)
+    try {
+      await deleteServiceUser(user.id)
+      toastSuccess('Service user deleted')
+      setDeleteOpen(false)
+      onSoftDeleted?.()
+    } catch (e) {
+      toastApiError(e, 'Delete failed')
+    } finally {
+      setDeleteSaving(false)
+    }
+  }
+
   return (
-    <div className={cn('flex flex-nowrap items-center justify-end gap-1', className)}>
-      <Link
-        to="/service-users/$serviceUserId/view"
-        params={{ serviceUserId: user.id }}
-        title="View"
-        className={profileLinkClassName()}
-      >
-        <Eye />
-      </Link>
-      <TealCircleBtn title="Health">
-        <Heart />
-      </TealCircleBtn>
-      <Link
-        to="/service-users/$serviceUserId"
-        params={{ serviceUserId: user.id }}
-        title="Profile"
-        className={profileLinkClassName()}
-      >
-        <User />
-      </Link>
-      <Link
-        to="/service-users/$serviceUserId/medication"
-        params={{ serviceUserId: user.id }}
-        title="Medication"
-        className={profileLinkClassName()}
-      >
-        <Pill />
-      </Link>
-      <TealCircleBtn title="Appointments">
-        <Calendar />
-      </TealCircleBtn>
-      <TealCircleBtn title="Documents">
-        <Paperclip />
-      </TealCircleBtn>
-      <TealCircleBtn title="Risk / incident" active={highRiskAlert(user)} activeClass="bg-red-500">
-        <Plus />
-      </TealCircleBtn>
-      <TealCircleBtn title="Team">
-        <Users />
-      </TealCircleBtn>
-      <TealCircleBtn title={suspended ? 'Inactive' : 'Active'} active={suspended} activeClass="bg-red-500">
-        <Trash2 />
-      </TealCircleBtn>
-      <div className="mx-0.5 hidden h-7 w-px shrink-0 bg-border/80 sm:block" aria-hidden />
-      {ROW_QUICK_ICONS.map(({ title, Icon }) => (
-        <TealCircleBtn key={title} title={`${title} (coming soon)`}>
-          <Icon />
+    <>
+      <div className={cn('flex flex-nowrap items-center justify-end gap-1', className)}>
+        <Link
+          to="/service-users/$serviceUserId/view"
+          params={{ serviceUserId: user.id }}
+          title="View"
+          className={profileLinkClassName()}
+        >
+          <Eye />
+        </Link>
+        <TealCircleBtn title="Health">
+          <Heart />
         </TealCircleBtn>
-      ))}
-    </div>
+        <Link
+          to="/service-users/$serviceUserId"
+          params={{ serviceUserId: user.id }}
+          title="Profile"
+          className={profileLinkClassName()}
+        >
+          <User />
+        </Link>
+        <Link
+          to="/service-users/$serviceUserId/medication"
+          params={{ serviceUserId: user.id }}
+          title="Medication"
+          className={profileLinkClassName()}
+        >
+          <Pill />
+        </Link>
+        <TealCircleBtn title="Appointments">
+          <Calendar />
+        </TealCircleBtn>
+        <TealCircleBtn title="Documents">
+          <Paperclip />
+        </TealCircleBtn>
+        <TealCircleBtn title="Risk / incident" active={highRiskAlert(user)} activeClass="bg-red-500">
+          <Plus />
+        </TealCircleBtn>
+        <TealCircleBtn title="Team">
+          <Users />
+        </TealCircleBtn>
+        <TealCircleBtn
+          title={suspended ? 'Delete (inactive)' : 'Delete'}
+          active
+          activeClass="bg-red-500"
+          onClick={() => setDeleteOpen(true)}
+          disabled={!canDelete || deleteSaving}
+        >
+          <Trash2 />
+        </TealCircleBtn>
+        <div className="mx-0.5 hidden h-7 w-px shrink-0 bg-border/80 sm:block" aria-hidden />
+        {ROW_QUICK_ICONS.map(({ title, Icon }) => (
+          <TealCircleBtn key={title} title={`${title} (coming soon)`}>
+            <Icon />
+          </TealCircleBtn>
+        ))}
+      </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={(o) => setDeleteOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete service user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will soft-delete the service user (it won&apos;t appear in the list anymore).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDelete()} disabled={deleteSaving || !canDelete}>
+              {deleteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -252,9 +347,11 @@ const SU_PHOTO_ACCEPT = ['image/jpeg', 'image/png', 'image/webp'] as const
 function SuAvatar({
   row,
   onPhotoUploaded,
+  readOnly,
 }: {
   row: ServiceUserListRow
   onPhotoUploaded: (userId: string, profilePhotoUrl: string) => void
+  readOnly?: boolean
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = React.useState(false)
@@ -263,6 +360,7 @@ function SuAvatar({
   const border = avatarBorder(row)
 
   const openPicker = () => {
+    if (readOnly) return
     setUploadError(null)
     inputRef.current?.click()
   }
@@ -301,12 +399,12 @@ function SuAvatar({
       <button
         type="button"
         onClick={openPicker}
-        disabled={uploading}
-        title="Upload profile photo (JPEG, PNG, WebP)"
+        disabled={uploading || readOnly}
+        title={readOnly ? 'Photo upload unavailable for deleted records' : 'Upload profile photo (JPEG, PNG, WebP)'}
         className={cn(
           'h-16 w-16 rounded-full flex flex-col items-center justify-center border-2 overflow-hidden p-0',
           'bg-muted transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          uploading ? 'cursor-wait opacity-70' : 'cursor-pointer',
+          uploading ? 'cursor-wait opacity-70' : readOnly ? 'cursor-default opacity-80' : 'cursor-pointer',
         )}
         style={{ borderColor: border }}
       >
@@ -350,6 +448,68 @@ function statusIdForFilter(lookups: ServiceUserLookupsBundle | null, filter: Sta
   return row?.id
 }
 
+type QuickSelectId = 'all' | 'active' | 'discharged' | 'deleted'
+
+type QuickSelectButton =
+  | { id: QuickSelectId; title: string; Icon: LucideIcon }
+  | { id: null; title: string; Icon: LucideIcon }
+
+const QUICK_SELECT_BUTTONS: QuickSelectButton[] = [
+  { id: 'all', title: 'All users', Icon: User },
+  { id: 'active', title: 'Active users', Icon: UserCheck },
+  { id: null, title: 'Group', Icon: Users },
+  { id: null, title: 'Health', Icon: Heart },
+  { id: null, title: 'Unassigned', Icon: Circle },
+  { id: null, title: 'Team', Icon: Users },
+  { id: 'discharged', title: 'Discharged', Icon: UserX },
+  { id: 'deleted', title: 'Deleted', Icon: Trash2 },
+]
+
+function statusFilterForQuickSelect(id: QuickSelectId): StatusFilter {
+  switch (id) {
+    case 'all':
+      return 'all'
+    case 'active':
+      return 'in_service'
+    case 'discharged':
+      return 'discharged'
+    case 'deleted':
+      return 'all'
+  }
+}
+
+function listQueryForFilters(
+  lookups: ServiceUserLookupsBundle | null,
+  quickSelect: QuickSelectId | null,
+  statusFilter: StatusFilter,
+) {
+  if (quickSelect === 'deleted') {
+    return { showDeleted: true, showInactive: true, statusId: undefined }
+  }
+  if (quickSelect === 'all') {
+    return { showDeleted: false, showInactive: true, statusId: undefined }
+  }
+  if (quickSelect === 'active') {
+    return {
+      showDeleted: false,
+      showInactive: false,
+      statusId: statusIdForFilter(lookups, 'in_service'),
+    }
+  }
+  if (quickSelect === 'discharged') {
+    return {
+      showDeleted: false,
+      showInactive: true,
+      statusId: statusIdForFilter(lookups, 'discharged'),
+    }
+  }
+  return {
+    showDeleted: false,
+    showInactive: statusFilter !== 'in_service' ? true : undefined,
+    statusId: statusIdForFilter(lookups, statusFilter),
+  }
+}
+
 export default function ServiceUsersPage() {
   const apiConfigured = Boolean(getApiBaseUrl())
   const [lookups, setLookups] = React.useState<ServiceUserLookupsBundle | null>(null)
@@ -366,9 +526,12 @@ export default function ServiceUsersPage() {
   const [searchApi, setSearchApi] = React.useState('')
   const [kwSearch, setKwSearch] = React.useState('')
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('in_service')
+  const [quickSelect, setQuickSelect] = React.useState<QuickSelectId | null>(null)
+  const viewingDeleted = quickSelect === 'deleted'
   const [page, setPage] = React.useState(1)
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState<string | null>(null)
+  const [reloadToken, setReloadToken] = React.useState(0)
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setSearchApi(searchInput.trim()), 350)
@@ -377,7 +540,7 @@ export default function ServiceUsersPage() {
 
   React.useEffect(() => {
     setPage(1)
-  }, [searchApi, statusFilter])
+  }, [searchApi, statusFilter, quickSelect])
 
   React.useEffect(() => {
     if (!apiConfigured) {
@@ -401,14 +564,16 @@ export default function ServiceUsersPage() {
             if (!cancelled) setLookups(EMPTY_LOOKUPS)
           }
         }
+        const query = listQueryForFilters(lu, quickSelect, statusFilter)
         const list = await listServiceUsers({
           page,
           limit: 25,
           search: searchApi || undefined,
-          statusId: statusIdForFilter(lu, statusFilter),
-          showInactive: statusFilter !== 'in_service' ? true : undefined,
-          sortBy: 'lastName',
-          sortOrder: 'asc',
+          statusId: query.statusId,
+          showInactive: query.showInactive,
+          showDeleted: query.showDeleted,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
         })
         if (cancelled) return
         setRows(list.rows)
@@ -425,7 +590,11 @@ export default function ServiceUsersPage() {
     return () => {
       cancelled = true
     }
-  }, [apiConfigured, page, searchApi, statusFilter, lookups])
+  }, [apiConfigured, page, searchApi, statusFilter, quickSelect, lookups, reloadToken])
+
+  const triggerReload = React.useCallback(() => {
+    setReloadToken((t) => t + 1)
+  }, [])
 
   const filteredRows = React.useMemo(() => {
     const q = kwSearch.trim().toLowerCase()
@@ -442,7 +611,7 @@ export default function ServiceUsersPage() {
   }, [])
 
   return (
-    <div className="flex min-h-full w-full min-w-0 flex-col">
+    <div className="flex min-h-full w-full min-w-0 flex-col" data-testid="service-users-page">
       <div className="p-3 sm:p-4">
         <div className="bg-card rounded-xl border border-border shadow-sm">
           <div className="space-y-1.5 p-4 sm:p-5">
@@ -485,6 +654,7 @@ export default function ServiceUsersPage() {
 
           <div className="flex min-w-0 w-full flex-1 sm:max-w-md md:w-52 md:flex-initial md:max-w-none">
             <input
+              data-testid="service-users-search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name, NHS no., phone…"
@@ -518,28 +688,44 @@ export default function ServiceUsersPage() {
 
         <div className="-mx-1 flex min-w-0 items-center gap-1.5 overflow-x-auto px-1 pb-0.5 touch-pan-x md:mx-0 md:max-w-none md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
           <span className="shrink-0 text-sm font-medium text-muted-foreground">Select</span>
-          {[
-            { icon: <User />, title: 'All users' },
-            { icon: <UserCheck />, title: 'Active users' },
-            { icon: <Users />, title: 'Group' },
-            { icon: <Heart />, title: 'Health' },
-            { icon: <Circle />, title: 'Unassigned' },
-            { icon: <Users />, title: 'Team' },
-            { icon: <UserX />, title: 'Discharged' },
-            { icon: <Trash2 />, title: 'Deleted' },
-          ].map((item, i) => (
-            <TealCircleBtn key={i} title={item.title}>
-              {item.icon}
-            </TealCircleBtn>
-          ))}
+          {QUICK_SELECT_BUTTONS.map((item, i) => {
+            const Icon = item.Icon
+            const isActive = item.id !== null && quickSelect === item.id
+            return (
+              <TealCircleBtn
+                key={item.id ?? `placeholder-${i}`}
+                title={item.id ? item.title : `${item.title} (coming soon)`}
+                active={isActive}
+                activeClass={item.id === 'deleted' ? 'bg-red-500' : 'bg-[#4db8c8]'}
+                disabled={item.id === null}
+                testId={item.id === 'deleted' ? 'service-users-quick-deleted' : undefined}
+                onClick={
+                  item.id
+                    ? () => {
+                        const id = item.id as QuickSelectId
+                        setQuickSelect(id)
+                        setStatusFilter(statusFilterForQuickSelect(id))
+                      }
+                    : undefined
+                }
+              >
+                <Icon />
+              </TealCircleBtn>
+            )
+          })}
         </div>
 
         <div className="flex w-full min-w-0 items-center gap-2 md:ml-auto md:w-auto md:shrink-0">
           <span className="shrink-0 text-sm font-medium text-muted-foreground">Status</span>
           <select
+            data-testid="service-users-status-filter"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring md:flex-initial"
+            disabled={viewingDeleted}
+            onChange={(e) => {
+              setQuickSelect(null)
+              setStatusFilter(e.target.value as StatusFilter)
+            }}
+            className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:flex-initial"
           >
             <option value="in_service">In service (active)</option>
             <option value="all">All</option>
@@ -550,6 +736,14 @@ export default function ServiceUsersPage() {
           </select>
         </div>
       </div>
+
+      {viewingDeleted && (
+        <div className="px-3 pb-2 sm:px-4">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+            Showing soft-deleted service users. Select <strong>Active users</strong> to return to the live list.
+          </div>
+        </div>
+      )}
 
       <div className="min-w-0 p-3 sm:p-4">
         <div className="relative rounded-lg border border-border bg-card">
@@ -565,12 +759,16 @@ export default function ServiceUsersPage() {
             </div>
           ) : filteredRows.length === 0 && !loading ? (
             <div className="px-3 py-12 text-center text-sm text-muted-foreground sm:px-4">
-              {rows.length === 0 ? 'No service users match your filters.' : 'No rows match key worker filter on this page.'}
+              {rows.length === 0
+                ? viewingDeleted
+                  ? 'No deleted service users match your search.'
+                  : 'No service users match your filters.'
+                : 'No rows match key worker filter on this page.'}
             </div>
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="w-full min-w-[720px] text-sm" data-testid="service-users-table">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       {[
@@ -602,14 +800,14 @@ export default function ServiceUsersPage() {
                         className="border-b border-border transition-colors last:border-0 hover:bg-muted/20"
                       >
                         <td className="px-2 py-3 align-middle sm:px-3">
-                          <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} />
+                          <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} readOnly={viewingDeleted} />
                         </td>
                         <td className="min-w-0 px-2 py-3 align-middle sm:px-3">
-                          <SuUserDetailsBlock user={user} />
+                          <SuUserDetailsBlock user={user} archived={viewingDeleted} />
                         </td>
                         <td className="px-2 py-3 align-middle text-right sm:px-3">
                           <div className="inline-block max-w-[min(100vw,28rem)] min-w-0 overflow-x-auto touch-pan-x md:max-w-none">
-                            <SuActionStrip user={user} />
+                            <SuActionStrip user={user} onSoftDeleted={triggerReload} archived={viewingDeleted} />
                           </div>
                         </td>
                       </tr>
@@ -625,13 +823,18 @@ export default function ServiceUsersPage() {
                     className="space-y-3 px-3 py-3 first:rounded-t-lg last:rounded-b-lg hover:bg-muted/15"
                   >
                     <div className="flex gap-3">
-                      <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} />
+                      <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} readOnly={viewingDeleted} />
                       <div className="min-w-0 flex-1">
-                        <SuUserDetailsBlock user={user} />
+                        <SuUserDetailsBlock user={user} archived={viewingDeleted} />
                       </div>
                     </div>
                     <div className="-mx-1 overflow-x-auto px-1 pb-0.5 touch-pan-x">
-                      <SuActionStrip user={user} className="min-w-min justify-start" />
+                      <SuActionStrip
+                        user={user}
+                        className="min-w-min justify-start"
+                        onSoftDeleted={triggerReload}
+                        archived={viewingDeleted}
+                      />
                     </div>
                   </article>
                 ))}

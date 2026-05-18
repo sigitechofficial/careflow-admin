@@ -3,7 +3,16 @@ import { persist } from 'zustand/middleware'
 import { appendAuditEvent, loadAuditFromStorage } from '@/auth/audit'
 import { hasPermission as checkPerm, permissionsForRole } from '@/auth/roles'
 import { getApiBaseUrl } from '@/lib/api-base'
-import { accessTokenExpiryMs, backendLogin, backendMe, backendRefresh, backendTemporaryInspectorLogin } from '@/lib/auth-api'
+import {
+  accessTokenExpiryMs,
+  backendChangePassword,
+  backendLogin,
+  backendMe,
+  backendRefresh,
+  backendTemporaryInspectorLogin,
+  backendUpdateProfile,
+  type BackendMeUser,
+} from '@/lib/auth-api'
 import type {
   AuditEvent,
   AuthSession,
@@ -99,8 +108,11 @@ interface AuthState {
   refreshTokens: () => Promise<boolean>
   forgotPassword: (email: string) => void
   resetPassword: (token: string, password: string) => { ok: boolean; error?: string }
-  changePassword: (current: string, next: string) => { ok: boolean; error?: string }
-  updateProfile: (patch: Partial<Pick<AuthUser, 'displayName' | 'jobTitle'>>) => void
+  changePassword: (current: string, next: string) => Promise<{ ok: boolean; error?: string }>
+  updateProfile: (
+    patch: Partial<Pick<AuthUser, 'displayName' | 'jobTitle' | 'firstName' | 'lastName'>>,
+  ) => Promise<{ ok: boolean; error?: string }>
+  applyMeUser: (me: BackendMeUser) => void
   setTwoFactorEnabled: (on: boolean) => void
   verifyTwoFactor: (code: string) => boolean
   revokeDevice: (id: string) => void
@@ -138,6 +150,25 @@ function mergeBackendPermissions(mappedRole: RoleId, apiPermissions: string[]): 
   return Array.from(
     new Set([...permissionsForRole(mappedRole), ...(apiPermissions as unknown as Permission[])]),
   )
+}
+
+function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
+  const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
+  const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
+  const displayName =
+    me.accountKind === 'temporary_inspector'
+      ? [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Temporary inspector'
+      : [me.firstName, me.lastName].filter(Boolean).join(' ') || me.email.split('@')[0] || me.email
+  return {
+    id: me.id,
+    email: me.email,
+    displayName,
+    firstName: me.firstName,
+    lastName: me.lastName,
+    role: mappedRole,
+    permissions: mergedPerms,
+    jobTitle: prev?.jobTitle,
+  }
 }
 
 function seedSso(): SsoProvider[] {
@@ -228,19 +259,7 @@ export const useAuthStore = create<AuthState>()(
           try {
             const { accessToken, refreshToken } = await backendLogin(key, password)
             const me = await backendMe(accessToken)
-            const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
-            const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
-            const displayName =
-              me.accountKind === 'temporary_inspector'
-                ? [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Temporary inspector'
-                : me.email.split('@')[0] || me.email
-            const user: AuthUser = {
-              id: me.id,
-              email: me.email,
-              displayName,
-              role: mappedRole,
-              permissions: mergedPerms,
-            }
+            const user = userFromMe(me)
             const t = Date.now()
             const accessExpiresAt = accessTokenExpiryMs(accessToken) ?? t + ACCESS_MS
             const refreshExpiresAt = accessTokenExpiryMs(refreshToken) ?? t + REFRESH_MS
@@ -412,19 +431,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { accessToken, refreshToken } = await backendTemporaryInspectorLogin(username, password)
           const me = await backendMe(accessToken)
-          const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
-          const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
-          const displayName =
-            me.accountKind === 'temporary_inspector'
-              ? [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Temporary inspector'
-              : me.email.split('@')[0] || me.email
-          const user: AuthUser = {
-            id: me.id,
-            email: me.email,
-            displayName,
-            role: mappedRole,
-            permissions: mergedPerms,
-          }
+          const user = userFromMe(me)
           const t = Date.now()
           const accessExpiresAt = accessTokenExpiryMs(accessToken) ?? t + ACCESS_MS
           const refreshExpiresAt = accessTokenExpiryMs(refreshToken) ?? t + REFRESH_MS
@@ -519,15 +526,7 @@ export const useAuthStore = create<AuthState>()(
             if (s.user) {
               try {
                 const me = await backendMe(accessToken)
-                const mappedRole = backendRolesToRoleId(me.roles, me.accountKind)
-                const mergedPerms = mergeBackendPermissions(mappedRole, me.permissions)
-                userPatch = {
-                  user: {
-                    ...s.user,
-                    role: mappedRole,
-                    permissions: mergedPerms,
-                  },
-                }
+                userPatch = { user: userFromMe(me, s.user) }
               } catch {
                 // Keep existing user on transient /me failure after refresh
               }
@@ -596,12 +595,31 @@ export const useAuthStore = create<AuthState>()(
         return { ok: true }
       },
 
-      changePassword: (current, next) => {
+      changePassword: async (current, next) => {
         const u = get().user
         if (!u) return { ok: false, error: 'Not signed in.' }
+        if (next.length < 8) return { ok: false, error: 'New password must be at least 8 characters.' }
+
+        if (getApiBaseUrl()) {
+          try {
+            await backendChangePassword(current, next)
+            get().appendLocalAudit({
+              at: Date.now(),
+              actorId: u.id,
+              actorEmail: u.email,
+              action: 'auth.password.changed',
+              ip: nowIp(),
+              meta: { mode: 'api' },
+            })
+            return { ok: true }
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Password change failed.'
+            return { ok: false, error: msg }
+          }
+        }
+
         const row = MOCK_USERS[u.email.toLowerCase()]
         if (!row || row.password !== current) return { ok: false, error: 'Current password is incorrect.' }
-        if (next.length < 8) return { ok: false, error: 'New password must be at least 8 characters.' }
         MOCK_USERS[u.email.toLowerCase()] = { ...row, password: next }
         get().appendLocalAudit({
           at: Date.now(),
@@ -613,10 +631,48 @@ export const useAuthStore = create<AuthState>()(
         return { ok: true }
       },
 
-      updateProfile: patch => {
+      applyMeUser: me => {
+        const prev = get().user
+        if (!prev || prev.id !== me.id) return
+        set({ user: userFromMe(me, prev) })
+      },
+
+      updateProfile: async patch => {
         const u = get().user
-        if (!u) return
-        set({ user: { ...u, ...patch } })
+        if (!u) return { ok: false, error: 'Not signed in.' }
+
+        if (getApiBaseUrl()) {
+          try {
+            const me = await backendUpdateProfile({
+              firstName: patch.firstName ?? patch.displayName?.split(/\s+/)[0],
+              lastName: patch.lastName ?? patch.displayName?.split(/\s+/).slice(1).join(' '),
+            })
+            set({ user: userFromMe(me, { ...u, jobTitle: patch.jobTitle ?? u.jobTitle }) })
+            get().appendLocalAudit({
+              at: Date.now(),
+              actorId: u.id,
+              actorEmail: u.email,
+              action: 'profile.updated',
+              ip: nowIp(),
+              meta: { mode: 'api', ...patch },
+            })
+            return { ok: true }
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Profile update failed.'
+            return { ok: false, error: msg }
+          }
+        }
+
+        const displayName = patch.displayName ?? u.displayName
+        set({
+          user: {
+            ...u,
+            displayName,
+            jobTitle: patch.jobTitle ?? u.jobTitle,
+            firstName: patch.firstName ?? u.firstName,
+            lastName: patch.lastName ?? u.lastName,
+          },
+        })
         get().appendLocalAudit({
           at: Date.now(),
           actorId: u.id,
@@ -625,6 +681,7 @@ export const useAuthStore = create<AuthState>()(
           ip: nowIp(),
           meta: patch as Record<string, unknown>,
         })
+        return { ok: true }
       },
 
       setTwoFactorEnabled: on => {

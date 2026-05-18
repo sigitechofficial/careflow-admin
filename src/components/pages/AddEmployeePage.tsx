@@ -350,6 +350,7 @@ function WizardStepTimeline({
                   type="button"
                   disabled={!reachable}
                   onClick={() => reachable && onSelect(step.id)}
+                  data-testid={`employee-wizard-step-${step.id}`}
                   className={cn(
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors',
                     isActive && 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20',
@@ -936,6 +937,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
+                data-testid="employee-wizard-return-staff-list"
                 onClick={() => navigate({ to: '/employee/staff-list' })}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -970,7 +972,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm" data-testid="employee-wizard">
           <WizardStepTimeline
             tab={tab}
             personalComplete={Boolean(createdEmployeeId)}
@@ -980,7 +982,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
           <div className="p-5">
             {tab === 'personal' && (
-              <form className="space-y-6" onSubmit={handleSubmit(onSavePersonal)}>
+              <form className="space-y-6" data-testid="employee-personal-form" onSubmit={handleSubmit(onSavePersonal)}>
                 <h2 className="text-sm font-semibold text-foreground">Personal Details</h2>
 
                 <div className="grid grid-cols-1 gap-y-4 gap-x-10 lg:grid-cols-2">
@@ -1112,6 +1114,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                         type="button"
                         className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md border border-input hover:bg-muted disabled:opacity-50"
                         title="Look up UK postcode (postcodes.io)"
+                        aria-label="Look up UK postcode"
                         disabled={postcodeLookupBusy}
                         onClick={() => void onLookupPostcode()}
                       >
@@ -1283,6 +1286,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   </Button>
                   <Button
                     type="submit"
+                    data-testid="employee-save-personal"
                     disabled={saving || !apiConfigured || (isEditMode && employeeBootstrapLoading)}
                   >
                     {saving ? 'Saving…' : isEditMode ? 'Save personal details' : 'Save & continue'}
@@ -1292,7 +1296,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             )}
 
             {tab === 'employment' && (
-              <form className="space-y-6" onSubmit={handleSubmit(onSaveEmployment)}>
+              <form className="space-y-6" data-testid="employee-employment-form" onSubmit={handleSubmit(onSaveEmployment)}>
                 <h2 className="text-sm font-semibold text-foreground">Employment</h2>
 
                 <div className="grid grid-cols-1 gap-y-4 gap-x-10 lg:grid-cols-2">
@@ -1614,7 +1618,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   <Button type="button" variant="outline" onClick={() => setTab('personal')}>
                     Back
                   </Button>
-                  <Button type="submit" disabled={saving || !createdEmployeeId}>
+                  <Button type="submit" data-testid="employee-save-employment" disabled={saving || !createdEmployeeId}>
                     {saving ? 'Saving…' : 'Save employment'}
                   </Button>
                 </div>
@@ -1622,7 +1626,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             )}
 
             {tab === 'working-pattern' && (
-              <div className="space-y-6">
+              <div className="space-y-6" data-testid="employee-working-pattern-section">
                 <p className="text-sm text-muted-foreground">
                   Use the fortnight grid for quick planning. The <span className="font-medium">standard week</span> block
                   below persists to <span className="font-mono text-xs">EmployeeWorkingPattern</span>.
@@ -1771,7 +1775,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   <Button type="button" variant="outline" onClick={() => setTab('employment')}>
                     Back
                   </Button>
-                  <Button type="button" onClick={onFinish}>
+                  <Button type="button" data-testid="employee-wizard-done" onClick={onFinish}>
                     Done — return to staff list
                   </Button>
                 </div>

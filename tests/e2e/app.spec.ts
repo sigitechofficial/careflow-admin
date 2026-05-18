@@ -1,41 +1,67 @@
 import { test, expect } from '@playwright/test'
+import { hasApiCreds, unauthenticatedStorage } from './helpers/auth'
 
 test.describe('CareAdmin App', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/')
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test.describe('unauthenticated', () => {
+    test.use({ storageState: unauthenticatedStorage })
+
+    test('visit to home redirects to login', async ({ page }) => {
+      await page.goto('/')
+      await expect(page).toHaveURL(/\/auth\/login/)
+      await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+    })
   })
 
-  test('loads the app with sidebar', async ({ page }) => {
-    await expect(page.getByText('CareAdmin')).toBeVisible()
-    await expect(page.getByText('Component Library')).toBeVisible()
-  })
+  test.describe('authenticated shell', () => {
+    test.beforeEach(() => {
+      test.skip(!hasApiCreds, 'Set E2E_API_BASE_URL, E2E_LOGIN_EMAIL, E2E_LOGIN_PASSWORD in `.env`.')
+    })
 
-  test('sidebar navigation works', async ({ page }) => {
-    await page.click('button:has-text("Service Users")')
-    await expect(page.getByText('Component Library')).toBeVisible()
-  })
+    test('loads home with sidebar brand', async ({ page }) => {
+      await page.goto('/')
+      await expect(page.getByText('CareAdmin', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('Handover Report')).toBeVisible()
+    })
 
-  test('can toggle dark mode', async ({ page }) => {
-    const themeButton = page.locator('button').filter({ hasText: /sun|moon|monitor/i }).first()
-    await themeButton.click()
-    await expect(page.locator('html')).toHaveClass(/dark|light/)
-  })
+    test('sidebar navigation opens service users', async ({ page }) => {
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Service Users' }).click()
+      await page.getByRole('link', { name: 'All Service Users' }).click()
+      await expect(page).toHaveURL(/\/service-users/)
+    })
 
-  test('can collapse sidebar', async ({ page }) => {
-    await page.click('button:has-text("Collapse")')
-    await expect(page.locator('aside')).toHaveClass(/w-\[60px\]/)
-  })
+    test('can change theme from header menu', async ({ page }) => {
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Theme' }).click()
+      await page.getByRole('menuitem', { name: 'Dark' }).click()
+      await expect(page.locator('html')).toHaveClass(/dark/)
+    })
 
-  test('dialog opens and closes', async ({ page }) => {
-    await page.click('button:has-text("Open Dialog")')
-    await expect(page.getByText('Add New Service User')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(page.getByText('Add New Service User')).not.toBeVisible()
-  })
+    test('can collapse sidebar on desktop', async ({ page }) => {
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Collapse' }).click()
+      await expect(page.locator('aside')).toHaveClass(/w-\[60px\]/)
+    })
 
-  test('shows notification badge on bell', async ({ page }) => {
-    const bell = page.locator('header button').nth(2)
-    await bell.click()
-    await expect(page.getByText('Notifications')).toBeVisible()
+    test('notification bell opens dropdown when available', async ({ page }) => {
+      await page.goto('/')
+      const bell = page.getByRole('button', { name: 'Notifications' })
+      if (!(await bell.isVisible())) {
+        test.skip(true, 'Notification bell hidden (needs API URL and notifications.read).')
+      }
+      await bell.click()
+      await expect(page.getByText('Notifications', { exact: true }).first()).toBeVisible()
+    })
+
+    test('UI showcase dialog opens and closes', async ({ page }) => {
+      await page.goto('/showcase')
+      await expect(page.getByRole('heading', { name: 'Component Library' })).toBeVisible()
+      await page.getByRole('button', { name: 'Open Dialog' }).click()
+      await expect(page.getByText('Add New Service User')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByText('Add New Service User')).not.toBeVisible()
+    })
   })
 })
