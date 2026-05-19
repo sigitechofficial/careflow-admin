@@ -42,7 +42,7 @@ export async function pickLookupOptionByName(page: Page, fieldId: string, name: 
 
 export async function waitForEmployeeLookups(page: Page) {
   await expect(page.getByTestId('employee-personal-form')).toBeVisible()
-  await expect(page.locator('#statusId')).toBeEnabled({ timeout: 20000 })
+  await expect(page.getByLabel('Status')).toBeEnabled({ timeout: 20000 })
 }
 
 export async function fillPersonalStep(page: Page, draft: E2eEmployeeDraft) {
@@ -50,7 +50,10 @@ export async function fillPersonalStep(page: Page, draft: E2eEmployeeDraft) {
   await page.getByLabel('Last name').fill(draft.lastName)
   await page.getByLabel('Username').fill(draft.username)
   await page.getByLabel('Email').fill(draft.email)
-  await pickLookupOptionByName(page, 'statusId', /^Active$/i)
+  await page.getByLabel('Status').click()
+  const activeOption = page.getByRole('option', { name: /^Active$/i })
+  await expect(activeOption).toBeVisible({ timeout: 10_000 })
+  await activeOption.click()
 }
 
 export async function fillEmploymentStep(page: Page) {

@@ -24,6 +24,11 @@ import { resolveMediaUrl } from '@/lib/media-url'
 import { EmployeeEmergencyContactsEditor } from '@/components/employee/EmployeeEmergencyContactsEditor'
 import { EmployeeDocumentsSection } from '@/components/employee/EmployeeDocumentsSection'
 import { EmployeeWeeklyPatternEditor } from '@/components/employee/EmployeeWeeklyPatternEditor'
+import { EditEmployeeTabBar, type EditEmployeeTabId } from '@/components/employee/EditEmployeeTabBar'
+import { EmployeeEditSkillsPanel } from '@/components/employee/EmployeeEditSkillsPanel'
+import { EmployeeEditNonCorePanel } from '@/components/employee/EmployeeEditNonCorePanel'
+import { EmployeeEditCompliancePanel } from '@/components/employee/EmployeeEditCompliancePanel'
+import { EmployeeEditPlaceholderPanel } from '@/components/employee/EmployeeEditPlaceholderPanel'
 import { personalStepSchema, employmentStepSchema } from '@/schemas/add-employee.schema'
 import { DIAL_CODES, formatPhoneForApi, splitPhoneForForm } from '@/lib/dial-codes'
 import { Button } from '@/components/ui/button'
@@ -477,6 +482,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const navigate = useNavigate()
   const isEditMode = Boolean(editEmployeeId)
   const [tab, setTab] = React.useState<TabId>('personal')
+  const [editTab, setEditTab] = React.useState<EditEmployeeTabId>('personal')
+  const [editDisplayName, setEditDisplayName] = React.useState('')
+  const [editPhotoUrl, setEditPhotoUrl] = React.useState<string | null>(null)
   const [lookups, setLookups] = React.useState<EmployeeLookupsBundle | null>(null)
   const [lookupsError, setLookupsError] = React.useState<string | null>(null)
   const [lookupsLoading, setLookupsLoading] = React.useState(false)
@@ -734,6 +742,11 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         reset(employeeDetailToFormValues(emp))
         setCreatedEmployeeId(editEmployeeId)
         setEmploymentSaved(Boolean(emp.employment))
+        const pd = emp.personalDetail
+        setEditDisplayName(
+          [pd?.firstName, pd?.lastName].filter(Boolean).join(' ').trim() || 'Employee',
+        )
+        setEditPhotoUrl(pd?.photoUrl ?? null)
       })
       .catch(e => {
         if (cancelled) return
@@ -791,7 +804,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         }
         setCreatedEmployeeId(editEmployeeId)
         setBanner({ type: 'success', text: 'Personal details saved.' })
-        setTab('employment')
+        const pd = parsed.data
+        setEditDisplayName([pd.firstName, pd.lastName].filter(Boolean).join(' ').trim() || 'Employee')
+        if (!isEditMode) setTab('employment')
         return
       }
       const { id } = await createEmployee({
@@ -887,8 +902,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         hourlyNightRate: e.hourlyNightRate,
       })
       setEmploymentSaved(true)
-      setBanner({ type: 'success', text: 'Employment saved. Configure the working pattern on the next tab.' })
-      setTab('working-pattern')
+      setBanner({
+        type: 'success',
+        text: isEditMode
+          ? 'Employment saved.'
+          : 'Employment saved. Configure the working pattern on the next tab.',
+      })
+      if (!isEditMode) setTab('working-pattern')
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Employment save failed.'
       setBanner({ type: 'error', text: msg })
@@ -898,6 +918,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   }
 
   const onFinish = () => {
+    if (isEditMode) {
+      navigate({ to: '/employee/staff-list' })
+      return
+    }
     if (!createdEmployeeId) {
       setBanner({ type: 'error', text: 'Create the employee from Personal Details before finishing.' })
       setTab('personal')
@@ -928,9 +952,28 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="space-y-1.5 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-semibold" data-testid="employee-wizard-title">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                {isEditMode ? 'Edit Employee' : 'Add Employee'}
+              <div className="flex items-center gap-3" data-testid="employee-wizard-title">
+                {isEditMode && (localPhotoObjectUrl ?? resolveMediaUrl(editPhotoUrl ?? watchedPhotoUrl)) ? (
+                  <img
+                    src={localPhotoObjectUrl ?? resolveMediaUrl(editPhotoUrl ?? watchedPhotoUrl) ?? undefined}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-full border border-border object-cover"
+                  />
+                ) : (
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-sm font-semibold text-foreground">
+                  {isEditMode ? (
+                    <>
+                      Edit Employee
+                      {editDisplayName ? (
+                        <span className="ml-2 font-normal text-muted-foreground">{editDisplayName}</span>
+                      ) : null}
+                    </>
+                  ) : (
+                    'Add Employee'
+                  )}
+                </span>
               </div>
               <Button
                 type="button"
@@ -944,11 +987,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 Return to Manage employee
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {isEditMode
-                ? 'Update personal details, employment, emergency contacts, documents, and working pattern. Use Save on each step where shown.'
-                : 'Enter personal details (then emergency contacts and documents), then employment, then save your weekly pattern.'}
-            </p>
+            {!isEditMode ? (
+              <p className="text-sm text-muted-foreground">
+                Enter personal details (then emergency contacts and documents), then employment, then save your weekly
+                pattern.
+              </p>
+            ) : null}
             {employeeBootstrapLoading ? (
               <p className="text-xs text-muted-foreground">Loading employee…</p>
             ) : null}
@@ -973,16 +1017,25 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm" data-testid="employee-wizard">
-          <WizardStepTimeline
-            tab={tab}
-            personalComplete={Boolean(createdEmployeeId)}
-            employmentComplete={employmentSaved}
-            onSelect={id => setTab(id)}
-          />
+          {isEditMode ? (
+            <EditEmployeeTabBar activeTab={editTab} onTabChange={setEditTab} />
+          ) : (
+            <WizardStepTimeline
+              tab={tab}
+              personalComplete={Boolean(createdEmployeeId)}
+              employmentComplete={employmentSaved}
+              onSelect={id => setTab(id)}
+            />
+          )}
 
           <div className="p-5">
-            {tab === 'personal' && (
-              <form className="space-y-6" data-testid="employee-personal-form" onSubmit={handleSubmit(onSavePersonal)}>
+            {((isEditMode && editTab === 'personal') || (!isEditMode && tab === 'personal')) && (
+              <form
+                id="employee-personal-form"
+                className="space-y-6"
+                data-testid="employee-personal-form"
+                onSubmit={handleSubmit(onSavePersonal)}
+              >
                 <h2 className="text-sm font-semibold text-foreground">Personal Details</h2>
 
                 <div className="grid grid-cols-1 gap-y-4 gap-x-10 lg:grid-cols-2">
@@ -1239,18 +1292,20 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   />
                 </div>
 
-                <div className="border-t border-border pt-5">
-                  <h3 className="mb-3 text-sm font-semibold text-foreground">Employee documents</h3>
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    Upload insurance certificates, right-to-work evidence, training records, and other HR files (
-                    <span className="font-mono">POST /employees/:id/documents</span>). Requires document permissions
-                    (read / upload / delete) on your account.
-                  </p>
-                  <EmployeeDocumentsSection
-                    employeeId={createdEmployeeId ?? editEmployeeId ?? null}
-                    apiReady={apiConfigured && Boolean(accessToken?.includes('.'))}
-                  />
-                </div>
+                {!isEditMode ? (
+                  <div className="border-t border-border pt-5">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground">Employee documents</h3>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Upload insurance certificates, right-to-work evidence, training records, and other HR files (
+                      <span className="font-mono">POST /employees/:id/documents</span>). Requires document permissions
+                      (read / upload / delete) on your account.
+                    </p>
+                    <EmployeeDocumentsSection
+                      employeeId={createdEmployeeId ?? editEmployeeId ?? null}
+                      apiReady={apiConfigured && Boolean(accessToken?.includes('.'))}
+                    />
+                  </div>
+                ) : null}
 
                 <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
                   <Button
@@ -1289,14 +1344,19 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     data-testid="employee-save-personal"
                     disabled={saving || !apiConfigured || (isEditMode && employeeBootstrapLoading)}
                   >
-                    {saving ? 'Saving…' : isEditMode ? 'Save personal details' : 'Save & continue'}
+                    {saving ? 'Saving…' : isEditMode ? 'Save' : 'Save & continue'}
                   </Button>
                 </div>
               </form>
             )}
 
-            {tab === 'employment' && (
-              <form className="space-y-6" data-testid="employee-employment-form" onSubmit={handleSubmit(onSaveEmployment)}>
+            {((isEditMode && editTab === 'employment') || (!isEditMode && tab === 'employment')) && (
+              <form
+                id="employee-employment-form"
+                className="space-y-6"
+                data-testid="employee-employment-form"
+                onSubmit={handleSubmit(onSaveEmployment)}
+              >
                 <h2 className="text-sm font-semibold text-foreground">Employment</h2>
 
                 <div className="grid grid-cols-1 gap-y-4 gap-x-10 lg:grid-cols-2">
@@ -1615,17 +1675,27 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
-                  <Button type="button" variant="outline" onClick={() => setTab('personal')}>
-                    Back
-                  </Button>
+                  {isEditMode ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate({ to: '/employee/staff-list' })}
+                    >
+                      Close
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" onClick={() => setTab('personal')}>
+                      Back
+                    </Button>
+                  )}
                   <Button type="submit" data-testid="employee-save-employment" disabled={saving || !createdEmployeeId}>
-                    {saving ? 'Saving…' : 'Save employment'}
+                    {saving ? 'Saving…' : isEditMode ? 'Save' : 'Save employment'}
                   </Button>
                 </div>
               </form>
             )}
 
-            {tab === 'working-pattern' && (
+            {((isEditMode && editTab === 'working-pattern') || (!isEditMode && tab === 'working-pattern')) && (
               <div className="space-y-6" data-testid="employee-working-pattern-section">
                 <p className="text-sm text-muted-foreground">
                   Use the fortnight grid for quick planning. The <span className="font-medium">standard week</span> block
@@ -1772,15 +1842,59 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setTab('employment')}>
-                    Back
-                  </Button>
+                  {!isEditMode ? (
+                    <Button type="button" variant="outline" onClick={() => setTab('employment')}>
+                      Back
+                    </Button>
+                  ) : null}
                   <Button type="button" data-testid="employee-wizard-done" onClick={onFinish}>
-                    Done — return to staff list
+                    {isEditMode ? 'Close' : 'Done — return to staff list'}
                   </Button>
                 </div>
               </div>
             )}
+
+            {isEditMode && editTab === 'skills' && editEmployeeId ? (
+              <EmployeeEditSkillsPanel employeeId={editEmployeeId} />
+            ) : null}
+
+            {isEditMode && editTab === 'staff-reviews' ? (
+              <EmployeeEditPlaceholderPanel title="Staff Reviews" />
+            ) : null}
+
+            {isEditMode && editTab === 'documents' && editEmployeeId ? (
+              <div className="space-y-4">
+                <h2 className="text-sm font-semibold text-foreground">Documents</h2>
+                <EmployeeDocumentsSection
+                  employeeId={editEmployeeId}
+                  apiReady={apiConfigured && Boolean(accessToken?.includes('.'))}
+                />
+              </div>
+            ) : null}
+
+            {isEditMode && editTab === 'non-core-activity' && editEmployeeId ? (
+              <EmployeeEditNonCorePanel employeeId={editEmployeeId} />
+            ) : null}
+
+            {isEditMode && editTab === 'employment-compliance' && editEmployeeId ? (
+              <EmployeeEditCompliancePanel employeeId={editEmployeeId} />
+            ) : null}
+
+            {isEditMode &&
+            editTab !== 'personal' &&
+            editTab !== 'employment' &&
+            editTab !== 'working-pattern' ? (
+              <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="employee-edit-close"
+                  onClick={() => navigate({ to: '/employee/staff-list' })}
+                >
+                  Close
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

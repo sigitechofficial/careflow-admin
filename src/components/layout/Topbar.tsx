@@ -72,7 +72,7 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
         {/* Theme toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Theme">
+            <Button variant="ghost" size="icon" aria-label="Theme" data-testid="theme-menu-trigger">
               {theme === 'dark' ? (
                 <Moon className="h-4 w-4" />
               ) : theme === 'light' ? (
@@ -85,15 +85,27 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
           <DropdownMenuContent align="end" className="w-36">
             <DropdownMenuLabel>Theme</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2">
+            <DropdownMenuItem
+              data-testid="theme-light"
+              onClick={() => setTheme('light')}
+              className="gap-2"
+            >
               <Sun className="h-4 w-4" /> Light
               {theme === 'light' && <span className="ml-auto text-primary">✓</span>}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2">
+            <DropdownMenuItem
+              data-testid="theme-dark"
+              onClick={() => setTheme('dark')}
+              className="gap-2"
+            >
               <Moon className="h-4 w-4" /> Dark
               {theme === 'dark' && <span className="ml-auto text-primary">✓</span>}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')} className="gap-2">
+            <DropdownMenuItem
+              data-testid="theme-system"
+              onClick={() => setTheme('system')}
+              className="gap-2"
+            >
               <Monitor className="h-4 w-4" /> System
               {theme === 'system' && <span className="ml-auto text-primary">✓</span>}
             </DropdownMenuItem>

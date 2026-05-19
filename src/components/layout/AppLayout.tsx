@@ -12,9 +12,10 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, pageTitle, fullBleed }: AppLayoutProps) {
   const { sidebarCollapsed } = useUIStore()
+  const theme = useUIStore(s => s.theme)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div data-testid="app-layout" data-theme={theme} className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <Sidebar />
 

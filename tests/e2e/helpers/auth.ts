@@ -36,7 +36,7 @@ export async function loginAsE2eUser(page: Page) {
   ])
 
   if (page.url().includes('/auth/login')) {
-    const errorBanner = page.locator('form .text-destructive').first()
+    const errorBanner = page.getByTestId('login-error')
     const msg = (await errorBanner.textContent().catch(() => null))?.trim()
     throw new Error(
       msg

@@ -3,6 +3,7 @@ import {
   Home,
   Users,
   Calendar,
+  Settings,
   Settings2,
   UserCheck,
   UserPlus,
@@ -106,8 +107,8 @@ const inspectorOnlyNavItems: NavItem[] = [
     icon: <Users className="h-4 w-4" />,
     href: '/service-users',
     children: [
-      { label: 'All Service Users', icon: <Users className="h-3.5 w-3.5" />, href: '/service-users/all' },
-      { label: 'Calendar', icon: <CalendarDays className="h-3.5 w-3.5" />, href: '/service-users/calendar', permission: 'service_users.calendar.read' },
+      { label: 'All Service Users', icon: <Users className="h-3.5 w-3.5" />, href: '/service-users/all', navTestId: 'nav-service-users-all' },
+      { label: 'Calendar', icon: <CalendarDays className="h-3.5 w-3.5" />, href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
     ],
   },
 ]
@@ -121,15 +122,16 @@ const navItems: NavItem[] = [
     href: '/service-users',
     badge: 12,
     children: [
-      { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all', permission: 'service_users.read' },
-      { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar', permission: 'service_users.calendar.read' },
+      { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all', permission: 'service_users.read', navTestId: 'nav-service-users-all' },
+      { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
       {
         label: 'Initial Assessment Checklist',
         icon: <ClipboardList className="h-3.5 w-3.5" />,
         href: '/service-users/initial-assessment-checklist',
         permission: 'service_users.initial_assessment.read',
+        navTestId: 'nav-service-users-initial-assessment',
       },
-      { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add', permission: 'service_users.create' },
+      { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
     ],
   },
   {
@@ -141,11 +143,11 @@ const navItems: NavItem[] = [
     children: [
       { label: 'View Schedule',          icon: <Eye className="h-3.5 w-3.5" />,        href: '/scheduling/view' },
       { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
-      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
+      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/scheduling/templates' },
       { label: 'Report',                 icon: <FileText className="h-3.5 w-3.5" />,   href: '/scheduling/report' },
       { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-3.5 w-3.5" />,  href: '/scheduling/jobs' },
-      { label: 'List View of Schedule',  icon: <List className="h-3.5 w-3.5" />,       href: '/in-progress', ready: false },
-      { label: 'Build Schedule',         icon: <Hammer className="h-3.5 w-3.5" />,     href: '/in-progress', ready: false },
+      { label: 'List View of Schedule',  icon: <List className="h-3.5 w-3.5" />,       href: '/scheduling/list' },
+      { label: 'Build Schedule',         icon: <Hammer className="h-3.5 w-3.5" />,     href: '/scheduling/build' },
     ],
   },
   {
@@ -192,6 +194,14 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Policies',          icon: <BookOpen className="h-4 w-4" />,      href: '/in-progress', ready: false },
+  {
+    label: 'Settings',
+    icon: <Settings className="h-4 w-4" />,
+    href: '/settings',
+    children: [
+      { label: 'Lookup data', icon: <Settings2 className="h-3.5 w-3.5" />, href: '/settings', permission: 'lookups.read', navTestId: 'nav-settings' },
+    ],
+  },
   { label: 'UI Showcase',       icon: <Sparkles className="h-4 w-4" />,      href: '/showcase' },
   {
     label: 'Administration',
@@ -271,6 +281,8 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
+        data-testid="sidebar"
+        data-collapsed={sidebarCollapsed ? 'true' : 'false'}
         className={cn(
           'fixed top-0 left-0 z-50 h-full flex flex-col bg-sidebar border-r border-sidebar-border',
           'sidebar-transition',
@@ -384,6 +396,9 @@ export function Sidebar() {
         {/* Bottom section */}
         <div className="shrink-0 border-t border-sidebar-border p-2 space-y-1">
           <button
+            type="button"
+            data-testid="sidebar-collapse-button"
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             onClick={toggleSidebar}
             className={cn(
               'w-full hidden lg:flex items-center rounded-md px-2 py-1.5',
@@ -415,6 +430,7 @@ export function Sidebar() {
           </Link>
           <button
             type="button"
+            data-testid="sidebar-sign-out-button"
             onClick={() => {
               logout('sidebar')
               navigate({ to: '/auth/login' })

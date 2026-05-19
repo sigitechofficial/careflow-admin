@@ -100,8 +100,11 @@ export default function LoginPage() {
       {mode === 'staff' ? (
         <form onSubmit={onSubmitStaff} className="mt-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-muted-foreground">Email</label>
+            <label htmlFor="login-email" className="text-sm font-medium text-muted-foreground">
+              Email
+            </label>
             <input
+              id="login-email"
               type="email"
               data-testid="login-email"
               autoComplete="username"
@@ -111,8 +114,11 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-muted-foreground">Password</label>
+            <label htmlFor="login-password" className="text-sm font-medium text-muted-foreground">
+              Password
+            </label>
             <input
+              id="login-password"
               type="password"
               data-testid="login-password"
               autoComplete="current-password"
@@ -121,7 +127,11 @@ export default function LoginPage() {
               className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p role="alert" data-testid="login-error" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <Button type="submit" className="w-full" disabled={loading} data-testid="login-submit">
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>

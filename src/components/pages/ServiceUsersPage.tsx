@@ -85,7 +85,6 @@ function profileLinkClassName(): string {
 
 /** Placeholder quick actions (same visual language as other row icons). */
 const ROW_QUICK_ICONS: ReadonlyArray<{ title: string; Icon: LucideIcon }> = [
-  { title: 'Care plan', Icon: ClipboardList },
   { title: 'Documents', Icon: FileText },
   { title: 'Observations & activity', Icon: Activity },
   { title: 'Assessments', Icon: ClipboardCheck },
@@ -274,15 +273,23 @@ function SuActionStrip({
         >
           <User />
         </Link>
-        <Link
-          to="/service-users/$serviceUserId/medication"
-          params={{ serviceUserId: user.id }}
-          title="Medication"
-          className={profileLinkClassName()}
-        >
-          <Pill />
-        </Link>
-        <TealCircleBtn title="Appointments">
+      <Link
+        to="/service-users/$serviceUserId/medication"
+        params={{ serviceUserId: user.id }}
+        title="Medication"
+        className={profileLinkClassName()}
+      >
+        <Pill />
+      </Link>
+      <Link
+        to="/service-users/$serviceUserId/observations"
+        params={{ serviceUserId: user.id }}
+        title="Observations"
+        className={profileLinkClassName()}
+      >
+        <ClipboardList />
+      </Link>
+      <TealCircleBtn title="Appointments">
           <Calendar />
         </TealCircleBtn>
         <TealCircleBtn title="Documents">
@@ -615,10 +622,13 @@ export default function ServiceUsersPage() {
       <div className="p-3 sm:p-4">
         <div className="bg-card rounded-xl border border-border shadow-sm">
           <div className="space-y-1.5 p-4 sm:p-5">
-            <div className="flex items-center gap-2 text-sm font-semibold">
+            <h1
+              data-testid="service-users-page-title"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
               <Filter className="h-4 w-4 text-muted-foreground" />
               Service User Management
-            </div>
+            </h1>
             <p className="text-sm text-muted-foreground">
               Search, filter, and manage service users (live data from CareAdmin API).
             </p>
@@ -635,7 +645,11 @@ export default function ServiceUsersPage() {
       )}
       {loadError && (
         <div className="px-3 pb-2 sm:px-4">
-          <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div
+            role="alert"
+            data-testid="service-users-error"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
             {loadError}
           </div>
         </div>
@@ -748,7 +762,10 @@ export default function ServiceUsersPage() {
       <div className="min-w-0 p-3 sm:p-4">
         <div className="relative rounded-lg border border-border bg-card">
           {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60">
+            <div
+              data-testid="service-users-loading"
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60"
+            >
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
@@ -758,7 +775,10 @@ export default function ServiceUsersPage() {
               API is not configured.
             </div>
           ) : filteredRows.length === 0 && !loading ? (
-            <div className="px-3 py-12 text-center text-sm text-muted-foreground sm:px-4">
+            <div
+              data-testid="service-users-empty-state"
+              className="px-3 py-12 text-center text-sm text-muted-foreground sm:px-4"
+            >
               {rows.length === 0
                 ? viewingDeleted
                   ? 'No deleted service users match your search.'
@@ -797,6 +817,7 @@ export default function ServiceUsersPage() {
                     {filteredRows.map((user) => (
                       <tr
                         key={user.id}
+                        data-testid={`service-user-row-${user.id}`}
                         className="border-b border-border transition-colors last:border-0 hover:bg-muted/20"
                       >
                         <td className="px-2 py-3 align-middle sm:px-3">

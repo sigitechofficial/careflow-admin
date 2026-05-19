@@ -29,6 +29,8 @@ import AddServiceUserPage from '@/components/pages/AddServiceUserPage'
 import EditServiceUserPage from '@/components/pages/EditServiceUserPage'
 import ViewServiceUserPage from '@/components/pages/ViewServiceUserPage'
 import ServiceUserMedicationPage from '@/components/pages/ServiceUserMedicationPage'
+import ServiceUserCarePlanPage from '@/components/pages/ServiceUserCarePlanPage'
+import ServiceUserObservationsPage from '@/components/pages/ServiceUserObservationsPage'
 import EmployeePage from '@/components/pages/EmployeePage'
 import TempInspectorPage from '@/components/pages/TempInspectorPage'
 import GeneralEmployeeDocumentsPage from '@/components/pages/GeneralEmployeeDocumentsPage'
@@ -37,6 +39,9 @@ import EditEmployeePage from '@/components/pages/EditEmployeePage'
 import ViewSchedulePage from '@/components/pages/ViewSchedulePage'
 import SchedulingReportPage from '@/components/pages/SchedulingReportPage'
 import ManageScheduleJobsPage from '@/components/pages/ManageScheduleJobsPage'
+import BuildSchedulePage from '@/components/pages/BuildSchedulePage'
+import ScheduleListPage from '@/components/pages/ScheduleListPage'
+import ScheduleTemplatesPage from '@/components/pages/ScheduleTemplatesPage'
 import ViewAccidentsIncidentsPage from '@/components/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/components/pages/RaiseAccidentsIncidentsPage'
 import AccountPage from '@/components/pages/account/AccountPage'
@@ -48,6 +53,8 @@ import ResetPasswordPage from '@/components/pages/auth/ResetPasswordPage'
 import BlockedIpPage from '@/components/pages/auth/BlockedIpPage'
 import ComponentShowcase from '@/components/pages/ComponentShowcase'
 import InProgressPage from '@/components/pages/InProgressPage'
+import SettingsPage from '@/components/pages/SettingsPage'
+import type { SettingsTabId } from '@/components/pages/SettingsPage'
 
 type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
 
@@ -62,6 +69,9 @@ const pageTitles: Record<string, string> = {
   '/scheduling/view': 'View Schedule',
   '/scheduling/report': 'Scheduling Reports',
   '/scheduling/jobs': 'Scheduled Jobs Housekeeping',
+  '/scheduling/build': 'Build Schedule',
+  '/scheduling/list': 'List View of Schedule',
+  '/scheduling/templates': 'Schedule Templates',
   '/employee': 'Employee',
   '/employee/staff-list': 'Employee',
   '/employee/compliance': 'Employee',
@@ -79,7 +89,23 @@ const pageTitles: Record<string, string> = {
   '/admin/audit': 'Audit log',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
+  '/settings': 'Settings',
 }
+
+const SETTINGS_TAB_IDS: SettingsTabId[] = [
+  'job-titles',
+  'skills',
+  'compliance',
+  'work-areas',
+  'contract-types',
+  'grades',
+  'locations',
+  'certifications',
+  'non-core',
+  'leaving-reasons',
+  'review-types',
+  'travel-payment',
+]
 
 function RootDocument() {
   const { theme } = useUIStore()
@@ -110,7 +136,11 @@ function AppRootShell() {
         ? 'Service User'
         : /^\/service-users\/[^/]+\/medication$/.test(pathname)
           ? 'Medication'
-          : /^\/service-users\/[^/]+$/.test(pathname)
+          : /^\/service-users\/[^/]+\/observations$/.test(pathname)
+            ? 'Observations'
+            : /^\/service-users\/[^/]+\/care-plan$/.test(pathname)
+              ? 'Care Plan'
+            : /^\/service-users\/[^/]+$/.test(pathname)
             ? 'Edit Service User'
             : 'CareAdmin')
   const fullBleed =
@@ -118,6 +148,8 @@ function AppRootShell() {
     pathname === '/scheduling/view' ||
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/care-plan$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
 
   return (
@@ -145,6 +177,21 @@ function requireAnyPermission(...permissions: Permission[]) {
     if (!permissions.some(p => can(p))) {
       throw redirect({ to: '/' })
     }
+  }
+}
+
+/** Backend schedule modules use keys like `schedule_timelines.read`, not legacy `schedule.read`. */
+function requireScheduleAccess() {
+  return () => {
+    const perms = useAuthStore.getState().user?.permissions ?? []
+    const allowed = perms.some(
+      p =>
+        p === 'schedule.read' ||
+        p.startsWith('schedule_') ||
+        p.startsWith('schedules.') ||
+        p.startsWith('scheduled_'),
+    )
+    if (!allowed) throw redirect({ to: '/' })
   }
 }
 
@@ -249,6 +296,24 @@ const serviceUsersMedicationRoute = createRoute({
   component: ServiceUserMedicationPage,
 })
 
+const serviceUsersCarePlanRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/care-plan',
+  beforeLoad: requirePermission('service_users.read'),
+  component: ServiceUserCarePlanPage,
+})
+
+const serviceUsersObservationsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/observations',
+  validateSearch: (raw: Record<string, unknown>): { type?: string } => {
+    const t = raw.type
+    return { type: typeof t === 'string' && t.trim() ? t.trim() : undefined }
+  },
+  beforeLoad: requirePermission('service_users.read'),
+  component: ServiceUserObservationsPage,
+})
+
 const serviceUsersEditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId',
@@ -259,22 +324,43 @@ const serviceUsersEditRoute = createRoute({
 const schedulingViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/view',
-  beforeLoad: requirePermission('schedule.read'),
+  beforeLoad: requireScheduleAccess(),
   component: ViewSchedulePage,
 })
 
 const schedulingReportRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/report',
-  beforeLoad: requirePermission('schedule.read'),
+  beforeLoad: requireScheduleAccess(),
   component: SchedulingReportPage,
 })
 
 const schedulingJobsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/jobs',
-  beforeLoad: requirePermission('schedule.read'),
+  beforeLoad: requireScheduleAccess(),
   component: ManageScheduleJobsPage,
+})
+
+const schedulingBuildRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scheduling/build',
+  beforeLoad: requireScheduleAccess(),
+  component: BuildSchedulePage,
+})
+
+const schedulingListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scheduling/list',
+  beforeLoad: requireScheduleAccess(),
+  component: ScheduleListPage,
+})
+
+const schedulingTemplatesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scheduling/templates',
+  beforeLoad: requireScheduleAccess(),
+  component: ScheduleTemplatesPage,
 })
 
 const employeeRoute = createRoute({
@@ -413,6 +499,20 @@ const showcaseRoute = createRoute({
   component: ComponentShowcase,
 })
 
+const settingsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings',
+  validateSearch: (raw: Record<string, unknown>): { tab?: SettingsTabId } => {
+    const t = raw.tab
+    if (typeof t === 'string' && SETTINGS_TAB_IDS.includes(t as SettingsTabId)) {
+      return { tab: t as SettingsTabId }
+    }
+    return {}
+  },
+  beforeLoad: requirePermission('lookups.read'),
+  component: SettingsPage,
+})
+
 const routeTree = rootRoute.addChildren([
   authLayoutRoute.addChildren([
     authLoginRoute,
@@ -429,10 +529,15 @@ const routeTree = rootRoute.addChildren([
     serviceUsersAddRoute,
     serviceUsersViewRoute,
     serviceUsersMedicationRoute,
+    serviceUsersCarePlanRoute,
+    serviceUsersObservationsRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
     schedulingReportRoute,
     schedulingJobsRoute,
+    schedulingBuildRoute,
+    schedulingListRoute,
+    schedulingTemplatesRoute,
     employeeRoute,
     employeeStaffListRoute,
     employeeComplianceRoute,
@@ -451,6 +556,7 @@ const routeTree = rootRoute.addChildren([
     adminAuditRoute,
     inProgressRoute,
     showcaseRoute,
+    settingsRoute,
   ]),
 ])
 
