@@ -101,6 +101,8 @@ export type Permission =
   | 'service_users.lookups.read'
   | 'lookups.read'
   | 'lookups.manage'
+  | 'settings.company.read'
+  | 'settings.company.update'
   | 'compliance_types.read'
   | 'compliance_types.create'
   | 'compliance_types.update'

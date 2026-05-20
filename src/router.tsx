@@ -15,6 +15,8 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { AppToaster } from '@/components/layout/AppToaster'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { SessionRefresh } from '@/components/auth/SessionRefresh'
+import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBootstrap'
+import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -54,6 +56,9 @@ import BlockedIpPage from '@/components/pages/auth/BlockedIpPage'
 import ComponentShowcase from '@/components/pages/ComponentShowcase'
 import InProgressPage from '@/components/pages/InProgressPage'
 import SettingsPage from '@/components/pages/SettingsPage'
+import GeneralSettingsPage from '@/components/pages/GeneralSettingsPage'
+import type { GeneralSettingsTabId } from '@/components/pages/GeneralSettingsPage'
+import CompanyDetailsPage from '@/components/pages/CompanyDetailsPage'
 import type { SettingsTabId } from '@/components/pages/SettingsPage'
 
 type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
@@ -90,6 +95,8 @@ const pageTitles: Record<string, string> = {
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
+  '/settings/company': 'Company Details',
+  '/settings/general': 'General Settings',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -127,6 +134,7 @@ function RootDocument() {
 
 function AppRootShell() {
   useNotificationSocket()
+  const companyDisplayName = useCompanyStore(s => s.branding?.displayName)
   const pathname = useRouterState({ select: s => s.location.pathname })
   const pageTitle =
     pageTitles[pathname] ??
@@ -142,7 +150,7 @@ function AppRootShell() {
               ? 'Care Plan'
             : /^\/service-users\/[^/]+$/.test(pathname)
             ? 'Edit Service User'
-            : 'CareAdmin')
+            : companyDisplayName?.trim() || 'CareAdmin')
   const fullBleed =
     pathname === '/service-users/all' ||
     pathname === '/scheduling/view' ||
@@ -155,6 +163,7 @@ function AppRootShell() {
   return (
     <>
       <SessionRefresh />
+      <CompanyBrandingBootstrap />
       <AppToaster />
       <AppLayout pageTitle={pageTitle} fullBleed={fullBleed}>
         <Outlet />
@@ -513,6 +522,34 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 })
 
+const companyDetailsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/company',
+  beforeLoad: requireAnyPermission('settings.company.read', 'lookups.read'),
+  component: CompanyDetailsPage,
+})
+
+const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
+  'general',
+  'employee',
+  'service-management',
+  'dom-care',
+]
+
+const generalSettingsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/general',
+  validateSearch: (raw: Record<string, unknown>): { tab?: GeneralSettingsTabId } => {
+    const t = raw.tab
+    if (typeof t === 'string' && GENERAL_SETTINGS_TAB_IDS.includes(t as GeneralSettingsTabId)) {
+      return { tab: t as GeneralSettingsTabId }
+    }
+    return {}
+  },
+  beforeLoad: requirePermission('lookups.read'),
+  component: GeneralSettingsPage,
+})
+
 const routeTree = rootRoute.addChildren([
   authLayoutRoute.addChildren([
     authLoginRoute,
@@ -557,6 +594,8 @@ const routeTree = rootRoute.addChildren([
     inProgressRoute,
     showcaseRoute,
     settingsRoute,
+    companyDetailsRoute,
+    generalSettingsRoute,
   ]),
 ])
 

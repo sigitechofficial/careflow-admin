@@ -15,7 +15,6 @@ import {
   LogOut,
   Bell,
   X,
-  Stethoscope,
   ClipboardList,
   UserRoundPlus,
   LayoutGrid,
@@ -33,6 +32,7 @@ import {
   TrendingUp,
   Shield,
   Sparkles,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { Permission } from '@/auth/types'
 import { useAuthStore } from '@/store/auth.store'
+import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
 
 /* ─── Types ────────────────────────────────────────────────── */
 interface SubNavItem {
@@ -49,6 +50,8 @@ interface SubNavItem {
   icon: React.ReactNode
   /** Real route when `ready` is not false; ignored for navigation when `ready === false`. */
   href: string
+  /** Optional router search params (e.g. settings tab). */
+  search?: Record<string, string>
   /** If set, submenu is only shown when the user has this permission. */
   permission?: Permission
   /** When false, opens the in-progress page with this row's label as context. */
@@ -80,11 +83,23 @@ function navLinkProps(
   label: string,
   href: string,
   ready?: boolean,
-): { to: string; search?: { title: string } } {
+  search?: Record<string, string>,
+): { to: string; search?: Record<string, string> } {
   if (ready === false) {
     return { to: '/in-progress', search: { title: label } }
   }
+  if (search && Object.keys(search).length > 0) {
+    return { to: href, search }
+  }
   return { to: href }
+}
+
+function searchTab(search: unknown): string | undefined {
+  if (search && typeof search === 'object' && 'tab' in search) {
+    const t = (search as { tab?: unknown }).tab
+    return typeof t === 'string' ? t : undefined
+  }
+  return undefined
 }
 
 function matchNavTarget(
@@ -93,11 +108,19 @@ function matchNavTarget(
   ready: boolean | undefined,
   pathname: string,
   search: unknown,
+  linkSearch?: Record<string, string>,
 ): boolean {
   if (ready === false) {
     return pathname === '/in-progress' && getTitleFromSearch(search) === label
   }
-  return pathname === href
+  if (pathname !== href) return false
+  if (linkSearch?.tab) {
+    return searchTab(search) === linkSearch.tab
+  }
+  if (href === '/settings' && searchTab(search)) {
+    return false
+  }
+  return true
 }
 
 const inspectorOnlyNavItems: NavItem[] = [
@@ -199,6 +222,20 @@ const navItems: NavItem[] = [
     icon: <Settings className="h-4 w-4" />,
     href: '/settings',
     children: [
+      {
+        label: 'Company Details',
+        icon: <Building2 className="h-3.5 w-3.5" />,
+        href: '/settings/company',
+        permission: 'lookups.read',
+        navTestId: 'nav-settings-company',
+      },
+      {
+        label: 'General Settings',
+        icon: <Settings2 className="h-3.5 w-3.5" />,
+        href: '/settings/general',
+        permission: 'lookups.read',
+        navTestId: 'nav-settings-general',
+      },
       { label: 'Lookup data', icon: <Settings2 className="h-3.5 w-3.5" />, href: '/settings', permission: 'lookups.read', navTestId: 'nav-settings' },
     ],
   },
@@ -244,7 +281,7 @@ export function Sidebar() {
     setOpenGroups(prev => {
       const next = new Set(prev)
       for (const item of navSource) {
-        if (item.children?.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search))) {
+        if (item.children?.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search, c.search))) {
           next.add(item.label)
         }
       }
@@ -293,17 +330,9 @@ export function Sidebar() {
         )}
       >
         {/* Logo / Brand */}
-        <div className={cn('flex items-center h-14 border-b border-sidebar-border shrink-0 px-3 gap-3 overflow-hidden')}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Stethoscope className="h-4 w-4" />
-          </div>
-          {!sidebarCollapsed && (
-            <div className="flex flex-col min-w-0 animate-fade-in">
-              <span className="font-display font-bold text-sm text-sidebar-foreground truncate leading-tight">CareAdmin</span>
-              <span className="text-[10px] text-muted-foreground truncate leading-tight">Care Management</span>
-            </div>
-          )}
-          <button className="ml-auto lg:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarMobileOpen(false)}>
+        <div className={cn('flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-3 overflow-hidden')}>
+          <CompanyBrandMark collapsed={sidebarCollapsed} className="min-w-0 flex-1" />
+          <button className="ml-auto shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setSidebarMobileOpen(false)}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -314,7 +343,7 @@ export function Sidebar() {
             {navItemsFiltered.map((item) => {
               const hasChildren = !!item.children?.length
               const isActive = hasChildren
-                ? item.children!.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search))
+                ? item.children!.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search, c.search))
                 : matchNavTarget(item.label, item.href, item.ready, pathname, search)
               const isOpen = openGroups.has(item.label)
 
@@ -352,11 +381,18 @@ export function Sidebar() {
                       {isOpen && (
                         <ul className="mt-0.5 ml-3 pl-3 border-l border-sidebar-border space-y-0.5 pb-1">
                           {item.children!.map(child => {
-                            const childActive = matchNavTarget(child.label, child.href, child.ready, pathname, search)
+                            const childActive = matchNavTarget(
+                              child.label,
+                              child.href,
+                              child.ready,
+                              pathname,
+                              search,
+                              child.search,
+                            )
                             return (
                               <li key={child.label}>
                                 <Link
-                                  {...navLinkProps(child.label, child.href, child.ready)}
+                                  {...navLinkProps(child.label, child.href, child.ready, child.search)}
                                   onClick={handleNav}
                                   data-testid={child.navTestId}
                                   className={cn(

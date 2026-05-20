@@ -1,13 +1,22 @@
 import { getApiBaseUrl } from '@/lib/api-base'
 
 /** Turn stored `photoUrl` (absolute URL or `/uploads/...` path) into a browser-usable image URL. */
-export function resolveMediaUrl(photoUrl: string | null | undefined): string | null {
+export function resolveMediaUrl(
+  photoUrl: string | null | undefined,
+  cacheKey?: string | number | null,
+): string | null {
   const u = photoUrl?.trim()
   if (!u) return null
-  if (/^https?:\/\//i.test(u)) return u
-  if (u.startsWith('/')) {
+  let resolved: string
+  if (/^https?:\/\//i.test(u)) {
+    resolved = u
+  } else if (u.startsWith('/')) {
     const base = getApiBaseUrl()
-    return base ? `${base}${u}` : u
+    resolved = base ? `${base}${u}` : u
+  } else {
+    resolved = u
   }
-  return u
+  if (cacheKey == null || cacheKey === '') return resolved
+  const sep = resolved.includes('?') ? '&' : '?'
+  return `${resolved}${sep}v=${encodeURIComponent(String(cacheKey))}`
 }
