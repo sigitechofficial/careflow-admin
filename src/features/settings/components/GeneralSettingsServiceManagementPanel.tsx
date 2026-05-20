@@ -11,7 +11,6 @@ import {
 import { toastApiError, toastSuccess } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { NoYesToggle } from '@/components/ui/no-yes-toggle'
 import {
   Select,
   SelectContent,
@@ -19,10 +18,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { GeneralSettingsCard, SettingsRow } from '@/features/settings/components/GeneralSettingsCard'
+import {
+  GeneralSettingsCard,
+  SettingsHint,
+  SettingsNoYesToggle,
+  SettingsRow,
+} from '@/features/settings/components/GeneralSettingsCard'
 import { useAuthStore } from '@/store/auth.store'
 
-const ROLE_NOTE = 'For roles: Senior Carer/Nurse, Carer/Domestic, Inspector'
+const SHIFT_ROLES_NOTE = 'For roles: Senior Carer/Nurse, Carer/Domestic, Inspector'
+
+const TOOLTIPS = {
+  enhancedRegularActionChecks:
+    'If set to yes, the enhanced functionality for the regular action Alert times, activation periods etc. will be enabled.',
+  allowFastAction:
+    'Setting to allow action complete automatically when long press on action',
+  appDefaultToObservationsTab:
+    'If it is set to yes, on the app when a Service user is selected - go to the obs tab first as a default. If No then go to the actions list tab first as a default.',
+  allocateEmployeeBy: 'How employees are allocated to service users on shifts (care home / supported living).',
+  restrictCarerToAllocatedServiceUsers:
+    'This will restrict Carer and Senior carer RBAC roles to only see Service Users that they have been allocated to on the shift For roles : Senior Carer/Nurse',
+  restrictLoginToShiftTimes:
+    'If set to YES, then L1 & L2 Employee will only be able to log in if they have an allocated shift',
+  preventCarerWebLogin:
+    'This will restrict the 2 RBAC roles from logging into the web system, so they can only log in on the APP',
+  shiftAccess:
+    'These settings define the times before and after the defined shift times that carers will be able to view the shift information. Max allowed is 2 hours - 120 minutes',
+} as const
 
 type ServiceManagementDraft = {
   enhancedRegularActionChecks: boolean
@@ -38,7 +60,7 @@ type ServiceManagementDraft = {
   shiftAccessMinutesAfter: number
 }
 
-const SERVICE_DEFAULTS: ServiceManagementDraft = {
+const DEFAULTS: ServiceManagementDraft = {
   enhancedRegularActionChecks: true,
   showRegularActionsInDailyList: true,
   allowFastAction: true,
@@ -52,15 +74,7 @@ const SERVICE_DEFAULTS: ServiceManagementDraft = {
   shiftAccessMinutesAfter: 30,
 }
 
-const ALLOCATE_LABELS: Record<AllocateEmployeeBy, string> = {
-  FLOOR: 'Floor',
-  WARD: 'Ward',
-  UNIT: 'Unit',
-  TEAM: 'Team',
-  ZONE: 'Zone',
-}
-
-function toServiceDraft(s: OrganisationGeneralSettings): ServiceManagementDraft {
+function toDraft(s: OrganisationGeneralSettings): ServiceManagementDraft {
   return {
     enhancedRegularActionChecks: s.enhancedRegularActionChecks,
     showRegularActionsInDailyList: s.showRegularActionsInDailyList,
@@ -76,16 +90,20 @@ function toServiceDraft(s: OrganisationGeneralSettings): ServiceManagementDraft 
   }
 }
 
+function clampMinutes(n: number) {
+  return Math.min(120, Math.max(0, Number.isFinite(n) ? Math.round(n) : 0))
+}
+
 export function GeneralSettingsServiceManagementPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [saved, setSaved] = React.useState<ServiceManagementDraft | null>(null)
-  const [draft, setDraft] = React.useState<ServiceManagementDraft>(SERVICE_DEFAULTS)
+  const [draft, setDraft] = React.useState<ServiceManagementDraft>(DEFAULTS)
 
   const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toServiceDraft(s)
+    const d = toDraft(s)
     setSaved(d)
     setDraft(d)
   }, [])
@@ -115,7 +133,11 @@ export function GeneralSettingsServiceManagementPanel() {
     if (!canUpdate) return
     setSaving(true)
     try {
-      const updated = await updateGeneralSettings(draft)
+      const updated = await updateGeneralSettings({
+        ...draft,
+        shiftAccessMinutesBefore: clampMinutes(draft.shiftAccessMinutesBefore),
+        shiftAccessMinutesAfter: clampMinutes(draft.shiftAccessMinutesAfter),
+      })
       apply(updated)
       toastSuccess('Saved', 'Service management settings updated.')
     } catch (e) {
@@ -127,7 +149,7 @@ export function GeneralSettingsServiceManagementPanel() {
 
   function onReset() {
     if (saved) setDraft({ ...saved })
-    else setDraft(SERVICE_DEFAULTS)
+    else setDraft(DEFAULTS)
   }
 
   if (loading) {
@@ -150,50 +172,45 @@ export function GeneralSettingsServiceManagementPanel() {
         <GeneralSettingsCard title="Care Home Actions">
           <SettingsRow
             label="Enhanced Regular Action checks"
-            hint="If set to yes, the enhanced functionality for the regular action Alert times, activation periods etc. will be enabled."
+            hint={TOOLTIPS.enhancedRegularActionChecks}
           >
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.enhancedRegularActionChecks}
               onChange={v => setDraft(d => ({ ...d, enhancedRegularActionChecks: v }))}
               disabled={!canUpdate}
             />
           </SettingsRow>
           <SettingsRow label="Show regular actions in daily list">
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.showRegularActionsInDailyList}
               onChange={v => setDraft(d => ({ ...d, showRegularActionsInDailyList: v }))}
               disabled={!canUpdate}
             />
           </SettingsRow>
-          <SettingsRow
-            label="Allow Fast Action"
-            hint="Setting to allow action complete automatically when long press on action"
-          >
-            <NoYesToggle
+          <SettingsRow label="Allow Fast Action" hint={TOOLTIPS.allowFastAction}>
+            <SettingsNoYesToggle
               value={draft.allowFastAction}
               onChange={v => setDraft(d => ({ ...d, allowFastAction: v }))}
               disabled={!canUpdate}
             />
           </SettingsRow>
           <SettingsRow label="Actions Default View">
-            <NoYesToggle
-              value={draft.actionsDefaultView === 'ACTIONS_LIST'}
+            <SettingsNoYesToggle
+              value={draft.actionsDefaultView === 'TASK_LIST'}
               onChange={v =>
-                setDraft(d => ({
-                  ...d,
-                  actionsDefaultView: v ? 'ACTIONS_LIST' : 'TASK_LIST',
-                }))
+                setDraft(d => ({ ...d, actionsDefaultView: v ? 'TASK_LIST' : 'ACTIONS_LIST' }))
               }
-              labelOff="Task List"
-              labelOn="Actions List"
+              labelOff="Actions List"
+              labelOn="Task List"
+              className="min-w-[5.75rem]"
               disabled={!canUpdate}
             />
           </SettingsRow>
           <SettingsRow
             label="On app default to observations tab"
-            hint="If it is set to yes, on the app when a Service user is selected - go to the obs tab first as a default. If No then go to the actions list tab first as a default."
+            hint={TOOLTIPS.appDefaultToObservationsTab}
           >
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.appDefaultToObservationsTab}
               onChange={v => setDraft(d => ({ ...d, appDefaultToObservationsTab: v }))}
               disabled={!canUpdate}
@@ -202,34 +219,38 @@ export function GeneralSettingsServiceManagementPanel() {
         </GeneralSettingsCard>
 
         <GeneralSettingsCard title="Shift & Allocation Settings">
-          <p className="text-xs text-muted-foreground -mt-2 mb-2">
+          <p className="-mt-2 text-xs text-muted-foreground">
             These settings only apply to care home and supported living modules (Not Dom care)
           </p>
-          <SettingsRow label="Allocate Employee by" required>
+          <SettingsRow
+            label={
+              <>
+                Allocate Employee by <span className="text-destructive">*</span>
+              </>
+            }
+            hint={TOOLTIPS.allocateEmployeeBy}
+          >
             <Select
               value={draft.allocateEmployeeBy}
-              onValueChange={v =>
-                setDraft(d => ({ ...d, allocateEmployeeBy: v as AllocateEmployeeBy }))
-              }
+              onValueChange={v => setDraft(d => ({ ...d, allocateEmployeeBy: v as AllocateEmployeeBy }))}
               disabled={!canUpdate}
             >
               <SelectTrigger className="h-9 w-[8.5rem]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(ALLOCATE_LABELS) as AllocateEmployeeBy[]).map(key => (
-                  <SelectItem key={key} value={key}>
-                    {ALLOCATE_LABELS[key]}
-                  </SelectItem>
-                ))}
+                <SelectItem value="FLOOR">Floor</SelectItem>
+                <SelectItem value="WARD">Ward</SelectItem>
+                <SelectItem value="ZONE">Zone</SelectItem>
+                <SelectItem value="UNIT">Unit</SelectItem>
               </SelectContent>
             </Select>
           </SettingsRow>
           <SettingsRow
             label="Restrict Carer and Senior carer RBAC roles to only see allocated Service User"
-            hint="This will restrict Carer and Senior carer RBAC roles to only see Service Users that they have been allocated to on the shift For roles : Senior Carer/Nurse, Carer/Domestic, Inspector"
+            hint={TOOLTIPS.restrictCarerToAllocatedServiceUsers}
           >
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.restrictCarerToAllocatedServiceUsers}
               onChange={v => setDraft(d => ({ ...d, restrictCarerToAllocatedServiceUsers: v }))}
               disabled={!canUpdate}
@@ -237,10 +258,10 @@ export function GeneralSettingsServiceManagementPanel() {
           </SettingsRow>
           <SettingsRow
             label="Restrict login to shift times"
-            hint="If set to YES, then L1 & L2 Employee will only be able to log in if they have an allocated shift"
-            subtext={ROLE_NOTE}
+            hint={TOOLTIPS.restrictLoginToShiftTimes}
+            helperText={SHIFT_ROLES_NOTE}
           >
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.restrictLoginToShiftTimes}
               onChange={v => setDraft(d => ({ ...d, restrictLoginToShiftTimes: v }))}
               disabled={!canUpdate}
@@ -248,59 +269,47 @@ export function GeneralSettingsServiceManagementPanel() {
           </SettingsRow>
           <SettingsRow
             label="Prevent Carer and Senior Carer RBAC roles from logging on to the web"
-            hint="This will restrict the 2 RBAC roles from logging into the web system, so they can only log in on the APP"
+            hint={TOOLTIPS.preventCarerWebLogin}
           >
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.preventCarerWebLogin}
               onChange={v => setDraft(d => ({ ...d, preventCarerWebLogin: v }))}
               disabled={!canUpdate}
             />
           </SettingsRow>
-          <div className="space-y-2">
-            <p className="text-sm text-foreground">Access Timing</p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-              <span>Allow carers to access shift information</span>
-              <Input
-                type="number"
-                min={0}
-                max={120}
-                className="h-8 w-16 text-center tabular-nums"
-                value={draft.shiftAccessMinutesBefore}
-                disabled={!canUpdate}
-                onChange={e => {
-                  const n = Number.parseInt(e.target.value, 10)
-                  if (!Number.isNaN(n)) {
-                    setDraft(d => ({
-                      ...d,
-                      shiftAccessMinutesBefore: Math.min(120, Math.max(0, n)),
-                    }))
-                  }
-                }}
-              />
-              <span>minutes before a shift starts and</span>
-              <Input
-                type="number"
-                min={0}
-                max={120}
-                className="h-8 w-16 text-center tabular-nums"
-                value={draft.shiftAccessMinutesAfter}
-                disabled={!canUpdate}
-                onChange={e => {
-                  const n = Number.parseInt(e.target.value, 10)
-                  if (!Number.isNaN(n)) {
-                    setDraft(d => ({
-                      ...d,
-                      shiftAccessMinutesAfter: Math.min(120, Math.max(0, n)),
-                    }))
-                  }
-                }}
-              />
-              <span>minutes after the shift end</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              These settings define the times before and after the defined shift times that carers
-              will be able to view the shift information. Max allowed is 2 hours — 120 minutes.
-            </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+            <span>Allow carers to access shift information</span>
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              className="h-9 w-16 text-center tabular-nums"
+              value={draft.shiftAccessMinutesBefore}
+              disabled={!canUpdate}
+              onChange={e =>
+                setDraft(d => ({
+                  ...d,
+                  shiftAccessMinutesBefore: clampMinutes(Number.parseInt(e.target.value, 10) || 0),
+                }))
+              }
+            />
+            <span>minutes before a shift starts and</span>
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              className="h-9 w-16 text-center tabular-nums"
+              value={draft.shiftAccessMinutesAfter}
+              disabled={!canUpdate}
+              onChange={e =>
+                setDraft(d => ({
+                  ...d,
+                  shiftAccessMinutesAfter: clampMinutes(Number.parseInt(e.target.value, 10) || 0),
+                }))
+              }
+            />
+            <span>minutes after the shift end</span>
+            <SettingsHint text={TOOLTIPS.shiftAccess} />
           </div>
         </GeneralSettingsCard>
       </div>

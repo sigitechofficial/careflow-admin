@@ -1,6 +1,33 @@
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { Info } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/misc'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { NoYesToggle } from '@/components/ui/no-yes-toggle'
+
+/** YES/NO toggle styled like legacy Care settings (brand primary green = Yes). */
+export function SettingsNoYesToggle(props: ComponentProps<typeof NoYesToggle>) {
+  return <NoYesToggle activeTone="primary" {...props} />
+}
+
+export function SettingsHint({ text }: { text: string }) {
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+            aria-label="More information"
+          >
+            <Info className="h-3 w-3" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
 
 export function GeneralSettingsCard({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -13,45 +40,25 @@ export function GeneralSettingsCard({ title, children }: { title: string; childr
 
 export function SettingsRow({
   label,
-  children,
   hint,
-  subtext,
-  required,
+  children,
+  helperText,
 }: {
-  label: string
-  children: ReactNode
+  label: ReactNode
   hint?: string
-  subtext?: string
-  required?: boolean
+  children: ReactNode
+  helperText?: string
 }) {
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm text-foreground">
-          {label}
-          {required && <span className="text-destructive"> *</span>}
+        <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-foreground">
+          <span>{label}</span>
+          {hint ? <SettingsHint text={hint} /> : null}
         </span>
-        <div className="flex shrink-0 items-center gap-2">
-          {children}
-          {hint && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="text-primary hover:text-primary/80"
-                  aria-label="More information"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs">
-                {hint}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+        <div className="shrink-0">{children}</div>
       </div>
-      {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
+      {helperText ? <p className="text-xs text-muted-foreground">{helperText}</p> : null}
     </div>
   )
 }

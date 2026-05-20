@@ -1,0 +1,687 @@
+import * as React from 'react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { ApiError } from '@/lib/api-client'
+import {
+  fetchGeneralSettings,
+  updateGeneralSettings,
+  type DomJobCancellationRule,
+  type DomLateVisitZoneAlert,
+  type OrganisationGeneralSettings,
+} from '@/lib/general-settings-api'
+import { listAllEmployees, type EmployeeListRow } from '@/lib/employees-api'
+import { toastApiError, toastSuccess } from '@/lib/toast'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { listScheduleAreas } from '@/features/scheduling/api/scheduling.api'
+import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
+import {
+  DEFAULT_DOM_JOB_CANCELLATION_RULES,
+  defaultDomLateVisitZoneAlerts,
+  domCareZoneKey,
+  scheduleAreaDisplayLabel,
+} from '@/features/settings/dom-care/dom-care-settings-defaults'
+import {
+  GeneralSettingsCard,
+  SettingsHint,
+  SettingsNoYesToggle,
+  SettingsRow,
+} from '@/features/settings/components/GeneralSettingsCard'
+import { useAuthStore } from '@/store/auth.store'
+
+const TOOLTIPS = {
+  globalTolerance:
+    'Tolerance in minutes applied when determining if a visit is late or outside the allowed window.',
+  showAllZones:
+    'When enabled, employees and visits from all zones are visible across the organisation.',
+  emailTomorrow:
+    'Automatically email tomorrow’s domiciliary schedule to configured recipients.',
+  downloadAllSu: 'Allow the mobile app to download all service user records for offline use.',
+  lateVisitRequired: 'Enable alerts when a carer is late checking in to a scheduled visit.',
+  lateVisitMinutes: 'Number of minutes after the scheduled start time before a late visit alert is raised.',
+  lateVisitNotification: 'Send late visit alerts as in-app notifications to selected staff per zone.',
+} as const
+
+type DomCareDraft = {
+  domJobCancellationRules: DomJobCancellationRule[]
+  domGlobalToleranceMinutes: number
+  domGeofenceDistanceMeters: number
+  domWorkPatternCycles: number
+  domShowAllEmployeesAcrossZones: boolean
+  domEmailTomorrowsSchedule: boolean
+  domAppShowHoursBefore: number
+  domRestrictJobOutsideGeofence: boolean
+  domGeofenceToleranceMeters: number
+  domDownloadAllServiceUsers: boolean
+  domFutureVisitsDays: number
+  domShowWeeklyHours: boolean
+  domShowServiceUserName: boolean
+  domLateVisitAlertRequired: boolean
+  domLateVisitAlertMinutes: number
+  domLateVisitAlertEmail: boolean
+  domLateVisitAlertText: boolean
+  domLateVisitAlertNotification: boolean
+  domTextAlertsSentThisMonth: number
+  domTextAlertsSentLastMonth: number
+  domLateVisitZoneAlerts: DomLateVisitZoneAlert[]
+}
+
+const DEFAULTS: DomCareDraft = {
+  domJobCancellationRules: DEFAULT_DOM_JOB_CANCELLATION_RULES,
+  domGlobalToleranceMinutes: 30,
+  domGeofenceDistanceMeters: 100,
+  domWorkPatternCycles: 2,
+  domShowAllEmployeesAcrossZones: true,
+  domEmailTomorrowsSchedule: false,
+  domAppShowHoursBefore: 48,
+  domRestrictJobOutsideGeofence: true,
+  domGeofenceToleranceMeters: 150,
+  domDownloadAllServiceUsers: false,
+  domFutureVisitsDays: 14,
+  domShowWeeklyHours: true,
+  domShowServiceUserName: true,
+  domLateVisitAlertRequired: true,
+  domLateVisitAlertMinutes: 20,
+  domLateVisitAlertEmail: true,
+  domLateVisitAlertText: false,
+  domLateVisitAlertNotification: true,
+  domTextAlertsSentThisMonth: 0,
+  domTextAlertsSentLastMonth: 0,
+  domLateVisitZoneAlerts: defaultDomLateVisitZoneAlerts(),
+}
+
+function employeeLabel(row: EmployeeListRow): string {
+  const name =
+    row.fullName?.trim() ||
+    [row.firstName, row.lastName].filter(Boolean).join(' ').trim()
+  return name || 'Unnamed employee'
+}
+
+function mergeZoneAlerts(
+  saved: DomLateVisitZoneAlert[],
+  scheduleAreas: ScheduleAreaRow[],
+): DomLateVisitZoneAlert[] {
+  const byKey = new Map<string, DomLateVisitZoneAlert>()
+  for (const zone of saved) byKey.set(zone.zoneKey, { ...zone })
+  for (const area of scheduleAreas) {
+    const label = scheduleAreaDisplayLabel(area)
+    const zoneKey = domCareZoneKey(label)
+    const existing = byKey.get(zoneKey)
+    byKey.set(zoneKey, {
+      zoneKey,
+      label,
+      scheduleAreaId: area.id,
+      emailEmployeeIds: existing?.emailEmployeeIds ?? [],
+      notificationEmployeeIds: existing?.notificationEmployeeIds ?? [],
+    })
+  }
+  for (const zone of defaultDomLateVisitZoneAlerts()) {
+    if (!byKey.has(zone.zoneKey)) byKey.set(zone.zoneKey, zone)
+  }
+  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label))
+}
+
+function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[]): DomCareDraft {
+  return {
+    domJobCancellationRules:
+      s.domJobCancellationRules.length > 0 ? s.domJobCancellationRules : DEFAULT_DOM_JOB_CANCELLATION_RULES,
+    domGlobalToleranceMinutes: s.domGlobalToleranceMinutes,
+    domGeofenceDistanceMeters: s.domGeofenceDistanceMeters,
+    domWorkPatternCycles: s.domWorkPatternCycles,
+    domShowAllEmployeesAcrossZones: s.domShowAllEmployeesAcrossZones,
+    domEmailTomorrowsSchedule: s.domEmailTomorrowsSchedule,
+    domAppShowHoursBefore: s.domAppShowHoursBefore,
+    domRestrictJobOutsideGeofence: s.domRestrictJobOutsideGeofence,
+    domGeofenceToleranceMeters: s.domGeofenceToleranceMeters,
+    domDownloadAllServiceUsers: s.domDownloadAllServiceUsers,
+    domFutureVisitsDays: s.domFutureVisitsDays,
+    domShowWeeklyHours: s.domShowWeeklyHours,
+    domShowServiceUserName: s.domShowServiceUserName,
+    domLateVisitAlertRequired: s.domLateVisitAlertRequired,
+    domLateVisitAlertMinutes: s.domLateVisitAlertMinutes,
+    domLateVisitAlertEmail: s.domLateVisitAlertEmail,
+    domLateVisitAlertText: s.domLateVisitAlertText,
+    domLateVisitAlertNotification: s.domLateVisitAlertNotification,
+    domTextAlertsSentThisMonth: s.domTextAlertsSentThisMonth,
+    domTextAlertsSentLastMonth: s.domTextAlertsSentLastMonth,
+    domLateVisitZoneAlerts: mergeZoneAlerts(s.domLateVisitZoneAlerts, scheduleAreas),
+  }
+}
+
+function clampPercent(n: number) {
+  return Math.min(100, Math.max(0, Number.isFinite(n) ? Math.round(n) : 0))
+}
+
+function clampInt(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Number.isFinite(n) ? Math.round(n) : min))
+}
+
+function newCancellationRule(): DomJobCancellationRule {
+  return {
+    id: crypto.randomUUID(),
+    hoursFrom: 0,
+    hoursTo: 0,
+    chargeServiceUserPercent: 0,
+    payEmployeePercent: 0,
+  }
+}
+
+function ZoneAlertBlock({
+  zone,
+  employeeOptions,
+  disabled,
+  onChange,
+}: {
+  zone: DomLateVisitZoneAlert
+  employeeOptions: MultiSelectOption[]
+  disabled: boolean
+  onChange: (patch: Partial<DomLateVisitZoneAlert>) => void
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border/80 bg-muted/10 p-4">
+      <p className="text-sm font-semibold text-foreground">{zone.label} :</p>
+      <div className="space-y-1.5">
+        <p className="text-sm text-muted-foreground">Alert By Email</p>
+        <MultiSelect
+          options={employeeOptions}
+          value={zone.emailEmployeeIds}
+          onChange={ids => onChange({ emailEmployeeIds: ids })}
+          placeholder="Select Employee"
+          disabled={disabled}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-sm text-muted-foreground">Alert By Notification</p>
+        <MultiSelect
+          options={employeeOptions}
+          value={zone.notificationEmployeeIds}
+          onChange={ids => onChange({ notificationEmployeeIds: ids })}
+          placeholder="Select Employee"
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  )
+}
+
+export function GeneralSettingsDomCarePanel() {
+  const canUpdate = useAuthStore(s => s.can('lookups.manage'))
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [saved, setSaved] = React.useState<DomCareDraft | null>(null)
+  const [draft, setDraft] = React.useState<DomCareDraft>(DEFAULTS)
+  const [employeeOptions, setEmployeeOptions] = React.useState<MultiSelectOption[]>([])
+
+  const apply = React.useCallback(
+    (s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[]) => {
+      const d = toDraft(s, scheduleAreas)
+      setSaved(d)
+      setDraft(d)
+    },
+    [],
+  )
+
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [settings, scheduleAreas, employees] = await Promise.all([
+          fetchGeneralSettings(),
+          listScheduleAreas().catch(() => [] as ScheduleAreaRow[]),
+          listAllEmployees().catch(() => []),
+        ])
+        if (!cancelled) {
+          apply(settings, scheduleAreas)
+          setEmployeeOptions(
+            employees.map(e => ({ value: e.id, label: employeeLabel(e) })),
+          )
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof ApiError ? e.message : 'Could not load dom care settings.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [apply])
+
+  function updateZone(zoneKey: string, patch: Partial<DomLateVisitZoneAlert>) {
+    setDraft(d => ({
+      ...d,
+      domLateVisitZoneAlerts: d.domLateVisitZoneAlerts.map(z =>
+        z.zoneKey === zoneKey ? { ...z, ...patch } : z,
+      ),
+    }))
+  }
+
+  function updateRule(id: string, patch: Partial<DomJobCancellationRule>) {
+    setDraft(d => ({
+      ...d,
+      domJobCancellationRules: d.domJobCancellationRules.map(r =>
+        r.id === id ? { ...r, ...patch } : r,
+      ),
+    }))
+  }
+
+  function removeRule(id: string) {
+    setDraft(d => ({
+      ...d,
+      domJobCancellationRules: d.domJobCancellationRules.filter(r => r.id !== id),
+    }))
+  }
+
+  function addRule() {
+    setDraft(d => ({
+      ...d,
+      domJobCancellationRules: [...d.domJobCancellationRules, newCancellationRule()],
+    }))
+  }
+
+  async function onSave() {
+    if (!canUpdate) return
+    setSaving(true)
+    try {
+      const {
+        domTextAlertsSentThisMonth: _thisMonth,
+        domTextAlertsSentLastMonth: _lastMonth,
+        ...editable
+      } = draft
+      const updated = await updateGeneralSettings({
+        ...editable,
+        domGlobalToleranceMinutes: clampInt(draft.domGlobalToleranceMinutes, 0, 1440),
+        domGeofenceDistanceMeters: clampInt(draft.domGeofenceDistanceMeters, 0, 50000),
+        domWorkPatternCycles: clampInt(draft.domWorkPatternCycles, 1, 52),
+        domAppShowHoursBefore: clampInt(draft.domAppShowHoursBefore, 0, 168),
+        domGeofenceToleranceMeters: clampInt(draft.domGeofenceToleranceMeters, 0, 50000),
+        domFutureVisitsDays: clampInt(draft.domFutureVisitsDays, 0, 365),
+        domLateVisitAlertMinutes: clampInt(draft.domLateVisitAlertMinutes, 1, 240),
+        domJobCancellationRules: draft.domJobCancellationRules.map(r => ({
+          ...r,
+          chargeServiceUserPercent: clampPercent(r.chargeServiceUserPercent),
+          payEmployeePercent: clampPercent(r.payEmployeePercent),
+        })),
+      })
+      const scheduleAreas = await listScheduleAreas().catch(() => [] as ScheduleAreaRow[])
+      apply(updated, scheduleAreas)
+      toastSuccess('Saved', 'Dom care settings updated.')
+    } catch (e) {
+      toastApiError(e, 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function onReset() {
+    if (saved) setDraft({ ...saved })
+    else setDraft(DEFAULTS)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6" data-testid="general-settings-dom-care-panel">
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
+      <GeneralSettingsCard title="Job Cancellation">
+        <div className="space-y-4">
+          {draft.domJobCancellationRules.map((rule, index) => (
+            <div
+              key={rule.id}
+              className="flex flex-wrap items-center gap-2 text-sm text-foreground"
+            >
+              <span>If cancelled between</span>
+              <Input
+                type="number"
+                min={0}
+                className="h-9 w-16 text-center tabular-nums"
+                value={rule.hoursFrom}
+                disabled={!canUpdate}
+                onChange={e =>
+                  updateRule(rule.id, {
+                    hoursFrom: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
+              />
+              <span>and</span>
+              <Input
+                type="number"
+                min={0}
+                className="h-9 w-16 text-center tabular-nums"
+                value={rule.hoursTo}
+                disabled={!canUpdate}
+                onChange={e =>
+                  updateRule(rule.id, { hoursTo: Number.parseInt(e.target.value, 10) || 0 })
+                }
+              />
+              <span>Hours</span>
+              <span className="hidden sm:inline text-muted-foreground">|</span>
+              <span>Charge Service User</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                className="h-9 w-16 text-center tabular-nums"
+                value={rule.chargeServiceUserPercent}
+                disabled={!canUpdate}
+                onChange={e =>
+                  updateRule(rule.id, {
+                    chargeServiceUserPercent: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
+              />
+              <span>% percent of fee*</span>
+              <span>Pay Employee</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                className="h-9 w-16 text-center tabular-nums"
+                value={rule.payEmployeePercent}
+                disabled={!canUpdate}
+                onChange={e =>
+                  updateRule(rule.id, {
+                    payEmployeePercent: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
+              />
+              <span>% percent</span>
+              {index > 0 && canUpdate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-destructive"
+                  aria-label="Remove cancellation rule"
+                  onClick={() => removeRule(rule.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+          ))}
+          {canUpdate ? (
+            <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addRule}>
+              <Plus className="h-4 w-4" />
+              Add rule
+            </Button>
+          ) : null}
+        </div>
+      </GeneralSettingsCard>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <GeneralSettingsCard title="Global Settings">
+          <SettingsRow label="Global Tolerance Setting (minutes)" hint={TOOLTIPS.globalTolerance}>
+            <Input
+              type="number"
+              min={0}
+              max={1440}
+              className="h-9 w-20 text-center tabular-nums"
+              value={draft.domGlobalToleranceMinutes}
+              disabled={!canUpdate}
+              onChange={e =>
+                setDraft(d => ({
+                  ...d,
+                  domGlobalToleranceMinutes: Number.parseInt(e.target.value, 10) || 0,
+                }))
+              }
+            />
+          </SettingsRow>
+          <SettingsRow label="Geofence Distance Setting (meters)">
+            <Input
+              type="number"
+              min={0}
+              className="h-9 w-24 text-center tabular-nums"
+              value={draft.domGeofenceDistanceMeters}
+              disabled={!canUpdate}
+              onChange={e =>
+                setDraft(d => ({
+                  ...d,
+                  domGeofenceDistanceMeters: Number.parseInt(e.target.value, 10) || 0,
+                }))
+              }
+            />
+          </SettingsRow>
+          <SettingsRow label="Work pattern cycles">
+            <Select
+              value={String(draft.domWorkPatternCycles)}
+              onValueChange={v =>
+                setDraft(d => ({ ...d, domWorkPatternCycles: Number.parseInt(v, 10) || 1 }))
+              }
+              disabled={!canUpdate}
+            >
+              <SelectTrigger className="h-9 w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+          <SettingsRow
+            label="Show all employee and visits from across all zones"
+            hint={TOOLTIPS.showAllZones}
+          >
+            <SettingsNoYesToggle
+              value={draft.domShowAllEmployeesAcrossZones}
+              onChange={v => setDraft(d => ({ ...d, domShowAllEmployeesAcrossZones: v }))}
+              disabled={!canUpdate}
+            />
+          </SettingsRow>
+        </GeneralSettingsCard>
+
+        <div className="space-y-6">
+          <GeneralSettingsCard title="Email Dom Schedule">
+            <SettingsRow label="Email tomorrows schedule?" hint={TOOLTIPS.emailTomorrow}>
+              <SettingsNoYesToggle
+                value={draft.domEmailTomorrowsSchedule}
+                onChange={v => setDraft(d => ({ ...d, domEmailTomorrowsSchedule: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+          </GeneralSettingsCard>
+
+          <GeneralSettingsCard title="App Settings">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+              <span>Show</span>
+              <Input
+                type="number"
+                min={0}
+                max={168}
+                className="h-9 w-16 text-center tabular-nums"
+                value={draft.domAppShowHoursBefore}
+                disabled={!canUpdate}
+                onChange={e =>
+                  setDraft(d => ({
+                    ...d,
+                    domAppShowHoursBefore: Number.parseInt(e.target.value, 10) || 0,
+                  }))
+                }
+              />
+              <span>hours before current time</span>
+            </div>
+            <SettingsRow label="Restrict Job Starting Outside Geofence">
+              <SettingsNoYesToggle
+                value={draft.domRestrictJobOutsideGeofence}
+                onChange={v => setDraft(d => ({ ...d, domRestrictJobOutsideGeofence: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+              <span>Geofence tolerance Distance*</span>
+              <Input
+                type="number"
+                min={0}
+                className="h-9 w-20 text-center tabular-nums"
+                value={draft.domGeofenceToleranceMeters}
+                disabled={!canUpdate}
+                onChange={e =>
+                  setDraft(d => ({
+                    ...d,
+                    domGeofenceToleranceMeters: Number.parseInt(e.target.value, 10) || 0,
+                  }))
+                }
+              />
+              <span className="text-muted-foreground">Meters</span>
+            </div>
+            <SettingsRow label="Download all Service User" hint={TOOLTIPS.downloadAllSu}>
+              <SettingsNoYesToggle
+                value={draft.domDownloadAllServiceUsers}
+                onChange={v => setDraft(d => ({ ...d, domDownloadAllServiceUsers: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <p className="text-sm font-medium text-primary">Future visit on app setting</p>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+              <span>Show</span>
+              <Input
+                type="number"
+                min={0}
+                max={365}
+                className="h-9 w-16 text-center tabular-nums"
+                value={draft.domFutureVisitsDays}
+                disabled={!canUpdate}
+                onChange={e =>
+                  setDraft(d => ({
+                    ...d,
+                    domFutureVisitsDays: Number.parseInt(e.target.value, 10) || 0,
+                  }))
+                }
+              />
+              <span>days future visits</span>
+            </div>
+            <SettingsRow label="Show weekly hours">
+              <SettingsNoYesToggle
+                value={draft.domShowWeeklyHours}
+                onChange={v => setDraft(d => ({ ...d, domShowWeeklyHours: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <SettingsRow label="Show Service User name">
+              <SettingsNoYesToggle
+                value={draft.domShowServiceUserName}
+                onChange={v => setDraft(d => ({ ...d, domShowServiceUserName: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+          </GeneralSettingsCard>
+        </div>
+      </div>
+
+      <GeneralSettingsCard title="Late Visit Alert Settings">
+        <SettingsRow label="Is late visit alerting required?" hint={TOOLTIPS.lateVisitRequired}>
+          <SettingsNoYesToggle
+            value={draft.domLateVisitAlertRequired}
+            onChange={v => setDraft(d => ({ ...d, domLateVisitAlertRequired: v }))}
+            disabled={!canUpdate}
+          />
+        </SettingsRow>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+          <span>Alert for late visit attendance by</span>
+          <Input
+            type="number"
+            min={1}
+            max={240}
+            className="h-9 w-16 text-center tabular-nums"
+            value={draft.domLateVisitAlertMinutes}
+            disabled={!canUpdate}
+            onChange={e =>
+              setDraft(d => ({
+                ...d,
+                domLateVisitAlertMinutes: Number.parseInt(e.target.value, 10) || 1,
+              }))
+            }
+          />
+          <span>Minutes</span>
+          <SettingsHint text={TOOLTIPS.lateVisitMinutes} />
+        </div>
+        <p className="text-sm font-medium text-foreground">How do you want the alerts?</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SettingsRow label="Email">
+            <SettingsNoYesToggle
+              value={draft.domLateVisitAlertEmail}
+              onChange={v => setDraft(d => ({ ...d, domLateVisitAlertEmail: v }))}
+              disabled={!canUpdate}
+            />
+          </SettingsRow>
+          <SettingsRow label="Text">
+            <SettingsNoYesToggle
+              value={draft.domLateVisitAlertText}
+              onChange={v => setDraft(d => ({ ...d, domLateVisitAlertText: v }))}
+              disabled={!canUpdate}
+            />
+          </SettingsRow>
+          <SettingsRow label="Notification" hint={TOOLTIPS.lateVisitNotification}>
+            <SettingsNoYesToggle
+              value={draft.domLateVisitAlertNotification}
+              onChange={v => setDraft(d => ({ ...d, domLateVisitAlertNotification: v }))}
+              disabled={!canUpdate}
+            />
+          </SettingsRow>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <p className="text-sm text-muted-foreground">
+            Text alert sent this month :{' '}
+            <span className="font-medium text-foreground tabular-nums">
+              {draft.domTextAlertsSentThisMonth}
+            </span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Text alert sent last month :{' '}
+            <span className="font-medium text-foreground tabular-nums">
+              {draft.domTextAlertsSentLastMonth}
+            </span>
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {draft.domLateVisitZoneAlerts.map(zone => (
+            <ZoneAlertBlock
+              key={zone.zoneKey}
+              zone={zone}
+              employeeOptions={employeeOptions}
+              disabled={!canUpdate}
+              onChange={patch => updateZone(zone.zoneKey, patch)}
+            />
+          ))}
+        </div>
+      </GeneralSettingsCard>
+
+      <div className="flex justify-end gap-2 border-t border-border pt-4">
+        <Button type="button" variant="outline" onClick={onReset} disabled={saving}>
+          Reset
+        </Button>
+        <Button type="button" onClick={() => void onSave()} disabled={!canUpdate || saving}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          Save
+        </Button>
+      </div>
+    </div>
+  )
+}

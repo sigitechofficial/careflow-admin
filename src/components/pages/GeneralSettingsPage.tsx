@@ -6,26 +6,29 @@ import { cn } from '@/lib/utils'
 import { GeneralSettingsGeneralPanel } from '@/features/settings/components/GeneralSettingsGeneralPanel'
 import { GeneralSettingsEmployeePanel } from '@/features/settings/components/GeneralSettingsEmployeePanel'
 import { GeneralSettingsServiceManagementPanel } from '@/features/settings/components/GeneralSettingsServiceManagementPanel'
+import { GeneralSettingsDomCarePanel } from '@/features/settings/components/GeneralSettingsDomCarePanel'
+import { GeneralSettingsDomCareShiftsPanel } from '@/features/settings/components/GeneralSettingsDomCareShiftsPanel'
+import { GeneralSettingsDomRulesPanel } from '@/features/settings/components/GeneralSettingsDomRulesPanel'
+import { GeneralSettingsIncidentManagementPanel } from '@/features/settings/components/GeneralSettingsIncidentManagementPanel'
 
-export type GeneralSettingsTabId = 'general' | 'employee' | 'service-management' | 'dom-care'
+export type GeneralSettingsTabId =
+  | 'general'
+  | 'employee'
+  | 'service-management'
+  | 'dom-care'
+  | 'dom-care-shifts'
+  | 'dom-rules'
+  | 'incident-management'
 
 const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'employee', label: 'Employee Settings' },
   { id: 'service-management', label: 'Service Management' },
   { id: 'dom-care', label: 'Dom Care Settings' },
+  { id: 'dom-care-shifts', label: 'Dom Care Shifts & Allocation' },
+  { id: 'dom-rules', label: 'Dom Rules' },
+  { id: 'incident-management', label: 'Incident Management' },
 ]
-
-function PlaceholderPanel({ title }: { title: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        This section is not available yet. It will be added in a future release.
-      </p>
-    </div>
-  )
-}
 
 export default function GeneralSettingsPage() {
   const navigate = useNavigate()
@@ -85,7 +88,10 @@ export default function GeneralSettingsPage() {
           {activeTab === 'general' && <GeneralSettingsGeneralPanel />}
           {activeTab === 'employee' && <GeneralSettingsEmployeePanel />}
           {activeTab === 'service-management' && <GeneralSettingsServiceManagementPanel />}
-          {activeTab === 'dom-care' && <PlaceholderPanel title="Dom Care Settings" />}
+          {activeTab === 'dom-care' && <GeneralSettingsDomCarePanel />}
+          {activeTab === 'dom-care-shifts' && <GeneralSettingsDomCareShiftsPanel />}
+          {activeTab === 'dom-rules' && <GeneralSettingsDomRulesPanel />}
+          {activeTab === 'incident-management' && <GeneralSettingsIncidentManagementPanel />}
         </div>
       </div>
     </div>

@@ -83,6 +83,8 @@ export type ScheduleAreaRow = {
   name: string
   code: string
   description?: string | null
+  location?: { id: string; name: string } | null
+  zone?: { id: string; name: string } | null
 }
 
 export type ScheduleStatusResponse = {

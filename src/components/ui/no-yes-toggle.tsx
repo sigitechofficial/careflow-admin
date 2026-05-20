@@ -1,7 +1,13 @@
 import { cn } from '@/lib/utils'
 
+const PRIMARY_GREEN = 'hsl(160 100% 25%)'
+const OFF_TRACK = 'hsl(220 13% 90%)'
+const OFF_TEXT = 'hsl(220 8% 46%)'
+
 /**
- * Compact NO/YES pill with sliding knob (matches scheduling reports and service-user patterns).
+ * Compact NO/YES pill with sliding knob.
+ * ON (YES): primary green track, white knob left, "YES" on the right.
+ * OFF (NO): neutral grey track, "NO" on the left, white knob on the right.
  */
 export function NoYesToggle({
   value,
@@ -11,6 +17,7 @@ export function NoYesToggle({
   id,
   disabled,
   className,
+  activeTone = 'primary',
 }: {
   value: boolean
   onChange: (v: boolean) => void
@@ -19,33 +26,52 @@ export function NoYesToggle({
   id?: string
   disabled?: boolean
   className?: string
+  /** `primary` = brand green (settings); `success` = brighter accent green. */
+  activeTone?: 'primary' | 'success'
 }) {
+  const isOn = value === true
+
+  const trackClass = isOn
+    ? activeTone === 'success'
+      ? '!border-success !bg-success !text-success-foreground'
+      : '!border-[hsl(160,100%,25%)] !bg-[hsl(160,100%,25%)] !text-white'
+    : '!border-border !bg-[hsl(220,13%,90%)] !text-[hsl(220,8%,46%)] dark:!bg-[hsl(220,13%,22%)] dark:!text-[hsl(210,10%,55%)]'
+
   return (
     <button
       type="button"
       id={id}
       role="switch"
-      aria-checked={value}
+      aria-checked={isOn}
+      data-state={isOn ? 'on' : 'off'}
+      aria-label={isOn ? labelOn : labelOff}
       disabled={disabled}
       onClick={() => {
-        if (!disabled) onChange(!value)
+        if (!disabled) onChange(!isOn)
       }}
+      style={
+        isOn && activeTone === 'primary'
+          ? { backgroundColor: PRIMARY_GREEN, borderColor: PRIMARY_GREEN, color: '#fff' }
+          : !isOn
+            ? { backgroundColor: OFF_TRACK, color: OFF_TEXT }
+            : undefined
+      }
       className={cn(
-        'h-8 w-[62px] shrink-0 rounded-full border border-border px-1',
-        'flex items-center justify-between text-[11px] font-bold transition-colors',
-        value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+        'inline-flex h-8 min-w-[62px] shrink-0 items-center justify-between overflow-hidden rounded-full border px-1',
+        'text-[11px] font-bold transition-colors',
+        trackClass,
         disabled && 'cursor-not-allowed opacity-50',
-        className
+        className,
       )}
     >
-      {value ? (
+      {isOn ? (
         <>
-          <span className="h-6 w-6 shrink-0 rounded-full bg-white/90 shadow-sm" aria-hidden />
-          <span className="pr-1">{labelOn}</span>
+          <span className="h-6 w-6 shrink-0 rounded-full bg-white shadow-sm" aria-hidden />
+          <span className="truncate pr-1.5">{labelOn}</span>
         </>
       ) : (
         <>
-          <span className="pl-1">{labelOff}</span>
+          <span className="truncate pl-1.5">{labelOff}</span>
           <span className="h-6 w-6 shrink-0 rounded-full bg-white shadow-sm" aria-hidden />
         </>
       )}

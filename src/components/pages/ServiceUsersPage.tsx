@@ -75,11 +75,23 @@ const RISK_BORDER: Record<string, string> = {
   CRITICAL: '#7f1d1d',
 }
 
+const actionIconSvg =
+  '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-[18px] [&_svg]:w-[18px] [&_svg]:stroke-[2px]'
+
+function actionIconBtnBase(): string {
+  return cn(
+    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border p-0 leading-none',
+    'shadow-sm transition-all duration-200',
+    'hover:shadow-md hover:-translate-y-px active:translate-y-0 active:shadow-sm',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4db8c8]/35 focus-visible:ring-offset-1',
+    actionIconSvg,
+  )
+}
+
 function profileLinkClassName(): string {
   return cn(
-    'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0 leading-none transition-colors',
-    'text-[#4db8c8] border-[#4db8c8] hover:bg-[#4db8c8]/10',
-    '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5',
+    actionIconBtnBase(),
+    'text-[#2d9aaa] border-[#4db8c8]/75 bg-[#4db8c8]/[0.07] hover:bg-[#4db8c8]/15 hover:border-[#4db8c8]',
   )
 }
 
@@ -117,11 +129,10 @@ function TealCircleBtn({
       disabled={disabled}
       data-testid={testId}
       className={cn(
-        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0 leading-none transition-colors',
-        '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5',
+        actionIconBtnBase(),
         active
-          ? cn('text-white border-transparent', activeClass)
-          : 'text-[#4db8c8] border-[#4db8c8] hover:bg-[#4db8c8]/10',
+          ? cn('border-transparent text-white shadow-md', activeClass)
+          : 'text-[#2d9aaa] border-[#4db8c8]/75 bg-[#4db8c8]/[0.07] hover:bg-[#4db8c8]/15 hover:border-[#4db8c8]',
       )}
     >
       {children}
@@ -253,17 +264,17 @@ function SuActionStrip({
 
   return (
     <>
-      <div className={cn('flex flex-nowrap items-center justify-end gap-1', className)}>
+      <div className={cn('flex flex-nowrap items-center justify-end gap-1.5', className)}>
         <Link
           to="/service-users/$serviceUserId/view"
           params={{ serviceUserId: user.id }}
           title="View"
           className={profileLinkClassName()}
         >
-          <Eye />
+          <Eye strokeWidth={2} />
         </Link>
         <TealCircleBtn title="Health">
-          <Heart />
+          <Heart strokeWidth={2} />
         </TealCircleBtn>
         <Link
           to="/service-users/$serviceUserId"
@@ -271,49 +282,53 @@ function SuActionStrip({
           title="Profile"
           className={profileLinkClassName()}
         >
-          <User />
+          <User strokeWidth={2} />
         </Link>
-      <Link
-        to="/service-users/$serviceUserId/medication"
-        params={{ serviceUserId: user.id }}
-        title="Medication"
-        className={profileLinkClassName()}
-      >
-        <Pill />
-      </Link>
-      <Link
-        to="/service-users/$serviceUserId/observations"
-        params={{ serviceUserId: user.id }}
-        title="Observations"
-        className={profileLinkClassName()}
-      >
-        <ClipboardList />
-      </Link>
-      <TealCircleBtn title="Appointments">
-          <Calendar />
+        <Link
+          to="/service-users/$serviceUserId/medication"
+          params={{ serviceUserId: user.id }}
+          title="Medication"
+          className={profileLinkClassName()}
+        >
+          <Pill strokeWidth={2} />
+        </Link>
+        <Link
+          to="/service-users/$serviceUserId/observations"
+          params={{ serviceUserId: user.id }}
+          title="Observations"
+          className={profileLinkClassName()}
+        >
+          <ClipboardList strokeWidth={2} />
+        </Link>
+        <TealCircleBtn title="Appointments">
+          <Calendar strokeWidth={2} />
         </TealCircleBtn>
         <TealCircleBtn title="Documents">
-          <Paperclip />
+          <Paperclip strokeWidth={2} />
         </TealCircleBtn>
-        <TealCircleBtn title="Risk / incident" active={highRiskAlert(user)} activeClass="bg-red-500">
-          <Plus />
+        <TealCircleBtn
+          title="Risk / incident"
+          active={highRiskAlert(user)}
+          activeClass="bg-red-500 hover:bg-red-600 shadow-red-200/80"
+        >
+          <Plus strokeWidth={2.5} />
         </TealCircleBtn>
         <TealCircleBtn title="Team">
-          <Users />
+          <Users strokeWidth={2} />
         </TealCircleBtn>
         <TealCircleBtn
           title={suspended ? 'Delete (inactive)' : 'Delete'}
           active
-          activeClass="bg-red-500"
+          activeClass="bg-red-500 hover:bg-red-600 shadow-red-200/80"
           onClick={() => setDeleteOpen(true)}
           disabled={!canDelete || deleteSaving}
         >
-          <Trash2 />
+          <Trash2 strokeWidth={2} />
         </TealCircleBtn>
-        <div className="mx-0.5 hidden h-7 w-px shrink-0 bg-border/80 sm:block" aria-hidden />
+        <div className="mx-0.5 hidden h-8 w-px shrink-0 bg-border sm:block" aria-hidden />
         {ROW_QUICK_ICONS.map(({ title, Icon }) => (
           <TealCircleBtn key={title} title={`${title} (coming soon)`}>
-            <Icon />
+            <Icon strokeWidth={2} />
           </TealCircleBtn>
         ))}
       </div>

@@ -7,7 +7,50 @@ export type ComplianceRequiredBy = 'ROLE_WORK_AREA' | 'CITIZENSHIP'
 export type ComplianceApprovalType = 'MANAGER_APPROVAL' | 'HR_APPROVAL'
 export type WellbeingRegularity = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 export type ActionsDefaultView = 'TASK_LIST' | 'ACTIONS_LIST'
-export type AllocateEmployeeBy = 'FLOOR' | 'WARD' | 'UNIT' | 'TEAM' | 'ZONE'
+export type AllocateEmployeeBy = 'FLOOR' | 'WARD' | 'ZONE' | 'UNIT'
+
+export type DomJobCancellationRule = {
+  id: string
+  hoursFrom: number
+  hoursTo: number
+  chargeServiceUserPercent: number
+  payEmployeePercent: number
+}
+
+export type DomCareShiftDefinition = {
+  id: string
+  name: string
+  fromTime: string
+  toTime: string
+  colorHex: string
+  endsNextDay: boolean
+  sortOrder: number
+}
+
+export type DomAllocationRuleBehavior = 'DONT_ALLOW' | 'ALWAYS_ALLOW' | 'REQUEST_CONFIRMATION'
+
+export type IncidentDefaultStatus = 'REPORTED' | 'DRAFT' | 'UNDER_REVIEW' | 'CLOSED'
+
+export type IncidentTypeSetting = {
+  key: string
+  label: string
+  required: boolean
+}
+
+export type DomCareAllocationRule = {
+  key: string
+  label: string
+  behavior: DomAllocationRuleBehavior
+  minutes: number | null
+}
+
+export type DomLateVisitZoneAlert = {
+  zoneKey: string
+  label: string
+  scheduleAreaId: string | null
+  emailEmployeeIds: string[]
+  notificationEmployeeIds: string[]
+}
 
 export type OrganisationGeneralSettings = {
   id: string
@@ -40,11 +83,47 @@ export type OrganisationGeneralSettings = {
   preventCarerWebLogin: boolean
   shiftAccessMinutesBefore: number
   shiftAccessMinutesAfter: number
+  domJobCancellationRules: DomJobCancellationRule[]
+  domGlobalToleranceMinutes: number
+  domGeofenceDistanceMeters: number
+  domWorkPatternCycles: number
+  domShowAllEmployeesAcrossZones: boolean
+  domEmailTomorrowsSchedule: boolean
+  domAppShowHoursBefore: number
+  domRestrictJobOutsideGeofence: boolean
+  domGeofenceToleranceMeters: number
+  domDownloadAllServiceUsers: boolean
+  domFutureVisitsDays: number
+  domShowWeeklyHours: boolean
+  domShowServiceUserName: boolean
+  domLateVisitAlertRequired: boolean
+  domLateVisitAlertMinutes: number
+  domLateVisitAlertEmail: boolean
+  domLateVisitAlertText: boolean
+  domLateVisitAlertNotification: boolean
+  domTextAlertsSentThisMonth: number
+  domTextAlertsSentLastMonth: number
+  domLateVisitZoneAlerts: DomLateVisitZoneAlert[]
+  domCareShiftDefinitions: DomCareShiftDefinition[]
+  domCareAllocationRules: DomCareAllocationRule[]
+  incidentDetailsEditableMinutes: number
+  incidentDisplayHours: number
+  incidentDefaultStatus: IncidentDefaultStatus
+  incidentTypeSettings: IncidentTypeSetting[]
   updatedAt: string
 }
 
+/** Read-only counters returned by GET; not accepted on PATCH. */
+export type DomCareReadOnlySettings = Pick<
+  OrganisationGeneralSettings,
+  'domTextAlertsSentThisMonth' | 'domTextAlertsSentLastMonth'
+>
+
 export type UpdateOrganisationGeneralSettingsPayload = Partial<
-  Omit<OrganisationGeneralSettings, 'id' | 'updatedAt' | 'wellbeingLabels'> & {
+  Omit<
+    OrganisationGeneralSettings,
+    'id' | 'updatedAt' | 'wellbeingLabels' | keyof DomCareReadOnlySettings
+  > & {
     wellbeingLabels?: string[]
     wellbeingLabel1?: string
     wellbeingLabel2?: string
@@ -55,10 +134,16 @@ export type UpdateOrganisationGeneralSettingsPayload = Partial<
 >
 
 function toUpdatePayload(payload: UpdateOrganisationGeneralSettingsPayload) {
-  const { wellbeingLabels, ...rest } = payload
-  if (!wellbeingLabels) return rest
+  const {
+    wellbeingLabels,
+    domTextAlertsSentThisMonth: _thisMonth,
+    domTextAlertsSentLastMonth: _lastMonth,
+    ...rest
+  } = payload as UpdateOrganisationGeneralSettingsPayload & Partial<DomCareReadOnlySettings>
+  const base = { ...rest }
+  if (!wellbeingLabels) return base
   return {
-    ...rest,
+    ...base,
     wellbeingLabel1: wellbeingLabels[0],
     wellbeingLabel2: wellbeingLabels[1],
     wellbeingLabel3: wellbeingLabels[2],

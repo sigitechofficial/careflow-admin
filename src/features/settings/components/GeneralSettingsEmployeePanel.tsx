@@ -14,7 +14,6 @@ import {
 import { toastApiError, toastSuccess } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { NoYesToggle } from '@/components/ui/no-yes-toggle'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/toggle-controls'
 import {
   Select,
@@ -23,7 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { GeneralSettingsCard, SettingsRow } from '@/features/settings/components/GeneralSettingsCard'
+import {
+  GeneralSettingsCard,
+  SettingsNoYesToggle,
+  SettingsRow,
+} from '@/features/settings/components/GeneralSettingsCard'
 import { useAuthStore } from '@/store/auth.store'
 
 const WELLBEING_MOOD_COLORS = ['#22c55e', '#14b8a6', '#eab308', '#ec4899', '#ef4444'] as const
@@ -178,35 +181,35 @@ export function GeneralSettingsEmployeePanel() {
               </Select>
             </SettingsRow>
             <SettingsRow label="Send email when Employee is active">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.sendEmailWhenEmployeeActive}
                 onChange={v => setDraft(d => ({ ...d, sendEmailWhenEmployeeActive: v }))}
                 disabled={!canUpdate}
               />
             </SettingsRow>
             <SettingsRow label="Allow multiple roles">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.allowMultipleRoles}
                 onChange={v => setDraft(d => ({ ...d, allowMultipleRoles: v }))}
                 disabled={!canUpdate}
               />
             </SettingsRow>
             <SettingsRow label="Allow weekend days to be included in holiday">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.allowWeekendDaysInHoliday}
                 onChange={v => setDraft(d => ({ ...d, allowWeekendDaysInHoliday: v }))}
                 disabled={!canUpdate}
               />
             </SettingsRow>
             <SettingsRow label="Mandate compliance for new employees">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.mandateComplianceForNewEmployees}
                 onChange={v => setDraft(d => ({ ...d, mandateComplianceForNewEmployees: v }))}
                 disabled={!canUpdate}
               />
             </SettingsRow>
             <SettingsRow label="Default holidays to Hours/Days">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.defaultHolidaysUnit === 'DAYS'}
                 onChange={v => setDraft(d => ({ ...d, defaultHolidaysUnit: v ? 'DAYS' : 'HOURS' }))}
                 labelOff="Hours"
@@ -218,7 +221,7 @@ export function GeneralSettingsEmployeePanel() {
 
           <GeneralSettingsCard title="Recruitment and Compliance Settings">
             <SettingsRow label="Recruitment functionality required?">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.recruitmentFunctionalityRequired}
                 onChange={v => setDraft(d => ({ ...d, recruitmentFunctionalityRequired: v }))}
                 disabled={!canUpdate}
@@ -271,7 +274,7 @@ export function GeneralSettingsEmployeePanel() {
 
           <GeneralSettingsCard title="Absence Management">
             <SettingsRow label="Calculate sickness using Bradford Scale">
-              <NoYesToggle
+              <SettingsNoYesToggle
                 value={draft.calculateSicknessBradfordScale}
                 onChange={v => setDraft(d => ({ ...d, calculateSicknessBradfordScale: v }))}
                 disabled={!canUpdate}
@@ -282,14 +285,14 @@ export function GeneralSettingsEmployeePanel() {
 
         <GeneralSettingsCard title="Daily Journal Setting">
           <SettingsRow label="Record Service User Wellbeing">
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.recordServiceUserWellbeing}
               onChange={v => setDraft(d => ({ ...d, recordServiceUserWellbeing: v }))}
               disabled={!canUpdate}
             />
           </SettingsRow>
           <SettingsRow label="Record Employee Wellbeing">
-            <NoYesToggle
+            <SettingsNoYesToggle
               value={draft.recordEmployeeWellbeing}
               onChange={v => setDraft(d => ({ ...d, recordEmployeeWellbeing: v }))}
               disabled={!canUpdate}

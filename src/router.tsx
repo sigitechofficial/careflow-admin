@@ -534,6 +534,9 @@ const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
   'employee',
   'service-management',
   'dom-care',
+  'dom-care-shifts',
+  'dom-rules',
+  'incident-management',
 ]
 
 const generalSettingsRoute = createRoute({
