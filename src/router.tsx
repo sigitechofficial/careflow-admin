@@ -59,7 +59,9 @@ import SettingsPage from '@/components/pages/SettingsPage'
 import GeneralSettingsPage from '@/components/pages/GeneralSettingsPage'
 import type { GeneralSettingsTabId } from '@/components/pages/GeneralSettingsPage'
 import CompanyDetailsPage from '@/components/pages/CompanyDetailsPage'
+import LocationManagementPage from '@/components/pages/LocationManagementPage'
 import type { SettingsTabId } from '@/components/pages/SettingsPage'
+import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 
 type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
 
@@ -97,6 +99,7 @@ const pageTitles: Record<string, string> = {
   '/settings': 'Settings',
   '/settings/company': 'Company Details',
   '/settings/general': 'General Settings',
+  '/settings/location-management': 'Location Management',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -112,6 +115,12 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'leaving-reasons',
   'review-types',
   'travel-payment',
+]
+
+const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [
+  'zones',
+  'service-users',
+  'employees',
 ]
 
 function RootDocument() {
@@ -294,6 +303,10 @@ const serviceUsersAddRoute = createRoute({
 const serviceUsersViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/view',
+  validateSearch: (raw: Record<string, unknown>): { focus?: string } => {
+    const focus = raw.focus
+    return typeof focus === 'string' && focus.trim() ? { focus: focus.trim() } : {}
+  },
   beforeLoad: requirePermission('service_users.read'),
   component: ViewServiceUserPage,
 })
@@ -326,6 +339,10 @@ const serviceUsersObservationsRoute = createRoute({
 const serviceUsersEditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId',
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } => {
+    const tab = raw.tab
+    return { tab: typeof tab === 'string' && tab.trim() ? tab.trim() : undefined }
+  },
   beforeLoad: requirePermission('service_users.read'),
   component: EditServiceUserPage,
 })
@@ -537,6 +554,12 @@ const GENERAL_SETTINGS_TAB_IDS: GeneralSettingsTabId[] = [
   'dom-care-shifts',
   'dom-rules',
   'incident-management',
+  'optional',
+  'pre-assessment',
+  'alerts',
+  'critical-information',
+  'app-setting',
+  'privacy',
 ]
 
 const generalSettingsRoute = createRoute({
@@ -551,6 +574,23 @@ const generalSettingsRoute = createRoute({
   },
   beforeLoad: requirePermission('lookups.read'),
   component: GeneralSettingsPage,
+})
+
+const locationManagementRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/location-management',
+  validateSearch: (raw: Record<string, unknown>): { sub?: LocationManagementSubTab } => {
+    const sub = raw.sub
+    if (
+      typeof sub === 'string' &&
+      LOCATION_MANAGEMENT_SUB_IDS.includes(sub as LocationManagementSubTab)
+    ) {
+      return { sub: sub as LocationManagementSubTab }
+    }
+    return { sub: 'zones' }
+  },
+  beforeLoad: requirePermission('lookups.read'),
+  component: LocationManagementPage,
 })
 
 const routeTree = rootRoute.addChildren([
@@ -599,6 +639,7 @@ const routeTree = rootRoute.addChildren([
     settingsRoute,
     companyDetailsRoute,
     generalSettingsRoute,
+    locationManagementRoute,
   ]),
 ])
 

@@ -63,6 +63,10 @@ const SERVICE_USER_ALL: Permission[] = [
   'service_users.live_in_profile.documents.delete',
   'service_users.live_in_profile.lookups.read',
   'service_users.lookups.read',
+  'service_users.flash_message.read',
+  'service_users.flash_message.update',
+  'service_users.flash_message.delete',
+  'service_users.flash_message.history.read',
 ]
 
 const EMPLOYEE_ALL: Permission[] = [
@@ -202,6 +206,9 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'service_users.dom_care.update',
     'service_users.initial_assessment.read',
     'service_users.initial_assessment.update',
+    'service_users.flash_message.read',
+    'service_users.flash_message.update',
+    'service_users.flash_message.delete',
     'service_users.funding.read',
     'service_users.funding.update',
     'service_users.funding.create',

@@ -33,6 +33,7 @@ import {
   Shield,
   Sparkles,
   Building2,
+  MapPin,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -237,6 +238,14 @@ const navItems: NavItem[] = [
         navTestId: 'nav-settings-general',
       },
       { label: 'Lookup data', icon: <Settings2 className="h-3.5 w-3.5" />, href: '/settings', permission: 'lookups.read', navTestId: 'nav-settings' },
+      {
+        label: 'Location Management',
+        icon: <MapPin className="h-3.5 w-3.5" />,
+        href: '/settings/location-management',
+        search: { sub: 'zones' },
+        permission: 'lookups.read',
+        navTestId: 'nav-settings-location-management',
+      },
     ],
   },
   { label: 'UI Showcase',       icon: <Sparkles className="h-4 w-4" />,      href: '/showcase' },

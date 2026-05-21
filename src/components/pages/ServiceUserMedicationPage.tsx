@@ -4,37 +4,22 @@ import { ArrowLeft, Loader2, Pill, Pencil, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api-base'
 import { ApiError } from '@/lib/api-client'
-import { toastApiError, toastError, toastSuccess } from '@/lib/toast'
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/components/ui/button'
+import { AddMedicationDialog } from '@/features/service-users/medication/AddMedicationDialog'
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  createServiceUserMedication,
-  fetchMedicationLookups,
   fetchServiceUser,
   listServiceUserMedications,
-  type CreateServiceUserMedicationPayload,
-  type MedicationLookupsBundle,
+  type MedicationScheduleSummary,
   type ServiceUserDetail,
   type ServiceUserMedicationRow,
 } from '@/lib/service-users-api'
 
-const SELECT_NONE = '__none__'
+type MedicationSlotTableRow = {
+  rowKey: string
+  medication: ServiceUserMedicationRow
+  schedule: MedicationScheduleSummary | null
+}
 
 function formatShortDate(iso: string | null): string {
   if (!iso) return '—'
@@ -59,8 +44,27 @@ function freqLabel(m: ServiceUserMedicationRow): string {
   return m.frequency?.name?.trim() || m.frequencyText?.trim() || '—'
 }
 
-function optionalId(v: string): string | undefined {
-  return v && v !== SELECT_NONE ? v : undefined
+function expandMedicationsToSlotRows(medications: ServiceUserMedicationRow[]): MedicationSlotTableRow[] {
+  const out: MedicationSlotTableRow[] = []
+  for (const m of medications) {
+    const slots = (m.schedules ?? []).filter(s => s.dueTime)
+    if (slots.length === 0) {
+      out.push({ rowKey: `${m.id}:none`, medication: m, schedule: null })
+      continue
+    }
+    for (const schedule of slots) {
+      out.push({
+        rowKey: `${m.id}:${schedule.id}`,
+        medication: m,
+        schedule,
+      })
+    }
+  }
+  return out.sort((a, b) => {
+    const nameCmp = a.medication.medicationName.localeCompare(b.medication.medicationName)
+    if (nameCmp !== 0) return nameCmp
+    return (a.schedule?.dueTime ?? '').localeCompare(b.schedule?.dueTime ?? '')
+  })
 }
 
 export default function ServiceUserMedicationPage() {
@@ -80,24 +84,8 @@ export default function ServiceUserMedicationPage() {
   const [error, setError] = React.useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [lookups, setLookups] = React.useState<MedicationLookupsBundle | null>(null)
-  const [lookupsLoading, setLookupsLoading] = React.useState(false)
-  const [lookupsError, setLookupsError] = React.useState<string | null>(null)
 
-  const [medicationName, setMedicationName] = React.useState('')
-  const [medicationKind, setMedicationKind] = React.useState<'REGULAR' | 'PRN'>('REGULAR')
-  const [dose, setDose] = React.useState('')
-  const [strength, setStrength] = React.useState('')
-  const [startDate, setStartDate] = React.useState('')
-  const [routeId, setRouteId] = React.useState(SELECT_NONE)
-  const [frequencyId, setFrequencyId] = React.useState(SELECT_NONE)
-  const [categoryId, setCategoryId] = React.useState(SELECT_NONE)
-  const [medicationTypeId, setMedicationTypeId] = React.useState(SELECT_NONE)
-  const [frequencyText, setFrequencyText] = React.useState('')
-  const [instructions, setInstructions] = React.useState('')
-  const [isControlledMedication, setIsControlledMedication] = React.useState(false)
-  const [formError, setFormError] = React.useState<string | null>(null)
-  const [formSaving, setFormSaving] = React.useState(false)
+  const slotRows = React.useMemo(() => expandMedicationsToSlotRows(rows), [rows])
 
   const reloadMedications = React.useCallback(async () => {
     if (!serviceUserId || !apiConfigured) return
@@ -136,94 +124,6 @@ export default function ServiceUserMedicationPage() {
       cancelled = true
     }
   }, [apiConfigured, serviceUserId])
-
-  React.useEffect(() => {
-    if (!dialogOpen || !apiConfigured || lookups) return
-    let cancelled = false
-    ;(async () => {
-      setLookupsLoading(true)
-      setLookupsError(null)
-      try {
-        const b = await fetchMedicationLookups()
-        if (!cancelled) setLookups(b)
-      } catch (e) {
-        if (!cancelled) {
-          setLookupsError(e instanceof ApiError ? e.message : 'Failed to load medication lookups')
-        }
-      } finally {
-        if (!cancelled) setLookupsLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [dialogOpen, apiConfigured, lookups])
-
-  function resetAddForm() {
-    setMedicationName('')
-    setMedicationKind('REGULAR')
-    setDose('')
-    setStrength('')
-    setStartDate('')
-    setRouteId(SELECT_NONE)
-    setFrequencyId(SELECT_NONE)
-    setCategoryId(SELECT_NONE)
-    setMedicationTypeId(SELECT_NONE)
-    setFrequencyText('')
-    setInstructions('')
-    setIsControlledMedication(false)
-    setFormError(null)
-  }
-
-  function openAddDialog() {
-    resetAddForm()
-    setDialogOpen(true)
-  }
-
-  function onDialogOpenChange(open: boolean) {
-    setDialogOpen(open)
-    if (!open) {
-      setFormError(null)
-    }
-  }
-
-  async function saveMedication() {
-    const name = medicationName.trim()
-    if (!name) {
-      setFormError('Medication name is required.')
-      toastError('Cannot save', 'Enter a medication name.')
-      return
-    }
-    setFormError(null)
-    const payload: CreateServiceUserMedicationPayload = {
-      medicationName: name,
-      medicationKind,
-      dose: dose.trim() || undefined,
-      strength: strength.trim() || undefined,
-      startDate: startDate.trim() || undefined,
-      routeId: optionalId(routeId),
-      frequencyId: optionalId(frequencyId),
-      categoryId: optionalId(categoryId),
-      medicationTypeId: optionalId(medicationTypeId),
-      frequencyText: frequencyText.trim() || undefined,
-      instructions: instructions.trim() || undefined,
-      isControlledMedication,
-    }
-
-    setFormSaving(true)
-    try {
-      await createServiceUserMedication(serviceUserId, payload)
-      setDialogOpen(false)
-      resetAddForm()
-      await reloadMedications()
-      toastSuccess('Medication added', 'The medication list has been updated.')
-    } catch (e) {
-      setFormError(e instanceof ApiError ? e.message : 'Save failed')
-      toastApiError(e, 'Save failed')
-    } finally {
-      setFormSaving(false)
-    }
-  }
 
   if (!serviceUserId) {
     return (
@@ -264,7 +164,7 @@ export default function ServiceUserMedicationPage() {
                 type="button"
                 size="sm"
                 className="gap-1 bg-teal-700 text-white hover:bg-teal-800"
-                onClick={() => openAddDialog()}
+                onClick={() => setDialogOpen(true)}
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add medication
@@ -298,21 +198,27 @@ export default function ServiceUserMedicationPage() {
         {!loading && !error && apiConfigured && (
           <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-teal-800 px-3 py-2 text-sm font-semibold text-white dark:bg-teal-900">
-              <span>Current medications ({rows.length})</span>
+              <span>
+                Current medications ({rows.length}
+                {slotRows.length !== rows.length
+                  ? ` · ${slotRows.length} administration ${slotRows.length === 1 ? 'slot' : 'slots'}`
+                  : ''}
+                )
+              </span>
               {canAddMedication && (
                 <Button
                   type="button"
                   size="sm"
                   variant="secondary"
                   className="h-8 gap-1 bg-white/15 text-white hover:bg-white/25"
-                  onClick={() => openAddDialog()}
+                  onClick={() => setDialogOpen(true)}
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add
                 </Button>
               )}
             </div>
-            {rows.length === 0 ? (
+            {slotRows.length === 0 ? (
               <div className="space-y-2 p-4 text-sm text-muted-foreground">
                 <p>No active medications recorded for this service user.</p>
                 {canAddMedication ? (
@@ -339,16 +245,25 @@ export default function ServiceUserMedicationPage() {
                       <th className="px-3 py-2">Dose / strength</th>
                       <th className="px-3 py-2">Route</th>
                       <th className="px-3 py-2">Frequency</th>
+                      <th className="px-3 py-2">Time</th>
                       <th className="px-3 py-2">Status</th>
                       <th className="px-3 py-2">Start</th>
                       <th className="px-3 py-2">End</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map(m => (
-                      <tr key={m.id} className="border-b border-border/80 last:border-0">
+                    {slotRows.map(({ rowKey, medication: m, schedule }) => (
+                      <tr key={rowKey} className="border-b border-border/80 last:border-0">
                         <td className="px-3 py-2 font-medium">
                           {m.medicationName}
+                          {m.medicationPack?.name && (
+                            <span
+                              className="ml-1.5 rounded bg-sky-500/15 px-1.5 py-0.5 text-xs font-normal text-sky-900 dark:text-sky-100"
+                              title={`Blister pack: ${m.medicationPack.name}`}
+                            >
+                              Pack
+                            </span>
+                          )}
                           {m.isControlledMedication && (
                             <span className="ml-1.5 rounded bg-amber-500/20 px-1.5 py-0.5 text-xs font-normal text-amber-900 dark:text-amber-100">
                               CD
@@ -360,6 +275,17 @@ export default function ServiceUserMedicationPage() {
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{m.route?.name ?? '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{freqLabel(m)}</td>
+                        <td className="px-3 py-2 font-medium tabular-nums text-foreground">
+                          {schedule?.dueTime ?? '—'}
+                          {schedule?.dueVisitName ? (
+                            <span
+                              className="mt-0.5 block text-xs font-normal text-muted-foreground"
+                              title={schedule.dueVisitName}
+                            >
+                              {schedule.dueVisitName}
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="px-3 py-2">
                           <span
                             className={cn(
@@ -386,202 +312,13 @@ export default function ServiceUserMedicationPage() {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={onDialogOpenChange}>
-        <DialogContent size="md" className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-teal-800 dark:text-teal-200">Add medication</DialogTitle>
-          </DialogHeader>
-          <DialogBody className="space-y-4">
-            {lookupsLoading && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading lookups…
-              </div>
-            )}
-            {lookupsError && (
-              <p className="text-sm text-destructive" role="alert">
-                {lookupsError}
-              </p>
-            )}
-            {formError && <p className="text-sm text-destructive">{formError}</p>}
-
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                Medication name <span className="text-destructive">*</span>
-              </label>
-              <Input
-                value={medicationName}
-                onChange={e => setMedicationName(e.target.value)}
-                placeholder="e.g. Amlodipine"
-                disabled={formSaving || lookupsLoading}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">Kind</label>
-              <Select
-                value={medicationKind}
-                onValueChange={v => setMedicationKind(v as 'REGULAR' | 'PRN')}
-                disabled={formSaving || lookupsLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="REGULAR">Regular</SelectItem>
-                  <SelectItem value="PRN">PRN (as needed)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Dose</label>
-                <Input
-                  value={dose}
-                  onChange={e => setDose(e.target.value)}
-                  placeholder="e.g. 1 tablet"
-                  disabled={formSaving || lookupsLoading}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Strength</label>
-                <Input
-                  value={strength}
-                  onChange={e => setStrength(e.target.value)}
-                  placeholder="e.g. 5mg"
-                  disabled={formSaving || lookupsLoading}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">Start date</label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                disabled={formSaving || lookupsLoading}
-              />
-            </div>
-
-            {lookups && (
-              <>
-                <div className="space-y-1">
-                  <label className="text-sm text-muted-foreground">Route</label>
-                  <Select value={routeId} onValueChange={setRouteId} disabled={formSaving}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Optional" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      <SelectItem value={SELECT_NONE}>—</SelectItem>
-                      {lookups.routes.map(r => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-muted-foreground">Frequency</label>
-                  <Select value={frequencyId} onValueChange={setFrequencyId} disabled={formSaving}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Optional" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      <SelectItem value={SELECT_NONE}>—</SelectItem>
-                      {lookups.frequencies.map(f => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-muted-foreground">Category</label>
-                  <Select value={categoryId} onValueChange={setCategoryId} disabled={formSaving}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Optional" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      <SelectItem value={SELECT_NONE}>—</SelectItem>
-                      {lookups.categories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-muted-foreground">Medication type</label>
-                  <Select value={medicationTypeId} onValueChange={setMedicationTypeId} disabled={formSaving}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Optional" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      <SelectItem value={SELECT_NONE}>—</SelectItem>
-                      {lookups.types.map(t => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">Frequency (free text)</label>
-              <Input
-                value={frequencyText}
-                onChange={e => setFrequencyText(e.target.value)}
-                placeholder="If not in list above"
-                disabled={formSaving || lookupsLoading}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">Instructions</label>
-              <textarea
-                value={instructions}
-                onChange={e => setInstructions(e.target.value)}
-                rows={3}
-                disabled={formSaving || lookupsLoading}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="How and when to take"
-              />
-            </div>
-
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={isControlledMedication}
-                onChange={e => setIsControlledMedication(e.target.checked)}
-                disabled={formSaving || lookupsLoading}
-                className="h-4 w-4 rounded border-input"
-              />
-              Controlled drug (CD)
-            </label>
-          </DialogBody>
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={formSaving}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="bg-teal-700 text-white hover:bg-teal-800"
-              disabled={formSaving || !canAddMedication}
-              onClick={() => void saveMedication()}
-            >
-              {formSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save medication'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddMedicationDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        serviceUserId={serviceUserId}
+        canSave={canAddMedication}
+        onSaved={reloadMedications}
+      />
     </div>
   )
 }

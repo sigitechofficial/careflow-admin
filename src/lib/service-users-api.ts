@@ -1,5 +1,6 @@
 import { ApiError, apiJson, type ApiEnvelope } from '@/lib/api-client'
 import { getApiBaseUrl } from '@/lib/api-base'
+import { resolveServiceUserIdFromRoute } from '@/lib/service-user-route-id'
 import { useAuthStore } from '@/store/auth.store'
 
 export type SuLookupRow = { id: string; name: string; code: string; color?: string | null }
@@ -49,6 +50,10 @@ export type ServiceUserListRow = {
   location: { id: string; name: string } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
+  /** True when an absence spans today (start ≤ today ≤ end or open-ended). */
+  hasActiveAbsence?: boolean
+  /** True when a current ACTIVE flash message exists and is not past displayUntil. */
+  hasActiveFlashMessage?: boolean
 }
 
 export type ServiceUserListMeta = {
@@ -172,8 +177,25 @@ export type ServiceUserDetail = {
 }
 
 export async function fetchServiceUser(id: string): Promise<ServiceUserDetail> {
-  const res = await apiJson<ApiEnvelope<ServiceUserDetail>>(`/service-users/${id}`, { method: 'GET' })
-  return res.data
+  const serviceUserId = resolveServiceUserIdFromRoute(id)
+  if (!serviceUserId) {
+    throw new ApiError('Service user id is missing', 0)
+  }
+  const res = await apiJson<ApiEnvelope<ServiceUserDetail>>(
+    `/service-users/${serviceUserId}`,
+    { method: 'GET' },
+  )
+  const payload = res.data as ServiceUserDetail | { data: ServiceUserDetail } | null | undefined
+  if (payload && typeof payload === 'object' && 'data' in payload && payload.data && typeof payload.data === 'object' && 'id' in payload.data) {
+    return payload.data
+  }
+  if (payload && typeof payload === 'object' && 'id' in payload) {
+    return payload as ServiceUserDetail
+  }
+  throw new ApiError(
+    'Invalid service user response from API. Confirm VITE_API_BASE_URL points at the Nest API (e.g. http://localhost:3000).',
+    0,
+  )
 }
 
 export async function deleteServiceUser(serviceUserId: string): Promise<void> {
@@ -511,6 +533,14 @@ export type ServiceUserMedicationLookupNested = {
   code: string
 } | null
 
+export type MedicationScheduleSummary = {
+  id: string
+  dueTime: string | null
+  dueVisitName: string | null
+  roundId?: string | null
+  frequencyText?: string | null
+}
+
 /** List row from `GET /service-users/:id/medications` (aligned with Prisma + Nest includes). */
 export type ServiceUserMedicationRow = {
   id: string
@@ -521,13 +551,51 @@ export type ServiceUserMedicationRow = {
   status: string
   startDate: string | null
   endDate: string | null
+  expiryDate?: string | null
+  howAssisted?: string | null
   instructions: string | null
+  notes?: string | null
   frequencyText: string | null
   isControlledMedication: boolean
   route?: ServiceUserMedicationLookupNested
   frequency?: ServiceUserMedicationLookupNested
   medicationType?: ServiceUserMedicationLookupNested
   category?: ServiceUserMedicationLookupNested
+  medicationPack?: { id: string; name: string } | null
+  schedules?: MedicationScheduleSummary[]
+}
+
+export type MedicationPackItemRow = {
+  id: string
+  medicationPackId: string
+  medicationName: string
+  strength: string | null
+  notes: string | null
+  sortOrder: number
+}
+
+export type MedicationPackRow = {
+  id: string
+  serviceUserId: string
+  name: string
+  description: string | null
+  startDate: string | null
+  endDate: string | null
+  items: MedicationPackItemRow[]
+}
+
+export type CreateMedicationPackPayload = {
+  name: string
+  description?: string
+  startDate?: string
+  endDate?: string
+}
+
+export type CreateMedicationPackItemPayload = {
+  medicationName: string
+  strength?: string
+  notes?: string
+  sortOrder?: number
 }
 
 export type ListServiceUserMedicationsParams = {
@@ -581,6 +649,12 @@ export async function fetchMedicationLookups(): Promise<MedicationLookupsBundle>
   return res.data
 }
 
+export type CreateMedicationScheduleItemPayload = {
+  dueTime: string
+  dueVisitName?: string
+  roundId?: string
+}
+
 /** Body for `POST /service-users/:id/medications` (Nest `CreateServiceUserMedicationDto`). */
 export type CreateServiceUserMedicationPayload = {
   medicationName: string
@@ -589,16 +663,21 @@ export type CreateServiceUserMedicationPayload = {
   strength?: string
   startDate?: string
   endDate?: string
+  expiryDate?: string
+  howAssisted?: string
   medicationTypeId?: string
   routeId?: string
   categoryId?: string
   frequencyId?: string
   frequencyText?: string
+  frequencyIntervalDays?: number
   instructions?: string
   notes?: string
   isControlledMedication?: boolean
   medicationPackId?: string
   status?: 'ACTIVE' | 'ENDED' | 'PAUSED' | 'CANCELLED'
+  /** One schedule row per administration time (e.g. 3× daily → 3 rows). */
+  schedules?: CreateMedicationScheduleItemPayload[]
 }
 
 export async function createServiceUserMedication(
@@ -607,6 +686,37 @@ export async function createServiceUserMedication(
 ): Promise<ServiceUserMedicationRow> {
   const res = await apiJson<ApiEnvelope<ServiceUserMedicationRow>>(
     `/service-users/${serviceUserId}/medications`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function listMedicationPacks(serviceUserId: string): Promise<MedicationPackRow[]> {
+  const res = await apiJson<ApiEnvelope<MedicationPackRow[]>>(
+    `/service-users/${serviceUserId}/medication-packs`,
+    { method: 'GET' },
+  )
+  return res.data ?? []
+}
+
+export async function createMedicationPack(
+  serviceUserId: string,
+  body: CreateMedicationPackPayload,
+): Promise<MedicationPackRow> {
+  const res = await apiJson<ApiEnvelope<MedicationPackRow>>(
+    `/service-users/${serviceUserId}/medication-packs`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function addMedicationPackItem(
+  serviceUserId: string,
+  packId: string,
+  body: CreateMedicationPackItemPayload,
+): Promise<MedicationPackItemRow> {
+  const res = await apiJson<ApiEnvelope<MedicationPackItemRow>>(
+    `/service-users/${serviceUserId}/medication-packs/${packId}/items`,
     { method: 'POST', body: JSON.stringify(body) },
   )
   return res.data
@@ -1574,4 +1684,56 @@ export async function downloadServiceUserLiveInContract(
   a.download = originalName || 'contract'
   a.click()
   URL.revokeObjectURL(a.href)
+}
+
+export type ServiceUserFlashMessageRow = {
+  id: string
+  serviceUserId: string
+  message: string
+  displayUntil: string
+  status: string
+  isCurrent: boolean
+  clearedAt: string | null
+  clearReason: string | null
+  createdAt: string
+  updatedAt: string
+  createdBy: { id: string; name: string; email: string } | null
+  clearedBy: { id: string; name: string; email: string } | null
+}
+
+export async function fetchServiceUserFlashMessage(
+  serviceUserId: string,
+): Promise<ServiceUserFlashMessageRow | null> {
+  const id = resolveServiceUserIdFromRoute(serviceUserId)
+  if (!id) return null
+  const res = await apiJson<ApiEnvelope<ServiceUserFlashMessageRow | null>>(
+    `/service-users/${id}/flash-message`,
+    { method: 'GET' },
+  )
+  return res.data ?? null
+}
+
+export type UpsertServiceUserFlashMessagePayload = {
+  message: string
+  displayUntil: string
+}
+
+export async function upsertServiceUserFlashMessage(
+  serviceUserId: string,
+  payload: UpsertServiceUserFlashMessagePayload,
+): Promise<ServiceUserFlashMessageRow> {
+  const id = resolveServiceUserIdFromRoute(serviceUserId)
+  const res = await apiJson<ApiEnvelope<ServiceUserFlashMessageRow>>(
+    `/service-users/${id}/flash-message`,
+    { method: 'PUT', body: JSON.stringify(payload) },
+  )
+  if (!res.data) {
+    throw new ApiError('Flash message was not returned from the API', 0)
+  }
+  return res.data
+}
+
+export async function clearServiceUserFlashMessage(serviceUserId: string): Promise<void> {
+  const id = resolveServiceUserIdFromRoute(serviceUserId)
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${id}/flash-message`, { method: 'DELETE' })
 }

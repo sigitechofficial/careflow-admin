@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useParams, useSearch } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
@@ -106,7 +106,15 @@ export default function EditServiceUserPage() {
   const [locations, setLocations] = React.useState<LookupRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const search = useSearch({ strict: false }) as { tab?: string }
   const [mainTab, setMainTab] = React.useState<string>('personal')
+
+  React.useEffect(() => {
+    const tab = search.tab
+    if (tab && MAIN_TABS.some((t) => t.id === tab)) {
+      setMainTab(tab)
+    }
+  }, [search.tab])
 
   React.useEffect(() => {
     if (!apiConfigured || !serviceUserId) {

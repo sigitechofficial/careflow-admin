@@ -1,9 +1,10 @@
 import * as React from 'react'
-import { Link, useParams } from '@tanstack/react-router'
-import { Calendar, LayoutDashboard, Loader2, Pencil, User } from 'lucide-react'
+import { Link, useLocation, useParams, useSearch } from '@tanstack/react-router'
+import { Calendar, LayoutDashboard, Loader2, Pencil, User, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api-base'
 import { ApiError } from '@/lib/api-client'
+import { resolveServiceUserIdFromRoute } from '@/lib/service-user-route-id'
 import { resolveMediaUrl } from '@/lib/media-url'
 import {
   fetchServiceUser,
@@ -11,7 +12,9 @@ import {
   listServiceUserAllergies,
   listServiceUserInventory,
   fetchServiceUserInitialAssessment,
+  fetchServiceUserFlashMessage,
   type ServiceUserDetail,
+  type ServiceUserFlashMessageRow,
   type ServiceUserDocumentsBundle,
   type ServiceUserDolsRow,
 } from '@/lib/service-users-api'
@@ -73,6 +76,12 @@ function formatShortDate(iso: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function formatFlashDisplayUntil(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 function CheckOrDash(ok: boolean) {
   return ok ? <span className="text-emerald-600">✓</span> : <span className="text-muted-foreground">—</span>
 }
@@ -83,10 +92,17 @@ function PlaceholderNote() {
 
 export default function ViewServiceUserPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
-  const serviceUserId = params.serviceUserId ?? ''
+  const location = useLocation()
+  const search = useSearch({ strict: false }) as { focus?: string }
+  const serviceUserId = React.useMemo(
+    () => resolveServiceUserIdFromRoute(params.serviceUserId),
+    [params.serviceUserId, location.pathname],
+  )
   const apiConfigured = Boolean(getApiBaseUrl())
+  const flashSectionRef = React.useRef<HTMLDivElement>(null)
 
   const [detail, setDetail] = React.useState<ServiceUserDetail | null>(null)
+  const [flashMessage, setFlashMessage] = React.useState<ServiceUserFlashMessageRow | null>(null)
   const [documents, setDocuments] = React.useState<ServiceUserDocumentsBundle | null>(null)
   const [allergies, setAllergies] = React.useState<ServiceUserAllergyRow[]>([])
   const [inventory, setInventory] = React.useState<ServiceUserInventoryItem[]>([])
@@ -107,21 +123,29 @@ export default function ViewServiceUserPage() {
         const d = await fetchServiceUser(serviceUserId)
         if (cancelled) return
         setDetail(d)
-        const [docR, alR, invR, asmtR] = await Promise.allSettled([
+        const [docR, alR, invR, asmtR, flashR] = await Promise.allSettled([
           fetchServiceUserDocuments(serviceUserId),
           listServiceUserAllergies(serviceUserId),
           listServiceUserInventory(serviceUserId),
           fetchServiceUserInitialAssessment(serviceUserId),
+          fetchServiceUserFlashMessage(serviceUserId),
         ])
         if (cancelled) return
         if (docR.status === 'fulfilled') setDocuments(docR.value)
         if (alR.status === 'fulfilled') setAllergies(alR.value)
         if (invR.status === 'fulfilled') setInventory(invR.value)
         if (asmtR.status === 'fulfilled') setInitialAssessment(asmtR.value)
+        if (flashR.status === 'fulfilled') setFlashMessage(flashR.value)
       } catch (e) {
         if (!cancelled) {
           setDetail(null)
-          setError(e instanceof ApiError ? e.message : 'Failed to load service user')
+          const msg =
+            e instanceof ApiError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : 'Failed to load service user'
+          setError(msg || 'Failed to load service user')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -131,6 +155,16 @@ export default function ViewServiceUserPage() {
       cancelled = true
     }
   }, [apiConfigured, serviceUserId])
+
+  React.useEffect(() => {
+    if (search.focus !== 'flash' || loading) return
+    const el = flashSectionRef.current
+    if (!el) return
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 150)
+    return () => window.clearTimeout(t)
+  }, [search.focus, loading, flashMessage])
 
   const displayName = detail
     ? [detail.firstName, detail.lastName].filter(Boolean).join(' ').trim() ||
@@ -238,6 +272,41 @@ export default function ViewServiceUserPage() {
         </div>
       </div>
 
+      {!loading && (
+        <div
+          ref={flashSectionRef}
+          id="flash-message"
+          className="mx-auto max-w-7xl scroll-mt-24 px-4 pt-4"
+          data-testid="service-user-flash-message-section"
+        >
+          {flashMessage ? (
+            <div
+              className={cn(
+                'flex gap-3 rounded-lg border-2 border-amber-400/80 bg-amber-50 px-4 py-3 shadow-sm',
+                'dark:border-amber-600/60 dark:bg-amber-950/40',
+                search.focus === 'flash' && 'ring-2 ring-amber-500/50 ring-offset-2',
+              )}
+              role="alert"
+            >
+              <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-200">
+                  Flash message
+                  <span className="ml-2 font-normal normal-case text-amber-800/90 dark:text-amber-300/90">
+                    until {formatFlashDisplayUntil(flashMessage.displayUntil)}
+                  </span>
+                </p>
+                <p className="mt-1 text-sm font-medium text-amber-950 dark:text-amber-50">{flashMessage.message}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed border-border bg-card/60 px-4 py-2.5 text-sm text-muted-foreground">
+              No active flash message.
+            </p>
+          )}
+        </div>
+      )}
+
       {!apiConfigured && (
         <div className="mx-auto mt-4 max-w-7xl px-4">
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
@@ -281,7 +350,16 @@ export default function ViewServiceUserPage() {
                 }
               />
               <Row label="About me" value={detail.notes?.trim() ? 'Notes on file' : '—'} />
-              <Row label="Flash message" value="—" />
+              <Row
+                label="Flash message"
+                value={
+                  flashMessage ? (
+                    <span className="max-w-[14rem] text-left sm:text-right">{flashMessage.message}</span>
+                  ) : (
+                    '—'
+                  )
+                }
+              />
             </DashCard>
 
             <DashCard title="Assessments">

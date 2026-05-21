@@ -1,13 +1,11 @@
 import { cn } from '@/lib/utils'
 
 const PRIMARY_GREEN = 'hsl(160 100% 25%)'
-const OFF_TRACK = 'hsl(220 13% 90%)'
-const OFF_TEXT = 'hsl(220 8% 46%)'
 
 /**
- * Compact NO/YES pill with sliding knob.
- * ON (YES): primary green track, white knob left, "YES" on the right.
- * OFF (NO): neutral grey track, "NO" on the left, white knob on the right.
+ * Compact NO/YES pill with sliding knob (legacy Care layout).
+ * ON (YES): green track, "YES" on the left, white knob on the right.
+ * OFF (NO): white track, white knob on the left, "NO" on the right.
  */
 export function NoYesToggle({
   value,
@@ -35,7 +33,7 @@ export function NoYesToggle({
     ? activeTone === 'success'
       ? '!border-success !bg-success !text-success-foreground'
       : '!border-[hsl(160,100%,25%)] !bg-[hsl(160,100%,25%)] !text-white'
-    : '!border-border !bg-[hsl(220,13%,90%)] !text-[hsl(220,8%,46%)] dark:!bg-[hsl(220,13%,22%)] dark:!text-[hsl(210,10%,55%)]'
+    : '!border-border !bg-white !text-[hsl(220,8%,46%)] dark:!border-border dark:!bg-card dark:!text-[hsl(210,10%,55%)]'
 
   return (
     <button
@@ -53,7 +51,7 @@ export function NoYesToggle({
         isOn && activeTone === 'primary'
           ? { backgroundColor: PRIMARY_GREEN, borderColor: PRIMARY_GREEN, color: '#fff' }
           : !isOn
-            ? { backgroundColor: OFF_TRACK, color: OFF_TEXT }
+            ? { backgroundColor: '#ffffff', color: 'hsl(220 8% 46%)' }
             : undefined
       }
       className={cn(
@@ -66,13 +64,19 @@ export function NoYesToggle({
     >
       {isOn ? (
         <>
-          <span className="h-6 w-6 shrink-0 rounded-full bg-white shadow-sm" aria-hidden />
-          <span className="truncate pr-1.5">{labelOn}</span>
+          <span className="truncate pl-1.5">{labelOn}</span>
+          <span
+            className="h-6 w-6 shrink-0 rounded-full border border-white/40 bg-white shadow-sm"
+            aria-hidden
+          />
         </>
       ) : (
         <>
-          <span className="truncate pl-1.5">{labelOff}</span>
-          <span className="h-6 w-6 shrink-0 rounded-full bg-white shadow-sm" aria-hidden />
+          <span
+            className="h-6 w-6 shrink-0 rounded-full border border-border/80 bg-white shadow-sm"
+            aria-hidden
+          />
+          <span className="truncate pr-1.5">{labelOff}</span>
         </>
       )}
     </button>

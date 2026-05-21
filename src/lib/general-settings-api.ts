@@ -29,6 +29,84 @@ export type DomCareShiftDefinition = {
 
 export type DomAllocationRuleBehavior = 'DONT_ALLOW' | 'ALWAYS_ALLOW' | 'REQUEST_CONFIRMATION'
 
+export type OptionalAboutMeField = {
+  key: string
+  label: string
+  enabled: boolean
+}
+
+export type OptionalFamilyShareVisitInfo = {
+  recordedNotes: boolean
+  checklists: boolean
+  photographs: boolean
+  medications: boolean
+}
+
+export type PreAssessmentChecklistItem = {
+  key: string
+  label: string
+  selected: boolean
+}
+
+export type OrganisationPrivacySettings = {
+  nonActiveServiceUserDays: number
+  notifyInternalMessage: boolean
+  notifyEmail: boolean
+  sensitiveViewerRoles: string[]
+}
+
+export type OrganisationAppSettings = {
+  pinCodeRequired: boolean
+  viewPoliciesCareApp: boolean
+  viewPoliciesRosterApp: boolean
+  bookHolidaysCareApp: boolean
+  fingerprintLoginCareApp: boolean
+}
+
+export type OrganisationCriticalInformationSettings = {
+  generateActions: boolean
+  memorableAnswerRequired: boolean
+  lockdownWebAccess: boolean
+  lockdownCareAppAccess: boolean
+}
+
+export type OrganisationAlertsSettings = {
+  actionsOverdueEnabled: boolean
+  actionsOverdueMinutes: number
+  requiredCheckNotTicked: boolean
+  requiredMedicationNotGiven: boolean
+  scheduleJobsBeforeHours: number
+  beepOnNewAlert: boolean
+  fluidAlertsEnabled: boolean
+}
+
+export type OrganisationPreAssessmentSettings = {
+  careAssessmentRequired: boolean
+  assessmentComponents: PreAssessmentChecklistItem[]
+  assessmentForms: PreAssessmentChecklistItem[]
+}
+
+export type OrganisationOptionalSettings = {
+  emarIntegration: boolean
+  medicationListRequired: boolean
+  medicationAmendRoles: string[]
+  mhaDetentionRequired: boolean
+  restraintRecordingRequired: boolean
+  carePlanReadRequired: boolean
+  carePlanReadCycleMonths: number
+  formBuilderRequired: boolean
+  removeCreateNewCarePlan: boolean
+  aboutMeFields: OptionalAboutMeField[]
+  serviceManagementRequired: boolean
+  learningDevSessionsRequired: boolean
+  familyPortalEnabled: boolean
+  familySharingAuthRequired: boolean
+  familyShareAllActions: boolean
+  familyShareCarePlans: boolean
+  familyShareVisitInfo: OptionalFamilyShareVisitInfo
+  allowInspectorLogin: boolean
+}
+
 export type IncidentDefaultStatus = 'REPORTED' | 'DRAFT' | 'UNDER_REVIEW' | 'CLOSED'
 
 export type IncidentTypeSetting = {
@@ -110,6 +188,12 @@ export type OrganisationGeneralSettings = {
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus
   incidentTypeSettings: IncidentTypeSetting[]
+  optionalSettings: OrganisationOptionalSettings
+  preAssessmentSettings: OrganisationPreAssessmentSettings
+  alertsSettings: OrganisationAlertsSettings
+  criticalInformationSettings: OrganisationCriticalInformationSettings
+  appSettings: OrganisationAppSettings
+  privacySettings: OrganisationPrivacySettings
   updatedAt: string
 }
 
@@ -119,10 +203,78 @@ export type DomCareReadOnlySettings = Pick<
   'domTextAlertsSentThisMonth' | 'domTextAlertsSentLastMonth'
 >
 
+export type PrivacySettingsUpdatePayload = {
+  privacyNonActiveServiceUserDays?: number
+  privacyNotifyInternalMessage?: boolean
+  privacyNotifyEmail?: boolean
+  privacySensitiveViewerRoles?: string[]
+}
+
+export type AppSettingsUpdatePayload = {
+  appSettingPinCodeRequired?: boolean
+  appSettingViewPoliciesCareApp?: boolean
+  appSettingViewPoliciesRosterApp?: boolean
+  appSettingBookHolidaysCareApp?: boolean
+  appSettingFingerprintLoginCareApp?: boolean
+}
+
+export type CriticalInformationSettingsUpdatePayload = {
+  criticalGenerateActions?: boolean
+  criticalMemorableAnswerRequired?: boolean
+  criticalLockdownWebAccess?: boolean
+  criticalLockdownCareAppAccess?: boolean
+}
+
+export type AlertsSettingsUpdatePayload = {
+  alertActionsOverdueEnabled?: boolean
+  alertActionsOverdueMinutes?: number
+  alertRequiredCheckNotTicked?: boolean
+  alertRequiredMedicationNotGiven?: boolean
+  alertScheduleJobsBeforeHours?: number
+  alertBeepOnNewAlert?: boolean
+  alertFluidAlertsEnabled?: boolean
+}
+
+export type PreAssessmentSettingsUpdatePayload = {
+  preAssessmentCareRequired?: boolean
+  preAssessmentComponents?: PreAssessmentChecklistItem[]
+  preAssessmentForms?: PreAssessmentChecklistItem[]
+}
+
+export type OptionalSettingsUpdatePayload = {
+  optionalEmarIntegration?: boolean
+  optionalMedicationListRequired?: boolean
+  optionalMedicationAmendRoles?: string[]
+  optionalMhaDetentionRequired?: boolean
+  optionalRestraintRecordingRequired?: boolean
+  optionalCarePlanReadRequired?: boolean
+  optionalCarePlanReadCycleMonths?: number
+  optionalFormBuilderRequired?: boolean
+  optionalRemoveCreateNewCarePlan?: boolean
+  optionalAboutMeFields?: OptionalAboutMeField[]
+  optionalServiceManagementRequired?: boolean
+  optionalLearningDevSessionsRequired?: boolean
+  optionalFamilyPortalEnabled?: boolean
+  optionalFamilySharingAuthRequired?: boolean
+  optionalFamilyShareAllActions?: boolean
+  optionalFamilyShareCarePlans?: boolean
+  optionalFamilyShareVisitInfo?: OptionalFamilyShareVisitInfo
+  optionalAllowInspectorLogin?: boolean
+}
+
 export type UpdateOrganisationGeneralSettingsPayload = Partial<
   Omit<
     OrganisationGeneralSettings,
-    'id' | 'updatedAt' | 'wellbeingLabels' | keyof DomCareReadOnlySettings
+    | 'id'
+    | 'updatedAt'
+    | 'wellbeingLabels'
+    | 'optionalSettings'
+    | 'preAssessmentSettings'
+    | 'alertsSettings'
+    | 'criticalInformationSettings'
+    | 'appSettings'
+    | 'privacySettings'
+    | keyof DomCareReadOnlySettings
   > & {
     wellbeingLabels?: string[]
     wellbeingLabel1?: string
@@ -131,7 +283,13 @@ export type UpdateOrganisationGeneralSettingsPayload = Partial<
     wellbeingLabel4?: string
     wellbeingLabel5?: string
   }
->
+> &
+  OptionalSettingsUpdatePayload &
+  PreAssessmentSettingsUpdatePayload &
+  AlertsSettingsUpdatePayload &
+  CriticalInformationSettingsUpdatePayload &
+  AppSettingsUpdatePayload &
+  PrivacySettingsUpdatePayload
 
 function toUpdatePayload(payload: UpdateOrganisationGeneralSettingsPayload) {
   const {

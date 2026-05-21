@@ -1,0 +1,84 @@
+export type LocationManagementSubTab = 'zones' | 'service-users' | 'employees'
+
+export type LocationTreeChild = {
+  id: string
+  type: 'service_user' | 'employee'
+  entityId: string
+  label: string
+}
+
+export type LocationTreeBranch = {
+  id: string
+  name: string
+  scheduleAreaId: string
+  locationId: string | null
+  locationName: string | null
+  children: LocationTreeChild[]
+}
+
+export type LocationTreeZone = {
+  id: string
+  name: string
+  code: string
+  markerColorHex: string
+  locationId: string | null
+  locationName: string | null
+  zoneName: string | null
+  incidentMessageUserIds: string[]
+  incidentEmailUserIds: string[]
+  branches: LocationTreeBranch[]
+  /** Flattened children (all branches); kept for backward compatibility */
+  children: LocationTreeChild[]
+}
+
+export type LocationManagementTree = {
+  organisation: { id: string; name: string }
+  zones: LocationTreeZone[]
+}
+
+export type LocationActiveUser = {
+  id: string
+  email: string
+  label: string
+}
+
+export type LocationZoneDetail = {
+  id: string
+  name: string
+  code: string
+  markerColorHex: string
+  locationId: string | null
+  locationName: string | null
+  incidentMessageUserIds: string[]
+  incidentEmailUserIds: string[]
+}
+
+export type LocationLookup = { id: string; name: string }
+
+export type LocationZoneOption = {
+  id: string
+  name: string
+  branches: { id: string; name: string }[]
+}
+
+export type ServiceUserLocationRow = {
+  id: string
+  fullName: string
+  isActive: boolean
+  locationId: string | null
+  locationName: string | null
+  zoneName: string | null
+  roomName: string | null
+}
+
+export type EmployeeLocationRow = {
+  id: string
+  fullName: string
+  isActive: boolean
+  locationId: string | null
+  locationName: string | null
+  zoneName: string | null
+  floorNames: string
+  accessAllZones: boolean
+  floorLocationIds: string[]
+}

@@ -61,7 +61,7 @@ export default function SettingsPage() {
 
       <div className="flex min-h-[min(70vh,640px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav
-          className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-border bg-muted/30 p-2 md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-2"
+          className="flex max-h-[min(70vh,640px)] shrink-0 gap-0.5 overflow-x-auto overflow-y-auto border-b border-border bg-muted/30 p-2 md:w-56 md:flex-col md:overflow-x-visible md:border-b-0 md:border-r md:p-2"
           aria-label="Settings modules"
           data-testid="settings-tabs"
         >

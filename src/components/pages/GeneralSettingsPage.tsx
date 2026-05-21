@@ -10,6 +10,12 @@ import { GeneralSettingsDomCarePanel } from '@/features/settings/components/Gene
 import { GeneralSettingsDomCareShiftsPanel } from '@/features/settings/components/GeneralSettingsDomCareShiftsPanel'
 import { GeneralSettingsDomRulesPanel } from '@/features/settings/components/GeneralSettingsDomRulesPanel'
 import { GeneralSettingsIncidentManagementPanel } from '@/features/settings/components/GeneralSettingsIncidentManagementPanel'
+import { GeneralSettingsOptionalPanel } from '@/features/settings/components/GeneralSettingsOptionalPanel'
+import { GeneralSettingsPreAssessmentPanel } from '@/features/settings/components/GeneralSettingsPreAssessmentPanel'
+import { GeneralSettingsAlertsPanel } from '@/features/settings/components/GeneralSettingsAlertsPanel'
+import { GeneralSettingsCriticalInformationPanel } from '@/features/settings/components/GeneralSettingsCriticalInformationPanel'
+import { GeneralSettingsAppSettingPanel } from '@/features/settings/components/GeneralSettingsAppSettingPanel'
+import { GeneralSettingsPrivacyPanel } from '@/features/settings/components/GeneralSettingsPrivacyPanel'
 
 export type GeneralSettingsTabId =
   | 'general'
@@ -19,6 +25,12 @@ export type GeneralSettingsTabId =
   | 'dom-care-shifts'
   | 'dom-rules'
   | 'incident-management'
+  | 'optional'
+  | 'pre-assessment'
+  | 'alerts'
+  | 'critical-information'
+  | 'app-setting'
+  | 'privacy'
 
 const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string }[] = [
   { id: 'general', label: 'General' },
@@ -28,6 +40,12 @@ const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string }[] = [
   { id: 'dom-care-shifts', label: 'Dom Care Shifts & Allocation' },
   { id: 'dom-rules', label: 'Dom Rules' },
   { id: 'incident-management', label: 'Incident Management' },
+  { id: 'optional', label: 'Optional Settings' },
+  { id: 'pre-assessment', label: 'Pre Assessment' },
+  { id: 'alerts', label: 'Alerts' },
+  { id: 'critical-information', label: 'Critical Information' },
+  { id: 'app-setting', label: 'App Setting' },
+  { id: 'privacy', label: 'Privacy' },
 ]
 
 export default function GeneralSettingsPage() {
@@ -55,9 +73,9 @@ export default function GeneralSettingsPage() {
         ]}
       />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex min-h-[min(70vh,640px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav
-          className="flex gap-0 overflow-x-auto border-b border-border bg-muted/20 px-2"
+          className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-border bg-muted/30 p-2 md:w-64 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-2"
           aria-label="General settings sections"
           data-testid="general-settings-tabs"
         >
@@ -72,10 +90,10 @@ export default function GeneralSettingsPage() {
                 data-testid={`general-settings-tab-${tab.id}`}
                 onClick={() => setTab(tab.id)}
                 className={cn(
-                  'shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+                  'shrink-0 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
                   isActive
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                    ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
+                    : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
                 )}
               >
                 {tab.label}
@@ -84,7 +102,7 @@ export default function GeneralSettingsPage() {
           })}
         </nav>
 
-        <div className="p-5">
+        <div className="min-w-0 flex-1 overflow-y-auto p-5">
           {activeTab === 'general' && <GeneralSettingsGeneralPanel />}
           {activeTab === 'employee' && <GeneralSettingsEmployeePanel />}
           {activeTab === 'service-management' && <GeneralSettingsServiceManagementPanel />}
@@ -92,6 +110,12 @@ export default function GeneralSettingsPage() {
           {activeTab === 'dom-care-shifts' && <GeneralSettingsDomCareShiftsPanel />}
           {activeTab === 'dom-rules' && <GeneralSettingsDomRulesPanel />}
           {activeTab === 'incident-management' && <GeneralSettingsIncidentManagementPanel />}
+          {activeTab === 'optional' && <GeneralSettingsOptionalPanel />}
+          {activeTab === 'pre-assessment' && <GeneralSettingsPreAssessmentPanel />}
+          {activeTab === 'alerts' && <GeneralSettingsAlertsPanel />}
+          {activeTab === 'critical-information' && <GeneralSettingsCriticalInformationPanel />}
+          {activeTab === 'app-setting' && <GeneralSettingsAppSettingPanel />}
+          {activeTab === 'privacy' && <GeneralSettingsPrivacyPanel />}
         </div>
       </div>
     </div>
