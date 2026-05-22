@@ -1,0 +1,56 @@
+{
+  "exportedAt": "2026-05-22T11:56:25.619Z",
+  "figmaFileKey": "tsJEm2ALzuckPify3DyE04",
+  "figmaNodeId": "354:10508",
+  "figmaUrl": "https://www.figma.com/design/tsJEm2ALzuckPify3DyE04/Care-20--20?node-id=354-10508",
+  "icons": [
+    {
+      "name": "view",
+      "slug": "view",
+      "file": "/care-plan-icons/figma/view.svg",
+      "nodeId": "354:10511"
+    },
+    {
+      "name": "world-care",
+      "slug": "world-care",
+      "file": "/care-plan-icons/figma/world-care.svg",
+      "nodeId": "354:10513"
+    },
+    {
+      "name": "world-care",
+      "slug": "world-care",
+      "file": "/care-plan-icons/figma/world-care-1.svg",
+      "nodeId": "354:10519"
+    },
+    {
+      "name": "world-care",
+      "slug": "world-care",
+      "file": "/care-plan-icons/figma/world-care-2.svg",
+      "nodeId": "354:10523"
+    },
+    {
+      "name": "capsule-fill",
+      "slug": "capsule-fill",
+      "file": "/care-plan-icons/figma/capsule-fill.svg",
+      "nodeId": "354:10527"
+    },
+    {
+      "name": "meeting-room",
+      "slug": "meeting-room",
+      "file": "/care-plan-icons/figma/meeting-room.svg",
+      "nodeId": "354:10529"
+    },
+    {
+      "name": "meeting-room",
+      "slug": "meeting-room",
+      "file": "/care-plan-icons/figma/meeting-room-1.svg",
+      "nodeId": "354:10531"
+    },
+    {
+      "name": "round-pause",
+      "slug": "round-pause",
+      "file": "/care-plan-icons/figma/round-pause.svg",
+      "nodeId": "354:10534"
+    }
+  ]
+}

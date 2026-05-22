@@ -1,53 +1,51 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
-import {
-  Activity,
-  AlertTriangle,
-  ClipboardCheck,
-  History,
-  MessageCircle,
-  Pill,
-  User,
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { FigmaActionIcon } from '@/components/service-user/FigmaActionIcon'
+import {
+  figmaModuleTabIcon,
+  type ServiceUserModuleTabIconId,
+} from '@/features/service-users/figma-action-icons'
 
 type ModuleTab = {
-  id: string
+  id: ServiceUserModuleTabIconId
   label: string
-  Icon: LucideIcon
   to?:
     | '/service-users/$serviceUserId/care-plan'
     | '/service-users/$serviceUserId/medication'
     | '/service-users/$serviceUserId/observations'
-  color: string
+}
+
+/** Light circle behind glyph exports that omit a filled disc (meds includes its own). */
+const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = {
+  observations: '#E8F5F2',
+  comms: '#F4EDF9',
+  'care-plan': '#E9F7FE',
+  meds: null,
+  history: '#EDF3FE',
+  'body-map': '#F1F2F3',
+  alerts: '#FEEEEE',
 }
 
 const MODULE_TABS: ModuleTab[] = [
   {
     id: 'observations',
     label: 'Observations',
-    Icon: Activity,
     to: '/service-users/$serviceUserId/observations',
-    color: '#22c55e',
   },
-  { id: 'comms', label: 'Comms', Icon: MessageCircle, color: '#a855f7' },
+  { id: 'comms', label: 'Comms' },
   {
     id: 'care-plan',
     label: 'Care Plan',
-    Icon: ClipboardCheck,
     to: '/service-users/$serviceUserId/care-plan',
-    color: '#0ea5e9',
   },
   {
     id: 'meds',
     label: 'Meds',
-    Icon: Pill,
     to: '/service-users/$serviceUserId/medication',
-    color: '#14b8a6',
   },
-  { id: 'history', label: 'History', Icon: History, color: '#1e3a5f' },
-  { id: 'body-map', label: 'Body Map', Icon: User, color: '#6b7280' },
-  { id: 'alerts', label: 'Alerts', Icon: AlertTriangle, color: '#ef4444' },
+  { id: 'history', label: 'History' },
+  { id: 'body-map', label: 'Body Map' },
+  { id: 'alerts', label: 'Alerts' },
 ]
 
 function isTabActive(tab: ModuleTab, pathname: string): boolean {
@@ -58,6 +56,40 @@ function isTabActive(tab: ModuleTab, pathname: string): boolean {
   return false
 }
 
+function TabContent({ tab, active }: { tab: ModuleTab; active: boolean }) {
+  const circleBg = MODULE_TAB_CIRCLE_BG[tab.id]
+  const fullTile = circleBg === null
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <span
+        className={cn(
+          'flex h-11 w-11 items-center justify-center overflow-hidden rounded-full shadow-sm',
+          active && 'ring-2 ring-teal-500 ring-offset-2',
+        )}
+        style={circleBg ? { backgroundColor: circleBg } : undefined}
+      >
+        <FigmaActionIcon
+          src={figmaModuleTabIcon(tab.id)}
+          label={tab.label}
+          className={fullTile ? 'h-11 w-11' : 'h-10 w-10'}
+          imgClassName={fullTile ? 'h-11 w-11' : 'h-10 w-10'}
+        />
+      </span>
+      <span
+        className={cn(
+          'text-xs font-medium',
+          active
+            ? 'text-teal-700 underline decoration-2 underline-offset-4 dark:text-teal-300'
+            : 'text-muted-foreground',
+        )}
+      >
+        {tab.label}
+      </span>
+    </div>
+  )
+}
+
 export function ServiceUserModuleTabs({ serviceUserId }: { serviceUserId: string }) {
   const pathname = useRouterState({ select: s => s.location.pathname })
 
@@ -66,39 +98,18 @@ export function ServiceUserModuleTabs({ serviceUserId }: { serviceUserId: string
       <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-center gap-4 px-4 py-3 sm:gap-6">
         {MODULE_TABS.map(tab => {
           const active = isTabActive(tab, pathname)
-          const inner = (
-            <div className="flex flex-col items-center gap-1.5">
-              <span
-                className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-full text-white shadow-sm',
-                  active && 'ring-2 ring-offset-2 ring-teal-500',
-                )}
-                style={{ backgroundColor: tab.color }}
-              >
-                <tab.Icon className="h-5 w-5" />
-              </span>
-              <span
-                className={cn(
-                  'text-xs font-medium',
-                  active
-                    ? 'text-teal-700 underline decoration-2 underline-offset-4 dark:text-teal-300'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {tab.label}
-              </span>
-            </div>
-          )
+          const content = <TabContent tab={tab} active={active} />
+
           if (tab.to) {
             return (
               <Link key={tab.id} to={tab.to} params={{ serviceUserId }} title={tab.label}>
-                {inner}
+                {content}
               </Link>
             )
           }
           return (
             <div key={tab.id} className="opacity-60" title={`${tab.label} (coming soon)`}>
-              {inner}
+              {content}
             </div>
           )
         })}

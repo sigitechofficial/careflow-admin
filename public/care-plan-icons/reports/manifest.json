@@ -1,0 +1,44 @@
+{
+  "exportedAt": "2026-05-22T12:01:16.124Z",
+  "figmaFileKey": "tsJEm2ALzuckPify3DyE04",
+  "figmaNodeId": "354:10537",
+  "figmaUrl": "https://www.figma.com/design/tsJEm2ALzuckPify3DyE04/Care-20--20?node-id=354-10537",
+  "icons": [
+    {
+      "name": "CS",
+      "slug": "cs",
+      "file": "/care-plan-icons/reports/cs.svg",
+      "nodeId": "354:10539"
+    },
+    {
+      "name": "D",
+      "slug": "d",
+      "file": "/care-plan-icons/reports/d.svg",
+      "nodeId": "354:10541"
+    },
+    {
+      "name": "O",
+      "slug": "o",
+      "file": "/care-plan-icons/reports/o.svg",
+      "nodeId": "354:10543"
+    },
+    {
+      "name": "A",
+      "slug": "a",
+      "file": "/care-plan-icons/reports/a.svg",
+      "nodeId": "354:10545"
+    },
+    {
+      "name": "C",
+      "slug": "c",
+      "file": "/care-plan-icons/reports/c.svg",
+      "nodeId": "354:10547"
+    },
+    {
+      "name": "H",
+      "slug": "h",
+      "file": "/care-plan-icons/reports/h.svg",
+      "nodeId": "354:10549"
+    }
+  ]
+}

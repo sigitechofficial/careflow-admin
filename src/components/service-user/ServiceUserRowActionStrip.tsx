@@ -1,26 +1,22 @@
 import * as React from 'react'
 import type { LucideIcon } from 'lucide-react'
-import {
-  Calendar,
-  Eye,
-  HandHeart,
-  Pause,
-  Pill,
-  Smile,
-  User,
-  UserCheck,
-  Zap,
-} from 'lucide-react'
+import { UserCheck } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import type { ServiceUserListRow } from '@/lib/service-users-api'
-
-const ICON_BLUE = 'bg-[#6db3d9] hover:bg-[#5ca8ce] border-transparent text-white shadow-sm'
-const ICON_CARE_PLAN = 'bg-[#4db8c8] hover:bg-[#3da8b8] border-transparent text-white shadow-sm'
-const ICON_ALERT = 'bg-[#e0535f] hover:bg-[#d04552] border-transparent text-white shadow-sm'
+import { FigmaActionIcon } from '@/components/service-user/FigmaActionIcon'
+import {
+  figmaActionIcon,
+  figmaReportIcon,
+  type ServiceUserFigmaActionId,
+  type ServiceUserFigmaReportId,
+} from '@/features/service-users/figma-action-icons'
 
 const iconSvg =
   '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:stroke-[2.25px]'
+
+const ICON_BLUE = 'bg-[#6db3d9] hover:bg-[#5ca8ce] border-transparent text-white shadow-sm'
+const ICON_ALERT = 'bg-[#e0535f] hover:bg-[#d04552] border-transparent text-white shadow-sm'
 
 function circleBase(className?: string) {
   return cn(
@@ -28,6 +24,16 @@ function circleBase(className?: string) {
     'transition-all duration-150 hover:shadow-md hover:-translate-y-px',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:ring-offset-1',
     iconSvg,
+    className,
+  )
+}
+
+function figmaCircleBase(className?: string) {
+  return cn(
+    'inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full p-0',
+    'border-0 bg-transparent shadow-none',
+    'transition-all duration-150 hover:shadow-md hover:-translate-y-px',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:ring-offset-1',
     className,
   )
 }
@@ -40,17 +46,18 @@ function CircleLink({
   tone = 'blue',
   children,
   testId,
+  figmaIcon,
 }: {
   to: string
   params: { serviceUserId: string }
   search?: Record<string, string>
   title: string
-  tone?: 'blue' | 'care-plan' | 'alert'
-  children: React.ReactNode
+  tone?: 'blue' | 'alert'
+  children?: React.ReactNode
   testId?: string
+  figmaIcon?: ServiceUserFigmaActionId
 }) {
-  const toneClass =
-    tone === 'care-plan' ? ICON_CARE_PLAN : tone === 'alert' ? ICON_ALERT : ICON_BLUE
+  const className = figmaIcon ? figmaCircleBase() : circleBase(tone === 'alert' ? ICON_ALERT : ICON_BLUE)
   return (
     <Link
       to={to}
@@ -58,9 +65,13 @@ function CircleLink({
       search={search}
       title={title}
       data-testid={testId}
-      className={circleBase(toneClass)}
+      className={className}
     >
-      {children}
+      {figmaIcon ? (
+        <FigmaActionIcon src={figmaActionIcon(figmaIcon)} title={title} />
+      ) : (
+        children
+      )}
     </Link>
   )
 }
@@ -71,41 +82,48 @@ function CircleButton({
   children,
   testId,
   onClick,
+  figmaIcon,
 }: {
   title: string
   tone?: 'blue' | 'alert'
-  children: React.ReactNode
+  children?: React.ReactNode
   testId?: string
   onClick: () => void
+  figmaIcon?: ServiceUserFigmaActionId
 }) {
+  const className = figmaIcon ? figmaCircleBase() : circleBase(tone === 'alert' ? ICON_ALERT : ICON_BLUE)
   return (
     <button
       type="button"
       title={title}
       data-testid={testId}
-      onClick={(e) => {
+      onClick={e => {
         e.preventDefault()
         e.stopPropagation()
         onClick()
       }}
-      className={circleBase(tone === 'alert' ? ICON_ALERT : ICON_BLUE)}
+      className={className}
     >
-      {children}
+      {figmaIcon ? (
+        <FigmaActionIcon src={figmaActionIcon(figmaIcon)} title={title} />
+      ) : (
+        children
+      )}
     </button>
   )
 }
 
-function TextCircleLink({
+function ReportCircleLink({
   to,
   params,
   search,
-  label,
+  reportId,
   title,
 }: {
   to: string
   params?: { serviceUserId: string }
   search?: Record<string, string>
-  label: string
+  reportId: ServiceUserFigmaReportId
   title: string
 }) {
   return (
@@ -114,9 +132,9 @@ function TextCircleLink({
       {...(params ? { params } : {})}
       {...(search ? { search } : {})}
       title={title}
-      className={cn(circleBase(ICON_BLUE), 'text-xs font-bold tracking-tight')}
+      className={figmaCircleBase()}
     >
-      {label}
+      <FigmaActionIcon src={figmaReportIcon(reportId)} title={title} />
     </Link>
   )
 }
@@ -157,73 +175,67 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
       className={cn('flex flex-nowrap items-center justify-end gap-1', className)}
       data-testid="service-user-row-actions"
     >
-      <CircleLink to="/service-users/$serviceUserId/view" params={params} title="Overview" testId="su-action-overview">
-        <Eye strokeWidth={2.25} />
-      </CircleLink>
+      <CircleLink
+        to="/service-users/$serviceUserId/view"
+        params={params}
+        title="Overview"
+        testId="su-action-overview"
+        figmaIcon="overview"
+      />
       <CircleLink
         to="/service-users/$serviceUserId/care-plan"
         params={params}
         title="Care Plan"
-        tone="care-plan"
         testId="su-action-care-plan"
-      >
-        <HandHeart strokeWidth={2.25} />
-      </CircleLink>
+        figmaIcon="carePlan"
+      />
       <CircleLink
         to="/service-users/$serviceUserId"
         params={params}
         search={{ tab: 'personal' }}
         title="More Details"
         testId="su-action-details"
-      >
-        <User strokeWidth={2.25} />
-      </CircleLink>
+        figmaIcon="details"
+      />
       <CircleLink
         to="/service-users/$serviceUserId"
         params={params}
         search={{ tab: 'dom' }}
         title="Service Management"
         testId="su-action-service-management"
-      >
-        <Smile strokeWidth={2.25} />
-      </CircleLink>
+        figmaIcon="serviceManagement"
+      />
       <CircleLink
         to="/service-users/$serviceUserId"
         params={params}
         search={{ tab: 'calendar' }}
         title="Calendar"
         testId="su-action-calendar"
-      >
-        <Calendar strokeWidth={2.25} />
-      </CircleLink>
+        figmaIcon="calendar"
+      />
       <CircleLink
         to="/service-users/$serviceUserId/medication"
         params={params}
         title="Medication"
         testId="su-action-medication"
-      >
-        <Pill strokeWidth={2.25} />
-      </CircleLink>
+        figmaIcon="medication"
+      />
       {onFlashClick ? (
         <CircleButton
           title={user.hasActiveFlashMessage ? 'Flash Message (active)' : 'Flash Message'}
-          tone={user.hasActiveFlashMessage ? 'alert' : 'blue'}
           testId="su-action-flash"
           onClick={() => onFlashClick(user)}
-        >
-          <Zap strokeWidth={2.25} />
-        </CircleButton>
+          figmaIcon="flash"
+        />
       ) : (
         <CircleLink
           to="/service-users/$serviceUserId/view"
           params={params}
           search={{ focus: 'flash' }}
           title={user.hasActiveFlashMessage ? 'Flash Message (active)' : 'Flash Message'}
-          tone={user.hasActiveFlashMessage ? 'alert' : 'blue'}
           testId="su-action-flash"
-        >
-          <Zap strokeWidth={2.25} />
-        </CircleLink>
+          figmaIcon="flash"
+        />
       )}
       <PlaceholderCircle title="Create Session" Icon={UserCheck} />
       <CircleLink
@@ -231,36 +243,34 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
         params={params}
         search={{ tab: 'absences' }}
         title={user.hasActiveAbsence ? 'Record Absence (active absence)' : 'Record Absence'}
-        tone={user.hasActiveAbsence ? 'alert' : 'blue'}
         testId="su-action-absence"
-      >
-        <Pause strokeWidth={2.25} />
-      </CircleLink>
+        figmaIcon="absence"
+      />
 
       <span className="mx-1 hidden h-7 w-px shrink-0 bg-border/80 sm:inline-block" aria-hidden />
 
-      <TextCircleLink to="/in-progress" label="CS" title="Care summary" />
-      <TextCircleLink to="/in-progress" label="D" title="Detailed Care report" />
-      <TextCircleLink
+      <ReportCircleLink to="/in-progress" reportId="CS" title="Care summary" />
+      <ReportCircleLink to="/in-progress" reportId="D" title="Detailed Care report" />
+      <ReportCircleLink
         to="/service-users/$serviceUserId/observations"
         params={params}
-        label="O"
+        reportId="O"
         title="Observation Report"
       />
-      <TextCircleLink
+      <ReportCircleLink
         to="/service-users/initial-assessment-checklist"
         params={params}
         search={{ serviceUserId: id }}
-        label="A"
+        reportId="A"
         title="Assessment report"
       />
-      <TextCircleLink
+      <ReportCircleLink
         to="/service-users/$serviceUserId/care-plan"
         params={params}
-        label="C"
+        reportId="C"
         title="Care plan report"
       />
-      <PlaceholderCircle label="H" title="House pack history" />
+      <ReportCircleLink to="/in-progress" reportId="H" title="House pack history" />
     </div>
   )
 }

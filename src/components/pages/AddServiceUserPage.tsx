@@ -354,7 +354,7 @@ export default function AddServiceUserPage() {
           <div>
             <FieldLabel>Preferred name</FieldLabel>
             <Input value={form.preferredName} onChange={(e) => set('preferredName')(e.target.value)} />
-          </div>
+            </div>
           <div>
             <FieldLabel>NHS number</FieldLabel>
             <Input value={form.nhsNumber} onChange={(e) => set('nhsNumber')(e.target.value)} />
@@ -366,7 +366,7 @@ export default function AddServiceUserPage() {
           <div>
             <FieldLabel required>Status</FieldLabel>
             {lookups ? mapSelect('statusId', 'Select status', lookups.statuses) : <Input disabled placeholder="Loading statuses…" />}
-          </div>
+            </div>
           <div>
             <FieldLabel>Date of birth</FieldLabel>
             <Input
@@ -385,19 +385,19 @@ export default function AddServiceUserPage() {
           <div>
             <FieldLabel>Title</FieldLabel>
             {lookups ? mapSelect('titleId', 'Select title', lookups.titles) : <Input disabled />}
-          </div>
+        </div>
           <div>
             <FieldLabel>Gender</FieldLabel>
             {lookups ? mapSelect('genderId', 'Select gender', lookups.genders) : <Input disabled />}
-          </div>
+        </div>
           <div>
             <FieldLabel>Marital status</FieldLabel>
             {lookups ? mapSelect('maritalStatusId', 'Select marital status', lookups.maritalStatuses) : <Input disabled />}
-          </div>
+        </div>
           <div>
             <FieldLabel>Care type</FieldLabel>
             {lookups ? mapSelect('careTypeId', 'Select care type', lookups.careTypes) : <Input disabled />}
-          </div>
+        </div>
           <div>
             <FieldLabel>Funding type</FieldLabel>
             {lookups ? mapSelect('fundingTypeId', 'Select funding', lookups.fundingTypes) : <Input disabled />}
@@ -405,7 +405,7 @@ export default function AddServiceUserPage() {
           <div>
             <FieldLabel>Risk level</FieldLabel>
             {lookups ? mapSelect('riskLevelId', 'Select risk level', lookups.riskLevels) : <Input disabled />}
-          </div>
+        </div>
         </div>
       </Section>
 
@@ -597,23 +597,23 @@ export default function AddServiceUserPage() {
               value={form.addressLine1}
               onChange={(e) => set('addressLine1')(e.target.value)}
             />
-          </div>
+        </div>
           <div className="md:col-span-2">
             <FieldLabel>Address line 2</FieldLabel>
             <Input value={form.addressLine2} onChange={(e) => set('addressLine2')(e.target.value)} />
-          </div>
+        </div>
           <div>
             <FieldLabel>Town</FieldLabel>
             <Input data-testid="service-user-town" value={form.town} onChange={(e) => set('town')(e.target.value)} />
-          </div>
+        </div>
           <div>
             <FieldLabel>County</FieldLabel>
             <Input value={form.county} onChange={(e) => set('county')(e.target.value)} />
-          </div>
+        </div>
           <div>
             <FieldLabel>Country</FieldLabel>
             <Input value={form.country} onChange={(e) => set('country')(e.target.value)} />
-          </div>
+        </div>
           <div>
             <FieldLabel>Postcode</FieldLabel>
             <Input
@@ -621,7 +621,7 @@ export default function AddServiceUserPage() {
               value={form.postcode}
               onChange={(e) => set('postcode')(e.target.value)}
             />
-          </div>
+        </div>
           <div>
             <FieldLabel>Key safe number</FieldLabel>
             <Input value={form.keySafeNumber} onChange={(e) => set('keySafeNumber')(e.target.value)} autoComplete="off" />
@@ -637,7 +637,7 @@ export default function AddServiceUserPage() {
               value={form.accessInstructions}
               onChange={(e) => set('accessInstructions')(e.target.value)}
             />
-          </div>
+        </div>
         </div>
       </Section>
 

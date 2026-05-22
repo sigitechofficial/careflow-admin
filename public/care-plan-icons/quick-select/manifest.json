@@ -1,0 +1,56 @@
+{
+  "exportedAt": "2026-05-22T12:03:18.741Z",
+  "figmaFileKey": "tsJEm2ALzuckPify3DyE04",
+  "figmaNodeId": "354:11100",
+  "figmaUrl": "https://www.figma.com/design/tsJEm2ALzuckPify3DyE04/Care-20--20?node-id=354-11100",
+  "icons": [
+    {
+      "name": "person-all",
+      "slug": "person-all",
+      "file": "/care-plan-icons/quick-select/person-all.svg",
+      "nodeId": "354:11105"
+    },
+    {
+      "name": "person-active",
+      "slug": "person-active",
+      "file": "/care-plan-icons/quick-select/person-active.svg",
+      "nodeId": "354:11109"
+    },
+    {
+      "name": "person-discharged",
+      "slug": "person-discharged",
+      "file": "/care-plan-icons/quick-select/person-discharged.svg",
+      "nodeId": "354:11113"
+    },
+    {
+      "name": "care-low",
+      "slug": "care-low",
+      "file": "/care-plan-icons/quick-select/care-low.svg",
+      "nodeId": "354:11118"
+    },
+    {
+      "name": "care-medium",
+      "slug": "care-medium",
+      "file": "/care-plan-icons/quick-select/care-medium.svg",
+      "nodeId": "354:11124"
+    },
+    {
+      "name": "care-high",
+      "slug": "care-high",
+      "file": "/care-plan-icons/quick-select/care-high.svg",
+      "nodeId": "354:11130"
+    },
+    {
+      "name": "dols",
+      "slug": "dols",
+      "file": "/care-plan-icons/quick-select/dols.svg",
+      "nodeId": "354:11137"
+    },
+    {
+      "name": "absent",
+      "slug": "absent",
+      "file": "/care-plan-icons/quick-select/absent.svg",
+      "nodeId": "354:11144"
+    }
+  ]
+}

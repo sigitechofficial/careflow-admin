@@ -12,7 +12,14 @@
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "sync:care-plan-icons": "node scripts/sync-standard-icons-to-public.mjs",
+    "download:eplancare-gallery": "node scripts/download-eplancare-gallery.mjs",
+    "download:eplancare-gallery:login": "node scripts/download-eplancare-gallery.mjs --login",
+    "fetch:figma-icons": "node scripts/fetch-figma-care-plan-icons.mjs",
+    "fetch:figma-reports": "node scripts/fetch-figma-care-plan-icons.mjs --node-id=354-10537 --out=service-user-reports --public=reports",
+    "fetch:figma-quick-select": "node scripts/fetch-figma-care-plan-icons.mjs --node-id=354-11100 --out=service-user-quick-select --public=quick-select",
+    "fetch:figma-module-tabs": "node scripts/fetch-figma-care-plan-icons.mjs --node-id=321-11019 --out=service-user-module-tabs --public=module-tabs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

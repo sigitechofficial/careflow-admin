@@ -42,7 +42,13 @@ export async function apiJson<T>(
   const url = `${base}${path.startsWith('/') ? path : `/${path}`}`
   const token = useAuthStore.getState().accessToken
   const headers = new Headers(init.headers)
-  if (!headers.has('Content-Type') && init.method && init.method !== 'GET' && init.method !== 'HEAD') {
+  if (
+    !(init.body instanceof FormData) &&
+    !headers.has('Content-Type') &&
+    init.method &&
+    init.method !== 'GET' &&
+    init.method !== 'HEAD'
+  ) {
     headers.set('Content-Type', 'application/json')
   }
   if (token) {

@@ -1,20 +1,13 @@
 import * as React from 'react'
-import { Link, useParams } from '@tanstack/react-router'
-import {
-  ArrowLeft,
-  Calendar,
-  ChevronDown,
-  ClipboardList,
-  Loader2,
-  Pill,
-  Plus,
-  User,
-} from 'lucide-react'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { ArrowLeft, ChevronDown, Loader2, Pill, Plus, User } from 'lucide-react'
 import { ServiceUserModuleTabs } from '@/components/service-user/ServiceUserModuleTabs'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api-base'
 import { ApiError } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { CarePlanCard } from '@/features/service-users/care-plan/CarePlanCard'
+import { CarePlanIconsShowcase } from '@/features/service-users/care-plan/CarePlanIconsShowcase'
 import {
   fetchServiceUser,
   fetchServiceUserDocuments,
@@ -23,6 +16,16 @@ import {
   type ServiceUserDetail,
   type ServiceUserDocumentsBundle,
 } from '@/lib/service-users-api'
+import {
+  fetchFormSelections,
+  listSelectableForms,
+  type SelectableForm,
+} from '@/features/care-pathway/api/form-selection.api'
+import {
+  filterCarePlansByFormSelection,
+  isActiveCarePlanName,
+  sortCarePlansByCatalogOrder,
+} from '@/features/service-users/care-plan/care-plan-catalog'
 
 function formatDob(iso: string | null): string {
   if (!iso) return '—'
@@ -61,8 +64,8 @@ function CarePlanAccordion({
 }) {
   const headerClass =
     tone === 'teal'
-      ? 'bg-teal-700 text-white dark:bg-teal-900'
-      : 'bg-sky-200 text-sky-950 dark:bg-sky-900 dark:text-sky-50'
+      ? 'bg-[#0f766e] text-white'
+      : 'bg-[#b8d9eb] text-[#0f2942]'
 
   return (
     <details
@@ -78,30 +81,23 @@ function CarePlanAccordion({
         <span>{title}</span>
         <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
       </summary>
-      {children ? <div className="border-t border-border/60 bg-background p-4">{children}</div> : null}
+      {children ? (
+        <div className="border-t border-[#c5cdd6] bg-[#f8fafc] p-3 sm:p-4">{children}</div>
+      ) : null}
     </details>
-  )
-}
-
-function CarePlanCard({ title }: { title: string }) {
-  return (
-    <div className="flex min-h-[140px] flex-col items-center justify-center rounded-md border border-border bg-card p-4 text-center shadow-sm">
-      <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
-        <ClipboardList className="h-8 w-8" strokeWidth={1.25} />
-      </div>
-      <p className="text-sm font-medium text-foreground">{title}</p>
-    </div>
   )
 }
 
 export default function ServiceUserCarePlanPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
+  const navigate = useNavigate()
   const serviceUserId = params.serviceUserId ?? ''
   const apiConfigured = Boolean(getApiBaseUrl())
 
   const [detail, setDetail] = React.useState<ServiceUserDetail | null>(null)
   const [documents, setDocuments] = React.useState<ServiceUserDocumentsBundle | null>(null)
   const [allergies, setAllergies] = React.useState<ServiceUserAllergyRow[]>([])
+  const [carePlanForms, setCarePlanForms] = React.useState<SelectableForm[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -118,13 +114,21 @@ export default function ServiceUserCarePlanPage() {
         const d = await fetchServiceUser(serviceUserId)
         if (cancelled) return
         setDetail(d)
-        const [docR, alR] = await Promise.allSettled([
+        const [docR, alR, selR, cpR] = await Promise.allSettled([
           fetchServiceUserDocuments(serviceUserId),
           listServiceUserAllergies(serviceUserId),
+          fetchFormSelections(),
+          listSelectableForms('care-plans', { limit: 100 }),
         ])
         if (cancelled) return
         if (docR.status === 'fulfilled') setDocuments(docR.value)
         if (alR.status === 'fulfilled') setAllergies(alR.value)
+        if (selR.status === 'fulfilled' && cpR.status === 'fulfilled') {
+          const selectedIds = selR.value.carePlans.map(s => s.formId)
+          setCarePlanForms(filterCarePlansByFormSelection(cpR.value, selectedIds))
+        } else {
+          setCarePlanForms([])
+        }
       } catch (e) {
         if (!cancelled) {
           setDetail(null)
@@ -144,6 +148,26 @@ export default function ServiceUserCarePlanPage() {
   const dnacpr = legal?.dnacprInPlace === true
   const diabetesAllergy = allergies.some(a => /diabet/i.test(a.allergyName))
   const name = givenName(detail)
+
+  const inactiveCarePlans = React.useMemo(
+    () =>
+      sortCarePlansByCatalogOrder(
+        carePlanForms.filter(f => !isActiveCarePlanName(f.name)),
+      ),
+    [carePlanForms],
+  )
+
+  const openCarePlanForm = (formId: string) => {
+    void navigate({
+      to: '/service-users/$serviceUserId/care-plan/forms/$formId',
+      params: { serviceUserId, formId },
+    })
+  }
+
+  const activeCarePlans = React.useMemo(
+    () => sortCarePlansByCatalogOrder(carePlanForms.filter(f => isActiveCarePlanName(f.name))),
+    [carePlanForms],
+  )
 
   if (!serviceUserId) {
     return (
@@ -254,14 +278,54 @@ export default function ServiceUserCarePlanPage() {
             <CarePlanAccordion title="Risk Profile" tone="teal" />
 
             <CarePlanAccordion title={`Active Care Plans for ${name}`} tone="sky" defaultOpen>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <CarePlanCard title="Medication care plan" />
-                <CarePlanCard title="Risk Assessment and Care Plan V2" />
-              </div>
+              {activeCarePlans.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {carePlanForms.length === 0
+                    ? 'No care plans match your form selection.'
+                    : 'No active care plans in your current form selection.'}
+                </p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {activeCarePlans.map(plan => (
+                    <CarePlanCard
+                      key={plan.id}
+                      title={plan.name}
+                      pictureUrl={plan.pictureUrl}
+                      onOpen={() => openCarePlanForm(plan.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </CarePlanAccordion>
 
             <CarePlanAccordion title={`Monitor Care Plans for ${name}`} tone="sky" />
-            <CarePlanAccordion title={`Inactive Care Plans for ${name}`} tone="sky" />
+            <CarePlanAccordion title={`Inactive Care Plans for ${name}`} tone="sky" defaultOpen>
+              {inactiveCarePlans.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {carePlanForms.length === 0
+                    ? 'No care plans match your form selection.'
+                    : 'No inactive care plans in your current form selection.'}
+                </p>
+              ) : (
+                <div
+                  className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                  data-testid="inactive-care-plans-grid"
+                >
+                  {inactiveCarePlans.map(plan => (
+                    <CarePlanCard
+                      key={plan.id}
+                      title={plan.name}
+                      pictureUrl={plan.pictureUrl}
+                      onOpen={() => openCarePlanForm(plan.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </CarePlanAccordion>
+
+            <CarePlanAccordion title="Care plan icons (reference)" tone="sky">
+              <CarePlanIconsShowcase />
+            </CarePlanAccordion>
           </div>
         )}
       </div>

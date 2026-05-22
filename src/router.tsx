@@ -32,6 +32,7 @@ import EditServiceUserPage from '@/components/pages/EditServiceUserPage'
 import ViewServiceUserPage from '@/components/pages/ViewServiceUserPage'
 import ServiceUserMedicationPage from '@/components/pages/ServiceUserMedicationPage'
 import ServiceUserCarePlanPage from '@/components/pages/ServiceUserCarePlanPage'
+import ServiceUserCarePlanFormPage from '@/components/pages/ServiceUserCarePlanFormPage'
 import ServiceUserObservationsPage from '@/components/pages/ServiceUserObservationsPage'
 import EmployeePage from '@/components/pages/EmployeePage'
 import TempInspectorPage from '@/components/pages/TempInspectorPage'
@@ -60,8 +61,13 @@ import GeneralSettingsPage from '@/components/pages/GeneralSettingsPage'
 import type { GeneralSettingsTabId } from '@/components/pages/GeneralSettingsPage'
 import CompanyDetailsPage from '@/components/pages/CompanyDetailsPage'
 import LocationManagementPage from '@/components/pages/LocationManagementPage'
+import CarePathwayPage from '@/components/pages/CarePathwayPage'
 import type { SettingsTabId } from '@/components/pages/SettingsPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
+import {
+  CARE_PATHWAY_TAB_IDS,
+  type CarePathwayTabId,
+} from '@/features/settings/care-pathway/care-pathway.types'
 
 type EmployeeTabId = 'staff-list' | 'compliance' | 'review-status' | 'skills' | 'non-core-activity' | 'reports'
 
@@ -100,6 +106,7 @@ const pageTitles: Record<string, string> = {
   '/settings/company': 'Company Details',
   '/settings/general': 'General Settings',
   '/settings/location-management': 'Location Management',
+  '/settings/care-pathway': 'Care Pathway',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -155,7 +162,7 @@ function AppRootShell() {
           ? 'Medication'
           : /^\/service-users\/[^/]+\/observations$/.test(pathname)
             ? 'Observations'
-            : /^\/service-users\/[^/]+\/care-plan$/.test(pathname)
+            : /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname)
               ? 'Care Plan'
             : /^\/service-users\/[^/]+$/.test(pathname)
             ? 'Edit Service User'
@@ -166,7 +173,7 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
-    /^\/service-users\/[^/]+\/care-plan$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
 
   return (
@@ -323,6 +330,13 @@ const serviceUsersCarePlanRoute = createRoute({
   path: '/service-users/$serviceUserId/care-plan',
   beforeLoad: requirePermission('service_users.read'),
   component: ServiceUserCarePlanPage,
+})
+
+const serviceUsersCarePlanFormRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/care-plan/forms/$formId',
+  beforeLoad: requirePermission('service_users.read'),
+  component: ServiceUserCarePlanFormPage,
 })
 
 const serviceUsersObservationsRoute = createRoute({
@@ -593,6 +607,20 @@ const locationManagementRoute = createRoute({
   component: LocationManagementPage,
 })
 
+const carePathwayRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/care-pathway',
+  validateSearch: (raw: Record<string, unknown>): { tab?: CarePathwayTabId } => {
+    const t = raw.tab
+    if (typeof t === 'string' && CARE_PATHWAY_TAB_IDS.includes(t as CarePathwayTabId)) {
+      return { tab: t as CarePathwayTabId }
+    }
+    return { tab: 'wizard' }
+  },
+  beforeLoad: requirePermission('care_pathway.read'),
+  component: CarePathwayPage,
+})
+
 const routeTree = rootRoute.addChildren([
   authLayoutRoute.addChildren([
     authLoginRoute,
@@ -610,6 +638,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersViewRoute,
     serviceUsersMedicationRoute,
     serviceUsersCarePlanRoute,
+    serviceUsersCarePlanFormRoute,
     serviceUsersObservationsRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
@@ -640,6 +669,7 @@ const routeTree = rootRoute.addChildren([
     companyDetailsRoute,
     generalSettingsRoute,
     locationManagementRoute,
+    carePathwayRoute,
   ]),
 ])
 

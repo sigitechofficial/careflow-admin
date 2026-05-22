@@ -34,6 +34,7 @@ import {
   Sparkles,
   Building2,
   MapPin,
+  Route,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -245,6 +246,14 @@ const navItems: NavItem[] = [
         search: { sub: 'zones' },
         permission: 'lookups.read',
         navTestId: 'nav-settings-location-management',
+      },
+      {
+        label: 'Care Pathway',
+        icon: <Route className="h-3.5 w-3.5" />,
+        href: '/settings/care-pathway',
+        search: { tab: 'wizard' },
+        permission: 'care_pathway.read',
+        navTestId: 'nav-settings-care-pathway',
       },
     ],
   },

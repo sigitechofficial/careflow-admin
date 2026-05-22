@@ -98,6 +98,44 @@ const NOTIFICATION_INAPP: Permission[] = [
   'notifications.preferences.update',
 ]
 
+const CARE_PATHWAY_READ: Permission[] = [
+  'care_pathway.read',
+  'form_builder.read',
+  'form_selection.read',
+  'care_plan_text.read',
+  'care_plan_text.preview',
+  'pathway_checklists.read',
+  'pathway_actions.read',
+  'picture_gallery.read',
+]
+
+const CARE_PATHWAY_MANAGE: Permission[] = [
+  ...CARE_PATHWAY_READ,
+  'form_builder.create',
+  'form_builder.update',
+  'form_builder.publish',
+  'form_selection.update',
+  'care_plan_text.create',
+  'care_plan_text.update',
+  'pathway_checklists.create',
+  'pathway_checklists.update',
+  'pathway_checklists.items.manage',
+  'pathway_actions.create',
+  'pathway_actions.update',
+  'pathway_actions.checklists.manage',
+  'picture_gallery.upload',
+  'picture_gallery.update',
+]
+
+const CARE_PATHWAY_ADMIN: Permission[] = [
+  ...CARE_PATHWAY_MANAGE,
+  'form_builder.delete',
+  'care_plan_text.delete',
+  'pathway_checklists.delete',
+  'pathway_actions.delete',
+  'picture_gallery.delete',
+]
+
 /** Role → default permissions (merged with `/auth/me` keys in API mode). */
 export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   super_admin: [
@@ -128,6 +166,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...SERVICE_USER_ALL,
     ...NOTIFICATION_INAPP,
     'notifications.create',
+    ...CARE_PATHWAY_ADMIN,
   ],
   admin: [
     'users.read',
@@ -153,6 +192,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...SERVICE_USER_ALL,
     ...NOTIFICATION_INAPP,
     'notifications.create',
+    ...CARE_PATHWAY_ADMIN,
   ],
   manager: [
     'users.read',
@@ -178,6 +218,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'compliance_types.delete',
     'incidents.read',
     'incidents.write',
+    ...CARE_PATHWAY_MANAGE,
     'service_users.read',
     'service_users.create',
     'service_users.update',

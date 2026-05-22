@@ -1,0 +1,185 @@
+{
+  "source": "careadmin-backend/uploads/care-pathway/standard",
+  "icons": [
+    {
+      "name": "Access",
+      "slug": "access",
+      "file": "/care-plan-icons/standard/access.svg"
+    },
+    {
+      "name": "Action",
+      "slug": "action",
+      "file": "/care-plan-icons/standard/action.svg"
+    },
+    {
+      "name": "Activities",
+      "slug": "activities",
+      "file": "/care-plan-icons/standard/activities.svg"
+    },
+    {
+      "name": "Afternoon",
+      "slug": "afternoon",
+      "file": "/care-plan-icons/standard/afternoon.svg"
+    },
+    {
+      "name": "Arm",
+      "slug": "arm",
+      "file": "/care-plan-icons/standard/arm.svg"
+    },
+    {
+      "name": "Bath",
+      "slug": "bath",
+      "file": "/care-plan-icons/standard/bath.svg"
+    },
+    {
+      "name": "Bed",
+      "slug": "bed",
+      "file": "/care-plan-icons/standard/bed.svg"
+    },
+    {
+      "name": "Breakfast",
+      "slug": "breakfast",
+      "file": "/care-plan-icons/standard/breakfast.svg"
+    },
+    {
+      "name": "Care At Home",
+      "slug": "care-at-home",
+      "file": "/care-plan-icons/standard/care-at-home.svg"
+    },
+    {
+      "name": "Care Plan",
+      "slug": "care-plan",
+      "file": "/care-plan-icons/standard/care-plan.svg"
+    },
+    {
+      "name": "Carer",
+      "slug": "carer",
+      "file": "/care-plan-icons/standard/carer.svg"
+    },
+    {
+      "name": "Continence",
+      "slug": "continence",
+      "file": "/care-plan-icons/standard/continence.svg"
+    },
+    {
+      "name": "Cooking",
+      "slug": "cooking",
+      "file": "/care-plan-icons/standard/cooking.svg"
+    },
+    {
+      "name": "Culture",
+      "slug": "culture",
+      "file": "/care-plan-icons/standard/culture.svg"
+    },
+    {
+      "name": "Doctor",
+      "slug": "doctor",
+      "file": "/care-plan-icons/standard/doctor.svg"
+    },
+    {
+      "name": "Drinks",
+      "slug": "drinks",
+      "file": "/care-plan-icons/standard/drinks.svg"
+    },
+    {
+      "name": "Exercise",
+      "slug": "exercise",
+      "file": "/care-plan-icons/standard/exercise.svg"
+    },
+    {
+      "name": "Family Care",
+      "slug": "family-care",
+      "file": "/care-plan-icons/standard/family-care.svg"
+    },
+    {
+      "name": "Health",
+      "slug": "health",
+      "file": "/care-plan-icons/standard/health.svg"
+    },
+    {
+      "name": "Hearing",
+      "slug": "hearing",
+      "file": "/care-plan-icons/standard/hearing.svg"
+    },
+    {
+      "name": "Home",
+      "slug": "home",
+      "file": "/care-plan-icons/standard/home.svg"
+    },
+    {
+      "name": "Hygiene",
+      "slug": "hygiene",
+      "file": "/care-plan-icons/standard/hygiene.svg"
+    },
+    {
+      "name": "Infection",
+      "slug": "infection",
+      "file": "/care-plan-icons/standard/infection.svg"
+    },
+    {
+      "name": "Lunch",
+      "slug": "lunch",
+      "file": "/care-plan-icons/standard/lunch.svg"
+    },
+    {
+      "name": "Medication",
+      "slug": "medication",
+      "file": "/care-plan-icons/standard/medication.svg"
+    },
+    {
+      "name": "Mobility",
+      "slug": "mobility",
+      "file": "/care-plan-icons/standard/mobility.svg"
+    },
+    {
+      "name": "Morning",
+      "slug": "morning",
+      "file": "/care-plan-icons/standard/morning.svg"
+    },
+    {
+      "name": "Pain",
+      "slug": "pain",
+      "file": "/care-plan-icons/standard/pain.svg"
+    },
+    {
+      "name": "Palliative",
+      "slug": "palliative",
+      "file": "/care-plan-icons/standard/palliative.svg"
+    },
+    {
+      "name": "Personal Washing",
+      "slug": "personal-washing",
+      "file": "/care-plan-icons/standard/personal-washing.svg"
+    },
+    {
+      "name": "Pets",
+      "slug": "pets",
+      "file": "/care-plan-icons/standard/pets.svg"
+    },
+    {
+      "name": "Physiotherapy",
+      "slug": "physiotherapy",
+      "file": "/care-plan-icons/standard/physiotherapy.svg"
+    },
+    {
+      "name": "Pressure Ulcer",
+      "slug": "pressure-ulcer",
+      "file": "/care-plan-icons/standard/pressure-ulcer.svg"
+    },
+    {
+      "name": "Privacy",
+      "slug": "privacy",
+      "file": "/care-plan-icons/standard/privacy.svg"
+    },
+    {
+      "name": "Psychology",
+      "slug": "psychology",
+      "file": "/care-plan-icons/standard/psychology.svg"
+    },
+    {
+      "name": "Religion",
+      "slug": "religion",
+      "file": "/care-plan-icons/standard/religion.svg"
+    }
+  ]
+}
