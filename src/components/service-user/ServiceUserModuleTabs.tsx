@@ -71,9 +71,8 @@ function TabContent({ tab, active }: { tab: ModuleTab; active: boolean }) {
       >
         <FigmaActionIcon
           src={figmaModuleTabIcon(tab.id)}
-          label={tab.label}
+          title={tab.label}
           className={fullTile ? 'h-11 w-11' : 'h-10 w-10'}
-          imgClassName={fullTile ? 'h-11 w-11' : 'h-10 w-10'}
         />
       </span>
       <span
