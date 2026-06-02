@@ -1,8 +1,8 @@
-import { ClipboardList } from 'lucide-react'
-import { StandardIconImage } from '@/components/ui/standard-icon-image'
-import { cn } from '@/lib/utils'
+﻿import { ClipboardList } from 'lucide-react'
+import { StandardIconImage } from '@/shared/ui/standard-icon-image'
+import { cn } from '@/shared/lib/utils'
 
-/** Care plan tile — matches Care 20:20 Figma inactive care plan cards (node 354-10508). */
+/** Care plan tile â€” matches Care 20:20 Figma inactive care plan cards (node 354-10508). */
 export function CarePlanCard({
   title,
   pictureUrl,

@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+﻿import { cn } from '@/shared/lib/utils'
 import type { ServiceUserCalendarEvent } from '../types/service-user-calendar.types'
 import { CalendarEventTypeBadge } from './CalendarEventTypeBadge'
 
@@ -48,7 +48,7 @@ export function CalendarEventCard({
           <p className="mt-0.5 text-xs text-muted-foreground">
             {formatTime(event.startDateTime, event.allDay)}
             {event.endDateTime && !event.allDay
-              ? ` – ${formatTime(event.endDateTime, false)}`
+              ? ` â€“ ${formatTime(event.endDateTime, false)}`
               : null}
           </p>
           {suName ? <p className="mt-1 text-xs font-medium text-teal-700 dark:text-teal-400">{suName}</p> : null}

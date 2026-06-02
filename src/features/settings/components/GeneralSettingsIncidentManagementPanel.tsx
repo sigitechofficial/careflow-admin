@@ -1,23 +1,25 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type IncidentDefaultStatus,
   type IncidentTypeSetting,
   type OrganisationGeneralSettings,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   GeneralSettingsCard,
   SettingsHint,
@@ -28,8 +30,8 @@ import {
   INCIDENT_STATUS_OPTIONS,
   mergeIncidentTypeSettings,
 } from '@/features/settings/incident/incident-management-defaults'
-import { useAuthStore } from '@/store/auth.store'
-import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
+import { cn } from '@/shared/lib/utils'
 
 const TOOLTIPS = {
   editableMinutes:
@@ -68,40 +70,25 @@ function clampInt(n: number, min: number, max: number) {
 
 export function GeneralSettingsIncidentManagementPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<IncidentDraft | null>(null)
   const [draft, setDraft] = React.useState<IncidentDraft>(DEFAULTS)
-
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(d)
-    setDraft(d)
-  }, [])
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load incident management settings.'
+        : null
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const settings = await fetchGeneralSettings()
-        if (!cancelled) apply(settings)
-      } catch (e) {
-        if (!cancelled) {
-          setError(
-            e instanceof ApiError ? e.message : 'Could not load incident management settings.',
-          )
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(d)
+      setDraft(d)
     }
-  }, [apply])
+  }, [settingsData])
 
   function updateType(key: string, required: boolean) {
     setDraft(d => ({
@@ -114,20 +101,19 @@ export function GeneralSettingsIncidentManagementPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings({
+      const updated = await updateMutation.mutateAsync({
         incidentDetailsEditableMinutes: clampInt(draft.incidentDetailsEditableMinutes, 1, 10080),
         incidentDisplayHours: clampInt(draft.incidentDisplayHours, 1, 8760),
         incidentDefaultStatus: draft.incidentDefaultStatus,
         incidentTypeSettings: draft.incidentTypeSettings,
       })
-      apply(updated)
+      const d = toDraft(updated)
+      setSaved(d)
+      setDraft(d)
       toastSuccess('Saved', 'Incident management settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

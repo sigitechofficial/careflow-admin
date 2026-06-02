@@ -1,21 +1,21 @@
 import * as React from 'react'
 import { Calendar, Pencil } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
+import { cn } from '@/shared/lib/utils'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import type { CompositeDraft } from '@/lib/observation-payload'
+} from '@/shared/ui/select'
+import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
 import {
   URINALYSIS_DIPSTICK_OPTIONS,
   URINE_OBSERVATIONS,
   type UrinalysisDipstick,
-} from '@/lib/observation-urinalysis-catalog'
+} from '@/features/service-users/observations/observation-urinalysis-catalog'
 
 const SELECT_NONE = '__none__'
 

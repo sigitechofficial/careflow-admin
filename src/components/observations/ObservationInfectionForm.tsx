@@ -1,18 +1,18 @@
 import * as React from 'react'
 import { Calendar } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
-import { Switch } from '@/components/ui/toggle-controls'
+import { cn } from '@/shared/lib/utils'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
+import { Switch } from '@/shared/ui/toggle-controls'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import type { CompositeDraft } from '@/lib/observation-payload'
-import { INFECTION_TYPES } from '@/lib/observation-infection-catalog'
+} from '@/shared/ui/select'
+import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
+import { INFECTION_TYPES } from '@/features/service-users/observations/observation-infection-catalog'
 
 const SELECT_NONE = '__none__'
 

@@ -4,8 +4,8 @@ import {
   fetchCompanyProfile,
   type CompanyBranding,
   type CompanyProfile,
-} from '@/lib/company-settings-api'
-import { useAuthStore } from '@/store/auth.store'
+} from '@/features/settings/api/company-settings-api'
+import { useAuthStore } from '@/features/auth/store'
 
 type CompanyState = {
   profile: CompanyProfile | null

@@ -1,16 +1,6 @@
 import * as React from 'react'
 import { Pencil, Plus, Trash2, Upload } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import {
-  createCareForm,
-  deleteCareForm,
-  getCareForm,
-  listCareForms,
-  publishCareForm,
-  saveCareFormSchema,
-  updateCareForm,
-  uploadCareFormIcon,
-} from '../api/form-builder.api'
+import { ApiError } from '@/shared/api/api-client'
 import { FormIconPicker } from './FormIconPicker'
 import type {
   CareFormDetail,
@@ -18,9 +8,18 @@ import type {
   CareFormSectionRow,
   CarePathwayFormType,
   FormFieldType,
-} from '../types/care-pathway.types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+} from '@/features/care-pathway/types/care-pathway.types'
+import {
+  useCreateCareForm,
+  useDeleteCareForm,
+  usePublishCareForm,
+  useSaveCareFormSchema,
+  useUpdateCareForm,
+  useUploadCareFormIcon,
+} from '@/features/care-pathway/hooks/useCarePathwayMutations'
+import { useCareForm, useCareForms } from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import {
   Dialog,
   DialogBody,
@@ -28,14 +27,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   Table,
   TableBody,
@@ -43,10 +42,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/data-table'
-import { Checkbox } from '@/components/ui/toggle-controls'
-import { useAuthStore } from '@/store/auth.store'
-import { toastError, toastSuccess } from '@/lib/toast'
+} from '@/shared/ui/data-table'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { useAuthStore } from '@/features/auth/store'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
 
 const FORM_TYPES: { value: CarePathwayFormType; label: string }[] = [
   { value: 'CARE_PLAN', label: 'Care plan' },
@@ -98,15 +97,23 @@ function emptyField(sortOrder: number) {
   }
 }
 
+function sectionsFromForm(form: CareFormDetail): CareFormSectionRow[] {
+  return form.sections.length
+    ? form.sections.map(s => ({
+        ...s,
+        fields: s.fields.map(f => ({ ...f })),
+      }))
+    : [emptySection(0)]
+}
+
 export function FormBuilderTab() {
   const canCreate = useAuthStore(s => s.can('form_builder.create'))
   const canUpdate = useAuthStore(s => s.can('form_builder.update'))
   const canDelete = useAuthStore(s => s.can('form_builder.delete'))
   const canPublish = useAuthStore(s => s.can('form_builder.publish'))
 
-  const [rows, setRows] = React.useState<CareFormListRow[]>([])
-  const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [filterType, setFilterType] = React.useState<CarePathwayFormType | 'ALL'>('ALL')
 
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -125,29 +132,58 @@ export function FormBuilderTab() {
   const [formPictureUrl, setFormPictureUrl] = React.useState<string | null>(null)
   const [formIconFile, setFormIconFile] = React.useState<File | null>(null)
   const [sections, setSections] = React.useState<CareFormSectionRow[]>([])
-  const [saving, setSaving] = React.useState(false)
+  const [editorDirty, setEditorDirty] = React.useState(false)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const { rows: data } = await listCareForms({
-        search: search || undefined,
-        formType: filterType === 'ALL' ? undefined : filterType,
-        limit: 100,
-      })
-      setRows(data)
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load forms.')
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }, [search, filterType])
+  const createMutation = useCreateCareForm()
+  const updateMutation = useUpdateCareForm()
+  const saveSchemaMutation = useSaveCareFormSchema()
+  const publishMutation = usePublishCareForm()
+  const deleteMutation = useDeleteCareForm()
+  const uploadIconMutation = useUploadCareFormIcon()
+
+  const saving =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    saveSchemaMutation.isPending ||
+    publishMutation.isPending ||
+    deleteMutation.isPending ||
+    uploadIconMutation.isPending
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => void load(), 200)
+    const t = window.setTimeout(() => setDebouncedSearch(search), 200)
     return () => window.clearTimeout(t)
-  }, [load])
+  }, [search])
+
+  const formsQuery = useCareForms({
+    search: debouncedSearch || undefined,
+    formType: filterType === 'ALL' ? undefined : filterType,
+    limit: 100,
+  })
+  const formQuery = useCareForm(editingId ?? '', editorOpen && !!editingId)
+
+  const loading = formsQuery.isLoading
+  const rows = formsQuery.data?.rows ?? []
+
+  React.useEffect(() => {
+    if (formQuery.data && editorOpen && !editorDirty) {
+      const form = formQuery.data
+      setFormName(form.name)
+      setFormType(form.formType)
+      setFormDescription(form.description ?? '')
+      setFormStatus(form.status)
+      setFormPictureUrl(form.pictureUrl ?? null)
+      setFormIconFile(null)
+      setSections(sectionsFromForm(form))
+    }
+  }, [formQuery.data, editorOpen, editorDirty])
+
+  React.useEffect(() => {
+    if (formQuery.error && editorOpen) {
+      toastError(
+        formQuery.error instanceof ApiError ? formQuery.error.message : 'Could not load form.',
+      )
+    }
+  }, [formQuery.error, editorOpen])
 
   const openCreate = () => {
     setCreateName('')
@@ -164,10 +200,10 @@ export function FormBuilderTab() {
     iconFile: File | null,
   ): Promise<string | null> => {
     if (iconFile) {
-      const updated = await uploadCareFormIcon(formId, iconFile)
+      const updated = await uploadIconMutation.mutateAsync({ id: formId, file: iconFile })
       return updated.pictureUrl ?? null
     }
-    const updated = await updateCareForm(formId, { pictureUrl })
+    const updated = await updateMutation.mutateAsync({ id: formId, body: { pictureUrl } })
     return updated.pictureUrl ?? null
   }
 
@@ -177,9 +213,8 @@ export function FormBuilderTab() {
       toastError('Form name is required.')
       return
     }
-    setSaving(true)
     try {
-      const created = await createCareForm({
+      const created = await createMutation.mutateAsync({
         name: n,
         formType: createType,
         description: createDescription.trim() || undefined,
@@ -188,44 +223,20 @@ export function FormBuilderTab() {
       if (createIconFile) {
         await applyFormIcon(created.id, createPictureUrl, createIconFile)
       } else if (createPictureUrl) {
-        await updateCareForm(created.id, { pictureUrl: createPictureUrl })
+        await updateMutation.mutateAsync({ id: created.id, body: { pictureUrl: createPictureUrl } })
       }
       toastSuccess('Form created.')
       setCreateOpen(false)
-      await load()
-      void openEditor(created.id)
+      openEditor(created.id)
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Could not create form.')
-    } finally {
-      setSaving(false)
     }
   }
 
-  const openEditor = async (id: string) => {
-    setSaving(true)
-    try {
-      const form = await getCareForm(id)
-      setEditingId(form.id)
-      setFormName(form.name)
-      setFormType(form.formType)
-      setFormDescription(form.description ?? '')
-      setFormStatus(form.status)
-      setFormPictureUrl(form.pictureUrl ?? null)
-      setFormIconFile(null)
-      setSections(
-        form.sections.length
-          ? form.sections.map(s => ({
-              ...s,
-              fields: s.fields.map(f => ({ ...f })),
-            }))
-          : [emptySection(0)],
-      )
-      setEditorOpen(true)
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load form.')
-    } finally {
-      setSaving(false)
-    }
+  const openEditor = (id: string) => {
+    setEditingId(id)
+    setEditorDirty(false)
+    setEditorOpen(true)
   }
 
   const persistForm = async (): Promise<boolean> => {
@@ -251,20 +262,23 @@ export function FormBuilderTab() {
       return false
     }
 
-    await updateCareForm(editingId, {
-      name: n,
-      formType,
-      description: formDescription.trim() || null,
-      pictureUrl: formIconFile ? undefined : formPictureUrl,
+    await updateMutation.mutateAsync({
+      id: editingId,
+      body: {
+        name: n,
+        formType,
+        description: formDescription.trim() || null,
+        pictureUrl: formIconFile ? undefined : formPictureUrl,
+      },
     })
     if (formIconFile) {
       const nextUrl = await applyFormIcon(editingId, formPictureUrl, formIconFile)
       setFormPictureUrl(nextUrl)
       setFormIconFile(null)
     }
-    await saveCareFormSchema(
-      editingId,
-      validSections.map(s => ({
+    await saveSchemaMutation.mutateAsync({
+      id: editingId,
+      sections: validSections.map(s => ({
         title: s.title,
         description: s.description ?? undefined,
         sortOrder: s.sortOrder,
@@ -277,67 +291,66 @@ export function FormBuilderTab() {
           sortOrder: f.sortOrder,
         })),
       })),
-    )
+    })
     return true
   }
 
   const onSave = async () => {
-    setSaving(true)
     try {
       const ok = await persistForm()
       if (!ok) return
       toastSuccess('Form saved.')
+      setEditorDirty(false)
       setEditorOpen(false)
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Save failed.')
-    } finally {
-      setSaving(false)
     }
   }
 
   const onPublish = async () => {
     if (!editingId || !canPublish) return
     if (!window.confirm('Publish this form? It will be available in Form Selection.')) return
-    setSaving(true)
     try {
       const ok = await persistForm()
       if (!ok) return
-      await publishCareForm(editingId)
+      await publishMutation.mutateAsync(editingId)
       toastSuccess('Form published.')
+      setEditorDirty(false)
       setEditorOpen(false)
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Publish failed.')
-    } finally {
-      setSaving(false)
     }
   }
 
   const onDelete = async (row: CareFormListRow) => {
     if (!canDelete || !window.confirm(`Delete "${row.name}"?`)) return
     try {
-      await deleteCareForm(row.id)
+      await deleteMutation.mutateAsync(row.id)
       toastSuccess('Form deleted.')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Delete failed.')
     }
   }
 
+  const markDirty = () => setEditorDirty(true)
+
   const updateSection = (index: number, patch: Partial<CareFormSectionRow>) => {
+    markDirty()
     setSections(prev => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
   }
 
   const addSection = () => {
+    markDirty()
     setSections(prev => [...prev, emptySection(prev.length)])
   }
 
   const removeSection = (index: number) => {
+    markDirty()
     setSections(prev => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
   }
 
   const addField = (sectionIndex: number) => {
+    markDirty()
     setSections(prev =>
       prev.map((s, i) =>
         i === sectionIndex
@@ -352,6 +365,7 @@ export function FormBuilderTab() {
     fieldIndex: number,
     patch: Partial<CareFormSectionRow['fields'][number]>,
   ) => {
+    markDirty()
     setSections(prev =>
       prev.map((s, si) =>
         si === sectionIndex
@@ -365,6 +379,7 @@ export function FormBuilderTab() {
   }
 
   const removeField = (sectionIndex: number, fieldIndex: number) => {
+    markDirty()
     setSections(prev =>
       prev.map((s, si) =>
         si === sectionIndex
@@ -373,6 +388,8 @@ export function FormBuilderTab() {
       ),
     )
   }
+
+  const editorLoading = editorOpen && !!editingId && formQuery.isLoading
 
   return (
     <div className="space-y-6" data-testid="form-builder-tab">
@@ -447,7 +464,7 @@ export function FormBuilderTab() {
                         variant="ghost"
                         size="icon"
                         aria-label={`Edit ${row.name}`}
-                        onClick={() => void openEditor(row.id)}
+                        onClick={() => openEditor(row.id)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -536,203 +553,238 @@ export function FormBuilderTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+      <Dialog
+        open={editorOpen}
+        onOpenChange={open => {
+          setEditorOpen(open)
+          if (!open) {
+            setEditingId(null)
+            setEditorDirty(false)
+          }
+        }}
+      >
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit form</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label htmlFor="edit-form-name" className="text-sm font-medium">
-                  Name
-                </label>
-                <Input
-                  id="edit-form-name"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
+            {editorLoading ? (
+              <p className="text-sm text-muted-foreground">Loading form…</p>
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="edit-form-name" className="text-sm font-medium">
+                      Name
+                    </label>
+                    <Input
+                      id="edit-form-name"
+                      value={formName}
+                      onChange={e => {
+                        markDirty()
+                        setFormName(e.target.value)
+                      }}
+                      disabled={!canUpdate}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium">Type</span>
+                    <Select
+                      value={formType}
+                      onValueChange={v => {
+                        markDirty()
+                        setFormType(v as CarePathwayFormType)
+                      }}
+                      disabled={!canUpdate}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FORM_TYPES.map(t => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="edit-form-desc" className="text-sm font-medium">
+                    Description
+                  </label>
+                  <textarea
+                    id="edit-form-desc"
+                    className={descriptionTextareaClass}
+                    value={formDescription}
+                    onChange={e => {
+                      markDirty()
+                      setFormDescription(e.target.value)
+                    }}
+                    disabled={!canUpdate}
+                    rows={4}
+                    maxLength={2000}
+                    placeholder="Shown at the top of the form when carers open it"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Status: {formStatus}</p>
+
+                <FormIconPicker
+                  pictureUrl={formPictureUrl}
+                  onPictureUrlChange={url => {
+                    markDirty()
+                    setFormPictureUrl(url)
+                  }}
+                  pendingFile={formIconFile}
+                  onPendingFileChange={file => {
+                    markDirty()
+                    setFormIconFile(file)
+                  }}
                   disabled={!canUpdate}
                 />
-              </div>
-              <div className="space-y-2">
-                <span className="text-sm font-medium">Type</span>
-                <Select
-                  value={formType}
-                  onValueChange={v => setFormType(v as CarePathwayFormType)}
-                  disabled={!canUpdate}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FORM_TYPES.map(t => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="edit-form-desc" className="text-sm font-medium">
-                Description
-              </label>
-              <textarea
-                id="edit-form-desc"
-                className={descriptionTextareaClass}
-                value={formDescription}
-                onChange={e => setFormDescription(e.target.value)}
-                disabled={!canUpdate}
-                rows={4}
-                maxLength={2000}
-                placeholder="Shown at the top of the form when carers open it"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">Status: {formStatus}</p>
 
-            <FormIconPicker
-              pictureUrl={formPictureUrl}
-              onPictureUrlChange={setFormPictureUrl}
-              pendingFile={formIconFile}
-              onPendingFileChange={setFormIconFile}
-              disabled={!canUpdate}
-            />
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">Sections &amp; fields</h3>
-                {canUpdate && (
-                  <Button type="button" variant="outline" size="sm" onClick={addSection}>
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add section
-                  </Button>
-                )}
-              </div>
-
-              {sections.map((section, si) => (
-                <div key={section.id} className="space-y-3 rounded-lg border border-border p-4">
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="min-w-[200px] flex-1 space-y-1">
-                      <span className="text-sm font-medium">Section title</span>
-                      <Input
-                        value={section.title}
-                        onChange={e => updateSection(si, { title: e.target.value })}
-                        disabled={!canUpdate}
-                        placeholder="e.g. Personal details"
-                      />
-                    </div>
-                    {canUpdate && sections.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSection(si)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">Sections &amp; fields</h3>
+                    {canUpdate && (
+                      <Button type="button" variant="outline" size="sm" onClick={addSection}>
+                        <Plus className="mr-1 h-3 w-3" />
+                        Add section
                       </Button>
                     )}
                   </div>
 
-                  <ul className="space-y-3">
-                    {section.fields.map((field, fi) => (
-                      <li key={field.id} className="space-y-2 rounded-md bg-muted/40 p-3">
-                        <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto_auto]">
+                  {sections.map((section, si) => (
+                    <div key={section.id} className="space-y-3 rounded-lg border border-border p-4">
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="min-w-[200px] flex-1 space-y-1">
+                          <span className="text-sm font-medium">Section title</span>
                           <Input
-                            placeholder="Field label"
-                            value={field.label}
-                            onChange={e => updateField(si, fi, { label: e.target.value })}
+                            value={section.title}
+                            onChange={e => updateSection(si, { title: e.target.value })}
                             disabled={!canUpdate}
+                            placeholder="e.g. Personal details"
                           />
-                          <Select
-                            value={field.fieldType}
-                            onValueChange={v => updateField(si, fi, { fieldType: v as FormFieldType })}
-                            disabled={!canUpdate}
+                        </div>
+                        {canUpdate && sections.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSection(si)}
                           >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {FIELD_TYPES.map(t => (
-                                <SelectItem key={t.value} value={t.value}>
-                                  {t.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <label className="flex items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={field.required}
-                              onCheckedChange={v => updateField(si, fi, { required: v === true })}
-                              disabled={!canUpdate}
-                            />
-                            Required
-                          </label>
-                          {canUpdate && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeField(si, fi)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Tooltip
-                            </span>
-                            <Input
-                              placeholder="Help text shown on hover (optional)"
-                              value={field.helpText ?? ''}
-                              onChange={e =>
-                                updateField(si, fi, { helpText: e.target.value || null })
-                              }
-                              disabled={!canUpdate}
-                              maxLength={500}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Placeholder
-                            </span>
-                            <Input
-                              placeholder="Placeholder inside the field (optional)"
-                              value={field.placeholder ?? ''}
-                              onChange={e =>
-                                updateField(si, fi, { placeholder: e.target.value || null })
-                              }
-                              disabled={!canUpdate}
-                              maxLength={500}
-                            />
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  {canUpdate && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => addField(si)}>
-                      <Plus className="mr-1 h-3 w-3" />
-                      Add field
-                    </Button>
-                  )}
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+
+                      <ul className="space-y-3">
+                        {section.fields.map((field, fi) => (
+                          <li key={field.id} className="space-y-2 rounded-md bg-muted/40 p-3">
+                            <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto_auto]">
+                              <Input
+                                placeholder="Field label"
+                                value={field.label}
+                                onChange={e => updateField(si, fi, { label: e.target.value })}
+                                disabled={!canUpdate}
+                              />
+                              <Select
+                                value={field.fieldType}
+                                onValueChange={v => updateField(si, fi, { fieldType: v as FormFieldType })}
+                                disabled={!canUpdate}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {FIELD_TYPES.map(t => (
+                                    <SelectItem key={t.value} value={t.value}>
+                                      {t.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={field.required}
+                                  onCheckedChange={v => updateField(si, fi, { required: v === true })}
+                                  disabled={!canUpdate}
+                                />
+                                Required
+                              </label>
+                              {canUpdate && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeField(si, fi)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div className="space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  Tooltip
+                                </span>
+                                <Input
+                                  placeholder="Help text shown on hover (optional)"
+                                  value={field.helpText ?? ''}
+                                  onChange={e =>
+                                    updateField(si, fi, { helpText: e.target.value || null })
+                                  }
+                                  disabled={!canUpdate}
+                                  maxLength={500}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  Placeholder
+                                </span>
+                                <Input
+                                  placeholder="Placeholder inside the field (optional)"
+                                  value={field.placeholder ?? ''}
+                                  onChange={e =>
+                                    updateField(si, fi, { placeholder: e.target.value || null })
+                                  }
+                                  disabled={!canUpdate}
+                                  maxLength={500}
+                                />
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      {canUpdate && (
+                        <Button type="button" variant="outline" size="sm" onClick={() => addField(si)}>
+                          <Plus className="mr-1 h-3 w-3" />
+                          Add field
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </DialogBody>
           <DialogFooter className="flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>
               Close
             </Button>
             {canUpdate && (
-              <Button type="button" onClick={() => void onSave()} disabled={saving}>
+              <Button type="button" onClick={() => void onSave()} disabled={saving || editorLoading}>
                 Save form
               </Button>
             )}
             {canPublish && formStatus !== 'PUBLISHED' && (
-              <Button type="button" variant="secondary" onClick={() => void onPublish()} disabled={saving}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void onPublish()}
+                disabled={saving || editorLoading}
+              >
                 <Upload className="mr-2 h-4 w-4" />
                 Save &amp; publish
               </Button>

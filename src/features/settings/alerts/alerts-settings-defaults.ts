@@ -1,4 +1,4 @@
-import type { OrganisationAlertsSettings } from '@/lib/general-settings-api'
+import type { OrganisationAlertsSettings } from '@/features/settings/types'
 
 export const DEFAULT_ALERTS_SETTINGS: OrganisationAlertsSettings = {
   actionsOverdueEnabled: true,

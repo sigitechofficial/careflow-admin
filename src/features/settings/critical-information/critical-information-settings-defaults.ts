@@ -1,4 +1,4 @@
-import type { OrganisationCriticalInformationSettings } from '@/lib/general-settings-api'
+import type { OrganisationCriticalInformationSettings } from '@/features/settings/types'
 
 export const DEFAULT_CRITICAL_INFORMATION_SETTINGS: OrganisationCriticalInformationSettings =
   {

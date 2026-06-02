@@ -4,7 +4,7 @@ import {
   deleteServiceUserCalendarEvent,
   updateServiceUserCalendarEvent,
   updateServiceUserCalendarEventStatus,
-} from '../api/service-user-calendar.api'
+} from '@/features/service-users/api/service-user-calendar.api'
 import type {
   CreateCalendarEventPayload,
   UpdateCalendarEventPayload,

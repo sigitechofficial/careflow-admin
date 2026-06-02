@@ -1,4 +1,4 @@
-import type { OrganisationAppSettings } from '@/lib/general-settings-api'
+import type { OrganisationAppSettings } from '@/features/settings/types'
 
 export const DEFAULT_APP_SETTINGS: OrganisationAppSettings = {
   pinCodeRequired: false,

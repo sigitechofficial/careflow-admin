@@ -1,21 +1,21 @@
 import * as React from 'react'
 import { Camera, Info, Loader2, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import { resolveMediaUrl } from '@/lib/media-url'
-import { toastApiError, toastSuccess } from '@/lib/toast'
+import { ApiError } from '@/shared/api/api-client'
+import { resolveMediaUrl } from '@/shared/lib/media-url'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import type { CompanyProfile } from '@/features/settings/types'
 import {
-  clearDisplayLogo,
-  fetchCompanyProfile,
-  updateCompanyProfile,
-  uploadCompanyLogo,
-  uploadDisplayLogo,
-  type CompanyProfile,
-} from '@/lib/company-settings-api'
+  useClearDisplayLogo,
+  useCompanyProfile,
+  useUpdateCompanyProfile,
+  useUploadCompanyLogo,
+  useUploadDisplayLogo,
+} from '@/features/settings/hooks/useCompanySettings'
 import { CompanyActiveModulesField } from '@/features/settings/components/CompanyActiveModulesField'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/store/auth.store'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
 import { useCompanyStore } from '@/store/company.store'
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
@@ -57,10 +57,23 @@ export function CompanyDetailsSettingsPanel() {
   const canUpdate = useAuthStore(
     s => s.can('settings.company.update') || s.can('lookups.manage'),
   )
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: profileData, isLoading: loading, error: queryError } = useCompanyProfile()
+  const updateMutation = useUpdateCompanyProfile()
+  const uploadDisplayLogoMutation = useUploadDisplayLogo()
+  const uploadCompanyLogoMutation = useUploadCompanyLogo()
+  const clearDisplayLogoMutation = useClearDisplayLogo()
   const [profile, setProfile] = React.useState<CompanyProfile | null>(null)
+  const saving =
+    updateMutation.isPending ||
+    uploadDisplayLogoMutation.isPending ||
+    uploadCompanyLogoMutation.isPending ||
+    clearDisplayLogoMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load company details.'
+        : null
 
   const displayLogoRef = React.useRef<HTMLInputElement>(null)
   const companyLogoRef = React.useRef<HTMLInputElement>(null)
@@ -106,25 +119,8 @@ export function CompanyDetailsSettingsPanel() {
   }, [syncCompanyStore])
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const p = await fetchCompanyProfile()
-        if (!cancelled) applyProfile(p)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load company details.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [applyProfile])
+    if (profileData) applyProfile(profileData)
+  }, [profileData, applyProfile])
 
   function setField<K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) {
     setDraft(prev => ({ ...prev, [key]: value }))
@@ -132,10 +128,8 @@ export function CompanyDetailsSettingsPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
-    setError(null)
     try {
-      const updated = await updateCompanyProfile({
+      const updated = await updateMutation.mutateAsync({
         groupName: draft.groupName.trim() || undefined,
         companyName: draft.companyName.trim(),
         odsCsCode: draft.odsCsCode.trim(),
@@ -155,8 +149,6 @@ export function CompanyDetailsSettingsPanel() {
       toastSuccess('Saved', 'Company details updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -169,7 +161,7 @@ export function CompanyDetailsSettingsPanel() {
     e.target.value = ''
     if (!file || !canUpdate) return
     try {
-      const updated = await uploadDisplayLogo(file)
+      const updated = await uploadDisplayLogoMutation.mutateAsync(file)
       applyProfile(updated)
       toastSuccess('Uploaded', 'Display logo updated.')
     } catch (err) {
@@ -182,7 +174,7 @@ export function CompanyDetailsSettingsPanel() {
     e.target.value = ''
     if (!file || !canUpdate) return
     try {
-      const updated = await uploadCompanyLogo(file)
+      const updated = await uploadCompanyLogoMutation.mutateAsync(file)
       applyProfile(updated)
       toastSuccess('Uploaded', 'Company logo updated.')
     } catch (err) {
@@ -193,7 +185,7 @@ export function CompanyDetailsSettingsPanel() {
   async function onRemoveDisplayLogo() {
     if (!canUpdate) return
     try {
-      const updated = await clearDisplayLogo()
+      const updated = await clearDisplayLogoMutation.mutateAsync()
       applyProfile(updated)
       toastSuccess('Removed', 'Display logo removed.')
     } catch (err) {

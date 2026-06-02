@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { cn, truncate, initials, slugify, formatCurrency } from '@/lib/utils'
+﻿import { describe, it, expect } from 'vitest'
+import { cn, truncate, initials, slugify, formatCurrency } from '@/shared/lib/utils'
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -44,6 +44,6 @@ describe('formatCurrency', () => {
   it('formats GBP correctly', () => {
     const result = formatCurrency(1250.5)
     expect(result).toContain('1,250')
-    expect(result).toContain('£')
+    expect(result).toContain('Â£')
   })
 })

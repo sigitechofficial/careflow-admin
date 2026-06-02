@@ -1,23 +1,25 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type OrganisationGeneralSettings,
   type OrganisationOptionalSettings,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/toggle-controls'
-import { MultiSelect } from '@/components/ui/multi-select'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   GeneralSettingsCard,
   SettingsHint,
@@ -30,8 +32,8 @@ import {
   OPTIONAL_TOOLTIPS,
   optionalSettingsToPayload,
 } from '@/features/settings/optional/optional-settings-defaults'
-import { useAuthStore } from '@/store/auth.store'
-import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
+import { cn } from '@/shared/lib/utils'
 
 function toDraft(s: OrganisationGeneralSettings): OrganisationOptionalSettings {
   return s.optionalSettings ?? DEFAULT_OPTIONAL_SETTINGS
@@ -51,38 +53,25 @@ const VISIT_INFO_FIELDS: {
 
 export function GeneralSettingsOptionalPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<OrganisationOptionalSettings | null>(null)
   const [draft, setDraft] = React.useState<OrganisationOptionalSettings>(DEFAULT_OPTIONAL_SETTINGS)
-
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(structuredClone(d))
-    setDraft(structuredClone(d))
-  }, [])
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load optional settings.'
+        : null
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const settings = await fetchGeneralSettings()
-        if (!cancelled) apply(settings)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load optional settings.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
     }
-  }, [apply])
+  }, [settingsData])
 
   function patch(p: Partial<OrganisationOptionalSettings>) {
     setDraft(d => ({ ...d, ...p }))
@@ -90,15 +79,14 @@ export function GeneralSettingsOptionalPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings(optionalSettingsToPayload(draft))
-      apply(updated)
+      const updated = await updateMutation.mutateAsync(optionalSettingsToPayload(draft))
+      const d = toDraft(updated)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
       toastSuccess('Saved', 'Optional settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

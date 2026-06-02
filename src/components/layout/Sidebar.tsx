@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import {
   Home,
   Users,
@@ -36,14 +37,14 @@ import {
   MapPin,
   Route,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
-import { UserAvatar } from '@/components/ui/avatar'
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/misc'
-import { Badge } from '@/components/ui/badge'
+import { UserAvatar } from '@/shared/ui/avatar'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shared/ui/misc'
+import { Badge } from '@/shared/ui/badge'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import type { Permission } from '@/auth/types'
-import { useAuthStore } from '@/store/auth.store'
+import type { Permission } from '@/features/auth/types'
+import { useAuthStore } from '@/features/auth/store'
 import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -56,6 +57,8 @@ interface SubNavItem {
   search?: Record<string, string>
   /** If set, submenu is only shown when the user has this permission. */
   permission?: Permission
+  /** If set, submenu is shown when the user has any of these permissions (overrides `permission`). */
+  anyPermission?: Permission[]
   /** When false, opens the in-progress page with this row's label as context. */
   ready?: boolean
   /** Stable hook for Playwright / automation (employee module readiness). */
@@ -126,122 +129,129 @@ function matchNavTarget(
 }
 
 const inspectorOnlyNavItems: NavItem[] = [
-  { label: 'Home', icon: <Home className="h-4 w-4" />, href: '/' },
+  { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
   {
     label: 'Service Users',
-    icon: <Users className="h-4 w-4" />,
+    icon: <Users className="h-5 w-5" />,
     href: '/service-users',
     children: [
-      { label: 'All Service Users', icon: <Users className="h-3.5 w-3.5" />, href: '/service-users/all', navTestId: 'nav-service-users-all' },
-      { label: 'Calendar', icon: <CalendarDays className="h-3.5 w-3.5" />, href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
+      { label: 'All Service Users', icon: <Users className="h-4 w-4" />, href: '/service-users/all', navTestId: 'nav-service-users-all' },
+      { label: 'Calendar', icon: <CalendarDays className="h-4 w-4" />, href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
     ],
   },
 ]
 
 /* ─── Nav data ─────────────────────────────────────────────── */
 const navItems: NavItem[] = [
-  { label: 'Home', icon: <Home className="h-4 w-4" />, href: '/' },
+  { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
   {
     label: 'Service Users',
-    icon: <Users className="h-4 w-4" />,
+    icon: <Users className="h-5 w-5" />,
     href: '/service-users',
     badge: 12,
     children: [
-      { label: 'All Service Users',             icon: <Users className="h-3.5 w-3.5" />,         href: '/service-users/all', permission: 'service_users.read', navTestId: 'nav-service-users-all' },
-      { label: 'Calendar',                      icon: <CalendarDays className="h-3.5 w-3.5" />,  href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
+      { label: 'All Service Users',             icon: <Users className="h-4 w-4" />,         href: '/service-users/all', permission: 'service_users.read', navTestId: 'nav-service-users-all' },
+      { label: 'Calendar',                      icon: <CalendarDays className="h-4 w-4" />,  href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
       {
-        label: 'Initial Assessment Checklist',
-        icon: <ClipboardList className="h-3.5 w-3.5" />,
-        href: '/service-users/initial-assessment-checklist',
+        label: 'Initial Assessment',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/service-users/initial-assessment',
         permission: 'service_users.initial_assessment.read',
         navTestId: 'nav-service-users-initial-assessment',
       },
-      { label: 'Add Service User',              icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
+      {
+        label: 'IA review queue',
+        icon: <ShieldCheck className="h-4 w-4" />,
+        href: '/initial-assessments/review-queue',
+        permission: 'service_users.initial_assessment.review',
+        navTestId: 'nav-initial-assessments-review-queue',
+      },
+      { label: 'Add Service User',              icon: <UserRoundPlus className="h-4 w-4" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
     ],
   },
   {
     label: 'Scheduling',
-    icon: <Calendar className="h-4 w-4" />,
+    icon: <Calendar className="h-5 w-5" />,
     href: '/scheduling/view',
     badge: '3',
     badgeVariant: 'warning',
     children: [
-      { label: 'View Schedule',          icon: <Eye className="h-3.5 w-3.5" />,        href: '/scheduling/view' },
-      { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
-      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/scheduling/templates' },
-      { label: 'Report',                 icon: <FileText className="h-3.5 w-3.5" />,   href: '/scheduling/report' },
-      { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-3.5 w-3.5" />,  href: '/scheduling/jobs' },
-      { label: 'List View of Schedule',  icon: <List className="h-3.5 w-3.5" />,       href: '/scheduling/list' },
-      { label: 'Build Schedule',         icon: <Hammer className="h-3.5 w-3.5" />,     href: '/scheduling/build' },
+      { label: 'View Schedule',          icon: <Eye className="h-4 w-4" />,        href: '/scheduling/view' },
+      { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-4 w-4" />, href: '/in-progress', ready: false },
+      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-4 w-4" />, href: '/scheduling/templates' },
+      { label: 'Report',                 icon: <FileText className="h-4 w-4" />,   href: '/scheduling/report' },
+      { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-4 w-4" />,  href: '/scheduling/jobs' },
+      { label: 'List View of Schedule',  icon: <List className="h-4 w-4" />,       href: '/scheduling/list' },
+      { label: 'Build Schedule',         icon: <Hammer className="h-4 w-4" />,     href: '/scheduling/build' },
     ],
   },
   {
     label: 'Operations',
-    icon: <Settings2 className="h-4 w-4" />,
+    icon: <Settings2 className="h-5 w-5" />,
     href: '/in-progress',
     ready: false,
     children: [
-      { label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
-      { label: 'Service Overview',             icon: <Eye className="h-3.5 w-3.5" />,         href: '/in-progress', ready: false },
+      { label: 'Employee Operation Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/in-progress', ready: false },
+      { label: 'Service Overview',             icon: <Eye className="h-4 w-4" />,         href: '/in-progress', ready: false },
     ],
   },
   {
     label: 'Employee',
-    icon: <UserCheck className="h-4 w-4" />,
+    icon: <UserCheck className="h-5 w-5" />,
     href: '/employee',
     children: [
-      { label: 'All Employee', icon: <Users className="h-3.5 w-3.5" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
-      { label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/temp-inspector', permission: 'employees.read' },
-      { label: 'General Employee Documents', icon: <FileText className="h-3.5 w-3.5" />, href: '/employee/documents', permission: 'employees.documents.read', navTestId: 'nav-employee-documents' },
-      { label: 'Send Message', icon: <PlusCircle className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
-      { label: 'Add Employee', icon: <UserRoundPlus className="h-3.5 w-3.5" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
+      { label: 'All Employee', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
+      { label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read' },
+      { label: 'General Employee Documents', icon: <FileText className="h-4 w-4" />, href: '/employee/documents', permission: 'employees.documents.read', navTestId: 'nav-employee-documents' },
+      { label: 'Send Message', icon: <PlusCircle className="h-4 w-4" />, href: '/in-progress', ready: false },
+      { label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
     ],
   },
-  { label: 'Recruitment',       icon: <UserPlus className="h-4 w-4" />,      href: '/in-progress', ready: false, badge: 5 },
+  { label: 'Recruitment',       icon: <UserPlus className="h-5 w-5" />,      href: '/in-progress', ready: false, badge: 5 },
   {
     label: 'Reports',
-    icon: <BarChart3 className="h-4 w-4" />,
+    icon: <BarChart3 className="h-5 w-5" />,
     href: '/in-progress',
     ready: false,
     children: [
-      { label: 'Run Report', icon: <TrendingUp className="h-3.5 w-3.5" />, href: '/in-progress', ready: false },
+      { label: 'Run Report', icon: <TrendingUp className="h-4 w-4" />, href: '/in-progress', ready: false },
     ],
   },
   {
     label: 'Accident & Incident',
-    icon: <AlertTriangle className="h-4 w-4" />,
+    icon: <AlertTriangle className="h-5 w-5" />,
     href: '/accidents-incidents/view',
     badge: 2,
     badgeVariant: 'destructive',
     children: [
-      { label: 'View Accidents & Incidents', icon: <Eye className="h-3.5 w-3.5" />, href: '/accidents-incidents/view' },
-      { label: 'Raise Accidents/Incidents', icon: <PlusCircle className="h-3.5 w-3.5" />, href: '/accidents-incidents/raise' },
+      { label: 'View Accidents & Incidents', icon: <Eye className="h-4 w-4" />, href: '/accidents-incidents/view' },
+      { label: 'Raise Accidents/Incidents', icon: <PlusCircle className="h-4 w-4" />, href: '/accidents-incidents/raise' },
     ],
   },
-  { label: 'Policies',          icon: <BookOpen className="h-4 w-4" />,      href: '/in-progress', ready: false },
+  { label: 'Policies',          icon: <BookOpen className="h-5 w-5" />,      href: '/in-progress', ready: false },
   {
     label: 'Settings',
-    icon: <Settings className="h-4 w-4" />,
+    icon: <Settings className="h-5 w-5" />,
     href: '/settings',
     children: [
       {
         label: 'Company Details',
-        icon: <Building2 className="h-3.5 w-3.5" />,
+        icon: <Building2 className="h-4 w-4" />,
         href: '/settings/company',
         permission: 'lookups.read',
         navTestId: 'nav-settings-company',
       },
       {
         label: 'General Settings',
-        icon: <Settings2 className="h-3.5 w-3.5" />,
+        icon: <Settings2 className="h-4 w-4" />,
         href: '/settings/general',
         permission: 'lookups.read',
         navTestId: 'nav-settings-general',
       },
-      { label: 'Lookup data', icon: <Settings2 className="h-3.5 w-3.5" />, href: '/settings', permission: 'lookups.read', navTestId: 'nav-settings' },
+      { label: 'Lookup data', icon: <Settings2 className="h-4 w-4" />, href: '/settings', permission: 'lookups.read', navTestId: 'nav-settings' },
       {
         label: 'Location Management',
-        icon: <MapPin className="h-3.5 w-3.5" />,
+        icon: <MapPin className="h-4 w-4" />,
         href: '/settings/location-management',
         search: { sub: 'zones' },
         permission: 'lookups.read',
@@ -249,7 +259,7 @@ const navItems: NavItem[] = [
       },
       {
         label: 'Care Pathway',
-        icon: <Route className="h-3.5 w-3.5" />,
+        icon: <Route className="h-4 w-4" />,
         href: '/settings/care-pathway',
         search: { tab: 'wizard' },
         permission: 'care_pathway.read',
@@ -257,14 +267,20 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  { label: 'UI Showcase',       icon: <Sparkles className="h-4 w-4" />,      href: '/showcase' },
+  { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase' },
   {
     label: 'Administration',
-    icon: <Shield className="h-4 w-4" />,
+    icon: <Shield className="h-5 w-5" />,
     href: '/admin/audit',
     children: [
-      { label: 'Audit log', icon: <FileText className="h-3.5 w-3.5" />, href: '/admin/audit', permission: 'audit.read' },
-      { label: 'Security', icon: <ShieldCheck className="h-3.5 w-3.5" />, href: '/admin/security', permission: 'security.admin' },
+      {
+        label: 'Audit log',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/admin/audit',
+        anyPermission: ['audit.read', 'audit_logs.read'],
+        navTestId: 'nav-admin-audit',
+      },
+      { label: 'Security', icon: <ShieldCheck className="h-4 w-4" />, href: '/admin/security', permission: 'security.admin' },
     ],
   },
 ]
@@ -273,10 +289,174 @@ function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean
   return items
     .map((item) => {
       if (!item.children?.length) return item
-      const children = item.children.filter(ch => !ch.permission || can(ch.permission))
+      const children = item.children.filter(ch => {
+        if (ch.anyPermission?.length) return ch.anyPermission.some(p => can(p))
+        return !ch.permission || can(ch.permission)
+      })
       return { ...item, children }
     })
     .filter(item => !item.children?.length || item.children.length > 0)
+}
+
+const COLLAPSED_FLYOUT_CLOSE_MS = 120
+
+interface NavChildLinkProps {
+  child: SubNavItem
+  pathname: string
+  search: unknown
+  onNavigate: () => void
+}
+
+function NavChildLink({ child, pathname, search, onNavigate }: NavChildLinkProps) {
+  const childActive = matchNavTarget(
+    child.label,
+    child.href,
+    child.ready,
+    pathname,
+    search,
+    child.search,
+  )
+  return (
+    <Link
+      {...navLinkProps(child.label, child.href, child.ready, child.search)}
+      onClick={onNavigate}
+      data-testid={child.navTestId}
+      className={cn(
+        'w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+        childActive
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+          : 'text-sidebar-foreground/90 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+      )}
+    >
+      <span className={cn('shrink-0', childActive && 'text-sidebar-primary')}>{child.icon}</span>
+      <span className="flex-1 text-left truncate">{child.label}</span>
+    </Link>
+  )
+}
+
+interface CollapsedSidebarItemProps {
+  item: NavItem
+  isActive: boolean
+  pathname: string
+  search: unknown
+  onNavigate: () => void
+}
+
+function CollapsedSidebarItem({ item, isActive, pathname, search, onNavigate }: CollapsedSidebarItemProps) {
+  const hasChildren = !!item.children?.length
+  const triggerRef = React.useRef<HTMLDivElement>(null)
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [open, setOpen] = React.useState(false)
+  const [coords, setCoords] = React.useState({ top: 0, left: 0 })
+
+  const clearCloseTimer = React.useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = undefined
+    }
+  }, [])
+
+  const updatePosition = React.useCallback(() => {
+    const el = triggerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setCoords({ top: rect.top, left: rect.right + 6 })
+  }, [])
+
+  const handleOpen = React.useCallback(() => {
+    clearCloseTimer()
+    updatePosition()
+    setOpen(true)
+  }, [clearCloseTimer, updatePosition])
+
+  const scheduleClose = React.useCallback(() => {
+    clearCloseTimer()
+    closeTimerRef.current = setTimeout(() => setOpen(false), COLLAPSED_FLYOUT_CLOSE_MS)
+  }, [clearCloseTimer])
+
+  React.useEffect(() => () => clearCloseTimer(), [clearCloseTimer])
+
+  React.useEffect(() => {
+    if (!open) return
+    const onUpdate = () => updatePosition()
+    window.addEventListener('scroll', onUpdate, true)
+    window.addEventListener('resize', onUpdate)
+    return () => {
+      window.removeEventListener('scroll', onUpdate, true)
+      window.removeEventListener('resize', onUpdate)
+    }
+  }, [open, updatePosition])
+
+  if (!hasChildren) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link {...navLinkProps(item.label, item.href, item.ready)} onClick={onNavigate} className="block">
+            <NavButton item={item} isActive={isActive} collapsed />
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="flex items-center gap-2">
+          {item.label}
+          {item.badge && (
+            <Badge variant={item.badgeVariant ?? 'default'} size="sm">{item.badge}</Badge>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  const flyout =
+    open && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="fixed z-[60]"
+            style={{ top: coords.top, left: coords.left }}
+            onMouseEnter={handleOpen}
+            onMouseLeave={scheduleClose}
+            data-testid={`sidebar-flyout-${item.label.replace(/\s+/g, '-').toLowerCase()}`}
+          >
+            {/* Invisible bridge so pointer can move from icon to menu */}
+            <div className="-ml-2 pl-2">
+              <div className="min-w-[13.5rem] rounded-lg border border-sidebar-border bg-sidebar py-1.5 shadow-lg">
+                <p className="mb-1 border-b border-sidebar-border px-3 pb-1.5 text-xs font-semibold text-sidebar-foreground">
+                  {item.label}
+                </p>
+                <ul className="space-y-0.5 px-1">
+                  {item.children!.map(child => (
+                    <li key={child.label}>
+                      <NavChildLink
+                        child={child}
+                        pathname={pathname}
+                        search={search}
+                        onNavigate={() => {
+                          onNavigate()
+                          setOpen(false)
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className="relative"
+        onMouseEnter={handleOpen}
+        onMouseLeave={scheduleClose}
+      >
+        <NavButton item={item} isActive={isActive} collapsed hasChildren />
+      </div>
+      {flyout}
+    </>
+  )
 }
 
 /* ─── Sidebar ──────────────────────────────────────────────── */
@@ -310,7 +490,8 @@ export function Sidebar() {
   const toggleGroup = (groupLabel: string) => {
     setOpenGroups(prev => {
       const next = new Set(prev)
-      next.has(groupLabel) ? next.delete(groupLabel) : next.add(groupLabel)
+      if (next.has(groupLabel)) next.delete(groupLabel)
+      else next.add(groupLabel)
       return next
     })
   }
@@ -342,7 +523,7 @@ export function Sidebar() {
           'fixed top-0 left-0 z-50 h-full flex flex-col bg-sidebar border-r border-sidebar-border',
           'sidebar-transition',
           'lg:relative lg:z-auto',
-          sidebarCollapsed ? 'w-[60px]' : 'w-[240px]',
+          sidebarCollapsed ? 'w-[68px]' : 'w-[260px]',
           'lg:translate-x-0',
           sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
@@ -351,7 +532,7 @@ export function Sidebar() {
         <div className={cn('flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-3 overflow-hidden')}>
           <CompanyBrandMark collapsed={sidebarCollapsed} className="min-w-0 flex-1" />
           <button className="ml-auto shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setSidebarMobileOpen(false)}>
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -368,24 +549,13 @@ export function Sidebar() {
               return (
                 <li key={item.label}>
                   {sidebarCollapsed ? (
-                    /* ── Collapsed: tooltip only, no sub-nav ── */
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link {...navLinkProps(item.label, item.href, item.ready)} onClick={handleNav} className="block">
-                          <NavButton
-                            item={item}
-                            isActive={!!isActive}
-                            collapsed
-                          />
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="flex items-center gap-2">
-                        {item.label}
-                        {item.badge && (
-                          <Badge variant={item.badgeVariant ?? 'default'} size="sm">{item.badge}</Badge>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
+                    <CollapsedSidebarItem
+                      item={item}
+                      isActive={!!isActive}
+                      pathname={pathname}
+                      search={search}
+                      onNavigate={handleNav}
+                    />
                   ) : hasChildren ? (
                     /* ── Expanded: collapsible group ── */
                     <div>
@@ -398,37 +568,16 @@ export function Sidebar() {
                       />
                       {isOpen && (
                         <ul className="mt-0.5 ml-3 pl-3 border-l border-sidebar-border space-y-0.5 pb-1">
-                          {item.children!.map(child => {
-                            const childActive = matchNavTarget(
-                              child.label,
-                              child.href,
-                              child.ready,
-                              pathname,
-                              search,
-                              child.search,
-                            )
-                            return (
-                              <li key={child.label}>
-                                <Link
-                                  {...navLinkProps(child.label, child.href, child.ready, child.search)}
-                                  onClick={handleNav}
-                                  data-testid={child.navTestId}
-                                  className={cn(
-                                    'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
-                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                                    childActive
-                                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-                                  )}
-                                >
-                                  <span className={cn('shrink-0', childActive && 'text-sidebar-primary')}>
-                                    {child.icon}
-                                  </span>
-                                  <span className="flex-1 text-left truncate">{child.label}</span>
-                                </Link>
-                              </li>
-                            )
-                          })}
+                          {item.children!.map(child => (
+                            <li key={child.label}>
+                              <NavChildLink
+                                child={child}
+                                pathname={pathname}
+                                search={search}
+                                onNavigate={handleNav}
+                              />
+                            </li>
+                          ))}
                         </ul>
                       )}
                     </div>
@@ -456,15 +605,15 @@ export function Sidebar() {
             onClick={toggleSidebar}
             className={cn(
               'w-full hidden lg:flex items-center rounded-md px-2 py-1.5',
-              'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
               'transition-colors text-sm gap-2',
               sidebarCollapsed && 'justify-center'
             )}
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-5 w-5" />
             ) : (
-              <><ChevronLeft className="h-4 w-4" /><span className="text-xs animate-fade-in">Collapse</span></>
+              <><ChevronLeft className="h-5 w-5" /><span className="text-sm animate-fade-in">Collapse</span></>
             )}
           </button>
 
@@ -476,11 +625,11 @@ export function Sidebar() {
             <UserAvatar name={user?.displayName ?? 'Guest'} size="sm" online={!!user} className="shrink-0" />
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0 animate-fade-in">
-                <p className="text-xs font-medium text-sidebar-foreground truncate leading-tight">{user?.displayName ?? 'Sign in'}</p>
-                <p className="text-[10px] text-muted-foreground truncate leading-tight">{user?.jobTitle ?? user?.role ?? ''}</p>
+                <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">{user?.displayName ?? 'Sign in'}</p>
+                <p className="text-xs text-sidebar-foreground/75 truncate leading-tight">{user?.jobTitle ?? user?.role ?? ''}</p>
               </div>
             )}
-            {!sidebarCollapsed && <LogOut className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
+            {!sidebarCollapsed && <LogOut className="h-4 w-4 text-sidebar-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
           </Link>
           <button
             type="button"
@@ -490,12 +639,12 @@ export function Sidebar() {
               navigate({ to: '/auth/login' })
             }}
             className={cn(
-              'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground',
+              'w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-sidebar-foreground/90',
               'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors',
               sidebarCollapsed && 'justify-center'
             )}
           >
-            <LogOut className="h-3.5 w-3.5 shrink-0" />
+            <LogOut className="h-4 w-4 shrink-0" />
             {!sidebarCollapsed && <span>Sign out</span>}
           </button>
         </div>
@@ -520,12 +669,12 @@ function NavButton({ item, isActive, collapsed, hasChildren, isOpen, onClick }: 
       onClick={onClick}
       type="button"
       className={cn(
-        'w-full flex items-center gap-2.5 rounded-md text-sm transition-colors',
+        'w-full flex items-center gap-3 rounded-md text-base transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-        collapsed ? 'justify-center h-9 w-9 mx-auto' : 'px-2.5 h-8',
+        collapsed ? 'justify-center h-10 w-10 mx-auto' : 'px-3 h-10',
         isActive
-          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-          : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+          : 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
       )}
     >
       <span className={cn('shrink-0', isActive && 'text-sidebar-primary')}>{item.icon}</span>
@@ -536,7 +685,7 @@ function NavButton({ item, isActive, collapsed, hasChildren, isOpen, onClick }: 
             <Badge variant={item.badgeVariant ?? 'muted'} size="sm" className="shrink-0 ml-auto">{item.badge}</Badge>
           )}
           {hasChildren && (
-            <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform', isOpen && 'rotate-90')} />
+            <ChevronRight className={cn('h-4 w-4 text-sidebar-foreground/80 shrink-0 transition-transform', isOpen && 'rotate-90')} />
           )}
         </>
       )}
@@ -550,7 +699,7 @@ export function NotificationBell() {
   const unread = notifications.filter(n => !n.read).length
   return (
     <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-      <Bell className="h-4 w-4" />
+      <Bell className="h-5 w-5" />
       {unread > 0 && (
         <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white">{unread}</span>
       )}

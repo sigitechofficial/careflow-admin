@@ -1,13 +1,12 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Settings2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/store/auth.store'
+import { Button } from '@/shared/ui/button'
+import { useAuthStore } from '@/features/auth/store'
 import { useNotifications } from '@/features/notifications/hooks/useNotifications'
 import {
-  dismissNotification,
-  markAllNotificationsRead,
-  markNotificationRead,
-} from '@/features/notifications/api/notifications.api'
+  useDismissNotification,
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+} from '@/features/notifications/hooks/useNotificationMutations'
 import { NotificationList } from '@/features/notifications/components/NotificationList'
 
 type Props = {
@@ -15,35 +14,29 @@ type Props = {
 }
 
 export function NotificationDropdown({ onOpenPreferences }: Props) {
-  const qc = useQueryClient()
   const canUpdate = useAuthStore(s => s.can('notifications.update'))
   const canDismiss = useAuthStore(s => s.can('notifications.dismiss'))
   const canPrefs = useAuthStore(s => s.can('notifications.preferences.read'))
   const { data, isLoading, isFetching, error } = useNotifications({ limit: 25, sortOrder: 'desc' })
+  const markReadMutation = useMarkNotificationRead()
+  const dismissMutation = useDismissNotification()
+  const markAllReadMutation = useMarkAllNotificationsRead()
   const items = data?.items ?? []
   const busy = isLoading || isFetching
 
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: ['notifications'], exact: false })
-    void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
-  }
-
   const onMarkRead = async (id: string) => {
     if (!canUpdate) return
-    await markNotificationRead(id)
-    await invalidate()
+    await markReadMutation.mutateAsync(id)
   }
 
   const onDismiss = async (id: string) => {
     if (!canDismiss) return
-    await dismissNotification(id)
-    await invalidate()
+    await dismissMutation.mutateAsync(id)
   }
 
   const onMarkAll = async () => {
     if (!canUpdate) return
-    await markAllNotificationsRead()
-    await invalidate()
+    await markAllReadMutation.mutateAsync()
   }
 
   return (

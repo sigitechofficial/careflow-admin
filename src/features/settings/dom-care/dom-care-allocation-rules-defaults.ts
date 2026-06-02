@@ -1,4 +1,4 @@
-import type { DomAllocationRuleBehavior, DomCareAllocationRule } from '@/lib/general-settings-api'
+import type { DomAllocationRuleBehavior, DomCareAllocationRule } from '@/features/settings/types'
 
 export const ALLOCATION_BEHAVIOR_OPTIONS: {
   value: DomAllocationRuleBehavior

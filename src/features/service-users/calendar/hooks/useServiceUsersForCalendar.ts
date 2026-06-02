@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { getApiBaseUrl } from '@/lib/api-base'
-import { useAuthStore } from '@/store/auth.store'
-import { listServiceUsers, type ServiceUserListRow } from '@/lib/service-users-api'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
+import { listServiceUsers, type ServiceUserListRow } from '@/features/service-users/api'
 
 export type ServiceUserPickerOption = {
   id: string

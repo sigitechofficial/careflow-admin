@@ -1,16 +1,18 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type OrganisationGeneralSettings,
   type OrganisationPreAssessmentSettings,
   type PreAssessmentChecklistItem,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/toggle-controls'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Checkbox } from '@/shared/ui/toggle-controls'
 import {
   GeneralSettingsCard,
   SettingsHint,
@@ -22,8 +24,8 @@ import {
   PRE_ASSESSMENT_TOOLTIPS,
   preAssessmentSettingsToPayload,
 } from '@/features/settings/pre-assessment/pre-assessment-settings-defaults'
-import { useAuthStore } from '@/store/auth.store'
-import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
+import { cn } from '@/shared/lib/utils'
 
 function toDraft(s: OrganisationGeneralSettings): OrganisationPreAssessmentSettings {
   return s.preAssessmentSettings ?? DEFAULT_PRE_ASSESSMENT_SETTINGS
@@ -79,40 +81,27 @@ function ChecklistSection({
 
 export function GeneralSettingsPreAssessmentPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<OrganisationPreAssessmentSettings | null>(null)
   const [draft, setDraft] = React.useState<OrganisationPreAssessmentSettings>(
     DEFAULT_PRE_ASSESSMENT_SETTINGS,
   )
-
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(structuredClone(d))
-    setDraft(structuredClone(d))
-  }, [])
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load pre-assessment settings.'
+        : null
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const settings = await fetchGeneralSettings()
-        if (!cancelled) apply(settings)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load pre-assessment settings.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
     }
-  }, [apply])
+  }, [settingsData])
 
   function patch(p: Partial<OrganisationPreAssessmentSettings>) {
     setDraft(d => ({ ...d, ...p }))
@@ -138,15 +127,14 @@ export function GeneralSettingsPreAssessmentPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings(preAssessmentSettingsToPayload(draft))
-      apply(updated)
+      const updated = await updateMutation.mutateAsync(preAssessmentSettingsToPayload(draft))
+      const d = toDraft(updated)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
       toastSuccess('Saved', 'Pre-assessment settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

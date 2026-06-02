@@ -1,14 +1,16 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type OrganisationCriticalInformationSettings,
   type OrganisationGeneralSettings,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
 import {
   GeneralSettingsCard,
   SettingsHint,
@@ -21,7 +23,7 @@ import {
   DEFAULT_CRITICAL_INFORMATION_SETTINGS,
   IP_LOCKDOWN_DESCRIPTION,
 } from '@/features/settings/critical-information/critical-information-settings-defaults'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 
 function toDraft(s: OrganisationGeneralSettings): OrganisationCriticalInformationSettings {
   return s.criticalInformationSettings ?? DEFAULT_CRITICAL_INFORMATION_SETTINGS
@@ -29,42 +31,27 @@ function toDraft(s: OrganisationGeneralSettings): OrganisationCriticalInformatio
 
 export function GeneralSettingsCriticalInformationPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<OrganisationCriticalInformationSettings | null>(null)
   const [draft, setDraft] = React.useState<OrganisationCriticalInformationSettings>(
     DEFAULT_CRITICAL_INFORMATION_SETTINGS,
   )
-
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(structuredClone(d))
-    setDraft(structuredClone(d))
-  }, [])
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load critical information settings.'
+        : null
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const settings = await fetchGeneralSettings()
-        if (!cancelled) apply(settings)
-      } catch (e) {
-        if (!cancelled) {
-          setError(
-            e instanceof ApiError ? e.message : 'Could not load critical information settings.',
-          )
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
     }
-  }, [apply])
+  }, [settingsData])
 
   function patch(p: Partial<OrganisationCriticalInformationSettings>) {
     setDraft(d => ({ ...d, ...p }))
@@ -72,15 +59,14 @@ export function GeneralSettingsCriticalInformationPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings(criticalInformationSettingsToPayload(draft))
-      apply(updated)
+      const updated = await updateMutation.mutateAsync(criticalInformationSettingsToPayload(draft))
+      const d = toDraft(updated)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
       toastSuccess('Saved', 'Critical information settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

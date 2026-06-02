@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { Info } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { NoYesToggle } from '@/components/ui/no-yes-toggle'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 
 /** YES/NO toggle styled like legacy Care settings (brand primary green = Yes). */
 export function SettingsNoYesToggle(props: ComponentProps<typeof NoYesToggle>) {

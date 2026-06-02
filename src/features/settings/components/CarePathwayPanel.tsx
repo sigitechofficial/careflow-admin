@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+﻿import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   BookOpen,
@@ -7,7 +7,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/lib/utils'
 import type { CarePathwayTabId } from '@/features/settings/care-pathway/care-pathway.types'
 import { CARE_PATHWAY_TAB_IDS } from '@/features/settings/care-pathway/care-pathway.types'
 import { CarePathwayWizardPanel } from '@/features/settings/components/care-pathway/CarePathwayWizardPanel'

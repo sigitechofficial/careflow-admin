@@ -1,17 +1,19 @@
 import * as React from 'react'
 import { Eye, Plus, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
+import type { CarePlanTextTemplate } from '@/features/care-pathway/types/care-pathway.types'
 import {
-  createCarePlanTextTemplate,
-  deleteCarePlanTextTemplate,
-  listCarePlanTextCategories,
-  listCarePlanTextTemplates,
-  previewCarePlanText,
-  type CarePlanTextTemplate,
-} from '../api/care-plan-text.api'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
+  useCreateCarePlanTextTemplate,
+  useDeleteCarePlanTextTemplate,
+  usePreviewCarePlanText,
+} from '@/features/care-pathway/hooks/useCarePathwayMutations'
+import {
+  useCarePlanTextCategories,
+  useCarePlanTextTemplates,
+} from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import {
   Dialog,
   DialogBody,
@@ -19,14 +21,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   Table,
   TableBody,
@@ -34,17 +36,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/data-table'
-import { useAuthStore } from '@/store/auth.store'
-import { toastError, toastSuccess } from '@/lib/toast'
+} from '@/shared/ui/data-table'
+import { useAuthStore } from '@/features/auth/store'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
 
 export function CarePlanTextTab() {
   const canCreate = useAuthStore(s => s.can('care_plan_text.create'))
   const canDelete = useAuthStore(s => s.can('care_plan_text.delete'))
   const canPreview = useAuthStore(s => s.can('care_plan_text.preview'))
-  const [rows, setRows] = React.useState<CarePlanTextTemplate[]>([])
-  const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = React.useState(true)
+
+  const templatesQuery = useCarePlanTextTemplates()
+  const categoriesQuery = useCarePlanTextCategories()
+  const createMutation = useCreateCarePlanTextTemplate()
+  const deleteMutation = useDeleteCarePlanTextTemplate()
+  const previewMutation = usePreviewCarePlanText()
+
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [previewHtml, setPreviewHtml] = React.useState('')
@@ -52,28 +58,17 @@ export function CarePlanTextTab() {
   const [categoryId, setCategoryId] = React.useState('')
   const [contentHtml, setContentHtml] = React.useState('')
   const [previewName, setPreviewName] = React.useState('Alex')
-  const [saving, setSaving] = React.useState(false)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const [templates, cats] = await Promise.all([
-        listCarePlanTextTemplates(),
-        listCarePlanTextCategories(),
-      ])
-      setRows(templates)
-      setCategories(cats)
-      if (cats[0] && !categoryId) setCategoryId(cats[0].id)
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load care plan text.')
-    } finally {
-      setLoading(false)
-    }
-  }, [categoryId])
+  const loading = templatesQuery.isLoading || categoriesQuery.isLoading
+  const rows = templatesQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
+  const saving = createMutation.isPending || deleteMutation.isPending || previewMutation.isPending
 
   React.useEffect(() => {
-    void load()
-  }, [load])
+    if (categories[0] && !categoryId) {
+      setCategoryId(categories[0].id)
+    }
+  }, [categories, categoryId])
 
   const onCreate = async () => {
     if (!canCreate) return
@@ -81,9 +76,8 @@ export function CarePlanTextTab() {
       toastError('Title and content are required.')
       return
     }
-    setSaving(true)
     try {
-      await createCarePlanTextTemplate({
+      await createMutation.mutateAsync({
         title: title.trim(),
         categoryId: categoryId || undefined,
         contentHtml: contentHtml.trim(),
@@ -92,18 +86,18 @@ export function CarePlanTextTab() {
       setDialogOpen(false)
       setTitle('')
       setContentHtml('')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Create failed.')
-    } finally {
-      setSaving(false)
     }
   }
 
   const onPreview = async (row: CarePlanTextTemplate) => {
     if (!canPreview) return
     try {
-      const result = await previewCarePlanText(row.id, previewName.trim() || 'Service user')
+      const result = await previewMutation.mutateAsync({
+        id: row.id,
+        serviceUserName: previewName.trim() || 'Service user',
+      })
       setPreviewHtml(result.contentHtml)
       setPreviewOpen(true)
     } catch (e) {
@@ -114,9 +108,8 @@ export function CarePlanTextTab() {
   const onDelete = async (row: CarePlanTextTemplate) => {
     if (!canDelete || !window.confirm(`Delete "${row.title}"?`)) return
     try {
-      await deleteCarePlanTextTemplate(row.id)
+      await deleteMutation.mutateAsync(row.id)
       toastSuccess('Template deleted.')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Delete failed.')
     }

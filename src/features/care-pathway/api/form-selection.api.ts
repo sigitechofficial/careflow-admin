@@ -1,4 +1,4 @@
-import { apiJson, type ApiEnvelope } from '@/lib/api-client'
+import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type { CarePathwayFormType } from '../types/care-pathway.types'
 
 export type FormSelectionGroup = {

@@ -1,4 +1,4 @@
-import type { DomCareShiftDefinition } from '@/lib/general-settings-api'
+import type { DomCareShiftDefinition } from '@/features/settings/types'
 
 export const DEFAULT_DOM_CARE_SHIFT_DEFINITIONS: DomCareShiftDefinition[] = [
   {

@@ -1,10 +1,10 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { useNotificationPreferences } from '@/features/notifications/hooks/useNotificationPreferences'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/toggle-controls'
-import { DialogFooter } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import { Button } from '@/shared/ui/button'
+import { Switch } from '@/shared/ui/toggle-controls'
+import { DialogFooter } from '@/shared/ui/dialog'
+import { cn } from '@/shared/lib/utils'
 import type { NotificationPreferenceRow } from '@/features/notifications/types/notification.types'
 
 function formatTypeLabel(type: string) {
@@ -48,7 +48,7 @@ export function NotificationPreferencesPanel({ enabled = true, onDone, className
     return (
       <div className={cn('flex flex-1 flex-col items-center justify-center gap-2 py-16', className)}>
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
-        <p className="text-sm text-muted-foreground">Loading preferences…</p>
+        <p className="text-sm text-muted-foreground">Loading preferencesâ€¦</p>
       </div>
     )
   }
@@ -138,7 +138,7 @@ export function NotificationPreferencesPanel({ enabled = true, onDone, className
           {updating ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Saving…
+              Savingâ€¦
             </>
           ) : (
             'Save'

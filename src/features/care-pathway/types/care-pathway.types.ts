@@ -99,3 +99,11 @@ export type ListMeta = {
   total: number
   totalPages: number
 }
+
+export type { CarePlanTextTemplate } from '@/features/care-pathway/api/care-plan-text.api'
+export type {
+  FormSelectionEntry,
+  FormSelectionGroup,
+  SelectableForm,
+} from '@/features/care-pathway/api/form-selection.api'
+export type { CarePictureRow } from '@/features/care-pathway/api/picture-gallery.api'

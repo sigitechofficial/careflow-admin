@@ -1,13 +1,13 @@
 import * as React from 'react'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@/shared/ui/badge'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import type { CompanyModuleCatalogItem } from '@/lib/company-settings-api'
+} from '@/shared/ui/select'
+import type { CompanyModuleCatalogItem } from '@/features/settings/types'
 
 type Props = {
   catalog: CompanyModuleCatalogItem[]

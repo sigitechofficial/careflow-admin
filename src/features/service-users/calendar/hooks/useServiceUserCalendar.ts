@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { getApiBaseUrl } from '@/lib/api-base'
-import { useAuthStore } from '@/store/auth.store'
-import { getServiceUserCalendarView } from '../api/service-user-calendar.api'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
+import { getServiceUserCalendarView } from '@/features/service-users/api/service-user-calendar.api'
 import type { CalendarEventStatus, CalendarViewParams } from '../types/service-user-calendar.types'
 
 export function useServiceUserCalendar(serviceUserId: string | undefined, params: CalendarViewParams) {
@@ -28,7 +28,7 @@ export function useGlobalServiceUserCalendar(params: {
   return useQuery({
     queryKey: ['service-users-calendar', params],
     queryFn: async () => {
-      const { getGlobalServiceUsersCalendarEvents } = await import('../api/service-user-calendar.api')
+      const { getGlobalServiceUsersCalendarEvents } = await import('@/features/service-users/api/service-user-calendar.api')
       return getGlobalServiceUsersCalendarEvents(params)
     },
     enabled: hasApi && can && !!params.dateFrom && !!params.dateTo,

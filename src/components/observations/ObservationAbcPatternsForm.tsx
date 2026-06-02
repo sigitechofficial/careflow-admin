@@ -1,22 +1,22 @@
 import * as React from 'react'
 import { Calendar, Info, Pencil } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
+import { cn } from '@/shared/lib/utils'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   ABC_BEHAVIOUR_TYPES,
   ABC_LOCATIONS,
   ABC_PRESENTATIONS,
   ABC_RISK_LEVELS,
-} from '@/lib/observation-abc-catalog'
-import type { CompositeDraft } from '@/lib/observation-payload'
+} from '@/features/service-users/observations/observation-abc-catalog'
+import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
 
 const SELECT_NONE = '__none__'
 

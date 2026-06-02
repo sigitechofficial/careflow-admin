@@ -1,4 +1,4 @@
-import type { DomJobCancellationRule, DomLateVisitZoneAlert } from '@/lib/general-settings-api'
+import type { DomJobCancellationRule, DomLateVisitZoneAlert } from '@/features/settings/types'
 
 export const DEFAULT_DOM_JOB_CANCELLATION_RULES: DomJobCancellationRule[] = [
   {

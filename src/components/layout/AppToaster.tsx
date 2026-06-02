@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { AlertCircle, CheckCircle2, Info, XCircle } from 'lucide-react'
 import {
   ToastProvider,
@@ -7,9 +7,9 @@ import {
   ToastTitle,
   ToastDescription,
   ToastClose,
-} from '@/components/ui/feedback'
+} from '@/shared/ui/feedback'
 import { useToastStore } from '@/store/toast.store'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/lib/utils'
 
 const iconMap = {
   default: Info,

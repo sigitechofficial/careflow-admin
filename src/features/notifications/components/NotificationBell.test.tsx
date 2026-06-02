@@ -5,9 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import * as unreadHook from '@/features/notifications/hooks/useUnreadNotificationCount'
 import * as prefsHook from '@/features/notifications/hooks/useNotificationPreferences'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 
-vi.mock('@/lib/api-base', () => ({ getApiBaseUrl: () => 'http://localhost:3000' }))
+vi.mock('@/shared/lib/api-base', () => ({ getApiBaseUrl: () => 'http://localhost:3000' }))
 
 function wrapper(qc: QueryClient) {
   return function W({ children }: { children: React.ReactNode }) {

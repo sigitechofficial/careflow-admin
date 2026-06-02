@@ -1,16 +1,18 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type OrganisationGeneralSettings,
   type OrganisationPrivacySettings,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { MultiSelect } from '@/components/ui/multi-select'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   GeneralSettingsCard,
   SettingsHint,
@@ -23,7 +25,7 @@ import {
   PRIVACY_TOOLTIPS,
   privacySettingsToPayload,
 } from '@/features/settings/privacy/privacy-settings-defaults'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 
 function toDraft(s: OrganisationGeneralSettings): OrganisationPrivacySettings {
   return s.privacySettings ?? DEFAULT_PRIVACY_SETTINGS
@@ -31,43 +33,30 @@ function toDraft(s: OrganisationGeneralSettings): OrganisationPrivacySettings {
 
 export function GeneralSettingsPrivacyPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<OrganisationPrivacySettings | null>(null)
   const [draft, setDraft] = React.useState<OrganisationPrivacySettings>(DEFAULT_PRIVACY_SETTINGS)
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load privacy settings.'
+        : null
 
   const roleOptions = PRIVACY_SENSITIVE_VIEWER_ROLE_OPTIONS.map(r => ({
     value: r.value,
     label: r.label,
   }))
 
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(structuredClone(d))
-    setDraft(structuredClone(d))
-  }, [])
-
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const settings = await fetchGeneralSettings()
-        if (!cancelled) apply(settings)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load privacy settings.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
     }
-  }, [apply])
+  }, [settingsData])
 
   function patch(p: Partial<OrganisationPrivacySettings>) {
     setDraft(d => ({ ...d, ...p }))
@@ -75,15 +64,14 @@ export function GeneralSettingsPrivacyPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings(privacySettingsToPayload(draft))
-      apply(updated)
+      const updated = await updateMutation.mutateAsync(privacySettingsToPayload(draft))
+      const d = toDraft(updated)
+      setSaved(structuredClone(d))
+      setDraft(structuredClone(d))
       toastSuccess('Saved', 'Privacy settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

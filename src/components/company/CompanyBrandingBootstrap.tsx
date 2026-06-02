@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 import { useCompanyStore } from '@/store/company.store'
 
 /** Loads organisation branding when the user is signed in. */

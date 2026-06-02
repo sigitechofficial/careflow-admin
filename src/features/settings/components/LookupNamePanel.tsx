@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
+import { type LookupResource } from '@/features/settings/types'
 import {
-  createLookupItem,
-  deleteLookupItem,
-  fetchLookupList,
-  updateLookupItem,
-  type LookupResource,
-} from '@/lib/lookups-admin-api'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useAuthStore } from '@/store/auth.store'
+  useCreateLookupItem,
+  useDeleteLookupItem,
+  useLookupList,
+  useUpdateLookupItem,
+} from '@/features/settings/hooks/useLookupsAdmin'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { useAuthStore } from '@/features/auth/store'
 
 export function LookupNamePanel({
   resource,
@@ -24,32 +24,26 @@ export function LookupNamePanel({
   placeholder?: string
 }) {
   const canManage = useAuthStore(s => s.can('lookups.manage'))
-  const [rows, setRows] = React.useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const listQuery = useLookupList(resource)
+  const createMutation = useCreateLookupItem(resource)
+  const updateMutation = useUpdateLookupItem(resource)
+  const deleteMutation = useDeleteLookupItem(resource)
+
+  const rows = listQuery.data ?? []
+  const loading = listQuery.isLoading
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
+  const error =
+    listQuery.error instanceof ApiError
+      ? listQuery.error.message
+      : listQuery.error
+        ? 'Could not load list.'
+        : null
+
   const [newName, setNewName] = React.useState('')
-  const [saving, setSaving] = React.useState(false)
   const [filter, setFilter] = React.useState('')
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [editName, setEditName] = React.useState('')
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await fetchLookupList(resource)
-      setRows(data)
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load list.')
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }, [resource])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
+  const [actionError, setActionError] = React.useState<string | null>(null)
 
   const filtered = React.useMemo(() => {
     const q = filter.trim().toLowerCase()
@@ -70,16 +64,12 @@ export function LookupNamePanel({
   const onAdd = async () => {
     const name = newName.trim()
     if (!name || !canManage) return
-    setSaving(true)
-    setError(null)
+    setActionError(null)
     try {
-      await createLookupItem(resource, name)
+      await createMutation.mutateAsync(name)
       setNewName('')
-      await load()
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not add item.')
-    } finally {
-      setSaving(false)
+      setActionError(e instanceof ApiError ? e.message : 'Could not add item.')
     }
   }
 
@@ -87,171 +77,147 @@ export function LookupNamePanel({
     if (!editingId || !canManage) return
     const name = editName.trim()
     if (!name) return
-    setSaving(true)
-    setError(null)
+    setActionError(null)
     try {
-      await updateLookupItem(resource, editingId, name)
+      await updateMutation.mutateAsync({ id: editingId, name })
       cancelEdit()
-      await load()
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not save changes.')
-    } finally {
-      setSaving(false)
+      setActionError(e instanceof ApiError ? e.message : 'Could not save changes.')
     }
   }
 
   const onDelete = async (row: { id: string; name: string }) => {
     if (!canManage) return
     if (!window.confirm(`Delete "${row.name}"? This cannot be undone from the UI.`)) return
-    setSaving(true)
-    setError(null)
+    setActionError(null)
     try {
-      await deleteLookupItem(resource, row.id)
+      await deleteMutation.mutateAsync(row.id)
       if (editingId === row.id) cancelEdit()
-      await load()
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not delete item.')
-    } finally {
-      setSaving(false)
+      setActionError(e instanceof ApiError ? e.message : 'Could not delete item.')
     }
   }
+
+  const displayError = actionError ?? error
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {displayError ? <p className="text-sm text-destructive">{displayError}</p> : null}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <Input
-          placeholder={placeholder ?? 'Filter…'}
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          className="h-9 max-w-xs"
-        />
-        {canManage ? (
-          <>
+      {canManage ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[200px] flex-1 space-y-1">
+            <label className="text-xs text-muted-foreground">Add new</label>
             <Input
-              placeholder={`New ${title.toLowerCase()}…`}
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              className="h-9 min-w-[12rem] flex-1 max-w-md"
+              placeholder={placeholder ?? 'Name'}
               disabled={saving}
               onKeyDown={e => {
                 if (e.key === 'Enter') void onAdd()
               }}
             />
-            <Button
-              type="button"
-              size="sm"
-              className="h-9 gap-1.5"
-              disabled={saving || !newName.trim()}
-              onClick={() => void onAdd()}
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            You need <span className="font-mono">lookups.manage</span> to add, edit, or delete items.
-          </p>
-        )}
+          </div>
+          <Button type="button" size="sm" disabled={saving || !newName.trim()} onClick={() => void onAdd()}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground">Filter</label>
+        <Input
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          placeholder="Search…"
+          className="max-w-xs"
+        />
       </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="max-h-[min(50vh,480px)] overflow-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 border-b border-border bg-muted/90 backdrop-blur">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
-                {canManage ? <th className="w-28 px-3 py-2 text-right font-medium text-muted-foreground">Actions</th> : null}
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-left">
+                <th className="px-3 py-2 font-medium">Name</th>
+                {canManage ? <th className="w-28 px-3 py-2 font-medium">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={canManage ? 2 : 1} className="px-3 py-8 text-center text-muted-foreground">
-                    No items found.
+                    {rows.length === 0 ? 'No items yet.' : 'No matches.'}
                   </td>
                 </tr>
               ) : (
-                filtered.map(row => {
-                  const isEditing = editingId === row.id
-                  return (
-                    <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                filtered.map(row =>
+                  editingId === row.id ? (
+                    <tr key={row.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-2">
-                        {isEditing ? (
-                          <Input
-                            className="h-8 max-w-md"
-                            value={editName}
-                            disabled={saving}
-                            onChange={e => setEditName(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') void onSaveEdit()
-                              if (e.key === 'Escape') cancelEdit()
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          row.name
-                        )}
+                        <Input
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          className="h-8"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') void onSaveEdit()
+                            if (e.key === 'Escape') cancelEdit()
+                          }}
+                        />
                       </td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1">
+                          <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void onSaveEdit()}>
+                            Save
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={cancelEdit}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={row.id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">{row.name}</td>
                       {canManage ? (
                         <td className="px-3 py-2">
-                          <div className="flex justify-end gap-1">
-                            {isEditing ? (
-                              <>
-                                <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={saving} onClick={() => void onSaveEdit()}>
-                                  Save
-                                </Button>
-                                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" disabled={saving} onClick={cancelEdit}>
-                                  Cancel
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0"
-                                  title="Edit"
-                                  disabled={saving}
-                                  onClick={() => startEdit(row)}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                  title="Delete"
-                                  disabled={saving}
-                                  onClick={() => void onDelete(row)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              title="Edit"
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              onClick={() => startEdit(row)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete"
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => void onDelete(row)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       ) : null}
                     </tr>
-                  )
-                })
+                  ),
+                )
               )}
             </tbody>
           </table>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">{filtered.length} item(s)</p>
     </div>
   )
 }

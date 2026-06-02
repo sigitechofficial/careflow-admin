@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+﻿import { cn } from '@/shared/lib/utils'
 import type { ServiceUserCalendarEvent } from '../types/service-user-calendar.types'
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']

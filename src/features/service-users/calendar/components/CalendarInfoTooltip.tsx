@@ -1,5 +1,5 @@
 import { Info } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 const TOOLTIP_TEXT =
   'Customer events are general service-user calendar entries such as appointments, birthdays, family and social visits, care and medication reviews, assessments, and reminders. This calendar is separate from Scheduling, which manages visits, jobs, and carer allocation.'

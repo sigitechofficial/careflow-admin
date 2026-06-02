@@ -1,16 +1,16 @@
-import * as React from 'react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label, Textarea } from '@/components/ui/form-field'
-import { Checkbox } from '@/components/ui/toggle-controls'
+﻿import * as React from 'react'
+import { cn } from '@/shared/lib/utils'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { Label, Textarea } from '@/shared/ui/form-field'
+import { Checkbox } from '@/shared/ui/toggle-controls'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import type { CalendarEventTypeRow, ServiceUserCalendarEvent } from '../types/service-user-calendar.types'
 import type { ServiceUserPickerOption } from '../hooks/useServiceUsersForCalendar'
 
@@ -119,10 +119,10 @@ export function CalendarEventForm({
             onValueChange={v => onServiceUserChange?.(v === '_none' ? '' : v)}
           >
             <SelectTrigger data-testid="calendar-event-service-user">
-              <SelectValue placeholder={loadingServiceUsers ? 'Loading…' : 'Select service user'} />
+              <SelectValue placeholder={loadingServiceUsers ? 'Loadingâ€¦' : 'Select service user'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="_none">—</SelectItem>
+              <SelectItem value="_none">â€”</SelectItem>
               {serviceUserOptions?.map(su => (
                 <SelectItem key={su.id} value={su.id}>
                   {su.label}
@@ -158,7 +158,7 @@ export function CalendarEventForm({
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="_none">—</SelectItem>
+            <SelectItem value="_none">â€”</SelectItem>
             {eventTypes.map(t => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
@@ -326,7 +326,7 @@ export function CalendarEventFormActions({
         Cancel
       </Button>
       <Button type="button" onClick={onSubmit} disabled={loading || canSubmit === false}>
-        {loading ? 'Saving…' : submitLabel}
+        {loading ? 'Savingâ€¦' : submitLabel}
       </Button>
     </div>
   )

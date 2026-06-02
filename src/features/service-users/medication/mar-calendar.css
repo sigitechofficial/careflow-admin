@@ -1,0 +1,1617 @@
+/* MAR calendar — visual contract from careflow-medication-records.html */
+
+.mar-cal-root {
+  --mar-indigo: #4f46e5;
+  --mar-indigo-dark: #4338ca;
+  --mar-slate-50: #f8fafc;
+  --mar-slate-100: #f1f5f9;
+  --mar-slate-200: #e2e8f0;
+  --mar-slate-500: #64748b;
+  --mar-slate-700: #334155;
+  --mar-slate-800: #1e293b;
+}
+
+.mar-cal-root .month-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mar-cal-root .month-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--mar-slate-200);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--mar-slate-500);
+}
+
+.mar-cal-root .month-btn:hover {
+  background: var(--mar-slate-50);
+}
+
+.mar-cal-root .month-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mar-slate-800);
+  min-width: 130px;
+  text-align: center;
+}
+
+.mar-cal-root .mar-filter-panel {
+  background: #fff;
+  border: 1px solid var(--mar-slate-200);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mar-cal-root .mar-filter-panel.collapsed {
+  padding: 10px 14px;
+  gap: 0;
+}
+
+.mar-cal-root .mar-filter-panel.collapsed .filter-expanded {
+  display: none;
+}
+
+.mar-cal-root .filter-compact-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mar-cal-root .filter-summary {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.mar-cal-root .filter-compact-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mar-cal-root .filter-expand-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mar-indigo);
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mar-cal-root .filter-expand-btn:hover {
+  background: #e0e7ff;
+}
+
+.mar-cal-root .filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mar-cal-root .filter-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mar-slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.mar-cal-root .filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.mar-cal-root .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--mar-slate-200);
+  background: #fff;
+  color: #475569;
+  transition: all 0.12s;
+  user-select: none;
+  line-height: 1.2;
+}
+
+.mar-cal-root .filter-chip:hover {
+  border-color: #a5b4fc;
+  color: var(--mar-indigo-dark);
+  background: #f5f3ff;
+}
+
+.mar-cal-root .filter-chip.active {
+  border-color: #6366f1;
+  background: #eff6ff;
+  color: #3730a3;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+
+.mar-cal-root .filter-chip .chip-code {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.mar-cal-root .mar-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid var(--mar-slate-200);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.mar-cal-root .mar-kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--mar-slate-50);
+  border: 1px solid var(--mar-slate-100);
+  min-width: 88px;
+  flex: 1;
+}
+
+.mar-cal-root .mar-kpi-val {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--mar-slate-800);
+  line-height: 1;
+}
+
+.mar-cal-root .mar-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mar-slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.mar-cal-root .mar-kpi.kpi-due .mar-kpi-val {
+  color: var(--mar-indigo-dark);
+}
+
+.mar-cal-root .mar-kpi.kpi-missed .mar-kpi-val {
+  color: #d97706;
+}
+
+.mar-cal-root .mar-kpi.kpi-review .mar-kpi-val {
+  color: #f59e0b;
+}
+
+.mar-cal-root .mar-kpi.kpi-given .mar-kpi-val {
+  color: #16a34a;
+}
+
+.mar-cal-root .mar-due-today-alert {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue .mar-due-today-alert-title {
+  color: #b91c1c;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue .mar-due-today-list li {
+  color: #991b1b;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue .mar-due-today-hint {
+  color: #991b1b;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue .mar-due-today-alert-title {
+  color: #b91c1c;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue .mar-due-today-list li {
+  color: #991b1b;
+}
+
+.mar-cal-root .mar-due-today-alert.has-overdue .mar-due-today-hint {
+  color: #991b1b;
+}
+
+.mar-cal-root .mar-due-today-alert-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mar-cal-root .mar-due-today-alert-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.mar-cal-root .mar-due-today-goto {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #fff;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.mar-cal-root .mar-due-today-goto:hover {
+  background: #eff6ff;
+}
+
+.mar-cal-root .mar-due-today-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mar-cal-root .mar-due-today-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  font-size: 13px;
+  color: #78350f;
+}
+
+.mar-cal-root .mar-due-today-list strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.mar-cal-root .mar-due-today-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #a16207;
+}
+
+.mar-cal-root .mar-due-today-list li.is-overdue strong {
+  color: #b91c1c;
+}
+
+.mar-cal-root .mar-due-today-patch-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4338ca;
+  text-decoration: none;
+}
+
+.mar-cal-root .mar-due-today-patch-map:hover {
+  text-decoration: underline;
+}
+
+.mar-cal-root .mar-cell-bodymap-warn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #f59e0b;
+  pointer-events: none;
+  line-height: 0;
+}
+
+.mar-cal-root .mar-cell .cell-inner {
+  position: relative;
+}
+
+.mar-cal-root .mar-med-missing-site-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.mar-cal-root .mar-due-today-list li .mar-due-today-missing-site {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.mar-cal-root .time-slot-cell.is-overdue {
+  background: #fef2f2;
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.mar-cal-root .time-slot-cell.is-overdue .time-slot-label {
+  color: #b91c1c;
+}
+
+.mar-cal-root .mar-cell.col-overdue .cell-inner.cell-due {
+  background: #fecaca !important;
+  color: #7f1d1d !important;
+  box-shadow: inset 0 0 0 2px #dc2626;
+  font-weight: 700;
+}
+
+.mar-cal-root .mar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  margin-top: 4px;
+}
+
+.mar-cal-root .sect-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--mar-slate-500);
+}
+
+.mar-cal-root .mar-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mar-cal-root .mar-view-toggle {
+  display: flex;
+  background: var(--mar-slate-100);
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid var(--mar-slate-200);
+}
+
+.mar-cal-root .mar-view-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mar-slate-500);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.mar-cal-root .mar-view-btn.active {
+  background: #fff;
+  color: var(--mar-indigo-dark);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.mar-cal-root .mar-view-btn:hover:not(.active) {
+  color: #475569;
+}
+
+.mar-cal-root .mar-hint {
+  font-size: 13px;
+  color: var(--mar-indigo-dark);
+  font-weight: 600;
+}
+
+.mar-cal-root .mar-month-stats {
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.mar-cal-root .mar-month-stats-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--mar-slate-200);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mar-slate-500);
+  cursor: pointer;
+  text-align: left;
+}
+
+.mar-cal-root .mar-month-stats-toggle:hover {
+  background: var(--mar-slate-50);
+  color: var(--mar-indigo-dark);
+}
+
+.mar-cal-root .mar-month-stats-body {
+  display: none;
+  margin-top: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.mar-cal-root .mar-month-stats.expanded .mar-month-stats-body {
+  display: grid;
+}
+
+.mar-cal-root .mar-month-stat-card {
+  background: #fff;
+  border: 1px solid var(--mar-slate-200);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mar-cal-root .mar-month-stat-card p:first-child {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mar-slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mar-cal-root .mar-month-stat-card p:last-child {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--mar-slate-800);
+  margin-top: 4px;
+}
+
+.mar-cal-root .mar-view-hint {
+  font-size: 12px;
+  color: var(--mar-slate-600);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.mar-cal-root .mar-wrapper {
+  overflow: auto;
+  max-height: min(720px, calc(100vh - 300px));
+  border-radius: 12px;
+  border: 1px solid var(--mar-slate-200);
+  background: #fff;
+  margin-top: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mar-cal-root .mar-table {
+  --mar-sticky-col-width: 180px;
+  --mar-time-col-width: 88px;
+  --mar-day-col-width: 40px;
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.mar-cal-root .mar-table th,
+.mar-cal-root .mar-table td {
+  box-sizing: border-box;
+}
+
+.mar-cal-root .mar-table col.mar-col-sticky {
+  width: var(--mar-sticky-col-width);
+}
+
+.mar-cal-root .mar-table col.mar-col-time {
+  width: var(--mar-time-col-width);
+}
+
+.mar-cal-root .mar-table col.mar-col-day {
+  width: var(--mar-day-col-width);
+}
+
+.mar-cal-root .mar-table th {
+  background: var(--mar-slate-50);
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  text-align: center;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--mar-slate-200);
+  border-right: 1px solid var(--mar-slate-100);
+  letter-spacing: 0.2px;
+}
+
+.mar-cal-root .mar-table thead th {
+  position: sticky;
+  z-index: 8;
+}
+
+/* Single header cell per day — number + weekday stacked (no row gap) */
+.mar-cal-root .mar-table thead th.day-header {
+  top: 0;
+  z-index: 9;
+  padding: 0;
+  vertical-align: middle;
+  width: var(--mar-day-col-width);
+  min-width: var(--mar-day-col-width);
+  max-width: var(--mar-day-col-width);
+  border-bottom: 1px solid var(--mar-slate-200);
+}
+
+.mar-cal-root .day-header-num {
+  display: block;
+  padding: 9px 2px 0;
+  line-height: 1.2;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mar-slate-700);
+}
+
+.mar-cal-root .day-header-dow {
+  display: block;
+  padding: 0 2px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--mar-slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  line-height: 1.2;
+}
+
+.mar-cal-root .mar-table thead th.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 12;
+  background: var(--mar-slate-50);
+  text-align: left;
+  padding: 10px 18px;
+  width: var(--mar-sticky-col-width);
+  min-width: var(--mar-sticky-col-width);
+  max-width: var(--mar-sticky-col-width);
+  top: 0;
+  border-bottom: 1px solid var(--mar-slate-200);
+}
+
+.mar-cal-root .mar-table thead th.time-col {
+  position: sticky;
+  left: var(--mar-sticky-col-width);
+  z-index: 11;
+  width: var(--mar-time-col-width);
+  min-width: var(--mar-time-col-width);
+  max-width: var(--mar-time-col-width);
+  background: var(--mar-slate-100);
+  font-size: 11px;
+  top: 0;
+  border-left: none;
+  border-bottom: 1px solid var(--mar-slate-200);
+}
+
+.mar-cal-root .mar-table td {
+  border-bottom: 1px solid var(--mar-slate-100);
+  border-right: 1px solid var(--mar-slate-100);
+  vertical-align: middle;
+}
+
+.mar-cal-root .mar-table td.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  background: #fff;
+  border-right: 2px solid var(--mar-slate-200);
+  vertical-align: middle;
+  width: var(--mar-sticky-col-width);
+  min-width: var(--mar-sticky-col-width);
+  max-width: var(--mar-sticky-col-width);
+  padding: 0;
+}
+
+.mar-cal-root .mar-table td.time-slot-cell {
+  position: sticky;
+  left: var(--mar-sticky-col-width);
+  z-index: 5;
+  padding: 10px;
+  background: #fafafa;
+  border-right: 2px solid var(--mar-slate-200);
+  width: var(--mar-time-col-width);
+  min-width: var(--mar-time-col-width);
+  max-width: var(--mar-time-col-width);
+  border-left: none;
+}
+
+.mar-cal-root .mar-table td.sticky-col[rowspan] {
+  vertical-align: top;
+  padding-top: 4px;
+}
+
+.mar-cal-root .med-label-cell {
+  padding: 12px 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mar-cal-root .med-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mar-slate-800);
+  line-height: 1.3;
+}
+
+.mar-cal-root .med-meta {
+  font-size: 12px;
+  color: var(--mar-slate-500);
+  margin-top: 4px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.mar-cal-root .med-label-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mar-cal-root .schedule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 5px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mar-cal-root .schedule-chip-daily {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.mar-cal-root .schedule-chip-weekly {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.mar-cal-root .schedule-chip-prn {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.mar-cal-root .schedule-chip-specific {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.mar-cal-root .schedule-chip-monthly {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.mar-cal-root .schedule-chip-interval {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* Export / print preview (outside .mar-cal-root) */
+#mar-export-print-root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1e293b;
+}
+
+#mar-export-print-root .mar-export-table-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+#mar-export-print-root .mar-export-grid th.mar-day-col,
+#mar-export-print-root .mar-export-grid td.mar-day-cell {
+  width: 28px;
+  min-width: 28px;
+  max-width: 36px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+/*
+ * Row height comes from time-slot + day cells, not the rowspan medication block
+ * (avoids a single-slot PRN row ballooning when med details are tall).
+ */
+#mar-export-print-root .mar-export-grid tr.mar-export-slot-row {
+  height: 1px;
+}
+
+#mar-export-print-root .mar-export-grid td.mar-export-med-cell {
+  vertical-align: top;
+  height: auto;
+}
+
+#mar-export-print-root .mar-export-grid tr.mar-export-slot-row td.mar-export-slot-cell,
+#mar-export-print-root .mar-export-grid tr.mar-export-slot-row td.mar-day-cell {
+  vertical-align: middle;
+  height: auto;
+  box-sizing: border-box;
+}
+
+#mar-export-print-root .mar-export-grid td.mar-day-cell {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  line-height: 1.1;
+}
+
+#mar-export-print-root .schedule-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+#mar-export-print-root .schedule-chip-daily {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+#mar-export-print-root .schedule-chip-weekly {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+#mar-export-print-root .schedule-chip-monthly {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+#mar-export-print-root .schedule-chip-interval {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+#mar-export-print-root .schedule-chip-prn {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+#mar-export-print-root .schedule-chip-specific {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.mar-cal-root .med-slot-count {
+  font-size: 11px;
+  color: var(--mar-slate-500);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--mar-slate-200);
+}
+
+.mar-cal-root .mar-supply-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--mar-slate-500);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--mar-slate-200);
+}
+
+.mar-cal-root .mar-supply-stats-header {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.mar-cal-root .mar-supply-stat-qty strong {
+  color: #6366f1;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+}
+
+.mar-cal-root .mar-supply-stat-days strong {
+  color: #0891b2;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+}
+
+.mar-cal-root .mar-supply-stat-model {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--mar-slate-500);
+  width: 100%;
+}
+
+.mar-cal-root .mar-supply-stats-header .mar-supply-stat-model {
+  width: auto;
+  flex-basis: 100%;
+}
+
+.mar-cal-root .mar-supply-stat-of {
+  color: var(--mar-slate-400);
+  font-weight: 500;
+}
+
+.mar-cal-root .mar-supply-stat-context strong,
+.mar-cal-root .mar-supply-stat-delivery strong {
+  color: #475569;
+  font-weight: 600;
+}
+
+.mar-cal-root .mar-supply-stat-context,
+.mar-cal-root .mar-supply-stat-delivery,
+.mar-cal-root .mar-supply-stat-pharmacy {
+  font-size: 12px;
+  color: var(--mar-slate-500);
+}
+
+.mar-cal-root .mar-supply-stat-pharmacy {
+  font-style: italic;
+}
+
+.mar-cal-root .time-slot-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.mar-cal-root .time-slot-time {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--mar-slate-500);
+  margin-top: 2px;
+}
+
+.mar-cal-root .time-slot-dose {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mar-slate-700);
+  margin-top: 3px;
+}
+
+.mar-cal-root .mar-cell {
+  width: var(--mar-day-col-width);
+  min-width: var(--mar-day-col-width);
+  max-width: var(--mar-day-col-width);
+  height: 42px;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity 0.15s, filter 0.15s;
+  position: relative;
+  padding: 2px;
+}
+
+.mar-cal-root .mar-cell.filter-dimmed {
+  opacity: 0.18;
+  filter: grayscale(0.8);
+}
+
+.mar-cal-root .mar-cell:hover:not(.filter-dimmed):not(.is-not-scheduled) {
+  opacity: 0.88;
+}
+
+.mar-cal-root .mar-cell.is-not-scheduled {
+  background: var(--mar-slate-50);
+  cursor: default;
+}
+
+.mar-cal-root .mar-cell.is-not-scheduled:hover {
+  opacity: 1;
+}
+
+.mar-cal-root .mar-cell.col-today {
+  background: #fffbeb;
+}
+
+.mar-cal-root .cell-inner {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 2px auto;
+  line-height: 1;
+}
+
+.mar-cal-root .cell-not-scheduled {
+  background: repeating-linear-gradient(-45deg, #f1f5f9, #f1f5f9 4px, #e2e8f0 4px, #e2e8f0 8px);
+  color: var(--mar-slate-500);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
+
+.mar-cal-root .cell-due {
+  background: #eff6ff;
+  color: var(--mar-indigo-dark);
+  border: 1.5px dashed #93c5fd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mar-cal-root .cell-prn-log {
+  background: #fafafa;
+  border: 1.5px dashed #a5b4fc;
+  border-radius: 7px;
+  color: var(--mar-indigo);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 2px auto;
+}
+
+.mar-cal-root .cell-prn-log:hover {
+  background: #eff6ff;
+}
+
+.mar-cal-root .cell-inner.cell-review {
+  position: relative;
+}
+
+/* Pending manager review — small dot (spec §10.3), not a ring over status colour */
+.mar-cal-root .cell-inner.cell-review::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+/* Status code fills come from API (inline) — legend uses the same colours */
+.mar-cal-root .cell-code-pci-label {
+  font-size: 9px;
+  letter-spacing: -0.3px;
+}
+
+.mar-cal-root .mar-table th.day-today-col {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+/* Separate medication cards (prototype: distinct blocks per medicine) */
+.mar-cal-root .mar-med-gap td {
+  height: 12px;
+  padding: 0;
+  background: var(--mar-slate-100);
+  border: none;
+  line-height: 0;
+}
+
+.mar-cal-root tr.med-group-row td {
+  padding: 0;
+  overflow: visible;
+}
+
+.mar-cal-root tr.mar-med-card-start td {
+  background: var(--mar-slate-50);
+  border-top: 2px solid var(--mar-slate-200);
+  border-left: 2px solid var(--mar-slate-200);
+  border-right: 2px solid var(--mar-slate-200);
+  border-radius: 10px 10px 0 0;
+}
+
+.mar-cal-root tr.mar-med-card-start.is-collapsed td {
+  border-radius: 10px;
+  border-bottom: 2px solid var(--mar-slate-200);
+}
+
+.mar-cal-root tr.mar-slot-row td.sticky-col {
+  border-left: 2px solid var(--mar-slate-200);
+}
+
+.mar-cal-root tr.mar-med-card-end td {
+  border-bottom: 2px solid var(--mar-slate-200);
+}
+
+.mar-cal-root tr.mar-med-card-end td:last-child {
+  border-right: 2px solid var(--mar-slate-200);
+}
+
+.mar-cal-root tr.mar-status-showcase-row td.sticky-col,
+.mar-cal-root tr.mar-status-showcase-row td.time-slot-cell {
+  background: #faf5ff;
+}
+
+.mar-cal-root .med-group-row.is-collapsed .group-collapse-btn {
+  transform: rotate(-90deg);
+}
+
+.mar-cal-root .group-collapse-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--mar-slate-200);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--mar-slate-500);
+  flex-shrink: 0;
+  transition: transform 0.15s, background 0.12s;
+}
+
+.mar-cal-root .group-collapse-btn:hover {
+  background: var(--mar-slate-50);
+  color: var(--mar-indigo-dark);
+}
+
+.mar-cal-root .med-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  left: 0;
+  z-index: 7;
+  width: max-content;
+  min-width: min(100%, calc(var(--mar-sticky-col-width) + var(--mar-time-col-width) + 48px));
+  background: var(--mar-slate-50);
+  box-shadow: 4px 0 10px rgba(15, 23, 42, 0.06);
+}
+
+.mar-cal-root .med-group-header .group-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--mar-slate-500);
+  padding-left: 12px;
+  margin-left: 4px;
+  border-left: 1px solid var(--mar-slate-200);
+}
+
+.mar-cal-root .med-group-header .group-stats strong {
+  color: #475569;
+  font-weight: 600;
+}
+
+.mar-cal-root .mar-showcase-hint {
+  font-size: 11px;
+  color: #6d28d9;
+  background: #ede9fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mar-cal-root .med-group-header .group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mar-slate-800);
+}
+
+.mar-cal-root .med-group-header .group-meta {
+  font-size: 12px;
+  color: var(--mar-slate-500);
+}
+
+.mar-cal-root .pack-badge {
+  font-size: 11px;
+  background: #ede9fe;
+  color: #6d28d9;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-weight: 500;
+}
+
+.mar-cal-root .mar-group-collapsed {
+  display: none !important;
+}
+
+.mar-cal-root .mar-col-hidden {
+  display: none !important;
+}
+
+.mar-cal-root .legend-popover-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.mar-cal-root .legend-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: min(400px, calc(100vw - 24px));
+  background: #fff;
+  border: 1px solid var(--mar-slate-200);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(480px, calc(100vh - 24px));
+  overflow-y: auto;
+}
+
+.mar-cal-root .legend-popover.open {
+  display: flex;
+}
+
+.mar-cal-root .schedule-legend-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.mar-cal-root .schedule-legend-row.schedule-row-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mar-cal-root .schedule-legend-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mar-slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 72px;
+}
+
+.mar-cal-root .legend-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.mar-cal-root .legend-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mar-cal-root .legend-dot.cell-due {
+  background: #eff6ff;
+  color: var(--mar-indigo-dark);
+  border: 1.5px dashed #93c5fd;
+}
+
+.mar-cal-root .legend-dot.cell-not-scheduled {
+  background: repeating-linear-gradient(-45deg, #f1f5f9, #f1f5f9 4px, #e2e8f0 4px, #e2e8f0 8px);
+  color: var(--mar-slate-500);
+  font-size: 9px;
+}
+
+.mar-cal-root .legend-dot.cell-prn-log {
+  background: #fafafa;
+  border: 1.5px dashed #a5b4fc;
+  color: var(--mar-indigo);
+}
+
+.mar-cal-root .status-legend-scroll {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  width: 100%;
+}
+
+.mar-cal-root .mar-empty-row td {
+  padding: 32px 18px;
+  text-align: center;
+  color: var(--mar-slate-500);
+  font-size: 13px;
+}
+
+.mar-cal-root .mar-cal-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mar-cal-root .mar-cal-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* ── Blister pack MAR grouping (prototype parity) ── */
+.mar-cal-root .mar-pack-group-header {
+  background: linear-gradient(180deg, #faf5ff 0%, var(--mar-slate-50) 100%);
+}
+
+.mar-cal-root .round-context-banner {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.mar-cal-root .round-context-banner.partial {
+  background: #ffedd5;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.mar-cal-root .group-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.mar-cal-root .bp-mar-header-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--mar-slate-200);
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.mar-cal-root .bp-mar-header-link:hover {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+}
+
+.mar-cal-root tr.bp-compartment-header-row td {
+  background: #f5f3ff !important;
+  border-top: 2px solid #e9d5ff;
+  border-bottom: 1px solid #ede9fe;
+  padding: 6px 12px !important;
+}
+
+.mar-cal-root .bp-compartment-label-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.mar-cal-root .bp-compartment-header-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #5b21b6;
+}
+
+.mar-cal-root .bp-compartment-header-body strong {
+  font-weight: 600;
+  color: #6d28d9;
+}
+
+.mar-cal-root .bp-comp-header-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mar-cal-root .bp-compartment-progress {
+  height: 6px;
+  flex: 1;
+  min-width: 80px;
+  max-width: 140px;
+  background: #ede9fe;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mar-cal-root .bp-compartment-progress-fill {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 999px;
+  transition: width 0.2s;
+}
+
+.mar-cal-root .bp-compartment-progress-fill.partial {
+  background: linear-gradient(90deg, #22c55e 75%, #f97316 75%);
+}
+
+.mar-cal-root .bp-mar-mark-all-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #22c55e;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mar-cal-root .bp-mar-mark-all-btn:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.mar-cal-root .bp-mar-mark-all-btn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.mar-cal-root .bp-mar-exceptions-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.mar-cal-root .bp-mar-exceptions-btn:hover:not(:disabled) {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+}
+
+.mar-cal-root .bp-mar-exceptions-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row td {
+  border-top: 2px solid #e9d5ff;
+  vertical-align: middle;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row td.comp-day-summary-cell {
+  font-weight: 700;
+  text-align: center;
+  padding: 3px 2px;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row td.comp-day-summary-cell.col-today {
+  box-shadow: inset 0 0 0 2px #fde68a;
+}
+
+/* Single sticky band (med + time) — dual sticky <td> columns are unreliable on horizontal scroll */
+.mar-cal-root tr.bp-compartment-summary-row td.bp-comp-summary-sticky-band {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  width: calc(var(--mar-sticky-col-width) + var(--mar-time-col-width));
+  min-width: calc(var(--mar-sticky-col-width) + var(--mar-time-col-width));
+  max-width: calc(var(--mar-sticky-col-width) + var(--mar-time-col-width));
+  padding: 0;
+  background: #faf5ff !important;
+  border-left: 3px solid #8b5cf6;
+  border-right: 2px solid var(--mar-slate-200);
+  vertical-align: middle;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row .bp-comp-summary-band {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 100%;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row .bp-comp-summary-band .bp-comp-summary-label {
+  flex: 1;
+  min-width: 0;
+  width: var(--mar-sticky-col-width);
+  max-width: var(--mar-sticky-col-width);
+  box-sizing: border-box;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row .bp-comp-summary-time-side {
+  flex-shrink: 0;
+  width: var(--mar-time-col-width);
+  box-sizing: border-box;
+  padding: 10px;
+  background: #f5f3ff;
+  border-left: 1px solid #e9d5ff;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row .bp-comp-summary-time-side .time-slot-label {
+  white-space: normal;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.mar-cal-root tr.bp-compartment-summary-row .med-name {
+  color: #6d28d9;
+}
+
+.mar-cal-root .bp-comp-summary-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 4px;
+}
+
+.mar-cal-root .bp-comp-summary-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mar-cal-root .bp-comp-status-pill {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mar-cal-root .bp-comp-status-pill.open {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.mar-cal-root .bp-comp-status-pill.complete {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.mar-cal-root .bp-comp-status-pill.partial {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.mar-cal-root .bp-comp-status-pill.mixed-due {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde68a;
+}
+
+.mar-cal-root .cell-inner.cell-partial-round {
+  background: #ffedd5;
+  color: #c2410c;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mar-cal-root .legend-dot.cell-code-pr {
+  font-size: 9px;
+  letter-spacing: -0.3px;
+  border: 1px dashed #fdba74;
+}
+
+.mar-cal-root .mar-cell.comp-cell-expandable {
+  cursor: pointer;
+}
+
+.mar-cal-root .mar-cell.comp-cell-expandable:hover .cell-inner {
+  filter: brightness(0.97);
+}
+
+.mar-cal-root .bp-comp-collapse-btn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #ddd6fe;
+  border-radius: 6px;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  color: #6d28d9;
+  cursor: pointer;
+}
+
+.mar-cal-root .bp-comp-collapse-btn:hover {
+  background: #ede9fe;
+}
+
+.mar-cal-root .bp-comp-collapse-btn.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.mar-cal-root tr.pack-member-row td {
+  background: #fefefe;
+}
+
+.mar-cal-root tr.pack-member-row .sticky-col {
+  border-left: 3px solid #ddd6fe;
+}
+

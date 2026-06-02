@@ -1,5 +1,5 @@
-import { io, type Socket } from 'socket.io-client'
-import { getApiBaseUrl } from '@/lib/api-base'
+﻿import { io, type Socket } from 'socket.io-client'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
 
 let socket: Socket | null = null
 

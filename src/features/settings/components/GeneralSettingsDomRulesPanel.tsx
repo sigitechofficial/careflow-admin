@@ -1,17 +1,19 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type DomAllocationRuleBehavior,
   type DomCareAllocationRule,
   type OrganisationGeneralSettings,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/toggle-controls'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard'
 import {
   ALLOCATION_BEHAVIOR_OPTIONS,
@@ -19,8 +21,8 @@ import {
   mergeAllocationRules,
   ruleSupportsMinutes,
 } from '@/features/settings/dom-care/dom-care-allocation-rules-defaults'
-import { useAuthStore } from '@/store/auth.store'
-import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
+import { cn } from '@/shared/lib/utils'
 
 const RULE_ROW_GRID =
   'grid w-full grid-cols-[minmax(12rem,1.4fr)_repeat(3,minmax(7rem,1fr))] items-center gap-x-4'
@@ -33,38 +35,25 @@ function toDraft(s: OrganisationGeneralSettings): DomCareAllocationRule[] {
 
 export function GeneralSettingsDomRulesPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<DomCareAllocationRule[] | null>(null)
   const [rules, setRules] = React.useState<DomCareAllocationRule[]>(DEFAULT_DOM_CARE_ALLOCATION_RULES)
-
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(d)
-    setRules(d)
-  }, [])
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load dom rules.'
+        : null
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const settings = await fetchGeneralSettings()
-        if (!cancelled) apply(settings)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load dom rules.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(d)
+      setRules(d)
     }
-  }, [apply])
+  }, [settingsData])
 
   function updateRule(key: string, patch: Partial<DomCareAllocationRule>) {
     setRules(prev => prev.map(r => (r.key === key ? { ...r, ...patch } : r)))
@@ -72,7 +61,6 @@ export function GeneralSettingsDomRulesPanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
       const payload = rules.map(r => ({
         ...r,
@@ -80,13 +68,13 @@ export function GeneralSettingsDomRulesPanel() {
           ? Math.max(0, Math.min(999, Math.round(r.minutes ?? 0)))
           : null,
       }))
-      const updated = await updateGeneralSettings({ domCareAllocationRules: payload })
-      apply(updated)
+      const updated = await updateMutation.mutateAsync({ domCareAllocationRules: payload })
+      const d = toDraft(updated)
+      setSaved(d)
+      setRules(d)
       toastSuccess('Saved', 'Dom rules updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

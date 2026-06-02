@@ -1,4 +1,4 @@
-import { apiJson, type ApiEnvelope } from '@/lib/api-client'
+import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   CallOffVisitRow,
   DateRangeQuery,
@@ -20,23 +20,23 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return s ? `?${s}` : ''
 }
 
-export async function getScheduleReportTypes() {
-  const res = await apiJson<ApiEnvelope<ReportTypeRow[]>>('/schedule-reports/report-types', { method: 'GET' })
+export async function getScheduleReportTypes(init?: RequestInit) {
+  const res = await apiJson<ApiEnvelope<ReportTypeRow[]>>('/schedule-reports/report-types', { method: 'GET', ...init })
   return res.data ?? []
 }
 
-export async function getJobsDayRuns(date: string, params: { scheduleBatchId?: string; limit?: number } = {}) {
+export async function getJobsDayRuns(date: string, params: { scheduleBatchId?: string; limit?: number } = {}, init?: RequestInit) {
   const res = await apiJson<ApiEnvelope<JobsDayRunsResponse>>(
     `/schedule-timelines/jobs/day-runs${buildQuery({ date, limit: params.limit ?? 200, ...params })}`,
-    { method: 'GET' },
+    { method: 'GET', ...init },
   )
   return res.data!
 }
 
-export async function getJobsDayTimeline(date: string, params: { scheduleBatchId?: string; limit?: number } = {}) {
+export async function getJobsDayTimeline(date: string, params: { scheduleBatchId?: string; limit?: number } = {}, init?: RequestInit) {
   const res = await apiJson<ApiEnvelope<{ date: string; jobs: TimelineJob[] }>>(
     `/schedule-timelines/jobs/day-timeline${buildQuery({ date, limit: params.limit ?? 200, ...params })}`,
-    { method: 'GET' },
+    { method: 'GET', ...init },
   )
   return { jobs: res.data?.jobs ?? [], meta: res.meta as PaginationMeta | undefined }
 }
@@ -84,19 +84,20 @@ export async function cancelHousekeepingJob(id: string, notes?: string) {
 export async function getScheduleReport(
   endpoint: string,
   query: DateRangeQuery,
+  init?: RequestInit,
 ): Promise<{ data: unknown; meta?: PaginationMeta; export?: unknown }> {
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
   const res = await apiJson<ApiEnvelope<unknown>>(
     `${path}${buildQuery(query as Record<string, string | number | boolean | undefined>)}`,
-    { method: 'GET' },
+    { method: 'GET', ...init },
   )
   return { data: res.data, meta: res.meta as PaginationMeta | undefined, export: (res as { export?: unknown }).export }
 }
 
-export async function getScheduleStatus(date: string) {
+export async function getScheduleStatus(date: string, init?: RequestInit) {
   const res = await apiJson<ApiEnvelope<ScheduleStatusResponse>>(
     `/schedules/status${buildQuery({ date })}`,
-    { method: 'GET' },
+    { method: 'GET', ...init },
   )
   const payload = res.data as ScheduleStatusResponse | { data: ScheduleStatusResponse }
   if (payload && typeof payload === 'object' && 'data' in payload && payload.data) {
@@ -118,10 +119,10 @@ export async function buildSchedule(payload: {
   return res
 }
 
-export async function listScheduleAreas() {
+export async function listScheduleAreas(init?: RequestInit) {
   const res = await apiJson<ApiEnvelope<ScheduleAreaRow[]>>(
     '/schedule-areas?limit=100&isActive=true&sortBy=sortOrder&sortOrder=asc',
-    { method: 'GET' },
+    { method: 'GET', ...init },
   )
   const data = res.data
   return Array.isArray(data) ? data : []

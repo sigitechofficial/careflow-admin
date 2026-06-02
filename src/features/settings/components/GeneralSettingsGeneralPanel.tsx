@@ -1,19 +1,21 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type OrganisationGeneralSettings,
   type TimeDisplayFormat,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/form-field'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/toggle-controls'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { Label } from '@/shared/ui/form-field'
+import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 
 const DEFAULTS = {
   reviewCarePlanAfterDays: 180,
@@ -61,65 +63,49 @@ function NumericField({
   )
 }
 
+function settingsToDraft(s: OrganisationGeneralSettings) {
+  return {
+    reviewCarePlanAfterDays: s.reviewCarePlanAfterDays,
+    handoverReportLastHours: s.handoverReportLastHours,
+    archiveServiceUserAfterMonths: s.archiveServiceUserAfterMonths,
+    timeDisplayFormat: s.timeDisplayFormat,
+  }
+}
+
 export function GeneralSettingsGeneralPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [saved, setSaved] = React.useState<OrganisationGeneralSettings | null>(null)
+  const { data: saved, isLoading, error: loadError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [draft, setDraft] = React.useState(DEFAULTS)
 
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    setSaved(s)
-    setDraft({
-      reviewCarePlanAfterDays: s.reviewCarePlanAfterDays,
-      handoverReportLastHours: s.handoverReportLastHours,
-      archiveServiceUserAfterMonths: s.archiveServiceUserAfterMonths,
-      timeDisplayFormat: s.timeDisplayFormat,
-    })
-  }, [])
-
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const s = await fetchGeneralSettings()
-        if (!cancelled) apply(s)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load general settings.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [apply])
+    if (saved) setDraft(settingsToDraft(saved))
+  }, [saved])
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings(draft)
-      apply(updated)
+      const updated = await updateMutation.mutateAsync(draft)
+      setDraft(settingsToDraft(updated))
       toastSuccess('Saved', 'General settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 
   function onReset() {
-    if (saved) apply(saved)
+    if (saved) setDraft(settingsToDraft(saved))
     else setDraft(DEFAULTS)
   }
 
-  if (loading) {
+  const error =
+    loadError instanceof ApiError
+      ? loadError.message
+      : loadError
+        ? 'Could not load general settings.'
+        : null
+
+  if (isLoading) {
     return (
       <div className="flex justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -147,7 +133,7 @@ export function GeneralSettingsGeneralPanel() {
           />
           <NumericField
             id="handover-hours"
-            label="Handover report for last"
+            label="Handover report last"
             suffix="Hours"
             value={draft.handoverReportLastHours}
             disabled={!canUpdate}
@@ -155,7 +141,7 @@ export function GeneralSettingsGeneralPanel() {
           />
           <NumericField
             id="archive-months"
-            label="Archive Service User details after"
+            label="Archive service user after"
             suffix="Months"
             value={draft.archiveServiceUserAfterMonths}
             disabled={!canUpdate}
@@ -163,37 +149,39 @@ export function GeneralSettingsGeneralPanel() {
           />
         </GeneralSettingsCard>
 
-        <GeneralSettingsCard title="Time Settings">
-          <p className="text-sm font-medium text-foreground">How to display time recorded</p>
+        <GeneralSettingsCard title="Time Display">
           <RadioGroup
             value={draft.timeDisplayFormat}
-            onValueChange={v => setDraft(d => ({ ...d, timeDisplayFormat: v as TimeDisplayFormat }))}
             disabled={!canUpdate}
-            className="space-y-3 pt-1"
+            onValueChange={v => setDraft(d => ({ ...d, timeDisplayFormat: v as TimeDisplayFormat }))}
+            className="space-y-3"
           >
-            <label className="flex cursor-pointer items-start gap-3">
-              <RadioGroupItem value="HH_XX" className="mt-0.5" />
-              <span className="text-sm text-foreground">HH.XX — Display time recorded as decimals.</span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3">
-              <RadioGroupItem value="HH_MM" className="mt-0.5" />
-              <span className="text-sm text-foreground">
-                HH:MM — Display time recorded as hours and minutes
-              </span>
-            </label>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="HH_MM" id="time-hh-mm" />
+              <Label htmlFor="time-hh-mm" className="font-normal">
+                24-hour with minutes (14:30)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="HH_XX" id="time-hh-xx" />
+              <Label htmlFor="time-hh-xx" className="font-normal">
+                24-hour without minutes (14)
+              </Label>
+            </div>
           </RadioGroup>
         </GeneralSettingsCard>
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
-        <Button type="button" variant="outline" onClick={onReset} disabled={saving}>
-          Reset
-        </Button>
-        <Button type="button" onClick={() => void onSave()} disabled={!canUpdate || saving}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Save
-        </Button>
-      </div>
+      {canUpdate && (
+        <div className="flex flex-wrap gap-3">
+          <Button type="button" onClick={() => void onSave()} disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+          <Button type="button" variant="outline" onClick={onReset} disabled={updateMutation.isPending}>
+            Reset
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

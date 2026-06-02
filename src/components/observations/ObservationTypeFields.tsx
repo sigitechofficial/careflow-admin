@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { Calendar } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
+import { cn } from '@/shared/lib/utils'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import type { ObservationTypeRow } from '@/lib/observations-api'
+} from '@/shared/ui/select'
+import type { ObservationTypeRow } from '@/features/service-users/types'
 import { ObservationAbcPatternsForm } from '@/components/observations/ObservationAbcPatternsForm'
 import { ObservationSeizureChartForm } from '@/components/observations/ObservationSeizureChartForm'
 import { ObservationInfectionForm } from '@/components/observations/ObservationInfectionForm'
@@ -20,7 +20,7 @@ import {
   BP_SITUATION_OPTIONS,
   type CompositeDraft,
   type ObservationFormVariant,
-} from '@/lib/observation-payload'
+} from '@/features/service-users/observations/observation-payload'
 
 type Props = {
   activeType: ObservationTypeRow

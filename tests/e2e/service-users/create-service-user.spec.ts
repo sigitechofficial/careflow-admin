@@ -50,7 +50,7 @@ test.describe('Service users: create', () => {
 
       await test.step('Search for created record', async () => {
         await list.search(draft.lastName)
-        await expect(page.getByTestId('service-users-status-filter')).toHaveValue('in_service')
+        await expect(page.getByTestId('service-users-status-filter')).toHaveValue('ACTIVE')
         const row = await list.expectRowWithName(draft.displayName)
         await expect(row.getByRole('link', { name: new RegExp(draft.firstName) })).toBeVisible()
       })

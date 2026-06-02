@@ -1,30 +1,32 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type ActionsDefaultView,
   type AllocateEmployeeBy,
   type OrganisationGeneralSettings,
-} from '@/lib/general-settings-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+} from '@/features/settings/types'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   GeneralSettingsCard,
   SettingsHint,
   SettingsNoYesToggle,
   SettingsRow,
 } from '@/features/settings/components/GeneralSettingsCard'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 
 const SHIFT_ROLES_NOTE = 'For roles: Senior Carer/Nurse, Carer/Domestic, Inspector'
 
@@ -96,54 +98,40 @@ function clampMinutes(n: number) {
 
 export function GeneralSettingsServiceManagementPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const { data: settingsData, isLoading: loading, error: queryError } = useGeneralSettings()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<ServiceManagementDraft | null>(null)
   const [draft, setDraft] = React.useState<ServiceManagementDraft>(DEFAULTS)
-
-  const apply = React.useCallback((s: OrganisationGeneralSettings) => {
-    const d = toDraft(s)
-    setSaved(d)
-    setDraft(d)
-  }, [])
+  const saving = updateMutation.isPending
+  const error =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load service management settings.'
+        : null
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const s = await fetchGeneralSettings()
-        if (!cancelled) apply(s)
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load service management settings.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsData) {
+      const d = toDraft(settingsData)
+      setSaved(d)
+      setDraft(d)
     }
-  }, [apply])
+  }, [settingsData])
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      const updated = await updateGeneralSettings({
+      const updated = await updateMutation.mutateAsync({
         ...draft,
         shiftAccessMinutesBefore: clampMinutes(draft.shiftAccessMinutesBefore),
         shiftAccessMinutesAfter: clampMinutes(draft.shiftAccessMinutesAfter),
       })
-      apply(updated)
+      const d = toDraft(updated)
+      setSaved(d)
+      setDraft(d)
       toastSuccess('Saved', 'Service management settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

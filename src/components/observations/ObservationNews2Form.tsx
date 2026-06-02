@@ -9,17 +9,17 @@ import {
   User,
   Wind,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
-import type { CompositeDraft } from '@/lib/observation-payload'
-import { calculateNews2Score } from '@/lib/news2-score'
+import { cn } from '@/shared/lib/utils'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
+import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
+import { calculateNews2Score } from '@/features/service-users/observations/news2-score'
 import {
   NEWS2_ACVPU,
   NEWS2_AIR_OXYGEN,
   type News2Acvpu,
   type News2AirOrOxygen,
-} from '@/lib/observation-news2-catalog'
+} from '@/features/service-users/observations/observation-news2-catalog'
 
 type Props = {
   canSave: boolean

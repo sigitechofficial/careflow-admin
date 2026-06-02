@@ -1,4 +1,4 @@
-import type { OrganisationPreAssessmentSettings } from '@/lib/general-settings-api'
+import type { OrganisationPreAssessmentSettings } from '@/features/settings/types'
 
 export type PreAssessmentChecklistItem = OrganisationPreAssessmentSettings['assessmentComponents'][number]
 

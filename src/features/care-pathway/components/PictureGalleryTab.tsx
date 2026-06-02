@@ -1,59 +1,56 @@
 import * as React from 'react'
 import { Trash2, Upload } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import { StandardIconImage } from '@/components/ui/standard-icon-image'
+import { ApiError } from '@/shared/api/api-client'
+import type { CarePictureRow } from '@/features/care-pathway/types/care-pathway.types'
 import {
-  deleteUploadedPicture,
-  listCarePictures,
-  uploadCarePicture,
-  type CarePictureRow,
-} from '../api/picture-gallery.api'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useAuthStore } from '@/store/auth.store'
-import { toastError, toastSuccess } from '@/lib/toast'
+  useDeleteUploadedPicture,
+  useUploadCarePicture,
+} from '@/features/care-pathway/hooks/useCarePathwayMutations'
+import { useCarePictures } from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { StandardIconImage } from '@/shared/ui/standard-icon-image'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { useAuthStore } from '@/features/auth/store'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
 
 export function PictureGalleryTab() {
   const canUpload = useAuthStore(s => s.can('picture_gallery.upload'))
   const canDelete = useAuthStore(s => s.can('picture_gallery.delete'))
-  const [standard, setStandard] = React.useState<CarePictureRow[]>([])
-  const [uploaded, setUploaded] = React.useState<CarePictureRow[]>([])
   const [search, setSearch] = React.useState('')
-  const [loading, setLoading] = React.useState(true)
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [uploadName, setUploadName] = React.useState('')
   const fileRef = React.useRef<HTMLInputElement>(null)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const [std, up] = await Promise.all([
-        listCarePictures({ type: 'standard', search: search || undefined }),
-        listCarePictures({ type: 'uploaded', search: search || undefined }),
-      ])
-      setStandard(std)
-      setUploaded(up)
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load gallery.')
-    } finally {
-      setLoading(false)
-    }
-  }, [search])
+  const uploadMutation = useUploadCarePicture()
+  const deleteMutation = useDeleteUploadedPicture()
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => void load(), 200)
+    const t = window.setTimeout(() => setDebouncedSearch(search), 200)
     return () => window.clearTimeout(t)
-  }, [load])
+  }, [search])
+
+  const standardQuery = useCarePictures({
+    type: 'standard',
+    search: debouncedSearch || undefined,
+  })
+  const uploadedQuery = useCarePictures({
+    type: 'uploaded',
+    search: debouncedSearch || undefined,
+  })
+
+  const loading = standardQuery.isLoading || uploadedQuery.isLoading
+  const standard = standardQuery.data ?? []
+  const uploaded = uploadedQuery.data ?? []
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !canUpload) return
     const name = uploadName.trim() || file.name
     try {
-      await uploadCarePicture(file, name)
+      await uploadMutation.mutateAsync({ file, name })
       toastSuccess('Picture uploaded.')
       setUploadName('')
       if (fileRef.current) fileRef.current.value = ''
-      await load()
     } catch (err) {
       toastError(err instanceof ApiError ? err.message : 'Upload failed.')
     }
@@ -62,9 +59,8 @@ export function PictureGalleryTab() {
   const onDelete = async (row: CarePictureRow) => {
     if (!canDelete || !window.confirm(`Delete "${row.name}"?`)) return
     try {
-      await deleteUploadedPicture(row.id)
+      await deleteMutation.mutateAsync(row.id)
       toastSuccess('Picture deleted.')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Delete failed.')
     }
@@ -121,7 +117,7 @@ export function PictureGalleryTab() {
             onChange={e => setUploadName(e.target.value)}
           />
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onUpload} />
-          <Button type="button" size="sm" onClick={() => fileRef.current?.click()}>
+          <Button type="button" size="sm" onClick={() => fileRef.current?.click()} disabled={uploadMutation.isPending}>
             <Upload className="mr-1 h-4 w-4" />
             Upload image
           </Button>

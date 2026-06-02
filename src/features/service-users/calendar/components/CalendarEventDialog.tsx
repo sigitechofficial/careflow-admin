@@ -7,8 +7,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { useAuthStore } from '@/store/auth.store'
+} from '@/shared/ui/dialog'
+import { useAuthStore } from '@/features/auth/store'
 import type { ServiceUserCalendarEvent } from '../types/service-user-calendar.types'
 import { useCalendarEventTypes } from '../hooks/useCalendarEventTypes'
 import { useCalendarEventMutations } from '../hooks/useServiceUserCalendarEvents'

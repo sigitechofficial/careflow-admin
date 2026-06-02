@@ -1,17 +1,17 @@
 import * as React from 'react'
 import { HelpCircle } from 'lucide-react'
 import type { CareFormDetail, CareFormFieldRow, FormFieldType } from '@/features/care-pathway/types/care-pathway.types'
-import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Checkbox } from '@/components/ui/toggle-controls'
-import { NoYesToggle } from '@/components/ui/no-yes-toggle'
+import { Input } from '@/shared/ui/input'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import type { CarePlanDraftValues } from './care-plan-draft-storage'
 
 function fieldKey(sectionId: string, fieldId: string) {

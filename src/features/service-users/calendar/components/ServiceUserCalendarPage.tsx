@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
-import { getApiBaseUrl } from '@/lib/api-base'
-import { useAuthStore } from '@/store/auth.store'
-import { Button } from '@/components/ui/button'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
+import { Button } from '@/shared/ui/button'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+} from '@/shared/ui/select'
+import { cn } from '@/shared/lib/utils'
 import type {
   CalendarEventStatus,
   CalendarViewMode,
@@ -49,7 +49,7 @@ function monthRange(year: number, month: number) {
 }
 
 function parseDateKey(dateKey: string): { year: number; month: number; day: number } {
-  const [y, m, d] = dateKey.split('-').map(Number)
+  const [y = 0, m = 1, d = 1] = dateKey.split('-').map(Number)
   return { year: y, month: m - 1, day: d }
 }
 

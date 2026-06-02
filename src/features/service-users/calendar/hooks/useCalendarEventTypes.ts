@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { getApiBaseUrl } from '@/lib/api-base'
-import { useAuthStore } from '@/store/auth.store'
-import { getCalendarEventTypes } from '../api/service-user-calendar.api'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
+import { getCalendarEventTypes } from '@/features/service-users/api/service-user-calendar.api'
 
 export function useCalendarEventTypes() {
   const hasApi = !!getApiBaseUrl()

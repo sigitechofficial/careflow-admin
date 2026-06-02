@@ -1,17 +1,12 @@
 import * as React from 'react'
 import { Loader2, Pencil } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import {
-  fetchServiceUserLocations,
-  updateServiceUserLocation,
-} from '@/features/settings/location-management/location-management.api'
+import { ApiError } from '@/shared/api/api-client'
 import type {
-  LocationLookup,
-  LocationZoneOption,
   ServiceUserLocationRow,
 } from '@/features/settings/location-management/location-management.types'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
+import { useUpdateServiceUserLocation, useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
 import {
   Dialog,
   DialogBody,
@@ -19,48 +14,36 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/store/auth.store'
+} from '@/shared/ui/select'
+import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
 
 export function LocationServiceUserLocationsPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
+  const locationsQuery = useServiceUserLocations()
+  const updateMutation = useUpdateServiceUserLocation()
   const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [zones, setZones] = React.useState<LocationZoneOption[]>([])
-  const [locations, setLocations] = React.useState<LocationLookup[]>([])
-  const [members, setMembers] = React.useState<ServiceUserLocationRow[]>([])
   const [filter, setFilter] = React.useState('')
   const [editing, setEditing] = React.useState<ServiceUserLocationRow | null>(null)
   const [draftZoneKey, setDraftZoneKey] = React.useState('')
   const [draftLocationId, setDraftLocationId] = React.useState<string | null>(null)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await fetchServiceUserLocations()
-      setZones(data.zones)
-      setLocations(data.locations)
-      setMembers(data.members)
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load service users.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
+  const loading = locationsQuery.isLoading
+  const error =
+    locationsQuery.error instanceof ApiError
+      ? locationsQuery.error.message
+      : locationsQuery.error
+        ? 'Could not load service users.'
+        : null
+  const zones = locationsQuery.data?.zones ?? []
+  const members = locationsQuery.data?.members ?? []
 
   const filtered = members.filter(m => {
     const q = filter.trim().toLowerCase()
@@ -85,8 +68,10 @@ export function LocationServiceUserLocationsPanel() {
     if (!canUpdate || !editing) return
     setSaving(true)
     try {
-      const updated = await updateServiceUserLocation(editing.id, draftLocationId)
-      setMembers(prev => prev.map(m => (m.id === editing.id ? { ...m, ...updated } : m)))
+      await updateMutation.mutateAsync({
+        serviceUserId: editing.id,
+        locationId: draftLocationId,
+      })
       toastSuccess('Saved', 'Service user location updated.')
       setEditing(null)
     } catch (e) {

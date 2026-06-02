@@ -30,7 +30,7 @@ test.describe('Service users: table', () => {
       await test.step('Verify list regions', async () => {
         await list.expectLoaded()
         await list.expectTableReady()
-        await page.getByTestId('service-users-status-filter').selectOption('in_service')
+        await page.getByTestId('service-users-status-filter').selectOption('ACTIVE')
         await page.getByTestId('service-users-search').fill('test')
       })
     })

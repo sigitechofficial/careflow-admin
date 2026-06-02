@@ -1,23 +1,23 @@
 import * as React from 'react'
 import { Calendar } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/form-field'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import type { CompositeDraft } from '@/lib/observation-payload'
-import type { SeizureOption } from '@/lib/observation-seizure-catalog'
+} from '@/shared/ui/select'
+import type { CompositeDraft } from '@/features/service-users/observations/observation-payload'
+import type { SeizureOption } from '@/features/service-users/observations/observation-seizure-catalog'
 import {
   SEIZURE_AFTER,
   SEIZURE_DURING,
   SEIZURE_INTERVENTIONS,
   SEIZURE_PRE_WARNING,
   SEIZURE_TRIGGERS,
-} from '@/lib/observation-seizure-catalog'
+} from '@/features/service-users/observations/observation-seizure-catalog'
 
 const SELECT_NONE = '__none__'
 

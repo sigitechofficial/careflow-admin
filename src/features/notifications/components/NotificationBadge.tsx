@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+﻿import { cn } from '@/shared/lib/utils'
 
 export function NotificationBadge({ count, className }: { count: number; className?: string }) {
   if (count <= 0) return null

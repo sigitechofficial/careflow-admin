@@ -1,16 +1,10 @@
 import * as React from 'react'
 import { Loader2, Pencil } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import {
-  fetchEmployeeLocations,
-  updateEmployeeLocation,
-} from '@/features/settings/location-management/location-management.api'
-import type {
-  LocationLookup,
-  EmployeeLocationRow,
-} from '@/features/settings/location-management/location-management.types'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
+import { ApiError } from '@/shared/api/api-client'
+import type { EmployeeLocationRow } from '@/features/settings/location-management/location-management.types'
+import { useEmployeeLocations, useUpdateEmployeeLocation } from '@/features/settings/hooks/useLocationManagement'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
 import {
   Dialog,
   DialogBody,
@@ -18,18 +12,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/toggle-controls'
-import { MultiSelect } from '@/components/ui/multi-select'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/store/auth.store'
+} from '@/shared/ui/select'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { MultiSelect } from '@/shared/ui/multi-select'
+import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
 
 function parentZoneFromLocationName(name: string): string {
   const idx = name.indexOf(' - ')
@@ -39,34 +33,24 @@ function parentZoneFromLocationName(name: string): string {
 
 export function LocationEmployeeLocationsPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
+  const locationsQuery = useEmployeeLocations()
+  const updateMutation = useUpdateEmployeeLocation()
   const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [locations, setLocations] = React.useState<LocationLookup[]>([])
-  const [members, setMembers] = React.useState<EmployeeLocationRow[]>([])
   const [filter, setFilter] = React.useState('')
   const [editing, setEditing] = React.useState<EmployeeLocationRow | null>(null)
   const [draftLocationId, setDraftLocationId] = React.useState<string | null>(null)
   const [draftFloorIds, setDraftFloorIds] = React.useState<string[]>([])
   const [draftAccessAll, setDraftAccessAll] = React.useState(false)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await fetchEmployeeLocations()
-      setLocations(data.locations)
-      setMembers(data.members)
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load employees.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
+  const loading = locationsQuery.isLoading
+  const error =
+    locationsQuery.error instanceof ApiError
+      ? locationsQuery.error.message
+      : locationsQuery.error
+        ? 'Could not load employees.'
+        : null
+  const locations = locationsQuery.data?.locations ?? []
+  const members = locationsQuery.data?.members ?? []
 
   const filtered = members.filter(m => {
     const q = filter.trim().toLowerCase()
@@ -102,12 +86,14 @@ export function LocationEmployeeLocationsPanel() {
       const floorLocationIds = draftAccessAll
         ? []
         : [...new Set([...(draftLocationId ? [draftLocationId] : []), ...draftFloorIds])]
-      const updated = await updateEmployeeLocation(editing.id, {
-        locationId: draftLocationId,
-        accessAllZones: draftAccessAll,
-        floorLocationIds: draftAccessAll ? undefined : floorLocationIds,
+      await updateMutation.mutateAsync({
+        employeeId: editing.id,
+        body: {
+          locationId: draftLocationId,
+          accessAllZones: draftAccessAll,
+          floorLocationIds: draftAccessAll ? undefined : floorLocationIds,
+        },
       })
-      setMembers(prev => prev.map(m => (m.id === editing.id ? { ...m, ...updated } : m)))
       toastSuccess('Saved', 'Employee location updated.')
       setEditing(null)
     } catch (e) {

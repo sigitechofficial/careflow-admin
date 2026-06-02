@@ -1,4 +1,4 @@
-import type { OrganisationPrivacySettings } from '@/lib/general-settings-api'
+import type { OrganisationPrivacySettings } from '@/features/settings/types'
 
 export const PRIVACY_SENSITIVE_VIEWER_ROLE_OPTIONS = [
   { value: 'carer_domestic', label: 'Carer/Domestic' },

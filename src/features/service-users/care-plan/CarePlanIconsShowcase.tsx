@@ -1,7 +1,6 @@
 import * as React from 'react'
-import { ApiError } from '@/lib/api-client'
-import { listCarePictures } from '@/features/care-pathway/api/picture-gallery.api'
-import { StandardIconImage } from '@/components/ui/standard-icon-image'
+import { useStandardCarePictures } from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { StandardIconImage } from '@/shared/ui/standard-icon-image'
 import { Loader2 } from 'lucide-react'
 
 type FigmaManifest = {
@@ -10,33 +9,22 @@ type FigmaManifest = {
 
 /** Dev/reference grid: all standard + optional Figma-exported care plan icons. */
 export function CarePlanIconsShowcase() {
-  const [standard, setStandard] = React.useState<{ name: string; fileUrl: string }[]>([])
+  const { data: standardRows, isLoading: standardLoading, error: standardError } = useStandardCarePictures()
   const [figma, setFigma] = React.useState<{ name: string; file: string }[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [figmaLoading, setFigmaLoading] = React.useState(true)
+  const [figmaError, setFigmaError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     let cancelled = false
     ;(async () => {
-      setLoading(true)
-      setError(null)
+      setFigmaLoading(true)
+      setFigmaError(null)
       try {
-        const [rows, figmaManifestRes, staticManifestRes] = await Promise.all([
-          listCarePictures({ type: 'standard' }).catch(() => []),
+        const [figmaManifestRes, staticManifestRes] = await Promise.all([
           fetch('/care-plan-icons/figma/manifest.json').catch(() => null),
           fetch('/care-plan-icons/standard/manifest.json').catch(() => null),
         ])
         if (cancelled) return
-
-        const apiIcons = rows.filter(r => r.fileUrl).map(r => ({ name: r.name, fileUrl: r.fileUrl }))
-        if (apiIcons.length) {
-          setStandard(apiIcons)
-        } else if (staticManifestRes?.ok) {
-          const m = (await staticManifestRes.json()) as FigmaManifest
-          setStandard((m.icons ?? []).map(i => ({ name: i.name, fileUrl: i.file })))
-        } else {
-          setStandard([])
-        }
 
         if (figmaManifestRes?.ok) {
           const manifest = (await figmaManifestRes.json()) as FigmaManifest
@@ -44,18 +32,32 @@ export function CarePlanIconsShowcase() {
         } else {
           setFigma([])
         }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load icons.')
+
+        if (!standardRows?.length && staticManifestRes?.ok) {
+          const m = (await staticManifestRes.json()) as FigmaManifest
+          void m
         }
+      } catch {
+        if (!cancelled) setFigmaError('Could not load Figma icon manifest.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setFigmaLoading(false)
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [standardRows?.length])
+
+  const loading = standardLoading || figmaLoading
+  const error =
+    standardError instanceof Error
+      ? standardError.message
+      : figmaError
+
+  const standard = React.useMemo(() => {
+    const apiIcons = (standardRows ?? []).filter(r => r.fileUrl).map(r => ({ name: r.name, fileUrl: r.fileUrl }))
+    return apiIcons
+  }, [standardRows])
 
   if (loading) {
     return (

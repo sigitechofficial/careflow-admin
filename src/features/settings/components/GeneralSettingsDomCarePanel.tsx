@@ -1,27 +1,30 @@
 import * as React from 'react'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
 import {
-  fetchGeneralSettings,
-  updateGeneralSettings,
   type DomJobCancellationRule,
   type DomLateVisitZoneAlert,
   type OrganisationGeneralSettings,
-} from '@/lib/general-settings-api'
-import { listAllEmployees, type EmployeeListRow } from '@/lib/employees-api'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select'
+} from '@/features/settings/types'
+import { type EmployeeListRow } from '@/features/employees/types'
+import { useAllEmployees } from '@/features/employees/hooks/useEmployeeTabs'
+import {
+  useGeneralSettings,
+  useUpdateGeneralSettings,
+} from '@/features/settings/hooks/useGeneralSettings'
+import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { listScheduleAreas } from '@/features/scheduling/api/scheduling.api'
-import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
+} from '@/shared/ui/select'
 import {
   DEFAULT_DOM_JOB_CANCELLATION_RULES,
   defaultDomLateVisitZoneAlerts,
@@ -34,7 +37,7 @@ import {
   SettingsNoYesToggle,
   SettingsRow,
 } from '@/features/settings/components/GeneralSettingsCard'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/features/auth/store'
 
 const TOOLTIPS = {
   globalTolerance:
@@ -213,12 +216,21 @@ function ZoneAlertBlock({
 
 export function GeneralSettingsDomCarePanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const settingsQuery = useGeneralSettings()
+  const areasQuery = useScheduleAreas()
+  const employeesQuery = useAllEmployees()
+  const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<DomCareDraft | null>(null)
   const [draft, setDraft] = React.useState<DomCareDraft>(DEFAULTS)
   const [employeeOptions, setEmployeeOptions] = React.useState<MultiSelectOption[]>([])
+  const loading = settingsQuery.isLoading || areasQuery.isLoading || employeesQuery.isLoading
+  const saving = updateMutation.isPending
+  const error =
+    settingsQuery.error instanceof ApiError
+      ? settingsQuery.error.message
+      : settingsQuery.error
+        ? 'Could not load dom care settings.'
+        : null
 
   const apply = React.useCallback(
     (s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[]) => {
@@ -230,34 +242,18 @@ export function GeneralSettingsDomCarePanel() {
   )
 
   React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const [settings, scheduleAreas, employees] = await Promise.all([
-          fetchGeneralSettings(),
-          listScheduleAreas().catch(() => [] as ScheduleAreaRow[]),
-          listAllEmployees().catch(() => []),
-        ])
-        if (!cancelled) {
-          apply(settings, scheduleAreas)
-          setEmployeeOptions(
-            employees.map(e => ({ value: e.id, label: employeeLabel(e) })),
-          )
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Could not load dom care settings.')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (settingsQuery.data && areasQuery.data !== undefined) {
+      apply(settingsQuery.data, areasQuery.data ?? [])
     }
-  }, [apply])
+  }, [settingsQuery.data, areasQuery.data, apply])
+
+  React.useEffect(() => {
+    if (employeesQuery.data) {
+      setEmployeeOptions(
+        employeesQuery.data.map(e => ({ value: e.id, label: employeeLabel(e) })),
+      )
+    }
+  }, [employeesQuery.data])
 
   function updateZone(zoneKey: string, patch: Partial<DomLateVisitZoneAlert>) {
     setDraft(d => ({
@@ -293,14 +289,13 @@ export function GeneralSettingsDomCarePanel() {
 
   async function onSave() {
     if (!canUpdate) return
-    setSaving(true)
     try {
       const {
         domTextAlertsSentThisMonth: _thisMonth,
         domTextAlertsSentLastMonth: _lastMonth,
         ...editable
       } = draft
-      const updated = await updateGeneralSettings({
+      const updated = await updateMutation.mutateAsync({
         ...editable,
         domGlobalToleranceMinutes: clampInt(draft.domGlobalToleranceMinutes, 0, 1440),
         domGeofenceDistanceMeters: clampInt(draft.domGeofenceDistanceMeters, 0, 50000),
@@ -315,13 +310,11 @@ export function GeneralSettingsDomCarePanel() {
           payEmployeePercent: clampPercent(r.payEmployeePercent),
         })),
       })
-      const scheduleAreas = await listScheduleAreas().catch(() => [] as ScheduleAreaRow[])
+      const scheduleAreas = areasQuery.data ?? []
       apply(updated, scheduleAreas)
       toastSuccess('Saved', 'Dom care settings updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 

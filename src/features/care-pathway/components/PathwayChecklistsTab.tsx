@@ -1,15 +1,15 @@
 import * as React from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
+import type { PathwayChecklistRow } from '@/features/care-pathway/types/care-pathway.types'
 import {
-  createPathwayChecklist,
-  deletePathwayChecklist,
-  listPathwayChecklists,
-  updatePathwayChecklist,
-} from '../api/pathway-checklists.api'
-import type { PathwayChecklistRow } from '../types/care-pathway.types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+  useCreatePathwayChecklist,
+  useDeletePathwayChecklist,
+  useUpdatePathwayChecklist,
+} from '@/features/care-pathway/hooks/useCarePathwayMutations'
+import { usePathwayChecklists } from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import {
   Dialog,
   DialogBody,
@@ -17,7 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import {
   Table,
   TableBody,
@@ -25,18 +25,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/data-table'
-import { Switch } from '@/components/ui/toggle-controls'
-import { useAuthStore } from '@/store/auth.store'
-import { toastError, toastSuccess } from '@/lib/toast'
+} from '@/shared/ui/data-table'
+import { Switch } from '@/shared/ui/toggle-controls'
+import { useAuthStore } from '@/features/auth/store'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
 
 export function PathwayChecklistsTab() {
   const canCreate = useAuthStore(s => s.can('pathway_checklists.create'))
   const canUpdate = useAuthStore(s => s.can('pathway_checklists.update'))
   const canDelete = useAuthStore(s => s.can('pathway_checklists.delete'))
-  const [rows, setRows] = React.useState<PathwayChecklistRow[]>([])
-  const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editRow, setEditRow] = React.useState<PathwayChecklistRow | null>(null)
   const [name, setName] = React.useState('')
@@ -44,25 +43,22 @@ export function PathwayChecklistsTab() {
   const [recordPhoto, setRecordPhoto] = React.useState(false)
   const [familyShare, setFamilyShare] = React.useState(false)
   const [groupAction, setGroupAction] = React.useState(false)
-  const [saving, setSaving] = React.useState(false)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const { rows: data } = await listPathwayChecklists({ search: search || undefined, limit: 100 })
-      setRows(data)
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load checklists.')
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }, [search])
+  const createMutation = useCreatePathwayChecklist()
+  const updateMutation = useUpdatePathwayChecklist()
+  const deleteMutation = useDeletePathwayChecklist()
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => void load(), 200)
+    const t = window.setTimeout(() => setDebouncedSearch(search), 200)
     return () => window.clearTimeout(t)
-  }, [load])
+  }, [search])
+
+  const { data, isLoading: loading } = usePathwayChecklists({
+    search: debouncedSearch || undefined,
+    limit: 100,
+  })
+  const rows = data?.rows ?? []
 
   const openCreate = () => {
     setEditRow(null)
@@ -90,37 +86,32 @@ export function PathwayChecklistsTab() {
       toastError('Name is required (max 45 characters).')
       return
     }
-    setSaving(true)
+    const payload = {
+      name: n,
+      observationEnabled,
+      recordPhoto: observationEnabled ? recordPhoto : false,
+      familyShare,
+      groupAction,
+    }
     try {
-      const payload = {
-        name: n,
-        observationEnabled,
-        recordPhoto: observationEnabled ? recordPhoto : false,
-        familyShare,
-        groupAction,
-      }
       if (editRow) {
-        await updatePathwayChecklist(editRow.id, payload)
+        await updateMutation.mutateAsync({ id: editRow.id, body: payload })
         toastSuccess('Checklist updated.')
       } else {
-        await createPathwayChecklist(payload)
+        await createMutation.mutateAsync(payload)
         toastSuccess('Checklist created.')
       }
       setDialogOpen(false)
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Save failed.')
-    } finally {
-      setSaving(false)
     }
   }
 
   const onDelete = async (row: PathwayChecklistRow) => {
     if (!canDelete || !window.confirm(`Delete "${row.name}"?`)) return
     try {
-      await deletePathwayChecklist(row.id)
+      await deleteMutation.mutateAsync(row.id)
       toastSuccess('Checklist deleted.')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Delete failed.')
     }

@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils'
-import { resolveMediaUrl } from '@/lib/media-url'
+﻿import { cn } from '@/shared/lib/utils'
+import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { useCompanyStore } from '@/store/company.store'
 
 type Props = {

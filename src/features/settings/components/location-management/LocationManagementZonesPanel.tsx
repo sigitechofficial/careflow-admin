@@ -1,22 +1,22 @@
 import * as React from 'react'
 import { ChevronDown, ChevronRight, Home, Loader2, MapPin, User, Users } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import {
-  fetchLocationActiveUsers,
-  fetchLocationManagementTree,
-  updateLocationZone,
-} from '@/features/settings/location-management/location-management.api'
+import { ApiError } from '@/shared/api/api-client'
 import type {
   LocationActiveUser,
   LocationTreeBranch,
   LocationTreeZone,
 } from '@/features/settings/location-management/location-management.types'
-import { toastApiError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { MultiSelect } from '@/components/ui/multi-select'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/store/auth.store'
+import {
+  useLocationActiveUsers,
+  useLocationManagementTree,
+  useUpdateLocationZone,
+} from '@/features/settings/hooks/useLocationManagement'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { MultiSelect } from '@/shared/ui/multi-select'
+import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
 
 function ZonePin({ color }: { color: string }) {
   return (
@@ -32,12 +32,11 @@ function ZonePin({ color }: { color: string }) {
 
 export function LocationManagementZonesPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const [loading, setLoading] = React.useState(true)
+  const treeQuery = useLocationManagementTree()
+  const usersQuery = useLocationActiveUsers()
+  const updateMutation = useUpdateLocationZone()
   const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [orgName, setOrgName] = React.useState('')
-  const [zones, setZones] = React.useState<LocationTreeZone[]>([])
-  const [activeUsers, setActiveUsers] = React.useState<LocationActiveUser[]>([])
+  const [initialized, setInitialized] = React.useState(false)
   const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set(['org-root']))
   const [selectedZoneId, setSelectedZoneId] = React.useState<string | null>(null)
   const [draftName, setDraftName] = React.useState('')
@@ -51,46 +50,39 @@ export function LocationManagementZonesPanel() {
     emailUsers: string[]
   } | null>(null)
 
-  const userOptions = activeUsers.map(u => ({ value: u.id, label: u.label }))
-  const selectedZone = zones.find(z => z.id === selectedZoneId) ?? null
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [tree, users] = await Promise.all([
-        fetchLocationManagementTree(),
-        fetchLocationActiveUsers(),
-      ])
-      setOrgName(tree.organisation.name)
-      setZones(tree.zones)
-      setActiveUsers(users)
-      if (tree.zones.length > 0 && !selectedZoneId) {
-        const first = tree.zones[0]
-        setSelectedZoneId(first.id)
-        setDraftName(first.name)
-        setDraftColor(first.markerColorHex)
-        setDraftMessageUsers(first.incidentMessageUserIds)
-        setDraftEmailUsers(first.incidentEmailUserIds)
-        setSavedSnapshot({
-          name: first.name,
-          color: first.markerColorHex,
-          messageUsers: first.incidentMessageUserIds,
-          emailUsers: first.incidentEmailUserIds,
-        })
-        setExpanded(prev => new Set([...prev, 'org-root', first.id]))
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load location tree.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const loading = treeQuery.isLoading || usersQuery.isLoading
+  const error =
+    treeQuery.error instanceof ApiError
+      ? treeQuery.error.message
+      : usersQuery.error instanceof ApiError
+        ? usersQuery.error.message
+        : treeQuery.error || usersQuery.error
+          ? 'Could not load location tree.'
+          : null
+  const orgName = treeQuery.data?.organisation.name ?? ''
+  const zones = treeQuery.data?.zones ?? []
+  const activeUsers: LocationActiveUser[] = usersQuery.data ?? []
 
   React.useEffect(() => {
-    void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
-  }, [])
+    if (!treeQuery.data?.zones.length || initialized) return
+    const first = treeQuery.data.zones[0]
+    if (!first) return
+    setSelectedZoneId(first.id)
+    setDraftName(first.name)
+    setDraftColor(first.markerColorHex)
+    setDraftMessageUsers(first.incidentMessageUserIds)
+    setDraftEmailUsers(first.incidentEmailUserIds)
+    setSavedSnapshot({
+      name: first.name,
+      color: first.markerColorHex,
+      messageUsers: first.incidentMessageUserIds,
+      emailUsers: first.incidentEmailUserIds,
+    })
+    setExpanded(prev => new Set([...prev, 'org-root', first.id]))
+    setInitialized(true)
+  }, [treeQuery.data, initialized])
+  const userOptions = activeUsers.map(u => ({ value: u.id, label: u.label }))
+  const selectedZone = zones.find(z => z.id === selectedZoneId) ?? null
 
   function selectZone(zone: LocationTreeZone) {
     setSelectedZoneId(zone.id)
@@ -127,25 +119,15 @@ export function LocationManagementZonesPanel() {
     if (!canUpdate || !selectedZoneId) return
     setSaving(true)
     try {
-      const updated = await updateLocationZone(selectedZoneId, {
-        name: draftName.trim(),
-        markerColorHex: draftColor,
-        incidentMessageUserIds: draftMessageUsers,
-        incidentEmailUserIds: draftEmailUsers,
+      const updated = await updateMutation.mutateAsync({
+        zoneId: selectedZoneId,
+        body: {
+          name: draftName.trim(),
+          markerColorHex: draftColor,
+          incidentMessageUserIds: draftMessageUsers,
+          incidentEmailUserIds: draftEmailUsers,
+        },
       })
-      setZones(prev =>
-        prev.map(z =>
-          z.id === selectedZoneId
-            ? {
-                ...z,
-                name: updated.name,
-                markerColorHex: updated.markerColorHex,
-                incidentMessageUserIds: updated.incidentMessageUserIds,
-                incidentEmailUserIds: updated.incidentEmailUserIds,
-              }
-            : z,
-        ),
-      )
       setSavedSnapshot({
         name: updated.name,
         color: updated.markerColorHex,

@@ -1,35 +1,38 @@
 import * as React from 'react'
-import { Info, Loader2, Plus, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { useNavigate } from '@tanstack/react-router'
+import { Info, Loader2, MapPin, Plus, Trash2 } from 'lucide-react'
+import { ApiError } from '@/shared/api/api-client'
+import type { CreateServiceUserMedicationPayload } from '@/features/service-users/types'
 import {
-  addMedicationPackItem,
-  createMedicationPack,
-  createServiceUserMedication,
-  fetchMedicationLookups,
-  listMedicationPacks,
-  type CreateServiceUserMedicationPayload,
-  type MedicationLookupsBundle,
-  type MedicationPackRow,
-} from '@/lib/service-users-api'
-import { toastApiError, toastError, toastSuccess } from '@/lib/toast'
-import { Button } from '@/components/ui/button'
+  useAddMedicationPackItem,
+  useCreateMedicationPack,
+  useCreateServiceUserMedication,
+  useMedicationLookups,
+  useMedicationPacks,
+} from '@/features/service-users/hooks/useServiceUserMedicationMutations'
+import { useMedicationSchedulePreview } from '@/features/service-users/hooks/useMedicationSchedulePreview'
+import type { MedicationSchedulePreviewPayload } from '@/features/service-users/api/medication-schedule-preview.api'
+import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { Button } from '@/shared/ui/button'
 import {
   Dialog,
   DialogBody,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { NoYesToggle } from '@/components/ui/no-yes-toggle'
+} from '@/shared/ui/dialog'
+import { medicationRequiresBodyMapFromLookupIds } from '@/features/service-users/medication/medication-body-map-eligibility'
+import { Input } from '@/shared/ui/input'
+import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 const SELECT_NONE = '__none__'
 
 const HOW_ASSISTED_OPTIONS = [
@@ -40,15 +43,21 @@ const HOW_ASSISTED_OPTIONS = [
   'Not applicable',
 ] as const
 
-export type MedicationTimeSlot = {
-  id: string
-  dueTime: string
-  carePlanAction: string
-}
-
-function newTimeSlot(): MedicationTimeSlot {
-  return { id: crypto.randomUUID(), dueTime: '', carePlanAction: '' }
-}
+import {
+  formatRoundLabel,
+  matchRoundIdByTime,
+  newTimeSlot,
+  timeSlotsFromRounds,
+  type MedicationTimeSlot,
+} from '@/features/service-users/medication/medication-time-slots'
+import {
+  defaultWeekdays,
+  resolveFrequencyIdForPattern,
+  SCHEDULE_PATTERN_OPTIONS,
+  WEEKDAY_OPTIONS,
+  type SchedulePattern,
+  type WeekdayValue,
+} from '@/features/service-users/medication/medication-schedule-pattern'
 
 export type BlisterPackItemDraft = {
   id: string
@@ -70,8 +79,10 @@ function normalizeTimeInput(value: string): string {
   if (/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) return t
   const m = t.match(/^(\d{1,2}):(\d{2})$/)
   if (!m) return t
-  const h = m[1].padStart(2, '0')
-  return `${h}:${m[2]}`
+  const h = m[1]
+  const min = m[2]
+  if (!h || !min) return t
+  return `${h.padStart(2, '0')}:${min}`
 }
 
 type Props = {
@@ -89,11 +100,31 @@ export function AddMedicationDialog({
   canSave,
   onSaved,
 }: Props) {
-  const [lookups, setLookups] = React.useState<MedicationLookupsBundle | null>(null)
-  const [lookupsLoading, setLookupsLoading] = React.useState(false)
-  const [lookupsError, setLookupsError] = React.useState<string | null>(null)
+  const {
+    data: lookups,
+    isLoading: lookupsLoading,
+    error: lookupsQueryError,
+  } = useMedicationLookups(open)
+  const lookupsError =
+    lookupsQueryError instanceof ApiError
+      ? lookupsQueryError.message
+      : lookupsQueryError
+        ? 'Failed to load lookups'
+        : null
+
+  const navigate = useNavigate()
+  const createMedication = useCreateServiceUserMedication()
+  const createPack = useCreateMedicationPack()
+  const addPackItemMutation = useAddMedicationPackItem()
+
+  const [bodyMapPrompt, setBodyMapPrompt] = React.useState<{
+    medicationId: string
+    medicationName: string
+    blisterItemCount?: number
+  } | null>(null)
 
   const [recordType, setRecordType] = React.useState<'MEDICATION' | 'BLISTER_PACK'>('MEDICATION')
+  const [isPrnMedication, setIsPrnMedication] = React.useState(false)
   const [basicSearch, setBasicSearch] = React.useState(false)
   const [medicationName, setMedicationName] = React.useState('')
   const [dose, setDose] = React.useState('')
@@ -106,12 +137,16 @@ export function AddMedicationDialog({
   const [expiryDate, setExpiryDate] = React.useState('')
   const [reasonForMedication, setReasonForMedication] = React.useState('')
   const [medicationNotes, setMedicationNotes] = React.useState('')
-  const [frequencyId, setFrequencyId] = React.useState(SELECT_NONE)
+  const [schedulePattern, setSchedulePattern] = React.useState<SchedulePattern>('DAILY')
   const [frequencyIntervalDays, setFrequencyIntervalDays] = React.useState('1')
-  const [timeSlots, setTimeSlots] = React.useState<MedicationTimeSlot[]>(() => [
-    newTimeSlot(),
-    newTimeSlot(),
-  ])
+  const [selectedWeekdays, setSelectedWeekdays] = React.useState<WeekdayValue[]>(() =>
+    defaultWeekdays(),
+  )
+  const [monthlyAnchorToStart, setMonthlyAnchorToStart] = React.useState(true)
+  const [monthlyDayOfMonth, setMonthlyDayOfMonth] = React.useState('1')
+  const [timeSlots, setTimeSlots] = React.useState<MedicationTimeSlot[]>(() =>
+    timeSlotsFromRounds([]),
+  )
 
   const [packSource, setPackSource] = React.useState<'NEW' | 'EXISTING'>('NEW')
   const [packName, setPackName] = React.useState('')
@@ -120,14 +155,19 @@ export function AddMedicationDialog({
     newPackItem(),
     newPackItem(),
   ])
-  const [packs, setPacks] = React.useState<MedicationPackRow[]>([])
-  const [packsLoading, setPacksLoading] = React.useState(false)
+  const isBlister = recordType === 'BLISTER_PACK'
+  const { data: packs = [], isLoading: packsLoading } = useMedicationPacks(
+    serviceUserId,
+    open && isBlister,
+  )
 
   const [formError, setFormError] = React.useState<string | null>(null)
-  const [formSaving, setFormSaving] = React.useState(false)
+  const formSaving =
+    createMedication.isPending || createPack.isPending || addPackItemMutation.isPending
 
   function resetForm() {
     setRecordType('MEDICATION')
+    setIsPrnMedication(false)
     setBasicSearch(false)
     setMedicationName('')
     setDose('')
@@ -140,65 +180,88 @@ export function AddMedicationDialog({
     setExpiryDate('')
     setReasonForMedication('')
     setMedicationNotes('')
-    setFrequencyId(SELECT_NONE)
+    setSchedulePattern('DAILY')
     setFrequencyIntervalDays('1')
-    setTimeSlots([newTimeSlot(), newTimeSlot()])
+    setSelectedWeekdays(defaultWeekdays())
+    setMonthlyAnchorToStart(true)
+    setMonthlyDayOfMonth('1')
+    setTimeSlots(timeSlotsFromRounds(lookups?.rounds ?? []))
     setPackSource('NEW')
     setPackName('')
     setExistingPackId(SELECT_NONE)
     setPackItems([newPackItem(), newPackItem()])
-    setPacks([])
     setFormError(null)
   }
 
+  const timeSlotsSeededRef = React.useRef(false)
+
   React.useEffect(() => {
-    if (!open) return
+    if (!open) {
+      timeSlotsSeededRef.current = false
+      return
+    }
     resetForm()
   }, [open])
 
   React.useEffect(() => {
-    if (!open || lookups) return
-    let cancelled = false
-    ;(async () => {
-      setLookupsLoading(true)
-      setLookupsError(null)
-      try {
-        const b = await fetchMedicationLookups()
-        if (!cancelled) setLookups(b)
-      } catch (e) {
-        if (!cancelled) {
-          setLookupsError(e instanceof ApiError ? e.message : 'Failed to load lookups')
-        }
-      } finally {
-        if (!cancelled) setLookupsLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [open, lookups])
-
-  React.useEffect(() => {
-    if (!open || recordType !== 'BLISTER_PACK') return
-    let cancelled = false
-    ;(async () => {
-      setPacksLoading(true)
-      try {
-        const list = await listMedicationPacks(serviceUserId)
-        if (!cancelled) setPacks(list)
-      } catch {
-        if (!cancelled) setPacks([])
-      } finally {
-        if (!cancelled) setPacksLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [open, recordType, serviceUserId])
+    if (!open || timeSlotsSeededRef.current) return
+    if (!lookups?.rounds?.length) return
+    timeSlotsSeededRef.current = true
+    setTimeSlots(timeSlotsFromRounds(lookups.rounds))
+  }, [open, lookups?.rounds])
 
   const selectedPack = packs.find(p => p.id === existingPackId) ?? null
   const existingPackItems = selectedPack?.items ?? []
+
+  const scheduleDaysOfWeek = React.useMemo(
+    () => (schedulePattern === 'WEEKLY' ? selectedWeekdays : []),
+    [schedulePattern, selectedWeekdays],
+  )
+
+  const previewPayload = React.useMemo((): MedicationSchedulePreviewPayload | null => {
+    if (isBlister || !startDate.trim()) return null
+    const schedules = buildSchedules()
+    if (!isPrnMedication && schedules.length === 0) return null
+    const interval = Math.max(1, parseInt(frequencyIntervalDays, 10) || 1)
+    const monthlyDay = Math.min(31, Math.max(1, parseInt(monthlyDayOfMonth, 10) || 1))
+    return {
+      startDate: startDate.trim(),
+      endDate: endDate.trim() || undefined,
+      previewDays: endDate.trim() ? undefined : 30,
+      medicationKind: isPrnMedication ? 'PRN' : 'REGULAR',
+      schedulePattern: isPrnMedication ? undefined : schedulePattern,
+      frequencyIntervalDays: isPrnMedication
+        ? undefined
+        : schedulePattern === 'DAILY'
+          ? interval
+          : 1,
+      monthlyDayOfMonth:
+        !isPrnMedication && schedulePattern === 'MONTHLY' && !monthlyAnchorToStart
+          ? monthlyDay
+          : undefined,
+      monthlyAnchorToStartDate:
+        !isPrnMedication && schedulePattern === 'MONTHLY' ? monthlyAnchorToStart : undefined,
+      schedules: isPrnMedication ? [{ dueTime: '00:00' }] : schedules,
+    }
+  }, [
+    isBlister,
+    isPrnMedication,
+    startDate,
+    endDate,
+    schedulePattern,
+    frequencyIntervalDays,
+    monthlyAnchorToStart,
+    monthlyDayOfMonth,
+    scheduleDaysOfWeek,
+    timeSlots,
+  ])
+
+  const schedulePreviewQuery = useMedicationSchedulePreview(
+    serviceUserId,
+    previewPayload,
+    open && !isBlister,
+  )
+  const schedulePreview = schedulePreviewQuery.data
 
   function addTimeSlot() {
     setTimeSlots(prev => [...prev, newTimeSlot()])
@@ -225,12 +288,28 @@ export function AddMedicationDialog({
   }
 
   function buildSchedules() {
+    const rounds = lookups?.rounds ?? []
+    const defaultDose = dose.trim()
+    const days = schedulePattern === 'WEEKLY' ? scheduleDaysOfWeek : undefined
     return timeSlots
-      .map(s => ({
-        dueTime: normalizeTimeInput(s.dueTime),
-        dueVisitName: s.carePlanAction.trim() || undefined,
-      }))
+      .map(s => {
+        const dueTime = normalizeTimeInput(s.dueTime)
+        const slotDose = s.dose.trim() || defaultDose
+        return {
+          dueTime,
+          dose: slotDose || undefined,
+          dueVisitName: s.carePlanAction.trim() || undefined,
+          roundId: s.roundId ?? (dueTime ? matchRoundIdByTime(rounds, dueTime) : undefined),
+          daysOfWeek: days,
+        }
+      })
       .filter(s => s.dueTime)
+  }
+
+  function toggleWeekday(day: WeekdayValue) {
+    setSelectedWeekdays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day],
+    )
   }
 
   function validateMarFields(): string | null {
@@ -238,8 +317,20 @@ export function AddMedicationDialog({
     if (!optionalId(routeId)) return 'Route administration is required.'
     if (!dose.trim()) return 'Dose is required.'
     if (!optionalId(medicationTypeId)) return 'Medication type is required.'
-    if (!optionalId(frequencyId)) return 'Frequency is required.'
-    if (buildSchedules().length === 0) return 'Add at least one administration time under “at times”.'
+    if (!isPrnMedication && buildSchedules().length === 0) {
+      return 'Add at least one administration time under "at times".'
+    }
+    if (!isPrnMedication && schedulePattern === 'WEEKLY' && selectedWeekdays.length === 0) {
+      return 'Select at least one weekday for a weekly pattern.'
+    }
+    if (
+      !isPrnMedication &&
+      schedulePattern === 'MONTHLY' &&
+      monthlyAnchorToStart &&
+      !startDate.trim()
+    ) {
+      return 'Start date is required when monthly doses use the same day as the start date.'
+    }
     return null
   }
 
@@ -250,16 +341,32 @@ export function AddMedicationDialog({
           ? howAssisted
           : howAssisted
         : undefined
+    const activeSlots = schedules?.length ?? 0
+    const interval = Math.max(1, parseInt(frequencyIntervalDays, 10) || 1)
+    const monthlyDay = Math.min(31, Math.max(1, parseInt(monthlyDayOfMonth, 10) || 1))
     return {
-      medicationKind: 'REGULAR' as const,
+      medicationKind: isPrnMedication ? ('PRN' as const) : ('REGULAR' as const),
       dose: dose.trim(),
       startDate: startDate.trim(),
       endDate: endDate.trim() || undefined,
       expiryDate: expiryDate.trim() || undefined,
       routeId: optionalId(routeId),
       medicationTypeId: optionalId(medicationTypeId),
-      frequencyId: optionalId(frequencyId),
-      frequencyIntervalDays: Math.max(1, parseInt(frequencyIntervalDays, 10) || 1),
+      frequencyId: isPrnMedication
+        ? undefined
+        : resolveFrequencyIdForPattern(lookups?.frequencies ?? [], schedulePattern, activeSlots),
+      schedulePattern: isPrnMedication ? undefined : schedulePattern,
+      frequencyIntervalDays: isPrnMedication
+        ? undefined
+        : schedulePattern === 'DAILY'
+          ? interval
+          : 1,
+      monthlyDayOfMonth:
+        !isPrnMedication && schedulePattern === 'MONTHLY' && !monthlyAnchorToStart
+          ? monthlyDay
+          : undefined,
+      monthlyAnchorToStartDate:
+        !isPrnMedication && schedulePattern === 'MONTHLY' ? monthlyAnchorToStart : undefined,
       instructions: reasonForMedication.trim() || undefined,
       notes: medicationNotes.trim() || undefined,
       howAssisted: howAssistedLabel,
@@ -281,30 +388,36 @@ export function AddMedicationDialog({
       return
     }
 
-    const schedules = buildSchedules()
+    const schedules = isPrnMedication ? undefined : buildSchedules()
     setFormError(null)
 
-    setFormSaving(true)
     try {
-      const res = await createServiceUserMedication(serviceUserId, {
-        medicationName: name,
-        ...sharedMedicationPayload(schedules),
+      const res = await createMedication.mutateAsync({
+        serviceUserId,
+        body: {
+          medicationName: name,
+          ...sharedMedicationPayload(schedules),
+        },
       })
       onOpenChange(false)
       resetForm()
       await onSaved()
-      const count = res.schedules?.length ?? schedules.length
+      const count = res.schedules?.length ?? schedules?.length ?? 0
       toastSuccess(
         'Medication added',
         count > 1
           ? `Saved with ${count} administration times (one MAR row per time for carers).`
           : 'The medication list has been updated.',
       )
+      if (
+        medicationRequiresBodyMapFromLookupIds(lookups, medicationTypeId, routeId) &&
+        res.id
+      ) {
+        setBodyMapPrompt({ medicationId: res.id, medicationName: name })
+      }
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Save failed')
       toastApiError(e, 'Save failed')
-    } finally {
-      setFormSaving(false)
     }
   }
 
@@ -349,32 +462,52 @@ export function AddMedicationDialog({
 
     const schedules = buildSchedules()
     setFormError(null)
-    setFormSaving(true)
 
     try {
       if (packSource === 'NEW') {
-        const pack = await createMedicationPack(serviceUserId, {
-          name: packName.trim(),
-          startDate: startDate.trim() || undefined,
-          endDate: endDate.trim() || undefined,
-          description: medicationNotes.trim() || undefined,
+        const pack = await createPack.mutateAsync({
+          serviceUserId,
+          body: {
+            name: packName.trim(),
+            startDate: startDate.trim() || undefined,
+            endDate: endDate.trim() || undefined,
+            description: medicationNotes.trim() || undefined,
+          },
         })
         packId = pack.id
         for (let i = 0; i < items.length; i++) {
-          await addMedicationPackItem(serviceUserId, packId, {
-            ...items[i],
-            sortOrder: i,
+          const item = items[i]
+          if (!item?.medicationName) continue
+          await addPackItemMutation.mutateAsync({
+            serviceUserId,
+            packId,
+            body: {
+              ...item,
+              medicationName: item.medicationName,
+              sortOrder: i,
+            },
           })
         }
       }
 
+      let firstSiteMed: { id: string; name: string } | null = null
       for (const item of items) {
-        await createServiceUserMedication(serviceUserId, {
-          medicationName: item.medicationName,
-          strength: item.strength,
-          medicationPackId: packId,
-          ...sharedMedicationPayload(schedules),
+        const res = await createMedication.mutateAsync({
+          serviceUserId,
+          body: {
+            medicationName: item.medicationName,
+            strength: item.strength,
+            medicationPackId: packId,
+            ...sharedMedicationPayload(schedules),
+          },
         })
+        if (
+          !firstSiteMed &&
+          medicationRequiresBodyMapFromLookupIds(lookups, medicationTypeId, routeId) &&
+          res.id
+        ) {
+          firstSiteMed = { id: res.id, name: item.medicationName }
+        }
       }
 
       onOpenChange(false)
@@ -385,11 +518,16 @@ export function AddMedicationDialog({
         'Blister pack added',
         `${items.length} medication(s) linked to the pack, ${slotCount} MAR row(s) in total (${schedules.length} time(s) each).`,
       )
+      if (firstSiteMed) {
+        setBodyMapPrompt({
+          medicationId: firstSiteMed.id,
+          medicationName: firstSiteMed.name,
+          blisterItemCount: items.length,
+        })
+      }
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Save failed')
       toastApiError(e, 'Save failed')
-    } finally {
-      setFormSaving(false)
     }
   }
 
@@ -399,9 +537,55 @@ export function AddMedicationDialog({
   }
 
   const disabled = formSaving || lookupsLoading || !canSave
-  const isBlister = recordType === 'BLISTER_PACK'
+
+  function goToBodyMapSite(medicationId: string) {
+    setBodyMapPrompt(null)
+    void navigate({
+      to: '/service-users/$serviceUserId/body-map',
+      params: { serviceUserId },
+      search: { linkMedicationId: medicationId },
+    })
+  }
 
   return (
+    <>
+    <Dialog
+      open={Boolean(bodyMapPrompt)}
+      onOpenChange={open => {
+        if (!open) setBodyMapPrompt(null)
+      }}
+    >
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-blue-600" />
+            Add body map site?
+          </DialogTitle>
+          <DialogDescription>
+            {bodyMapPrompt?.blisterItemCount && bodyMapPrompt.blisterItemCount > 1
+              ? `${bodyMapPrompt.blisterItemCount} medicines in this blister pack may need body map sites (cream, patch, etc.). `
+              : null}
+            {bodyMapPrompt?.medicationName} is a site-specific medicine. CQC expects the body
+            location on the map linked to the MAR chart line
+            {bodyMapPrompt?.blisterItemCount && bodyMapPrompt.blisterItemCount > 1
+              ? ' — start with this line, then repeat for other pack items.'
+              : '.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setBodyMapPrompt(null)}>
+            Later
+          </Button>
+          <Button
+            type="button"
+            onClick={() => bodyMapPrompt && goToBodyMapSite(bodyMapPrompt.medicationId)}
+          >
+            Add body site now
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-h-[92vh] overflow-y-auto">
         <DialogHeader>
@@ -730,53 +914,180 @@ export function AddMedicationDialog({
             <p className="text-sm font-medium">
               Frequency <span className="text-destructive">*</span>
             </p>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[10rem] flex-1 space-y-1">
-                <label className="text-xs text-muted-foreground">Pattern</label>
-                <Select value={frequencyId} onValueChange={setFrequencyId} disabled={disabled || !lookups}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Daily" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    <SelectItem value={SELECT_NONE}>—</SelectItem>
-                    {lookups?.frequencies.map(f => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end gap-2">
-                <span className="pb-2 text-sm text-muted-foreground">Every:</span>
-                <Input
-                  type="number"
-                  min={1}
-                  className="w-16"
-                  value={frequencyIntervalDays}
-                  onChange={e => setFrequencyIntervalDays(e.target.value)}
-                  disabled={disabled}
-                />
-                <span className="pb-2 text-sm text-muted-foreground">Days</span>
-              </div>
-            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isPrnMedication}
+                onChange={e => setIsPrnMedication(e.target.checked)}
+                disabled={disabled}
+              />
+              PRN medication (as required — no fixed daily times)
+            </label>
 
+            {!isPrnMedication && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[10rem] flex-1 space-y-1">
+                  <label className="text-xs text-muted-foreground">Pattern</label>
+                  <Select
+                    value={schedulePattern}
+                    onValueChange={v => setSchedulePattern(v as SchedulePattern)}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SCHEDULE_PATTERN_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {schedulePattern === 'DAILY' && (
+                  <div className="flex items-end gap-2">
+                    <span className="pb-2 text-sm text-muted-foreground">Every</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={365}
+                      className="w-16"
+                      value={frequencyIntervalDays}
+                      onChange={e => setFrequencyIntervalDays(e.target.value)}
+                      disabled={disabled}
+                    />
+                    <span className="pb-2 text-sm text-muted-foreground">day(s)</span>
+                  </div>
+                )}
+              </div>
+
+              {schedulePattern === 'WEEKLY' && (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">On weekdays</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {WEEKDAY_OPTIONS.map(opt => {
+                      const active = selectedWeekdays.includes(opt.value)
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => toggleWeekday(opt.value)}
+                          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                            active
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-input bg-background text-foreground hover:bg-muted'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {schedulePattern === 'MONTHLY' && (
+                <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="monthly-anchor"
+                      checked={monthlyAnchorToStart}
+                      onChange={() => setMonthlyAnchorToStart(true)}
+                      disabled={disabled}
+                    />
+                    Same calendar day as start date
+                  </label>
+                  <label className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="radio"
+                      name="monthly-anchor"
+                      checked={!monthlyAnchorToStart}
+                      onChange={() => setMonthlyAnchorToStart(false)}
+                      disabled={disabled}
+                    />
+                    Fixed day of month
+                    {!monthlyAnchorToStart && (
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        className="h-8 w-16"
+                        value={monthlyDayOfMonth}
+                        onChange={e => setMonthlyDayOfMonth(e.target.value)}
+                        disabled={disabled}
+                      />
+                    )}
+                  </label>
+                  {monthlyAnchorToStart && !startDate.trim() && (
+                    <p className="text-xs text-amber-700">Set a start date above to anchor monthly doses.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            )}
+
+            {!isPrnMedication && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                at times: <span className="text-destructive">*</span>{' '}
-                <span className="text-xs">(each time is saved as its own schedule row for carer check-off)</span>
-              </p>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+                  at times: <span className="text-destructive">*</span>{' '}
+                  <span className="text-xs">
+                    Five administration slots (Morning → Night) — remove any the service user does not
+                    take. Set a dose per slot when it differs from the medication dose above.
+                  </span>
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={addTimeSlot}
+                  disabled={disabled}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add time
+                </Button>
+              </div>
               <ul className="space-y-2">
                 {timeSlots.map((slot, index) => (
                   <li key={slot.id} className="flex flex-wrap items-end gap-2">
-                    <div className="min-w-[7rem] flex-1 space-y-1">
-                      {index === 0 && <label className="text-xs text-muted-foreground">Time</label>}
+                    <div className="min-w-[8rem] flex-1 space-y-1">
+                      {index === 0 && (
+                        <label className="text-xs text-muted-foreground">Time slot</label>
+                      )}
+                      <div className="text-xs font-semibold text-[#475569]">
+                        {slot.roundName ? formatRoundLabel(slot.roundName) : 'Custom'}
+                      </div>
                       <Input
                         type="time"
                         value={slot.dueTime}
-                        onChange={e => updateTimeSlot(slot.id, { dueTime: e.target.value })}
+                        onChange={e => {
+                          const dueTime = e.target.value
+                          const roundId = matchRoundIdByTime(lookups?.rounds ?? [], dueTime)
+                          const round = lookups?.rounds.find(r => r.id === roundId)
+                          updateTimeSlot(slot.id, {
+                            dueTime,
+                            roundId,
+                            roundName: round?.name ?? slot.roundName,
+                          })
+                        }}
                         disabled={disabled}
                         className="[&::-webkit-calendar-picker-indicator]:opacity-100"
+                      />
+                    </div>
+                    <div className="min-w-[7rem] flex-1 space-y-1">
+                      {index === 0 && (
+                        <label className="text-xs text-muted-foreground">Dose at this time</label>
+                      )}
+                      <Input
+                        value={slot.dose}
+                        onChange={e => updateTimeSlot(slot.id, { dose: e.target.value })}
+                        placeholder={dose.trim() || 'e.g. 2 tablets'}
+                        disabled={disabled}
                       />
                     </div>
                     <div className="min-w-[12rem] flex-[2] space-y-1">
@@ -790,20 +1101,7 @@ export function AddMedicationDialog({
                         disabled={disabled}
                       />
                     </div>
-                    <div className="flex gap-1 pb-0.5">
-                      {index === timeSlots.length - 1 && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="outline"
-                          className="h-9 w-9 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
-                          onClick={addTimeSlot}
-                          disabled={disabled}
-                          aria-label="Add time"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      )}
+                    <div className="pb-0.5">
                       <Button
                         type="button"
                         size="icon"
@@ -820,6 +1118,40 @@ export function AddMedicationDialog({
                 ))}
               </ul>
             </div>
+
+            )}
+
+            {!isBlister && previewPayload && (
+              <div
+                className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
+                aria-live="polite"
+              >
+                {schedulePreviewQuery.isFetching && !schedulePreview ? (
+                  <span className="text-muted-foreground">Calculating schedule preview…</span>
+                ) : schedulePreview ? (
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">{schedulePreview.summaryLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {schedulePreview.from} to {schedulePreview.to} ({schedulePreview.dayCount}{' '}
+                      days)
+                    </p>
+                    {schedulePreview.prnNote ? (
+                      <p className="text-xs text-muted-foreground">{schedulePreview.prnNote}</p>
+                    ) : schedulePreview.perSchedule.length > 0 ? (
+                      <ul className="text-xs text-muted-foreground">
+                        {schedulePreview.perSchedule.map(row => (
+                          <li key={`${row.dueTime}-${row.timeSlotLabel}`}>
+                            {row.timeSlotLabel} ({row.dueTime}): {row.dueSlotCount} slots
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : schedulePreviewQuery.isError ? (
+                  <span className="text-destructive">Could not load schedule preview</span>
+                ) : null}
+              </div>
+            )}
           </div>
         </DialogBody>
         <DialogFooter className="gap-2 sm:justify-end">
@@ -843,5 +1175,6 @@ export function AddMedicationDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

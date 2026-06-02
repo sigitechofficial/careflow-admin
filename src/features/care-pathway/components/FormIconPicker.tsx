@@ -1,12 +1,10 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { ImagePlus, X } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import { resolveMediaUrl } from '@/lib/media-url'
-import { StandardIconImage } from '@/components/ui/standard-icon-image'
-import { listCarePictures } from '../api/picture-gallery.api'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { toastError } from '@/lib/toast'
+import { resolveMediaUrl } from '@/shared/lib/media-url'
+import { useStandardCarePictures } from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { StandardIconImage } from '@/shared/ui/standard-icon-image'
+import { Button } from '@/shared/ui/button'
+import { cn } from '@/shared/lib/utils'
 
 type GalleryPicture = { name: string; fileUrl: string }
 
@@ -26,32 +24,12 @@ export function FormIconPicker({
   label?: string
 }) {
   const fileRef = React.useRef<HTMLInputElement>(null)
-  const [standardIcons, setStandardIcons] = React.useState<GalleryPicture[]>([])
-  const [loadingIcons, setLoadingIcons] = React.useState(true)
+  const { data, isLoading: loadingIcons } = useStandardCarePictures()
 
-  React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoadingIcons(true)
-      try {
-        const rows = await listCarePictures({ type: 'standard' })
-        if (!cancelled) {
-          setStandardIcons(
-            rows.map(r => ({ name: r.name, fileUrl: r.fileUrl })).filter(r => r.fileUrl),
-          )
-        }
-      } catch (e) {
-        if (!cancelled) {
-          toastError(e instanceof ApiError ? e.message : 'Could not load standard icons.')
-        }
-      } finally {
-        if (!cancelled) setLoadingIcons(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const standardIcons = React.useMemo<GalleryPicture[]>(
+    () => (data ?? []).map(r => ({ name: r.name, fileUrl: r.fileUrl })).filter(r => r.fileUrl),
+    [data],
+  )
 
   const previewUrl = React.useMemo(() => {
     if (pendingFile) return URL.createObjectURL(pendingFile)

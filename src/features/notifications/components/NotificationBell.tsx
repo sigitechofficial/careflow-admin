@@ -1,25 +1,25 @@
 import * as React from 'react'
 import { Bell, Loader2, Settings2, Volume2, VolumeX } from 'lucide-react'
-import { getApiBaseUrl } from '@/lib/api-base'
-import { useAuthStore } from '@/store/auth.store'
-import { Button } from '@/components/ui/button'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
+import { Button } from '@/shared/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@/shared/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import { useUnreadNotificationCount } from '@/features/notifications/hooks/useUnreadNotificationCount'
 import { NotificationDropdown } from '@/features/notifications/components/NotificationDropdown'
 import { NotificationPreferencesPanel } from '@/features/notifications/components/NotificationPreferencesPanel'
 import { useNotificationPreferences } from '@/features/notifications/hooks/useNotificationPreferences'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/lib/utils'
 
 export function NotificationBell() {
   const can = useAuthStore(s => s.can('notifications.read'))

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { getApiBaseUrl } from '@/lib/api-base'
-import { useAuthStore } from '@/store/auth.store'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
 import { fetchNotifications, type ListNotificationsParams } from '@/features/notifications/api/notifications.api'
 
 export function useNotifications(params: ListNotificationsParams = {}) {

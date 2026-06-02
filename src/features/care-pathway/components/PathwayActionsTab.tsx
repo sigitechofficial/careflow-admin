@@ -1,15 +1,14 @@
 import * as React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
+import type { PathwayActionType } from '@/features/care-pathway/types/care-pathway.types'
 import {
-  createPathwayAction,
-  deletePathwayAction,
-  listPathwayActions,
-  listPathwayChecklistsBrief,
-} from '../api/pathway-actions.api'
-import type { PathwayActionRow, PathwayActionType } from '../types/care-pathway.types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+  useCreatePathwayAction,
+  useDeletePathwayAction,
+} from '@/features/care-pathway/hooks/useCarePathwayMutations'
+import { usePathwayActions, usePathwayChecklistsBrief } from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import {
   Dialog,
   DialogBody,
@@ -17,14 +16,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/shared/ui/select'
 import {
   Table,
   TableBody,
@@ -32,44 +31,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/data-table'
-import { useAuthStore } from '@/store/auth.store'
-import { toastError, toastSuccess } from '@/lib/toast'
+} from '@/shared/ui/data-table'
+import { useAuthStore } from '@/features/auth/store'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
 
 export function PathwayActionsTab() {
   const canCreate = useAuthStore(s => s.can('pathway_actions.create'))
   const canDelete = useAuthStore(s => s.can('pathway_actions.delete'))
-  const [rows, setRows] = React.useState<PathwayActionRow[]>([])
-  const [checklists, setChecklists] = React.useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const actionsQuery = usePathwayActions({ limit: 100 })
+  const checklistsQuery = usePathwayChecklistsBrief()
+  const createMutation = useCreatePathwayAction()
+  const deleteMutation = useDeletePathwayAction()
+
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [actionName, setActionName] = React.useState('')
   const [actionIcon, setActionIcon] = React.useState('default')
   const [actionType, setActionType] = React.useState<PathwayActionType>('CHECKLIST')
   const [carersCount, setCarersCount] = React.useState('1')
   const [checklistId, setChecklistId] = React.useState('')
-  const [saving, setSaving] = React.useState(false)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const [{ rows: data }, cl] = await Promise.all([
-        listPathwayActions({ limit: 100 }),
-        listPathwayChecklistsBrief(),
-      ])
-      setRows(data)
-      setChecklists(cl)
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load actions.')
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
+  const loading = actionsQuery.isLoading || checklistsQuery.isLoading
+  const rows = actionsQuery.data?.rows ?? []
+  const checklists = checklistsQuery.data ?? []
+  const saving = createMutation.isPending || deleteMutation.isPending
 
   const onCreate = async () => {
     const name = actionName.trim()
@@ -82,9 +66,8 @@ export function PathwayActionsTab() {
       toastError('Staff count must be between 1 and 9.')
       return
     }
-    setSaving(true)
     try {
-      await createPathwayAction({
+      await createMutation.mutateAsync({
         actionName: name,
         actionIcon: actionIcon.trim() || 'default',
         actionType,
@@ -93,20 +76,16 @@ export function PathwayActionsTab() {
       })
       toastSuccess('Action created.')
       setDialogOpen(false)
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Create failed.')
-    } finally {
-      setSaving(false)
     }
   }
 
-  const onDelete = async (row: PathwayActionRow) => {
+  const onDelete = async (row: { id: string; actionName: string }) => {
     if (!canDelete || !window.confirm(`Delete "${row.actionName}"?`)) return
     try {
-      await deletePathwayAction(row.id)
+      await deleteMutation.mutateAsync(row.id)
       toastSuccess('Action deleted.')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Delete failed.')
     }

@@ -1,9 +1,8 @@
-import * as React from 'react'
-import { ArrowRight } from 'lucide-react'
-import { ApiError } from '@/lib/api-client'
-import { fetchCarePathwayOverview } from '@/features/care-pathway/api/care-pathway.api'
+﻿import { ArrowRight } from 'lucide-react'
+import { ApiError } from '@/shared/api/api-client'
 import type { CarePathwayOverview } from '@/features/care-pathway/types/care-pathway.types'
-import { cn } from '@/lib/utils'
+import { useCarePathwayOverview } from '@/features/care-pathway/hooks/useCarePathwayOverview'
+import { cn } from '@/shared/lib/utils'
 
 function FlowBox({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
@@ -41,20 +40,14 @@ const FALLBACK_OVERVIEW: CarePathwayOverview = {
 }
 
 export function CarePathwayWizardPanel() {
-  const [overview, setOverview] = React.useState<CarePathwayOverview>(FALLBACK_OVERVIEW)
-  const [apiError, setApiError] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    void fetchCarePathwayOverview()
-      .then(data => {
-        setOverview(data)
-        setApiError(null)
-      })
-      .catch(e => {
-        setOverview(FALLBACK_OVERVIEW)
-        setApiError(e instanceof ApiError ? e.message : null)
-      })
-  }, [])
+  const { data, error: queryError } = useCarePathwayOverview()
+  const overview = data ?? FALLBACK_OVERVIEW
+  const apiError =
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? 'Could not load care pathway overview.'
+        : null
 
   return (
     <div className="space-y-8" data-testid="care-pathway-wizard-panel">
@@ -119,23 +112,23 @@ export function CarePathwayWizardPanel() {
 
       <div className="space-y-4 border-t border-border pt-6 text-sm leading-relaxed text-muted-foreground">
         <p>
-          <span className="font-semibold text-foreground">Form Builder —</span> Optional customised forms for care
+          <span className="font-semibold text-foreground">Form Builder â€”</span> Optional customised forms for care
           plans, assessments, service management, and staff appraisals. Standard forms apply if unused.
         </p>
         <p>
-          <span className="font-semibold text-foreground">Select Default Forms —</span> Choose which published forms
+          <span className="font-semibold text-foreground">Select Default Forms â€”</span> Choose which published forms
           your organisation uses by default.
         </p>
         <p>
-          <span className="font-semibold text-foreground">Care Plan Text —</span> Pre-set wording with{' '}
+          <span className="font-semibold text-foreground">Care Plan Text â€”</span> Pre-set wording with{' '}
           <code className="text-foreground">@</code> for quick personalisation.
         </p>
         <p>
-          <span className="font-semibold text-foreground">Pre-set Checklists —</span> Standard checklists for routines,
+          <span className="font-semibold text-foreground">Pre-set Checklists â€”</span> Standard checklists for routines,
           visits, or group care.
         </p>
         <p>
-          <span className="font-semibold text-foreground">Pre-set Actions/Visits —</span> Template actions staff
+          <span className="font-semibold text-foreground">Pre-set Actions/Visits â€”</span> Template actions staff
           personalise per service user.
         </p>
       </div>

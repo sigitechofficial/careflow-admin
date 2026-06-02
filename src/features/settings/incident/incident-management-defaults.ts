@@ -1,4 +1,4 @@
-import type { IncidentDefaultStatus, IncidentTypeSetting } from '@/lib/general-settings-api'
+import type { IncidentDefaultStatus, IncidentTypeSetting } from '@/features/settings/types'
 
 export const INCIDENT_STATUS_OPTIONS: { value: IncidentDefaultStatus; label: string }[] = [
   { value: 'REPORTED', label: 'Reported' },

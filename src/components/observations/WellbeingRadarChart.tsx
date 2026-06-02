@@ -7,7 +7,7 @@ import {
   RadarChart,
   ResponsiveContainer,
 } from 'recharts'
-import type { WellbeingRadarPoint } from '@/lib/wellbeing-chart'
+import type { WellbeingRadarPoint } from '@/features/service-users/observations/wellbeing-chart'
 
 type WellbeingRadarChartProps = {
   data: WellbeingRadarPoint[]

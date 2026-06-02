@@ -1,7 +1,7 @@
-import { formatDistanceToNow } from 'date-fns'
+﻿import { formatDistanceToNow } from 'date-fns'
 import { Check, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { cn } from '@/shared/lib/utils'
+import { Button } from '@/shared/ui/button'
 import type { NotificationListItem, NotificationSeverity } from '@/features/notifications/types/notification.types'
 
 function severityDot(sev: NotificationSeverity) {

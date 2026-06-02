@@ -1,4 +1,4 @@
-import { apiJson, type ApiEnvelope } from '@/lib/api-client'
+import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
 export type CarePictureRow = {
   id: string

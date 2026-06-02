@@ -1,0 +1,416 @@
+/* Record / view modals & drawer — careflow-medication-records.html */
+
+.mar-record-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.mar-record-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: min(580px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.mar-record-modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mar-record-modal-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+}
+
+.mar-record-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mar-record-modal-detail {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.mar-record-modal-body {
+  padding: 20px 24px;
+}
+
+.mar-record-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748b;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.mar-record-close:hover {
+  background: #f8fafc;
+}
+
+.mar-record-input {
+  height: 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+}
+
+.mar-record-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+}
+
+.mar-record-textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.status-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.status-pick-btn {
+  padding: 10px 6px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s;
+}
+
+.status-pick-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.25;
+  margin-top: 5px;
+  text-align: center;
+}
+
+.status-pick-code {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.status-pick-code.pci {
+  font-size: 9px;
+  letter-spacing: -0.3px;
+}
+
+.status-search-wrap {
+  margin-bottom: 10px;
+}
+
+.mar-record-prn-bar {
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+  padding: 10px 24px;
+  font-size: 12px;
+  color: #1d4ed8;
+}
+
+.recording-as-panel {
+  margin-bottom: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.recording-as-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.recording-as-option strong {
+  display: block;
+  color: #1e293b;
+}
+
+.recording-as-option span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.mar-record-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mar-record-btn-primary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: #4f46e5;
+  color: #fff;
+}
+
+.mar-record-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mar-record-btn-outline {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+
+/* Drawer */
+.mar-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.mar-drawer-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.mar-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(400px, 100vw);
+  background: #fff;
+  z-index: 101;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.12);
+}
+
+.mar-drawer.open {
+  transform: translateX(0);
+}
+
+.record-summary-card {
+  margin: 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.record-summary-hdr {
+  padding: 18px 24px 16px;
+  color: #fff;
+}
+
+.record-summary-hdr.given {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.record-summary-hdr.refused {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.record-summary-hdr.missed {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+.record-summary-hdr.unavail {
+  background: linear-gradient(135deg, #6b7280, #374151);
+}
+
+.record-summary-code {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.record-summary-body {
+  padding: 14px 24px 16px;
+  background: #fafafa;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.record-summary-item .label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.record-summary-item .value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.record-summary-item.full {
+  grid-column: 1 / -1;
+}
+
+.drawer-section {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.drawer-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
+
+.drawer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.drawer-key {
+  color: #64748b;
+}
+
+.drawer-val {
+  color: #1e293b;
+  font-weight: 500;
+  text-align: right;
+}
+
+.badge-review {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Calendar extras */
+.mar-cal-root .med-group-header .group-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #64748b;
+  padding-left: 12px;
+  margin-left: 4px;
+  border-left: 1px solid #e2e8f0;
+}
+
+.mar-cal-root .med-group-header .group-stats strong {
+  color: #475569;
+  font-weight: 600;
+}
+
+.mar-cal-root .mar-med-count-bar {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.mar-cal-root .time-slot-cell.is-prn {
+  background: #eff6ff;
+}
+
+.mar-cal-root .time-slot-cell.is-prn .time-slot-label {
+  color: #1d4ed8;
+}
+
+.mar-cal-root .time-slot-cell.is-prn .time-slot-time {
+  color: #93c5fd;
+}
+
+.mar-cal-root .filter-chip.chip-status {
+  border-width: 1.5px;
+}
+
+.mar-cal-root .filter-chip.chip-status:not(.active) .chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

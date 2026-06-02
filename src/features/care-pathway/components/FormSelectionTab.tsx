@@ -1,77 +1,79 @@
 import * as React from 'react'
-import { ApiError } from '@/lib/api-client'
+import { ApiError } from '@/shared/api/api-client'
+import type { FormSelectionGroup } from '@/features/care-pathway/types/care-pathway.types'
+import type { CarePathwayFormType } from '@/features/care-pathway/types/care-pathway.types'
+import { useUpdateFormSelections } from '@/features/care-pathway/hooks/useCarePathwayMutations'
 import {
-  fetchFormSelections,
-  listSelectableForms,
-  updateFormSelections,
-  type FormSelectionGroup,
-} from '../api/form-selection.api'
-import type { CarePathwayFormType } from '../types/care-pathway.types'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/toggle-controls'
-import { useAuthStore } from '@/store/auth.store'
-import { toastError, toastSuccess } from '@/lib/toast'
+  useFormSelections,
+  useSelectableForms,
+} from '@/features/care-pathway/hooks/useCarePathwayTabs'
+import { Button } from '@/shared/ui/button'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { useAuthStore } from '@/features/auth/store'
+import { toastError, toastSuccess } from '@/shared/lib/toast'
 
 type GroupKey = keyof FormSelectionGroup
 
-const GROUPS: { key: GroupKey; label: string; type: CarePathwayFormType; listPath: 'care-plans' | 'assessments' | 'service-forms' | 'staff-forms' }[] = [
+const GROUPS: {
+  key: GroupKey
+  label: string
+  type: CarePathwayFormType
+  listPath: 'care-plans' | 'assessments' | 'service-forms' | 'staff-forms'
+}[] = [
   { key: 'carePlans', label: 'Care plans', type: 'CARE_PLAN', listPath: 'care-plans' },
   { key: 'assessments', label: 'Assessments', type: 'ASSESSMENT', listPath: 'assessments' },
   { key: 'serviceForms', label: 'Service forms', type: 'SERVICE_FORM', listPath: 'service-forms' },
   { key: 'staffForms', label: 'Staff forms', type: 'STAFF_FORM', listPath: 'staff-forms' },
 ]
 
+function pickedFromSelections(sel: FormSelectionGroup): Record<GroupKey, Set<string>> {
+  return {
+    carePlans: new Set(sel.carePlans.map(s => s.formId)),
+    assessments: new Set(sel.assessments.map(s => s.formId)),
+    serviceForms: new Set(sel.serviceForms.map(s => s.formId)),
+    staffForms: new Set(sel.staffForms.map(s => s.formId)),
+  }
+}
+
 export function FormSelectionTab() {
   const canUpdate = useAuthStore(s => s.can('form_selection.update'))
-  const [selections, setSelections] = React.useState<FormSelectionGroup | null>(null)
-  const [available, setAvailable] = React.useState<Record<GroupKey, { id: string; name: string }[]>>({
-    carePlans: [],
-    assessments: [],
-    serviceForms: [],
-    staffForms: [],
-  })
+  const selectionsQuery = useFormSelections()
+  const carePlansQuery = useSelectableForms('care-plans', { limit: 100 })
+  const assessmentsQuery = useSelectableForms('assessments', { limit: 100 })
+  const serviceFormsQuery = useSelectableForms('service-forms', { limit: 100 })
+  const staffFormsQuery = useSelectableForms('staff-forms', { limit: 100 })
+  const updateMutation = useUpdateFormSelections()
+
   const [picked, setPicked] = React.useState<Record<GroupKey, Set<string>>>({
     carePlans: new Set(),
     assessments: new Set(),
     serviceForms: new Set(),
     staffForms: new Set(),
   })
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
+  const [dirty, setDirty] = React.useState(false)
 
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const [sel, ...lists] = await Promise.all([
-        fetchFormSelections(),
-        ...GROUPS.map(g => listSelectableForms(g.listPath, { limit: 100 })),
-      ])
-      setSelections(sel)
-      const avail: Record<GroupKey, { id: string; name: string }[]> = {
-        carePlans: lists[0].map(f => ({ id: f.id, name: f.name })),
-        assessments: lists[1].map(f => ({ id: f.id, name: f.name })),
-        serviceForms: lists[2].map(f => ({ id: f.id, name: f.name })),
-        staffForms: lists[3].map(f => ({ id: f.id, name: f.name })),
-      }
-      setAvailable(avail)
-      setPicked({
-        carePlans: new Set(sel.carePlans.map(s => s.formId)),
-        assessments: new Set(sel.assessments.map(s => s.formId)),
-        serviceForms: new Set(sel.serviceForms.map(s => s.formId)),
-        staffForms: new Set(sel.staffForms.map(s => s.formId)),
-      })
-    } catch (e) {
-      toastError(e instanceof ApiError ? e.message : 'Could not load form selection.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const loading =
+    selectionsQuery.isLoading ||
+    carePlansQuery.isLoading ||
+    assessmentsQuery.isLoading ||
+    serviceFormsQuery.isLoading ||
+    staffFormsQuery.isLoading
+
+  const available: Record<GroupKey, { id: string; name: string }[]> = {
+    carePlans: (carePlansQuery.data ?? []).map(f => ({ id: f.id, name: f.name })),
+    assessments: (assessmentsQuery.data ?? []).map(f => ({ id: f.id, name: f.name })),
+    serviceForms: (serviceFormsQuery.data ?? []).map(f => ({ id: f.id, name: f.name })),
+    staffForms: (staffFormsQuery.data ?? []).map(f => ({ id: f.id, name: f.name })),
+  }
 
   React.useEffect(() => {
-    void load()
-  }, [load])
+    if (selectionsQuery.data && !dirty) {
+      setPicked(pickedFromSelections(selectionsQuery.data))
+    }
+  }, [selectionsQuery.data, dirty])
 
   const toggle = (key: GroupKey, formId: string, checked: boolean) => {
+    setDirty(true)
     setPicked(prev => {
       const next = new Set(prev[key])
       if (checked) next.add(formId)
@@ -82,20 +84,17 @@ export function FormSelectionTab() {
 
   const onSave = async () => {
     if (!canUpdate) return
-    setSaving(true)
     try {
-      await updateFormSelections({
+      await updateMutation.mutateAsync({
         carePlans: [...picked.carePlans],
         assessments: [...picked.assessments],
         serviceForms: [...picked.serviceForms],
         staffForms: [...picked.staffForms],
       })
+      setDirty(false)
       toastSuccess('Default forms updated.')
-      await load()
     } catch (e) {
       toastError(e instanceof ApiError ? e.message : 'Save failed.')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -135,11 +134,11 @@ export function FormSelectionTab() {
       ))}
 
       {canUpdate && (
-        <Button type="button" onClick={() => void onSave()} disabled={saving}>
+        <Button type="button" onClick={() => void onSave()} disabled={updateMutation.isPending}>
           Save selections
         </Button>
       )}
-      {selections && !canUpdate && (
+      {selectionsQuery.data && !canUpdate && (
         <p className="text-xs text-muted-foreground">You have read-only access to form selection.</p>
       )}
     </div>

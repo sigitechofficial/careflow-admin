@@ -1,11 +1,11 @@
 import { Menu, Search, Sun, Moon, Monitor } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
-import { useAuthStore } from '@/store/auth.store'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { UserAvatar } from '@/components/ui/avatar'
+import { useAuthStore } from '@/features/auth/store'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
+import { UserAvatar } from '@/shared/ui/avatar'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import {
   DropdownMenu,
@@ -14,8 +14,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
+} from '@/shared/ui/dropdown-menu'
+import { Badge } from '@/shared/ui/badge'
 
 interface TopbarProps {
   pageTitle?: string

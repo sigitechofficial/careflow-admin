@@ -1,4 +1,4 @@
-import type { OrganisationOptionalSettings } from '@/lib/general-settings-api'
+import type { OrganisationOptionalSettings } from '@/features/settings/types'
 
 export const MEDICATION_AMEND_ROLE_OPTIONS = [
   { value: 'area_supervisor', label: 'Area Supervisor' },
