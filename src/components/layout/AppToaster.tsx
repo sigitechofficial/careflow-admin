@@ -1,5 +1,5 @@
 ﻿import * as React from 'react'
-import { AlertCircle, CheckCircle2, Info, XCircle } from 'lucide-react'
+import { AlertCircle, Check, CheckCircle2, Copy, Info, XCircle } from 'lucide-react'
 import {
   ToastProvider,
   ToastViewport,
@@ -10,6 +10,7 @@ import {
 } from '@/shared/ui/feedback'
 import { useToastStore } from '@/store/toast.store'
 import { cn } from '@/shared/lib/utils'
+import { Button } from '@/shared/ui/button'
 
 const iconMap = {
   default: Info,
@@ -18,14 +19,41 @@ const iconMap = {
   destructive: XCircle,
 } as const
 
+function toastCopyText(title: string, description?: string): string {
+  return description?.trim() ? `${title}\n${description}` : title
+}
+
 export function AppToaster() {
   const toasts = useToastStore((s) => s.toasts)
   const dismiss = useToastStore((s) => s.dismiss)
+  const [copiedId, setCopiedId] = React.useState<string | null>(null)
+
+  const copyToast = React.useCallback(async (id: string, title: string, description?: string) => {
+    const text = toastCopyText(title, description)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(id)
+      window.setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 2000)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      setCopiedId(id)
+      window.setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 2000)
+    }
+  }, [])
 
   return (
-    <ToastProvider swipeDirection="right" duration={5000} label="Notifications">
+    <ToastProvider swipeDirection="down" duration={5000} label="Notifications">
       {toasts.map((t) => {
         const Icon = iconMap[t.variant]
+        const copied = copiedId === t.id
         return (
           <Toast
             key={t.id}
@@ -44,11 +72,24 @@ export function AppToaster() {
                 t.variant === 'default' && 'text-muted-foreground',
               )}
             />
-            <div className="flex-1 min-w-0 pr-6">
+            <div className="flex-1 min-w-0 cursor-text select-text pe-14">
               <ToastTitle>{t.title}</ToastTitle>
               {t.description ? <ToastDescription>{t.description}</ToastDescription> : null}
             </div>
-            <ToastClose />
+            <div className="absolute right-2 top-2 flex items-center gap-0.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                aria-label={copied ? 'Copied' : 'Copy message'}
+                title={copied ? 'Copied' : 'Copy message'}
+                onClick={() => void copyToast(t.id, t.title, t.description)}
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+              <ToastClose className="static opacity-100" />
+            </div>
           </Toast>
         )
       })}

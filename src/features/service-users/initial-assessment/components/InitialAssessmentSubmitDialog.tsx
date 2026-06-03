@@ -9,7 +9,10 @@ import {
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { HubTabId } from '@/features/service-users/initial-assessment/components/InitialAssessmentHubTabs'
-import type { ValidationIssue } from '@/features/service-users/initial-assessment/utils/submit-validation'
+import {
+  isSkippableIncompleteValidationMessage,
+  type ValidationIssue,
+} from '@/features/service-users/initial-assessment/utils/submit-validation'
 
 type Props = {
   open: boolean
@@ -17,6 +20,7 @@ type Props = {
   blocks: ValidationIssue[]
   warnings: ValidationIssue[]
   canSubmit: boolean
+  canSubmitIncomplete?: boolean
   submitting?: boolean
   validating?: boolean
   flaggedRiskCount?: number
@@ -25,6 +29,7 @@ type Props = {
   onGoToSection: (sectionNumber: number) => void
   onGoToHubTab?: (tab: HubTabId) => void
   onConfirm: () => void
+  onConfirmIncomplete?: () => void
 }
 
 export function InitialAssessmentSubmitDialog({
@@ -33,6 +38,7 @@ export function InitialAssessmentSubmitDialog({
   blocks,
   warnings,
   canSubmit,
+  canSubmitIncomplete = false,
   submitting,
   validating,
   flaggedRiskCount,
@@ -41,7 +47,11 @@ export function InitialAssessmentSubmitDialog({
   onGoToSection,
   onGoToHubTab,
   onConfirm,
+  onConfirmIncomplete,
 }: Props) {
+  const skippableBlocks = blocks.filter((b) => isSkippableIncompleteValidationMessage(b.message))
+  const hardBlocks = blocks.filter((b) => !isSkippableIncompleteValidationMessage(b.message))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="xl">
@@ -53,9 +63,13 @@ export function InitialAssessmentSubmitDialog({
             <p className="text-sm text-muted-foreground">Checking submission rules…</p>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            {blocks.length ? (
+            {hardBlocks.length ? (
               <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-900">
-                {blocks.length} blocking
+                {hardBlocks.length} must fix
+              </span>
+            ) : blocks.length ? (
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                {skippableBlocks.length} incomplete field{skippableBlocks.length === 1 ? '' : 's'}
               </span>
             ) : (
               <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
@@ -89,13 +103,13 @@ export function InitialAssessmentSubmitDialog({
             </div>
           ) : null}
 
-          {blocks.length > 0 ? (
+          {hardBlocks.length > 0 ? (
             <div className="space-y-2">
               <p className="text-sm font-semibold text-red-800">Must fix before submit</p>
               <ul className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                {blocks.map((b, i) => (
+                {hardBlocks.map((b, i) => (
                   <li
-                    key={`${b.sectionNumber}-${i}`}
+                    key={`hard-${b.sectionNumber}-${i}`}
                     className="flex flex-col rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
                   >
                     <span className="leading-snug">{b.message}</span>
@@ -126,6 +140,38 @@ export function InitialAssessmentSubmitDialog({
             </div>
           ) : null}
 
+          {skippableBlocks.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-amber-900">
+                {canSubmitIncomplete
+                  ? 'Incomplete — you can submit without these'
+                  : 'Missing required information'}
+              </p>
+              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-amber-200 bg-amber-50/80 p-3 text-sm text-amber-950">
+                {skippableBlocks.map((b, i) => (
+                  <li key={`skip-${b.sectionNumber}-${i}`} className="flex flex-wrap items-baseline gap-2">
+                    <span>{b.message}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="link"
+                      className="h-auto p-0 text-amber-900"
+                      onClick={() => onGoToSection(b.sectionNumber)}
+                    >
+                      Section {b.sectionNumber}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              {canSubmitIncomplete ? (
+                <p className="text-xs text-muted-foreground">
+                  Use &quot;Submit incomplete assessment&quot; to send for manager review without answering the
+                  items above. Safety rules (for example consent declined) still cannot be overridden.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {warnings.length > 0 ? (
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Warnings (can still submit)</p>
@@ -144,10 +190,20 @@ export function InitialAssessmentSubmitDialog({
             </p>
           ) : null}
         </DialogBody>
-        <DialogFooter>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Back to assessment
           </Button>
+          {canSubmitIncomplete && onConfirmIncomplete ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={submitting || validating}
+              onClick={onConfirmIncomplete}
+            >
+              Submit incomplete assessment
+            </Button>
+          ) : null}
           <Button type="button" disabled={!canSubmit || submitting || validating} onClick={onConfirm}>
             Submit for manager review
           </Button>

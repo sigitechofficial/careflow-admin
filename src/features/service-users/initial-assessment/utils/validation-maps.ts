@@ -1,5 +1,8 @@
 import type { InitialAssessmentSection } from '@/features/service-users/initial-assessment/types'
-import type { ValidationIssue } from '@/features/service-users/initial-assessment/utils/submit-validation'
+import {
+  isSkippableIncompleteValidationMessage,
+  type ValidationIssue,
+} from '@/features/service-users/initial-assessment/utils/submit-validation'
 import {
   sectionProgress,
   type SectionProgressContext,
@@ -9,7 +12,7 @@ import type { InitialAssessmentAnswerInput } from '@/features/service-users/init
 export type SectionNavStatus = 'ok' | 'incomplete' | 'blocking' | 'warning'
 
 export function isRequiredFieldValidationMessage(message: string): boolean {
-  return message.startsWith('Required: ')
+  return isSkippableIncompleteValidationMessage(message) && message.startsWith('Required: ')
 }
 
 function sectionHasHardBlocks(sectionBlocks: ValidationIssue[] | undefined, revealFieldErrors: boolean): boolean {

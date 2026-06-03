@@ -132,6 +132,7 @@ export type InitialAssessmentValidationResult = {
   blocks: InitialAssessmentValidationIssue[]
   warnings: InitialAssessmentValidationIssue[]
   canSubmit: boolean
+  canSubmitIncomplete?: boolean
   overallPercent: number
 }
 

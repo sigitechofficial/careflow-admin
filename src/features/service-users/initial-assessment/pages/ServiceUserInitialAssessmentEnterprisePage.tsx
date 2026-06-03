@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ClipboardCheck, FileCode2, FileDown, Loader2 } from 'lucide-react'
+import { ClipboardCheck, FileCode2, FileDown, Loader2, TestTube2 } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -34,7 +34,9 @@ import { InitialAssessmentManagerReviewPanel } from '@/features/service-users/in
 import { InitialAssessmentReopenDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentReopenDialog'
 import { InitialAssessmentHtmlExportDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentHtmlExportDialog'
 import { InitialAssessmentPdfDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentPdfDialog'
+import { InitialAssessmentPlaywrightTestsDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentPlaywrightTestsDialog'
 import { InitialAssessmentProfileCard } from '@/features/service-users/initial-assessment/components/InitialAssessmentProfileCard'
+import { InitialAssessmentStatusBadge } from '@/features/service-users/initial-assessment/components/InitialAssessmentStatusBadge'
 import { InitialAssessmentRiskRecordsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRiskRecordsPanel'
 import { InitialAssessmentActionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentActionsPanel'
 import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanRecommendationsPanel'
@@ -75,6 +77,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/submission-metadata'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
+import { batchRequiresCorrectionReason } from '@/features/service-users/initial-assessment/utils/answer-correction-check'
 import { syncDerivedConcernGates } from '@/features/service-users/initial-assessment/utils/concern-gate-utils'
 import { practicalCareHasAssistanceNeeds } from '@/features/service-users/initial-assessment/utils/practical-care-utils'
 import { getSubmitValidationIssues } from '@/features/service-users/initial-assessment/utils/submit-validation'
@@ -120,6 +123,9 @@ import type {
   InitialAssessmentSection,
   InitialAssessmentStatus,
 } from '@/features/service-users/initial-assessment/types'
+import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
+import { runIaAutofillDev } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
+import { iaAutofillLevelUi } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
 const LEGACY_PATH = '/service-users/initial-assessment-checklist'
@@ -176,18 +182,6 @@ function customerLabel(row: ServiceUserListRow): string {
   const name = row.preferredName?.trim() || [row.firstName, row.lastName].filter(Boolean).join(' ')
   const num = row.serviceUserNumber ? ` (${row.serviceUserNumber})` : ''
   return `${name}${num}`.trim() || row.id
-}
-
-function statusBadge(status: InitialAssessmentStatus) {
-  const map: Record<InitialAssessmentStatus, string> = {
-    DRAFT: 'bg-muted text-muted-foreground',
-    IN_PROGRESS: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
-    SUBMITTED: 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200',
-    REVIEWED: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
-    ARCHIVED: 'bg-muted text-muted-foreground',
-    CANCELLED: 'bg-destructive/15 text-destructive',
-  }
-  return map[status] ?? 'bg-muted'
 }
 
 export default function ServiceUserInitialAssessmentEnterprisePage() {
@@ -273,6 +267,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [reopenOpen, setReopenOpen] = React.useState(false)
   const [reopenReason, setReopenReason] = React.useState('')
   const answersHydratedRef = React.useRef(false)
+  const serverBaselineAnswersRef = React.useRef<Record<string, InitialAssessmentAnswerInput>>({})
+  const correctionReasonRef = React.useRef<HTMLTextAreaElement>(null)
   const dirtyAnswerQuestionIdsRef = React.useRef(new Set<string>())
   const skipAutosaveRef = React.useRef(true)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
@@ -311,6 +307,34 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     if (!submission?.id) return
     setHtmlExportOpen(true)
   }, [submission?.id])
+
+  const [iaAutofillRunning, setIaAutofillRunning] = React.useState<
+    'low' | 'normal' | 'critical' | null
+  >(null)
+  const [playwrightTestsOpen, setPlaywrightTestsOpen] = React.useState(false)
+
+  const runIaPlaywrightAutofill = React.useCallback(
+    async (level: 'low' | 'normal' | 'critical') => {
+      if (!selectedId || iaAutofillRunning) return
+      setIaAutofillRunning(level)
+      try {
+        const ui = iaAutofillLevelUi(level)
+        const message = await runIaAutofillDev(selectedId, level)
+        toastSuccess(ui.completeToastTitle, message)
+        await queryClient.invalidateQueries({ queryKey: initialAssessmentKeys.all() })
+        if (submissionId) {
+          await queryClient.invalidateQueries({
+            queryKey: initialAssessmentKeys.submission(selectedId, submissionId),
+          })
+        }
+      } catch (e) {
+        toastApiError(e, iaAutofillLevelUi(level).failedToastTitle)
+      } finally {
+        setIaAutofillRunning(null)
+      }
+    },
+    [selectedId, submissionId, iaAutofillRunning, queryClient],
+  )
 
   const canExportSecure = can('service_users.initial_assessment.export')
 
@@ -369,6 +393,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     if (!answersQuery.data) return
     skipAutosaveRef.current = true
     const map = draftAnswersFromServerRows(answersQuery.data)
+    serverBaselineAnswersRef.current = map
     const submissionEditable = submission ? EDITABLE.includes(submission.status) : false
     const prefill = buildPrefillMap({ detail: detailQuery.data, domCare: domCareQuery.data })
     const merged =
@@ -482,7 +507,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, draftAnswers],
   )
 
-  const validation = validateQuery.data ?? clientValidation
+  const validation = {
+    ...(validateQuery.data ?? clientValidation),
+    canSubmitIncomplete:
+      (validateQuery.data ?? clientValidation).canSubmitIncomplete ??
+      clientValidation.canSubmitIncomplete,
+  }
   const validationMaps = React.useMemo(() => {
     const base = buildValidationMaps({
       sections,
@@ -714,17 +744,34 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     async (section: InitialAssessmentSection, silent = false) => {
       if (!submissionId || !editable || !canUpdate) return
       const extraIds = [...syncSaveQuestionIdsRef.current]
+      const syncedQuestions = sections
+        .flatMap((s) => s.questions)
+        .filter((q) => syncSaveQuestionIdsRef.current.has(q.id))
+      const questionsForSave = section.questions.concat(syncedQuestions)
       const answers = prepareAnswersForSave(
-        section.questions.concat(
-          sections.flatMap((s) => s.questions).filter((q) => syncSaveQuestionIdsRef.current.has(q.id)),
-        ),
+        questionsForSave,
         collectAnswersForSave(section, draftAnswers, extraIds),
       )
       syncSaveQuestionIdsRef.current.clear()
       if (answers.length === 0) return
-      if (correctionRequired && correctionReason.trim().length < 10) {
+      const needsCorrectionReason =
+        correctionRequired &&
+        batchRequiresCorrectionReason(
+          questionsForSave,
+          serverBaselineAnswersRef.current,
+          draftAnswers,
+          answers.map((a) => a.questionId),
+        )
+      if (needsCorrectionReason && correctionReason.trim().length < 10) {
         if (!silent) {
-          toastApiError(new Error('Correction reason required (min 10 characters)'), 'Save failed')
+          correctionReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          correctionReasonRef.current?.focus()
+          toastApiError(
+            new Error(
+              'Correction reason required (min 10 characters) when changing answers that were already saved',
+            ),
+            'Save failed',
+          )
         }
         setSaveIndicator('error')
         return
@@ -733,11 +780,15 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       const savedQuestionIds = answers.map((a) => a.questionId)
       try {
         await saveMutation.mutateAsync(
-          correctionRequired
+          needsCorrectionReason
             ? { answers, correctionReason: correctionReason.trim() }
             : answers,
         )
-        for (const id of savedQuestionIds) dirtyAnswerQuestionIdsRef.current.delete(id)
+        for (const id of savedQuestionIds) {
+          dirtyAnswerQuestionIdsRef.current.delete(id)
+          const saved = draftAnswers[id]
+          if (saved) serverBaselineAnswersRef.current[id] = saved
+        }
         setSaveIndicator('saved')
         if (!silent) toastSuccess('Saved', `Section ${section.sectionNumber} saved.`)
       } catch (e) {
@@ -798,12 +849,21 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     patchUrlSearch({ section: 1, tab: 'form' })
   }
 
-  const confirmSubmit = async () => {
-    if (!submissionId || !canSubmit) return
+  const confirmSubmit = async (skipIncompleteValidation = false) => {
+    if (!submissionId) return
+    if (!skipIncompleteValidation && !validation.canSubmit) return
+    if (skipIncompleteValidation && !validation.canSubmitIncomplete) return
     try {
-      await submitMutation.mutateAsync(undefined)
+      await submitMutation.mutateAsync(
+        skipIncompleteValidation ? { skipIncompleteValidation: true } : undefined,
+      )
       setSubmitModalOpen(false)
-      toastSuccess('Submitted', 'Assessment submitted and locked.')
+      toastSuccess(
+        'Submitted',
+        skipIncompleteValidation
+          ? 'Assessment submitted incomplete — manager review required.'
+          : 'Assessment submitted and locked.',
+      )
     } catch (e) {
       toastApiError(e, 'Submit failed')
     }
@@ -859,44 +919,63 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            {submission ? (
-              <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase', statusBadge(submission.status))}>
-                {submission.status.replace('_', ' ')}
-              </span>
-            ) : null}
-            {template ? (
-              <span className="text-xs text-muted-foreground">
-                Template: {template.name} v{template.version}
-              </span>
-            ) : null}
-            {saveIndicator !== 'idle' && submission ? (
-              <span className="text-xs text-muted-foreground">
-                {saveIndicator === 'saving' ? 'Saving…' : saveIndicator === 'saved' ? 'All changes saved' : 'Save failed'}
-              </span>
-            ) : null}
-            {!submission && canCreate ? (
-              <Button type="button" size="sm" onClick={() => void startAssessment()} disabled={createMutation.isPending}>
-                Start new assessment
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+              {submission ? (
+                <InitialAssessmentStatusBadge
+                  status={submission.status}
+                  managerReviewRequired={managerReviewRequired}
+                />
+              ) : null}
+              {saveIndicator !== 'idle' && submission ? (
+                <span className="text-xs text-muted-foreground">
+                  {saveIndicator === 'saving' ? 'Saving…' : saveIndicator === 'saved' ? 'All changes saved' : 'Save failed'}
+                </span>
+              ) : null}
+              {!submission && canCreate ? (
+                <Button type="button" size="sm" onClick={() => void startAssessment()} disabled={createMutation.isPending}>
+                  Start new assessment
+                </Button>
+              ) : null}
+              {submission && canExportAssessment ? (
+                <>
+                  <Button type="button" size="sm" variant="outline" onClick={openHtmlExport}>
+                    <FileCode2 className="mr-2 h-4 w-4" />
+                    Export HTML
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setPdfModalOpen(true)}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </>
+              ) : null}
+              <Button type="button" size="sm" variant="outline" asChild>
+                <Link to={LEGACY_PATH} search={{ serviceUserId: selectedId }}>
+                  Legacy checklist
+                </Link>
               </Button>
-            ) : null}
-            {submission && canExportAssessment ? (
+            </div>
+            {import.meta.env.DEV && selectedId && canUpdate ? (
               <>
-                <Button type="button" size="sm" variant="outline" onClick={openHtmlExport}>
-                  <FileCode2 className="mr-2 h-4 w-4" />
-                  Export HTML
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="shrink-0"
+                  data-testid="ia-playwright-tests-open"
+                  onClick={() => setPlaywrightTestsOpen(true)}
+                >
+                  <TestTube2 className="mr-2 h-4 w-4" />
+                  Playwright Tests
                 </Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setPdfModalOpen(true)}>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
+                <InitialAssessmentPlaywrightTestsDialog
+                  open={playwrightTestsOpen}
+                  onOpenChange={setPlaywrightTestsOpen}
+                  runningLevel={iaAutofillRunning}
+                  onRun={runIaPlaywrightAutofill}
+                />
               </>
             ) : null}
-            <Button type="button" size="sm" variant="outline" asChild>
-              <Link to={LEGACY_PATH} search={{ serviceUserId: selectedId }}>
-                Legacy checklist
-              </Link>
-            </Button>
           </div>
 
           <InitialAssessmentHubTabs
@@ -1053,15 +1132,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               {editable && correctionRequired ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
                   <p className="text-sm font-medium text-amber-950 dark:text-amber-100">
-                    Post-reopen correction — reason required on save
+                    Post-reopen correction
                   </p>
                   <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-200/80">
-                    This assessment was reopened for corrections. Enter why you are changing answers; each
-                    change is audited.
+                    This assessment was reopened for corrections. You can save new answers in empty fields
+                    without a reason. A correction reason (min 10 characters) is only required when you
+                    change answers that were already saved.
                   </p>
                   <div className="mt-3">
-                    <Label htmlFor="ia-correction-reason">Correction reason</Label>
+                    <Label htmlFor="ia-correction-reason">Correction reason (when changing saved answers)</Label>
                     <Textarea
+                      ref={correctionReasonRef}
                       id="ia-correction-reason"
                       rows={2}
                       className="mt-1 bg-background"
@@ -1103,7 +1184,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               />
 
               <div className="grid grid-cols-1 items-start gap-6 min-[900px]:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] min-[1200px]:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(260px,320px)]">
-                <nav className="flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-sm min-[900px]:sticky min-[900px]:top-4 min-[900px]:self-start">
+                <nav
+                  data-testid="ia-section-nav"
+                  className="flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-sm min-[900px]:sticky min-[900px]:top-4 min-[900px]:self-start"
+                >
                   {sections.map((sec) => {
                     const prog = sectionProgress(sec, draftAnswers, sections, progressContext)
                     const hasComment = Boolean(sectionComments[String(sec.sectionNumber)]?.text?.trim())
@@ -1367,6 +1451,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         blocks={validation.blocks}
         warnings={validation.warnings}
         canSubmit={validation.canSubmit}
+        canSubmitIncomplete={validation.canSubmitIncomplete}
         submitting={submitMutation.isPending}
         validating={validateQuery.isLoading}
         flaggedRiskCount={riskQuery.data?.count}
@@ -1380,7 +1465,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           setSubmitModalOpen(false)
           setHubTab(tab)
         }}
-        onConfirm={() => void confirmSubmit()}
+        onConfirm={() => void confirmSubmit(false)}
+        onConfirmIncomplete={() => void confirmSubmit(true)}
       />
 
       <InitialAssessmentHtmlExportDialog

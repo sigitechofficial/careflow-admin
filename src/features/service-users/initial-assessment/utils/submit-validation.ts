@@ -41,6 +41,26 @@ export type ValidationIssue = {
   hubTab?: HubTabId
 }
 
+/** Missing answers / worksheets — allowed when user confirms incomplete submit. */
+export function isSkippableIncompleteValidationMessage(message: string): boolean {
+  if (message.startsWith('Required: ')) return true
+  if (message.startsWith('Assessor sign-off required:')) return true
+  if (message.includes('Next review date is required')) return true
+  if (message.includes('ADL dependency scores incomplete')) return true
+  if (message.includes('Complete the Waterlow assessment')) return true
+  if (message.includes('Falls trigger assessment') || message.includes('Falls reported')) return true
+  if (message.includes('Falls assessment completed but date')) return true
+  if (message.includes('Mobility aids')) return true
+  if (message.includes('Emergency contact 1 not recorded')) return true
+  return false
+}
+
+export function partitionSubmitValidationBlocks(blocks: ValidationIssue[]) {
+  const hardBlocks = blocks.filter((b) => !isSkippableIncompleteValidationMessage(b.message))
+  const skippableBlocks = blocks.filter((b) => isSkippableIncompleteValidationMessage(b.message))
+  return { hardBlocks, skippableBlocks }
+}
+
 const EDITABLE: InitialAssessmentStatus[] = ['DRAFT', 'IN_PROGRESS']
 
 export function isEditableStatus(status: InitialAssessmentStatus | undefined): boolean {
@@ -79,14 +99,21 @@ export function getSubmitValidationIssues(params: {
   status?: InitialAssessmentStatus
   agencySettings?: InitialAssessmentAgencySettings
   progressContext?: SectionProgressContext
-}): { blocks: ValidationIssue[]; warnings: ValidationIssue[]; canSubmit: boolean; overallPercent: number } {
+}): {
+  blocks: ValidationIssue[]
+  warnings: ValidationIssue[]
+  canSubmit: boolean
+  /** True when only skippable blocks remain (incomplete submit allowed). */
+  canSubmitIncomplete: boolean
+  overallPercent: number
+} {
   const { sections, draftAnswers, waterlow, adl, status, progressContext } = params
   const agencySettings = params.agencySettings ?? DEFAULT_INITIAL_ASSESSMENT_AGENCY_SETTINGS
   const blocks: ValidationIssue[] = []
   const warnings: ValidationIssue[] = []
 
   if (!isEditableStatus(status)) {
-    return { blocks, warnings, canSubmit: false, overallPercent: 0 }
+    return { blocks, warnings, canSubmit: false, canSubmitIncomplete: false, overallPercent: 0 }
   }
 
   const consentQ = findQuestionBySpecRef(sections, '2.1')
@@ -389,11 +416,13 @@ export function getSubmitValidationIssues(params: {
 
   const finalBlocks = dedupe(blocks)
   const finalWarnings = dedupe(warnings)
+  const { hardBlocks, skippableBlocks } = partitionSubmitValidationBlocks(finalBlocks)
 
   return {
     blocks: finalBlocks,
     warnings: finalWarnings,
     canSubmit: finalBlocks.length === 0,
+    canSubmitIncomplete: hardBlocks.length === 0 && skippableBlocks.length > 0,
     overallPercent,
   }
 }

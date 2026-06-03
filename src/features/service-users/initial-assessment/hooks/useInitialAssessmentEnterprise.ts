@@ -14,6 +14,7 @@ import {
   reviewInitialAssessment,
   saveInitialAssessmentAnswers,
   submitInitialAssessment,
+  type SubmitInitialAssessmentOptions,
   updateInitialAssessmentSubmission,
   validateInitialAssessment,
   fetchInitialAssessmentActions,
@@ -195,7 +196,8 @@ export function useSaveInitialAssessmentAnswers(serviceUserId: string, submissio
 export function useSubmitInitialAssessment(serviceUserId: string, submissionId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (notes?: string) => submitInitialAssessment(serviceUserId, submissionId, notes),
+    mutationFn: (options?: SubmitInitialAssessmentOptions) =>
+      submitInitialAssessment(serviceUserId, submissionId, options),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) })
       void qc.invalidateQueries({

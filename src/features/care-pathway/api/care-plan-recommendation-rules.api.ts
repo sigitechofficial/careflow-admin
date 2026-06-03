@@ -32,6 +32,7 @@ export type AssessmentFieldKeyOption = {
   questionId: string
   questionText: string
   questionType: string
+  carePlanTrigger: boolean
   fieldKey: string | null
   specRef: string | null
   sectionNumber: number

@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
+import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
   listCarePlanFormsForRules,
   listCarePlanRecommendationRules,
   updateCarePlanRecommendationRule,
+  type AssessmentFieldKeyOption,
   type CarePlanRuleCondition,
   type CarePlanRuleConditionWhen,
 } from '@/features/care-pathway/api/care-plan-recommendation-rules.api'
@@ -32,7 +34,52 @@ const WHEN_OPTIONS: { value: CarePlanRuleConditionWhen; label: string }[] = [
   { value: 'text_contains', label: 'Text contains' },
 ]
 
-const emptyCondition = (): CarePlanRuleCondition => ({ fieldKey: '', when: 'yes' })
+const emptyCondition = (): CarePlanRuleCondition => ({ when: 'yes' })
+
+function questionIdForCondition(
+  cond: CarePlanRuleCondition,
+  options: AssessmentFieldKeyOption[],
+): string {
+  if (cond.fieldKey?.trim()) {
+    const byKey = options.filter((o) => o.fieldKey === cond.fieldKey)
+    if (cond.specRef?.trim()) {
+      const narrowed = byKey.find((o) => o.specRef === cond.specRef)
+      if (narrowed) return narrowed.questionId
+    }
+    if (byKey.length === 1) return byKey[0]!.questionId
+    if (byKey[0]) return byKey[0].questionId
+  }
+  if (cond.specRef?.trim()) {
+    const byRef = options.filter((o) => o.specRef === cond.specRef)
+    const needle = cond.questionTextContains?.toLowerCase().trim()
+    if (needle) {
+      const match = byRef.find((o) => o.questionText.toLowerCase().includes(needle))
+      if (match) return match.questionId
+    }
+    if (byRef.length === 1) return byRef[0]!.questionId
+  }
+  if (cond.questionTextContains?.trim()) {
+    const needle = cond.questionTextContains.toLowerCase()
+    const match = options.find((o) => o.questionText.toLowerCase().includes(needle))
+    if (match) return match.questionId
+  }
+  return ''
+}
+
+function conditionFromQuestion(opt: AssessmentFieldKeyOption): Partial<CarePlanRuleCondition> {
+  if (opt.fieldKey) {
+    return {
+      fieldKey: opt.fieldKey,
+      specRef: opt.specRef ?? undefined,
+      questionTextContains: undefined,
+    }
+  }
+  return {
+    fieldKey: undefined,
+    specRef: opt.specRef ?? undefined,
+    questionTextContains: opt.questionText,
+  }
+}
 
 function patchCondition(
   list: CarePlanRuleCondition[],
@@ -54,6 +101,7 @@ export function InitialAssessmentCarePlanTriggersTab() {
   const [matchMode, setMatchMode] = React.useState<'ANY' | 'ALL'>('ANY')
   const [suppressLegacyArea, setSuppressLegacyArea] = React.useState('')
   const [conditions, setConditions] = React.useState<CarePlanRuleCondition[]>([emptyCondition()])
+  const [triggerQuestionsOnly, setTriggerQuestionsOnly] = React.useState(false)
 
   const rulesQuery = useQuery({
     queryKey: ['ia-care-plan-rules'],
@@ -94,7 +142,9 @@ export function InitialAssessmentCarePlanTriggersTab() {
         carePathwayFormId: formId,
         label: label.trim() || undefined,
         matchMode,
-        conditions: conditions.filter((c) => c.fieldKey?.trim() || c.specRef?.trim() || c.questionTextContains?.trim()),
+        conditions: conditions.filter(
+          (c) => c.fieldKey?.trim() || c.specRef?.trim() || c.questionTextContains?.trim(),
+        ),
         suppressLegacyArea: suppressLegacyArea.trim() || undefined,
       }
       if (payload.conditions.length === 0) {
@@ -125,6 +175,52 @@ export function InitialAssessmentCarePlanTriggersTab() {
   const carePlans = formsQuery.data ?? []
   const rules = rulesQuery.data ?? []
 
+  const carePlanComboboxOptions = React.useMemo<ComboboxOption[]>(
+    () =>
+      carePlans.map((f) => ({
+        value: f.id,
+        label: f.name,
+        description: f.status ? `Status: ${f.status}` : undefined,
+      })),
+    [carePlans],
+  )
+
+  const visibleFieldOptions = React.useMemo(() => {
+    const list = triggerQuestionsOnly
+      ? fieldOptions.filter((o) => o.carePlanTrigger === true)
+      : fieldOptions
+    return [...list].sort((a, b) => {
+      const aTrig = a.carePlanTrigger === true
+      const bTrig = b.carePlanTrigger === true
+      if (aTrig !== bTrig) return aTrig ? -1 : 1
+      return (
+        a.sectionNumber - b.sectionNumber ||
+        a.questionText.localeCompare(b.questionText)
+      )
+    })
+  }, [fieldOptions, triggerQuestionsOnly])
+
+  const assessmentFieldComboboxOptions = React.useMemo<ComboboxOption[]>(
+    () =>
+      visibleFieldOptions.map((o) => {
+        const text =
+          o.questionText.length > 56 ? `${o.questionText.slice(0, 56)}…` : o.questionText
+        const label = o.fieldKey ? `${o.fieldKey} — ${text}` : `${o.specRef ?? `§${o.sectionNumber}`} — ${text}`
+        const descParts = [`§${o.sectionNumber}`]
+        if (o.specRef) descParts.push(o.specRef)
+        if (o.carePlanTrigger === true) descParts.push('Care plan trigger')
+        if (!o.fieldKey) descParts.push('spec ref match')
+        return {
+          value: o.questionId,
+          label,
+          description: descParts.join(' · '),
+        }
+      }),
+    [visibleFieldOptions],
+  )
+
+  const triggerQuestionCount = fieldOptions.filter((o) => o.carePlanTrigger === true).length
+
   return (
     <div className="space-y-6" data-testid="ia-care-plan-triggers-tab">
       <div className="rounded-xl border border-border bg-card p-4">
@@ -153,18 +249,15 @@ export function InitialAssessmentCarePlanTriggersTab() {
                 <strong>Care Pathway → Form Builder</strong> (type: Care plan), then refresh this page.
               </p>
             ) : (
-              <Select value={formId} onValueChange={setFormId} disabled={Boolean(editingId)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select care plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {carePlans.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={carePlanComboboxOptions}
+                value={formId}
+                onChange={setFormId}
+                placeholder="Select care plan"
+                searchPlaceholder="Search care plans…"
+                emptyText="No care plans match your search."
+                disabled={Boolean(editingId)}
+              />
             )}
           </div>
 
@@ -196,8 +289,17 @@ export function InitialAssessmentCarePlanTriggersTab() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Conditions</Label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="rounded border-input"
+                  checked={triggerQuestionsOnly}
+                  onChange={(e) => setTriggerQuestionsOnly(e.target.checked)}
+                />
+                Care plan trigger questions only ({triggerQuestionCount})
+              </label>
               <Button
                 type="button"
                 variant="outline"
@@ -208,34 +310,28 @@ export function InitialAssessmentCarePlanTriggersTab() {
                 Add
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              All active questions from the default initial assessment template are listed. Items
+              with a <strong>field key</strong> are the most reliable for rules; others use{' '}
+              <strong>spec ref</strong> and question text (same as seeded Continence / Communication
+              rules). Uncheck the filter above to see every section question, not only legacy care
+              plan triggers.
+            </p>
             {conditions.map((cond, idx) => (
               <div key={idx} className="rounded-lg border border-border/80 p-3 space-y-2">
-                <Select
-                  value={cond.fieldKey ?? ''}
-                  onValueChange={(v) => {
-                    const opt = fieldOptions.find((o) => o.fieldKey === v)
-                    const prev = conditions[idx]
-                    setConditions(
-                      patchCondition(conditions, idx, {
-                        fieldKey: v,
-                        specRef: opt?.specRef ?? prev?.specRef,
-                      }),
-                    )
+                <Combobox
+                  options={assessmentFieldComboboxOptions}
+                  value={questionIdForCondition(cond, fieldOptions)}
+                  onChange={(v) => {
+                    const opt = fieldOptions.find((o) => o.questionId === v)
+                    if (!opt) return
+                    setConditions(patchCondition(conditions, idx, conditionFromQuestion(opt)))
                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Assessment field" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fieldOptions
-                      .filter((o) => o.fieldKey)
-                      .map((o) => (
-                        <SelectItem key={o.questionId} value={o.fieldKey!}>
-                          §{o.sectionNumber} {o.fieldKey} — {o.questionText.slice(0, 48)}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Assessment question"
+                  searchPlaceholder="Search by field key, spec ref, or question…"
+                  emptyText="No questions match your search."
+                  disabled={!assessmentFieldComboboxOptions.length}
+                />
                 <Input
                   placeholder="Or specRef (e.g. 9.6)"
                   value={cond.specRef ?? ''}

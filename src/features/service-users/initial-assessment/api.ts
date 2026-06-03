@@ -112,14 +112,22 @@ export async function saveInitialAssessmentAnswers(
   )
 }
 
+export type SubmitInitialAssessmentOptions = {
+  notes?: string
+  skipIncompleteValidation?: boolean
+}
+
 export async function submitInitialAssessment(
   serviceUserId: string,
   submissionId: string,
-  notes?: string,
+  options?: SubmitInitialAssessmentOptions,
 ): Promise<InitialAssessmentSubmission> {
+  const body: SubmitInitialAssessmentOptions = {}
+  if (options?.notes?.trim()) body.notes = options.notes.trim()
+  if (options?.skipIncompleteValidation) body.skipIncompleteValidation = true
   const res = await apiJson<ApiEnvelope<InitialAssessmentSubmission>>(
     `/service-users/${serviceUserId}/initial-assessments/${submissionId}/submit`,
-    { method: 'PATCH', body: JSON.stringify(notes ? { notes } : {}) },
+    { method: 'PATCH', body: JSON.stringify(body) },
   )
   return res.data
 }

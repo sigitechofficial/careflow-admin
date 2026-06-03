@@ -62,6 +62,7 @@ export function InitialAssessmentProfileCard({
             <h2 className="font-semibold text-xl leading-tight">{displayName(detail)}</h2>
             {assessmentStatus ? (
               <InitialAssessmentStatusBadge
+                data-testid="ia-profile-assessment-status"
                 status={assessmentStatus}
                 managerReviewRequired={managerReviewRequired}
               />

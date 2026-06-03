@@ -28,15 +28,19 @@ type Props = {
   status: InitialAssessmentStatus
   managerReviewRequired?: boolean
   className?: string
+  'data-testid'?: string
 }
 
 export function InitialAssessmentStatusBadge({
   status,
   managerReviewRequired,
   className,
+  'data-testid': dataTestId = 'ia-submission-status',
 }: Props) {
   return (
     <span
+      data-testid={dataTestId}
+      data-status={status}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold',
         STATUS_CLASS[status],
