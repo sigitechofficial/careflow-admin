@@ -12,6 +12,7 @@ import {
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentPersonCentredCards'
 import { InitialAssessmentPreferredVisitTimesPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPreferredVisitTimesPanel'
 import { InitialAssessmentPreferredVisitTimesField } from '@/features/service-users/initial-assessment/components/InitialAssessmentPreferredVisitTimesField'
+import { InitialAssessmentCarParkingPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarParkingPanel'
 import {
   isPreferredVisitTimesQuestion,
   questionsWithoutPreferredVisitTimes,
@@ -275,6 +276,18 @@ export function InitialAssessmentSectionQuestions({
           renderField={renderField}
           renderMultiSelect={renderMultiSelect}
           onOpenWaterlowTab={onOpenWaterlowTab}
+        />
+      )
+    }
+
+    if (group.specRef === '3.12') {
+      return (
+        <InitialAssessmentCarParkingPanel
+          key={`${group.specRef}-${groupIndex}`}
+          title={group.label}
+          questions={group.questions}
+          draftAnswers={draftAnswers}
+          renderField={renderField}
         />
       )
     }

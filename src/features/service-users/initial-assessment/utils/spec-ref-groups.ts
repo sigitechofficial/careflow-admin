@@ -66,6 +66,7 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '3.9': '3.9 Staff safety',
   '3.10': '3.10 Property environment checklist',
   '3.11': '3.11 Flooring in the home',
+  '3.12': '3.12 Car parking arrangements',
   '4.1': '4.1 Competency and clinical observations',
   '4.2': '4.2 Vital signs',
   '4.4': '4.4 Blood glucose and diabetes',

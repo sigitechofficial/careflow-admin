@@ -18,12 +18,14 @@ import { FormSelectionTab } from '@/features/care-pathway/components/FormSelecti
 import { CarePlanTextTab } from '@/features/care-pathway/components/CarePlanTextTab'
 import { PictureGalleryTab } from '@/features/care-pathway/components/PictureGalleryTab'
 import { FormBuilderTab } from '@/features/care-pathway/components/FormBuilderTab'
+import { InitialAssessmentCarePlanTriggersTab } from '@/features/care-pathway/components/InitialAssessmentCarePlanTriggersTab'
 
 const CARE_PATHWAY_TABS: { id: CarePathwayTabId; label: string; Icon: LucideIcon }[] = [
   { id: 'wizard', label: 'Wizard', Icon: LayoutGrid },
   { id: 'form-builder', label: 'Form Builder', Icon: Users },
   { id: 'form-selection', label: 'Form Selection', Icon: Users },
   { id: 'care-plan-text', label: 'Care Plan Text', Icon: Users },
+  { id: 'ia-care-plan-triggers', label: 'IA Care Plan Triggers', Icon: BookOpen },
   { id: 'checklists', label: 'Checklists', Icon: BarChart3 },
   { id: 'actions', label: 'Actions', Icon: BookOpen },
   { id: 'gallery', label: 'Gallery', Icon: ImageIcon },
@@ -82,6 +84,7 @@ export function CarePathwayPanel() {
       {activeTab === 'form-builder' && <FormBuilderTab />}
       {activeTab === 'form-selection' && <FormSelectionTab />}
       {activeTab === 'care-plan-text' && <CarePlanTextTab />}
+      {activeTab === 'ia-care-plan-triggers' && <InitialAssessmentCarePlanTriggersTab />}
       {activeTab === 'checklists' && <PathwayChecklistsTab />}
       {activeTab === 'actions' && <PathwayActionsTab />}
       {activeTab === 'gallery' && <PictureGalleryTab />}

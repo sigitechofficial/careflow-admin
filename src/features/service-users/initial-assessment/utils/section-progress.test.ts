@@ -15,8 +15,10 @@ function yesNoQ(id: string, text: string, required = false): InitialAssessmentQu
     questionType: 'YES_NO',
     isRequired: required,
     sortOrder: 1,
+    riskFlag: false,
+    carePlanTrigger: false,
     metadata: { specRef: '5.1' },
-  } as InitialAssessmentQuestion
+  }
 }
 
 function sectionWithQuestions(n: number, questions: InitialAssessmentQuestion[]): InitialAssessmentSection {
@@ -24,8 +26,9 @@ function sectionWithQuestions(n: number, questions: InitialAssessmentQuestion[])
     id: `sec-${n}`,
     sectionNumber: n,
     title: `Section ${n}`,
+    sortOrder: n,
     questions,
-  } as InitialAssessmentSection
+  }
 }
 
 describe('section-progress', () => {

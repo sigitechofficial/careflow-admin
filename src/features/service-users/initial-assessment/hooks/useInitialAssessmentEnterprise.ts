@@ -388,8 +388,12 @@ export function useUpdateInitialAssessmentSubmission(serviceUserId: string, subm
 export function useReviewInitialAssessment(serviceUserId: string, submissionId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { status: 'REVIEWED' | 'ARCHIVED'; reviewNotes?: string }) =>
-      reviewInitialAssessment(serviceUserId, submissionId, body),
+    mutationFn: (body: {
+      status: 'REVIEWED' | 'ARCHIVED'
+      reviewNotes?: string
+      approvedForCareStart?: boolean
+      careStartConditions?: string
+    }) => reviewInitialAssessment(serviceUserId, submissionId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) })
     },

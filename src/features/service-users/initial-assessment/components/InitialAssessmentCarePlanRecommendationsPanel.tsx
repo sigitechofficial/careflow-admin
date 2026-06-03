@@ -83,6 +83,11 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium text-sm">{rec.title}</p>
+                    {rec.carePathwayFormName ? (
+                      <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 dark:bg-teal-900 dark:text-teal-100">
+                        {rec.carePathwayFormName}
+                      </span>
+                    ) : null}
                     {rec.status !== 'pending' ? (
                       <span
                         className={

@@ -9,6 +9,8 @@ function q(id: string, specRef: string, sortOrder: number): InitialAssessmentQue
     questionType: 'YES_NO',
     isRequired: false,
     sortOrder,
+    riskFlag: false,
+    carePlanTrigger: false,
     metadata: { specRef },
   }
 }

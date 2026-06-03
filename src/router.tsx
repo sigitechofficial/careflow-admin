@@ -446,8 +446,17 @@ const serviceUsersMedicationRoute = createRoute({
   beforeLoad: requirePermission('service_users.read'),
   validateSearch: (
     raw: Record<string, unknown>,
-  ): { view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity' } => {
+  ): {
+    view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity'
+    from?: string
+    submissionId?: string
+  } => {
     const v = raw.view
+    const out: {
+      view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity'
+      from?: string
+      submissionId?: string
+    } = {}
     if (
       v === 'calendar' ||
       v === 'supply' ||
@@ -457,9 +466,14 @@ const serviceUsersMedicationRoute = createRoute({
       v === 'export' ||
       v === 'support' ||
       v === 'activity'
-    )
-      return { view: v }
-    return {}
+    ) {
+      out.view = v
+    }
+    if (typeof raw.from === 'string' && raw.from.trim()) out.from = raw.from.trim()
+    if (typeof raw.submissionId === 'string' && raw.submissionId.trim()) {
+      out.submissionId = raw.submissionId.trim()
+    }
+    return out
   },
   loader: ({ context: { queryClient: qc }, params: { serviceUserId }, location }) => {
     prefetchServiceUserMedicationRoute(qc, serviceUserId)

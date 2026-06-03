@@ -6,6 +6,7 @@ const section: InitialAssessmentSection = {
   id: 'sec-1',
   sectionNumber: 1,
   title: 'Test',
+  sortOrder: 1,
   questions: [
     {
       id: 'q1',
@@ -13,6 +14,8 @@ const section: InitialAssessmentSection = {
       questionType: 'TEXT',
       isRequired: true,
       sortOrder: 1,
+      riskFlag: false,
+      carePlanTrigger: false,
     },
   ],
 }

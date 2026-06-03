@@ -108,6 +108,8 @@ describe('applyPrefillToDraftAnswers', () => {
     questionType: 'DATE',
     isRequired: true,
     sortOrder: 1,
+    riskFlag: false,
+    carePlanTrigger: false,
     metadata: { prefillKey: 'dateOfBirth' },
   }
   const sections: InitialAssessmentSection[] = [
@@ -115,6 +117,7 @@ describe('applyPrefillToDraftAnswers', () => {
       id: 's1',
       sectionNumber: 1,
       title: 'Section 1',
+      sortOrder: 1,
       questions: [dateQ],
     },
   ]
@@ -144,6 +147,8 @@ describe('hasAssessmentAnswer', () => {
       questionType: 'DATE',
       isRequired: false,
       sortOrder: 1,
+      riskFlag: false,
+      carePlanTrigger: false,
     }
     expect(hasAssessmentAnswer({ questionId: 'q-1', notes: 'worse in morning' }, q)).toBe(true)
   })
@@ -157,6 +162,8 @@ describe('buildAnswerFromPrefill', () => {
       questionType: 'SINGLE_SELECT',
       isRequired: false,
       sortOrder: 1,
+      riskFlag: false,
+      carePlanTrigger: false,
       metadata: { prefillKey: 'gender' },
     }
     const answer = buildAnswerFromPrefill(q, 'female')

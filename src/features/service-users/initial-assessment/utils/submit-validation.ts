@@ -25,6 +25,7 @@ import type { HubTabId } from '@/features/service-users/initial-assessment/compo
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentAgencySettings,
+  InitialAssessmentQuestion,
   InitialAssessmentSection,
   InitialAssessmentStatus,
 } from '@/features/service-users/initial-assessment/types'
@@ -59,7 +60,7 @@ function isAnsweredForValidation(
   }
   if (q.questionType === 'DATE') return Boolean(value.dateValue?.trim())
   if (q.questionType === 'MULTI_SELECT') {
-    return multiSelectHasAnswer(value, q)
+    return multiSelectHasAnswer(value, q as InitialAssessmentQuestion)
   }
   if (q.questionType === 'SINGLE_SELECT') {
     const opts = value.selectedOptions

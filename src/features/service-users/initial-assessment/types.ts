@@ -155,6 +155,10 @@ export type CarePlanRecommendation = {
   status: 'pending' | 'accepted' | 'declined'
   declineReason?: string | null
   decidedAt?: string | null
+  carePathwayFormId?: string
+  carePathwayFormName?: string
+  source?: 'rule' | 'legacy'
+  ruleId?: string
 }
 
 export type InitialAssessmentReviewQueueItem = {

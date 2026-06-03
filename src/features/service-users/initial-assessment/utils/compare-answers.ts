@@ -15,6 +15,17 @@ export type CompareRow = {
   changed: boolean
 }
 
+function toAnswerSelectedOptions(
+  raw: unknown,
+): InitialAssessmentAnswerInput['selectedOptions'] | undefined {
+  if (raw == null) return undefined
+  if (typeof raw === 'string' || Array.isArray(raw)) return raw
+  if (typeof raw === 'object' && Object.keys(raw as object).length > 0) {
+    return raw as Record<string, unknown>
+  }
+  return undefined
+}
+
 function toInputMap(answers: InitialAssessmentAnswer[]): Record<string, InitialAssessmentAnswerInput> {
   const map: Record<string, InitialAssessmentAnswerInput> = {}
   for (const a of answers) {
@@ -26,7 +37,7 @@ function toInputMap(answers: InitialAssessmentAnswer[]): Record<string, InitialA
       numberValue: a.numberValue ?? undefined,
       dateValue: a.dateValue ?? undefined,
       timeValue: a.timeValue ?? undefined,
-      selectedOptions: a.selectedOptions ?? undefined,
+      selectedOptions: toAnswerSelectedOptions(a.selectedOptions),
       notes: a.notes ?? undefined,
     }
   }

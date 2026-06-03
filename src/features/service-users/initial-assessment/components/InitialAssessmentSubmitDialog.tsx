@@ -44,7 +44,7 @@ export function InitialAssessmentSubmitDialog({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="2xl">
+      <DialogContent size="xl">
         <DialogHeader>
           <DialogTitle>Submit for manager review</DialogTitle>
         </DialogHeader>

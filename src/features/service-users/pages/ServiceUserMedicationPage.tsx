@@ -24,7 +24,16 @@ import { MedicationSupportProfileTab } from '@/features/service-users/medication
 import { RecordDetailDrawer } from '@/features/service-users/medication/RecordDetailDrawer'
 import { CorrectRecordDialog } from '@/features/service-users/medication/CorrectRecordDialog'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
-import type { ServiceUserMedicationRow } from '@/features/service-users/types'
+import type { ServiceUserDetail, ServiceUserMedicationRow } from '@/features/service-users/types'
+
+function displayName(d: ServiceUserDetail | null | undefined): string {
+  if (!d) return 'Service user'
+  const legal = [d.firstName, d.lastName].filter(Boolean).join(' ').trim()
+  if (d.preferredName?.trim()) {
+    return legal ? `${legal} (${d.preferredName.trim()})` : d.preferredName.trim()
+  }
+  return legal || 'Service user'
+}
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import {
   useServiceUserArchivedMedications,
