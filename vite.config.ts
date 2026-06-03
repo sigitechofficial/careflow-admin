@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { iaPlaywrightRunnerPlugin } from './scripts/vite-ia-playwright-runner.mjs'
@@ -7,8 +7,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   Object.assign(process.env, env)
 
+  const plugins: PluginOption[] = [react()]
+  if (mode === 'development') {
+    plugins.push(iaPlaywrightRunnerPlugin())
+  }
+
   return {
-  plugins: [react(), iaPlaywrightRunnerPlugin()],
+  plugins,
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
