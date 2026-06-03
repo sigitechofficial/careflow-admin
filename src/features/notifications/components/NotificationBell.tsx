@@ -19,6 +19,7 @@ import { useUnreadNotificationCount } from '@/features/notifications/hooks/useUn
 import { NotificationDropdown } from '@/features/notifications/components/NotificationDropdown'
 import { NotificationPreferencesPanel } from '@/features/notifications/components/NotificationPreferencesPanel'
 import { useNotificationPreferences } from '@/features/notifications/hooks/useNotificationPreferences'
+import { markNotificationAudioUnlocked } from '@/features/notifications/hooks/useNotificationSound'
 import { cn } from '@/shared/lib/utils'
 
 export function NotificationBell() {
@@ -50,6 +51,7 @@ export function NotificationBell() {
             size="icon"
             className={cn('relative transition-transform', pulse && 'scale-110 motion-safe:animate-pulse')}
             aria-label="Notifications"
+            onPointerDown={() => markNotificationAudioUnlocked()}
           >
             <Bell className="h-4 w-4" />
             {isLoading ? (

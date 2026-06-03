@@ -5,17 +5,50 @@ const THROTTLE_MS = 2000
 
 let lastPlayAt = 0
 let audioCtx: AudioContext | null = null
+/** Survives hook remounts; set on any user gesture or prior activation (e.g. after login). */
+let audioUnlocked = false
+
+function hasBrowserUserActivation(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } })
+    .userActivation
+  return ua?.hasBeenActive === true
+}
 
 function ensureAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
-  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!Ctx) return null
   if (!audioCtx) audioCtx = new Ctx()
   return audioCtx
 }
 
-function beep(freq: number, durationMs: number, gain = 0.08) {
+/** Call from UI (e.g. notification bell) so sound works after login without an extra click. */
+export function markNotificationAudioUnlocked() {
+  audioUnlocked = true
   const ctx = ensureAudioContext()
+  if (ctx?.state === 'suspended') {
+    void ctx.resume().catch(() => {})
+  }
+}
+
+async function resumeAudioContext(): Promise<AudioContext | null> {
+  const ctx = ensureAudioContext()
+  if (!ctx) return null
+  if (ctx.state === 'suspended') {
+    try {
+      await ctx.resume()
+    } catch {
+      return null
+    }
+  }
+  return ctx.state === 'running' ? ctx : null
+}
+
+async function beep(freq: number, durationMs: number, gain = 0.14) {
+  const ctx = await resumeAudioContext()
   if (!ctx) return
   const osc = ctx.createOscillator()
   const g = ctx.createGain()
@@ -29,75 +62,65 @@ function beep(freq: number, durationMs: number, gain = 0.08) {
   osc.stop(t + durationMs / 1000)
 }
 
-/** Web Audio beeps (throttled). Prefer `tryPlay` from the hook for optional `/sounds/notification.mp3`. */
-export function playNotificationSound(severity: NotificationSeverity) {
+/** Web Audio beeps (throttled). */
+export async function playNotificationSound(severity: NotificationSeverity) {
   const now = Date.now()
   if (now - lastPlayAt < THROTTLE_MS) return
   lastPlayAt = now
 
   switch (severity) {
     case 'WARNING':
-      beep(520, 120, 0.1)
+      await beep(520, 140, 0.16)
       break
     case 'ERROR':
     case 'CRITICAL':
-      beep(640, 90, 0.1)
-      setTimeout(() => beep(640, 90, 0.1), 140)
+      await beep(640, 100, 0.18)
+      setTimeout(() => void beep(640, 100, 0.18), 150)
       break
     case 'SUCCESS':
     case 'INFO':
     default:
-      beep(440, 100, 0.06)
-  }
-}
-
-async function tryPlayMp3(): Promise<boolean> {
-  try {
-    const a = new Audio('/sounds/notification.mp3')
-    a.volume = 0.35
-    await a.play()
-    return true
-  } catch {
-    return false
+      await beep(440, 120, 0.12)
   }
 }
 
 export function useNotificationSound() {
-  const unlockedRef = useRef(false)
+  const unlockedRef = useRef(audioUnlocked)
 
   useEffect(() => {
     const unlock = () => {
-      const ctx = ensureAudioContext()
-      if (ctx) {
-        const p = ctx.resume()
-        if (p && typeof (p as Promise<void>).catch === 'function') {
-          void (p as Promise<void>).catch(() => {})
-        }
-      }
+      markNotificationAudioUnlocked()
       unlockedRef.current = true
     }
-    window.addEventListener('pointerdown', unlock, { once: true })
-    window.addEventListener('keydown', unlock, { once: true })
+    const opts: AddEventListenerOptions = { capture: true, passive: true }
+    window.addEventListener('pointerdown', unlock, opts)
+    window.addEventListener('keydown', unlock, opts)
+    window.addEventListener('click', unlock, opts)
+    if (hasBrowserUserActivation()) {
+      unlock()
+    }
     return () => {
-      window.removeEventListener('pointerdown', unlock)
-      window.removeEventListener('keydown', unlock)
+      window.removeEventListener('pointerdown', unlock, opts)
+      window.removeEventListener('keydown', unlock, opts)
+      window.removeEventListener('click', unlock, opts)
     }
   }, [])
 
   const tryPlay = useCallback(
     async (severity: NotificationSeverity, opts?: { playSound?: boolean }) => {
-      if (!unlockedRef.current) return
       if (opts?.playSound === false) return
+      if (!audioUnlocked && !hasBrowserUserActivation()) return
+
+      markNotificationAudioUnlocked()
+      unlockedRef.current = true
+
       const now = Date.now()
       if (now - lastPlayAt < THROTTLE_MS) return
-      if (await tryPlayMp3()) {
-        lastPlayAt = now
-        return
-      }
-      playNotificationSound(severity)
+
+      await playNotificationSound(severity)
     },
     [],
   )
 
-  return { tryPlay, hasUserInteracted: () => unlockedRef.current }
+  return { tryPlay, hasUserInteracted: () => audioUnlocked || unlockedRef.current }
 }

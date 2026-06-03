@@ -63,9 +63,8 @@ export function InitialAssessmentPlaywrightTestsDialog({
         </DialogHeader>
         <DialogBody className="space-y-4 pt-1">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            <span className="font-medium text-foreground">Dev only.</span> Autofill this service
-            user&apos;s assessment to simulate how critical their condition appears. One run at a time
-            — the active button shows a spinner until Playwright finishes.
+            Autofill this service user&apos;s assessment to simulate how critical their condition
+            appears. One run at a time — the active button shows a spinner until Playwright finishes.
           </p>
           <div className="flex flex-col gap-3">
             {IA_AUTOFILL_LEVELS.map(({ level, label, testId, title }) => {

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useNotificationSound, playNotificationSound } from '@/features/notifications/hooks/useNotificationSound'
+import {
+  markNotificationAudioUnlocked,
+  playNotificationSound,
+  useNotificationSound,
+} from '@/features/notifications/hooks/useNotificationSound'
 
 class MockAudioContext {
   state = 'running'
@@ -47,6 +51,15 @@ describe('useNotificationSound', () => {
     expect(result.current.hasUserInteracted()).toBe(true)
     await act(async () => {
       await result.current.tryPlay('INFO', { playSound: true })
+    })
+  })
+
+  it('plays when markNotificationAudioUnlocked was called', async () => {
+    const { result } = renderHook(() => useNotificationSound())
+    markNotificationAudioUnlocked()
+    expect(result.current.hasUserInteracted()).toBe(true)
+    await act(async () => {
+      await result.current.tryPlay('WARNING', { playSound: true })
     })
   })
 

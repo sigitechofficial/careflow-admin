@@ -126,6 +126,7 @@ import type {
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { runIaAutofillDev } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
 import { iaAutofillLevelUi } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
+import { isIaPlaywrightAutofillEnabled } from '@/features/service-users/initial-assessment/utils/ia-playwright-enabled'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
 const LEGACY_PATH = '/service-users/initial-assessment-checklist'
@@ -955,7 +956,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 </Link>
               </Button>
             </div>
-            {import.meta.env.DEV && selectedId && canUpdate ? (
+            {isIaPlaywrightAutofillEnabled() && selectedId && canUpdate ? (
               <>
                 <Button
                   type="button"
