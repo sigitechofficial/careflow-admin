@@ -284,9 +284,6 @@ function requireScheduleAccess() {
   }
 }
 
-
-
-
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   beforeLoad: rootAuthBeforeLoad,
   component: RootDocument,
