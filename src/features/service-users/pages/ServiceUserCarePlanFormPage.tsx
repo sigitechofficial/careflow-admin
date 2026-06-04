@@ -5,26 +5,18 @@ import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
-import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
 import {
   loadCarePlanDraft,
   saveCarePlanDraft,
   type CarePlanDraftValues,
 } from '@/features/service-users/care-plan/care-plan-draft-storage'
+import { CARE_PLAN_META, setMetaValue } from '@/features/service-users/care-plan/care-plan-form-meta'
+import { CarePlanFormWorkspace } from '@/features/service-users/care-plan/CarePlanFormWorkspace'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
-import { Button } from '@/shared/ui/button'
 import { useAuthStore } from '@/features/auth/store'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
 import { useCarePlanFormPage } from '@/features/service-users/hooks/useCarePlanFormPage'
-
-function displayName(d: ServiceUserDetail | null): string {
-  if (!d) return 'Service user'
-  const legal = [d.firstName, d.lastName].filter(Boolean).join(' ').trim()
-  if (d.preferredName?.trim()) {
-    return legal ? `${legal} (${d.preferredName.trim()})` : d.preferredName.trim()
-  }
-  return legal || 'Service user'
-}
+import { serviceUserDisplayName } from '@/features/service-users/lib/service-user-display'
 
 export default function ServiceUserCarePlanFormPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string; formId?: string }
@@ -58,17 +50,26 @@ export default function ServiceUserCarePlanFormPage() {
     }
   }, [form, serviceUserId, formId])
 
-  const onSave = () => {
+  const persist = (next: CarePlanDraftValues, message: string) => {
     if (!serviceUserId || !formId) return
     setSaving(true)
     try {
-      saveCarePlanDraft(serviceUserId, formId, values)
-      toastSuccess('Care plan saved.')
+      saveCarePlanDraft(serviceUserId, formId, next)
+      setValues(next)
+      toastSuccess(message)
     } catch {
       toastError('Could not save care plan.')
     } finally {
       setSaving(false)
     }
+  }
+
+  const onSaveDraft = () => {
+    persist(values, 'Care plan saved as draft.')
+  }
+
+  const onPublish = () => {
+    persist(setMetaValue(values, CARE_PLAN_META.published, true), 'Care plan published.')
   }
 
   const backToList = () => {
@@ -103,14 +104,14 @@ export default function ServiceUserCarePlanFormPage() {
               Back to care plans
             </button>
             <h1 className="text-xl font-semibold text-foreground">{form?.name ?? 'Care plan'}</h1>
-            <p className="text-sm text-muted-foreground">{displayName(detail)}</p>
+            <p className="text-sm text-muted-foreground">{serviceUserDisplayName(detail)}</p>
           </div>
         </div>
       </div>
 
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
-      <div className="mx-auto w-full max-w-4xl flex-1 px-3 py-6 sm:px-4">
+      <div className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 sm:px-4">
         {loading && (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -122,42 +123,18 @@ export default function ServiceUserCarePlanFormPage() {
           </p>
         )}
         {!loading && !error && form && (
-          <div className="space-y-6">
-            {form.description?.trim() ? (
-              <div
-                className="rounded-lg border border-border bg-card p-4 text-sm leading-relaxed text-foreground shadow-sm"
-                data-testid="care-plan-form-description"
-              >
-                {form.description.trim()}
-              </div>
-            ) : null}
-            <CarePathwayFormRenderer
-              form={form}
-              values={values}
-              onChange={setValues}
-              disabled={!canUpdate}
-            />
-            {canUpdate && (
-              <div
-                className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-6"
-                data-testid="care-plan-form-save-footer"
-              >
-                <Button type="button" variant="outline" onClick={backToList} disabled={saving}>
-                  Cancel
-                </Button>
-                <Button type="button" onClick={onSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving…
-                    </>
-                  ) : (
-                    'Save care plan'
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
+          <CarePlanFormWorkspace
+            serviceUserId={serviceUserId}
+            detail={detail}
+            form={form}
+            values={values}
+            onChange={setValues}
+            disabled={!canUpdate}
+            onCancel={backToList}
+            onPublish={onPublish}
+            onSaveDraft={onSaveDraft}
+            saving={saving}
+          />
         )}
       </div>
     </div>

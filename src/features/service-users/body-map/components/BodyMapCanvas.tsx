@@ -39,6 +39,8 @@ type Props = {
   onPlaceMarker: (coords: PlaceMarkerPayload) => void
   onSelectRecord: (recordId: string) => void
   className?: string
+  /** Compact embed (e.g. care plan accordion): dual view only, no toolbar. */
+  embedded?: boolean
 }
 
 const MARKER_CLASS_MAP: Record<string, string> = {
@@ -124,6 +126,7 @@ export function BodyMapCanvas({
   onPlaceMarker,
   onSelectRecord,
   className,
+  embedded,
 }: Props) {
   const [ready, setReady] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
@@ -280,6 +283,7 @@ export function BodyMapCanvas({
   }
 
   const setBodyView = (view: BodyMapCanvasView, keepRegion = false) => {
+    if (embedded) return
     setCurrentView(view)
     if (!keepRegion) setSelectedRegionId(null)
     setCanvasScale(1)
@@ -360,7 +364,12 @@ export function BodyMapCanvas({
 
   if (!ready) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-border bg-card text-sm text-muted-foreground">
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-xl border border-border bg-card text-sm text-muted-foreground',
+          embedded ? 'min-h-[280px]' : 'min-h-[320px]',
+        )}
+      >
         Loading body map ({regionCount > 0 ? `${regionCount} regions` : '…'})…
       </div>
     )
@@ -374,10 +383,12 @@ export function BodyMapCanvas({
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card',
+        'flex min-h-0 flex-col overflow-hidden border border-border bg-card',
+        embedded ? 'rounded-sm' : 'rounded-xl',
         className,
       )}
     >
+      {!embedded ? (
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-2 py-1.5">
         <Button
           type="button"
@@ -474,12 +485,14 @@ export function BodyMapCanvas({
           </Button>
         </div>
       </div>
+      ) : null}
 
       <div
         ref={viewportRef}
         className={cn(
           'relative min-h-0 flex-1 overflow-auto bg-white',
           markMode && 'cursor-crosshair',
+          embedded && 'min-h-[280px]',
         )}
       >
         <div
@@ -539,7 +552,7 @@ export function BodyMapCanvas({
         </div>
       ) : null}
 
-      {pendingMarker ? (
+      {pendingMarker && !embedded ? (
         <p className="border-t border-indigo-100 bg-indigo-50/80 px-3 py-2 text-xs text-indigo-900">
           Selected: <strong>{pendingMarker.summaryLabel ?? `${pendingMarker.side} ${pendingMarker.bodyPart}`}</strong>
           {' · '}

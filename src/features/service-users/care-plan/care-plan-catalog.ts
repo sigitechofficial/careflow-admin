@@ -42,6 +42,15 @@ export function isActiveCarePlanName(name: string): boolean {
   return ACTIVE_CARE_PLAN_NAMES.has(name.trim().toLowerCase())
 }
 
+/** Active when accepted in initial assessment; falls back to legacy name list when none accepted yet. */
+export function isServiceUserActiveCarePlan(
+  form: { id: string; name: string },
+  acceptedFormIds: ReadonlySet<string>,
+): boolean {
+  if (acceptedFormIds.size > 0) return acceptedFormIds.has(form.id)
+  return isActiveCarePlanName(form.name)
+}
+
 /**
  * Restrict care plan cards to Form Selection choices.
  * When nothing is saved yet (empty selection), all published forms are shown.

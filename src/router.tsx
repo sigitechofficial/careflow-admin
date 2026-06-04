@@ -91,6 +91,7 @@ import {
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { employeeKeys } from '@/features/employees/keys'
 import { listServiceUsers, fetchServiceUserLookups } from '@/features/service-users/api'
+import { defaultServiceUsersListParams } from '@/features/service-users/utils/service-users-list-query'
 import { fetchEmployeeLookups } from '@/features/employees/api'
 import { fetchGeneralSettings } from '@/features/settings/api/general-settings-api'
 import { fetchCompanyProfile } from '@/features/settings/api/company-settings-api'
@@ -343,15 +344,16 @@ const serviceUsersAllRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/all',
   beforeLoad: requirePermission('service_users.read'),
-  loader: ({ context: { queryClient: qc } }) => {
-    void qc.prefetchQuery({
+  loader: async ({ context: { queryClient: qc } }) => {
+    const lookups = await qc.fetchQuery({
       queryKey: serviceUserKeys.lookups(),
       queryFn: () => fetchServiceUserLookups(),
       staleTime: 10 * 60 * 1000,
     })
+    const listParams = defaultServiceUsersListParams(lookups)
     void qc.prefetchQuery({
-      queryKey: serviceUserKeys.list({}),
-      queryFn: () => listServiceUsers({}),
+      queryKey: serviceUserKeys.list(listParams),
+      queryFn: () => listServiceUsers(listParams),
       staleTime: 30_000,
     })
   },

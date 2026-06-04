@@ -5,6 +5,8 @@ export const initialAssessmentKeys = {
     [...initialAssessmentKeys.all(), 'template', templateId] as const,
   submissions: (serviceUserId: string) =>
     [...initialAssessmentKeys.all(), 'submissions', serviceUserId] as const,
+  acceptedCarePlans: (serviceUserId: string) =>
+    [...initialAssessmentKeys.submissions(serviceUserId), 'accepted-care-plans'] as const,
   submission: (serviceUserId: string, submissionId: string) =>
     [...initialAssessmentKeys.submissions(serviceUserId), submissionId] as const,
   answers: (serviceUserId: string, submissionId: string) =>

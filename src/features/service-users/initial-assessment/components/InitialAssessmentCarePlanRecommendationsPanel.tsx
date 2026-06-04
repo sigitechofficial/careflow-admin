@@ -41,6 +41,9 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
       void qc.invalidateQueries({
         queryKey: initialAssessmentKeys.summary(serviceUserId, submissionId ?? ''),
       })
+      void qc.invalidateQueries({
+        queryKey: initialAssessmentKeys.acceptedCarePlans(serviceUserId),
+      })
       toastSuccess('Updated', 'Care plan recommendation decision saved.')
       setDialogOpen(false)
       setReason('')

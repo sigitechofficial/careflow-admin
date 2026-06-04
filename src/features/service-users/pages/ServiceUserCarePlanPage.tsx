@@ -12,10 +12,10 @@ import { serviceUserGivenName } from '@/features/service-users/lib/service-user-
 import { CarePlanCard } from '@/features/service-users/care-plan/CarePlanCard'
 import { CarePlanIconsShowcase } from '@/features/service-users/care-plan/CarePlanIconsShowcase'
 import type { ServiceUserDetail } from '@/features/service-users/types'
-import type { SelectableForm } from '@/features/care-pathway/types/care-pathway.types'
+import type { SelectableForm } from '@/features/care-pathway/api/form-selection.api'
 import {
   filterCarePlansByFormSelection,
-  isActiveCarePlanName,
+  isServiceUserActiveCarePlan,
   sortCarePlansByCatalogOrder,
 } from '@/features/service-users/care-plan/care-plan-catalog'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
@@ -65,11 +65,14 @@ export default function ServiceUserCarePlanPage() {
   const apiConfigured = Boolean(getApiBaseUrl())
 
   const profileQuery = useServiceUser(serviceUserId)
-  const { formSelections, carePlanCatalogue } = useServiceUserCarePlan(serviceUserId)
+  const { formSelections, carePlanCatalogue, acceptedCarePlans } = useServiceUserCarePlan(serviceUserId)
 
   const detail: ServiceUserDetail | null = profileQuery.data ?? null
   const loading =
-    profileQuery.isLoading || formSelections.isLoading || carePlanCatalogue.isLoading
+    profileQuery.isLoading ||
+    formSelections.isLoading ||
+    carePlanCatalogue.isLoading ||
+    acceptedCarePlans.isLoading
   const error = profileQuery.error instanceof Error ? profileQuery.error.message : null
 
   const carePlanForms: SelectableForm[] = React.useMemo(() => {
@@ -80,9 +83,41 @@ export default function ServiceUserCarePlanPage() {
 
   const name = serviceUserGivenName(detail)
 
+  const acceptedData = acceptedCarePlans.data
+  const acceptedItems = acceptedData?.items ?? []
+
+  const acceptedFormIds = React.useMemo(() => {
+    const ids = new Set(acceptedItems.map((item) => item.formId))
+    return ids
+  }, [acceptedItems])
+
+  const acceptedCarePlanCards: SelectableForm[] = React.useMemo(
+    () =>
+      sortCarePlansByCatalogOrder(
+        acceptedItems.map(
+          (item): SelectableForm => ({
+            id: item.formId,
+            name: item.formName,
+            description: null,
+            formType: 'CARE_PLAN',
+            status: 'PUBLISHED',
+            versionLabel: '1',
+            pictureUrl: item.pictureUrl,
+          }),
+        ),
+      ),
+    [acceptedItems],
+  )
+
+  const unresolvedAccepted = acceptedData?.unresolved ?? []
+  const acceptedRecommendationCount = acceptedData?.acceptedRecommendationCount ?? 0
+
   const inactiveCarePlans = React.useMemo(
-    () => sortCarePlansByCatalogOrder(carePlanForms.filter((f) => !isActiveCarePlanName(f.name))),
-    [carePlanForms],
+    () =>
+      sortCarePlansByCatalogOrder(
+        carePlanForms.filter((f) => !isServiceUserActiveCarePlan(f, acceptedFormIds)),
+      ),
+    [carePlanForms, acceptedFormIds],
   )
 
   const openCarePlanForm = (formId: string) => {
@@ -92,10 +127,7 @@ export default function ServiceUserCarePlanPage() {
     })
   }
 
-  const activeCarePlans = React.useMemo(
-    () => sortCarePlansByCatalogOrder(carePlanForms.filter((f) => isActiveCarePlanName(f.name))),
-    [carePlanForms],
-  )
+  const activeCarePlans = acceptedCarePlanCards
 
   if (!serviceUserId) {
     return (
@@ -151,11 +183,30 @@ export default function ServiceUserCarePlanPage() {
             <CarePlanAccordion title="Risk Profile" tone="teal" />
 
             <CarePlanAccordion title={`Active Care Plans for ${name}`} tone="sky" defaultOpen>
+              {acceptedRecommendationCount > activeCarePlans.length && activeCarePlans.length > 0 ? (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {acceptedRecommendationCount} care plan recommendations accepted — showing{' '}
+                  {activeCarePlans.length} unique care plan form
+                  {activeCarePlans.length === 1 ? '' : 's'} (some recommendations share the same
+                  form).
+                </p>
+              ) : null}
+              {unresolvedAccepted.length > 0 ? (
+                <p className="mb-3 text-xs text-amber-800 dark:text-amber-200">
+                  {unresolvedAccepted.length} accepted recommendation
+                  {unresolvedAccepted.length === 1 ? '' : 's'} could not be linked to a care plan
+                  form:{' '}
+                  {unresolvedAccepted.map((u) => u.carePlanArea).join(', ')}. Add matching forms in
+                  Care Pathway or contact your administrator.
+                </p>
+              ) : null}
               {activeCarePlans.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {carePlanForms.length === 0
                     ? 'No care plans match your form selection.'
-                    : 'No active care plans in your current form selection.'}
+                    : acceptedFormIds.size === 0
+                      ? 'No active care plans yet. Accept recommended care plans on the Initial Assessment Schedule tab to activate them here.'
+                      : 'Accepted care plans could not be matched to your form catalogue. Check Form Selection includes those care plans.'}
                 </p>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

@@ -23,12 +23,18 @@ import {
 import { ServiceUserRowActionStrip } from '@/features/service-users/components/ServiceUserRowActionStrip'
 import {
   type ServiceUserListRow,
-  type ServiceUserLookupsBundle,
 } from '@/features/service-users/types'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useUploadServiceUserPhoto } from '@/features/service-users/hooks/useServiceUserPhoto'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import {
+  buildServiceUsersListParams,
+  DEFAULT_SERVICE_USER_STATUS_CODE,
+  statusFilterForQuickSelect,
+  statusFilterLabel,
+  type StatusFilterValue,
+} from '@/features/service-users/utils/service-users-list-query'
 
 const TEAL = '#4db8c8'
 
@@ -221,77 +227,6 @@ function SuAvatar({
   )
 }
 
-/** `all` or a status lookup code from the database (e.g. ACTIVE, PRE_ADMISSION). */
-type StatusFilterValue = 'all' | string
-
-const DEFAULT_STATUS_FILTER_CODE = 'ACTIVE'
-
-function statusFilterLabel(code: string, name: string): string {
-  if (code === 'ACTIVE') return 'In service (active)'
-  return name
-}
-
-function statusIdForFilter(
-  lookups: ServiceUserLookupsBundle | null,
-  filter: StatusFilterValue,
-): string | undefined {
-  if (!lookups || filter === 'all') return undefined
-  return lookups.statuses.find((s) => s.code === filter)?.id
-}
-
-function statusFilterForQuickSelect(id: QuickSelectListId): StatusFilterValue {
-  switch (id) {
-    case 'all':
-      return 'all'
-    case 'active':
-      return DEFAULT_STATUS_FILTER_CODE
-    case 'discharged':
-      return 'DISCHARGED'
-    case 'deleted':
-      return 'all'
-  }
-}
-
-function listQueryForFilters(
-  lookups: ServiceUserLookupsBundle | null,
-  listFilter: QuickSelectListId | null,
-  statusFilter: StatusFilterValue,
-  onHoldOnly: boolean,
-) {
-  if (listFilter === 'deleted') {
-    return { showDeleted: true, showInactive: true, statusId: undefined }
-  }
-  if (listFilter === 'all') {
-    return { showDeleted: false, showInactive: true, statusId: undefined }
-  }
-  if (listFilter === 'active') {
-    return {
-      showDeleted: false,
-      showInactive: false,
-      statusId: statusIdForFilter(lookups, DEFAULT_STATUS_FILTER_CODE),
-    }
-  }
-  if (listFilter === 'discharged') {
-    return {
-      showDeleted: false,
-      showInactive: true,
-      statusId: statusIdForFilter(lookups, 'DISCHARGED'),
-    }
-  }
-  if (onHoldOnly) {
-    return {
-      showDeleted: false,
-      showInactive: true,
-      statusId: statusIdForFilter(lookups, 'ON_HOLD'),
-    }
-  }
-  return {
-    showDeleted: false,
-    showInactive: statusFilter !== DEFAULT_STATUS_FILTER_CODE ? true : undefined,
-    statusId: statusIdForFilter(lookups, statusFilter),
-  }
-}
-
 export default function ServiceUsersPage() {
   const apiConfigured = Boolean(getApiBaseUrl())
   const queryClient = useQueryClient()
@@ -299,7 +234,7 @@ export default function ServiceUsersPage() {
   const [searchInput, setSearchInput] = React.useState('')
   const [searchApi, setSearchApi] = React.useState('')
   const [kwSearch, setKwSearch] = React.useState('')
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(DEFAULT_STATUS_FILTER_CODE)
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(DEFAULT_SERVICE_USER_STATUS_CODE)
   const [listFilter, setListFilter] = React.useState<QuickSelectListId | null>(null)
   const [riskFilter, setRiskFilter] = React.useState<QuickSelectRiskId | null>(null)
   const [unassignedOnly, setUnassignedOnly] = React.useState(false)
@@ -328,21 +263,19 @@ export default function ServiceUsersPage() {
   const lookups = lookupsQuery.data ?? null
 
   // Derive list params from filter state + resolved lookups
-  const listParams = React.useMemo(() => {
-    const query = listQueryForFilters(lookups, listFilter, statusFilter, onHoldOnly)
-    return {
-      page,
-      limit: 25,
-      search: searchApi || undefined,
-      statusId: query.statusId,
-      showInactive: query.showInactive,
-      showDeleted: query.showDeleted,
-      sortBy: 'createdAt',
-      sortOrder: 'desc' as const,
-    }
-  }, [lookups, listFilter, statusFilter, onHoldOnly, page, searchApi])
+  const listParams = React.useMemo(
+    () =>
+      buildServiceUsersListParams(lookups, {
+        page,
+        search: searchApi,
+        listFilter,
+        statusFilter,
+        onHoldOnly,
+      }),
+    [lookups, listFilter, statusFilter, onHoldOnly, page, searchApi],
+  )
 
-  const listQuery = useServiceUsers(listParams)
+  const listQuery = useServiceUsers(listParams, lookupsQuery.isSuccess)
   const rows = listQuery.data?.rows ?? []
   const meta = listQuery.data?.meta ?? {
     page: 1,

@@ -529,6 +529,38 @@ export async function fetchInitialAssessmentReviewQueue(
   return res.data
 }
 
+export type AcceptedCarePlanItem = {
+  formId: string
+  formName: string
+  pictureUrl: string | null
+  acceptedAt: string
+  carePlanArea: string
+}
+
+export type UnresolvedAcceptedCarePlan = {
+  recommendationId: string
+  title: string
+  carePlanArea: string
+  acceptedAt: string
+}
+
+export type AcceptedCarePlansResponse = {
+  items: AcceptedCarePlanItem[]
+  acceptedRecommendationCount: number
+  unresolved: UnresolvedAcceptedCarePlan[]
+}
+
+export async function fetchAcceptedCarePlans(
+  serviceUserId: string,
+  init?: RequestInit,
+): Promise<AcceptedCarePlansResponse> {
+  const res = await apiJson<ApiEnvelope<AcceptedCarePlansResponse>>(
+    `/service-users/${serviceUserId}/initial-assessments/accepted-care-plans`,
+    { method: 'GET', ...init },
+  )
+  return res.data
+}
+
 export async function decideInitialAssessmentCarePlanRecommendation(
   serviceUserId: string,
   submissionId: string,

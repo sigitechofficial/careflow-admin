@@ -122,11 +122,14 @@ export function CarePathwayFormRenderer({
   values,
   onChange,
   disabled,
+  embedded,
 }: {
   form: CareFormDetail
   values: CarePlanDraftValues
   onChange: (values: CarePlanDraftValues) => void
   disabled?: boolean
+  /** When true, renders without outer card chrome for embedding in care plan accordion. */
+  embedded?: boolean
 }) {
   const setFieldValue = (sectionId: string, field: CareFormFieldRow, next: string | boolean) => {
     onChange({ ...values, [fieldKey(sectionId, field.id)]: next })
@@ -142,9 +145,11 @@ export function CarePathwayFormRenderer({
       {form.sections.map(section => (
         <section
           key={section.id}
-          className="rounded-lg border border-border bg-card p-4 shadow-sm"
+          className={embedded ? 'space-y-4 border-t border-border pt-4' : 'rounded-lg border border-border bg-card p-4 shadow-sm'}
         >
-          <h3 className="text-sm font-semibold text-sky-700 dark:text-sky-400">{section.title}</h3>
+          <h3 className={embedded ? 'text-base font-normal text-[#5a7a96]' : 'text-sm font-semibold text-primary'}>
+            {section.title}
+          </h3>
           {section.description ? (
             <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
           ) : null}
