@@ -1,9 +1,6 @@
 import * as React from 'react'
-import {
-  BODY_PART_OPTIONS,
-  recordTypesFromLookups,
-  type BodyMapRecordTypeCode,
-} from '@/features/service-users/body-map/catalog/record-types'
+import { recordTypesFromLookups, type BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
+import { BodyPartCombobox } from '@/features/service-users/body-map/components/BodyPartCombobox'
 import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
 import type { BodyMapBodyView, BodyMapRiskLevel } from '@/features/service-users/body-map/types'
 import { Button } from '@/shared/ui/button'
@@ -131,19 +128,9 @@ export function AddBodyMapRecordDialog({
             </label>
             <label className="block text-sm font-medium">
               Body part
-              <select
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={bodyPart}
-                onChange={e => setBodyPart(e.target.value)}
-                required
-              >
-                <option value="">Select…</option>
-                {BODY_PART_OPTIONS.map(p => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1">
+                <BodyPartCombobox value={bodyPart} onChange={setBodyPart} />
+              </div>
             </label>
             <label className="block text-sm font-medium">
               Risk level

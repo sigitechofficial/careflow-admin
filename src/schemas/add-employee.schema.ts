@@ -128,6 +128,12 @@ export const employmentStepSchema = z.object({
   employeeNumber: z.string().max(50).optional().transform(v => emptyToUndef(v) as string | undefined),
   payrollNumber: z.string().max(50).optional().transform(v => emptyToUndef(v) as string | undefined),
   accessAllZones: z.boolean(),
+  visaTypeId: z
+    .string()
+    .max(64)
+    .optional()
+    .transform(v => emptyToUndef(v) as string | undefined),
+  isInCountry: z.boolean(),
   contractedWeeklyHours: numOpt,
   maximumWeeklyHours: numOpt,
   minimumWeeklyHours: numOpt,

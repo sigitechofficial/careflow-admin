@@ -28,6 +28,7 @@ export function apiSideToPrototype(side: BodyMapSide | null | undefined): string
 }
 
 export function recordViewToApiBodyView(recordView: string): BodyMapBodyView {
+  if (recordView === 'leaning' || recordView === 'sitting') return 'FRONT'
   if (recordView === 'back' || recordView === 'head_back' || recordView === 'torso_back') return 'BACK'
   if (recordView === 'face') return 'FACE'
   if (recordView.startsWith('hand_')) return 'HAND'

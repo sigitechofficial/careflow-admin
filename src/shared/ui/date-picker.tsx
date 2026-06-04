@@ -72,28 +72,40 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", disab
   const [open, setOpen] = React.useState(false)
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-      <PopoverPrimitive.Trigger asChild>
-        <button
-          disabled={disabled}
-          className={cn(
-            "flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm transition-colors",
-            "hover:border-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            !value && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="flex-1 text-left">
-            {value ? format(value, "PPP") : placeholder}
-          </span>
-          {value && (
-            <button onClick={(e) => { e.stopPropagation(); onChange?.(undefined) }} className="rounded hover:bg-accent p-0.5">
-              <X className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-          )}
-        </button>
-      </PopoverPrimitive.Trigger>
+      <div className={cn("relative w-full", className)}>
+        <PopoverPrimitive.Trigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+              "flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm transition-colors",
+              "hover:border-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              !value && "text-muted-foreground",
+              value && "pr-9",
+            )}
+          >
+            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-left">
+              {value ? format(value, "PPP") : placeholder}
+            </span>
+          </button>
+        </PopoverPrimitive.Trigger>
+        {value && !disabled ? (
+          <button
+            type="button"
+            aria-label="Clear date"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-accent"
+            onClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              onChange?.(undefined)
+            }}
+          >
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        ) : null}
+      </div>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           className="z-50 rounded-lg border border-border bg-popover shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
@@ -126,32 +138,44 @@ export function DateRangePicker({ value, onChange, placeholder = "Pick a date ra
   const [open, setOpen] = React.useState(false)
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-      <PopoverPrimitive.Trigger asChild>
-        <button
-          disabled={disabled}
-          className={cn(
-            "flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm transition-colors",
-            "hover:border-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            !value?.from && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="flex-1 text-left">
-            {value?.from
-              ? value.to
-                ? `${format(value.from, "MMM d")} â€“ ${format(value.to, "MMM d, yyyy")}`
-                : format(value.from, "PPP")
-              : placeholder}
-          </span>
-          {value?.from && (
-            <button onClick={(e) => { e.stopPropagation(); onChange?.(undefined) }} className="rounded hover:bg-accent p-0.5">
-              <X className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-          )}
-        </button>
-      </PopoverPrimitive.Trigger>
+      <div className={cn("relative w-full", className)}>
+        <PopoverPrimitive.Trigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+              "flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm transition-colors",
+              "hover:border-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              !value?.from && "text-muted-foreground",
+              value?.from && "pr-9",
+            )}
+          >
+            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-left">
+              {value?.from
+                ? value.to
+                  ? `${format(value.from, "MMM d")} – ${format(value.to, "MMM d, yyyy")}`
+                  : format(value.from, "PPP")
+                : placeholder}
+            </span>
+          </button>
+        </PopoverPrimitive.Trigger>
+        {value?.from && !disabled ? (
+          <button
+            type="button"
+            aria-label="Clear date range"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-accent"
+            onClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              onChange?.(undefined)
+            }}
+          >
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        ) : null}
+      </div>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           className="z-50 rounded-lg border border-border bg-popover shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"

@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 import { IA_AUTOFILL_LEVELS } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
 import type { IaAutofillLevel } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
@@ -44,12 +45,73 @@ const LEVEL_BUTTON: Record<
   },
 }
 
+function AutofillLevelButton({
+  level,
+  label,
+  testId,
+  tooltip,
+  running,
+  anyRunning,
+  onRun,
+}: {
+  level: IaAutofillLevel
+  label: string
+  testId: string
+  tooltip: string
+  running: boolean
+  anyRunning: boolean
+  onRun: (level: IaAutofillLevel) => void
+}) {
+  const { variant, hint, Icon } = LEVEL_BUTTON[level]
+  const disabled = anyRunning
+
+  const button = (
+    <Button
+      type="button"
+      variant={variant}
+      size="lg"
+      className={cn(
+        'h-auto w-full flex-col items-stretch gap-1 rounded-lg px-4 py-3 text-left shadow-sm',
+        'active:scale-[0.99]',
+      )}
+      data-testid={testId}
+      disabled={disabled}
+      aria-busy={running}
+      aria-label={running ? `${label} autofill running` : `${label} autofill`}
+      onClick={() => onRun(level)}
+    >
+      <span className="flex w-full items-center gap-2">
+        {running ? (
+          <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
+        ) : (
+          <Icon className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
+        )}
+        <span className="flex-1 text-base font-semibold">{running ? 'Running…' : label}</span>
+      </span>
+      <span className="w-full pl-7 text-xs font-normal leading-snug opacity-90">{hint}</span>
+    </Button>
+  )
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {disabled ? <span className="inline-flex w-full cursor-not-allowed">{button}</span> : button}
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-sm text-left leading-snug">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function InitialAssessmentPlaywrightTestsDialog({
   open,
   onOpenChange,
   runningLevel,
   onRun,
 }: Props) {
+  const anyRunning = runningLevel !== null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md" data-testid="ia-playwright-tests-dialog">
@@ -66,44 +128,22 @@ export function InitialAssessmentPlaywrightTestsDialog({
             Autofill this service user&apos;s assessment to simulate how critical their condition
             appears. One run at a time — the active button shows a spinner until Playwright finishes.
           </p>
-          <div className="flex flex-col gap-3">
-            {IA_AUTOFILL_LEVELS.map(({ level, label, testId, title }) => {
-              const running = runningLevel === level
-              const { variant, hint, Icon } = LEVEL_BUTTON[level]
-              return (
-                <Button
+          <TooltipProvider delayDuration={250}>
+            <div className="flex flex-col gap-3">
+              {IA_AUTOFILL_LEVELS.map(({ level, label, testId, title }) => (
+                <AutofillLevelButton
                   key={level}
-                  type="button"
-                  variant={variant}
-                  size="lg"
-                  className={cn(
-                    'h-auto w-full flex-col items-stretch gap-1 rounded-lg px-4 py-3 text-left shadow-sm',
-                    'active:scale-[0.99]',
-                  )}
-                  data-testid={testId}
-                  title={title}
-                  disabled={runningLevel !== null}
-                  aria-busy={running}
-                  aria-label={running ? `${label} autofill running` : `${label} autofill`}
-                  onClick={() => void onRun(level)}
-                >
-                  <span className="flex w-full items-center gap-2">
-                    {running ? (
-                      <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
-                    ) : (
-                      <Icon className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
-                    )}
-                    <span className="flex-1 text-base font-semibold">
-                      {running ? 'Running…' : label}
-                    </span>
-                  </span>
-                  <span className="w-full pl-7 text-xs font-normal leading-snug opacity-90">
-                    {hint}
-                  </span>
-                </Button>
-              )
-            })}
-          </div>
+                  level={level}
+                  label={label}
+                  testId={testId}
+                  tooltip={title}
+                  running={runningLevel === level}
+                  anyRunning={anyRunning}
+                  onRun={(l) => void onRun(l)}
+                />
+              ))}
+            </div>
+          </TooltipProvider>
         </DialogBody>
       </DialogContent>
     </Dialog>

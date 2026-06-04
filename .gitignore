@@ -46,6 +46,10 @@ temp/
 # ─── Storybook ────────────────────────────────────────────────
 storybook-static/
 
+# ─── Local documentation (not pushed to git) ────────────────────
+Dcoumentation/
+Documentation/
+
 # ─── Local archives / exports ────────────────────────────────
 *.zip
 

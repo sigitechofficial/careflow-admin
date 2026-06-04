@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import type { CarePlanDraftValues } from './care-plan-draft-storage'
+import { RichTextEditor } from '@/shared/ui/rich-text-editor'
+import { SummernoteEditor } from '@/shared/ui/summernote-editor'
 
 function fieldKey(sectionId: string, fieldId: string) {
   return `${sectionId}:${fieldId}`
@@ -85,7 +87,7 @@ function CarePathwayFieldInput({
     )
   }
 
-  if (type === 'TEXTAREA' || type === 'RICH_TEXT') {
+  if (type === 'TEXTAREA') {
     return (
       <textarea
         className="min-h-[88px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
@@ -93,6 +95,30 @@ function CarePathwayFieldInput({
         onChange={e => onChange(e.target.value)}
         placeholder={field.placeholder ?? undefined}
         disabled={disabled}
+      />
+    )
+  }
+
+  if (type === 'RICH_TEXT') {
+    return (
+      <RichTextEditor
+        value={typeof value === 'string' ? value : ''}
+        onChange={html => onChange(html)}
+        placeholder={field.placeholder ?? 'Start typing…'}
+        disabled={disabled}
+        minHeight={120}
+      />
+    )
+  }
+
+  if (type === 'SUMMERNOTE') {
+    return (
+      <SummernoteEditor
+        value={typeof value === 'string' ? value : ''}
+        onChange={html => onChange(html)}
+        placeholder={field.placeholder ?? 'Start typing…'}
+        disabled={disabled}
+        minHeight={120}
       />
     )
   }

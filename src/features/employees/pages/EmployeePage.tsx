@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   Users, ShieldCheck, Star, Award, Activity, TrendingUp,
-  PenLine, Plus, X, Filter, FileText,
+  PenLine, Plus, X, Filter, FileText, Globe,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -23,6 +23,12 @@ import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmploye
 import { EmployeeSkillsTab } from '@/features/employees/components/EmployeeSkillsTab'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
 import { Badge } from '@/shared/ui/badge'
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/shared/ui/tooltip'
 import { Button } from '@/shared/ui/button'
 import { Switch } from '@/shared/ui/toggle-controls'
 import {
@@ -206,7 +212,7 @@ function StaffStatusCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
       <h3 className="text-center font-bold text-sm mb-4">Staff Status Chart</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">LoadingÖ</p>
+        <p className="text-xs text-muted-foreground text-center py-6">Loadingù</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center">{error}</p>
       ) : (
@@ -255,7 +261,7 @@ function ComplianceCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
       <h3 className="font-bold text-sm mb-1">Compliance</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">LoadingÖ</p>
+        <p className="text-xs text-muted-foreground py-12">Loadingù</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -303,13 +309,13 @@ function SkillsChartCard({
       <h3 className="font-bold text-sm mb-0.5">Skills Chart</h3>
       {loading || error ? null : hasData ? (
         <p className="mb-2 text-center text-[10px] text-muted-foreground">
-          {totalAssignments} skill assignment{totalAssignments === 1 ? '' : 's'} ∑ from database
+          {totalAssignments} skill assignment{totalAssignments === 1 ? '' : 's'} ù from database
         </p>
       ) : (
         <p className="mb-2 text-center text-[10px] text-muted-foreground">From employee skill assignments</p>
       )}
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">LoadingÖ</p>
+        <p className="text-xs text-muted-foreground py-12">Loadingù</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -381,7 +387,7 @@ function ReviewsCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
       <h3 className="font-bold text-sm mb-1">Reviews</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">LoadingÖ</p>
+        <p className="text-xs text-muted-foreground py-12">Loadingù</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -425,7 +431,7 @@ function staffRowInitials(row: EmployeeListRow) {
     if (first && first.length >= 2) return first.slice(0, 2).toUpperCase()
     if (first) return first.slice(0, 1).toUpperCase()
   }
-  return 'ó'
+  return 'ù'
 }
 
 function staffAvatarColor(id: string) {
@@ -590,18 +596,18 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
             {loading ? (
               <tr data-testid="employee-staff-loading">
                 <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">
-                  LoadingÖ
+                  Loadingù
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr data-testid="employee-staff-empty">
                 <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">
-                  {error ? 'ó' : 'No employees match this filter.'}
+                  {error ? 'ù' : 'No employees match this filter.'}
                 </td>
               </tr>
             ) : (
               rows.map(emp => {
-                const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || 'ó'
+                const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || 'ù'
                 const { label: statusLabel, norm: statusNorm } = staffRowEffectiveStatus(emp)
                 const photoSrc = resolveMediaUrl(emp.photoUrl)
                 const rowStatusSwitch =
@@ -637,7 +643,27 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-3 font-medium whitespace-nowrap">{name}</td>
+                    <td className="px-3 py-3 font-medium whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        {name}
+                        {emp.isInCountry === false ? (
+                          <TooltipProvider delayDuration={200}>
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="inline-flex text-amber-600 dark:text-amber-400"
+                                  aria-label="Out of country"
+                                  data-testid={`employee-out-of-country-${emp.id}`}
+                                >
+                                  <Globe className="h-4 w-4" aria-hidden />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">Out of country</TooltipContent>
+                            </UiTooltip>
+                          </TooltipProvider>
+                        ) : null}
+                      </span>
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
@@ -649,11 +675,11 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                         {rowStatusSwitch}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? 'ó'}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? 'ó'}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.grade?.name ?? 'ó'}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? 'ù'}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? 'ù'}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.grade?.name ?? 'ù'}</td>
                     <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                      {emp.contractType?.name ?? 'ó'}
+                      {emp.contractType?.name ?? 'ù'}
                     </td>
                     <td className="px-3 py-3">
                       <button

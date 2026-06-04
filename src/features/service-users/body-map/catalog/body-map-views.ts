@@ -1,3 +1,24 @@
+/** Posture diagrams (leaning / sitting) — separate from anatomy prototype views. */
+export type BodyMapPostureView = 'leaning' | 'sitting'
+
+export const BODY_MAP_POSTURE_TABS: { id: BodyMapPostureView; label: string }[] = [
+  { id: 'leaning', label: 'Leaning' },
+  { id: 'sitting', label: 'Sitting' },
+]
+
+export const POSTURE_DIAGRAM_URL: Record<BodyMapPostureView, string> = {
+  leaning: '/body-map/leaning.svg',
+  sitting: '/body-map/sitting.svg',
+}
+
+export type BodyMapDiagramTab = 'standard' | BodyMapPostureView
+
+export const BODY_MAP_DIAGRAM_TABS: { id: BodyMapDiagramTab; label: string }[] = [
+  { id: 'standard', label: 'Standing / regions' },
+  { id: 'leaning', label: 'Leaning' },
+  { id: 'sitting', label: 'Sitting' },
+]
+
 /** Canvas view keys — same as careflow-body-map.html */
 export type BodyMapCanvasView =
   | 'dual'
@@ -49,6 +70,8 @@ export const VIEW_LABELS: Record<string, string> = {
   hand_r: 'Right hand',
   foot_l: 'Left foot',
   foot_r: 'Right foot',
+  leaning: 'Leaning',
+  sitting: 'Sitting',
 }
 
 export const VIEW_PERSPECTIVE: Record<string, string> = {
@@ -66,4 +89,6 @@ export const VIEW_PERSPECTIVE: Record<string, string> = {
   hand_r: 'Palm of the right hand',
   foot_l: 'Sole of the left foot',
   foot_r: 'Sole of the right foot',
+  leaning: 'Body map while leaning',
+  sitting: 'Body map while sitting',
 }

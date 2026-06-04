@@ -1,3 +1,7 @@
+import {
+  InitialAssessmentControlTooltip,
+  iaQuestionTooltipText,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentControlTooltip'
 import { cn } from '@/shared/lib/utils'
 import {
   IA_CHECKBOX_CLASS,
@@ -33,6 +37,9 @@ export function InitialAssessmentMultiSelectOptionsGrid({
   const options = parseQuestionOptions(question.options)
   const selected = new Set(selectedValues(value))
   const hasError = Boolean(errorMessage)
+  const tooltipContent = iaQuestionTooltipText(question)
+  const helpId = `${question.id}-help`
+  const describedBy = question.helpText ? helpId : undefined
 
   const toggle = (optValue: string) => {
     const next = new Set(selected)
@@ -63,7 +70,11 @@ export function InitialAssessmentMultiSelectOptionsGrid({
             </span>
           ) : null}
         </p>
-        {question.helpText ? <p className="mt-1 text-sm text-muted-foreground">{question.helpText}</p> : null}
+        {question.helpText ? (
+          <span id={helpId} className="sr-only">
+            {question.helpText}
+          </span>
+        ) : null}
         {hasError ? (
           <p className="mt-1 text-xs font-medium text-destructive" role="alert">
             {errorMessage}
@@ -88,13 +99,16 @@ export function InitialAssessmentMultiSelectOptionsGrid({
                 disabled && 'cursor-not-allowed opacity-60',
               )}
             >
-              <input
-                type="checkbox"
-                className={cn('mt-0.5', IA_CHECKBOX_CLASS)}
-                checked={active}
-                disabled={disabled}
-                onChange={() => toggle(opt.value)}
-              />
+              <InitialAssessmentControlTooltip content={tooltipContent} disabled={disabled} className="inline-flex shrink-0">
+                <input
+                  type="checkbox"
+                  className={cn('mt-0.5', IA_CHECKBOX_CLASS)}
+                  checked={active}
+                  disabled={disabled}
+                  aria-describedby={describedBy}
+                  onChange={() => toggle(opt.value)}
+                />
+              </InitialAssessmentControlTooltip>
               {opt.label}
             </label>
           )

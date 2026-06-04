@@ -1,4 +1,4 @@
-import { BODY_PART_NAMES } from '@/features/service-users/body-map/catalog/body-part-names'
+import { allBodyPartNames } from '@/features/service-users/body-map/catalog/body-part-options'
 
 export type BodyMapRecordTypeCode =
   | 'INJURY'
@@ -65,8 +65,8 @@ export const BODY_MAP_RECORD_TYPES: {
   },
 ]
 
-/** Full clinical taxonomy — same list as HTML prototype / BodyMapCatalog */
-export const BODY_PART_OPTIONS: string[] = [...BODY_PART_NAMES]
+/** Full clinical taxonomy including leaning/sitting posture sites */
+export const BODY_PART_OPTIONS: string[] = allBodyPartNames()
 
 export function markerClassForType(type: BodyMapRecordTypeCode): string {
   switch (type) {

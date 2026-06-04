@@ -6,7 +6,10 @@ import {
 } from '@/features/service-users/body-map/catalog/record-types'
 import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
 import { VIEW_LABELS } from '@/features/service-users/body-map/catalog/body-map-views'
-import { BODY_PART_OPTIONS } from '@/features/service-users/body-map/catalog/record-types'
+import {
+  BodyPartCombobox,
+  isClinicalBodyPart,
+} from '@/features/service-users/body-map/components/BodyPartCombobox'
 import type { PrototypeMarkerCoords } from '@/features/service-users/body-map/utils/body-map-coords'
 import { prototypeSideToApi } from '@/features/service-users/body-map/utils/body-map-coords'
 import type {
@@ -176,21 +179,41 @@ export function AddBodyMapRecordWizard({
     }
   }, [open, preselectedMedicationId])
 
+  const markerPlacementKey = pendingMarker
+    ? [
+        pendingMarker.canvasView,
+        pendingMarker.recordView,
+        pendingMarker.x.toFixed(2),
+        pendingMarker.y.toFixed(2),
+        pendingMarker.regionId ?? '',
+      ].join('|')
+    : ''
+
+  const lastSyncedPlacementKey = React.useRef('')
+
   React.useEffect(() => {
-    if (pendingMarker?.bodyPart) setBodyPart(pendingMarker.bodyPart)
-    if (pendingMarker?.side) setSide(pendingMarker.side)
-    if (pendingMarker?.summaryLabel) setLocNote(pendingMarker.summaryLabel)
-    else if (pendingMarker) {
+    if (!pendingMarker) {
+      lastSyncedPlacementKey.current = ''
+      return
+    }
+    if (markerPlacementKey === lastSyncedPlacementKey.current) return
+    lastSyncedPlacementKey.current = markerPlacementKey
+
+    const fromMarker = pendingMarker.bodyPart?.trim() ?? ''
+    setBodyPart(isClinicalBodyPart(fromMarker) ? fromMarker : '')
+    if (pendingMarker.side) setSide(pendingMarker.side)
+    if (pendingMarker.summaryLabel) setLocNote(pendingMarker.summaryLabel)
+    else {
       const vl = VIEW_LABELS[pendingMarker.recordView] ?? pendingMarker.recordView
       setLocNote(
         `${pendingMarker.side} ${pendingMarker.bodyPart} at ${pendingMarker.x.toFixed(1)}%, ${pendingMarker.y.toFixed(1)}% on ${vl}`,
       )
     }
-  }, [pendingMarker])
+  }, [markerPlacementKey, pendingMarker])
 
   const canNext = () => {
     if (stepKey === 'Type') return Boolean(subType)
-    if (stepKey === 'Location') return Boolean(pendingMarker && bodyPart.trim())
+    if (stepKey === 'Location') return Boolean(pendingMarker && isClinicalBodyPart(bodyPart))
     if (stepKey === 'MAR link') return medicationSiteWizardValid(subType, medSiteState)
     if (stepKey === 'Observation') return Boolean(description.trim())
     if (stepKey === 'Cause') return true
@@ -203,7 +226,7 @@ export function AddBodyMapRecordWizard({
   }
 
   const handleFinish = () => {
-    if (!pendingMarker || !bodyPart.trim()) return
+    if (!pendingMarker || !isClinicalBodyPart(bodyPart)) return
     if (isMedication && !medicationSiteWizardValid(subType, medSiteState)) return
     const selectedMed = eligibleMedications.find(m => m.id === medSiteState.serviceUserMedicationId)
     onSubmit({
@@ -367,19 +390,13 @@ export function AddBodyMapRecordWizard({
               ) : null}
               <label className="block text-sm font-medium">
                 Body part
-                <select
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={bodyPart}
-                  onChange={e => setBodyPart(e.target.value)}
-                  required
-                >
-                  <option value="">Select…</option>
-                  {BODY_PART_OPTIONS.map(p => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                <div className="mt-1">
+                  <BodyPartCombobox
+                    value={bodyPart}
+                    onChange={setBodyPart}
+                    canvasView={pendingMarker?.canvasView}
+                  />
+                </div>
               </label>
               <label className="block text-sm font-medium">
                 Side

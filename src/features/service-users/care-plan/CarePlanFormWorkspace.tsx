@@ -15,7 +15,6 @@ import type { ServiceUserDetail } from '@/features/service-users/types'
 import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
 import { CarePlanAssessmentSection } from '@/features/service-users/care-plan/CarePlanAssessmentSection'
 import { CarePlanConsentCapacitySection } from '@/features/service-users/care-plan/CarePlanConsentCapacitySection'
-import { CarePlanFormAccordion } from '@/features/service-users/care-plan/CarePlanFormAccordion'
 import {
   CARE_PLAN_META,
   DEFAULT_CARE_ACTIONS,
@@ -641,6 +640,27 @@ function CareHistorySection() {
   )
 }
 
+export type CarePlanFormSectionId =
+  | 'review-summary'
+  | 'assessment'
+  | 'care-plan'
+  | 'risk-profile'
+  | 'body-map'
+  | 'care-actions'
+  | 'care-history'
+  | 'consent-capacity'
+
+const CARE_PLAN_FORM_SECTIONS: { id: CarePlanFormSectionId; label: string }[] = [
+  { id: 'review-summary', label: 'Review Summary' },
+  { id: 'assessment', label: 'Assessment' },
+  { id: 'care-plan', label: 'Care Plan' },
+  { id: 'risk-profile', label: 'Care Plan Risk Profile' },
+  { id: 'body-map', label: 'Body Map' },
+  { id: 'care-actions', label: 'Care Actions' },
+  { id: 'care-history', label: 'Care History' },
+  { id: 'consent-capacity', label: 'Consent and Mental Capacity' },
+]
+
 export function CarePlanFormFooter({
   onCancel,
   onPublish,
@@ -700,6 +720,9 @@ export function CarePlanFormWorkspace({
   const recordedByName = useAuthStore((s) => s.user?.displayName ?? 'Staff member')
   const published = metaBool(values, CARE_PLAN_META.published)
   const formName = form.name.replace(/\s+care plan$/i, '').trim() || form.name
+  const [activeSection, setActiveSection] = React.useState<CarePlanFormSectionId>('review-summary')
+  const activeLabel =
+    CARE_PLAN_FORM_SECTIONS.find(s => s.id === activeSection)?.label ?? 'Care plan'
 
   return (
     <div data-testid="care-plan-form-workspace">
@@ -713,9 +736,42 @@ export function CarePlanFormWorkspace({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <div className="space-y-3">
-          <CarePlanFormAccordion title="Review Summary" defaultOpen>
+      <div className="flex min-h-[min(70vh,640px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
+        <nav
+          className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-border bg-muted/30 p-2 md:w-64 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-2"
+          aria-label="Care plan form sections"
+          data-testid="care-plan-form-section-tabs"
+        >
+          {CARE_PLAN_FORM_SECTIONS.map(section => {
+            const isActive = section.id === activeSection
+            return (
+              <button
+                key={section.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                data-testid={`care-plan-form-tab-${section.id}`}
+                onClick={() => setActiveSection(section.id)}
+                className={cn(
+                  'shrink-0 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
+                  isActive
+                    ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
+                    : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
+                )}
+              >
+                {section.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div
+          className="min-w-0 flex-1 overflow-y-auto p-5"
+          role="tabpanel"
+          aria-label={activeLabel}
+          data-testid={`care-plan-form-panel-${activeSection}`}
+        >
+          {activeSection === 'review-summary' && (
             <ReviewSummarySection
               serviceUserName={serviceUserName}
               consentDefaultName={consentDefaultName}
@@ -723,9 +779,8 @@ export function CarePlanFormWorkspace({
               onChange={onChange}
               disabled={disabled}
             />
-          </CarePlanFormAccordion>
-
-          <CarePlanFormAccordion title="Assessment">
+          )}
+          {activeSection === 'assessment' && (
             <CarePlanAssessmentSection
               carePlanFormName={formName}
               values={values}
@@ -735,36 +790,22 @@ export function CarePlanFormWorkspace({
               serviceUserId={serviceUserId}
               formId={form.id}
             />
-          </CarePlanFormAccordion>
-
-          <CarePlanFormAccordion title="Care Plan" defaultOpen>
+          )}
+          {activeSection === 'care-plan' && (
             <CarePlanMainSection
               form={form}
               values={values}
               onChange={onChange}
               disabled={disabled}
             />
-          </CarePlanFormAccordion>
-
-          <CarePlanFormAccordion title="Care Plan Risk Profile">
+          )}
+          {activeSection === 'risk-profile' && (
             <RiskProfileSection values={values} onChange={onChange} disabled={disabled} />
-          </CarePlanFormAccordion>
-        </div>
-
-        <div className="space-y-3">
-          <CarePlanFormAccordion title="Body Map">
-            <BodyMapSection serviceUserId={serviceUserId} />
-          </CarePlanFormAccordion>
-
-          <CarePlanFormAccordion title="Care Actions">
-            <CareActionsSection />
-          </CarePlanFormAccordion>
-
-          <CarePlanFormAccordion title="Care History">
-            <CareHistorySection />
-          </CarePlanFormAccordion>
-
-          <CarePlanFormAccordion title="Consent and Mental Capacity" defaultOpen>
+          )}
+          {activeSection === 'body-map' && <BodyMapSection serviceUserId={serviceUserId} />}
+          {activeSection === 'care-actions' && <CareActionsSection />}
+          {activeSection === 'care-history' && <CareHistorySection />}
+          {activeSection === 'consent-capacity' && (
             <CarePlanConsentCapacitySection
               serviceUserName={serviceUserName}
               values={values}
@@ -772,7 +813,7 @@ export function CarePlanFormWorkspace({
               disabled={disabled}
               recordedByName={recordedByName}
             />
-          </CarePlanFormAccordion>
+          )}
         </div>
       </div>
 

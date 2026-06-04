@@ -44,6 +44,7 @@ import {
   TableRow,
 } from '@/shared/ui/data-table'
 import { Checkbox } from '@/shared/ui/toggle-controls'
+import { looksLikeHtmlContent, SummernoteEditor } from '@/shared/ui/summernote-editor'
 import { useAuthStore } from '@/features/auth/store'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
 
@@ -63,7 +64,8 @@ const FIELD_TYPES: { value: FormFieldType; label: string }[] = [
   { value: 'SELECT', label: 'Dropdown' },
   { value: 'CHECKBOX', label: 'Checkbox' },
   { value: 'YES_NO', label: 'Yes / No' },
-  { value: 'RICH_TEXT', label: 'Rich text' },
+  { value: 'RICH_TEXT', label: 'Rich text (TipTap)' },
+  { value: 'SUMMERNOTE', label: 'Rich text (Summernote)' },
 ]
 
 function formTypeLabel(t: CarePathwayFormType) {
@@ -120,6 +122,7 @@ export function FormBuilderTab() {
   const [createName, setCreateName] = React.useState('')
   const [createType, setCreateType] = React.useState<CarePathwayFormType>('CARE_PLAN')
   const [createDescription, setCreateDescription] = React.useState('')
+  const [createDescUseSummernote, setCreateDescUseSummernote] = React.useState(false)
   const [createPictureUrl, setCreatePictureUrl] = React.useState<string | null>(null)
   const [createIconFile, setCreateIconFile] = React.useState<File | null>(null)
 
@@ -128,6 +131,7 @@ export function FormBuilderTab() {
   const [formName, setFormName] = React.useState('')
   const [formType, setFormType] = React.useState<CarePathwayFormType>('CARE_PLAN')
   const [formDescription, setFormDescription] = React.useState('')
+  const [editDescUseSummernote, setEditDescUseSummernote] = React.useState(false)
   const [formStatus, setFormStatus] = React.useState('')
   const [formPictureUrl, setFormPictureUrl] = React.useState<string | null>(null)
   const [formIconFile, setFormIconFile] = React.useState<File | null>(null)
@@ -170,6 +174,7 @@ export function FormBuilderTab() {
       setFormName(form.name)
       setFormType(form.formType)
       setFormDescription(form.description ?? '')
+      setEditDescUseSummernote(looksLikeHtmlContent(form.description))
       setFormStatus(form.status)
       setFormPictureUrl(form.pictureUrl ?? null)
       setFormIconFile(null)
@@ -189,6 +194,7 @@ export function FormBuilderTab() {
     setCreateName('')
     setCreateType('CARE_PLAN')
     setCreateDescription('')
+    setCreateDescUseSummernote(false)
     setCreatePictureUrl(null)
     setCreateIconFile(null)
     setCreateOpen(true)
@@ -521,18 +527,36 @@ export function FormBuilderTab() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="create-form-desc" className="text-sm font-medium">
-                Description (optional)
-              </label>
-              <textarea
-                id="create-form-desc"
-                className={descriptionTextareaClass}
-                value={createDescription}
-                onChange={e => setCreateDescription(e.target.value)}
-                rows={4}
-                maxLength={2000}
-                placeholder="Shown at the top of the form when carers open it"
-              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label htmlFor="create-form-desc" className="text-sm font-medium">
+                  Description (optional)
+                </label>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Checkbox
+                    checked={createDescUseSummernote}
+                    onCheckedChange={v => setCreateDescUseSummernote(v === true)}
+                  />
+                  Use Summernote editor
+                </label>
+              </div>
+              {createDescUseSummernote ? (
+                <SummernoteEditor
+                  value={createDescription}
+                  onChange={setCreateDescription}
+                  minHeight={120}
+                  placeholder="Shown at the top of the form when carers open it"
+                />
+              ) : (
+                <textarea
+                  id="create-form-desc"
+                  className={descriptionTextareaClass}
+                  value={createDescription}
+                  onChange={e => setCreateDescription(e.target.value)}
+                  rows={4}
+                  maxLength={2000}
+                  placeholder="Shown at the top of the form when carers open it"
+                />
+              )}
             </div>
             <FormIconPicker
               pictureUrl={createPictureUrl}
@@ -611,22 +635,49 @@ export function FormBuilderTab() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="edit-form-desc" className="text-sm font-medium">
-                    Description
-                  </label>
-                  <textarea
-                    id="edit-form-desc"
-                    className={descriptionTextareaClass}
-                    value={formDescription}
-                    onChange={e => {
-                      markDirty()
-                      setFormDescription(e.target.value)
-                    }}
-                    disabled={!canUpdate}
-                    rows={4}
-                    maxLength={2000}
-                    placeholder="Shown at the top of the form when carers open it"
-                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label htmlFor="edit-form-desc" className="text-sm font-medium">
+                      Description
+                    </label>
+                    {canUpdate ? (
+                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Checkbox
+                          checked={editDescUseSummernote}
+                          onCheckedChange={v => {
+                            markDirty()
+                            setEditDescUseSummernote(v === true)
+                          }}
+                        />
+                        Use Summernote editor
+                      </label>
+                    ) : null}
+                  </div>
+                  {editDescUseSummernote ? (
+                    <SummernoteEditor
+                      value={formDescription}
+                      onChange={html => {
+                        markDirty()
+                        setFormDescription(html)
+                      }}
+                      disabled={!canUpdate}
+                      minHeight={120}
+                      placeholder="Shown at the top of the form when carers open it"
+                    />
+                  ) : (
+                    <textarea
+                      id="edit-form-desc"
+                      className={descriptionTextareaClass}
+                      value={formDescription}
+                      onChange={e => {
+                        markDirty()
+                        setFormDescription(e.target.value)
+                      }}
+                      disabled={!canUpdate}
+                      rows={4}
+                      maxLength={2000}
+                      placeholder="Shown at the top of the form when carers open it"
+                    />
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">Status: {formStatus}</p>
 

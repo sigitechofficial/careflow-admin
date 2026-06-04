@@ -4,7 +4,7 @@ import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
 import { GeneralSettingsGeneralPanel } from '@/features/settings/components/GeneralSettingsGeneralPanel'
-import { GeneralSettingsEmployeePanel } from '@/features/settings/components/GeneralSettingsEmployeePanel'
+import { GeneralSettingsEmployeeSection } from '@/features/settings/components/GeneralSettingsEmployeeSection'
 import { GeneralSettingsServiceManagementPanel } from '@/features/settings/components/GeneralSettingsServiceManagementPanel'
 import { GeneralSettingsDomCarePanel } from '@/features/settings/components/GeneralSettingsDomCarePanel'
 import { GeneralSettingsDomCareShiftsPanel } from '@/features/settings/components/GeneralSettingsDomCareShiftsPanel'
@@ -104,7 +104,7 @@ export default function GeneralSettingsPage() {
 
         <div className="min-w-0 flex-1 overflow-y-auto p-5">
           {activeTab === 'general' && <GeneralSettingsGeneralPanel />}
-          {activeTab === 'employee' && <GeneralSettingsEmployeePanel />}
+          {activeTab === 'employee' && <GeneralSettingsEmployeeSection />}
           {activeTab === 'service-management' && <GeneralSettingsServiceManagementPanel />}
           {activeTab === 'dom-care' && <GeneralSettingsDomCarePanel />}
           {activeTab === 'dom-care-shifts' && <GeneralSettingsDomCareShiftsPanel />}

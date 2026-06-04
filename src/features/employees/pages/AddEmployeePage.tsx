@@ -8,7 +8,6 @@ import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import {
-  type EmployeeDetail,
   type EmployeeLookupsBundle,
   type LookupRow,
 } from '@/features/employees/types'
@@ -31,6 +30,15 @@ import { EmployeeEditNonCorePanel } from '@/features/employees/components/Employ
 import { EmployeeEditCompliancePanel } from '@/features/employees/components/EmployeeEditCompliancePanel'
 import { EmployeeEditPlaceholderPanel } from '@/features/employees/components/EmployeeEditPlaceholderPanel'
 import { personalStepSchema, employmentStepSchema } from '@/schemas/add-employee.schema'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import {
+  resolveEmployeeVisaTypes,
+  weeklyHoursForVisaType,
+} from '@/features/settings/employee/employee-visa-defaults'
+import {
+  mapEmployeeDetailToFormValues,
+  type EmployeeFormValues,
+} from '@/features/employees/lib/employee-detail-form.util'
 import { DIAL_CODES, formatPhoneForApi, splitPhoneForForm } from '@/features/employees/dial-codes'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -56,58 +64,7 @@ import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 
 type TabId = 'personal' | 'employment' | 'working-pattern'
 
-type FormValues = {
-  firstName: string
-  lastName: string
-  username: string
-  email: string
-  titleId: string
-  genderId: string
-  nationalityId: string
-  statusId: string
-  dateOfBirth: string
-  addressLine1: string
-  addressLine2: string
-  town: string
-  country: string
-  postcode: string
-  homeDialCode: string
-  homeTelephone: string
-  mobileDialCode: string
-  mobileTelephone: string
-  photoUrl: string
-  workAreaId: string
-  roleId: string
-  locationId: string
-  jobTitleId: string
-  rbacLevelId: string
-  gradeId: string
-  contractTypeId: string
-  travelPaymentTypeId: string
-  baseLocationId: string
-  startDate: string
-  endDate: string
-  nationalInsuranceNo: string
-  nmcPinNumber: string
-  employeeNumber: string
-  payrollNumber: string
-  accessAllZones: boolean
-  contractedWeeklyHours: string
-  maximumWeeklyHours: string
-  minimumWeeklyHours: string
-  optedOutOf48Hours: boolean
-  isAgencyStaff: boolean
-  agencyName: string
-  agencyRating: string
-  isPreferredAgency: boolean
-  isBlacklisted: boolean
-  dailyRate: string
-  hourlyDayRate: string
-  hourlyNightRate: string
-  availableForWork: boolean
-  workingPatternRequired: boolean
-  workBankHoliday: boolean
-}
+type FormValues = EmployeeFormValues
 
 const defaultValues: FormValues = {
   firstName: '',
@@ -145,6 +102,8 @@ const defaultValues: FormValues = {
   employeeNumber: '',
   payrollNumber: '',
   accessAllZones: false,
+  visaTypeId: '',
+  isInCountry: true,
   contractedWeeklyHours: '',
   maximumWeeklyHours: '',
   minimumWeeklyHours: '',
@@ -160,77 +119,6 @@ const defaultValues: FormValues = {
   availableForWork: true,
   workingPatternRequired: true,
   workBankHoliday: true,
-}
-
-function isoToDateInput(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
-}
-
-function numToInput(v: unknown): string {
-  if (v === null || v === undefined || v === '') return ''
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
-  return String(v)
-}
-
-function employeeDetailToFormValues(emp: EmployeeDetail): FormValues {
-  const pd = emp.personalDetail
-  const em = emp.employment
-  const home = splitPhoneForForm(pd?.homeTelephone ?? undefined)
-  const mobile = splitPhoneForForm(pd?.mobileTelephone ?? undefined)
-  const base: FormValues = { ...defaultValues }
-  if (!pd) return base
-  return {
-    ...base,
-    firstName: pd.firstName ?? '',
-    lastName: pd.lastName ?? '',
-    username: pd.username ?? '',
-    email: pd.email ?? '',
-    titleId: pd.titleId ?? '',
-    genderId: pd.genderId ?? '',
-    nationalityId: pd.nationalityId ?? '',
-    statusId: pd.statusId ?? '',
-    dateOfBirth: isoToDateInput(pd.dateOfBirth ?? undefined),
-    addressLine1: pd.addressLine1 ?? '',
-    addressLine2: pd.addressLine2 ?? '',
-    town: pd.town ?? '',
-    country: pd.country ?? '',
-    postcode: pd.postcode ?? '',
-    homeDialCode: home.dial,
-    homeTelephone: home.local,
-    mobileDialCode: mobile.dial,
-    mobileTelephone: mobile.local,
-    photoUrl: pd.photoUrl ?? '',
-    workAreaId: em?.workAreaId ?? '',
-    roleId: em?.roleId ?? '',
-    locationId: em?.locationId ?? '',
-    jobTitleId: em?.jobTitleId ?? '',
-    rbacLevelId: em?.rbacLevelId ?? '',
-    gradeId: em?.gradeId ?? '',
-    contractTypeId: em?.contractTypeId ?? '',
-    travelPaymentTypeId: em?.travelPaymentTypeId ?? '',
-    baseLocationId: em?.baseLocationId ?? '',
-    startDate: isoToDateInput(em?.startDate ?? undefined),
-    endDate: isoToDateInput(em?.endDate ?? undefined),
-    nationalInsuranceNo: em?.nationalInsuranceNo ?? '',
-    nmcPinNumber: em?.nmcPinNumber ?? '',
-    employeeNumber: em?.employeeNumber ?? '',
-    payrollNumber: em?.payrollNumber ?? '',
-    accessAllZones: Boolean(em?.accessAllZones),
-    contractedWeeklyHours: numToInput(em?.contractedWeeklyHours),
-    maximumWeeklyHours: numToInput(em?.maximumWeeklyHours),
-    minimumWeeklyHours: numToInput(em?.minimumWeeklyHours),
-    optedOutOf48Hours: Boolean(em?.optedOutOf48Hours),
-    isAgencyStaff: Boolean(em?.isAgencyStaff),
-    agencyName: em?.agencyName ?? '',
-    agencyRating: em?.agencyRating ?? '',
-    isPreferredAgency: Boolean(em?.isPreferredAgency),
-    isBlacklisted: Boolean(em?.isBlacklisted),
-    dailyRate: numToInput(em?.dailyRate),
-    hourlyDayRate: numToInput(em?.hourlyDayRate),
-    hourlyNightRate: numToInput(em?.hourlyNightRate),
-  }
 }
 
 function applyZodErrors<T extends Record<string, unknown>>(
@@ -285,6 +173,8 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     employeeNumber: e.employeeNumber,
     payrollNumber: e.payrollNumber,
     accessAllZones: e.accessAllZones,
+    visaTypeId: e.visaTypeId || null,
+    isInCountry: e.isInCountry,
     contractedWeeklyHours: e.contractedWeeklyHours,
     maximumWeeklyHours: e.maximumWeeklyHours,
     minimumWeeklyHours: e.minimumWeeklyHours,
@@ -455,6 +345,7 @@ function LookupSelect({
   error,
   tip,
   disabled,
+  savedOptionName,
 }: {
   id: string
   value: string
@@ -464,7 +355,15 @@ function LookupSelect({
   error?: string
   tip?: string
   disabled?: boolean
+  /** Label when `value` is set but missing from `options` (e.g. after loading saved employee). */
+  savedOptionName?: string | null
 }) {
+  const mergedOptions = React.useMemo(() => {
+    if (!value || options.some(o => o.id === value)) return options
+    const label = savedOptionName?.trim() || '(saved)'
+    return [{ id: value, name: label }, ...options]
+  }, [options, value, savedOptionName])
+
   const v = value || '__none__'
   return (
     <div className="flex min-w-0 items-center gap-2">
@@ -478,7 +377,7 @@ function LookupSelect({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">— {placeholder} —</SelectItem>
-          {options.map(o => (
+          {mergedOptions.map(o => (
             <SelectItem key={o.id} value={o.id}>
               {o.name}
             </SelectItem>
@@ -574,7 +473,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const [postcodeLookupBusy, setPostcodeLookupBusy] = React.useState(false)
   const pendingPhotoRef = React.useRef<File | null>(null)
   const photoFileInputRef = React.useRef<HTMLInputElement>(null)
-  const hydratedEmployeeIdRef = React.useRef<string | null>(null)
+  const hydratedDataTokenRef = React.useRef<string | null>(null)
+  const prevVisaTypeIdRef = React.useRef<string | undefined>(undefined)
 
   const apiConfigured = Boolean(getApiBaseUrl())
   const accessToken = useAuthStore(s => s.accessToken)
@@ -722,16 +622,46 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const availableForWork = useWatch({ control, name: 'availableForWork' })
   const workingPatternRequired = useWatch({ control, name: 'workingPatternRequired' })
   const isAgencyStaff = useWatch({ control, name: 'isAgencyStaff' })
+  const visaTypeId = useWatch({ control, name: 'visaTypeId' })
+  const generalSettingsQuery = useGeneralSettings(apiReady)
+  const visaTypes = React.useMemo(() => {
+    const base = resolveEmployeeVisaTypes(generalSettingsQuery.data?.employeeVisaTypes)
+    if (!visaTypeId || base.some(vt => vt.id === visaTypeId)) return base
+    return [{ id: visaTypeId, label: visaTypeId, weeklyHours: 0 }, ...base]
+  }, [generalSettingsQuery.data?.employeeVisaTypes, visaTypeId])
+
+  const savedPersonal = employeeQuery.data?.personalDetail
+  const savedEmployment = employeeQuery.data?.employment
 
   React.useEffect(() => {
-    hydratedEmployeeIdRef.current = null
+    if (!visaTypeId) {
+      prevVisaTypeIdRef.current = undefined
+      return
+    }
+    if (prevVisaTypeIdRef.current === undefined) {
+      prevVisaTypeIdRef.current = visaTypeId
+      return
+    }
+    if (prevVisaTypeIdRef.current === visaTypeId) return
+    prevVisaTypeIdRef.current = visaTypeId
+    const hours = weeklyHoursForVisaType(visaTypes, visaTypeId)
+    if (hours !== undefined) {
+      setValue('contractedWeeklyHours', String(hours), { shouldDirty: true })
+    }
+  }, [visaTypeId, visaTypes, setValue])
+
+  React.useEffect(() => {
+    hydratedDataTokenRef.current = null
+    prevVisaTypeIdRef.current = undefined
   }, [editEmployeeId])
 
   React.useEffect(() => {
     if (!editEmployeeId || !employeeQuery.data) return
-    if (hydratedEmployeeIdRef.current === editEmployeeId) return
+    const token = `${editEmployeeId}:${employeeQuery.dataUpdatedAt}`
+    if (hydratedDataTokenRef.current === token) return
     clearPendingPhotoSelection()
-    reset(employeeDetailToFormValues(employeeQuery.data))
+    reset(mapEmployeeDetailToFormValues(employeeQuery.data, defaultValues, splitPhoneForForm))
+    prevVisaTypeIdRef.current = employeeQuery.data.employment?.visaTypeId ?? undefined
     setCreatedEmployeeId(editEmployeeId)
     setEmploymentSaved(Boolean(employeeQuery.data.employment))
     const pd = employeeQuery.data.personalDetail
@@ -739,8 +669,14 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
       [pd?.firstName, pd?.lastName].filter(Boolean).join(' ').trim() || 'Employee',
     )
     setEditPhotoUrl(pd?.photoUrl ?? null)
-    hydratedEmployeeIdRef.current = editEmployeeId
-  }, [editEmployeeId, employeeQuery.data, reset, clearPendingPhotoSelection])
+    hydratedDataTokenRef.current = token
+  }, [
+    editEmployeeId,
+    employeeQuery.data,
+    employeeQuery.dataUpdatedAt,
+    reset,
+    clearPendingPhotoSelection,
+  ])
 
   const onLookupPostcode = async () => {
     setBanner(null)
@@ -1029,6 +965,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           error={errors.titleId?.message}
                           tip="Courtesy title for correspondence."
                           disabled={!L}
+                          savedOptionName={savedPersonal?.title?.name}
                         />
                       )}
                     />
@@ -1048,6 +985,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           error={errors.genderId?.message}
                           tip="Used for equality monitoring only; optional where not collected."
                           disabled={!L}
+                          savedOptionName={savedPersonal?.gender?.name}
                         />
                       )}
                     />
@@ -1106,6 +1044,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           placeholder="Select nationality"
                           disabled={!L}
                           tip="Stored on the employee profile (lookup id). Right-to-work evidence may be required separately."
+                          savedOptionName={savedPersonal?.nationality?.name}
                         />
                       )}
                     />
@@ -1183,6 +1122,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           placeholder="Select status"
                           disabled={!L}
                           tip="Active / inactive flags for roster eligibility."
+                          savedOptionName={savedPersonal?.status?.name}
                         />
                       )}
                     />
@@ -1275,7 +1215,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                         const result = await employeeQuery.refetch()
                         if (result.data) {
                           clearPendingPhotoSelection()
-                          reset(employeeDetailToFormValues(result.data))
+                          hydratedDataTokenRef.current = null
+                          reset(mapEmployeeDetailToFormValues(result.data, defaultValues, splitPhoneForForm))
+                          prevVisaTypeIdRef.current = result.data.employment?.visaTypeId ?? undefined
+                          hydratedDataTokenRef.current = `${editEmployeeId}:${employeeQuery.dataUpdatedAt}`
                           setCreatedEmployeeId(editEmployeeId)
                           setEmploymentSaved(Boolean(result.data.employment))
                           setBanner(null)
@@ -1323,6 +1266,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           error={errors.workAreaId?.message}
                           disabled={!L}
                           tip="Primary operational area (kitchen, care floor, etc.)."
+                          savedOptionName={savedEmployment?.workArea?.name}
                         />
                       )}
                     />
@@ -1342,6 +1286,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           error={errors.roleId?.message}
                           disabled={!L}
                           tip="Employee designation used across scheduling and payroll."
+                          savedOptionName={savedEmployment?.role?.name}
                         />
                       )}
                     />
@@ -1362,6 +1307,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                               placeholder="Select job title"
                               disabled={!L}
                               tip="Descriptive job title for HR records."
+                              savedOptionName={savedEmployment?.jobTitle?.name}
                             />
                           )}
                         />
@@ -1398,6 +1344,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           placeholder="Select RBAC level"
                           disabled={!L}
                           tip="When employment is saved, if this employee’s personal email matches a login user, that user’s managed app roles are updated from this RBAC level (Super Admin accounts are never changed). See docs/phases/EMPLOYEE_MANAGEMENT.md."
+                          savedOptionName={savedEmployment?.rbacLevel?.name}
                         />
                       )}
                     />
@@ -1446,6 +1393,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           options={L?.grades ?? []}
                           placeholder="Select grade"
                           disabled={!L}
+                          savedOptionName={savedEmployment?.grade?.name}
                         />
                       )}
                     />
@@ -1463,6 +1411,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           options={L?.contractTypes ?? []}
                           placeholder="Select contract type"
                           disabled={!L}
+                          savedOptionName={savedEmployment?.contractType?.name}
                         />
                       )}
                     />
@@ -1480,6 +1429,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           options={L?.travelPaymentTypes ?? []}
                           placeholder="Select travel payment"
                           disabled={!L}
+                          savedOptionName={savedEmployment?.travelPaymentType?.name}
                         />
                       )}
                     />
@@ -1499,6 +1449,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           error={errors.locationId?.message}
                           disabled={!L}
                           tip="Primary site or service location."
+                          savedOptionName={savedEmployment?.location?.name}
                         />
                       )}
                     />
@@ -1515,6 +1466,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           onChange={field.onChange}
                           options={L?.locations ?? []}
                           placeholder="Select base location"
+                          savedOptionName={savedEmployment?.baseLocation?.name}
                           disabled={!L}
                           tip="Optional home site for reporting."
                         />
@@ -1534,8 +1486,45 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                 <div className="grid grid-cols-1 gap-x-10 gap-y-6 pt-2 lg:grid-cols-2">
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Working hours</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Visa & working hours</h3>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <FormField label="Visa type" htmlFor="visaTypeId" error={errors.visaTypeId?.message}>
+                        <Controller
+                          name="visaTypeId"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={field.value || undefined}
+                              onValueChange={field.onChange}
+                            >
+                              <SelectTrigger id="visaTypeId" data-testid="employee-visa-type">
+                                <SelectValue placeholder="Select visa type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {visaTypes.map(vt => (
+                                  <SelectItem key={vt.id} value={vt.id}>
+                                    {vt.label} ({vt.weeklyHours}h / week)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </FormField>
+                      <div className="flex items-center justify-between md:col-span-2">
+                        <span className="text-sm font-medium">Currently in the country</span>
+                        <Controller
+                          name="isInCountry"
+                          control={control}
+                          render={({ field }) => (
+                            <NoYesToggle
+                              id="isInCountry"
+                              value={field.value}
+                              onChange={field.onChange}
+                            />
+                          )}
+                        />
+                      </div>
                       <FormField label="Contracted weekly hours" htmlFor="cw" error={errors.contractedWeeklyHours?.message}>
                         <Input id="cw" inputMode="decimal" {...register('contractedWeeklyHours')} />
                       </FormField>

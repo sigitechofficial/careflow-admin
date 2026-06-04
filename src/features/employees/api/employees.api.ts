@@ -52,6 +52,8 @@ export type EmployeeListRow = {
   role: { id: string; name: string } | null
   grade: { id: string; name: string } | null
   contractType: { id: string; name: string } | null
+  visaTypeId: string | null
+  isInCountry: boolean
 }
 
 export type EmployeeListMeta = {
@@ -80,11 +82,14 @@ export type EmployeeDetail = {
     firstName?: string | null
     lastName?: string | null
     titleId?: string | null
+    title?: { id: string; name: string } | null
     genderId?: string | null
+    gender?: { id: string; name: string } | null
     email?: string | null
     username?: string | null
     dateOfBirth?: string | null
     nationalityId?: string | null
+    nationality?: { id: string; name: string } | null
     addressLine1?: string | null
     addressLine2?: string | null
     town?: string | null
@@ -94,17 +99,27 @@ export type EmployeeDetail = {
     mobileTelephone?: string | null
     photoUrl?: string | null
     statusId?: string | null
+    status?: { id: string; name: string } | null
   }
   employment?: null | {
     workAreaId?: string | null
+    workArea?: { id: string; name: string } | null
     roleId?: string | null
+    role?: { id: string; name: string } | null
     jobTitleId?: string | null
+    jobTitle?: { id: string; name: string } | null
     rbacLevelId?: string | null
+    rbacLevel?: { id: string; name: string } | null
     gradeId?: string | null
+    grade?: { id: string; name: string } | null
     contractTypeId?: string | null
+    contractType?: { id: string; name: string } | null
     travelPaymentTypeId?: string | null
+    travelPaymentType?: { id: string; name: string } | null
     baseLocationId?: string | null
+    baseLocation?: { id: string; name: string } | null
     locationId?: string | null
+    location?: { id: string; name: string } | null
     startDate?: string | null
     endDate?: string | null
     nationalInsuranceNo?: string | null
@@ -112,6 +127,8 @@ export type EmployeeDetail = {
     employeeNumber?: string | null
     payrollNumber?: string | null
     accessAllZones?: boolean | null
+    visaTypeId?: string | null
+    isInCountry?: boolean | null
     contractedWeeklyHours?: number | string | null
     maximumWeeklyHours?: number | string | null
     minimumWeeklyHours?: number | string | null

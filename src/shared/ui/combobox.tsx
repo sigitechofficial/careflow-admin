@@ -22,6 +22,8 @@ interface ComboboxProps {
   loading?: boolean
   onSearchChange?: (search: string) => void
   className?: string
+  /** When false, clicking the selected option again does not clear the value */
+  allowDeselect?: boolean
 }
 
 export function Combobox({
@@ -35,14 +37,19 @@ export function Combobox({
   loading,
   onSearchChange,
   className,
+  allowDeselect = true,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
 
-  const filtered = options.filter((o) =>
-    o.label.toLowerCase().includes(search.toLowerCase()) ||
-    o.description?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = options.filter((o) => {
+    const q = search.toLowerCase()
+    return (
+      o.label.toLowerCase().includes(q) ||
+      o.value.toLowerCase().includes(q) ||
+      o.description?.toLowerCase().includes(q)
+    )
+  })
 
   const selected = options.find((o) => o.value === value)
 
@@ -105,7 +112,11 @@ export function Combobox({
                   key={opt.value}
                   disabled={opt.disabled}
                   onClick={() => {
-                    onChange?.(opt.value === value ? "" : opt.value)
+                    if (allowDeselect && opt.value === value) {
+                      onChange?.("")
+                    } else {
+                      onChange?.(opt.value)
+                    }
                     setOpen(false)
                     setSearch("")
                   }}

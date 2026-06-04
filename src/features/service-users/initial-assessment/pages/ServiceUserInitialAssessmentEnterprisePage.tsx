@@ -125,7 +125,11 @@ import type {
 } from '@/features/service-users/initial-assessment/types'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { runIaAutofillDev } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
-import { iaAutofillLevelUi } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
+import {
+  IA_PLAYWRIGHT_TESTS_BUTTON_TOOLTIP,
+  iaAutofillLevelUi,
+} from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
 const LEGACY_PATH = '/service-users/initial-assessment-checklist'
@@ -957,17 +961,26 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
             </div>
             {selectedId && canUpdate ? (
               <>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  className="shrink-0"
-                  data-testid="ia-playwright-tests-open"
-                  onClick={() => setPlaywrightTestsOpen(true)}
-                >
-                  <TestTube2 className="mr-2 h-4 w-4" />
-                  Playwright Tests
-                </Button>
+                <TooltipProvider delayDuration={250}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="shrink-0"
+                        data-testid="ia-playwright-tests-open"
+                        onClick={() => setPlaywrightTestsOpen(true)}
+                      >
+                        <TestTube2 className="mr-2 h-4 w-4" />
+                        Playwright Tests
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-sm text-left leading-snug">
+                      {IA_PLAYWRIGHT_TESTS_BUTTON_TOOLTIP}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <InitialAssessmentPlaywrightTestsDialog
                   open={playwrightTestsOpen}
                   onOpenChange={setPlaywrightTestsOpen}

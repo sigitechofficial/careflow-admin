@@ -1,8 +1,10 @@
 import * as React from 'react'
 import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
+import { applyPostureDiagramToHost } from '@/features/service-users/body-map/catalog/body-map-posture-diagrams'
 import {
   VIEW_LABELS,
   type BodyMapCanvasView,
+  type BodyMapPostureView,
 } from '@/features/service-users/body-map/catalog/body-map-views'
 import { loadBodyMapPrototype } from '@/features/service-users/body-map/prototype/load-body-map-prototype'
 import type { PrototypeMarkerCoords } from '@/features/service-users/body-map/utils/body-map-coords'
@@ -62,12 +64,46 @@ export function BodyMapMarkerPreview({
   const svgWrapRef = React.useRef<HTMLDivElement>(null)
   const hostRef = React.useRef<HTMLDivElement>(null)
 
-  const canvasView = resolveCanvasView(marker)
+  const postureView: BodyMapPostureView | null =
+    marker.canvasView === 'leaning' || marker.canvasView === 'sitting' ? marker.canvasView : null
+  const canvasView = postureView ? null : resolveCanvasView(marker)
   const regionId = marker.regionId ?? null
 
   React.useEffect(() => {
     if (!active) return
     let cancelled = false
+    setReady(false)
+    setLoadError(null)
+
+    if (postureView) {
+      const apply = () => {
+        const wrap = svgWrapRef.current
+        if (!wrap || cancelled) return false
+        try {
+          if (!applyPostureDiagramToHost(wrap, postureView)) {
+            throw new Error('Could not load posture diagram')
+          }
+          setReady(true)
+          return true
+        } catch (e) {
+          setLoadError(e instanceof Error ? e.message : 'Failed to load body map')
+          return false
+        }
+      }
+      if (!apply()) {
+        const id = window.requestAnimationFrame(() => {
+          if (!cancelled) apply()
+        })
+        return () => {
+          cancelled = true
+          window.cancelAnimationFrame(id)
+        }
+      }
+      return () => {
+        cancelled = true
+      }
+    }
+
     void loadBodyMapPrototype()
       .then(() => {
         if (!cancelled) setReady(true)
@@ -80,10 +116,10 @@ export function BodyMapMarkerPreview({
     return () => {
       cancelled = true
     }
-  }, [active])
+  }, [active, postureView])
 
   React.useEffect(() => {
-    if (!ready || !active) return
+    if (!ready || !active || postureView || canvasView == null) return
     const A = window.BodyMapAnatomy
     const wrap = svgWrapRef.current
     if (!A || !wrap) return
@@ -106,16 +142,20 @@ export function BodyMapMarkerPreview({
       A.cacheAnchorsFromSvg(svgEl)
       window.BodyMapCatalog?.cacheRegionAnchors(svgEl)
     }
-  }, [ready, active, canvasView, regionId])
+  }, [ready, active, canvasView, regionId, postureView])
 
   const pinPos = React.useMemo(() => {
+    if (!ready) return null
+    if (postureView) {
+      return { left: `${marker.x}%`, top: `${marker.y}%` }
+    }
     const A = window.BodyMapAnatomy
-    if (!A || !ready) return null
+    if (!A || canvasView == null) return null
     return A.markerPosition(
       { view: marker.recordView, x: marker.x, y: marker.y },
       canvasView === 'dual' ? 'dual' : canvasView,
     )
-  }, [marker.recordView, marker.x, marker.y, canvasView, ready])
+  }, [marker.recordView, marker.x, marker.y, canvasView, ready, postureView])
 
   const pinClass = React.useMemo(() => {
     const A = window.BodyMapAnatomy
@@ -147,7 +187,7 @@ export function BodyMapMarkerPreview({
     )
   }
 
-  if (!ready) {
+  if (!ready && !postureView) {
     return (
       <div
         className={cn(
@@ -166,9 +206,21 @@ export function BodyMapMarkerPreview({
   const mapHost = (
     <div
       ref={hostRef}
-      className={cn('relative w-full', isPanel ? 'max-w-2xl' : 'mx-auto max-w-md')}
+      className={cn(
+        'relative w-full',
+        isPanel ? 'max-w-2xl' : 'mx-auto max-w-md',
+        postureView && !ready && 'min-h-[200px]',
+      )}
     >
-      <div ref={svgWrapRef} className="body-svg-wrap pointer-events-none select-none" />
+      {postureView && !ready ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center text-xs text-muted-foreground">
+          Loading body map…
+        </div>
+      ) : null}
+      <div
+        ref={svgWrapRef}
+        className={cn('body-svg-wrap pointer-events-none select-none', postureView && !ready && 'opacity-0')}
+      />
       <div className="pointer-events-none absolute inset-0">
         {pinPos ? (
           <div

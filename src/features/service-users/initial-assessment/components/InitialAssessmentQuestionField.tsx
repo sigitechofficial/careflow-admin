@@ -1,5 +1,10 @@
+import type { ReactElement } from 'react'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
+import {
+  InitialAssessmentControlTooltip,
+  iaQuestionTooltipText,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentControlTooltip'
 import {
   Select,
   SelectContent,
@@ -36,6 +41,9 @@ import {
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
 const areaCls = cn(IA_FORM_TEXTAREA_CLASS)
+
+const ASSESSOR_NOTES_TOOLTIP =
+  'Optional context for auditors or care plan authors when this answer needs explanation.'
 
 type Props = {
   question: InitialAssessmentQuestion
@@ -101,6 +109,22 @@ export function InitialAssessmentQuestionField({
   const hasError = Boolean(errorMessage)
   const section12 = layout === 'section12' || layout === 'clinicalMeasurement'
   const clinicalMeasurement = layout === 'clinicalMeasurement' || isClinicalMeasurementField(question)
+  const tooltipContent = iaQuestionTooltipText(question)
+  const helpId = `${id}-help`
+  const describedBy = question.helpText ? helpId : undefined
+
+  const withTooltip = (
+    element: ReactElement,
+    options?: { content?: string | null; disabled?: boolean; className?: string },
+  ) => (
+    <InitialAssessmentControlTooltip
+      content={options?.content ?? tooltipContent}
+      disabled={options?.disabled ?? disabled}
+      className={options?.className}
+    >
+      {element}
+    </InitialAssessmentControlTooltip>
+  )
   const errorEl = hasError ? (
     <p className="mt-1 text-xs font-medium text-destructive" role="alert">
       {errorMessage}
@@ -146,8 +170,10 @@ export function InitialAssessmentQuestionField({
     </p>
   ) : null
 
-  const helpEl = question.helpText ? (
-    <p className={cn('mt-1', IA_HINT_CLASS)}>{question.helpText}</p>
+  const srHelpEl = question.helpText ? (
+    <span id={helpId} className="sr-only">
+      {question.helpText}
+    </span>
   ) : null
 
   const notesEl =
@@ -156,21 +182,23 @@ export function InitialAssessmentQuestionField({
         <Label htmlFor={`${id}-notes`} className={IA_LABEL_SECONDARY_CLASS}>
           Assessor notes (optional)
         </Label>
-        <textarea
-          id={`${id}-notes`}
-          className={cn(IA_FORM_TEXTAREA_COMPACT_CLASS, disabled && 'opacity-70')}
-          rows={2}
-          disabled={disabled}
-          placeholder="Context for auditors or care plan authors…"
-          value={value?.notes ?? ''}
-          onChange={(e) => onChange(toInput(qid, { ...value, notes: e.target.value }))}
-        />
+        {withTooltip(
+          <textarea
+            id={`${id}-notes`}
+            className={cn(IA_FORM_TEXTAREA_COMPACT_CLASS, disabled && 'opacity-70')}
+            rows={2}
+            disabled={disabled}
+            placeholder="Context for auditors or care plan authors…"
+            value={value?.notes ?? ''}
+            onChange={(e) => onChange(toInput(qid, { ...value, notes: e.target.value }))}
+          />,
+          { content: ASSESSOR_NOTES_TOOLTIP, className: 'block w-full' },
+        )}
       </div>
     ) : null
 
   const fieldMetaFooter = (
     <>
-      {helpEl}
       {hintEl}
       {errorEl}
     </>
@@ -186,28 +214,33 @@ export function InitialAssessmentQuestionField({
   if (question.questionType === 'YES_NO') {
     return (
       <div className={section12 ? undefined : 'px-1'}>
-        <InitialAssessmentPaperYesNoRow
-          label={
-            <>
-              {question.questionText}
-              {requiredMark}
-              {metaChips}
-            </>
-          }
-          name={`ia-yesno-${id}`}
-          value={yesNoTriState(value)}
-          disabled={disabled}
-          showDivider={false}
-          onChange={(v) =>
-            onChange(
-              toInput(qid, {
-                checked: v,
-                booleanValue: v,
-              }),
-            )
-          }
-        />
-        {helpEl}
+        {srHelpEl}
+        {withTooltip(
+          <div className="min-w-0">
+            <InitialAssessmentPaperYesNoRow
+              label={
+                <>
+                  {question.questionText}
+                  {requiredMark}
+                  {metaChips}
+                </>
+              }
+              name={`ia-yesno-${id}`}
+              value={yesNoTriState(value)}
+              disabled={disabled}
+              showDivider={false}
+              onChange={(v) =>
+                onChange(
+                  toInput(qid, {
+                    checked: v,
+                    booleanValue: v,
+                  }),
+                )
+              }
+            />
+          </div>,
+          { className: 'block w-full' },
+        )}
         {hintEl}
         {errorEl}
       </div>
@@ -218,27 +251,32 @@ export function InitialAssessmentQuestionField({
     const checked = value?.checked === true || value?.booleanValue === true
     return (
       <div className="p-1">
+        {srHelpEl}
         <label className={cn('flex cursor-pointer items-start gap-2.5', IA_OPTION_LABEL_CLASS)}>
-        <input
-          type="checkbox"
-          className={cn('mt-1', IA_CHECKBOX_CLASS)}
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) =>
-            onChange(
-              toInput(qid, {
-                checked: e.target.checked,
-                booleanValue: e.target.checked,
-              }),
-            )
-          }
-        />
-        <span>
-          {question.questionText}
-          {requiredMark}
-          {metaChips}
-          {fieldFooter}
-        </span>
+          {withTooltip(
+            <input
+              type="checkbox"
+              className={cn('mt-1', IA_CHECKBOX_CLASS)}
+              checked={checked}
+              disabled={disabled}
+              aria-describedby={describedBy}
+              onChange={(e) =>
+                onChange(
+                  toInput(qid, {
+                    checked: e.target.checked,
+                    booleanValue: e.target.checked,
+                  }),
+                )
+              }
+            />,
+            { className: 'inline-flex shrink-0' },
+          )}
+          <span>
+            {question.questionText}
+            {requiredMark}
+            {metaChips}
+            {fieldFooter}
+          </span>
         </label>
       </div>
     )
@@ -288,20 +326,25 @@ export function InitialAssessmentQuestionField({
         </legend>
         {fieldFooter}
         <div className="flex flex-col gap-2">
+          {srHelpEl}
           {options.map((opt) => (
             <label key={opt.value} className={cn('flex cursor-pointer items-center gap-2.5', IA_OPTION_LABEL_CLASS)}>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input"
-                disabled={disabled}
-                checked={selected.has(opt.value)}
-                onChange={(e) => {
-                  const next = new Set(selected)
-                  if (e.target.checked) next.add(opt.value)
-                  else next.delete(opt.value)
-                  onChange(toInput(qid, { selectedOptions: [...next] }))
-                }}
-              />
+              {withTooltip(
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input"
+                  disabled={disabled}
+                  checked={selected.has(opt.value)}
+                  aria-describedby={describedBy}
+                  onChange={(e) => {
+                    const next = new Set(selected)
+                    if (e.target.checked) next.add(opt.value)
+                    else next.delete(opt.value)
+                    onChange(toInput(qid, { selectedOptions: [...next] }))
+                  }}
+                />,
+                { className: 'inline-flex shrink-0' },
+              )}
               {opt.label}
             </label>
           ))}
@@ -319,14 +362,19 @@ export function InitialAssessmentQuestionField({
           {metaChips}
         </Label>
         {fieldFooter}
-        <textarea
-          id={id}
-          className={cn(areaCls, disabled && 'opacity-70')}
-          disabled={disabled}
-          rows={3}
-          value={value?.textValue ?? ''}
-          onChange={(e) => onChange(toInput(qid, { ...value, textValue: e.target.value }))}
-        />
+        {srHelpEl}
+        {withTooltip(
+          <textarea
+            id={id}
+            className={cn(areaCls, disabled && 'opacity-70')}
+            disabled={disabled}
+            rows={3}
+            aria-describedby={describedBy}
+            value={value?.textValue ?? ''}
+            onChange={(e) => onChange(toInput(qid, { ...value, textValue: e.target.value }))}
+          />,
+          { className: 'block w-full' },
+        )}
       </div>
     )
   }
@@ -343,26 +391,30 @@ export function InitialAssessmentQuestionField({
               {metaChips}
             </Label>
             <div className="flex items-center gap-2 sm:justify-end">
-              <Input
-                id={id}
-                type="number"
-                inputMode="decimal"
-                aria-label={question.questionText}
-                className="h-10 w-full tabular-nums text-base sm:w-[5.5rem]"
-                disabled={disabled}
-                placeholder="—"
-                value={value?.numberValue ?? ''}
-                onChange={(e) => {
-                  const n = e.target.value === '' ? undefined : Number(e.target.value)
-                  onChange(toInput(qid, { numberValue: Number.isFinite(n) ? n : undefined }))
-                }}
-              />
+              {srHelpEl}
+              {withTooltip(
+                <Input
+                  id={id}
+                  type="number"
+                  inputMode="decimal"
+                  aria-label={question.questionText}
+                  aria-describedby={describedBy}
+                  className="h-10 w-full tabular-nums text-base sm:w-[5.5rem]"
+                  disabled={disabled}
+                  placeholder="—"
+                  value={value?.numberValue ?? ''}
+                  onChange={(e) => {
+                    const n = e.target.value === '' ? undefined : Number(e.target.value)
+                    onChange(toInput(qid, { numberValue: Number.isFinite(n) ? n : undefined }))
+                  }}
+                />,
+                { className: 'inline-flex' },
+              )}
               {unit ? (
                 <span className="w-12 shrink-0 text-sm font-medium text-muted-foreground">{unit}</span>
               ) : null}
             </div>
           </div>
-          {helpEl}
           {hintEl}
           {errorEl}
         </div>
@@ -376,18 +428,23 @@ export function InitialAssessmentQuestionField({
           {metaChips}
         </Label>
         {fieldMetaFooter}
-        <Input
-          id={id}
-          type="number"
-          className="h-10 max-w-xs text-base"
-          disabled={disabled}
-          placeholder="Enter number"
-          value={value?.numberValue ?? ''}
-          onChange={(e) => {
-            const n = e.target.value === '' ? undefined : Number(e.target.value)
-            onChange(toInput(qid, { numberValue: Number.isFinite(n) ? n : undefined }))
-          }}
-        />
+        {srHelpEl}
+        {withTooltip(
+          <Input
+            id={id}
+            type="number"
+            className="h-10 max-w-xs text-base"
+            disabled={disabled}
+            placeholder="Enter number"
+            aria-describedby={describedBy}
+            value={value?.numberValue ?? ''}
+            onChange={(e) => {
+              const n = e.target.value === '' ? undefined : Number(e.target.value)
+              onChange(toInput(qid, { numberValue: Number.isFinite(n) ? n : undefined }))
+            }}
+          />,
+          { className: 'inline-flex max-w-xs w-full' },
+        )}
         {notesEl}
       </div>
     )
@@ -402,18 +459,23 @@ export function InitialAssessmentQuestionField({
           {metaChips}
         </Label>
         {fieldMetaFooter}
-        <Input
-          id={id}
-          type="date"
-          className="h-10 max-w-xs text-base"
-          disabled={disabled}
-          value={value?.dateValue?.slice(0, 10) ?? ''}
-          onChange={(e) =>
-            onChange(toInput(qid, {
-              dateValue: e.target.value ? `${e.target.value}T00:00:00.000Z` : undefined,
-            }))
-          }
-        />
+        {srHelpEl}
+        {withTooltip(
+          <Input
+            id={id}
+            type="date"
+            className="h-10 max-w-xs text-base"
+            disabled={disabled}
+            aria-describedby={describedBy}
+            value={value?.dateValue?.slice(0, 10) ?? ''}
+            onChange={(e) =>
+              onChange(toInput(qid, {
+                dateValue: e.target.value ? `${e.target.value}T00:00:00.000Z` : undefined,
+              }))
+            }
+          />,
+          { className: 'inline-flex max-w-xs w-full' },
+        )}
         {notesEl}
       </div>
     )
@@ -433,15 +495,21 @@ export function InitialAssessmentQuestionField({
           {metaChips}
         </Label>
         {fieldFooter}
-        <InitialAssessmentSecureTextField
-          id={id}
-          serviceUserId={serviceUserId}
-          submissionId={submissionId}
-          questionId={qid}
-          value={value}
-          disabled={disabled}
-          onChange={onChange}
-        />
+        {srHelpEl}
+        {withTooltip(
+          <span className="block w-full max-w-md">
+            <InitialAssessmentSecureTextField
+              id={id}
+              serviceUserId={serviceUserId}
+              submissionId={submissionId}
+              questionId={qid}
+              value={value}
+              disabled={disabled}
+              onChange={onChange}
+            />
+          </span>,
+          { className: 'block w-full' },
+        )}
         <p className={IA_HINT_CLASS}>Encrypted at rest. Reveal is audited.</p>
       </div>
     )
@@ -455,14 +523,19 @@ export function InitialAssessmentQuestionField({
         {metaChips}
       </Label>
       {fieldMetaFooter}
-      <Input
-        id={id}
-        className="h-10 text-base"
-        disabled={disabled}
-        placeholder="Enter details"
-        value={value?.textValue ?? ''}
-        onChange={(e) => onChange(toInput(qid, { ...value, textValue: e.target.value }))}
-      />
+      {srHelpEl}
+      {withTooltip(
+        <Input
+          id={id}
+          className="h-10 text-base"
+          disabled={disabled}
+          placeholder="Enter details"
+          aria-describedby={describedBy}
+          value={value?.textValue ?? ''}
+          onChange={(e) => onChange(toInput(qid, { ...value, textValue: e.target.value }))}
+        />,
+        { className: 'block w-full' },
+      )}
       {notesEl}
     </div>
   )

@@ -115,6 +115,12 @@ export type IncidentTypeSetting = {
   required: boolean
 }
 
+export type EmployeeVisaType = {
+  id: string
+  label: string
+  weeklyHours: number
+}
+
 export type DomCareAllocationRule = {
   key: string
   label: string
@@ -150,6 +156,7 @@ export type OrganisationGeneralSettings = {
   recordEmployeeWellbeing: boolean
   wellbeingRegularity: WellbeingRegularity
   wellbeingLabels: string[]
+  employeeVisaTypes: EmployeeVisaType[]
   enhancedRegularActionChecks: boolean
   showRegularActionsInDailyList: boolean
   allowFastAction: boolean

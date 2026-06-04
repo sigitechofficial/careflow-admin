@@ -27,6 +27,10 @@ import {
   type MedicationTimeSlot,
 } from '@/features/service-users/medication/medication-time-slots'
 import {
+  MedicationNameSearchField,
+  type MedicationOpenFdaAutofill,
+} from '@/features/service-users/medication/MedicationNameSearchField'
+import {
   defaultWeekdays,
   resolveFrequencyIdForPattern,
   SCHEDULE_PATTERN_OPTIONS,
@@ -124,6 +128,15 @@ export function AddIndividualMedicationForm({
 
   const formSaving = createMedication.isPending
   const disabled = formSaving || lookupsLoading || !canSave
+
+  function applyOpenFdaAutofill(fields: MedicationOpenFdaAutofill) {
+    setMedicationName(fields.medicationName)
+    if (fields.reasonForMedication) setReasonForMedication(fields.reasonForMedication)
+    if (fields.medicationTypeId) setMedicationTypeId(fields.medicationTypeId)
+    if (fields.routeId) setRouteId(fields.routeId)
+    if (fields.dose && !dose.trim()) setDose(fields.dose)
+    if (fields.isControlledMedication) setIsControlledMedication(true)
+  }
 
   const timeSlotsSeededRef = React.useRef(false)
 
@@ -383,28 +396,15 @@ export function AddIndividualMedicationForm({
       {formError && <p className="text-sm text-destructive">{formError}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1 sm:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="text-sm font-medium">
-              Medication name <span className="text-destructive">*</span>
-            </label>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Basic search</span>
-              <NoYesToggle
-                value={basicSearch}
-                onChange={setBasicSearch}
-                disabled={disabled}
-                activeTone="success"
-              />
-            </div>
-          </div>
-          <Input
-            value={medicationName}
-            onChange={e => setMedicationName(e.target.value)}
-            placeholder="Name"
-            disabled={disabled}
-          />
-        </div>
+        <MedicationNameSearchField
+          medicationName={medicationName}
+          onMedicationNameChange={setMedicationName}
+          basicSearch={basicSearch}
+          onBasicSearchChange={setBasicSearch}
+          lookups={lookups}
+          disabled={disabled}
+          onAutofill={applyOpenFdaAutofill}
+        />
 
         <div className="space-y-1">
           <label className="text-sm font-medium">

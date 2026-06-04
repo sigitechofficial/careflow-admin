@@ -24,6 +24,12 @@ import {
 } from '@/features/service-users/body-map/components/AddBodyMapRecordWizard'
 import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { BodyMapCanvas } from '@/features/service-users/body-map/components/BodyMapCanvas'
+import { BodyMapPostureCanvas } from '@/features/service-users/body-map/components/BodyMapPostureCanvas'
+import {
+  BODY_MAP_DIAGRAM_TABS,
+  type BodyMapDiagramTab,
+} from '@/features/service-users/body-map/catalog/body-map-views'
+import { readMarkerPlacement } from '@/features/service-users/body-map/utils/body-map-coords'
 import { BodyMapRecordsTable } from '@/features/service-users/body-map/components/BodyMapRecordsTable'
 import { RecordDetailDrawer } from '@/features/service-users/body-map/components/RecordDetailDrawer'
 import { CloseBodyMapRecordDialog } from '@/features/service-users/body-map/components/CloseBodyMapRecordDialog'
@@ -57,6 +63,7 @@ export default function ServiceUserBodyMapPage() {
   const serviceUserId = params.serviceUserId ?? ''
   const printRef = React.useRef<HTMLDivElement>(null)
   const [mainView, setMainView] = React.useState<'map' | 'records'>('map')
+  const [diagramTab, setDiagramTab] = React.useState<BodyMapDiagramTab>('standard')
   const { data: profile, isLoading: profileLoading } = useServiceUser(serviceUserId)
   const [showCleared, setShowCleared] = React.useState(false)
   const [showMeds, setShowMeds] = React.useState(true)
@@ -118,8 +125,17 @@ export default function ServiceUserBodyMapPage() {
     setAddOpen(true)
   }
 
+  const diagramTabForRecord = (record: BodyMapRecordRow): BodyMapDiagramTab => {
+    const marker = record.markers[0]
+    if (!marker) return 'standard'
+    const { canvasView } = readMarkerPlacement(record, marker)
+    if (canvasView === 'leaning' || canvasView === 'sitting') return canvasView
+    return 'standard'
+  }
+
   const handleSelectRecord = (record: BodyMapRecordRow) => {
     setSelectedRecordId(record.id)
+    setDiagramTab(diagramTabForRecord(record))
   }
 
   const saveRecord = async (
@@ -376,7 +392,9 @@ export default function ServiceUserBodyMapPage() {
               serviceUserId={serviceUserId}
               summary={summary}
               onSelectRecord={id => {
-                setSelectedRecordId(id)
+                const rec = records.find(r => r.id === id)
+                if (rec) handleSelectRecord(rec)
+                else setSelectedRecordId(id)
                 setMainView('map')
               }}
             />
@@ -411,27 +429,80 @@ export default function ServiceUserBodyMapPage() {
 
             {mainView === 'map' ? (
               <div className="flex min-h-0 flex-1 flex-col lg:min-h-[calc(100dvh-13rem)]">
+                <div className="flex flex-wrap items-center gap-1 border-b border-border print:hidden">
+                  {BODY_MAP_DIAGRAM_TABS.map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={cn(
+                        'border-b-2 px-3 py-1.5 text-sm font-medium transition-colors',
+                        diagramTab === tab.id
+                          ? 'border-primary text-foreground'
+                          : 'border-transparent text-muted-foreground hover:text-foreground',
+                      )}
+                      onClick={() => {
+                        setDiagramTab(tab.id)
+                        if (
+                          pendingMarker &&
+                          tab.id !== 'standard' &&
+                          pendingMarker.canvasView !== tab.id
+                        ) {
+                          setPendingMarker(null)
+                        }
+                        if (
+                          pendingMarker &&
+                          tab.id === 'standard' &&
+                          (pendingMarker.canvasView === 'leaning' ||
+                            pendingMarker.canvasView === 'sitting')
+                        ) {
+                          setPendingMarker(null)
+                        }
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
                 <div
                   className={cn(
                     'grid min-h-0 flex-1 gap-3',
                     selectedRecord && 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]',
                   )}
                 >
-                  <BodyMapCanvas
-                    className="h-full min-h-[380px] lg:min-h-0"
-                    records={records}
-                    pendingMarker={pendingMarker}
-                    selectedRecordId={selectedRecordId}
-                    markMode={markMode}
-                    showCleared={showCleared}
-                    showMeds={showMeds}
-                    onShowClearedChange={setShowCleared}
-                    onShowMedsChange={setShowMeds}
-                    onPlaceMarker={handlePlaceMarker}
-                    onSelectRecord={id => {
-                      setSelectedRecordId(id)
-                    }}
-                  />
+                  {diagramTab === 'standard' ? (
+                    <BodyMapCanvas
+                      className="h-full min-h-[380px] lg:min-h-0"
+                      records={records}
+                      pendingMarker={pendingMarker}
+                      selectedRecordId={selectedRecordId}
+                      markMode={markMode}
+                      showCleared={showCleared}
+                      showMeds={showMeds}
+                      onShowClearedChange={setShowCleared}
+                      onShowMedsChange={setShowMeds}
+                      onPlaceMarker={handlePlaceMarker}
+                      onSelectRecord={id => {
+                        setSelectedRecordId(id)
+                      }}
+                    />
+                  ) : (
+                    <BodyMapPostureCanvas
+                      posture={diagramTab}
+                      className="h-full min-h-[380px] lg:min-h-0"
+                      records={records}
+                      pendingMarker={pendingMarker}
+                      selectedRecordId={selectedRecordId}
+                      markMode={markMode}
+                      showCleared={showCleared}
+                      showMeds={showMeds}
+                      onShowClearedChange={setShowCleared}
+                      onShowMedsChange={setShowMeds}
+                      onPlaceMarker={handlePlaceMarker}
+                      onSelectRecord={id => {
+                        setSelectedRecordId(id)
+                      }}
+                    />
+                  )}
                   {selectedRecord ? (
                     <div className="min-h-[280px] lg:min-h-0 lg:max-h-none">
                       <RecordDetailDrawer

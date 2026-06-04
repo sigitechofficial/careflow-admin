@@ -61,6 +61,53 @@ export const BODY_PART_NAMES = [
   'Achilles',
 ] as const
 
+/**
+ * Leaning / supported lying pressure points (reference: on back, on side, on front).
+ * Side-lean diagram hotspots use the "on side" subset; all labels appear in the dropdown.
+ */
+export const LEANING_BODY_PART_NAMES = [
+  'Back of the head',
+  'Ear',
+  'Shoulder',
+  'Rib cage',
+  'Elbow',
+  'Buttocks',
+  'Hip',
+  'Thigh',
+  'Inner side of the knee',
+  'Knees',
+  'Leg',
+  'Heel',
+  'Toes',
+] as const
+
+/** Sitting in chair — six labelled pressure points from reference */
+export const SITTING_BODY_PART_NAMES = [
+  'Middle of spine',
+  'Base of spine',
+  'Buttocks',
+  'Back of knees',
+  'Heels',
+  'Balls of feet',
+] as const
+
+/** Dropdown group hint for leaning options (which supported position) */
+export const LEANING_BODY_PART_POSITION: Record<(typeof LEANING_BODY_PART_NAMES)[number], string> = {
+  'Back of the head': 'On back',
+  Ear: 'On side',
+  Shoulder: 'On back / on side',
+  'Rib cage': 'On front',
+  Elbow: 'On back / on side / on front',
+  Buttocks: 'On back',
+  Hip: 'On side',
+  Thigh: 'On side / on front',
+  'Inner side of the knee': 'On side',
+  Knees: 'On front',
+  Leg: 'On side',
+  Heel: 'On back / on side',
+  Toes: 'On front',
+}
+
 export const ANATOMY_GROUPS: Record<string, string[]> = {
   'Head & neck': [
     'Head',

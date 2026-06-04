@@ -12,6 +12,7 @@ export type FormFieldType =
   | 'RADIO'
   | 'YES_NO'
   | 'RICH_TEXT'
+  | 'SUMMERNOTE'
   | 'FILE_UPLOAD'
   | 'SIGNATURE'
   | 'PHOTO'
