@@ -29,6 +29,11 @@ import {
   type MedicationOpenFdaAutofill,
 } from '@/features/service-users/medication/MedicationNameSearchField'
 import { Input } from '@/shared/ui/input'
+import { MedicationFieldLabelWithTooltip } from '@/features/service-users/medication/MedicationFieldLabelWithTooltip'
+import {
+  CONTROLLED_MEDICATION_TOOLTIP,
+  DECONGESTANT_MEDICATION_TOOLTIP,
+} from '@/features/service-users/medication/medication-field-help'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
   Select,
@@ -137,6 +142,7 @@ export function AddMedicationDialog({
   const [routeId, setRouteId] = React.useState(SELECT_NONE)
   const [howAssisted, setHowAssisted] = React.useState(SELECT_NONE)
   const [isControlledMedication, setIsControlledMedication] = React.useState(false)
+  const [isDecongestantMedication, setIsDecongestantMedication] = React.useState(false)
   const [medicationTypeId, setMedicationTypeId] = React.useState(SELECT_NONE)
   const [expiryDate, setExpiryDate] = React.useState('')
   const [reasonForMedication, setReasonForMedication] = React.useState('')
@@ -180,6 +186,7 @@ export function AddMedicationDialog({
     setRouteId(SELECT_NONE)
     setHowAssisted(SELECT_NONE)
     setIsControlledMedication(false)
+    setIsDecongestantMedication(false)
     setMedicationTypeId(SELECT_NONE)
     setExpiryDate('')
     setReasonForMedication('')
@@ -375,6 +382,7 @@ export function AddMedicationDialog({
       notes: medicationNotes.trim() || undefined,
       howAssisted: howAssistedLabel,
       isControlledMedication,
+      isDecongestantMedication,
       schedules,
     }
   }
@@ -836,10 +844,25 @@ export function AddMedicationDialog({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium">Controlled medication</label>
+              <MedicationFieldLabelWithTooltip
+                label="Controlled medication"
+                tooltip={CONTROLLED_MEDICATION_TOOLTIP}
+              />
               <NoYesToggle
                 value={isControlledMedication}
                 onChange={setIsControlledMedication}
+                disabled={disabled}
+                activeTone="success"
+              />
+            </div>
+            <div className="space-y-1">
+              <MedicationFieldLabelWithTooltip
+                label="Decongestant medicine"
+                tooltip={DECONGESTANT_MEDICATION_TOOLTIP}
+              />
+              <NoYesToggle
+                value={isDecongestantMedication}
+                onChange={setIsDecongestantMedication}
                 disabled={disabled}
                 activeTone="success"
               />

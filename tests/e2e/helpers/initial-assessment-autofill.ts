@@ -1,7 +1,10 @@
 import type { APIRequestContext } from '@playwright/test'
-import { defaultAdlWorksheetRows } from '../../../src/features/service-users/initial-assessment/utils/adl-scoring'
-import { defaultTransferMatrixRows } from '../../../src/features/service-users/initial-assessment/utils/mobility-metadata'
-import { enrichWaterlowMetadata } from '../../../src/features/service-users/initial-assessment/utils/waterlow-scoring'
+import { HOLISTIC_TAB_COUNT } from '../../../src/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import {
+  assertHolisticMetadataSaved,
+  buildHolisticWorksheetMetadata,
+} from '../../../src/features/service-users/initial-assessment/utils/ia-holistic-metadata-autofill'
+import { mergeMetadataPatch } from '../../../src/features/service-users/initial-assessment/utils/submission-metadata'
 
 export type IaFillLevel = 'low' | 'normal' | 'critical'
 
@@ -12,7 +15,7 @@ export const IA_FILL_LEVEL_LABELS: Record<IaFillLevel, string> = {
   low: 'Stable',
 }
 
-const SECTION_COUNT = 14
+const SECTION_COUNT = HOLISTIC_TAB_COUNT
 
 type ApiEnvelope<T> = { success: boolean; data: T; message?: string }
 
@@ -282,143 +285,6 @@ function buildAnswer(q: TemplateQuestion, level: IaFillLevel): AnswerInput | nul
   }
 }
 
-function buildSectionMetadata(level: IaFillLevel): Record<string, unknown> {
-  if (level !== 'critical' && level !== 'normal' && level !== 'low') return {}
-
-  const adlRows = defaultAdlWorksheetRows().map((r) => ({
-    ...r,
-    score: level === 'critical' ? 3 : 0,
-    notes: level === 'critical' ? 'Very critical — high support needs (E2E)' : '',
-  }))
-
-  const transferRows = defaultTransferMatrixRows().map((r) => ({
-    ...r,
-    level: level === 'critical' ? 1 : null,
-  }))
-
-  const waterlow = enrichWaterlowMetadata(
-    level === 'critical'
-      ? {
-          gender: 1,
-          age: 3,
-          build: 2,
-          appetite: 2,
-          mobility: 3,
-          continence: 2,
-          neurological: 2,
-          surgery: 1,
-          medication: 1,
-          weightLoss: 2,
-          skinTypes: ['broken', 'discoloured'],
-          tissueMalnutrition: ['cachexia'],
-          comments: 'Very critical — elevated Waterlow (E2E)',
-        }
-      : level === 'low'
-        ? {
-            gender: 1,
-            age: 0,
-            build: 0,
-            appetite: 0,
-            mobility: 0,
-            continence: 0,
-            neurological: 0,
-            surgery: 0,
-            medication: 0,
-            weightLoss: 0,
-            skinTypes: ['healthy'],
-            tissueMalnutrition: [],
-            comments: 'Stable — low pressure risk (E2E)',
-          }
-        : { gender: 1, age: 1, score: 2 },
-  )
-
-  const sectionComments: Record<string, { text: string }> = {}
-  if (level === 'critical') {
-    for (let n = 1; n <= SECTION_COUNT; n++) {
-      sectionComments[String(n)] = {
-        text: `Very critical condition — section ${n} of ${SECTION_COUNT} (E2E)`,
-      }
-    }
-  } else if (level === 'low') {
-    for (let n = 1; n <= 3; n++) {
-      sectionComments[String(n)] = {
-        text: 'Stable — service user out of danger; condition normal (E2E).',
-      }
-    }
-  }
-
-  return {
-    adl: {
-      rows: adlRows,
-      mobilityAidsRequired: level === 'critical',
-      mobilityAidsList: level === 'critical' ? 'Hoist, profiling bed' : '',
-      fallsAssessmentCompleted: level === 'critical',
-      additionalComments: level === 'critical' ? 'Very critical — ADL / falls (E2E)' : '',
-    },
-    waterlow,
-    transfers: {
-      rows: transferRows,
-      independentWithAll: false,
-      comments: level === 'critical' ? 'E2E transfer matrix' : '',
-    },
-    equipmentChecklist: {
-      hoistServiced: true,
-      profilingBedServiced: true,
-      staffTrainingCoversHoist: true,
-      otGuidanceRequired: false,
-      comments: 'E2E equipment checklist',
-    },
-    dailyLivingAids: {
-      aidsInUseOrRequired: false,
-      aidsList: '',
-      furtherEquipmentRequired: false,
-      additionalComments: 'E2E daily living aids',
-    },
-    practicalCare: {
-      laundry: 'Minimal support',
-      cleaning: 'Minimal support',
-      shopping: 'Carer support',
-      financeAssistance: 'Not required',
-      otherComment: 'E2E practical care tasks',
-    },
-    financeSupport: {
-      required: level === 'critical',
-      supportTypes: level === 'critical' ? ['benefits'] : [],
-      staffHandleCash: false,
-      familyInvolved: level === 'critical',
-      consentRecorded: level === 'critical',
-      details: level === 'critical' ? 'Very critical — finance support (E2E)' : '',
-    },
-    sectionComments,
-  }
-}
-
-function mergeSubmissionMetadata(
-  existing: Record<string, unknown>,
-  patch: Record<string, unknown>,
-): Record<string, unknown> {
-  const merged = { ...existing, ...patch }
-  if (patch.sectionComments && typeof patch.sectionComments === 'object') {
-    merged.sectionComments = {
-      ...(typeof existing.sectionComments === 'object' ? existing.sectionComments : {}),
-      ...patch.sectionComments,
-    }
-  }
-  if (patch.adl && typeof patch.adl === 'object') {
-    merged.adl = {
-      ...(typeof existing.adl === 'object' ? existing.adl : {}),
-      ...patch.adl,
-    }
-  }
-  if (patch.waterlow && typeof patch.waterlow === 'object') {
-    merged.waterlow = {
-      ...(typeof existing.waterlow === 'object' ? existing.waterlow : {}),
-      ...patch.waterlow,
-    }
-  }
-  return merged
-}
-
 async function apiLogin(request: APIRequestContext, apiBase: string) {
   const email = process.env.E2E_LOGIN_EMAIL!
   const password = process.env.E2E_LOGIN_PASSWORD!
@@ -443,7 +309,7 @@ async function fetchDefaultTemplate(request: APIRequestContext, apiBase: string,
   return json.data
 }
 
-async function fetchSubmission(
+export async function fetchInitialAssessmentSubmission(
   request: APIRequestContext,
   apiBase: string,
   token: string,
@@ -602,7 +468,13 @@ export async function autofillInitialAssessmentViaApi(
     submission = await reopenIfNeeded(request, apiBase, token, serviceUserId, submission)
   }
 
-  const fresh = await fetchSubmission(request, apiBase, token, serviceUserId, submission.id)
+  const fresh = await fetchInitialAssessmentSubmission(
+    request,
+    apiBase,
+    token,
+    serviceUserId,
+    submission.id,
+  )
   const existingMeta =
     fresh.metadata && typeof fresh.metadata === 'object' && !Array.isArray(fresh.metadata)
       ? (fresh.metadata as Record<string, unknown>)
@@ -650,16 +522,28 @@ export async function autofillInitialAssessmentViaApi(
     )
   }
 
-  const metaPatch = buildSectionMetadata(level)
-  if (Object.keys(metaPatch).length > 0) {
-    await patchMetadata(
-      request,
-      apiBase,
-      token,
-      serviceUserId,
-      submission.id,
-      mergeSubmissionMetadata(existingMeta, metaPatch),
-    )
+  const metaPatch = buildHolisticWorksheetMetadata(level)
+  await patchMetadata(
+    request,
+    apiBase,
+    token,
+    serviceUserId,
+    submission.id,
+    mergeMetadataPatch(existingMeta, metaPatch),
+  )
+
+  const saved = await fetchInitialAssessmentSubmission(
+    request,
+    apiBase,
+    token,
+    serviceUserId,
+    submission.id,
+  )
+  const missingMetadataKeys = assertHolisticMetadataSaved(
+    saved.metadata as Record<string, unknown> | undefined,
+  )
+  if (missingMetadataKeys.length > 0) {
+    throw new Error(`Holistic metadata not persisted: ${missingMetadataKeys.join(', ')}`)
   }
 
   if (level === 'low') {
@@ -686,5 +570,9 @@ export async function autofillInitialAssessmentViaApi(
     submissionId: submission.id,
     sectionsFilled: sectionsWithAnswers.size,
     answersSaved: answers.length,
+    holisticTabs: SECTION_COUNT,
+    metadataKeysSaved: Object.keys(metaPatch).length,
   }
 }
+
+export { assertHolisticMetadataSaved, HOLISTIC_TAB_COUNT }

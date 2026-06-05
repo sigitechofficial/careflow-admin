@@ -26,6 +26,7 @@ export const SECTION_5_CANONICAL_QUESTION_TEXT = [
   'Pain assessment completed?',
   'Pain assessment date',
   'Pain management plan documented?',
+  'What pain management plan in place',
   'Swallowing concern options',
   'Swallowing or choking concerns?',
   'Choking history details',

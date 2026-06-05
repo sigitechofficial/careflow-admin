@@ -4,16 +4,51 @@ import { cn } from '@/shared/lib/utils'
 import {
   IA_CARD_TITLE_CLASS,
   IA_HINT_CLASS,
+  IA_SIMPLE_FIELD_CLASS,
+  IA_SIMPLE_FIELD_STACK_CLASS,
   IA_SUBSECTION_PANEL_CLASS,
   IA_SUBSECTION_PANEL_HEADER_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
+type RenderField = (
+  q: InitialAssessmentQuestion,
+  options?: { hideLabel?: boolean },
+) => ReactNode
+
 type Props = {
   questions: InitialAssessmentQuestion[]
-  renderField: (q: InitialAssessmentQuestion) => ReactNode
+  renderField: RenderField
+  variant?: 'cards' | 'simple'
 }
 
-export function InitialAssessmentPersonCentredCards({ questions, renderField }: Props) {
+export function InitialAssessmentPersonCentredCards({
+  questions,
+  renderField,
+  variant = 'cards',
+}: Props) {
+  if (variant === 'simple') {
+    return (
+      <div className={IA_SIMPLE_FIELD_STACK_CLASS} data-testid="ia-person-centred-cards">
+        {questions.map((q) => {
+          const card = personCentredCardLabel(q)
+          return (
+            <div key={q.id} className={IA_SIMPLE_FIELD_CLASS}>
+              {card ? (
+                <div>
+                  <p className={IA_CARD_TITLE_CLASS}>{card.title}</p>
+                  {card.subtitle ? (
+                    <p className={cn('mt-0.5 text-xs', IA_HINT_CLASS)}>{card.subtitle}</p>
+                  ) : null}
+                </div>
+              ) : null}
+              {renderField(q, { hideLabel: Boolean(card) })}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4" data-testid="ia-person-centred-cards">
       {questions.map((q) => {

@@ -17,7 +17,10 @@ import {
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
 import { shouldShowQuestion } from '@/features/service-users/initial-assessment/utils/conditional-visibility'
 import { InitialAssessmentMultiSelectOptionsGrid } from '@/features/service-users/initial-assessment/components/InitialAssessmentMultiSelectOptionsGrid'
-import { SECTION_12_DISPLAY_BLOCKS } from '@/features/service-users/initial-assessment/utils/section-12-display-order'
+import {
+  SECTION_12_DISPLAY_BLOCKS,
+  type Section12PanelBlock,
+} from '@/features/service-users/initial-assessment/utils/section-12-display-order'
 import { IA_CALLOUT_NEUTRAL_CLASS, IA_INTRO_CLASS, IA_SECTION_BODY_CLASS } from '@/features/service-users/initial-assessment/utils/form-typography'
 import { sectionIntroCopy } from '@/features/service-users/initial-assessment/utils/spec-ref-groups'
 import { cn } from '@/shared/lib/utils'
@@ -71,6 +74,8 @@ type Props = {
   onPracticalCareChange: (next: PracticalCareTasksMetadata) => void
   onFinanceSupportChange: (next: FinanceSupportMetadata) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
+  /** Document TOC tabs — render only selected §12 blocks (Practical Task, Equipment, Falls, etc.). */
+  displayBlocks?: Section12PanelBlock[]
 }
 
 function mergePrefill(
@@ -108,7 +113,9 @@ export function InitialAssessmentSection12Content({
   onPracticalCareChange,
   onFinanceSupportChange,
   onChange,
+  displayBlocks,
 }: Props) {
+  const blocks = displayBlocks ?? SECTION_12_DISPLAY_BLOCKS
   const visibleQuestions = filterSection12Questions(
     section.questions.filter((q) =>
       shouldShowQuestion(q, allSections, draftAnswers),
@@ -184,7 +191,7 @@ export function InitialAssessmentSection12Content({
       {sectionIntro ? (
         <p className={cn(IA_CALLOUT_NEUTRAL_CLASS, IA_INTRO_CLASS)}>{sectionIntro}</p>
       ) : null}
-      {SECTION_12_DISPLAY_BLOCKS.map((block, i) => {
+      {blocks.map((block, i) => {
         if (block.kind === 'adl-worksheet-scores') {
           return (
             <InitialAssessmentAdlWorksheetPanel

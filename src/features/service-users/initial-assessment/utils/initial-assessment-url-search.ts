@@ -21,7 +21,7 @@ function parseSection(raw: unknown): number | undefined {
   if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 1 && raw <= 99) return raw
   if (typeof raw === 'string' && /^\d{1,2}$/.test(raw.trim())) {
     const n = Number.parseInt(raw.trim(), 10)
-    return n >= 1 ? n : undefined
+    return n >= 1 && n <= 18 ? n : undefined
   }
   return undefined
 }

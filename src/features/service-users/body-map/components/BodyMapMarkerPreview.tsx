@@ -2,6 +2,10 @@ import * as React from 'react'
 import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
 import { applyPostureDiagramToHost } from '@/features/service-users/body-map/catalog/body-map-posture-diagrams'
 import {
+  getPostureSvg,
+  viewBoxPercentToOverlayPercent,
+} from '@/features/service-users/body-map/utils/posture-svg-coords'
+import {
   VIEW_LABELS,
   type BodyMapCanvasView,
   type BodyMapPostureView,
@@ -61,6 +65,7 @@ export function BodyMapMarkerPreview({
   const isPanel = variant === 'panel'
   const [ready, setReady] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
+  const [layoutRevision, setLayoutRevision] = React.useState(0)
   const svgWrapRef = React.useRef<HTMLDivElement>(null)
   const hostRef = React.useRef<HTMLDivElement>(null)
 
@@ -144,10 +149,25 @@ export function BodyMapMarkerPreview({
     }
   }, [ready, active, canvasView, regionId, postureView])
 
+  React.useEffect(() => {
+    const host = hostRef.current
+    if (!host || !ready || !postureView) return
+    const bump = () => setLayoutRevision(v => v + 1)
+    const ro = new ResizeObserver(bump)
+    ro.observe(host)
+    bump()
+    return () => ro.disconnect()
+  }, [ready, postureView])
+
   const pinPos = React.useMemo(() => {
     if (!ready) return null
     if (postureView) {
-      return { left: `${marker.x}%`, top: `${marker.y}%` }
+      const host = hostRef.current
+      const svg = getPostureSvg(host)
+      if (!host || !svg) {
+        return { left: `${marker.x}%`, top: `${marker.y}%` }
+      }
+      return viewBoxPercentToOverlayPercent(svg, host, marker.x, marker.y)
     }
     const A = window.BodyMapAnatomy
     if (!A || canvasView == null) return null
@@ -155,7 +175,7 @@ export function BodyMapMarkerPreview({
       { view: marker.recordView, x: marker.x, y: marker.y },
       canvasView === 'dual' ? 'dual' : canvasView,
     )
-  }, [marker.recordView, marker.x, marker.y, canvasView, ready, postureView])
+  }, [marker.recordView, marker.x, marker.y, canvasView, ready, postureView, layoutRevision])
 
   const pinClass = React.useMemo(() => {
     const A = window.BodyMapAnatomy

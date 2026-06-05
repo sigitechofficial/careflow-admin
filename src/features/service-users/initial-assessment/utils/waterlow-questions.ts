@@ -1,6 +1,9 @@
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion, InitialAssessmentSection } from '@/features/service-users/initial-assessment/types'
 import { specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
-import type { WaterlowMetadata } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
+import {
+  computeWaterlowScore,
+  type WaterlowMetadata,
+} from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
 /** Template questions answered on the Waterlow tab, not in section 11. */
 export function isWaterlowTemplateQuestion(q: InitialAssessmentQuestion): boolean {
@@ -29,7 +32,7 @@ export function findWaterlowCompletedQuestion(
 }
 
 export function isWaterlowScoringComplete(waterlow: WaterlowMetadata | undefined): boolean {
-  return waterlow?.gender != null && waterlow?.age != null
+  return computeWaterlowScore(waterlow) > 0
 }
 
 /** Keep template “Waterlow assessment completed?” in sync with the Waterlow tab score. */

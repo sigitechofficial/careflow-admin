@@ -4,7 +4,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/shared/ui/button'
 import { decideInitialAssessmentCarePlanRecommendation } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
-import type { CarePlanRecommendation } from '@/features/service-users/initial-assessment/types'
+import type {
+  CarePlanRecommendation,
+  InitialAssessmentStatus,
+} from '@/features/service-users/initial-assessment/types'
 import { InitialAssessmentCarePlanDecisionDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanDecisionDialog'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
@@ -12,6 +15,7 @@ type Props = {
   serviceUserId: string
   submissionId: string | null
   recommendations: CarePlanRecommendation[]
+  submissionStatus?: InitialAssessmentStatus
   canDecide?: boolean
   onGoToSection?: (sectionNumber: number) => void
 }
@@ -20,6 +24,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   serviceUserId,
   submissionId,
   recommendations,
+  submissionStatus,
   canDecide = false,
   onGoToSection,
 }: Props) {
@@ -76,6 +81,12 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
           <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" aria-hidden />
           <h3 className="text-sm font-semibold">Care plan recommendations ({recommendations.length})</h3>
         </div>
+        {submissionStatus === 'SUBMITTED' ? (
+          <p className="text-xs text-muted-foreground">
+            Awaiting manager review — recommendations are shown for reference only. Accept and decline unlock
+            after the assessment is marked reviewed.
+          </p>
+        ) : null}
         <ul className="space-y-3">
           {recommendations.map((rec) => (
             <li

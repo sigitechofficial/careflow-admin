@@ -1,6 +1,6 @@
 /**
  * Waterlow Pressure Ulcer Risk Assessment — scoring aligned to the paper tool (§11.4).
- * Single-select categories store the option score; multi-select categories sum selected option scores.
+ * Assessors enter scores per row; {@link computeWaterlowScore} sums entered values.
  */
 
 export type WaterlowSelectOption = { id: string; label: string; score: number }
@@ -16,7 +16,13 @@ export type WaterlowMetadata = {
   surgery?: number
   medication?: number
   weightLoss?: number
+  /** @deprecated Use {@link enteredScores} — disambiguates legacy weight-loss radios. */
+  weightLossOptionId?: string
+  /** User-entered scores keyed as `{sectionId}:{optionId}`. */
+  enteredScores?: Record<string, number>
+  /** @deprecated Legacy multi-select ids — used when {@link enteredScores} is empty. */
   skinTypes?: string[]
+  /** @deprecated Legacy multi-select ids — used when {@link enteredScores} is empty. */
   tissueMalnutrition?: string[]
   score?: number
   carePlanRequired?: boolean
@@ -58,10 +64,10 @@ export const WATERLOW_AGE_OPTIONS: WaterlowSelectOption[] = [
 ]
 
 export const WATERLOW_BUILD_OPTIONS: WaterlowSelectOption[] = [
-  { id: 'average', label: 'Average (BMI 20–24.9)', score: 0 },
-  { id: 'above', label: 'Above average (BMI 25–29.9)', score: 1 },
-  { id: 'obese', label: 'Obese (BMI > 30)', score: 2 },
-  { id: 'below', label: 'Below average (BMI < 20)', score: 3 },
+  { id: 'average', label: 'Average BMI = 20–24.9', score: 0 },
+  { id: 'above', label: 'Above average BMI = 25–29.9', score: 1 },
+  { id: 'obese', label: 'Obese BMI > 30', score: 2 },
+  { id: 'below', label: 'Below average BMI < 20', score: 3 },
 ]
 
 export const WATERLOW_APPETITE_OPTIONS: WaterlowSelectOption[] = [
@@ -81,7 +87,7 @@ export const WATERLOW_SKIN_OPTIONS: WaterlowSelectOption[] = [
 ]
 
 export const WATERLOW_MOBILITY_OPTIONS: WaterlowSelectOption[] = [
-  { id: 'fully', label: 'Fully mobile', score: 0 },
+  { id: 'fully', label: 'Fully', score: 0 },
   { id: 'restless', label: 'Restless / fidgety', score: 1 },
   { id: 'apathetic', label: 'Apathetic', score: 2 },
   { id: 'restricted', label: 'Restricted', score: 3 },
@@ -107,29 +113,156 @@ export const WATERLOW_TISSUE_OPTIONS: WaterlowSelectOption[] = [
 
 export const WATERLOW_NEUROLOGICAL_OPTIONS: WaterlowSelectOption[] = [
   { id: 'none', label: 'None', score: 0 },
-  { id: 'mild', label: 'Diabetes / MS / CVA — mild', score: 4 },
-  { id: 'moderate', label: 'Motor / sensory deficit — moderate', score: 5 },
-  { id: 'severe', label: 'Paraplegia / severe deficit', score: 6 },
+  { id: 'mild', label: 'Diabetes / MS / CVA', score: 4 },
+  { id: 'moderate', label: 'Motor / sensory', score: 5 },
+  { id: 'severe', label: 'Paraplegia', score: 6 },
 ]
 
 export const WATERLOW_SURGERY_OPTIONS: WaterlowSelectOption[] = [
-  { id: 'none', label: 'None / more than 48 hours ago (recovering)', score: 0 },
-  { id: 'ortho', label: 'Orthopaedic / spinal (≤ 48 hours)', score: 5 },
+  { id: 'none', label: 'None / recovering normally (> 48 hours)', score: 0 },
+  { id: 'ortho', label: 'Orthopaedic / spinal', score: 5 },
   { id: 'table_2h', label: 'On table > 2 hours', score: 5 },
   { id: 'table_6h', label: 'On table > 6 hours', score: 8 },
 ]
 
 export const WATERLOW_MEDICATION_OPTIONS: WaterlowSelectOption[] = [
-  { id: 'none', label: 'None of the below', score: 0 },
-  { id: 'high_risk', label: 'Cytotoxics, high-dose steroids, anti-inflammatory', score: 4 },
+  { id: 'none', label: 'None', score: 0 },
+  {
+    id: 'high_risk',
+    label: 'Cytotoxics, high dose steroids, anti-inflammatory',
+    score: 4,
+  },
 ]
 
 export const WATERLOW_WEIGHT_LOSS_OPTIONS: WaterlowSelectOption[] = [
   { id: 'none', label: 'None', score: 0 },
-  { id: '0.5-5', label: '0.5–5 kg unplanned loss', score: 1 },
-  { id: '5-10', label: '5–10 kg unplanned loss', score: 2 },
-  { id: 'unsure', label: 'Unsure / not known', score: 2 },
-  { id: '10+', label: '> 10 kg unplanned loss', score: 3 },
+  { id: '0.5-5', label: '0.5–5 kg', score: 1 },
+  { id: '5-10', label: '5–10 kg', score: 2 },
+  { id: '10-15', label: '10–15 kg', score: 3 },
+  { id: '15+', label: '> 15 kg', score: 4 },
+  { id: 'unsure', label: 'Unsure', score: 2 },
+]
+
+/** Paper form risk band legend shown below total score. */
+export const WATERLOW_RISK_THRESHOLDS: ReadonlyArray<{ minScore: number; label: string }> = [
+  { minScore: 10, label: 'At risk' },
+  { minScore: 15, label: 'High risk' },
+  { minScore: 20, label: 'Very high risk' },
+]
+
+/** Paper form section order for the Waterlow assessment table. */
+export type WaterlowSingleField = keyof Pick<
+  WaterlowMetadata,
+  | 'gender'
+  | 'age'
+  | 'build'
+  | 'appetite'
+  | 'mobility'
+  | 'continence'
+  | 'neurological'
+  | 'surgery'
+  | 'medication'
+  | 'weightLoss'
+>
+
+export type WaterlowMultiField = 'skinTypes' | 'tissueMalnutrition'
+
+export type WaterlowTableSection =
+  | {
+      id: string
+      category: string
+      hint?: string
+      kind: 'single'
+      field: WaterlowSingleField
+      options: WaterlowSelectOption[]
+    }
+  | {
+      id: string
+      category: string
+      hint?: string
+      kind: 'multi'
+      field: WaterlowMultiField
+      options: WaterlowSelectOption[]
+    }
+
+export const WATERLOW_USE_INSTRUCTIONS = [
+  'Score on first assessment and update monthly and if significant change in client’s condition.',
+  'If total score is 10+ initiate standardised care plans: At Risk of Pressure Damage / Pressure Ulcer Formation.',
+] as const
+
+export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
+  { id: 'gender', category: 'Gender', kind: 'single', field: 'gender', options: WATERLOW_GENDER_OPTIONS },
+  { id: 'age', category: 'Age', kind: 'single', field: 'age', options: WATERLOW_AGE_OPTIONS },
+  {
+    id: 'build',
+    category: 'Build weight',
+    kind: 'single',
+    field: 'build',
+    options: WATERLOW_BUILD_OPTIONS,
+  },
+  {
+    id: 'appetite',
+    category: 'Appetite',
+    hint: 'Enter score for each applicable row',
+    kind: 'single',
+    field: 'appetite',
+    options: WATERLOW_APPETITE_OPTIONS,
+  },
+  {
+    id: 'skin',
+    category: 'Skin type — visual risk areas',
+    hint: 'Enter score for each applicable row',
+    kind: 'multi',
+    field: 'skinTypes',
+    options: WATERLOW_SKIN_OPTIONS,
+  },
+  {
+    id: 'mobility',
+    category: 'Mobility',
+    hint: 'Enter score for each applicable row',
+    kind: 'single',
+    field: 'mobility',
+    options: WATERLOW_MOBILITY_OPTIONS,
+  },
+  {
+    id: 'continence',
+    category: 'Continence',
+    hint: 'Enter score for each applicable row',
+    kind: 'single',
+    field: 'continence',
+    options: WATERLOW_CONTINENCE_OPTIONS,
+  },
+  {
+    id: 'tissue',
+    category: 'Tissue malnutrition',
+    hint: 'Enter score for each applicable row',
+    kind: 'multi',
+    field: 'tissueMalnutrition',
+    options: WATERLOW_TISSUE_OPTIONS,
+  },
+  {
+    id: 'neurological',
+    category: 'Neurological deficit',
+    hint: 'Score depends on severity (4–6) — select highest applicable',
+    kind: 'single',
+    field: 'neurological',
+    options: WATERLOW_NEUROLOGICAL_OPTIONS,
+  },
+  {
+    id: 'surgery',
+    category: 'Major surgery trauma',
+    hint: 'Up to 48 hours post surgery. Scores may be discounted after 48 hrs if client recovering normally.',
+    kind: 'single',
+    field: 'surgery',
+    options: WATERLOW_SURGERY_OPTIONS,
+  },
+  {
+    id: 'medication',
+    category: 'Medication',
+    kind: 'single',
+    field: 'medication',
+    options: WATERLOW_MEDICATION_OPTIONS,
+  },
 ]
 
 export type WaterlowEquipmentCatalogRow = {
@@ -192,6 +325,51 @@ function sumMultiSelect(ids: string[] | undefined, options: WaterlowSelectOption
   return ids.reduce((sum, id) => sum + (byId.get(id) ?? 0), 0)
 }
 
+export function waterlowEnteredScoreKey(sectionId: string, optionId: string): string {
+  return `${sectionId}:${optionId}`
+}
+
+export function parseWaterlowScoreInput(raw: string): number | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n < 0) return undefined
+  return Math.floor(n)
+}
+
+export function hasWaterlowEnteredScores(meta: WaterlowMetadata | null | undefined): boolean {
+  return Object.keys(meta?.enteredScores ?? {}).length > 0
+}
+
+export function sumWaterlowEnteredScores(scores: Record<string, number>): number {
+  return Object.values(scores).reduce((sum, value) => {
+    const n = Number(value)
+    return sum + (Number.isFinite(n) && n > 0 ? n : 0)
+  }, 0)
+}
+
+function enteredScoresForSection(
+  scores: Record<string, number>,
+  sectionId: string,
+): number {
+  const prefix = `${sectionId}:`
+  return Object.entries(scores)
+    .filter(([key]) => key.startsWith(prefix))
+    .reduce((sum, [, value]) => {
+      const n = Number(value)
+      return sum + (Number.isFinite(n) && n > 0 ? n : 0)
+    }, 0)
+}
+
+export function computeWaterlowScoreFromEnteredScores(scores: Record<string, number>): number {
+  let total = 0
+  for (const section of WATERLOW_TABLE_SECTIONS) {
+    total += enteredScoresForSection(scores, section.id)
+  }
+  total += enteredScoresForSection(scores, 'weightLoss')
+  return total
+}
+
 function legacyScore(factors: LegacyWaterlowFactors | undefined): number {
   if (!factors) return 0
   return (
@@ -219,6 +397,9 @@ function hasNewFormat(meta: WaterlowMetadata): boolean {
 
 export function computeWaterlowScore(meta: WaterlowMetadata | null | undefined): number {
   if (!meta) return 0
+  if (hasWaterlowEnteredScores(meta)) {
+    return computeWaterlowScoreFromEnteredScores(meta.enteredScores!)
+  }
   if (!hasNewFormat(meta) && meta.factors) {
     return legacyScore(meta.factors)
   }
@@ -296,18 +477,7 @@ export function enrichWaterlowMetadata(
 
 export function defaultWaterlowMetadata(): WaterlowMetadata {
   return enrichWaterlowMetadata({
-    gender: undefined,
-    age: undefined,
-    build: 0,
-    appetite: 0,
-    mobility: 0,
-    continence: 0,
-    neurological: 0,
-    surgery: 0,
-    medication: 0,
-    weightLoss: 0,
-    skinTypes: ['healthy'],
-    tissueMalnutrition: [],
+    enteredScores: {},
   })
 }
 

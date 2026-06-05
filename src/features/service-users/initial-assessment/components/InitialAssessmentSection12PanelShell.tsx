@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/shared/lib/utils'
+import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
+import {
+  HOLISTIC_SECTION_BODY_CLASS,
+  HOLISTIC_SECTION_SHELL_CLASS,
+} from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
   IA_HINT_CLASS,
   IA_SUBSECTION_PANEL_CLASS,
@@ -14,6 +19,8 @@ type Props = {
   testId?: string
   /** Default `rows` = compact yes/no list; `content` = padded block (ADL grid, comments). */
   bodyVariant?: 'rows' | 'content'
+  /** Paper holistic assessment document styling. */
+  variant?: 'default' | 'holistic'
 }
 
 export function InitialAssessmentSection12PanelShell({
@@ -22,7 +29,30 @@ export function InitialAssessmentSection12PanelShell({
   children,
   testId,
   bodyVariant = 'rows',
+  variant = 'holistic',
 }: Props) {
+  if (variant === 'holistic') {
+    return (
+      <section className={HOLISTIC_SECTION_SHELL_CLASS} data-testid={testId}>
+        <HolisticSectionHeader title={title} subtitle={hint} />
+        <div
+          className={cn(
+            HOLISTIC_SECTION_BODY_CLASS,
+            bodyVariant === 'rows' && 'divide-y divide-slate-200 space-y-0 p-0 dark:divide-slate-700',
+          )}
+        >
+          <div
+            className={cn(
+              bodyVariant === 'rows' ? 'divide-y divide-slate-200 px-3 dark:divide-slate-700' : 'space-y-4',
+            )}
+          >
+            {children}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className={IA_SUBSECTION_PANEL_CLASS} data-testid={testId}>
       <div className={IA_SUBSECTION_PANEL_HEADER_CLASS}>

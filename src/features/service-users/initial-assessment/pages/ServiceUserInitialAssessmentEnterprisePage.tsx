@@ -47,6 +47,74 @@ import { InitialAssessmentBlockingBanner } from '@/features/service-users/initia
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { signOffQuestionIds } from '@/features/service-users/initial-assessment/utils/sign-off-questions'
+import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import { HOLISTIC_FORM_TITLE } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { InitialAssessmentDocumentTabContent } from '@/features/service-users/initial-assessment/components/InitialAssessmentDocumentTabContent'
+import {
+  buildHolisticTabNavStatus,
+  firstHolisticTabForEnterpriseSection,
+  HOLISTIC_ASSESSMENT_TABS,
+  HOLISTIC_TAB_COUNT,
+  holisticTabById,
+  holisticTabTitle,
+  questionsForDocumentTab,
+} from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import { getVisibleSectionQuestions } from '@/features/service-users/initial-assessment/utils/visible-section-questions'
+import { HOLISTIC_FORM_PAGE_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
+import {
+  painPanelTemplateQuestionIds,
+  syncPainAssessmentAnswers,
+} from '@/features/service-users/initial-assessment/utils/pain-questions'
+import {
+  isMustScoringComplete,
+  type MustMetadata,
+} from '@/features/service-users/initial-assessment/utils/must-scoring'
+import {
+  isFallsScreeningComplete,
+  type FallsScreeningMetadata,
+} from '@/features/service-users/initial-assessment/utils/falls-screening'
+import {
+  isMovingHandlingOperationsComplete,
+  type MovingHandlingOperationsMetadata,
+} from '@/features/service-users/initial-assessment/utils/moving-handling-operations'
+import { isTherapyAideMemoireComplete } from '@/features/service-users/initial-assessment/utils/therapy-aide-memoire'
+import {
+  isEnvironmentAssessmentComplete,
+  type EnvironmentAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/environment-assessment'
+import {
+  isAdvanceCarePlanningComplete,
+  type AdvanceCarePlanningMetadata,
+} from '@/features/service-users/initial-assessment/utils/advance-care-planning'
+import {
+  isEndOfLifeAssessmentComplete,
+  type EndOfLifeAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/end-of-life-assessment'
+import {
+  isClinicalAssessmentOutcomeSummaryComplete,
+  type ClinicalAssessmentOutcomeSummaryMetadata,
+} from '@/features/service-users/initial-assessment/utils/clinical-assessment-outcome-summary'
+import {
+  isCarePlanObjectivesComplete,
+  type CarePlanObjectivesMetadata,
+} from '@/features/service-users/initial-assessment/utils/care-plan-objectives'
+import {
+  isMentalCapacityChecklistComplete,
+  type MentalCapacityChecklistMetadata,
+} from '@/features/service-users/initial-assessment/utils/mental-capacity-checklist'
+import {
+  isPhotographyConsentComplete,
+  type PhotographyConsentMetadata,
+} from '@/features/service-users/initial-assessment/utils/photography-consent'
+import {
+  isEquipmentSelectionComplete,
+  type EquipmentSelectionMetadata,
+} from '@/features/service-users/initial-assessment/utils/equipment-selection'
+import { syncFallsScreeningDerivedState } from '@/features/service-users/initial-assessment/utils/falls-screening-questions'
+import {
+  mustTemplateQuestionIds,
+  syncMustAssessmentAnswers,
+} from '@/features/service-users/initial-assessment/utils/must-questions'
 import {
   syncWaterlowCompletedAnswer,
   waterlowTemplateQuestionIds,
@@ -55,7 +123,6 @@ import { computeWaterlowScore } from '@/features/service-users/initial-assessmen
 import { InitialAssessmentSidePanels } from '@/features/service-users/initial-assessment/components/InitialAssessmentSidePanels'
 import { InitialAssessmentSubmitDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentSubmitDialog'
 import { InitialAssessmentVersionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentVersionsPanel'
-import { InitialAssessmentSkinPressureSection } from '@/features/service-users/initial-assessment/components/InitialAssessmentSkinPressureSection'
 import { InitialAssessmentWaterlowPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentWaterlowPanel'
 import { InitialAssessmentTransferMatrixPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTransferMatrixPanel'
 import { InitialAssessmentFinanceSupportPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentFinanceSupportPanel'
@@ -73,6 +140,7 @@ import {
   defaultAdlRows,
   mergeMetadataPatch,
   parseSubmissionMetadata,
+  skinIntegrityCheckHasEntries,
   type SectionCommentEntry,
 } from '@/features/service-users/initial-assessment/utils/submission-metadata'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
@@ -120,6 +188,7 @@ import {
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import type {
   InitialAssessmentAnswerInput,
+  InitialAssessmentQuestion,
   InitialAssessmentSection,
   InitialAssessmentStatus,
 } from '@/features/service-users/initial-assessment/types'
@@ -199,7 +268,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   })
   const selectedId = urlSearch.serviceUserId ?? ''
   const hubTab = urlSearch.tab ?? 'form'
-  const activeSection = urlSearch.section ?? 1
+  /** Holistic document tab (1–30); stored in URL as `section`. */
+  const activeHolisticTab = urlSearch.section ?? 1
 
   const patchUrlSearch = React.useCallback(
     (patch: Partial<InitialAssessmentEnterpriseSearch>) => {
@@ -249,6 +319,54 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [draftAnswers, setDraftAnswers] = React.useState<Record<string, InitialAssessmentAnswerInput>>({})
   const [sectionComments, setSectionComments] = React.useState<Record<string, SectionCommentEntry>>({})
   const [waterlow, setWaterlow] = React.useState(parseSubmissionMetadata(undefined).waterlow)
+  const [painAssessment, setPainAssessment] = React.useState<PainAssessmentMetadata>(
+    parseSubmissionMetadata(undefined).painAssessment,
+  )
+  const [skinIntegrityCheck, setSkinIntegrityCheck] = React.useState(
+    parseSubmissionMetadata(undefined).skinIntegrityCheck,
+  )
+  const [mustAssessment, setMustAssessment] = React.useState<MustMetadata>(
+    parseSubmissionMetadata(undefined).mustAssessment,
+  )
+  const [fallsScreening, setFallsScreening] = React.useState<FallsScreeningMetadata>(
+    parseSubmissionMetadata(undefined).fallsScreening,
+  )
+  const [movingHandlingOperations, setMovingHandlingOperations] =
+    React.useState<MovingHandlingOperationsMetadata>(
+      parseSubmissionMetadata(undefined).movingHandlingOperations,
+    )
+  const [environmentAssessment, setEnvironmentAssessment] =
+    React.useState<EnvironmentAssessmentMetadata>(
+      parseSubmissionMetadata(undefined).environmentAssessment,
+    )
+  const [advanceCarePlanning, setAdvanceCarePlanning] =
+    React.useState<AdvanceCarePlanningMetadata>(
+      parseSubmissionMetadata(undefined).advanceCarePlanning,
+    )
+  const [endOfLifeAssessment, setEndOfLifeAssessment] =
+    React.useState<EndOfLifeAssessmentMetadata>(
+      parseSubmissionMetadata(undefined).endOfLifeAssessment,
+    )
+  const [clinicalOutcomeSummary, setClinicalOutcomeSummary] =
+    React.useState<ClinicalAssessmentOutcomeSummaryMetadata>(
+      parseSubmissionMetadata(undefined).clinicalOutcomeSummary,
+    )
+  const [carePlanObjectives, setCarePlanObjectives] = React.useState<CarePlanObjectivesMetadata>(
+    parseSubmissionMetadata(undefined).carePlanObjectives,
+  )
+  const [mentalCapacityChecklist, setMentalCapacityChecklist] =
+    React.useState<MentalCapacityChecklistMetadata>(
+      parseSubmissionMetadata(undefined).mentalCapacityChecklist,
+    )
+  const [photographyConsent, setPhotographyConsent] = React.useState<PhotographyConsentMetadata>(
+    parseSubmissionMetadata(undefined).photographyConsent,
+  )
+  const [equipmentSelection, setEquipmentSelection] = React.useState<EquipmentSelectionMetadata>(
+    parseSubmissionMetadata(undefined).equipmentSelection,
+  )
+  const [sectionFooters, setSectionFooters] = React.useState(
+    parseSubmissionMetadata(undefined).sectionFooters,
+  )
   const [adl, setAdl] = React.useState(parseSubmissionMetadata(undefined).adl)
   const [transfers, setTransfers] = React.useState(parseSubmissionMetadata(undefined).transfers)
   const [financeSupport, setFinanceSupport] = React.useState(parseSubmissionMetadata(undefined).financeSupport)
@@ -370,6 +488,68 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     const parsed = parseSubmissionMetadata(submission)
     setSectionComments(parsed.sectionComments)
     setWaterlow((prev) => (prev === parsed.waterlow ? prev : parsed.waterlow))
+    setPainAssessment((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.painAssessment) ? prev : parsed.painAssessment,
+    )
+    setSkinIntegrityCheck((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.skinIntegrityCheck)
+        ? prev
+        : parsed.skinIntegrityCheck,
+    )
+    setMustAssessment((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.mustAssessment) ? prev : parsed.mustAssessment,
+    )
+    setFallsScreening((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.fallsScreening) ? prev : parsed.fallsScreening,
+    )
+    setMovingHandlingOperations((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.movingHandlingOperations)
+        ? prev
+        : parsed.movingHandlingOperations,
+    )
+    setEnvironmentAssessment((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.environmentAssessment)
+        ? prev
+        : parsed.environmentAssessment,
+    )
+    setAdvanceCarePlanning((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.advanceCarePlanning)
+        ? prev
+        : parsed.advanceCarePlanning,
+    )
+    setEndOfLifeAssessment((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.endOfLifeAssessment)
+        ? prev
+        : parsed.endOfLifeAssessment,
+    )
+    setClinicalOutcomeSummary((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.clinicalOutcomeSummary)
+        ? prev
+        : parsed.clinicalOutcomeSummary,
+    )
+    setCarePlanObjectives((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.carePlanObjectives)
+        ? prev
+        : parsed.carePlanObjectives,
+    )
+    setMentalCapacityChecklist((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.mentalCapacityChecklist)
+        ? prev
+        : parsed.mentalCapacityChecklist,
+    )
+    setPhotographyConsent((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.photographyConsent)
+        ? prev
+        : parsed.photographyConsent,
+    )
+    setEquipmentSelection((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.equipmentSelection)
+        ? prev
+        : parsed.equipmentSelection,
+    )
+    setSectionFooters((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.sectionFooters) ? prev : parsed.sectionFooters,
+    )
     const nextAdl = parsed.adl?.rows?.length ? parsed.adl : { rows: defaultAdlRows() }
     setAdl((prev) => (adlMetadataEqual(prev, nextAdl) ? prev : nextAdl))
     setTransfers(parsed.transfers)
@@ -431,7 +611,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     submission?.status,
   ])
   const waterlowExcludedIds = React.useMemo(() => waterlowTemplateQuestionIds(sections), [sections])
-  const currentSection = sections.find((s) => s.sectionNumber === activeSection)
+  const mustExcludedIds = React.useMemo(() => mustTemplateQuestionIds(sections), [sections])
+  const hubTabExcludedIds = React.useMemo(() => {
+    const ids = new Set<string>([...waterlowExcludedIds, ...mustExcludedIds])
+    return ids
+  }, [waterlowExcludedIds, mustExcludedIds])
+  const painPanelExcludedIds = React.useMemo(() => painPanelTemplateQuestionIds(sections), [sections])
+  const currentHolisticTab =
+    holisticTabById(activeHolisticTab) ?? HOLISTIC_ASSESSMENT_TABS[0]!
+  const currentSection = sections.find(
+    (s) => s.sectionNumber === currentHolisticTab.enterpriseSection,
+  )
   const editable = submission ? EDITABLE.includes(submission.status) : false
 
   const section12FinanceRequired = React.useMemo(() => {
@@ -466,7 +656,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const progressContext = React.useMemo((): SectionProgressContext => {
     return {
-      hubTabExcludedIds: waterlowExcludedIds,
+      hubTabExcludedIds,
       financeConsentQuestion,
       financeSupportVisible: section12FinanceRequired,
       waterlow,
@@ -479,7 +669,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       practicalCare,
     }
   }, [
-    waterlowExcludedIds,
+    hubTabExcludedIds,
     financeConsentQuestion,
     section12FinanceRequired,
     waterlow,
@@ -544,6 +734,85 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     validationRevealed,
   ])
 
+  const visibleQuestionsBySection = React.useMemo(() => {
+    const map = new Map<number, InitialAssessmentQuestion[]>()
+    const opts = {
+      hubTabExcludedIds,
+      financeConsentQuestion,
+      financeSupportVisible: section12FinanceRequired,
+    }
+    for (const sec of sections) {
+      map.set(
+        sec.sectionNumber,
+        getVisibleSectionQuestions(sec, sections, draftAnswers, opts),
+      )
+    }
+    return map
+  }, [
+    sections,
+    draftAnswers,
+    hubTabExcludedIds,
+    financeConsentQuestion,
+    section12FinanceRequired,
+  ])
+
+  const holisticTabNavStatus = React.useMemo(
+    () =>
+      buildHolisticTabNavStatus({
+        tabs: HOLISTIC_ASSESSMENT_TABS,
+        sections,
+        visibleQuestionsBySection,
+        draftAnswers,
+        editable,
+        progressContext,
+        sectionBlocks: validationMaps.sectionBlocks,
+        sectionWarnings: validationMaps.sectionWarnings,
+        questionErrors: validationMaps.questionErrors,
+        revealFieldErrors: validationRevealed,
+        waterlowComplete: computeWaterlowScore(waterlow) > 0,
+        painToolComplete: painAssessment.nrsScore != null,
+        skinIntegrityCheckComplete: skinIntegrityCheckHasEntries(skinIntegrityCheck),
+        mustToolComplete: isMustScoringComplete(mustAssessment),
+        fallsScreeningComplete: isFallsScreeningComplete(fallsScreening),
+        movingHandlingComplete: isMovingHandlingOperationsComplete(movingHandlingOperations),
+        therapyMemoireComplete: isTherapyAideMemoireComplete(painAssessment.therapyAideMemoire),
+        environmentAssessmentComplete: isEnvironmentAssessmentComplete(environmentAssessment),
+        advanceCarePlanningComplete: isAdvanceCarePlanningComplete(advanceCarePlanning),
+        endOfLifeAssessmentComplete: isEndOfLifeAssessmentComplete(endOfLifeAssessment),
+        clinicalOutcomeSummaryComplete:
+          isClinicalAssessmentOutcomeSummaryComplete(clinicalOutcomeSummary),
+        carePlanObjectivesComplete: isCarePlanObjectivesComplete(carePlanObjectives),
+        mentalCapacityChecklistComplete: isMentalCapacityChecklistComplete(mentalCapacityChecklist),
+        photographyConsentComplete: isPhotographyConsentComplete(photographyConsent),
+        equipmentSelectionComplete: isEquipmentSelectionComplete(equipmentSelection),
+      }),
+    [
+      sections,
+      visibleQuestionsBySection,
+      draftAnswers,
+      editable,
+      progressContext,
+      validationMaps.sectionBlocks,
+      validationMaps.sectionWarnings,
+      validationMaps.questionErrors,
+      validationRevealed,
+      waterlow,
+      painAssessment,
+      skinIntegrityCheck,
+      mustAssessment,
+      fallsScreening,
+      movingHandlingOperations,
+      environmentAssessment,
+      advanceCarePlanning,
+      endOfLifeAssessment,
+      clinicalOutcomeSummary,
+      carePlanObjectives,
+      mentalCapacityChecklist,
+      photographyConsent,
+      equipmentSelection,
+    ],
+  )
+
   const openSubmitReview = React.useCallback(() => {
     setValidationRevealed(true)
     setSubmitModalOpen(true)
@@ -557,24 +826,36 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     setValidationRevealed(false)
   }, [submissionId])
 
-  const goToWaterlowTab = React.useCallback(() => setHubTab('waterlow'), [setHubTab])
-
-  const goToSection = React.useCallback(
-    (n: number) => setActiveSection(n),
+  const goToHolisticTab = React.useCallback(
+    (tabId: number) => setActiveSection(tabId),
     [setActiveSection],
+  )
+
+  const goToWaterlowTab = React.useCallback(() => {
+    goToHolisticTab(5)
+    setHubTab('form')
+  }, [goToHolisticTab, setHubTab])
+
+  /** Validation banners pass enterprise § numbers — map to the matching holistic tab. */
+  const goToSection = React.useCallback(
+    (n: number) => {
+      const tabId = holisticTabById(n) ? n : firstHolisticTabForEnterpriseSection(n)
+      goToHolisticTab(tabId)
+    },
+    [goToHolisticTab],
   )
 
   React.useEffect(() => {
     if (sections.length === 0) return
-    if (!sections.some((s) => s.sectionNumber === activeSection)) {
-      patchUrlSearch({ section: sections[0]!.sectionNumber })
+    if (!holisticTabById(activeHolisticTab)) {
+      patchUrlSearch({ section: HOLISTIC_ASSESSMENT_TABS[0]!.id })
     }
-  }, [sections, activeSection, patchUrlSearch])
+  }, [sections, activeHolisticTab, patchUrlSearch])
 
   React.useEffect(() => {
     if (hubTab !== 'form') return
     sectionContentRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-  }, [activeSection, hubTab])
+  }, [activeHolisticTab, hubTab])
   const overallPercent = React.useMemo(
     () => validateQuery.data?.overallPercent ?? overallAssessmentProgress(sections, draftAnswers, progressContext),
     [validateQuery.data?.overallPercent, sections, draftAnswers, progressContext],
@@ -634,7 +915,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [correctionReason, setCorrectionReason] = React.useState('')
 
   const excludeQuestionIds = React.useMemo(() => {
-    const ids = new Set<string>(waterlowExcludedIds)
+    const ids = new Set<string>([...hubTabExcludedIds, ...painPanelExcludedIds])
     const sec12 = sections.find((s) => s.sectionNumber === 12)
     if (sec12) {
       for (const id of section12PanelExcludedIds(sec12.questions)) {
@@ -651,7 +932,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       }
     }
     return ids
-  }, [waterlowExcludedIds, section12FinanceRequired, financeConsentQuestion, sections])
+  }, [hubTabExcludedIds, painPanelExcludedIds, section12FinanceRequired, financeConsentQuestion, sections])
 
   const waterlowScore = React.useMemo(() => computeWaterlowScore(waterlow), [waterlow])
 
@@ -728,6 +1009,133 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       syncWaterlowCompletedAnswer(sections, next, onAnswerChange)
     },
     [sections, persistMetadata, onAnswerChange],
+  )
+
+  const onSectionFooterChange = React.useCallback(
+    (sectionNumber: number, patch: { dateCompleted?: string; assessorNameDesignation?: string }) => {
+      setSectionFooters((prev) => {
+        const key = String(sectionNumber)
+        const next = { ...prev, [key]: { ...prev[key], ...patch } }
+        void persistMetadata({ sectionFooters: next })
+        return next
+      })
+    },
+    [persistMetadata],
+  )
+
+  const onPainAssessmentChange = React.useCallback(
+    (next: PainAssessmentMetadata) => {
+      setPainAssessment(next)
+      void persistMetadata({ painAssessment: next })
+      syncPainAssessmentAnswers(sections, next, onAnswerChange)
+    },
+    [sections, persistMetadata, onAnswerChange],
+  )
+
+  const onSkinIntegrityCheckChange = React.useCallback(
+    (next: typeof skinIntegrityCheck) => {
+      setSkinIntegrityCheck(next)
+      void persistMetadata({ skinIntegrityCheck: next })
+    },
+    [persistMetadata],
+  )
+
+  const onMustAssessmentChange = React.useCallback(
+    (next: MustMetadata) => {
+      setMustAssessment(next)
+      void persistMetadata({ mustAssessment: next })
+      syncMustAssessmentAnswers(sections, next, onAnswerChange)
+    },
+    [sections, persistMetadata, onAnswerChange],
+  )
+
+  const onMovingHandlingOperationsChange = React.useCallback(
+    (next: MovingHandlingOperationsMetadata) => {
+      setMovingHandlingOperations(next)
+      void persistMetadata({ movingHandlingOperations: next })
+    },
+    [persistMetadata],
+  )
+
+  const onEnvironmentAssessmentChange = React.useCallback(
+    (next: EnvironmentAssessmentMetadata) => {
+      setEnvironmentAssessment(next)
+      void persistMetadata({ environmentAssessment: next })
+    },
+    [persistMetadata],
+  )
+
+  const onAdvanceCarePlanningChange = React.useCallback(
+    (next: AdvanceCarePlanningMetadata) => {
+      setAdvanceCarePlanning(next)
+      void persistMetadata({ advanceCarePlanning: next })
+    },
+    [persistMetadata],
+  )
+
+  const onEndOfLifeAssessmentChange = React.useCallback(
+    (next: EndOfLifeAssessmentMetadata) => {
+      setEndOfLifeAssessment(next)
+      void persistMetadata({ endOfLifeAssessment: next })
+    },
+    [persistMetadata],
+  )
+
+  const onClinicalOutcomeSummaryChange = React.useCallback(
+    (next: ClinicalAssessmentOutcomeSummaryMetadata) => {
+      setClinicalOutcomeSummary(next)
+      void persistMetadata({ clinicalOutcomeSummary: next })
+    },
+    [persistMetadata],
+  )
+
+  const onCarePlanObjectivesChange = React.useCallback(
+    (next: CarePlanObjectivesMetadata) => {
+      setCarePlanObjectives(next)
+      void persistMetadata({ carePlanObjectives: next })
+    },
+    [persistMetadata],
+  )
+
+  const onMentalCapacityChecklistChange = React.useCallback(
+    (next: MentalCapacityChecklistMetadata) => {
+      setMentalCapacityChecklist(next)
+      void persistMetadata({ mentalCapacityChecklist: next })
+    },
+    [persistMetadata],
+  )
+
+  const onPhotographyConsentChange = React.useCallback(
+    (next: PhotographyConsentMetadata) => {
+      setPhotographyConsent(next)
+      void persistMetadata({ photographyConsent: next })
+    },
+    [persistMetadata],
+  )
+
+  const onEquipmentSelectionChange = React.useCallback(
+    (next: EquipmentSelectionMetadata) => {
+      setEquipmentSelection(next)
+      void persistMetadata({ equipmentSelection: next })
+    },
+    [persistMetadata],
+  )
+
+  const onFallsScreeningChange = React.useCallback(
+    (next: FallsScreeningMetadata) => {
+      setFallsScreening(next)
+      syncFallsScreeningDerivedState(
+        sections,
+        next,
+        adl,
+        (nextAdl) => {
+          setAdl(nextAdl)
+          void persistMetadata({ fallsScreening: next, adl: nextAdl })
+        },
+        onAnswerChange,
+      )
+    },
+    [sections, adl, persistMetadata, onAnswerChange],
   )
 
   const persistSectionComment = React.useCallback(
@@ -840,7 +1248,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const saveSection = async () => {
     if (!currentSection) return
-    await persistSectionComment(activeSection, sectionComments[String(activeSection)])
+    const enterpriseSection = currentHolisticTab.enterpriseSection
+    await persistSectionComment(enterpriseSection, sectionComments[String(enterpriseSection)])
     await persistSectionAnswers(currentSection, false)
   }
 
@@ -885,10 +1294,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     <div className="flex flex-col gap-6 p-4 md:p-6" data-testid="initial-assessment-enterprise-page">
       <div className="flex flex-wrap items-center gap-3">
         <ClipboardCheck className="h-7 w-7 text-teal-700 dark:text-teal-400" aria-hidden />
-        <h1 className="text-xl font-bold md:text-2xl">Initial Assessment</h1>
-        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 dark:bg-teal-950 dark:text-teal-200">
-          Enterprise
-        </span>
+        <h1 className="text-lg font-bold leading-snug md:text-xl">{HOLISTIC_FORM_TITLE}</h1>
       </div>
 
       <div className="max-w-xl space-y-2 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -1076,7 +1482,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 serviceUserId={selectedId}
                 submissionId={submissionId}
                 recommendations={summaryQuery.data?.carePlanRecommendations ?? []}
-                canDecide={canReview && (submission?.status === 'SUBMITTED' || submission?.status === 'REVIEWED')}
+                submissionStatus={submission?.status}
+                canDecide={(canReview || canUpdate) && submission?.status === 'REVIEWED'}
                 onGoToSection={(n) => goToSection(n)}
               />
               <InitialAssessmentActionsPanel
@@ -1119,7 +1526,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               ) : null}
               <InitialAssessmentWaterlowPanel
                 value={waterlow}
-                serviceUserDetail={detailQuery.data}
                 disabled={!editable || !canUpdate}
                 onChange={onWaterlowChange}
               />
@@ -1191,7 +1597,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               <InitialAssessmentAttachmentsPanel
                 serviceUserId={selectedId}
                 submissionId={submissionId}
-                activeSection={activeSection}
+                activeSection={currentHolisticTab.enterpriseSection}
                 canUpdate={canUpdate}
                 editable={editable}
               />
@@ -1201,25 +1607,40 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                   data-testid="ia-section-nav"
                   className="flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-sm min-[900px]:sticky min-[900px]:top-4 min-[900px]:self-start"
                 >
-                  {sections.map((sec) => {
-                    const prog = sectionProgress(sec, draftAnswers, sections, progressContext)
-                    const hasComment = Boolean(sectionComments[String(sec.sectionNumber)]?.text?.trim())
-                    const navStatus = validationMaps.sectionNavStatus.get(sec.sectionNumber) ?? 'ok'
+                  {HOLISTIC_ASSESSMENT_TABS.map((tab) => {
+                    const enterprise = sections.find((s) => s.sectionNumber === tab.enterpriseSection)
+                    const tabQuestions = questionsForDocumentTab(
+                      tab,
+                      sections,
+                      visibleQuestionsBySection,
+                    )
+                    const prog = enterprise
+                      ? sectionProgress(
+                          { ...enterprise, questions: tabQuestions },
+                          draftAnswers,
+                          sections,
+                          progressContext,
+                        )
+                      : { percent: 0, total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 }
+                    const hasComment = Boolean(
+                      sectionComments[String(tab.enterpriseSection)]?.text?.trim(),
+                    )
+                    const navStatus = holisticTabNavStatus.get(tab.id) ?? 'ok'
                     return (
                       <button
-                        key={sec.id}
+                        key={tab.id}
                         type="button"
                         className={cn(
                           IA_FORM_NAV_BUTTON_CLASS,
-                          activeSection === sec.sectionNumber
+                          activeHolisticTab === tab.id
                             ? 'bg-teal-900 text-white dark:bg-teal-800'
                             : 'hover:bg-muted',
                         )}
-                        onClick={() => goToSection(sec.sectionNumber)}
+                        onClick={() => goToHolisticTab(tab.id)}
                       >
                         <span className="flex items-center gap-1.5">
-                          <span className="font-semibold">{sec.sectionNumber}.</span>
-                          <span className="min-w-0 flex-1">{sec.title}</span>
+                          <span className="font-semibold">{tab.id}.</span>
+                          <span className="min-w-0 flex-1">{tab.title}</span>
                           {navStatus === 'blocking' ? (
                             <span
                               className="h-2 w-2 shrink-0 rounded-full bg-red-500"
@@ -1242,57 +1663,92 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
                 <div
                   ref={sectionContentRef}
-                  key={currentSection?.id ?? `section-${activeSection}`}
-                  className={cn('min-w-0 space-y-6 rounded-xl border border-border bg-card p-6 shadow-sm', IA_FORM_ROOT_CLASS)}
+                  key={`holistic-tab-${activeHolisticTab}-${currentSection?.id ?? 'none'}`}
+                  className={cn(
+                    'min-w-0 space-y-6 rounded-sm border border-slate-300 bg-white p-6 shadow-sm dark:border-slate-600 dark:bg-card',
+                    IA_FORM_ROOT_CLASS,
+                    HOLISTIC_FORM_PAGE_CLASS,
+                  )}
                 >
                   {currentSection ? (
                     <>
-                      {currentSection.sectionNumber !== 11 ? (
+                      {currentHolisticTab.kind !== 'skin-integrity-check' &&
+                      currentHolisticTab.kind !== 'waterlow' &&
+                      currentHolisticTab.kind !== 'equipment-selection' &&
+                      currentHolisticTab.kind !== 'must-tool' &&
+                      currentHolisticTab.kind !== 'falls-screening' &&
+                      currentHolisticTab.kind !== 'moving-handling' &&
+                      currentHolisticTab.kind !== 'pain-tool' &&
+                      currentHolisticTab.kind !== 'therapy-memoire' &&
+                      currentHolisticTab.kind !== 'environment-assessment' &&
+                      currentHolisticTab.kind !== 'advance-care-planning' &&
+                      currentHolisticTab.kind !== 'end-of-life-assessment' &&
+                      currentHolisticTab.kind !== 'clinical-outcome-summary' &&
+                      currentHolisticTab.kind !== 'care-plan-objectives' &&
+                      currentHolisticTab.kind !== 'mental-capacity-checklist' &&
+                      currentHolisticTab.kind !== 'photography-consent' ? (
                         <h2 className={IA_SECTION_TITLE_CLASS}>
-                          {currentSection.sectionNumber}. {currentSection.title}
+                          {currentHolisticTab.id}. {holisticTabTitle(currentHolisticTab.id)}
                         </h2>
                       ) : null}
-                      {currentSection.sectionNumber === 11 ? (
-                        <InitialAssessmentSkinPressureSection
-                          key={currentSection.id}
-                          section={currentSection}
-                          allSections={sections}
-                          draftAnswers={draftAnswers}
-                          prefillMap={prefillMap}
-                          questionErrors={validationMaps.questionErrors}
-                          disabled={!editable || !canUpdate}
-                          serviceUserId={selectedId}
-                          submissionId={submissionId}
-                          serviceUserDetail={detailQuery.data}
-                          excludeQuestionIds={excludeQuestionIds}
-                          showBodyMapCta={showBodyMapCta}
-                          onOpenBodyMap={() => setBodyMapOpen(true)}
-                          onOpenWaterlowTab={goToWaterlowTab}
-                          onChange={onAnswerChange}
-                        />
-                      ) : null}
-                      {currentSection.sectionNumber === 12 ? (
-                        <InitialAssessmentSection12Content
-                          key={currentSection.id}
-                          section={currentSection}
-                          allSections={sections}
-                          draftAnswers={draftAnswers}
-                          prefillMap={prefillMap}
-                          questionErrors={validationMaps.questionErrors}
-                          disabled={!editable || !canUpdate}
-                          serviceUserId={selectedId}
-                          submissionId={submissionId}
-                          excludeQuestionIds={excludeQuestionIds}
-                          adl={adl}
-                          transfers={transfers}
-                          equipmentChecklist={equipmentChecklist}
-                          equipmentChecklistVisible={section12EquipmentVisible}
-                          dailyLivingAids={dailyLivingAids}
-                          practicalCare={practicalCare}
-                          financeSupport={financeSupport}
-                          financeSupportVisible={section12FinanceRequired}
-                          financeConsentQuestion={financeConsentQuestion}
-                          renderFinanceConsentField={
+                      <InitialAssessmentDocumentTabContent
+                        tab={currentHolisticTab}
+                        sections={sections}
+                        draftAnswers={draftAnswers}
+                        prefillMap={prefillMap}
+                        questionErrors={validationMaps.questionErrors}
+                        disabled={!editable || !canUpdate}
+                        serviceUserId={selectedId}
+                        submissionId={submissionId}
+                        serviceUserDetail={detailQuery.data}
+                        excludeQuestionIds={excludeQuestionIds}
+                        painAssessment={painAssessment}
+                        waterlow={waterlow}
+                        mustAssessment={mustAssessment}
+                        fallsScreening={fallsScreening}
+                        movingHandlingOperations={movingHandlingOperations}
+                        environmentAssessment={environmentAssessment}
+                        advanceCarePlanning={advanceCarePlanning}
+                        endOfLifeAssessment={endOfLifeAssessment}
+                        clinicalOutcomeSummary={clinicalOutcomeSummary}
+                        carePlanObjectives={carePlanObjectives}
+                        mentalCapacityChecklist={mentalCapacityChecklist}
+                        photographyConsent={photographyConsent}
+                        equipmentSelection={equipmentSelection}
+                        skinIntegrityCheck={skinIntegrityCheck}
+                        showBodyMapCta={showBodyMapCta}
+                        onSyncEmergencyContact={syncEmergencyContactFromProfile}
+                        onMarkMedicationVerified={markMedicationListVerified}
+                        onOpenBodyMap={() => setBodyMapOpen(true)}
+                        onOpenWaterlowTab={goToWaterlowTab}
+                        onPainAssessmentChange={onPainAssessmentChange}
+                        onWaterlowChange={onWaterlowChange}
+                        onMustAssessmentChange={onMustAssessmentChange}
+                        onFallsScreeningChange={onFallsScreeningChange}
+                        onMovingHandlingOperationsChange={onMovingHandlingOperationsChange}
+                        onEnvironmentAssessmentChange={onEnvironmentAssessmentChange}
+                        onAdvanceCarePlanningChange={onAdvanceCarePlanningChange}
+                        onEndOfLifeAssessmentChange={onEndOfLifeAssessmentChange}
+                        onClinicalOutcomeSummaryChange={onClinicalOutcomeSummaryChange}
+                        onCarePlanObjectivesChange={onCarePlanObjectivesChange}
+                        onMentalCapacityChecklistChange={onMentalCapacityChecklistChange}
+                        onPhotographyConsentChange={onPhotographyConsentChange}
+                        onEquipmentSelectionChange={onEquipmentSelectionChange}
+                        onSkinIntegrityCheckChange={onSkinIntegrityCheckChange}
+                        sectionFooter={sectionFooters[String(activeHolisticTab)]}
+                        onSectionFooterChange={(patch) => onSectionFooterChange(activeHolisticTab, patch)}
+                        onChange={onAnswerChange}
+                        section12={{
+                          adl,
+                          transfers,
+                          equipmentChecklist,
+                          equipmentChecklistVisible: section12EquipmentVisible,
+                          dailyLivingAids,
+                          practicalCare,
+                          financeSupport,
+                          financeSupportVisible: section12FinanceRequired,
+                          financeConsentQuestion,
+                          renderFinanceConsentField:
                             financeConsentQuestion
                               ? () => (
                                   <InitialAssessmentQuestionField
@@ -1305,25 +1761,24 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                                     onChange={(patch) => onAnswerChange(financeConsentQuestion.id, patch)}
                                   />
                                 )
-                              : undefined
-                          }
-                          onAdlChange={(next) => {
+                              : undefined,
+                          onAdlChange: (next) => {
                             setAdl(next)
                             void persistMetadata({ adl: next })
-                          }}
-                          onTransfersChange={(next) => {
+                          },
+                          onTransfersChange: (next) => {
                             setTransfers(next)
                             void persistMetadata({ transfers: next })
-                          }}
-                          onEquipmentChecklistChange={(next) => {
+                          },
+                          onEquipmentChecklistChange: (next) => {
                             setEquipmentChecklist(next)
                             void persistMetadata({ equipmentChecklist: next })
-                          }}
-                          onDailyLivingAidsChange={(next) => {
+                          },
+                          onDailyLivingAidsChange: (next) => {
                             setDailyLivingAids(next)
                             void persistMetadata({ dailyLivingAids: next })
-                          }}
-                          onPracticalCareChange={(next) => {
+                          },
+                          onPracticalCareChange: (next) => {
                             setPracticalCare(next)
                             void persistMetadata({ practicalCare: next })
                             const sec12 = sections.find((s) => s.sectionNumber === 12)
@@ -1337,8 +1792,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                                 booleanValue: true,
                               })
                             }
-                          }}
-                          onFinanceSupportChange={(next) => {
+                          },
+                          onFinanceSupportChange: (next) => {
                             setFinanceSupport(next)
                             void persistMetadata({
                               financeSupport: {
@@ -1349,49 +1804,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                                   : next.consentRecorded,
                               },
                             })
-                          }}
-                          onChange={onAnswerChange}
-                        />
-                      ) : currentSection.sectionNumber !== 11 ? (
-                        <InitialAssessmentSectionQuestions
-                          key={currentSection.id}
-                          section={currentSection}
-                          allSections={sections}
-                          draftAnswers={draftAnswers}
-                          prefillMap={prefillMap}
-                          questionErrors={validationMaps.questionErrors}
-                          disabled={!editable || !canUpdate}
-                          serviceUserId={selectedId}
-                          submissionId={submissionId}
-                          serviceUserDetail={detailQuery.data}
-                          onSyncEmergencyContact={syncEmergencyContactFromProfile}
-                          onMarkMedicationVerified={markMedicationListVerified}
-                          excludeQuestionIds={excludeQuestionIds}
-                          onChange={onAnswerChange}
-                        />
-                      ) : null}
-                      {currentSection.sectionNumber === 14 ? (
-                        <InitialAssessmentSignOffPanel
-                          section={currentSection}
-                          allSections={sections}
-                          draftAnswers={draftAnswers}
-                          questionErrors={validationMaps.questionErrors}
-                          disabled={!editable || !canUpdate}
-                          serviceUserId={selectedId}
-                          submissionId={submissionId}
-                          onChange={onAnswerChange}
-                        />
-                      ) : null}
-                      {currentSection.sectionNumber === 13 ? (
-                        <InitialAssessmentRiskRecordsPanel
-                          serviceUserId={selectedId}
-                          submissionId={submissionId}
-                          canUpdate={canUpdate}
-                          editable={editable}
-                          compact
-                        />
-                      ) : null}
-                      {showEmarCta && currentSection.sectionNumber === 9 && selectedId ? (
+                          },
+                        }}
+                      />
+                      {showEmarCta && currentHolisticTab.id === 1 && selectedId ? (
                         <Button type="button" variant="outline" size="sm" asChild>
                           <Link
                             to="/service-users/$serviceUserId/medication"
@@ -1448,7 +1864,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                     triggerCount={triggersQuery.data?.count ?? 0}
                     overallPercent={overallPercent}
                     sectionCommentCount={sectionCommentCount}
-                    sectionTotal={sections.length}
+                    sectionTotal={HOLISTIC_TAB_COUNT}
                     onGoToSection={goToSection}
                   />
                 </aside>

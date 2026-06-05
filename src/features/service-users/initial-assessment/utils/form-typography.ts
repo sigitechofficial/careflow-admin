@@ -102,6 +102,15 @@ export const IA_FORM_NAV_META_CLASS = 'mt-0.5 block text-xs font-normal text-mut
 /** Consistent spacing between assessor-facing fields in a subsection. */
 export const IA_FIELD_DIVIDER_CLASS = 'border-b border-border/60 py-4 last:border-b-0'
 
+/** Flat §1 profile / person-centred field stack — no per-field borders. */
+export const IA_SIMPLE_FIELD_STACK_CLASS = 'space-y-5'
+
+/** Wrapper for a single field in the simplified §1 layout. */
+export const IA_SIMPLE_FIELD_CLASS = 'space-y-1.5'
+
+/** Short text inputs in §1 profile blocks. */
+export const IA_SIMPLE_INPUT_CLASS = 'h-10 max-w-md text-base'
+
 /** Shared subsection panel shell (§12 panels, embedded blocks). */
 export const IA_SUBSECTION_PANEL_CLASS = 'overflow-hidden rounded-xl border border-border bg-card shadow-sm'
 export const IA_SUBSECTION_PANEL_HEADER_CLASS =

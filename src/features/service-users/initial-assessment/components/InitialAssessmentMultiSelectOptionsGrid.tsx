@@ -2,6 +2,7 @@ import {
   InitialAssessmentControlTooltip,
   iaQuestionTooltipText,
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentControlTooltip'
+import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import { cn } from '@/shared/lib/utils'
 import {
   IA_CHECKBOX_CLASS,
@@ -52,7 +53,7 @@ export function InitialAssessmentMultiSelectOptionsGrid({
     <div className="space-y-3">
       <div>
         <p className={IA_QUESTION_LABEL_CLASS}>
-          {question.questionText}
+          {holisticQuestionLabel(question.questionText)}
           {question.isRequired ? (
             <span className="text-teal-700 dark:text-teal-400" aria-hidden>
               {' '}

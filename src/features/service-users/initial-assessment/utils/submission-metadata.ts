@@ -1,6 +1,10 @@
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
 import { parseMobilityMetadata } from '@/features/service-users/initial-assessment/utils/mobility-metadata'
 import {
+  defaultPainAssessmentMetadata,
+  type PainAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import {
   computeWaterlowScore,
   defaultWaterlowMetadata,
   waterlowBand,
@@ -25,6 +29,55 @@ import {
   type AdlWorksheetMetadata,
   type AdlWorksheetRow,
 } from '@/features/service-users/initial-assessment/utils/adl-scoring'
+import {
+  defaultMustMetadata,
+  enrichMustMetadata,
+  type MustMetadata,
+} from '@/features/service-users/initial-assessment/utils/must-scoring'
+import {
+  normalizeFallsScreeningMetadata,
+  type FallsScreeningMetadata,
+} from '@/features/service-users/initial-assessment/utils/falls-screening'
+import {
+  normalizeMovingHandlingOperationsMetadata,
+  type MovingHandlingOperationsMetadata,
+} from '@/features/service-users/initial-assessment/utils/moving-handling-operations'
+import {
+  normalizeSkinIntegrityCheckMetadata,
+  type SkinIntegrityCheckMetadata,
+} from '@/features/service-users/initial-assessment/utils/skin-integrity-check'
+import {
+  normalizeEnvironmentAssessmentMetadata,
+  type EnvironmentAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/environment-assessment'
+import {
+  normalizeAdvanceCarePlanningMetadata,
+  type AdvanceCarePlanningMetadata,
+} from '@/features/service-users/initial-assessment/utils/advance-care-planning'
+import {
+  normalizeEndOfLifeAssessmentMetadata,
+  type EndOfLifeAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/end-of-life-assessment'
+import {
+  normalizeClinicalAssessmentOutcomeSummaryMetadata,
+  type ClinicalAssessmentOutcomeSummaryMetadata,
+} from '@/features/service-users/initial-assessment/utils/clinical-assessment-outcome-summary'
+import {
+  normalizeCarePlanObjectivesMetadata,
+  type CarePlanObjectivesMetadata,
+} from '@/features/service-users/initial-assessment/utils/care-plan-objectives'
+import {
+  normalizeMentalCapacityChecklistMetadata,
+  type MentalCapacityChecklistMetadata,
+} from '@/features/service-users/initial-assessment/utils/mental-capacity-checklist'
+import {
+  normalizePhotographyConsentMetadata,
+  type PhotographyConsentMetadata,
+} from '@/features/service-users/initial-assessment/utils/photography-consent'
+import {
+  normalizeEquipmentSelectionMetadata,
+  type EquipmentSelectionMetadata,
+} from '@/features/service-users/initial-assessment/utils/equipment-selection'
 
 export type AdlRow = AdlWorksheetRow
 
@@ -63,6 +116,27 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
   const waterlow: WaterlowMetadata =
     meta.waterlow && typeof meta.waterlow === 'object' ? (meta.waterlow as WaterlowMetadata) : {}
 
+  const painAssessment: PainAssessmentMetadata =
+    meta.painAssessment && typeof meta.painAssessment === 'object'
+      ? (meta.painAssessment as PainAssessmentMetadata)
+      : defaultPainAssessmentMetadata()
+
+  const sectionFooters: Record<string, { dateCompleted?: string; assessorNameDesignation?: string }> =
+    {}
+  const rawFooters = meta.sectionFooters
+  if (rawFooters && typeof rawFooters === 'object' && !Array.isArray(rawFooters)) {
+    for (const [k, v] of Object.entries(rawFooters as Record<string, unknown>)) {
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        const row = v as Record<string, unknown>
+        sectionFooters[k] = {
+          dateCompleted: typeof row.dateCompleted === 'string' ? row.dateCompleted : undefined,
+          assessorNameDesignation:
+            typeof row.assessorNameDesignation === 'string' ? row.assessorNameDesignation : undefined,
+        }
+      }
+    }
+  }
+
   const rawAdl = meta.adl && typeof meta.adl === 'object' ? (meta.adl as AdlMetadata) : {}
   const adl: AdlMetadata = {
     ...rawAdl,
@@ -72,15 +146,89 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
   const managerReviewRequired = meta.managerReviewRequired === true
   const mobility = parseMobilityMetadata(meta)
 
+  const skinIntegrityCheck: SkinIntegrityCheckMetadata = normalizeSkinIntegrityCheckMetadata(
+    meta.skinIntegrityCheck,
+  )
+
+  const mustAssessment: MustMetadata = enrichMustMetadata(
+    meta.mustAssessment && typeof meta.mustAssessment === 'object'
+      ? (meta.mustAssessment as MustMetadata)
+      : defaultMustMetadata(),
+  )
+
+  const fallsScreening: FallsScreeningMetadata = normalizeFallsScreeningMetadata(meta.fallsScreening)
+
+  const movingHandlingOperations: MovingHandlingOperationsMetadata =
+    normalizeMovingHandlingOperationsMetadata(meta.movingHandlingOperations)
+
+  const environmentAssessment: EnvironmentAssessmentMetadata =
+    normalizeEnvironmentAssessmentMetadata(meta.environmentAssessment)
+
+  const advanceCarePlanning: AdvanceCarePlanningMetadata =
+    normalizeAdvanceCarePlanningMetadata(meta.advanceCarePlanning)
+
+  const endOfLifeAssessment: EndOfLifeAssessmentMetadata =
+    normalizeEndOfLifeAssessmentMetadata(meta.endOfLifeAssessment)
+
+  const clinicalOutcomeSummary: ClinicalAssessmentOutcomeSummaryMetadata =
+    normalizeClinicalAssessmentOutcomeSummaryMetadata(meta.clinicalOutcomeSummary)
+
+  const carePlanObjectives: CarePlanObjectivesMetadata =
+    normalizeCarePlanObjectivesMetadata(meta.carePlanObjectives)
+
+  const mentalCapacityChecklist: MentalCapacityChecklistMetadata =
+    normalizeMentalCapacityChecklistMetadata(meta.mentalCapacityChecklist)
+
+  const photographyConsent: PhotographyConsentMetadata =
+    normalizePhotographyConsentMetadata(meta.photographyConsent)
+
+  const equipmentSelection: EquipmentSelectionMetadata =
+    normalizeEquipmentSelectionMetadata(meta.equipmentSelection)
+
   return {
     sectionComments,
     waterlow,
+    painAssessment,
+    sectionFooters,
     adl,
+    skinIntegrityCheck,
+    mustAssessment,
+    fallsScreening,
+    movingHandlingOperations,
+    environmentAssessment,
+    advanceCarePlanning,
+    endOfLifeAssessment,
+    clinicalOutcomeSummary,
+    carePlanObjectives,
+    mentalCapacityChecklist,
+    photographyConsent,
+    equipmentSelection,
     managerReviewRequired,
     ...mobility,
     raw: meta,
   }
 }
+
+export type {
+  AdvanceCarePlanningMetadata,
+  CarePlanObjectivesMetadata,
+  MentalCapacityChecklistMetadata,
+  PhotographyConsentMetadata,
+  EquipmentSelectionMetadata,
+  ClinicalAssessmentOutcomeSummaryMetadata,
+  EndOfLifeAssessmentMetadata,
+  EnvironmentAssessmentMetadata,
+  FallsScreeningMetadata,
+  MovingHandlingOperationsMetadata,
+  MustMetadata,
+  PainAssessmentMetadata,
+  SkinIntegrityCheckMetadata,
+}
+export { defaultPainAssessmentMetadata }
+export {
+  defaultSkinIntegrityCheckMetadata,
+  skinIntegrityCheckHasEntries,
+} from '@/features/service-users/initial-assessment/utils/skin-integrity-check'
 
 export type SectionCommentEntry = {
   text: string

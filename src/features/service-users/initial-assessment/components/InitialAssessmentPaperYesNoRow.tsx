@@ -8,7 +8,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
 type Props = {
-  label: ReactNode
+  label?: ReactNode
   value: boolean | null
   disabled?: boolean
   name: string
@@ -19,6 +19,8 @@ type Props = {
   dateDisabled?: boolean
   /** When false, omit row divider (parent uses divide-y or IA_FIELD_DIVIDER_CLASS). */
   showDivider?: boolean
+  /** Accessible name when visual label is omitted (e.g. table Yes/No column). */
+  ariaLabel?: string
 }
 
 export function InitialAssessmentPaperYesNoRow({
@@ -32,6 +34,7 @@ export function InitialAssessmentPaperYesNoRow({
   onDateChange,
   dateDisabled,
   showDivider = false,
+  ariaLabel,
 }: Props) {
   return (
     <div
@@ -40,12 +43,14 @@ export function InitialAssessmentPaperYesNoRow({
         showDivider && 'border-b border-border/60 last:border-b-0',
       )}
     >
-      <span className={cn('min-w-0 flex-1', IA_PAPER_ROW_LABEL_CLASS)}>{label}</span>
-      <div className="flex flex-wrap items-center gap-4">
+      {label ? (
+        <span className={cn('min-w-0 flex-1', IA_PAPER_ROW_LABEL_CLASS)}>{label}</span>
+      ) : null}
+      <div className={cn('flex flex-wrap items-center gap-4', !label && 'w-full')}>
         <div
           className="flex items-center gap-3"
           role="radiogroup"
-          aria-label={typeof label === 'string' ? label : undefined}
+          aria-label={ariaLabel ?? (typeof label === 'string' ? label : undefined)}
         >
           {(
             [

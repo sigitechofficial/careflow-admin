@@ -5,13 +5,22 @@ import { Button } from '@/shared/ui/button'
 import { VIEW_LABELS, type BodyMapPostureView } from '@/features/service-users/body-map/catalog/body-map-views'
 import { applyPostureDiagramToHost } from '@/features/service-users/body-map/catalog/body-map-posture-diagrams'
 import {
-  postureHotspotsFor,
   resolvePostureHotspot,
+  resolvePostureHotspotAtMarkerCenter,
 } from '@/features/service-users/body-map/catalog/body-map-posture-hotspots'
+import { leaningMarkerLabelForElement } from '@/features/service-users/body-map/catalog/leaning-svg-marker-labels'
 import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { BodyMapMarkerLegend } from '@/features/service-users/body-map/components/BodyMapMarkerLegend'
 import { medicationSiteMarkerLabel } from '@/features/service-users/body-map/components/BodyMapMedicationSiteDetail'
 import { readMarkerPlacement } from '@/features/service-users/body-map/utils/body-map-coords'
+import {
+  getPostureSvg,
+  isPostureReferenceMarker,
+  markerViewBoxCenterPercent,
+  postureViewBoxAspect,
+  viewBoxPercentFromClient,
+  viewBoxPercentToOverlayPercent,
+} from '@/features/service-users/body-map/utils/posture-svg-coords'
 import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
 
 const MARKER_CLASS_MAP: Record<string, string> = {
@@ -61,13 +70,20 @@ function isVisibleOnMap(
 }
 
 function clickToPercent(clientX: number, clientY: number, host: HTMLElement): { x: number; y: number } | null {
-  const svg = host.querySelector('svg')
+  const svg = getPostureSvg(host)
   if (!svg) return null
-  const rect = svg.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return null
-  const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))
-  const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100))
-  return { x, y }
+  return viewBoxPercentFromClient(svg, clientX, clientY)
+}
+
+function overlayPosForViewBoxPercent(
+  host: HTMLElement | null,
+  xPct: number,
+  yPct: number,
+): { left: string; top: string } {
+  if (!host) return { left: `${xPct}%`, top: `${yPct}%` }
+  const svg = getPostureSvg(host)
+  if (!svg) return { left: `${xPct}%`, top: `${yPct}%` }
+  return viewBoxPercentToOverlayPercent(svg, host, xPct, yPct)
 }
 
 function MapFilterChip({
@@ -129,6 +145,7 @@ export function BodyMapPostureCanvas({
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [canvasScale, setCanvasScale] = React.useState(1)
   const [canvasPan, setCanvasPan] = React.useState({ x: 20, y: 20 })
+  const [layoutRevision, setLayoutRevision] = React.useState(0)
 
   const svgWrapRef = React.useRef<HTMLDivElement>(null)
   const hostRef = React.useRef<HTMLDivElement>(null)
@@ -161,11 +178,25 @@ export function BodyMapPostureCanvas({
   }, [mountDiagram])
 
   React.useEffect(() => {
+    const host = hostRef.current
+    if (!host || !ready) return
+    const bump = () => setLayoutRevision(v => v + 1)
+    const ro = new ResizeObserver(bump)
+    ro.observe(host)
+    window.addEventListener('resize', bump)
+    bump()
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', bump)
+    }
+  }, [ready, posture])
+
+  React.useEffect(() => {
     const inner = viewportRef.current?.querySelector('#posture-canvas-inner') as HTMLElement | null
     if (inner) {
       inner.style.transform = `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasScale})`
     }
-  }, [canvasPan, canvasScale])
+  }, [canvasPan, canvasScale, layoutRevision])
 
   const handleDiagramClick = (e: React.MouseEvent) => {
     if (!markMode || !ready) return
@@ -177,7 +208,37 @@ export function BodyMapPostureCanvas({
     if (!pt) return
     e.stopPropagation()
 
-    const hotspot = resolvePostureHotspot(posture, pt.x, pt.y)
+    const svg = getPostureSvg(host)
+    const aspect = svg ? postureViewBoxAspect(svg) : undefined
+
+    let hotspot = null
+    if (svg && e.target instanceof Element) {
+      const markerEl = e.target.closest('circle,path')
+      if (markerEl && isPostureReferenceMarker(markerEl)) {
+        const annotatedPart = markerEl.getAttribute('data-body-part')
+        const center = markerViewBoxCenterPercent(markerEl, svg)
+        const leaningLabel =
+          posture === 'leaning' ? leaningMarkerLabelForElement(markerEl) : null
+        if (center && leaningLabel) {
+          hotspot = {
+            bodyPart: leaningLabel.bodyPart,
+            x: center.x,
+            y: center.y,
+          }
+        } else if (annotatedPart && center) {
+          hotspot = {
+            bodyPart: annotatedPart,
+            x: center.x,
+            y: center.y,
+          }
+        } else if (center) {
+          hotspot = resolvePostureHotspotAtMarkerCenter(posture, center.x, center.y, aspect)
+        }
+      }
+    }
+    if (!hotspot) {
+      hotspot = resolvePostureHotspot(posture, pt.x, pt.y, aspect)
+    }
     const bodyPart = hotspot?.bodyPart ?? 'Marked location'
     const x = hotspot?.x ?? pt.x
     const y = hotspot?.y ?? pt.y
@@ -194,7 +255,7 @@ export function BodyMapPostureCanvas({
     })
   }
 
-  const guideHotspots = markMode ? postureHotspotsFor(posture) : []
+  const host = hostRef.current
 
   const markerPins = React.useMemo(() => {
     const pins: {
@@ -221,10 +282,11 @@ export function BodyMapPostureCanvas({
     for (const record of visible) {
       const marker = record.markers[0]!
       displayIndex++
+      const pos = overlayPosForViewBoxPercent(host, marker.xCoordinate, marker.yCoordinate)
       pins.push({
         key: record.id,
-        left: `${marker.xCoordinate}%`,
-        top: `${marker.yCoordinate}%`,
+        left: pos.left,
+        top: pos.top,
         label: medicationSiteMarkerLabel(
           record,
           record.subType ?? record.recordType,
@@ -238,11 +300,11 @@ export function BodyMapPostureCanvas({
       })
     }
     return pins
-  }, [records, posture, showCleared, showMeds, selectedRecordId])
+  }, [records, posture, showCleared, showMeds, selectedRecordId, layoutRevision, host])
 
   const pendingPinPos =
     pendingMarker && pendingMarker.canvasView === posture
-      ? { left: `${pendingMarker.x}%`, top: `${pendingMarker.y}%` }
+      ? overlayPosForViewBoxPercent(host, pendingMarker.x, pendingMarker.y)
       : null
 
   return (
@@ -337,27 +399,6 @@ export function BodyMapPostureCanvas({
           >
             <div ref={svgWrapRef} className="body-svg-wrap [&_svg]:mx-auto" />
             <div className="pointer-events-none absolute inset-0">
-              {guideHotspots.map(spot => (
-                <button
-                  key={spot.bodyPart}
-                  type="button"
-                  title={spot.bodyPart}
-                  style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
-                  className="pointer-events-auto absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-pink-500 shadow-sm ring-1 ring-pink-600/40 hover:scale-110"
-                  onClick={ev => {
-                    ev.stopPropagation()
-                    onPlaceMarker({
-                      recordView: posture,
-                      canvasView: posture,
-                      x: spot.x,
-                      y: spot.y,
-                      bodyPart: spot.bodyPart,
-                      side: 'Centre',
-                      summaryLabel: spot.bodyPart,
-                    })
-                  }}
-                />
-              ))}
               {markerPins.map(pin => (
                 <button
                   key={pin.key}
