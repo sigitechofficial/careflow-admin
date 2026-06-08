@@ -171,11 +171,14 @@ export function applyCrossFieldSync(
 }
 
 export function collectAnswersForSave(
-  section: InitialAssessmentSection,
+  sectionOrQuestions: InitialAssessmentSection | InitialAssessmentQuestion[],
   draftAnswers: Record<string, InitialAssessmentAnswerInput>,
   extraQuestionIds: Iterable<string> = [],
 ): InitialAssessmentAnswerInput[] {
-  const ids = new Set(section.questions.map((q) => q.id))
+  const questions = Array.isArray(sectionOrQuestions)
+    ? sectionOrQuestions
+    : sectionOrQuestions.questions
+  const ids = new Set(questions.map((q) => q.id))
   for (const id of extraQuestionIds) ids.add(id)
   return [...ids]
     .map((id) => draftAnswers[id])

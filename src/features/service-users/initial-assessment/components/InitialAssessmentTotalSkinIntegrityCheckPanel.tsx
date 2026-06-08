@@ -8,7 +8,6 @@ import {
 import {
   SKIN_INTEGRITY_CHECK_COMPLETION_NOTES,
   type SkinIntegrityCheckMetadata,
-  type SkinIntegrityCheckRow,
 } from '@/features/service-users/initial-assessment/utils/skin-integrity-check'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import { IA_FORM_TEXTAREA_COMPACT_CLASS, IA_HINT_CLASS } from '@/features/service-users/initial-assessment/utils/form-typography'
@@ -24,16 +23,7 @@ type Props = {
   showBodyMapCta?: boolean
   onOpenBodyMap?: () => void
   onOpenWaterlowTab?: () => void
-  onChange: (next: SkinIntegrityCheckMetadata) => void
-}
-
-function updateRow(
-  rows: SkinIntegrityCheckRow[],
-  id: string,
-  side: 'right' | 'left',
-  text: string,
-): SkinIntegrityCheckRow[] {
-  return rows.map((row) => (row.id === id ? { ...row, [side]: text } : row))
+  onRowSideChange: (rowId: string, side: 'right' | 'left', text: string) => void
 }
 
 export function InitialAssessmentTotalSkinIntegrityCheckPanel({
@@ -42,7 +32,7 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
   showBodyMapCta,
   onOpenBodyMap,
   onOpenWaterlowTab,
-  onChange,
+  onRowSideChange,
 }: Props) {
   const rows = value.rows
 
@@ -106,26 +96,26 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
               </HolisticAssessmentTableCell>
               <HolisticAssessmentTableCell className="align-top">
                 <Textarea
+                  key={`${row.id}-right`}
+                  id={`skin-integrity-${row.id}-right`}
                   disabled={disabled}
                   rows={2}
                   aria-label={`${row.label} — right`}
                   className={cn('min-h-[2.5rem]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
-                  value={row.right}
-                  onChange={(e) =>
-                    onChange({ rows: updateRow(rows, row.id, 'right', e.target.value) })
-                  }
+                  value={row.right ?? ''}
+                  onChange={(e) => onRowSideChange(row.id, 'right', e.target.value)}
                 />
               </HolisticAssessmentTableCell>
               <HolisticAssessmentTableCell className="align-top">
                 <Textarea
+                  key={`${row.id}-left`}
+                  id={`skin-integrity-${row.id}-left`}
                   disabled={disabled}
                   rows={2}
                   aria-label={`${row.label} — left`}
                   className={cn('min-h-[2.5rem]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
-                  value={row.left}
-                  onChange={(e) =>
-                    onChange({ rows: updateRow(rows, row.id, 'left', e.target.value) })
-                  }
+                  value={row.left ?? ''}
+                  onChange={(e) => onRowSideChange(row.id, 'left', e.target.value)}
                 />
               </HolisticAssessmentTableCell>
             </HolisticAssessmentTableRow>

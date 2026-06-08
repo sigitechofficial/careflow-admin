@@ -41,6 +41,7 @@ import {
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
+import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { BodyMapMarkerPreview } from '@/features/service-users/body-map/components/BodyMapMarkerPreview'
 
 export type PendingMarker = PrototypeMarkerCoords
@@ -76,6 +77,8 @@ type Props = {
   saving: boolean
   onSubmit: (values: WizardSubmitValues) => void
   onRequestPlaceMarker?: () => void
+  /** Update marker from wizard preview / leaning-sitting canvas. */
+  onPlaceMarker?: (coords: PlaceMarkerPayload) => void
   preselectedMedicationId?: string
 }
 
@@ -100,6 +103,7 @@ export function AddBodyMapRecordWizard({
   saving,
   onSubmit,
   onRequestPlaceMarker,
+  onPlaceMarker,
   preselectedMedicationId,
 }: Props) {
   const [step, setStep] = React.useState(0)
@@ -210,6 +214,11 @@ export function AddBodyMapRecordWizard({
       )
     }
   }, [markerPlacementKey, pendingMarker])
+
+  const postureInteractivePreview =
+    Boolean(onPlaceMarker) &&
+    stepKey === 'Location' &&
+    (pendingMarker?.canvasView === 'leaning' || pendingMarker?.canvasView === 'sitting')
 
   const canNext = () => {
     if (stepKey === 'Type') return Boolean(subType)
@@ -693,6 +702,8 @@ export function AddBodyMapRecordWizard({
                 marker={pendingMarker}
                 recordType={recordType}
                 subType={subType}
+                interactive={postureInteractivePreview}
+                onPlaceMarker={onPlaceMarker}
                 className="h-full min-h-0"
               />
             </aside>

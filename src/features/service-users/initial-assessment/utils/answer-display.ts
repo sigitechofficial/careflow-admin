@@ -2,7 +2,10 @@ import {
   formatPreferredVisitTimesAnswer,
   isPreferredVisitTimesQuestion,
 } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
-import { labelForQuestionOptionValue } from '@/features/service-users/initial-assessment/utils/question-options'
+import {
+  type QuestionOptionCatalogs,
+  labelForQuestionOptionValue,
+} from '@/features/service-users/initial-assessment/utils/question-options'
 import { SECURE_MASK_PLACEHOLDER } from '@/features/service-users/initial-assessment/utils/secure-field'
 import type {
   InitialAssessmentAnswerInput,
@@ -12,7 +15,7 @@ import type {
 export function formatAnswerForDisplay(
   value: InitialAssessmentAnswerInput | undefined,
   question: InitialAssessmentQuestion,
-  woundTypeCatalog?: { value: string; label: string }[],
+  optionCatalogs: QuestionOptionCatalogs = {},
 ): string {
   if (!value) return '—'
   if (value.checked === true || value.booleanValue === true) return 'Yes'
@@ -28,11 +31,11 @@ export function formatAnswerForDisplay(
   if (Array.isArray(sel) && sel.length) {
     return sel
       .map(String)
-      .map((v) => labelForQuestionOptionValue(v, question, woundTypeCatalog))
+      .map((v) => labelForQuestionOptionValue(v, question, optionCatalogs))
       .join(', ')
   }
   if (typeof sel === 'string' && sel) {
-    return labelForQuestionOptionValue(sel, question, woundTypeCatalog)
+    return labelForQuestionOptionValue(sel, question, optionCatalogs)
   }
   return '—'
 }

@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   computeWaterlowScore,
   computeWaterlowScoreFromEnteredScores,
+  computeWaterlowScoreFromSelections,
   enrichWaterlowMetadata,
+  selectWaterlowSingleOption,
+  selectWaterlowWeightLossOption,
+  toggleWaterlowMultiOption,
   waterlowBand,
   waterlowCarePlanRequired,
+  WATERLOW_TABLE_SECTIONS,
+  defaultWaterlowMetadata,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
 describe('waterlow-scoring', () => {
@@ -71,5 +77,23 @@ describe('waterlow-scoring', () => {
       },
     })
     expect(score).toBe(6)
+  })
+
+  it('sums scores from checked single- and multi-select options', () => {
+    let meta = defaultWaterlowMetadata()
+    const gender = WATERLOW_TABLE_SECTIONS.find((s) => s.id === 'gender')!
+    const age = WATERLOW_TABLE_SECTIONS.find((s) => s.id === 'age')!
+    const mobility = WATERLOW_TABLE_SECTIONS.find((s) => s.id === 'mobility')!
+    const skin = WATERLOW_TABLE_SECTIONS.find((s) => s.id === 'skin')!
+
+    meta = selectWaterlowSingleOption(meta, gender as Extract<typeof gender, { kind: 'single' }>, 'female')
+    meta = selectWaterlowSingleOption(meta, age as Extract<typeof age, { kind: 'single' }>, '81+')
+    meta = selectWaterlowSingleOption(meta, mobility as Extract<typeof mobility, { kind: 'single' }>, 'chair')
+    meta = toggleWaterlowMultiOption(meta, skin as Extract<typeof skin, { kind: 'multi' }>, 'broken', true)
+    meta = selectWaterlowWeightLossOption(meta, 'unsure')
+
+    expect(computeWaterlowScoreFromSelections(meta)).toBe(17)
+    expect(computeWaterlowScore(meta)).toBe(17)
+    expect(waterlowBand(17).level).toBe('high')
   })
 })

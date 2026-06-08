@@ -5,6 +5,8 @@ import { InitialAssessmentNoConcernGatePanel } from '@/features/service-users/in
 import { InitialAssessmentPanelFieldList } from '@/features/service-users/initial-assessment/components/InitialAssessmentPanelFieldList'
 import { InitialAssessmentQuestionField } from '@/features/service-users/initial-assessment/components/InitialAssessmentQuestionField'
 import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
+import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
+import { mapLookupRowsToQuestionOptions } from '@/features/service-users/initial-assessment/utils/question-options'
 import { InitialAssessmentAddressContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentAddressContactField'
 import {
   InitialAssessmentPersonCentredCards,
@@ -168,7 +170,9 @@ export function InitialAssessmentSectionQuestions({
       Boolean(holisticTab.questionTextsOnly?.length) ||
       Boolean(holisticTab.includeQuestionTexts?.length))
   const bodyMapLookupsQuery = useBodyMapLookups()
+  const suLookupsQuery = useServiceUserLookups()
   const woundTypeCatalog = bodyMapLookupsQuery.data?.woundTypes ?? []
+  const fundingTypeCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.fundingTypes ?? [])
 
   const isFieldDisabled = (q: InitialAssessmentQuestion) =>
     disabled || shouldLockVitalQuestion(q, allSections, draftAnswers)
@@ -226,6 +230,7 @@ export function InitialAssessmentSectionQuestions({
               : 'default'
         }
         woundTypeCatalog={woundTypeCatalog}
+        fundingTypeCatalog={fundingTypeCatalog}
         onChange={(patch) => onChange(q.id, patch)}
       />
     )

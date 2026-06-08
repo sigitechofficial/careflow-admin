@@ -136,3 +136,99 @@ export async function updateComplianceType(
 export async function deleteComplianceType(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/compliance-types/${id}`, { method: 'DELETE' })
 }
+
+export type ServiceUserFundingTypeRow = {
+  id: string
+  name: string
+  code: string
+  isActive: boolean
+}
+
+export type BodyMapRecordTypeRow = {
+  id: string
+  name: string
+  code: string
+  parentId: string | null
+  sortOrder: number
+  isActive: boolean
+  initialAssessmentWoundType: boolean
+}
+
+export async function fetchServiceUserFundingTypesList(): Promise<ServiceUserFundingTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
+    '/lookups/service-user-funding-types',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserFundingType(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    '/lookups/service-user-funding-types',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserFundingType(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    `/lookups/service-user-funding-types/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserFundingType(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-funding-types/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function fetchBodyMapRecordTypesList(): Promise<BodyMapRecordTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow[]>>('/lookups/body-map-record-types', {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createBodyMapRecordType(body: {
+  name: string
+  code: string
+  parentId?: string
+  sortOrder?: number
+  initialAssessmentWoundType?: boolean
+}): Promise<BodyMapRecordTypeRow> {
+  const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow>>('/lookups/body-map-record-types', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function updateBodyMapRecordType(
+  id: string,
+  body: {
+    name?: string
+    code?: string
+    sortOrder?: number
+    initialAssessmentWoundType?: boolean
+  },
+): Promise<BodyMapRecordTypeRow> {
+  const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow>>(
+    `/lookups/body-map-record-types/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteBodyMapRecordType(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/body-map-record-types/${id}`, {
+    method: 'DELETE',
+  })
+}

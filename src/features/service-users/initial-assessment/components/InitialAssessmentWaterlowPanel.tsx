@@ -9,9 +9,12 @@ import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
+  IA_CHECKBOX_CLASS,
   IA_FORM_TEXTAREA_COMPACT_CLASS,
   IA_HINT_CLASS,
+  IA_OPTION_LABEL_CLASS,
   IA_QUESTION_LABEL_CLASS,
+  IA_RADIO_CLASS,
   IA_SECTION_BODY_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 import {
@@ -22,14 +25,16 @@ import {
   WATERLOW_WEIGHT_LOSS_OPTIONS,
   computeWaterlowScore,
   enrichWaterlowMetadata,
-  hasWaterlowEnteredScores,
-  parseWaterlowScoreInput,
+  isWaterlowMultiOptionSelected,
+  resolveWaterlowSingleOptionId,
+  resolveWaterlowWeightLossOptionId,
+  selectWaterlowSingleOption,
+  selectWaterlowWeightLossOption,
+  toggleWaterlowMultiOption,
   waterlowBand,
   waterlowCarePlanRequired,
-  waterlowEnteredScoreKey,
   waterlowEquipmentGuidance,
   type WaterlowMetadata,
-  type WaterlowSelectOption,
   type WaterlowTableSection,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
@@ -39,198 +44,165 @@ type Props = {
   onChange: (next: WaterlowMetadata) => void
 }
 
-const SCORE_INPUT_CLASS = 'h-9 w-16 text-center font-mono text-sm tabular-nums'
-
-function displayScoreValue(
-  value: WaterlowMetadata,
-  sectionId: string,
-  option: WaterlowSelectOption,
-  section?: WaterlowTableSection,
-): string {
-  const key = waterlowEnteredScoreKey(sectionId, option.id)
-  const entered = value.enteredScores?.[key]
-  if (entered != null && entered > 0) return String(entered)
-
-  if (hasWaterlowEnteredScores(value)) return ''
-
-  if (section?.kind === 'single') {
-    const fieldScore = value[section.field]
-    if (fieldScore != null && fieldScore > 0 && fieldScore === option.score) return String(fieldScore)
-  }
-
-  if (section?.kind === 'multi') {
-    const ids = section.field === 'skinTypes' ? value.skinTypes : value.tissueMalnutrition
-    if (ids?.includes(option.id) && option.score > 0) return String(option.score)
-  }
-
-  if (sectionId === 'weightLoss') {
-    if (value.weightLoss != null && value.weightLoss > 0 && value.weightLoss === option.score) {
-      return String(option.score)
-    }
-  }
-
-  return ''
-}
-
-function ScoreInputCell({
-  inputId,
-  value,
-  disabled,
-  onChange,
-}: {
-  inputId: string
-  value: string
-  disabled?: boolean
-  onChange: (raw: string) => void
-}) {
+function ScoreBadge({ score }: { score: number }) {
   return (
-    <HolisticAssessmentTableCell className="align-top text-center">
-      <Input
-        id={inputId}
-        type="number"
-        min={0}
-        step={1}
-        inputMode="numeric"
-        className={SCORE_INPUT_CLASS}
-        disabled={disabled}
-        placeholder="0"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </HolisticAssessmentTableCell>
+    <span className="inline-flex min-w-[2rem] justify-center font-mono text-sm font-semibold tabular-nums text-teal-800 dark:text-teal-300">
+      {score}
+    </span>
   )
 }
 
-function patchEnteredRowScore(
-  value: WaterlowMetadata,
-  sectionId: string,
-  optionId: string,
-  raw: string,
-): Record<string, number> {
-  const next = { ...(value.enteredScores ?? {}) }
-  const key = waterlowEnteredScoreKey(sectionId, optionId)
-  const parsed = parseWaterlowScoreInput(raw)
-  if (parsed == null || parsed === 0) delete next[key]
-  else next[key] = parsed
-  return next
-}
-
-function SingleSelectScoreRows({
+function SingleSelectRows({
   section,
   value,
   disabled,
-  onPatchScores,
+  onSelect,
 }: {
   section: Extract<WaterlowTableSection, { kind: 'single' }>
   value: WaterlowMetadata
   disabled?: boolean
-  onPatchScores: (scores: Record<string, number>) => void
+  onSelect: (optionId: string) => void
 }) {
+  const selectedId = resolveWaterlowSingleOptionId(value, section)
   const { category, hint, options } = section
 
   return (
     <>
-      {options.map((option, index) => {
-        const inputId = `wl-${section.id}-${option.id}-score`
-
-        return (
-          <HolisticAssessmentTableRow key={option.id}>
-            {index === 0 ? (
-              <HolisticAssessmentTableCell
-                rowSpan={options.length}
-                className="align-top font-medium text-sm"
-              >
-                <div>{category}</div>
-                {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
-              </HolisticAssessmentTableCell>
-            ) : null}
-            <HolisticAssessmentTableCell className="align-top text-sm">{option.label}</HolisticAssessmentTableCell>
-            <ScoreInputCell
-              inputId={inputId}
-              value={displayScoreValue(value, section.id, option, section)}
-              disabled={disabled}
-              onChange={(raw) => onPatchScores(patchEnteredRowScore(value, section.id, option.id, raw))}
-            />
-          </HolisticAssessmentTableRow>
-        )
-      })}
+      {options.map((option, index) => (
+        <HolisticAssessmentTableRow key={option.id}>
+          {index === 0 ? (
+            <HolisticAssessmentTableCell
+              rowSpan={options.length}
+              className="align-top font-medium text-sm"
+            >
+              <div>{category}</div>
+              {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
+            </HolisticAssessmentTableCell>
+          ) : null}
+          <HolisticAssessmentTableCell className="align-top">
+            <label
+              className={cn(
+                'flex cursor-pointer items-start gap-2.5',
+                IA_OPTION_LABEL_CLASS,
+                disabled && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              <input
+                type="radio"
+                name={`wl-${section.id}`}
+                className={cn('mt-0.5 shrink-0', IA_RADIO_CLASS)}
+                checked={selectedId === option.id}
+                disabled={disabled}
+                aria-label={`${category} — ${option.label}`}
+                onChange={() => onSelect(option.id)}
+              />
+              <span>{option.label}</span>
+            </label>
+          </HolisticAssessmentTableCell>
+          <HolisticAssessmentTableCell className="align-top text-center">
+            <ScoreBadge score={option.score} />
+          </HolisticAssessmentTableCell>
+        </HolisticAssessmentTableRow>
+      ))}
     </>
   )
 }
 
-function MultiSelectScoreRows({
+function MultiSelectRows({
   section,
   value,
   disabled,
-  onPatchScores,
+  onToggle,
 }: {
   section: Extract<WaterlowTableSection, { kind: 'multi' }>
   value: WaterlowMetadata
   disabled?: boolean
-  onPatchScores: (scores: Record<string, number>) => void
+  onToggle: (optionId: string, checked: boolean) => void
 }) {
   const { category, hint, options } = section
 
   return (
     <>
-      {options.map((option, index) => {
-        const inputId = `wl-${section.id}-${option.id}-score`
-
-        return (
-          <HolisticAssessmentTableRow key={option.id}>
-            {index === 0 ? (
-              <HolisticAssessmentTableCell
-                rowSpan={options.length}
-                className="align-top font-medium text-sm"
-              >
-                <div>{category}</div>
-                {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
-              </HolisticAssessmentTableCell>
-            ) : null}
-            <HolisticAssessmentTableCell className="align-top text-sm">{option.label}</HolisticAssessmentTableCell>
-            <ScoreInputCell
-              inputId={inputId}
-              value={displayScoreValue(value, section.id, option, section)}
-              disabled={disabled}
-              onChange={(raw) => onPatchScores(patchEnteredRowScore(value, section.id, option.id, raw))}
-            />
-          </HolisticAssessmentTableRow>
-        )
-      })}
+      {options.map((option, index) => (
+        <HolisticAssessmentTableRow key={option.id}>
+          {index === 0 ? (
+            <HolisticAssessmentTableCell
+              rowSpan={options.length}
+              className="align-top font-medium text-sm"
+            >
+              <div>{category}</div>
+              {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
+            </HolisticAssessmentTableCell>
+          ) : null}
+          <HolisticAssessmentTableCell className="align-top">
+            <label
+              className={cn(
+                'flex cursor-pointer items-start gap-2.5',
+                IA_OPTION_LABEL_CLASS,
+                disabled && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              <input
+                type="checkbox"
+                className={cn('mt-0.5 shrink-0', IA_CHECKBOX_CLASS)}
+                checked={isWaterlowMultiOptionSelected(value, section.field, option.id)}
+                disabled={disabled}
+                aria-label={`${category} — ${option.label}`}
+                onChange={(e) => onToggle(option.id, e.target.checked)}
+              />
+              <span>{option.label}</span>
+            </label>
+          </HolisticAssessmentTableCell>
+          <HolisticAssessmentTableCell className="align-top text-center">
+            <ScoreBadge score={option.score} />
+          </HolisticAssessmentTableCell>
+        </HolisticAssessmentTableRow>
+      ))}
     </>
   )
 }
 
-function WeightLossScoreRows({
+function WeightLossRows({
   value,
   disabled,
-  onPatchScores,
+  onSelect,
 }: {
   value: WaterlowMetadata
   disabled?: boolean
-  onPatchScores: (scores: Record<string, number>) => void
+  onSelect: (optionId: string) => void
 }) {
-  const options = WATERLOW_WEIGHT_LOSS_OPTIONS.filter((o) => o.id !== 'none')
+  const selectedId = resolveWaterlowWeightLossOptionId(value)
+  const options = WATERLOW_WEIGHT_LOSS_OPTIONS
 
   return (
     <>
-      {options.map((option) => {
-        const inputId = `wl-weight-loss-${option.id}-score`
-
-        return (
-          <HolisticAssessmentTableRow key={option.id}>
-            <HolisticAssessmentTableCell className="align-top text-sm">{option.label}</HolisticAssessmentTableCell>
-            <ScoreInputCell
-              inputId={inputId}
-              value={displayScoreValue(value, 'weightLoss', option)}
-              disabled={disabled}
-              onChange={(raw) =>
-                onPatchScores(patchEnteredRowScore(value, 'weightLoss', option.id, raw))
-              }
-            />
-          </HolisticAssessmentTableRow>
-        )
-      })}
+      {options.map((option) => (
+        <HolisticAssessmentTableRow key={option.id}>
+          <HolisticAssessmentTableCell className="align-top">
+            <label
+              className={cn(
+                'flex cursor-pointer items-start gap-2.5',
+                IA_OPTION_LABEL_CLASS,
+                disabled && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              <input
+                type="radio"
+                name="wl-weight-loss"
+                className={cn('mt-0.5 shrink-0', IA_RADIO_CLASS)}
+                checked={selectedId === option.id}
+                disabled={disabled}
+                aria-label={`Recent weight loss — ${option.label}`}
+                onChange={() => onSelect(option.id)}
+              />
+              <span>{option.label}</span>
+            </label>
+          </HolisticAssessmentTableCell>
+          <HolisticAssessmentTableCell className="align-top text-center">
+            <ScoreBadge score={option.score} />
+          </HolisticAssessmentTableCell>
+        </HolisticAssessmentTableRow>
+      ))}
     </>
   )
 }
@@ -238,10 +210,6 @@ function WeightLossScoreRows({
 export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Props) {
   const patch = (partial: Partial<WaterlowMetadata>) => {
     onChange(enrichWaterlowMetadata({ ...value, ...partial }))
-  }
-
-  const patchEnteredScores = (enteredScores: Record<string, number>) => {
-    patch({ enteredScores })
   }
 
   const score = value.score ?? computeWaterlowScore(value)
@@ -267,31 +235,35 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
 
           <HolisticAssessmentTable
             columns={[
-              { key: 'category', header: 'Category', className: 'w-[28%]' },
-              { key: 'option', header: 'Sub-options', className: 'w-[54%]' },
-              { key: 'score', header: 'Score', className: 'w-[18%] text-center' },
+              { key: 'category', header: 'Category', className: 'w-[24%]' },
+              { key: 'option', header: 'Sub-options', className: 'w-[56%]' },
+              { key: 'score', header: 'Score', className: 'w-[20%] text-center' },
             ]}
           >
             {WATERLOW_TABLE_SECTIONS.map((section) => {
               if (section.kind === 'single') {
                 return (
-                  <SingleSelectScoreRows
+                  <SingleSelectRows
                     key={section.id}
                     section={section}
                     value={value}
                     disabled={disabled}
-                    onPatchScores={patchEnteredScores}
+                    onSelect={(optionId) =>
+                      onChange(selectWaterlowSingleOption(value, section, optionId))
+                    }
                   />
                 )
               }
 
               return (
-                <MultiSelectScoreRows
+                <MultiSelectRows
                   key={section.id}
                   section={section}
                   value={value}
                   disabled={disabled}
-                  onPatchScores={patchEnteredScores}
+                  onToggle={(optionId, checked) =>
+                    onChange(toggleWaterlowMultiOption(value, section, optionId, checked))
+                  }
                 />
               )
             })}
@@ -305,10 +277,10 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
                 { key: 'score', header: 'Score', className: 'w-[30%] text-center' },
               ]}
             >
-              <WeightLossScoreRows
+              <WeightLossRows
                 value={value}
                 disabled={disabled}
-                onPatchScores={patchEnteredScores}
+                onSelect={(optionId) => onChange(selectWaterlowWeightLossOption(value, optionId))}
               />
             </HolisticAssessmentTable>
             <HolisticAssessmentTable

@@ -4,21 +4,13 @@ import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { VIEW_LABELS, type BodyMapPostureView } from '@/features/service-users/body-map/catalog/body-map-views'
 import { applyPostureDiagramToHost } from '@/features/service-users/body-map/catalog/body-map-posture-diagrams'
-import {
-  resolvePostureHotspot,
-  resolvePostureHotspotAtMarkerCenter,
-} from '@/features/service-users/body-map/catalog/body-map-posture-hotspots'
-import { leaningMarkerLabelForElement } from '@/features/service-users/body-map/catalog/leaning-svg-marker-labels'
 import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
+import { resolvePostureClickHotspot } from '@/features/service-users/body-map/utils/resolve-posture-click'
 import { BodyMapMarkerLegend } from '@/features/service-users/body-map/components/BodyMapMarkerLegend'
 import { medicationSiteMarkerLabel } from '@/features/service-users/body-map/components/BodyMapMedicationSiteDetail'
 import { readMarkerPlacement } from '@/features/service-users/body-map/utils/body-map-coords'
 import {
   getPostureSvg,
-  isPostureReferenceMarker,
-  markerViewBoxCenterPercent,
-  postureViewBoxAspect,
-  viewBoxPercentFromClient,
   viewBoxPercentToOverlayPercent,
 } from '@/features/service-users/body-map/utils/posture-svg-coords'
 import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
@@ -67,12 +59,6 @@ function isVisibleOnMap(
   if (!showMeds && record.recordType === 'MEDICATION') return false
   if (!showCleared && (marker.status === 'CLOSED' || marker.status === 'RESOLVED')) return false
   return true
-}
-
-function clickToPercent(clientX: number, clientY: number, host: HTMLElement): { x: number; y: number } | null {
-  const svg = getPostureSvg(host)
-  if (!svg) return null
-  return viewBoxPercentFromClient(svg, clientX, clientY)
 }
 
 function overlayPosForViewBoxPercent(
@@ -204,54 +190,25 @@ export function BodyMapPostureCanvas({
     if (!host) return
     if ((e.target as HTMLElement).closest('[data-marker-pin]')) return
 
-    const pt = clickToPercent(e.clientX, e.clientY, host)
-    if (!pt) return
+    const hit = resolvePostureClickHotspot(
+      posture,
+      host,
+      e.clientX,
+      e.clientY,
+      e.target instanceof Element ? e.target : null,
+    )
+    if (!hit) return
     e.stopPropagation()
-
-    const svg = getPostureSvg(host)
-    const aspect = svg ? postureViewBoxAspect(svg) : undefined
-
-    let hotspot = null
-    if (svg && e.target instanceof Element) {
-      const markerEl = e.target.closest('circle,path')
-      if (markerEl && isPostureReferenceMarker(markerEl)) {
-        const annotatedPart = markerEl.getAttribute('data-body-part')
-        const center = markerViewBoxCenterPercent(markerEl, svg)
-        const leaningLabel =
-          posture === 'leaning' ? leaningMarkerLabelForElement(markerEl) : null
-        if (center && leaningLabel) {
-          hotspot = {
-            bodyPart: leaningLabel.bodyPart,
-            x: center.x,
-            y: center.y,
-          }
-        } else if (annotatedPart && center) {
-          hotspot = {
-            bodyPart: annotatedPart,
-            x: center.x,
-            y: center.y,
-          }
-        } else if (center) {
-          hotspot = resolvePostureHotspotAtMarkerCenter(posture, center.x, center.y, aspect)
-        }
-      }
-    }
-    if (!hotspot) {
-      hotspot = resolvePostureHotspot(posture, pt.x, pt.y, aspect)
-    }
-    const bodyPart = hotspot?.bodyPart ?? 'Marked location'
-    const x = hotspot?.x ?? pt.x
-    const y = hotspot?.y ?? pt.y
 
     onPlaceMarker({
       recordView: posture,
       canvasView: posture,
-      x,
-      y,
-      bodyPart,
+      x: hit.x,
+      y: hit.y,
+      bodyPart: hit.bodyPart,
       side: 'Centre',
-      summaryLabel: hotspot ? bodyPart : `${VIEW_LABELS[posture]} — marked location`,
-      freeClick: !hotspot,
+      summaryLabel: hit.summaryLabel,
+      freeClick: hit.freeClick,
     })
   }
 

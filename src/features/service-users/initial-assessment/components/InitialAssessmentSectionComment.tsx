@@ -21,12 +21,7 @@ export function InitialAssessmentSectionComment({
 }: Props) {
   return (
     <div className="rounded-lg border border-teal-200/60 bg-teal-50/40 p-4 dark:border-teal-900 dark:bg-teal-950/20">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-teal-900 dark:text-teal-200">Section comments</div>
-        <span className="rounded bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-teal-900 dark:bg-teal-900 dark:text-teal-200">
-          Sec. {sectionNumber}
-        </span>
-      </div>
+      <div className="mb-2 text-sm font-semibold text-teal-900 dark:text-teal-200">Section comments</div>
       <Label htmlFor={`ia-sec-comment-${sectionNumber}`} className="text-xs text-muted-foreground">
         Assessor notes for this section (saved with submission metadata)
       </Label>

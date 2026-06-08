@@ -79,6 +79,17 @@ export function normalizeSkinIntegrityCheckMetadata(
   return { rows: normalizeSkinIntegrityCheckRows(meta.rows) }
 }
 
+export function patchSkinIntegrityCheckRow(
+  rows: SkinIntegrityCheckRow[],
+  rowId: string,
+  side: 'right' | 'left',
+  text: string,
+): SkinIntegrityCheckRow[] {
+  return rows.map((row) =>
+    row.id === rowId ? { ...row, [side]: text } : { ...row },
+  )
+}
+
 export function skinIntegrityCheckHasEntries(metadata: SkinIntegrityCheckMetadata): boolean {
   return metadata.rows.some((row) => row.right.trim() || row.left.trim())
 }

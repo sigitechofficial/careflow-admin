@@ -1,6 +1,8 @@
 import * as React from 'react'
 import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
 import { applyPostureDiagramToHost } from '@/features/service-users/body-map/catalog/body-map-posture-diagrams'
+import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
+import { resolvePostureClickHotspot } from '@/features/service-users/body-map/utils/resolve-posture-click'
 import {
   getPostureSvg,
   viewBoxPercentToOverlayPercent,
@@ -51,6 +53,9 @@ type Props = {
   active?: boolean
   /** `panel` fills the parent column (wizard left rail). */
   variant?: 'compact' | 'panel'
+  /** Allow tapping leaning/sitting diagram pink markers to update placement. */
+  interactive?: boolean
+  onPlaceMarker?: (coords: PlaceMarkerPayload) => void
   className?: string
 }
 
@@ -60,6 +65,8 @@ export function BodyMapMarkerPreview({
   subType = '',
   active = true,
   variant = 'compact',
+  interactive = false,
+  onPlaceMarker,
   className,
 }: Props) {
   const isPanel = variant === 'panel'
@@ -187,6 +194,36 @@ export function BodyMapMarkerPreview({
     return tailwindForMarkerClass(proto)
   }, [recordType, subType, ready])
 
+  const canInteract =
+    interactive && Boolean(onPlaceMarker) && postureView != null
+
+  const handleDiagramClick = (e: React.MouseEvent) => {
+    if (!canInteract || !ready || !postureView) return
+    const host = hostRef.current
+    if (!host) return
+
+    const hit = resolvePostureClickHotspot(
+      postureView,
+      host,
+      e.clientX,
+      e.clientY,
+      e.target instanceof Element ? e.target : null,
+    )
+    if (!hit) return
+    e.stopPropagation()
+
+    onPlaceMarker?.({
+      recordView: postureView,
+      canvasView: postureView,
+      x: hit.x,
+      y: hit.y,
+      bodyPart: hit.bodyPart,
+      side: marker.side ?? 'Centre',
+      summaryLabel: hit.summaryLabel,
+      freeClick: hit.freeClick,
+    })
+  }
+
   const locationLabel =
     marker.summaryLabel ??
     (`${marker.side} ${marker.bodyPart}`.trim() || 'Selected location')
@@ -230,7 +267,10 @@ export function BodyMapMarkerPreview({
         'relative w-full',
         isPanel ? 'max-w-2xl' : 'mx-auto max-w-md',
         postureView && !ready && 'min-h-[200px]',
+        canInteract && ready && 'cursor-crosshair',
       )}
+      onClick={canInteract ? handleDiagramClick : undefined}
+      role={canInteract ? 'presentation' : undefined}
     >
       {postureView && !ready ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center text-xs text-muted-foreground">
@@ -239,7 +279,11 @@ export function BodyMapMarkerPreview({
       ) : null}
       <div
         ref={svgWrapRef}
-        className={cn('body-svg-wrap pointer-events-none select-none', postureView && !ready && 'opacity-0')}
+        className={cn(
+          'body-svg-wrap [&_[data-posture-hotspot]]:cursor-pointer',
+          !canInteract && 'pointer-events-none select-none',
+          postureView && !ready && 'opacity-0',
+        )}
       />
       <div className="pointer-events-none absolute inset-0">
         {pinPos ? (
@@ -260,6 +304,12 @@ export function BodyMapMarkerPreview({
 
   const caption = (
     <p className="shrink-0 border-t border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
+      {canInteract ? (
+        <>
+          <span className="font-medium text-indigo-900">Tap a pink dot to change location</span>
+          {' · '}
+        </>
+      ) : null}
       <span className="font-medium text-foreground">{locationLabel}</span>
       {' · '}
       {VIEW_LABELS[marker.recordView] ?? marker.recordView} ({marker.x.toFixed(1)}%,{' '}

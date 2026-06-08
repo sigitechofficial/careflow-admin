@@ -125,7 +125,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
                     column="no"
                     disabled={disabled}
                     ariaLabel={ariaLabel}
-                    onSelect={(v) => patchQuestion(q.id, !v)}
+                    onSelect={(v) => patchQuestion(q.id, v)}
                   />
                 </HolisticAssessmentTableRow>
               )

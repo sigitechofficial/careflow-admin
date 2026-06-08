@@ -14,6 +14,11 @@ export const settingsKeys = {
   complianceTypes: (params?: { search?: string; page?: number }) =>
     [...settingsKeys.all(), 'compliance-types', params ?? {}] as const,
 
+  serviceUserFundingTypes: () =>
+    [...settingsKeys.all(), 'service-user-funding-types'] as const,
+
+  bodyMapRecordTypes: () => [...settingsKeys.all(), 'body-map-record-types'] as const,
+
   locationTree: () => [...settingsKeys.all(), 'location-management', 'tree'] as const,
 
   locationActiveUsers: () => [...settingsKeys.all(), 'location-management', 'active-users'] as const,

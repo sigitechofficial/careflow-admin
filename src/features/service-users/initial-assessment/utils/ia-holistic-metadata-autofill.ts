@@ -97,11 +97,9 @@ function buildFallsScreening(level: IaHolisticAutofillLevel): FallsScreeningMeta
 
 function buildMustAssessment(level: IaHolisticAutofillLevel) {
   return enrichMustMetadata({
-    enteredScores:
-      level === 'critical'
-        ? { 'bmi:lt18_5': 2, 'weightLoss:gt10': 2 }
-        : { 'bmi:gt20': 0, 'weightLoss:lt5': 0 },
-    acuteDiseaseScore: level === 'critical' ? 2 : 0,
+    bmiOptionId: level === 'critical' ? 'lt18_5' : 'gt20',
+    weightLossOptionId: level === 'critical' ? 'gt10' : 'lt5',
+    acuteDiseaseOptionId: level === 'critical' ? 'yes' : 'no',
     foodFortificationAdviceName: level === 'critical' ? 'E2E Client' : undefined,
   })
 }

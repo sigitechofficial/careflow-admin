@@ -1,6 +1,6 @@
 /**
  * Waterlow Pressure Ulcer Risk Assessment — scoring aligned to the paper tool (§11.4).
- * Assessors enter scores per row; {@link computeWaterlowScore} sums entered values.
+ * Assessors select predefined options; {@link computeWaterlowScore} sums their scores.
  */
 
 export type WaterlowSelectOption = { id: string; label: string; score: number }
@@ -16,9 +16,11 @@ export type WaterlowMetadata = {
   surgery?: number
   medication?: number
   weightLoss?: number
-  /** @deprecated Use {@link enteredScores} — disambiguates legacy weight-loss radios. */
+  /** Selected option id for single-select sections (e.g. `gender` → `male`). */
+  singleOptionIds?: Partial<Record<string, string>>
+  /** Selected weight-loss band id (`0.5-5`, `unsure`, etc.). */
   weightLossOptionId?: string
-  /** User-entered scores keyed as `{sectionId}:{optionId}`. */
+  /** @deprecated Manual score entry keyed as `{sectionId}:{optionId}`. */
   enteredScores?: Record<string, number>
   /** @deprecated Legacy multi-select ids — used when {@link enteredScores} is empty. */
   skinTypes?: string[]
@@ -191,11 +193,26 @@ export const WATERLOW_USE_INSTRUCTIONS = [
 ] as const
 
 export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
-  { id: 'gender', category: 'Gender', kind: 'single', field: 'gender', options: WATERLOW_GENDER_OPTIONS },
-  { id: 'age', category: 'Age', kind: 'single', field: 'age', options: WATERLOW_AGE_OPTIONS },
+  {
+    id: 'gender',
+    category: 'Gender',
+    hint: 'Select one option only',
+    kind: 'single',
+    field: 'gender',
+    options: WATERLOW_GENDER_OPTIONS,
+  },
+  {
+    id: 'age',
+    category: 'Age',
+    hint: 'Select one option only',
+    kind: 'single',
+    field: 'age',
+    options: WATERLOW_AGE_OPTIONS,
+  },
   {
     id: 'build',
     category: 'Build weight',
+    hint: 'Select one option only',
     kind: 'single',
     field: 'build',
     options: WATERLOW_BUILD_OPTIONS,
@@ -203,7 +220,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'appetite',
     category: 'Appetite',
-    hint: 'Enter score for each applicable row',
+    hint: 'Select one option only',
     kind: 'single',
     field: 'appetite',
     options: WATERLOW_APPETITE_OPTIONS,
@@ -211,7 +228,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'skin',
     category: 'Skin type — visual risk areas',
-    hint: 'Enter score for each applicable row',
+    hint: 'May select one or more options',
     kind: 'multi',
     field: 'skinTypes',
     options: WATERLOW_SKIN_OPTIONS,
@@ -219,7 +236,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'mobility',
     category: 'Mobility',
-    hint: 'Enter score for each applicable row',
+    hint: 'Select one option only',
     kind: 'single',
     field: 'mobility',
     options: WATERLOW_MOBILITY_OPTIONS,
@@ -227,7 +244,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'continence',
     category: 'Continence',
-    hint: 'Enter score for each applicable row',
+    hint: 'Select one option only',
     kind: 'single',
     field: 'continence',
     options: WATERLOW_CONTINENCE_OPTIONS,
@@ -235,7 +252,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'tissue',
     category: 'Tissue malnutrition',
-    hint: 'Enter score for each applicable row',
+    hint: 'May select one or more options',
     kind: 'multi',
     field: 'tissueMalnutrition',
     options: WATERLOW_TISSUE_OPTIONS,
@@ -243,7 +260,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'neurological',
     category: 'Neurological deficit',
-    hint: 'Score depends on severity (4–6) — select highest applicable',
+    hint: 'Select one option only (score depends on severity)',
     kind: 'single',
     field: 'neurological',
     options: WATERLOW_NEUROLOGICAL_OPTIONS,
@@ -251,7 +268,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'surgery',
     category: 'Major surgery trauma',
-    hint: 'Up to 48 hours post surgery. Scores may be discounted after 48 hrs if client recovering normally.',
+    hint: 'Select one option only. Up to 48 hours post surgery; discount after 48 hrs if recovering normally.',
     kind: 'single',
     field: 'surgery',
     options: WATERLOW_SURGERY_OPTIONS,
@@ -259,6 +276,7 @@ export const WATERLOW_TABLE_SECTIONS: WaterlowTableSection[] = [
   {
     id: 'medication',
     category: 'Medication',
+    hint: 'Select one option only',
     kind: 'single',
     field: 'medication',
     options: WATERLOW_MEDICATION_OPTIONS,
@@ -386,13 +404,117 @@ function legacyScore(factors: LegacyWaterlowFactors | undefined): number {
 
 function hasNewFormat(meta: WaterlowMetadata): boolean {
   return (
+    Object.keys(meta.singleOptionIds ?? {}).length > 0 ||
     meta.gender != null ||
     meta.age != null ||
     meta.build != null ||
     meta.mobility != null ||
+    meta.weightLossOptionId != null ||
     (meta.skinTypes != null && meta.skinTypes.length > 0) ||
     (meta.tissueMalnutrition != null && meta.tissueMalnutrition.length > 0)
   )
+}
+
+function stripEnteredScoresForSection(
+  scores: Record<string, number> | undefined,
+  sectionId: string,
+): Record<string, number> | undefined {
+  if (!scores) return undefined
+  const next = { ...scores }
+  const prefix = `${sectionId}:`
+  for (const key of Object.keys(next)) {
+    if (key.startsWith(prefix)) delete next[key]
+  }
+  return Object.keys(next).length > 0 ? next : undefined
+}
+
+export function resolveWaterlowSingleOptionId(
+  meta: WaterlowMetadata,
+  section: Extract<WaterlowTableSection, { kind: 'single' }>,
+): string | undefined {
+  const selected = meta.singleOptionIds?.[section.id]
+  if (selected) return selected
+  const score = meta[section.field]
+  if (score == null) return undefined
+  return section.options.find((option) => option.score === score)?.id
+}
+
+export function resolveWaterlowWeightLossOptionId(meta: WaterlowMetadata): string | undefined {
+  if (meta.weightLossOptionId) return meta.weightLossOptionId
+  if (meta.weightLoss == null) return undefined
+  return WATERLOW_WEIGHT_LOSS_OPTIONS.find((option) => option.score === meta.weightLoss)?.id
+}
+
+export function isWaterlowMultiOptionSelected(
+  meta: WaterlowMetadata,
+  field: WaterlowMultiField,
+  optionId: string,
+): boolean {
+  return meta[field]?.includes(optionId) ?? false
+}
+
+export function selectWaterlowSingleOption(
+  meta: WaterlowMetadata,
+  section: Extract<WaterlowTableSection, { kind: 'single' }>,
+  optionId: string,
+): WaterlowMetadata {
+  const option = section.options.find((row) => row.id === optionId)
+  if (!option) return meta
+  return enrichWaterlowMetadata({
+    ...meta,
+    enteredScores: stripEnteredScoresForSection(meta.enteredScores, section.id),
+    singleOptionIds: { ...(meta.singleOptionIds ?? {}), [section.id]: optionId },
+    [section.field]: option.score,
+  })
+}
+
+export function toggleWaterlowMultiOption(
+  meta: WaterlowMetadata,
+  section: Extract<WaterlowTableSection, { kind: 'multi' }>,
+  optionId: string,
+  checked: boolean,
+): WaterlowMetadata {
+  const current = new Set(meta[section.field] ?? [])
+  if (checked) current.add(optionId)
+  else current.delete(optionId)
+  const enteredScores = stripEnteredScoresForSection(meta.enteredScores, section.id)
+  if (enteredScores && checked) {
+    delete enteredScores[waterlowEnteredScoreKey(section.id, optionId)]
+  }
+  return enrichWaterlowMetadata({
+    ...meta,
+    enteredScores: enteredScores && Object.keys(enteredScores).length > 0 ? enteredScores : undefined,
+    [section.field]: [...current],
+  })
+}
+
+export function selectWaterlowWeightLossOption(
+  meta: WaterlowMetadata,
+  optionId: string,
+): WaterlowMetadata {
+  const option = WATERLOW_WEIGHT_LOSS_OPTIONS.find((row) => row.id === optionId)
+  if (!option) return meta
+  return enrichWaterlowMetadata({
+    ...meta,
+    enteredScores: stripEnteredScoresForSection(meta.enteredScores, 'weightLoss'),
+    weightLossOptionId: optionId,
+    weightLoss: option.score,
+  })
+}
+
+export function computeWaterlowScoreFromSelections(meta: WaterlowMetadata): number {
+  let total = 0
+  for (const section of WATERLOW_TABLE_SECTIONS) {
+    if (section.kind === 'single') {
+      const optionId = resolveWaterlowSingleOptionId(meta, section)
+      total += scoreForOptionId(section.options, optionId) ?? 0
+      continue
+    }
+    total += sumMultiSelect(meta[section.field], section.options)
+  }
+  const weightLossId = resolveWaterlowWeightLossOptionId(meta)
+  total += scoreForOptionId(WATERLOW_WEIGHT_LOSS_OPTIONS, weightLossId) ?? 0
+  return total
 }
 
 export function computeWaterlowScore(meta: WaterlowMetadata | null | undefined): number {
@@ -404,20 +526,7 @@ export function computeWaterlowScore(meta: WaterlowMetadata | null | undefined):
     return legacyScore(meta.factors)
   }
 
-  let total = 0
-  total += meta.gender ?? 0
-  total += meta.age ?? 0
-  total += meta.build ?? 0
-  total += meta.appetite ?? 0
-  total += meta.mobility ?? 0
-  total += meta.continence ?? 0
-  total += meta.neurological ?? 0
-  total += meta.surgery ?? 0
-  total += meta.medication ?? 0
-  total += meta.weightLoss ?? 0
-  total += sumMultiSelect(meta.skinTypes, WATERLOW_SKIN_OPTIONS)
-  total += sumMultiSelect(meta.tissueMalnutrition, WATERLOW_TISSUE_OPTIONS)
-  return total
+  return computeWaterlowScoreFromSelections(meta)
 }
 
 export function waterlowBand(score: number): { label: string; className: string; level: string } {
@@ -477,7 +586,9 @@ export function enrichWaterlowMetadata(
 
 export function defaultWaterlowMetadata(): WaterlowMetadata {
   return enrichWaterlowMetadata({
-    enteredScores: {},
+    singleOptionIds: {},
+    skinTypes: [],
+    tissueMalnutrition: [],
   })
 }
 

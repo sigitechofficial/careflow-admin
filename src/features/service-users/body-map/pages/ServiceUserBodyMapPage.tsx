@@ -570,6 +570,7 @@ export default function ServiceUserBodyMapPage() {
         saving={create.isPending}
         preselectedMedicationId={effectiveLinkMedicationId}
         onSubmit={handleWizardSubmit}
+        onPlaceMarker={handlePlaceMarker}
         onRequestPlaceMarker={() => {
           setAddOpen(false)
           setMarkMode(true)

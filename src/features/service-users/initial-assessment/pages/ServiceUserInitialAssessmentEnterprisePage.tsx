@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ClipboardCheck, FileCode2, FileDown, Loader2, TestTube2 } from 'lucide-react'
+import { ClipboardCheck, FileCode2, FileDown, Loader2, PanelRightClose, PanelRightOpen, TestTube2 } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -143,6 +143,10 @@ import {
   skinIntegrityCheckHasEntries,
   type SectionCommentEntry,
 } from '@/features/service-users/initial-assessment/utils/submission-metadata'
+import {
+  patchSkinIntegrityCheckRow,
+  type SkinIntegrityCheckMetadata,
+} from '@/features/service-users/initial-assessment/utils/skin-integrity-check'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
 import { batchRequiresCorrectionReason } from '@/features/service-users/initial-assessment/utils/answer-correction-check'
@@ -242,11 +246,11 @@ function draftAnswersFromServerRows(
   return map
 }
 
-function sectionHasDirtyAnswers(
-  section: InitialAssessmentSection,
+function questionsHaveDirtyAnswers(
+  questions: InitialAssessmentQuestion[],
   dirtyIds: Set<string>,
 ): boolean {
-  return section.questions.some((q) => dirtyIds.has(q.id))
+  return questions.some((q) => dirtyIds.has(q.id))
 }
 
 type SaveIndicator = 'idle' | 'saving' | 'saved' | 'error'
@@ -385,6 +389,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [pdfModalOpen, setPdfModalOpen] = React.useState(false)
   const [htmlExportOpen, setHtmlExportOpen] = React.useState(false)
   const [bodyMapOpen, setBodyMapOpen] = React.useState(false)
+  const [rightSidebarOpen, setRightSidebarOpen] = React.useState(false)
   const [reviewNotes, setReviewNotes] = React.useState('')
   const [reopenOpen, setReopenOpen] = React.useState(false)
   const [reopenReason, setReopenReason] = React.useState('')
@@ -395,6 +400,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const skipAutosaveRef = React.useRef(true)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
   const sectionContentRef = React.useRef<HTMLDivElement>(null)
+  const skinIntegrityLocalEditRef = React.useRef(false)
+  const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const skinIntegrityPendingPersistRef = React.useRef<SkinIntegrityCheckMetadata | null>(null)
 
   const answersQuery = useInitialAssessmentAnswers(selectedId, submissionId)
   const actionsQuery = useInitialAssessmentActions(selectedId, submissionId, hasApi && canRead && !!submissionId)
@@ -491,11 +499,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     setPainAssessment((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.painAssessment) ? prev : parsed.painAssessment,
     )
-    setSkinIntegrityCheck((prev) =>
-      JSON.stringify(prev) === JSON.stringify(parsed.skinIntegrityCheck)
+    setSkinIntegrityCheck((prev) => {
+      if (skinIntegrityLocalEditRef.current) return prev
+      return JSON.stringify(prev) === JSON.stringify(parsed.skinIntegrityCheck)
         ? prev
-        : parsed.skinIntegrityCheck,
-    )
+        : parsed.skinIntegrityCheck
+    })
     setMustAssessment((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.mustAssessment) ? prev : parsed.mustAssessment,
     )
@@ -934,6 +943,21 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     return ids
   }, [hubTabExcludedIds, painPanelExcludedIds, section12FinanceRequired, financeConsentQuestion, sections])
 
+  const currentTabQuestions = React.useMemo(() => {
+    const tabQuestions = questionsForDocumentTab(
+      currentHolisticTab,
+      sections,
+      visibleQuestionsBySection,
+    )
+    if (excludeQuestionIds.size === 0) return tabQuestions
+    return tabQuestions.filter((q) => !excludeQuestionIds.has(q.id))
+  }, [
+    currentHolisticTab,
+    sections,
+    visibleQuestionsBySection,
+    excludeQuestionIds,
+  ])
+
   const waterlowScore = React.useMemo(() => computeWaterlowScore(waterlow), [waterlow])
 
   const onAnswerChange = React.useCallback(
@@ -945,8 +969,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           ...patch,
           questionId,
         }
-        const afterNoConcern = currentSection
-          ? applyNoConcernLogic(currentSection, questionId, merged, prev)
+        const questionSection = sections.find((s) => s.questions.some((q) => q.id === questionId))
+        const afterNoConcern = questionSection
+          ? applyNoConcernLogic(questionSection, questionId, merged, prev)
           : { ...prev, [questionId]: merged }
         const { answers, syncedQuestionIds } = applyCrossFieldSync(
           sections,
@@ -960,7 +985,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         return gateSync.answers
       })
     },
-    [currentSection, sections],
+    [sections],
   )
 
   const syncEmergencyContactFromProfile = React.useCallback(() => {
@@ -1032,10 +1057,26 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, persistMetadata, onAnswerChange],
   )
 
-  const onSkinIntegrityCheckChange = React.useCallback(
-    (next: typeof skinIntegrityCheck) => {
-      setSkinIntegrityCheck(next)
-      void persistMetadata({ skinIntegrityCheck: next })
+  const onSkinIntegrityRowSideChange = React.useCallback(
+    (rowId: string, side: 'right' | 'left', text: string) => {
+      skinIntegrityLocalEditRef.current = true
+      setSkinIntegrityCheck((prev) => {
+        const next: SkinIntegrityCheckMetadata = {
+          rows: patchSkinIntegrityCheckRow(prev.rows, rowId, side, text),
+        }
+        skinIntegrityPendingPersistRef.current = next
+        if (skinIntegrityPersistTimerRef.current) {
+          clearTimeout(skinIntegrityPersistTimerRef.current)
+        }
+        skinIntegrityPersistTimerRef.current = setTimeout(() => {
+          const payload = skinIntegrityPendingPersistRef.current
+          if (!payload) return
+          void persistMetadata({ skinIntegrityCheck: payload }).finally(() => {
+            skinIntegrityLocalEditRef.current = false
+          })
+        }, 400)
+        return next
+      })
     },
     [persistMetadata],
   )
@@ -1152,20 +1193,134 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [persistMetadata],
   )
 
-  const persistSectionAnswers = React.useCallback(
-    async (section: InitialAssessmentSection, silent = false) => {
+  const flushHolisticTabMetadata = React.useCallback(async () => {
+    const tab = currentHolisticTab
+    const patch: Record<string, unknown> = {}
+
+    switch (tab.kind) {
+      case 'waterlow':
+        patch.waterlow = waterlow
+        break
+      case 'pain-tool':
+      case 'therapy-memoire':
+        patch.painAssessment = painAssessment
+        break
+      case 'skin-integrity-check':
+        patch.skinIntegrityCheck = skinIntegrityCheck
+        break
+      case 'equipment-selection':
+        patch.equipmentSelection = equipmentSelection
+        break
+      case 'must-tool':
+        patch.mustAssessment = mustAssessment
+        break
+      case 'falls-screening':
+        patch.fallsScreening = fallsScreening
+        break
+      case 'moving-handling':
+        patch.movingHandlingOperations = movingHandlingOperations
+        break
+      case 'environment-assessment':
+        patch.environmentAssessment = environmentAssessment
+        break
+      case 'advance-care-planning':
+        patch.advanceCarePlanning = advanceCarePlanning
+        break
+      case 'end-of-life-assessment':
+        patch.endOfLifeAssessment = endOfLifeAssessment
+        break
+      case 'clinical-outcome-summary':
+        patch.clinicalOutcomeSummary = clinicalOutcomeSummary
+        break
+      case 'care-plan-objectives':
+        patch.carePlanObjectives = carePlanObjectives
+        break
+      case 'mental-capacity-checklist':
+        patch.mentalCapacityChecklist = mentalCapacityChecklist
+        break
+      case 'photography-consent':
+        patch.photographyConsent = photographyConsent
+        break
+      case 'section12-blocks':
+        patch.adl = adl
+        patch.transfers = transfers
+        patch.equipmentChecklist = equipmentChecklist
+        patch.dailyLivingAids = dailyLivingAids
+        patch.practicalCare = practicalCare
+        patch.financeSupport = {
+          ...financeSupport,
+          required: section12FinanceRequired,
+          consentRecorded: financeConsentQuestion
+            ? isYesAnswer(draftAnswers[financeConsentQuestion.id])
+            : financeSupport.consentRecorded,
+        }
+        break
+      case 'multi-section':
+        if (tab.id === 1) patch.painAssessment = painAssessment
+        break
+      default:
+        break
+    }
+
+    if (sectionFooters[String(tab.id)]) {
+      patch.sectionFooters = sectionFooters
+    }
+
+    if (Object.keys(patch).length === 0) return
+    await persistMetadata(patch)
+  }, [
+    currentHolisticTab,
+    waterlow,
+    painAssessment,
+    skinIntegrityCheck,
+    equipmentSelection,
+    mustAssessment,
+    fallsScreening,
+    movingHandlingOperations,
+    environmentAssessment,
+    advanceCarePlanning,
+    endOfLifeAssessment,
+    clinicalOutcomeSummary,
+    carePlanObjectives,
+    mentalCapacityChecklist,
+    photographyConsent,
+    adl,
+    transfers,
+    equipmentChecklist,
+    dailyLivingAids,
+    practicalCare,
+    financeSupport,
+    section12FinanceRequired,
+    financeConsentQuestion,
+    draftAnswers,
+    sectionFooters,
+    persistMetadata,
+  ])
+
+  const persistTabAnswers = React.useCallback(
+    async (questions: InitialAssessmentQuestion[], silent = false) => {
       if (!submissionId || !editable || !canUpdate) return
       const extraIds = [...syncSaveQuestionIdsRef.current]
       const syncedQuestions = sections
         .flatMap((s) => s.questions)
         .filter((q) => syncSaveQuestionIdsRef.current.has(q.id))
-      const questionsForSave = section.questions.concat(syncedQuestions)
+      const questionsForSave = [...questions]
+      for (const synced of syncedQuestions) {
+        if (!questionsForSave.some((q) => q.id === synced.id)) questionsForSave.push(synced)
+      }
       const answers = prepareAnswersForSave(
         questionsForSave,
-        collectAnswersForSave(section, draftAnswers, extraIds),
+        collectAnswersForSave(questionsForSave, draftAnswers, extraIds),
       )
       syncSaveQuestionIdsRef.current.clear()
-      if (answers.length === 0) return
+      const tabLabel = holisticTabTitle(currentHolisticTab.id)
+      if (answers.length === 0) {
+        if (!silent) {
+          setSaveIndicator('saved')
+          toastSuccess('Saved', `${tabLabel} saved.`)
+        }
+        return
+      }
       const needsCorrectionReason =
         correctionRequired &&
         batchRequiresCorrectionReason(
@@ -1202,26 +1357,36 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           if (saved) serverBaselineAnswersRef.current[id] = saved
         }
         setSaveIndicator('saved')
-        if (!silent) toastSuccess('Saved', `Section ${section.sectionNumber} saved.`)
+        if (!silent) toastSuccess('Saved', `${tabLabel} saved.`)
       } catch (e) {
         setSaveIndicator('error')
         if (!silent) toastApiError(e, 'Save failed')
       }
     },
-    [submissionId, editable, canUpdate, draftAnswers, saveMutation, sections, correctionRequired, correctionReason],
+    [
+      submissionId,
+      editable,
+      canUpdate,
+      draftAnswers,
+      saveMutation,
+      sections,
+      correctionRequired,
+      correctionReason,
+      currentHolisticTab,
+    ],
   )
 
   React.useEffect(() => {
-    if (!currentSection || !editable || !canUpdate || !answersHydratedRef.current) return
+    if (!editable || !canUpdate || !answersHydratedRef.current) return
     if (submitModalOpen) return
     if (skipAutosaveRef.current) return
-    if (!sectionHasDirtyAnswers(currentSection, dirtyAnswerQuestionIdsRef.current)) return
+    if (!questionsHaveDirtyAnswers(currentTabQuestions, dirtyAnswerQuestionIdsRef.current)) return
     const timer = window.setTimeout(() => {
-      if (!sectionHasDirtyAnswers(currentSection, dirtyAnswerQuestionIdsRef.current)) return
-      void persistSectionAnswers(currentSection, true)
+      if (!questionsHaveDirtyAnswers(currentTabQuestions, dirtyAnswerQuestionIdsRef.current)) return
+      void persistTabAnswers(currentTabQuestions, true)
     }, AUTOSAVE_MS)
     return () => window.clearTimeout(timer)
-  }, [draftAnswers, currentSection, editable, canUpdate, persistSectionAnswers, submitModalOpen])
+  }, [draftAnswers, currentTabQuestions, editable, canUpdate, persistTabAnswers, submitModalOpen])
 
   const onCustomerChange = (id: string) => {
     void navigate({
@@ -1248,9 +1413,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const saveSection = async () => {
     if (!currentSection) return
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+    }
     const enterpriseSection = currentHolisticTab.enterpriseSection
     await persistSectionComment(enterpriseSection, sectionComments[String(enterpriseSection)])
-    await persistSectionAnswers(currentSection, false)
+    await flushHolisticTabMetadata()
+    await persistTabAnswers(currentTabQuestions, false)
   }
 
   const selectSubmission = (id: string) => {
@@ -1602,7 +1772,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 editable={editable}
               />
 
-              <div className="grid grid-cols-1 items-start gap-6 min-[900px]:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] min-[1200px]:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(260px,320px)]">
+              <div
+                className={cn(
+                  'grid grid-cols-1 items-start gap-6 min-[900px]:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]',
+                  rightSidebarOpen
+                    ? 'min-[1200px]:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(260px,320px)]'
+                    : 'min-[1200px]:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]',
+                )}
+              >
                 <nav
                   data-testid="ia-section-nav"
                   className="flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-sm min-[900px]:sticky min-[900px]:top-4 min-[900px]:self-start"
@@ -1661,15 +1838,31 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                   })}
                 </nav>
 
-                <div
-                  ref={sectionContentRef}
-                  key={`holistic-tab-${activeHolisticTab}-${currentSection?.id ?? 'none'}`}
-                  className={cn(
-                    'min-w-0 space-y-6 rounded-sm border border-slate-300 bg-white p-6 shadow-sm dark:border-slate-600 dark:bg-card',
-                    IA_FORM_ROOT_CLASS,
-                    HOLISTIC_FORM_PAGE_CLASS,
-                  )}
-                >
+                <div className="relative min-w-0">
+                  {!rightSidebarOpen ? (
+                    <div className="mb-3 hidden min-[1200px]:flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        data-testid="ia-sidebar-show"
+                        onClick={() => setRightSidebarOpen(true)}
+                      >
+                        <PanelRightOpen className="h-4 w-4" aria-hidden />
+                        Show summary panel
+                      </Button>
+                    </div>
+                  ) : null}
+                  <div
+                    ref={sectionContentRef}
+                    key={`holistic-tab-${activeHolisticTab}-${currentSection?.id ?? 'none'}`}
+                    className={cn(
+                      'min-w-0 space-y-6 rounded-sm border border-slate-300 bg-white p-6 shadow-sm dark:border-slate-600 dark:bg-card',
+                      IA_FORM_ROOT_CLASS,
+                      HOLISTIC_FORM_PAGE_CLASS,
+                    )}
+                  >
                   {currentSection ? (
                     <>
                       {currentHolisticTab.kind !== 'skin-integrity-check' &&
@@ -1734,7 +1927,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onMentalCapacityChecklistChange={onMentalCapacityChecklistChange}
                         onPhotographyConsentChange={onPhotographyConsentChange}
                         onEquipmentSelectionChange={onEquipmentSelectionChange}
-                        onSkinIntegrityCheckChange={onSkinIntegrityCheckChange}
+                        onSkinIntegrityRowSideChange={onSkinIntegrityRowSideChange}
                         sectionFooter={sectionFooters[String(activeHolisticTab)]}
                         onSectionFooterChange={(patch) => onSectionFooterChange(activeHolisticTab, patch)}
                         onChange={onAnswerChange}
@@ -1854,20 +2047,36 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       )}
                     </>
                   ) : null}
+                  </div>
                 </div>
 
-                <aside className="hidden min-[1200px]:block min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:self-start">
-                  <InitialAssessmentSidePanels
-                    riskItems={riskQuery.data?.items ?? []}
-                    riskCount={riskQuery.data?.count ?? 0}
-                    triggerItems={triggersQuery.data?.items ?? []}
-                    triggerCount={triggersQuery.data?.count ?? 0}
-                    overallPercent={overallPercent}
-                    sectionCommentCount={sectionCommentCount}
-                    sectionTotal={HOLISTIC_TAB_COUNT}
-                    onGoToSection={goToSection}
-                  />
-                </aside>
+                {rightSidebarOpen ? (
+                  <aside className="hidden min-[1200px]:block min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:self-start">
+                    <div className="mb-3 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        data-testid="ia-sidebar-hide"
+                        onClick={() => setRightSidebarOpen(false)}
+                      >
+                        <PanelRightClose className="h-4 w-4" aria-hidden />
+                        Hide summary panel
+                      </Button>
+                    </div>
+                    <InitialAssessmentSidePanels
+                      riskItems={riskQuery.data?.items ?? []}
+                      riskCount={riskQuery.data?.count ?? 0}
+                      triggerItems={triggersQuery.data?.items ?? []}
+                      triggerCount={triggersQuery.data?.count ?? 0}
+                      overallPercent={overallPercent}
+                      sectionCommentCount={sectionCommentCount}
+                      sectionTotal={HOLISTIC_TAB_COUNT}
+                      onGoToSection={goToSection}
+                    />
+                  </aside>
+                ) : null}
               </div>
             </>
           ) : null}

@@ -122,7 +122,7 @@ type Props = {
   onMentalCapacityChecklistChange: (next: MentalCapacityChecklistMetadata) => void
   onPhotographyConsentChange: (next: PhotographyConsentMetadata) => void
   onEquipmentSelectionChange: (next: EquipmentSelectionMetadata) => void
-  onSkinIntegrityCheckChange: (next: SkinIntegrityCheckMetadata) => void
+  onSkinIntegrityRowSideChange: (rowId: string, side: 'right' | 'left', text: string) => void
   onSectionFooterChange?: (patch: {
     dateCompleted?: string
     assessorNameDesignation?: string
@@ -189,7 +189,7 @@ export function InitialAssessmentDocumentTabContent({
   onMentalCapacityChecklistChange,
   onPhotographyConsentChange,
   onEquipmentSelectionChange,
-  onSkinIntegrityCheckChange,
+  onSkinIntegrityRowSideChange,
   onSectionFooterChange,
   onChange,
   section12,
@@ -409,7 +409,7 @@ export function InitialAssessmentDocumentTabContent({
         showBodyMapCta={showBodyMapCta}
         onOpenBodyMap={onOpenBodyMap}
         onOpenWaterlowTab={onOpenWaterlowTab}
-        onChange={onSkinIntegrityCheckChange}
+        onRowSideChange={onSkinIntegrityRowSideChange}
       />
     )
   }

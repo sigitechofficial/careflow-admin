@@ -2,8 +2,16 @@ import type { InitialAssessmentQuestion } from '@/features/service-users/initial
 
 export type QuestionOption = { value: string; label: string }
 
-const LEGACY_WOUND_TYPE_LABELS: Record<string, string> = {
+export type QuestionOptionCatalogs = {
+  woundTypeCatalog?: QuestionOption[]
+  fundingTypeCatalog?: QuestionOption[]
+}
+
+const LEGACY_OPTION_LABELS: Record<string, string> = {
   other: 'Other',
+  unknown: 'Unknown at assessment stage',
+  self_funded: 'Self Funded',
+  funding_unknown: 'Unknown',
 }
 
 export function usesBodyMapWoundTypeLookup(question: InitialAssessmentQuestion): boolean {
@@ -16,12 +24,34 @@ export function usesBodyMapWoundTypeLookup(question: InitialAssessmentQuestion):
   )
 }
 
+export function usesServiceUserFundingTypeLookup(question: InitialAssessmentQuestion): boolean {
+  const meta = question.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  if (meta.optionsLookup === 'service_user_funding_types') return true
+  return meta.fieldKey === 'fundingType'
+}
+
+/** Maps service-user lookup rows to IA answer codes (lowercase `code`, same as prefill). */
+export function mapLookupRowsToQuestionOptions(
+  rows: ReadonlyArray<{ name: string; code: string }>,
+): QuestionOption[] {
+  return rows.map((row) => ({
+    value: row.code.trim().toLowerCase(),
+    label: row.name,
+  }))
+}
+
 export function resolveQuestionOptions(
   question: InitialAssessmentQuestion,
-  woundTypeCatalog?: QuestionOption[],
+  catalogs: QuestionOptionCatalogs = {},
 ): QuestionOption[] {
   if (usesBodyMapWoundTypeLookup(question)) {
-    return woundTypeCatalog ?? []
+    return catalogs.woundTypeCatalog ?? []
+  }
+  if (usesServiceUserFundingTypeLookup(question)) {
+    const fromDb = catalogs.fundingTypeCatalog ?? []
+    if (fromDb.length > 0) return fromDb
+    return parseQuestionOptions(question.options)
   }
   return parseQuestionOptions(question.options)
 }
@@ -29,10 +59,10 @@ export function resolveQuestionOptions(
 export function labelForQuestionOptionValue(
   value: string,
   question: InitialAssessmentQuestion,
-  woundTypeCatalog?: QuestionOption[],
+  catalogs: QuestionOptionCatalogs = {},
 ): string {
-  const opts = resolveQuestionOptions(question, woundTypeCatalog)
-  return opts.find((o) => o.value === value)?.label ?? LEGACY_WOUND_TYPE_LABELS[value] ?? value
+  const opts = resolveQuestionOptions(question, catalogs)
+  return opts.find((o) => o.value === value)?.label ?? LEGACY_OPTION_LABELS[value] ?? value
 }
 
 export function parseQuestionOptions(raw: unknown): QuestionOption[] {

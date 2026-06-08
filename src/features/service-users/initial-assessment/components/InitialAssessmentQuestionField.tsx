@@ -15,6 +15,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 import {
   type QuestionOption,
+  type QuestionOptionCatalogs,
   resolveQuestionOptions,
 } from '@/features/service-users/initial-assessment/utils/question-options'
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
@@ -61,6 +62,7 @@ type Props = {
   hideLabel?: boolean
   useHolisticLabels?: boolean
   woundTypeCatalog?: QuestionOption[]
+  fundingTypeCatalog?: QuestionOption[]
   onChange: (patch: InitialAssessmentAnswerInput) => void
 }
 
@@ -108,11 +110,13 @@ export function InitialAssessmentQuestionField({
   hideLabel = false,
   useHolisticLabels = true,
   woundTypeCatalog,
+  fundingTypeCatalog,
   onChange,
 }: Props) {
   const id = question.id
   const qid = question.id
-  const options = resolveQuestionOptions(question, woundTypeCatalog)
+  const optionCatalogs: QuestionOptionCatalogs = { woundTypeCatalog, fundingTypeCatalog }
+  const options = resolveQuestionOptions(question, optionCatalogs)
   const hasError = Boolean(errorMessage)
   const simple = layout === 'simple'
   const section12 = layout === 'section12' || layout === 'clinicalMeasurement'

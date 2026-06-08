@@ -41,6 +41,8 @@ jobs:
 
       - name: Detect build folder
         run: |
+          set -euo pipefail
+
           if [ -d "dist" ]; then
             echo "BUILD_DIR=dist" >> $GITHUB_ENV
           elif [ -d "build" ]; then
@@ -52,11 +54,15 @@ jobs:
 
       - name: Validate build output
         run: |
+          set -euo pipefail
+
           test -f "$BUILD_DIR/index.html"
           echo "Build output verified from $BUILD_DIR"
 
       - name: Create release metadata
         run: |
+          set -euo pipefail
+
           cat > "$BUILD_DIR/release.json" <<EOF
           {
             "app": "careflow-admin",
@@ -71,6 +77,8 @@ jobs:
 
       - name: Package release
         run: |
+          set -euo pipefail
+
           tar -czf careflow-admin-release.tar.gz -C "$BUILD_DIR" .
 
       - name: Upload release artifact
@@ -101,51 +109,120 @@ jobs:
 
       - name: Configure SSH access
         run: |
-          set -e
+          set -euo pipefail
 
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
 
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
           VPS_PORT="${VPS_PORT:-22}"
 
-          echo "Adding VPS host key to known_hosts..."
+          echo "Runner public IP:"
+          curl -s https://api.ipify.org || true
+          echo ""
+
+          echo "Testing SSH port connectivity..."
+
+          SSH_PORT_REACHABLE=0
 
           for i in 1 2 3 4 5; do
-            ssh-keyscan -T 20 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts && break
-            echo "ssh-keyscan failed. Retrying in 5 seconds..."
-            sleep 5
+            if command -v nc >/dev/null 2>&1; then
+              if nc -vz -w 20 "$VPS_HOST" "$VPS_PORT"; then
+                SSH_PORT_REACHABLE=1
+                echo "SSH port is reachable."
+                break
+              fi
+            else
+              if timeout 20 bash -c "cat < /dev/null > /dev/tcp/$VPS_HOST/$VPS_PORT"; then
+                SSH_PORT_REACHABLE=1
+                echo "SSH port is reachable."
+                break
+              fi
+            fi
+
+            echo "SSH port is not reachable. Retry $i..."
+            sleep 10
           done
 
-          if [ ! -s ~/.ssh/known_hosts ]; then
-            echo "Failed to add VPS host key."
+          if [ "$SSH_PORT_REACHABLE" -ne 1 ]; then
+            echo "VPS SSH port is not reachable from this GitHub runner."
+            echo "Most likely reason: firewall, CSF, LFD, cPHulk, Fail2Ban, hosting firewall, VPS security rule, or SSH rate limiting."
             exit 1
           fi
+
+          echo "Adding VPS host key to known_hosts..."
+
+          HOST_KEY_ADDED=0
+          HOST_KEY_FILE="$(mktemp)"
+
+          for i in 1 2 3 4 5; do
+            if ssh-keyscan -4 -T 30 -p "$VPS_PORT" -H "$VPS_HOST" > "$HOST_KEY_FILE" 2>/dev/null && [ -s "$HOST_KEY_FILE" ]; then
+              cat "$HOST_KEY_FILE" >> ~/.ssh/known_hosts
+              HOST_KEY_ADDED=1
+              echo "VPS host key added successfully."
+              break
+            fi
+
+            echo "ssh-keyscan failed. Retry $i..."
+            sleep 10
+          done
+
+          rm -f "$HOST_KEY_FILE"
+
+          if [ "$HOST_KEY_ADDED" -ne 1 ] || [ ! -s ~/.ssh/known_hosts ]; then
+            echo "Failed to add VPS host key."
+            echo "SSH port was reachable, but ssh-keyscan could not read the host key."
+            echo "Check SSH daemon, server load, firewall inspection, provider filtering, or SSH configuration."
+            exit 1
+          fi
+
+          chmod 644 ~/.ssh/known_hosts
 
           echo "SSH access configured."
 
       - name: Verify SSH connection
         run: |
-          set -e
+          set -euo pipefail
 
           VPS_PORT="${VPS_PORT:-22}"
 
           ssh -i ~/.ssh/deploy_key \
             -p "$VPS_PORT" \
             -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
             "$VPS_USER@$VPS_HOST" \
-            "whoami && pwd && ls -ld '$ADMIN_DEPLOY_PATH'"
+            "
+              echo 'Connected as:'
+              whoami
+
+              echo 'Current directory:'
+              pwd
+
+              echo 'Checking deploy path:'
+              ls -ld '$ADMIN_DEPLOY_PATH'
+
+              echo 'Checking required server commands:'
+              command -v tar
+              command -v rsync
+              command -v curl
+            "
 
       - name: Prepare remote deployment folders
         run: |
-          set -e
+          set -euo pipefail
 
           VPS_PORT="${VPS_PORT:-22}"
 
           ssh -i ~/.ssh/deploy_key \
             -p "$VPS_PORT" \
             -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
             "$VPS_USER@$VPS_HOST" \
             "
               mkdir -p /home/sigisolutions/deployments/careflow-admin/incoming
@@ -156,25 +233,31 @@ jobs:
 
       - name: Upload release package
         run: |
-          set -e
+          set -euo pipefail
 
           VPS_PORT="${VPS_PORT:-22}"
 
           scp -i ~/.ssh/deploy_key \
             -P "$VPS_PORT" \
             -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
             careflow-admin-release.tar.gz \
             "$VPS_USER@$VPS_HOST:/home/sigisolutions/deployments/careflow-admin/incoming/${{ github.sha }}.tar.gz"
 
       - name: Deploy release with backup and rollback protection
         run: |
-          set -e
+          set -euo pipefail
 
           VPS_PORT="${VPS_PORT:-22}"
 
           ssh -i ~/.ssh/deploy_key \
             -p "$VPS_PORT" \
             -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
             "$VPS_USER@$VPS_HOST" << 'REMOTE_SCRIPT'
           set -euo pipefail
 
@@ -229,6 +312,7 @@ jobs:
           test -f "$RELEASE_PATH/index.html"
 
           echo "Creating backup of current live files..."
+
           tar \
             --exclude=".well-known" \
             --exclude="cgi-bin" \
@@ -240,6 +324,7 @@ jobs:
             -C "$LIVE_PATH" .
 
           echo "Syncing release to live folder..."
+
           rsync -az --delete \
             --exclude=".htaccess" \
             --exclude=".well-known" \
@@ -252,6 +337,7 @@ jobs:
 
           if [ ! -f "$LIVE_PATH/.htaccess" ]; then
             echo "Creating default React .htaccess..."
+
             cat > "$LIVE_PATH/.htaccess" <<'HTACCESS'
           <IfModule mod_rewrite.c>
             RewriteEngine On
@@ -264,6 +350,7 @@ jobs:
             RewriteRule ^ index.html [L]
           </IfModule>
           HTACCESS
+
             chmod 644 "$LIVE_PATH/.htaccess"
           fi
 
@@ -279,9 +366,11 @@ jobs:
           } >> "$DEPLOY_LOG"
 
           echo "Checking live website..."
+
           curl -fsS --retry 3 "$APP_URL" > /dev/null
 
           echo "Cleaning old releases and backups..."
+
           ls -1dt "$DEPLOY_ROOT/releases"/* 2>/dev/null | tail -n +11 | xargs -r rm -rf
           ls -1t "$DEPLOY_ROOT/backups"/backup-*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
 
