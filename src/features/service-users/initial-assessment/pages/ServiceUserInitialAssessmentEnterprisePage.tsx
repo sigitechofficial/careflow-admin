@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Link, useBlocker, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ClipboardCheck, FileCode2, FileDown, Loader2, PanelRightClose, PanelRightOpen, TestTube2 } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
@@ -27,6 +27,15 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Button } from '@/shared/ui/button'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
 import { InitialAssessmentAuditPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAuditPanel'
@@ -413,6 +422,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const skinIntegrityLocalEditRef = React.useRef(false)
   const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const skinIntegrityPendingPersistRef = React.useRef<SkinIntegrityCheckMetadata | null>(null)
+  const pendingLeaveActionRef = React.useRef<(() => void) | null>(null)
+  const suppressLeaveGuardRef = React.useRef(false)
+  const [unsavedLeaveOpen, setUnsavedLeaveOpen] = React.useState(false)
+  const [leaveSaving, setLeaveSaving] = React.useState(false)
 
   const answersQuery = useInitialAssessmentAnswers(selectedId, submissionId)
   const actionsQuery = useInitialAssessmentActions(selectedId, submissionId, hasApi && canRead && !!submissionId)
@@ -1473,13 +1486,163 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     }
   }
 
-  const selectSubmission = (id: string) => {
-    setSubmissionId(id)
-    setDraftAnswers({})
+  const assessmentHasUnsavedChanges = React.useCallback((): boolean => {
+    if (suppressLeaveGuardRef.current) return false
+    if (!editable || !canUpdate || !submissionId) return false
+    if (dirtyAnswerQuestionIdsRef.current.size > 0) return true
+    if (sectionCommentsLocalEditRef.current) return true
+    if (skinIntegrityLocalEditRef.current) return true
+    for (const [key, draft] of Object.entries(sectionCommentDraftRef.current)) {
+      const saved = sectionComments[key]?.text ?? ''
+      if (plainTextFromHtml(draft) !== plainTextFromHtml(saved)) return true
+    }
+    return false
+  }, [editable, canUpdate, submissionId, sectionComments, draftAnswers])
+
+  const discardUnsavedChanges = React.useCallback(() => {
     dirtyAnswerQuestionIdsRef.current.clear()
-    answersHydratedRef.current = false
-    skipAutosaveRef.current = true
-    patchUrlSearch({ section: 1, tab: 'form' })
+    syncSaveQuestionIdsRef.current.clear()
+    sectionCommentsLocalEditRef.current = false
+    skinIntegrityLocalEditRef.current = false
+    if (skinIntegrityPersistTimerRef.current) {
+      clearTimeout(skinIntegrityPersistTimerRef.current)
+      skinIntegrityPersistTimerRef.current = null
+    }
+    skinIntegrityPendingPersistRef.current = null
+    setDraftAnswers({ ...serverBaselineAnswersRef.current })
+    const parsed = parseSubmissionMetadata(submission)
+    setSectionComments(parsed.sectionComments)
+    sectionCommentDraftRef.current = Object.fromEntries(
+      Object.entries(parsed.sectionComments).map(([key, entry]) => [key, entry.text]),
+    )
+    setSkinIntegrityCheck(parsed.skinIntegrityCheck)
+  }, [submission])
+
+  const saveAllPendingChanges = React.useCallback(async (): Promise<boolean> => {
+    if (!submissionId || !editable || !canUpdate) return true
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+    }
+    for (const key of Object.keys(sectionCommentDraftRef.current)) {
+      const tabId = Number(key)
+      if (!holisticTabById(tabId)) continue
+      const text = resolveSectionCommentText(tabId)
+      const saved = sectionComments[key]?.text ?? ''
+      if (plainTextFromHtml(text) === plainTextFromHtml(saved)) continue
+      await persistSectionComment(tabId, text)
+    }
+    await flushHolisticTabMetadata()
+    if (skinIntegrityPersistTimerRef.current) {
+      clearTimeout(skinIntegrityPersistTimerRef.current)
+      skinIntegrityPersistTimerRef.current = null
+    }
+    if (skinIntegrityPendingPersistRef.current) {
+      await persistMetadata({ skinIntegrityCheck: skinIntegrityPendingPersistRef.current })
+      skinIntegrityPendingPersistRef.current = null
+      skinIntegrityLocalEditRef.current = false
+    }
+    const dirtyIds = [...dirtyAnswerQuestionIdsRef.current]
+    if (dirtyIds.length > 0) {
+      const dirtyQuestions = sections
+        .flatMap((s) => s.questions)
+        .filter((q) => dirtyIds.includes(q.id))
+      await persistTabAnswers(dirtyQuestions, true)
+      if (dirtyAnswerQuestionIdsRef.current.size > 0) {
+        toastApiError(new Error('Some answers could not be saved'), 'Save failed')
+        return false
+      }
+    }
+    return true
+  }, [
+    submissionId,
+    editable,
+    canUpdate,
+    sectionComments,
+    resolveSectionCommentText,
+    persistSectionComment,
+    flushHolisticTabMetadata,
+    persistMetadata,
+    sections,
+    persistTabAnswers,
+  ])
+
+  const leaveBlocker = useBlocker({
+    shouldBlockFn: ({ current, next }) => {
+      if (!assessmentHasUnsavedChanges()) return false
+      if (next.pathname !== ENTERPRISE_PATH) return true
+      const currentSearch = parseInitialAssessmentEnterpriseSearch(current.search)
+      const nextSearch = parseInitialAssessmentEnterpriseSearch(next.search)
+      return currentSearch.serviceUserId !== nextSearch.serviceUserId
+    },
+    enableBeforeUnload: () => assessmentHasUnsavedChanges(),
+    withResolver: true,
+  })
+
+  React.useEffect(() => {
+    if (leaveBlocker.status === 'blocked') {
+      setUnsavedLeaveOpen(true)
+    }
+  }, [leaveBlocker.status])
+
+  const completePendingLeave = React.useCallback(() => {
+    pendingLeaveActionRef.current?.()
+    pendingLeaveActionRef.current = null
+    if (leaveBlocker.status === 'blocked') leaveBlocker.proceed()
+    setUnsavedLeaveOpen(false)
+  }, [leaveBlocker])
+
+  const cancelUnsavedLeave = React.useCallback(() => {
+    pendingLeaveActionRef.current = null
+    if (leaveBlocker.status === 'blocked') leaveBlocker.reset()
+    setUnsavedLeaveOpen(false)
+  }, [leaveBlocker])
+
+  const promptIfUnsaved = React.useCallback(
+    (action: () => void) => {
+      if (!assessmentHasUnsavedChanges()) {
+        action()
+        return
+      }
+      pendingLeaveActionRef.current = action
+      setUnsavedLeaveOpen(true)
+    },
+    [assessmentHasUnsavedChanges],
+  )
+
+  const confirmUnsavedLeave = React.useCallback(
+    async (saveFirst: boolean) => {
+      if (saveFirst) {
+        setLeaveSaving(true)
+        try {
+          const ok = await saveAllPendingChanges()
+          if (!ok) return
+        } finally {
+          setLeaveSaving(false)
+        }
+      } else {
+        discardUnsavedChanges()
+      }
+      suppressLeaveGuardRef.current = true
+      try {
+        completePendingLeave()
+      } finally {
+        suppressLeaveGuardRef.current = false
+      }
+    },
+    [completePendingLeave, discardUnsavedChanges, saveAllPendingChanges],
+  )
+
+  const selectSubmission = (id: string) => {
+    if (id === submissionId) return
+    promptIfUnsaved(() => {
+      setSubmissionId(id)
+      setDraftAnswers({})
+      dirtyAnswerQuestionIdsRef.current.clear()
+      answersHydratedRef.current = false
+      skipAutosaveRef.current = true
+      patchUrlSearch({ section: 1, tab: 'form' })
+    })
   }
 
   const confirmSubmit = async (skipIncompleteValidation = false) => {
@@ -2203,6 +2366,41 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
             .catch((e) => toastApiError(e, 'Reopen failed'))
         }
       />
+
+      <AlertDialog
+        open={unsavedLeaveOpen}
+        onOpenChange={(open) => {
+          if (!open) cancelUnsavedLeave()
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to this assessment. Save them before leaving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel disabled={leaveSaving}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={leaveSaving}
+              onClick={() => void confirmUnsavedLeave(false)}
+            >
+              Don&apos;t save
+            </Button>
+            <Button
+              type="button"
+              disabled={leaveSaving}
+              onClick={() => void confirmUnsavedLeave(true)}
+            >
+              {leaveSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
+              Save and leave
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

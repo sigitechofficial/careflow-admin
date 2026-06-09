@@ -164,7 +164,7 @@ export function VisitPlanSlotAdvancedPanel({
           <VisitPlanWeeklyDaySection slot={slot} disabled={disabled} onChange={onChange} />
         ) : (
           <p className="text-xs text-muted-foreground">
-            Daily visits use the weekday checkboxes in the <strong>Call pattern</strong> grid above.
+            Daily visits use the weekday checkboxes in the <strong>Call pattern</strong> grid below.
             Use &quot;Repeat every&quot; for every N days.
           </p>
         )}
@@ -197,13 +197,13 @@ export function VisitPlanSlotAdvancedPanel({
 
         <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
           Link care plans and assign carers for each call in the <strong className="font-medium">Call pattern</strong>{' '}
-          section above — morning, lunch, tea, and other visits can have separate carers.
+          section below — morning, lunch, tea, and other visits can have separate carers.
         </p>
 
         <div>
           <Label className="text-xs text-muted-foreground">Time required</Label>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            From / To are set in the call pattern grid above. Set expected visit duration here.
+            From / To are set in the call pattern grid below. Set expected visit duration here.
           </p>
           <div className="mt-2 flex items-center gap-2">
             <Input

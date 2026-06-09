@@ -317,12 +317,50 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
       </section>
 
       <>
+          <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Scheduling &amp; visit options</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Per call slot — frequency, time rules, and recording requirements (CareBean-style).
+                </p>
+              </div>
+              <div className="min-w-[180px]">
+                <Label className="text-xs text-muted-foreground">Edit slot</Label>
+                <Select value={configSlotCode} onValueChange={(v) => setConfigSlotCode(v as VisitPlanSlot['slotCode'])}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {slots.map((s) => (
+                      <SelectItem key={s.slotCode} value={s.slotCode}>
+                        {s.label}
+                        {!s.isEnabled ? ' (off)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {configSlot ? (
+              <VisitPlanSlotAdvancedPanel
+                slotCode={configSlot.slotCode}
+                slotLabel={configSlot.label}
+                slot={configSlot}
+                onChange={(patch) => {
+                  if (configSlotIndex < 0) return
+                  updateSlot(configSlotIndex, patch)
+                }}
+              />
+            ) : null}
+          </section>
+
           <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 className="mb-1 text-sm font-semibold text-foreground">Call pattern</h3>
             <p className="mb-4 text-xs text-muted-foreground">
               Set visit times, link care plans, and assign carers for each call slot. Morning, lunch, tea, and
               other visits can have different carers. Weekday columns apply to daily visits only; weekly and
-              monthly visits use the day pickers in Scheduling options below.
+              monthly visits use the day pickers in Scheduling options above.
             </p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] border-collapse text-sm">
@@ -523,44 +561,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
               }}
             />
           ) : null}
-
-          <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Scheduling &amp; visit options</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Per call slot — frequency, time rules, and recording requirements (CareBean-style).
-                </p>
-              </div>
-              <div className="min-w-[180px]">
-                <Label className="text-xs text-muted-foreground">Edit slot</Label>
-                <Select value={configSlotCode} onValueChange={(v) => setConfigSlotCode(v as VisitPlanSlot['slotCode'])}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {slots.map((s) => (
-                      <SelectItem key={s.slotCode} value={s.slotCode}>
-                        {s.label}
-                        {!s.isEnabled ? ' (off)' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {configSlot ? (
-              <VisitPlanSlotAdvancedPanel
-                slotCode={configSlot.slotCode}
-                slotLabel={configSlot.label}
-                slot={configSlot}
-                onChange={(patch) => {
-                  if (configSlotIndex < 0) return
-                  updateSlot(configSlotIndex, patch)
-                }}
-              />
-            ) : null}
-          </section>
 
           <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
             <div>
