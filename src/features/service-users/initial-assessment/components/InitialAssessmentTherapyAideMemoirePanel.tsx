@@ -1,6 +1,7 @@
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
 import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
@@ -43,8 +44,9 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
               return (
                 <li
                   key={item.key}
-                  className="grid gap-3 border-b border-border/60 pb-4 last:border-b-0 sm:grid-cols-[1fr_auto]"
+                  className="flex flex-col gap-3 border-b border-border/60 pb-4 last:border-b-0"
                 >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <label
                     className={cn(
                       'flex min-w-0 cursor-pointer items-start gap-3',
@@ -68,12 +70,13 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
                       </ul>
                     </span>
                   </label>
-                  <p className="text-right text-sm font-medium text-teal-800 dark:text-teal-300 sm:max-w-[14rem]">
+                  <p className="text-sm font-medium text-teal-800 dark:text-teal-300 sm:max-w-[14rem] sm:text-right">
                     {item.recommendation}
                   </p>
+                  </div>
                   {showDetails ? (
                     <Textarea
-                      className={cn('min-h-[64px] sm:col-span-2', IA_FORM_TEXTAREA_COMPACT_CLASS)}
+                      className={cn('min-h-[64px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
                       disabled={disabled}
                       placeholder={item.detailsPlaceholder}
                       value={state?.details ?? ''}

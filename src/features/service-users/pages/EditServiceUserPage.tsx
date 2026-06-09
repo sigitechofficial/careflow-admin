@@ -15,6 +15,7 @@ import {
   Landmark,
   LayoutDashboard,
   Loader2,
+  MapPinned,
   Package,
   Shield,
   Sparkles,
@@ -40,6 +41,7 @@ import { ServiceUserAllergiesTab } from '@/features/service-users/components/Ser
 import { ServiceUserDocumentsTab } from '@/features/service-users/components/ServiceUserDocumentsTab'
 import { ServiceUserAbsencesTab } from '@/features/service-users/components/ServiceUserAbsencesTab'
 import { ServiceUserDomCareTab } from '@/features/service-users/components/ServiceUserDomCareTab'
+import { ServiceUserVisitPlanTab } from '@/features/service-users/visit-plan/ServiceUserVisitPlanTab'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
@@ -59,6 +61,7 @@ const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'calendar', label: 'Calendar', Icon: Calendar },
   { id: 'privacy', label: 'Privacy', Icon: Shield },
   { id: 'dom', label: 'DOM Care', Icon: Home },
+  { id: 'visit-plan', label: 'Visit Plan', Icon: MapPinned },
   { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
   { id: 'funding', label: 'Funding', Icon: Landmark },
   { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
@@ -332,6 +335,9 @@ export default function EditServiceUserPage() {
             </TabsContent>
             <TabsContent value="dom" className="mt-6">
               <ServiceUserDomCareTab serviceUserId={serviceUserId} />
+            </TabsContent>
+            <TabsContent value="visit-plan" className="mt-6">
+              <ServiceUserVisitPlanTab serviceUserId={serviceUserId} />
             </TabsContent>
             <TabsContent value="assessment" className="mt-6">
               <ServiceUserInitialAssessmentEnterpriseTab

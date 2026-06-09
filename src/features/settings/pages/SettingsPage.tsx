@@ -6,6 +6,7 @@ import { cn } from '@/shared/lib/utils'
 import { LookupNamePanel } from '@/features/settings/components/LookupNamePanel'
 import { ComplianceTypesSettingsPanel } from '@/features/settings/components/ComplianceTypesSettingsPanel'
 import { MedicationStatusCodesSettingsPanel } from '@/features/settings/components/MedicationStatusCodesSettingsPanel'
+import { ServiceUserCareTypesSettingsPanel } from '@/features/settings/components/ServiceUserCareTypesSettingsPanel'
 import { ServiceUserFundingTypesSettingsPanel } from '@/features/settings/components/ServiceUserFundingTypesSettingsPanel'
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
 
@@ -23,6 +24,7 @@ export type SettingsTabId =
   | 'review-types'
   | 'travel-payment'
   | 'medication'
+  | 'care-types'
   | 'funding-types'
   | 'record-types'
 
@@ -40,6 +42,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'review-types', label: 'Review types' },
   { id: 'travel-payment', label: 'Travel payment' },
   { id: 'medication', label: 'Medication (MAR)' },
+  { id: 'care-types', label: 'Care types' },
   { id: 'funding-types', label: 'Funding types' },
   { id: 'record-types', label: 'Record types' },
 ]
@@ -176,6 +179,7 @@ export default function SettingsPage() {
             />
           )}
           {activeTab === 'medication' && <MedicationStatusCodesSettingsPanel />}
+          {activeTab === 'care-types' && <ServiceUserCareTypesSettingsPanel />}
           {activeTab === 'funding-types' && <ServiceUserFundingTypesSettingsPanel />}
           {activeTab === 'record-types' && <BodyMapRecordTypesSettingsPanel />}
         </div>

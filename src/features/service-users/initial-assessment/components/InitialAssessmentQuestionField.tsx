@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import {
   InitialAssessmentControlTooltip,
   iaQuestionTooltipText,
@@ -31,8 +32,6 @@ import type {
 import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
 import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import {
-  IA_FORM_TEXTAREA_CLASS,
-  IA_FORM_TEXTAREA_COMPACT_CLASS,
   IA_META_BADGE_CLASS,
   IA_QUESTION_LABEL_CLASS,
   IA_LABEL_SECONDARY_CLASS,
@@ -43,8 +42,6 @@ import {
   IA_SIMPLE_FIELD_CLASS,
   IA_SIMPLE_INPUT_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
-
-const areaCls = cn(IA_FORM_TEXTAREA_CLASS)
 
 const ASSESSOR_NOTES_TOOLTIP =
   'Optional context for auditors or care plan authors when this answer needs explanation.'
@@ -227,9 +224,10 @@ export function InitialAssessmentQuestionField({
           Assessor notes (optional)
         </Label>
         {withTooltip(
-          <textarea
+          <InitialAssessmentTextarea
             id={`${id}-notes`}
-            className={cn(IA_FORM_TEXTAREA_COMPACT_CLASS, disabled && 'opacity-70')}
+            className={cn(disabled && 'opacity-70')}
+            compact
             rows={2}
             disabled={disabled}
             placeholder="Context for auditors or care plan authors…"
@@ -393,11 +391,12 @@ export function InitialAssessmentQuestionField({
         {labelEl}
         {srHelpEl}
         {withTooltip(
-          <textarea
+          <InitialAssessmentTextarea
             id={id}
-            className={cn(areaCls, disabled && 'opacity-70', simple && 'min-h-[72px]')}
+            className={cn(disabled && 'opacity-70', simple && 'min-h-[72px]')}
             disabled={disabled}
             rows={simple ? 2 : 3}
+            compact={simple}
             aria-describedby={describedBy}
             placeholder={simple ? 'Enter details…' : undefined}
             value={value?.textValue ?? ''}

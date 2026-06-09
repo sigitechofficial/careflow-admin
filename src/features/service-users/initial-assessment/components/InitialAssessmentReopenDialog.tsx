@@ -7,7 +7,8 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 
 type Props = {
   open: boolean

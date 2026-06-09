@@ -6,6 +6,7 @@ import {
 } from '@/features/service-users/initial-assessment/components/holistic/HolisticAssessmentTable'
 import { Input } from '@/shared/ui/input'
 import { Label, Textarea } from '@/shared/ui/form-field'
+import { plainTextFromHtml } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
@@ -223,7 +224,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                       <Textarea
                         className={cn('min-h-[72px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
                         disabled={rowDisabled}
-                        value={comments}
+                        value={plainTextFromHtml(comments)}
                         aria-label={`Comments for question ${row.number}`}
                         onChange={(e) => patchComments(row.id, e.target.value)}
                       />
@@ -245,7 +246,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                 id="mca-checklist-section-comments"
                 className={cn('min-h-[120px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
                 disabled={disabled}
-                value={value.sectionComments ?? ''}
+                value={plainTextFromHtml(value.sectionComments ?? '')}
                 onChange={(e) => patch({ sectionComments: e.target.value })}
               />
             </div>

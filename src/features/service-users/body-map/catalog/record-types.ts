@@ -97,17 +97,36 @@ export function recordTypeLabel(type: BodyMapRecordTypeCode): string {
 export type BodyMapRecordTypeCatalogEntry = {
   value: BodyMapRecordTypeCode
   label: string
+  markerColorHex?: string | null
   subTypes: string[]
+}
+
+function subTypeNames(
+  subTypes: { name: string }[] | string[] | undefined,
+): string[] {
+  if (!subTypes?.length) return []
+  if (typeof subTypes[0] === 'string') return subTypes as string[]
+  return (subTypes as { name: string }[]).map(s => s.name)
 }
 
 /** Build record-type list from API catalogue (falls back to static constants). */
 export function recordTypesFromLookups(
-  lookups: { recordTypes: { code: string; label: string; subTypes: string[] }[] } | undefined,
+  lookups:
+    | {
+        recordTypes: {
+          code: string
+          label: string
+          markerColorHex?: string | null
+          subTypes: { name: string }[] | string[]
+        }[]
+      }
+    | undefined,
 ): BodyMapRecordTypeCatalogEntry[] {
   if (!lookups?.recordTypes?.length) return BODY_MAP_RECORD_TYPES
-  return lookups.recordTypes.map((r) => ({
+  return lookups.recordTypes.map(r => ({
     value: r.code as BodyMapRecordTypeCode,
     label: r.label,
-    subTypes: r.subTypes,
+    markerColorHex: r.markerColorHex,
+    subTypes: subTypeNames(r.subTypes),
   }))
 }

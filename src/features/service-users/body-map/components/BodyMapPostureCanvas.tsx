@@ -7,6 +7,11 @@ import { applyPostureDiagramToHost } from '@/features/service-users/body-map/cat
 import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { resolvePostureClickHotspot } from '@/features/service-users/body-map/utils/resolve-posture-click'
 import { BodyMapMarkerLegend } from '@/features/service-users/body-map/components/BodyMapMarkerLegend'
+import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
+import {
+  buildBodyMapMarkerColorCatalog,
+  resolveBodyMapMarkerColor,
+} from '@/features/service-users/body-map/utils/body-map-marker-colors'
 import { medicationSiteMarkerLabel } from '@/features/service-users/body-map/components/BodyMapMedicationSiteDetail'
 import { readMarkerPlacement } from '@/features/service-users/body-map/utils/body-map-coords'
 import {
@@ -14,37 +19,6 @@ import {
   viewBoxPercentToOverlayPercent,
 } from '@/features/service-users/body-map/utils/posture-svg-coords'
 import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
-
-const MARKER_CLASS_MAP: Record<string, string> = {
-  'm-injury': 'bg-red-600',
-  'm-wound': 'bg-violet-600',
-  'm-pressure': 'bg-orange-600',
-  'm-med': 'bg-blue-600',
-  'm-patch': 'bg-blue-500',
-  'm-injection': 'bg-teal-600 ring-2 ring-teal-200',
-  'm-spray': 'bg-cyan-600 ring-2 ring-cyan-200',
-  'm-pain': 'bg-pink-600',
-  'm-skin': 'bg-yellow-600',
-  'm-safeguard': 'bg-red-900 animate-pulse',
-}
-
-function markerPinClass(record: BodyMapRecordRow): string {
-  if (record.safeguardingTriggered || record.recordType === 'SAFEGUARDING') return 'm-safeguard'
-  const typeKey = record.recordType.toLowerCase()
-  if (typeKey === 'medication') return 'm-med'
-  if (typeKey === 'wound') return 'm-wound'
-  if (typeKey === 'pressure') return 'm-pressure'
-  if (typeKey === 'pain') return 'm-pain'
-  if (typeKey === 'skin') return 'm-skin'
-  return 'm-injury'
-}
-
-function tailwindForMarkerClass(protoClass: string): string {
-  for (const [key, tw] of Object.entries(MARKER_CLASS_MAP)) {
-    if (protoClass.includes(key)) return tw
-  }
-  return 'bg-red-600'
-}
 
 function isVisibleOnMap(
   record: BodyMapRecordRow,
@@ -127,6 +101,12 @@ export function BodyMapPostureCanvas({
   onSelectRecord,
   className,
 }: Props) {
+  const lookupsQuery = useBodyMapLookups()
+  const markerColorCatalog = React.useMemo(
+    () => buildBodyMapMarkerColorCatalog(lookupsQuery.data?.recordTypes),
+    [lookupsQuery.data?.recordTypes],
+  )
+
   const [ready, setReady] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [canvasScale, setCanvasScale] = React.useState(1)
@@ -221,7 +201,8 @@ export function BodyMapPostureCanvas({
       top: string
       label: string
       recordId: string
-      protoClass: string
+      markerColor: string
+      pulse: boolean
       faded: boolean
       selected: boolean
       number: number
@@ -250,14 +231,15 @@ export function BodyMapPostureCanvas({
           marker.bodyPart,
         ),
         recordId: record.id,
-        protoClass: markerPinClass(record),
+        markerColor: resolveBodyMapMarkerColor(markerColorCatalog, record),
+        pulse: record.safeguardingTriggered || record.recordType === 'SAFEGUARDING',
         faded: marker.status === 'CLOSED' || marker.status === 'RESOLVED',
         selected: selectedRecordId === record.id,
         number: displayIndex,
       })
     }
     return pins
-  }, [records, posture, showCleared, showMeds, selectedRecordId, layoutRevision, host])
+  }, [records, posture, showCleared, showMeds, selectedRecordId, layoutRevision, host, markerColorCatalog])
 
   const pendingPinPos =
     pendingMarker && pendingMarker.canvasView === posture
@@ -362,10 +344,10 @@ export function BodyMapPostureCanvas({
                   type="button"
                   data-marker-pin
                   title={pin.label}
-                  style={{ left: pin.left, top: pin.top }}
+                  style={{ left: pin.left, top: pin.top, backgroundColor: pin.markerColor }}
                   className={cn(
                     'pointer-events-auto absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-md transition-transform hover:scale-110',
-                    tailwindForMarkerClass(pin.protoClass),
+                    pin.pulse && 'animate-pulse',
                     pin.selected && 'ring-2 ring-indigo-500 ring-offset-2',
                     pin.faded && 'opacity-45',
                   )}

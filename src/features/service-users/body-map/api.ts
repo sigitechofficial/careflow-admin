@@ -369,7 +369,12 @@ export async function fetchBodyMapAudit(recordId: string): Promise<{
 }
 
 export type BodyMapLookups = {
-  recordTypes: { code: string; label: string; subTypes: string[] }[]
+  recordTypes: {
+    code: string
+    label: string
+    markerColorHex?: string | null
+    subTypes: { name: string; code: string; markerColorHex?: string | null }[]
+  }[]
   woundTypes: { value: string; label: string }[]
   bodyParts: string[]
   bodyViews: string[]

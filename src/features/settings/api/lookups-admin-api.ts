@@ -137,6 +137,13 @@ export async function deleteComplianceType(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/compliance-types/${id}`, { method: 'DELETE' })
 }
 
+export type ServiceUserCareTypeRow = {
+  id: string
+  name: string
+  code: string
+  isActive: boolean
+}
+
 export type ServiceUserFundingTypeRow = {
   id: string
   name: string
@@ -152,6 +159,43 @@ export type BodyMapRecordTypeRow = {
   sortOrder: number
   isActive: boolean
   initialAssessmentWoundType: boolean
+  markerColorHex?: string | null
+}
+
+export async function fetchServiceUserCareTypesList(): Promise<ServiceUserCareTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserCareTypeRow[]>>(
+    '/lookups/service-user-care-types',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserCareType(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserCareTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserCareTypeRow>>(
+    '/lookups/service-user-care-types',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserCareType(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserCareTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserCareTypeRow>>(
+    `/lookups/service-user-care-types/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserCareType(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-care-types/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 export async function fetchServiceUserFundingTypesList(): Promise<ServiceUserFundingTypeRow[]> {
@@ -203,6 +247,7 @@ export async function createBodyMapRecordType(body: {
   parentId?: string
   sortOrder?: number
   initialAssessmentWoundType?: boolean
+  markerColorHex?: string
 }): Promise<BodyMapRecordTypeRow> {
   const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow>>('/lookups/body-map-record-types', {
     method: 'POST',
@@ -218,6 +263,7 @@ export async function updateBodyMapRecordType(
     code?: string
     sortOrder?: number
     initialAssessmentWoundType?: boolean
+    markerColorHex?: string
   },
 ): Promise<BodyMapRecordTypeRow> {
   const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow>>(

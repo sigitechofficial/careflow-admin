@@ -3,18 +3,22 @@ import {
   createBodyMapRecordType,
   createComplianceType,
   createLookupItem,
+  createServiceUserCareType,
   createServiceUserFundingType,
   deleteBodyMapRecordType,
   deleteComplianceType,
   deleteLookupItem,
+  deleteServiceUserCareType,
   deleteServiceUserFundingType,
   fetchBodyMapRecordTypesList,
   fetchComplianceTypesList,
   fetchLookupList,
+  fetchServiceUserCareTypesList,
   fetchServiceUserFundingTypesList,
   updateBodyMapRecordType,
   updateComplianceType,
   updateLookupItem,
+  updateServiceUserCareType,
   updateServiceUserFundingType,
   type ComplianceCategory,
   type LookupResource,
@@ -121,8 +125,43 @@ export function useDeleteComplianceType() {
 }
 
 function invalidateServiceUserLookupCaches(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserCareTypes() })
   void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserFundingTypes() })
   void qc.invalidateQueries({ queryKey: serviceUserKeys.lookups() })
+}
+
+export function useServiceUserCareTypes(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.serviceUserCareTypes(),
+    queryFn: () => fetchServiceUserCareTypesList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateServiceUserCareType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; code: string }) => createServiceUserCareType(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateServiceUserCareType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+      updateServiceUserCareType(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteServiceUserCareType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteServiceUserCareType(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
 }
 
 function invalidateBodyMapLookupCaches(qc: ReturnType<typeof useQueryClient>) {
@@ -182,6 +221,7 @@ export function useCreateBodyMapRecordType() {
       parentId?: string
       sortOrder?: number
       initialAssessmentWoundType?: boolean
+      markerColorHex?: string
     }) => createBodyMapRecordType(body),
     onSuccess: () => invalidateBodyMapLookupCaches(qc),
   })
@@ -200,6 +240,7 @@ export function useUpdateBodyMapRecordType() {
         code?: string
         sortOrder?: number
         initialAssessmentWoundType?: boolean
+        markerColorHex?: string
       }
     }) => updateBodyMapRecordType(id, body),
     onSuccess: () => invalidateBodyMapLookupCaches(qc),

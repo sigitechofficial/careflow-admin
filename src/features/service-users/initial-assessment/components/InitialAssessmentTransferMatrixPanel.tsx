@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import {
   InitialAssessmentPaperScoreRow,
   InitialAssessmentPaperScoreSection,

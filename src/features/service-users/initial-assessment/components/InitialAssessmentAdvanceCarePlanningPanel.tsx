@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
 import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
@@ -161,7 +162,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             ))}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-4">
             <div className="space-y-4">
               <div>
                 <FieldLabel htmlFor="acp-patient-name">Name</FieldLabel>

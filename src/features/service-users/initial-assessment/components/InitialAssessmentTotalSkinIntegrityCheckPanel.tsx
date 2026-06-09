@@ -13,6 +13,7 @@ import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-a
 import { IA_FORM_TEXTAREA_COMPACT_CLASS, IA_HINT_CLASS } from '@/features/service-users/initial-assessment/utils/form-typography'
 import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/form-field'
+import { plainTextFromHtml } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { cn } from '@/shared/lib/utils'
 
 const BODY_DIAGRAM_URL = '/assets/body-map-diagram.png'
@@ -102,7 +103,7 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
                   rows={2}
                   aria-label={`${row.label} — right`}
                   className={cn('min-h-[2.5rem]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
-                  value={row.right ?? ''}
+                  value={plainTextFromHtml(row.right ?? '')}
                   onChange={(e) => onRowSideChange(row.id, 'right', e.target.value)}
                 />
               </HolisticAssessmentTableCell>
@@ -114,7 +115,7 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
                   rows={2}
                   aria-label={`${row.label} — left`}
                   className={cn('min-h-[2.5rem]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
-                  value={row.left ?? ''}
+                  value={plainTextFromHtml(row.left ?? '')}
                   onChange={(e) => onRowSideChange(row.id, 'left', e.target.value)}
                 />
               </HolisticAssessmentTableCell>

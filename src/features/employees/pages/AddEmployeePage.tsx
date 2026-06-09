@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm, Controller, useWatch, type FieldPath, type UseFormSetError } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ChevronLeft, Calendar, Clock, Search, HelpCircle, Filter, Check, Plus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
@@ -29,7 +30,12 @@ import { EmployeeEditSkillsPanel } from '@/features/employees/components/Employe
 import { EmployeeEditNonCorePanel } from '@/features/employees/components/EmployeeEditNonCorePanel'
 import { EmployeeEditCompliancePanel } from '@/features/employees/components/EmployeeEditCompliancePanel'
 import { EmployeeEditPlaceholderPanel } from '@/features/employees/components/EmployeeEditPlaceholderPanel'
-import { personalStepSchema, employmentStepSchema } from '@/schemas/add-employee.schema'
+import {
+  personalStepSchema,
+  employmentStepSchema,
+  resolveEmployeeWizardSchema,
+  type EmployeeWizardStepId,
+} from '@/schemas/add-employee.schema'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import {
   resolveEmployeeVisaTypes,
@@ -39,7 +45,12 @@ import {
   mapEmployeeDetailToFormValues,
   type EmployeeFormValues,
 } from '@/features/employees/lib/employee-detail-form.util'
-import { DIAL_CODES, formatPhoneForApi, splitPhoneForForm } from '@/features/employees/dial-codes'
+import {
+  DIAL_CODES,
+  formatPhoneForApi,
+  sanitizePhoneLocalInput,
+  splitPhoneForForm,
+} from '@/features/employees/dial-codes'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField } from '@/shared/ui/form-field'
@@ -121,14 +132,14 @@ const defaultValues: FormValues = {
   workBankHoliday: true,
 }
 
-function applyZodErrors<T extends Record<string, unknown>>(
-  result: z.SafeParseError<T>,
+function applyZodErrors(
+  result: z.SafeParseError<unknown>,
   setError: UseFormSetError<FormValues>
 ) {
   for (const iss of result.error.issues) {
     const key = iss.path[0]
     if (typeof key === 'string' && key in defaultValues) {
-      setError(key as FieldPath<FormValues>, { message: iss.message })
+      setError(key as FieldPath<FormValues>, { type: 'manual', message: iss.message })
     }
   }
 }
@@ -456,6 +467,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     return initial
   })
 
+  const activeWizardStepRef = React.useRef<EmployeeWizardStepId | string>('personal')
+  activeWizardStepRef.current = isEditMode ? editTab : tab
+
   const {
     register,
     control,
@@ -467,7 +481,19 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     watch,
     getValues,
     formState: { errors },
-  } = useForm<FormValues>({ defaultValues })
+  } = useForm<FormValues>({
+    defaultValues,
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
+    resolver: async (values, context, options) => {
+      const schema = resolveEmployeeWizardSchema(activeWizardStepRef.current as EmployeeWizardStepId)
+      return zodResolver(schema)(values, context, options)
+    },
+  })
+
+  React.useEffect(() => {
+    clearErrors()
+  }, [tab, editTab, clearErrors])
 
   const [localPhotoObjectUrl, setLocalPhotoObjectUrl] = React.useState<string | null>(null)
   const [postcodeLookupBusy, setPostcodeLookupBusy] = React.useState(false)
@@ -721,7 +747,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   }
 
   const onSavePersonal = async (raw: FormValues) => {
-    clearErrors()
     setBanner(null)
     const parsed = personalStepSchema.safeParse(raw)
     if (!parsed.success) {
@@ -774,7 +799,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   }
 
   const onSaveEmployment = async (raw: FormValues) => {
-    clearErrors()
     setBanner(null)
     if (!createdEmployeeId) {
       setBanner({ type: 'error', text: 'Save Personal Details first.' })
@@ -934,7 +958,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     hint="Legal first name as it should appear on records."
                   >
                     <div className="flex gap-2">
-                      <Input id="firstName" autoComplete="given-name" {...register('firstName')} />
+                      <Input
+                        id="firstName"
+                        autoComplete="given-name"
+                        error={!!errors.firstName}
+                        {...register('firstName')}
+                      />
                       <FieldTip text="Shown on care rosters and ID badges. Max 100 characters." />
                     </div>
                   </FormField>
@@ -946,7 +975,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     error={errors.lastName?.message}
                   >
                     <div className="flex gap-2">
-                      <Input id="lastName" autoComplete="family-name" {...register('lastName')} />
+                      <Input
+                        id="lastName"
+                        autoComplete="family-name"
+                        error={!!errors.lastName}
+                        {...register('lastName')}
+                      />
                       <FieldTip text="Family name or surname. Required for HR and payroll matching." />
                     </div>
                   </FormField>
@@ -993,7 +1027,14 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="Email" htmlFor="email" error={errors.email?.message}>
                     <div className="flex gap-2">
-                      <Input id="email" type="email" autoComplete="email" placeholder="name@example.com" {...register('email')} />
+                      <Input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="name@example.com"
+                        error={!!errors.email}
+                        {...register('email')}
+                      />
                       <FieldTip text="Optional. Must be unique in the system if provided." />
                     </div>
                   </FormField>
@@ -1006,29 +1047,44 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     hint="Letters, numbers, dot, underscore, or hyphen only."
                   >
                     <div className="flex gap-2">
-                      <Input id="username" autoComplete="username" {...register('username')} />
+                      <Input
+                        id="username"
+                        autoComplete="username"
+                        error={!!errors.username}
+                        {...register('username')}
+                      />
                       <FieldTip text="Login identifier for this employee when portal access is enabled." />
                     </div>
                   </FormField>
 
                   <FormField label="Date of birth" htmlFor="dateOfBirth" error={errors.dateOfBirth?.message}>
                     <div className="flex gap-2">
-                      <Input id="dateOfBirth" type="date" {...register('dateOfBirth')} />
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        error={!!errors.dateOfBirth}
+                        {...register('dateOfBirth')}
+                      />
                       <FieldTip text="Used for age checks and right-to-work screening." />
                     </div>
                   </FormField>
 
                   <FormField label="Address line 1" htmlFor="addressLine1" error={errors.addressLine1?.message}>
-                    <Input id="addressLine1" autoComplete="address-line1" {...register('addressLine1')} />
+                    <Input
+                      id="addressLine1"
+                      autoComplete="address-line1"
+                      error={!!errors.addressLine1}
+                      {...register('addressLine1')}
+                    />
                   </FormField>
                   <FormField label="Address line 2" htmlFor="addressLine2" error={errors.addressLine2?.message}>
-                    <Input id="addressLine2" {...register('addressLine2')} />
+                    <Input id="addressLine2" error={!!errors.addressLine2} {...register('addressLine2')} />
                   </FormField>
                   <FormField label="Town" htmlFor="town" error={errors.town?.message}>
-                    <Input id="town" {...register('town')} />
+                    <Input id="town" error={!!errors.town} {...register('town')} />
                   </FormField>
                   <FormField label="Country" htmlFor="country" error={errors.country?.message}>
-                    <Input id="country" {...register('country')} />
+                    <Input id="country" error={!!errors.country} {...register('country')} />
                   </FormField>
 
                   <FormField label="Nationality" htmlFor="nationalityId" error={errors.nationalityId?.message}>
@@ -1042,6 +1098,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           onChange={field.onChange}
                           options={L?.nationalities ?? []}
                           placeholder="Select nationality"
+                          error={errors.nationalityId?.message}
                           disabled={!L}
                           tip="Stored on the employee profile (lookup id). Right-to-work evidence may be required separately."
                           savedOptionName={savedPersonal?.nationality?.name}
@@ -1052,7 +1109,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="Postcode" htmlFor="postcode" error={errors.postcode?.message}>
                     <div className="flex gap-2">
-                      <Input id="postcode" autoComplete="postal-code" placeholder="e.g. SW1A 1AA" {...register('postcode')} />
+                      <Input
+                        id="postcode"
+                        autoComplete="postal-code"
+                        placeholder="e.g. SW1A 1AA"
+                        error={!!errors.postcode}
+                        {...register('postcode')}
+                      />
                       <button
                         type="button"
                         className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md border border-input hover:bg-muted disabled:opacity-50"
@@ -1066,7 +1129,24 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     </div>
                   </FormField>
                   <FormField label="Home telephone" htmlFor="homeTelephone" error={errors.homeTelephone?.message}>
-                    <Input id="homeTelephone" type="tel" {...register('homeTelephone')} />
+                    <Controller
+                      name="homeTelephone"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          id="homeTelephone"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="tel-national"
+                          placeholder="Digits only"
+                          error={!!errors.homeTelephone}
+                          value={field.value}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          onChange={e => field.onChange(sanitizePhoneLocalInput(e.target.value))}
+                        />
+                      )}
+                    />
                   </FormField>
                   <FormField
                     label="Mobile telephone"
@@ -1098,14 +1178,24 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           </Select>
                         )}
                       />
-                      <Input
-                        id="mobileTelephone"
-                        className="min-w-0 flex-1"
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel-national"
-                        placeholder="Local number"
-                        {...register('mobileTelephone')}
+                      <Controller
+                        name="mobileTelephone"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            id="mobileTelephone"
+                            className="min-w-0 flex-1"
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            placeholder="Digits only"
+                            error={!!errors.mobileTelephone}
+                            value={field.value}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                            onChange={e => field.onChange(sanitizePhoneLocalInput(e.target.value))}
+                          />
+                        )}
                       />
                     </div>
                   </FormField>
@@ -1120,6 +1210,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           onChange={field.onChange}
                           options={L?.employeeStatuses ?? []}
                           placeholder="Select status"
+                          error={errors.statusId?.message}
                           disabled={!L}
                           tip="Active / inactive flags for roster eligibility."
                           savedOptionName={savedPersonal?.status?.name}
@@ -1352,7 +1443,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="Start date" htmlFor="startDate" error={errors.startDate?.message}>
                     <div className="flex gap-2">
-                      <Input id="startDate" type="date" {...register('startDate')} />
+                      <Input id="startDate" type="date" error={!!errors.startDate} {...register('startDate')} />
                       <span className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                         <Calendar className="h-4 w-4" aria-hidden />
                       </span>
@@ -1361,7 +1452,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                   <FormField label="End date" htmlFor="endDate" error={errors.endDate?.message}>
                     <div className="flex gap-2">
-                      <Input id="endDate" type="date" {...register('endDate')} />
+                      <Input id="endDate" type="date" error={!!errors.endDate} {...register('endDate')} />
                       <span className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                         <Calendar className="h-4 w-4" aria-hidden />
                       </span>
@@ -1369,16 +1460,21 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   </FormField>
 
                   <FormField label="National Insurance No." htmlFor="nationalInsuranceNo" error={errors.nationalInsuranceNo?.message}>
-                    <Input id="nationalInsuranceNo" {...register('nationalInsuranceNo')} />
+                    <Input
+                      id="nationalInsuranceNo"
+                      placeholder="e.g. QQ 12 34 56 C"
+                      error={!!errors.nationalInsuranceNo}
+                      {...register('nationalInsuranceNo')}
+                    />
                   </FormField>
                   <FormField label="NMC PIN" htmlFor="nmcPinNumber" error={errors.nmcPinNumber?.message}>
-                    <Input id="nmcPinNumber" {...register('nmcPinNumber')} />
+                    <Input id="nmcPinNumber" error={!!errors.nmcPinNumber} {...register('nmcPinNumber')} />
                   </FormField>
                   <FormField label="Employee number" htmlFor="employeeNumber" error={errors.employeeNumber?.message}>
-                    <Input id="employeeNumber" {...register('employeeNumber')} />
+                    <Input id="employeeNumber" error={!!errors.employeeNumber} {...register('employeeNumber')} />
                   </FormField>
                   <FormField label="Payroll number" htmlFor="payrollNumber" error={errors.payrollNumber?.message}>
-                    <Input id="payrollNumber" {...register('payrollNumber')} />
+                    <Input id="payrollNumber" error={!!errors.payrollNumber} {...register('payrollNumber')} />
                   </FormField>
 
                   <FormField label="Grade" htmlFor="gradeId" error={errors.gradeId?.message}>
@@ -1497,7 +1593,11 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                               value={field.value || undefined}
                               onValueChange={field.onChange}
                             >
-                              <SelectTrigger id="visaTypeId" data-testid="employee-visa-type">
+                              <SelectTrigger
+                                id="visaTypeId"
+                                data-testid="employee-visa-type"
+                                error={!!errors.visaTypeId}
+                              >
                                 <SelectValue placeholder="Select visa type" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1526,13 +1626,28 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                         />
                       </div>
                       <FormField label="Contracted weekly hours" htmlFor="cw" error={errors.contractedWeeklyHours?.message}>
-                        <Input id="cw" inputMode="decimal" {...register('contractedWeeklyHours')} />
+                        <Input
+                          id="cw"
+                          inputMode="decimal"
+                          error={!!errors.contractedWeeklyHours}
+                          {...register('contractedWeeklyHours')}
+                        />
                       </FormField>
                       <FormField label="Maximum" htmlFor="maxh" error={errors.maximumWeeklyHours?.message}>
-                        <Input id="maxh" inputMode="decimal" {...register('maximumWeeklyHours')} />
+                        <Input
+                          id="maxh"
+                          inputMode="decimal"
+                          error={!!errors.maximumWeeklyHours}
+                          {...register('maximumWeeklyHours')}
+                        />
                       </FormField>
                       <FormField label="Minimum" htmlFor="minh" error={errors.minimumWeeklyHours?.message}>
-                        <Input id="minh" inputMode="decimal" {...register('minimumWeeklyHours')} />
+                        <Input
+                          id="minh"
+                          inputMode="decimal"
+                          error={!!errors.minimumWeeklyHours}
+                          {...register('minimumWeeklyHours')}
+                        />
                       </FormField>
                       <div className="flex items-center justify-between md:col-span-2">
                         <span className="text-sm font-medium">Opted out of 48h week</span>
@@ -1575,11 +1690,16 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                       </div>
                       {isAgencyStaff ? (
                         <>
-                          <FormField label="Agency name" htmlFor="agencyName" error={errors.agencyName?.message}>
-                            <Input id="agencyName" {...register('agencyName')} />
+                          <FormField
+                            label="Agency name"
+                            htmlFor="agencyName"
+                            required
+                            error={errors.agencyName?.message}
+                          >
+                            <Input id="agencyName" error={!!errors.agencyName} {...register('agencyName')} />
                           </FormField>
                           <FormField label="Agency rating" htmlFor="agencyRating" error={errors.agencyRating?.message}>
-                            <Input id="agencyRating" {...register('agencyRating')} />
+                            <Input id="agencyRating" error={!!errors.agencyRating} {...register('agencyRating')} />
                           </FormField>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">Preferred</span>
@@ -1598,13 +1718,28 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             />
                           </div>
                           <FormField label="Daily rate" htmlFor="dailyRate" error={errors.dailyRate?.message}>
-                            <Input id="dailyRate" inputMode="decimal" {...register('dailyRate')} />
+                            <Input
+                              id="dailyRate"
+                              inputMode="decimal"
+                              error={!!errors.dailyRate}
+                              {...register('dailyRate')}
+                            />
                           </FormField>
                           <FormField label="Hourly day rate" htmlFor="hourlyDayRate" error={errors.hourlyDayRate?.message}>
-                            <Input id="hourlyDayRate" inputMode="decimal" {...register('hourlyDayRate')} />
+                            <Input
+                              id="hourlyDayRate"
+                              inputMode="decimal"
+                              error={!!errors.hourlyDayRate}
+                              {...register('hourlyDayRate')}
+                            />
                           </FormField>
                           <FormField label="Hourly night rate" htmlFor="hourlyNightRate" error={errors.hourlyNightRate?.message}>
-                            <Input id="hourlyNightRate" inputMode="decimal" {...register('hourlyNightRate')} />
+                            <Input
+                              id="hourlyNightRate"
+                              inputMode="decimal"
+                              error={!!errors.hourlyNightRate}
+                              {...register('hourlyNightRate')}
+                            />
                           </FormField>
                         </>
                       ) : null}

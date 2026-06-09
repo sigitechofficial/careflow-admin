@@ -14,6 +14,8 @@ export const settingsKeys = {
   complianceTypes: (params?: { search?: string; page?: number }) =>
     [...settingsKeys.all(), 'compliance-types', params ?? {}] as const,
 
+  serviceUserCareTypes: () => [...settingsKeys.all(), 'service-user-care-types'] as const,
+
   serviceUserFundingTypes: () =>
     [...settingsKeys.all(), 'service-user-funding-types'] as const,
 

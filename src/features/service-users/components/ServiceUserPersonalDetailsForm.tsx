@@ -129,7 +129,8 @@ const FIELD_HELP = {
   keyWorker: 'Search for the employee who coordinates this person’s care. Type at least two characters of their name.',
   namedNurse: 'Search for the named nurse where your care model uses one. Type at least two characters of their name.',
   fundingType: 'Source or route of funding (for example local authority, NHS CHC, self-funder).',
-  careType: 'Category or package of care from your lookups (for example residential, domiciliary).',
+  careType:
+    'Category or package of care from your lookups (for example residential, domiciliary). Manage options under Settings → Lookup data → Care types.',
   riskLevel: 'Assessed risk band from your list; used to align reviews and escalation.',
   nationalInsuranceNumber: 'UK National Insurance number if held for payroll, benefits, or statutory purposes.',
   asNumber: 'Adult social care or local-system identifier if your integration uses an “AS” reference.',
@@ -358,6 +359,8 @@ function LookupSelect({
   rows,
   required,
   placeholder,
+  fieldKey,
+  emptyHint,
 }: {
   label: string
   tooltip: string
@@ -366,13 +369,22 @@ function LookupSelect({
   rows: Array<{ id: string; name: string }>
   required?: boolean
   placeholder: string
+  fieldKey?: string
+  emptyHint?: string
 }) {
   return (
     <div className="space-y-1">
       <LabelWithTooltip label={label} required={required} tooltip={tooltip} />
-      <Select value={value ? value : '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder={placeholder} />
+      <Select
+        value={value ? value : '__none__'}
+        onValueChange={(v) => onChange(v === '__none__' ? '' : v)}
+        disabled={rows.length === 0}
+      >
+        <SelectTrigger
+          className="w-full"
+          data-testid={fieldKey ? `service-user-${fieldKey}-select` : undefined}
+        >
+          <SelectValue placeholder={rows.length === 0 ? 'No options available' : placeholder} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">— None —</SelectItem>
@@ -383,6 +395,9 @@ function LookupSelect({
           ))}
         </SelectContent>
       </Select>
+      {rows.length === 0 && emptyHint ? (
+        <p className="text-xs text-muted-foreground">{emptyHint}</p>
+      ) : null}
     </div>
   )
 }
@@ -882,6 +897,8 @@ export function ServiceUserPersonalDetailsForm({
             onChange={set('careTypeId')}
             rows={lookups.careTypes}
             placeholder="Select care type"
+            fieldKey="careTypeId"
+            emptyHint="No care types yet. Add them in Settings → Lookup data → Care types."
           />
           <LookupSelect
             label="Risk level"

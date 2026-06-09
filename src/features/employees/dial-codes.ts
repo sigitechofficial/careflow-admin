@@ -33,6 +33,11 @@ export const DIAL_CODES: readonly { code: string; label: string }[] = [
   { code: '+62', label: 'Indonesia (+62)' },
 ] as const
 
+/** Keep only digits for local phone number inputs. */
+export function sanitizePhoneLocalInput(value: string): string {
+  return value.replace(/\D/g, '')
+}
+
 /** Strip spaces/dashes from local part and prefix with dial code for API storage. */
 export function formatPhoneForApi(dial: string | undefined, local: string | undefined): string | undefined {
   const d = (dial ?? '+44').trim() || '+44'

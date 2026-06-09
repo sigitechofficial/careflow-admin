@@ -402,7 +402,9 @@ export function InitialAssessmentSectionQuestions({
                 <div
                   key={q.id}
                   className={
-                    prefillKeyForQuestion(q) === 'addressContact' ? 'sm:col-span-2' : undefined
+                    prefillKeyForQuestion(q) === 'addressContact' || q.questionType === 'TEXTAREA'
+                      ? 'sm:col-span-2'
+                      : undefined
                   }
                 >
                   {renderQuestion(q)}

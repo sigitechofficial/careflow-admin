@@ -1,12 +1,14 @@
-import { CheckCircle2, ShieldAlert } from 'lucide-react'
+import { CheckCircle2, MapPinned, ShieldAlert } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
 import type { CareActivationStatus } from '@/features/service-users/initial-assessment/types'
 
 type Props = {
   careActivation: CareActivationStatus | null | undefined
+  serviceUserId?: string
 }
 
-export function InitialAssessmentCareActivationPanel({ careActivation }: Props) {
+export function InitialAssessmentCareActivationPanel({ careActivation, serviceUserId }: Props) {
   if (!careActivation) {
     return (
       <p className="text-sm text-muted-foreground">Care activation status unavailable.</p>
@@ -56,6 +58,23 @@ export function InitialAssessmentCareActivationPanel({ careActivation }: Props) 
                 </li>
               ))}
             </ul>
+          ) : null}
+          {eligible && approvedForCareStart && serviceUserId ? (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-white/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+              <p className="text-xs text-muted-foreground">
+                A draft visit plan is created when a manager approves care start. Review the call pattern, activate the
+                plan, then generate rota visits.
+              </p>
+              <Link
+                to="/service-users/$serviceUserId"
+                params={{ serviceUserId }}
+                search={{ tab: 'visit-plan' }}
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800 underline-offset-2 hover:underline dark:text-emerald-200"
+              >
+                <MapPinned className="h-4 w-4" aria-hidden />
+                Open Visit Plan tab
+              </Link>
+            </div>
           ) : null}
         </div>
       </div>

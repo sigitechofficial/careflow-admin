@@ -1,11 +1,14 @@
-import { FileCode2, FileDown, Loader2 } from 'lucide-react'
+import { FileCode2, FileDown, Loader2, MapPinned } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { cn } from '@/shared/lib/utils'
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
 import { parseSubmissionMetadata } from '@/features/service-users/initial-assessment/utils/submission-metadata'
 
 type Props = {
+  serviceUserId?: string
   submission: InitialAssessmentSubmission | null | undefined
   reviewNotes: string
   onReviewNotesChange: (v: string) => void
@@ -25,6 +28,7 @@ type Props = {
 }
 
 export function InitialAssessmentManagerReviewPanel({
+  serviceUserId,
   submission,
   reviewNotes,
   onReviewNotesChange,
@@ -153,6 +157,22 @@ export function InitialAssessmentManagerReviewPanel({
               <p className="text-muted-foreground">
                 Reviewed {new Date(submission.reviewedAt).toLocaleString()}
               </p>
+            ) : null}
+            {savedApproval && serviceUserId ? (
+              <div className="mt-3 rounded-lg border border-teal-200 bg-teal-50/50 p-3 dark:border-teal-900 dark:bg-teal-950/30">
+                <p className="text-xs text-muted-foreground">
+                  Care package approved — configure the authorised visit pattern and activate when ready.
+                </p>
+                <Link
+                  to="/service-users/$serviceUserId"
+                  params={{ serviceUserId }}
+                  search={{ tab: 'visit-plan' }}
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-teal-900 underline-offset-2 hover:underline dark:text-teal-100"
+                >
+                  <MapPinned className="h-4 w-4" aria-hidden />
+                  Open Visit Plan tab
+                </Link>
+              </div>
             ) : null}
             {canReopen ? (
               <Button type="button" variant="outline" size="sm" className="mt-2" onClick={onReopen}>

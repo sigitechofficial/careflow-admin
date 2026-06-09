@@ -12,7 +12,13 @@ import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useBodyMapSummary } from '@/features/service-users/body-map/hooks/useBodyMap'
 import { useAuthStore } from '@/features/auth/store'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import {
+  InitialAssessmentTextarea as Textarea,
+  focusInitialAssessmentTextarea,
+  plainTextFromHtml,
+  readInitialAssessmentTextareaValue,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import {
   Select,
   SelectContent,
@@ -395,11 +401,15 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [reopenReason, setReopenReason] = React.useState('')
   const answersHydratedRef = React.useRef(false)
   const serverBaselineAnswersRef = React.useRef<Record<string, InitialAssessmentAnswerInput>>({})
-  const correctionReasonRef = React.useRef<HTMLTextAreaElement>(null)
+  const correctionReasonRef = React.useRef<HTMLDivElement>(null)
   const dirtyAnswerQuestionIdsRef = React.useRef(new Set<string>())
   const skipAutosaveRef = React.useRef(true)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
   const sectionContentRef = React.useRef<HTMLDivElement>(null)
+  const sectionCommentsLocalEditRef = React.useRef(false)
+  const sectionCommentDraftRef = React.useRef<Record<string, string>>({})
+  const saveSectionInProgressRef = React.useRef(false)
+  const submissionMetadataRef = React.useRef<Record<string, unknown>>({})
   const skinIntegrityLocalEditRef = React.useRef(false)
   const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const skinIntegrityPendingPersistRef = React.useRef<SkinIntegrityCheckMetadata | null>(null)
@@ -493,8 +503,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   }, [submission?.id, submission?.reviewNotes])
 
   React.useEffect(() => {
+    submissionMetadataRef.current = { ...(submission?.metadata ?? {}) }
+  }, [submission?.metadata])
+
+  React.useEffect(() => {
     const parsed = parseSubmissionMetadata(submission)
-    setSectionComments(parsed.sectionComments)
+    if (!sectionCommentsLocalEditRef.current) {
+      setSectionComments(parsed.sectionComments)
+      sectionCommentDraftRef.current = Object.fromEntries(
+        Object.entries(parsed.sectionComments).map(([key, entry]) => [key, entry.text]),
+      )
+    }
     setWaterlow((prev) => (prev === parsed.waterlow ? prev : parsed.waterlow))
     setPainAssessment((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.painAssessment) ? prev : parsed.painAssessment,
@@ -1017,11 +1036,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const persistMetadata = React.useCallback(
     async (patch: Record<string, unknown>) => {
       if (!submissionId || !editable || !canUpdate) return
-      const merged = mergeMetadataPatch(submission?.metadata, patch)
+      const merged = mergeMetadataPatch(submissionMetadataRef.current, patch)
+      submissionMetadataRef.current = merged
       try {
         await updateSubmissionMutation.mutateAsync({ metadata: merged })
       } catch (e) {
+        submissionMetadataRef.current = { ...(submission?.metadata ?? {}) }
         toastApiError(e, 'Could not save assessment notes')
+        throw e
       }
     },
     [submissionId, editable, canUpdate, submission?.metadata, updateSubmissionMutation],
@@ -1179,16 +1201,34 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, adl, persistMetadata, onAnswerChange],
   )
 
+  const resolveSectionCommentText = React.useCallback((sectionNumber: number): string => {
+    const key = String(sectionNumber)
+    const host = document.getElementById(`ia-sec-comment-${sectionNumber}`)
+    const fromDom = readInitialAssessmentTextareaValue(host)
+    if (plainTextFromHtml(fromDom)) return fromDom
+    const fromDraft = sectionCommentDraftRef.current[key]
+    if (fromDraft != null) return fromDraft
+    return sectionComments[key]?.text ?? ''
+  }, [sectionComments])
+
   const persistSectionComment = React.useCallback(
-    async (sectionNumber: number, entry: SectionCommentEntry | undefined) => {
+    async (sectionNumber: number, text: string) => {
       const key = String(sectionNumber)
+      const entry = plainTextFromHtml(text) ? { text } : undefined
+      sectionCommentDraftRef.current[key] = text
       setSectionComments((prev) => {
         const next = { ...prev }
-        if (entry?.text?.trim()) next[key] = entry
+        if (entry) next[key] = entry
         else delete next[key]
         return next
       })
-      await persistMetadata({ sectionComments: { [key]: entry?.text?.trim() ? entry : '' } })
+      try {
+        await persistMetadata({ sectionComments: { [key]: entry ?? '' } })
+      } finally {
+        if (!saveSectionInProgressRef.current) {
+          sectionCommentsLocalEditRef.current = false
+        }
+      }
     },
     [persistMetadata],
   )
@@ -1332,7 +1372,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       if (needsCorrectionReason && correctionReason.trim().length < 10) {
         if (!silent) {
           correctionReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          correctionReasonRef.current?.focus()
+          focusInitialAssessmentTextarea(correctionReasonRef.current)
           toastApiError(
             new Error(
               'Correction reason required (min 10 characters) when changing answers that were already saved',
@@ -1413,14 +1453,22 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const saveSection = async () => {
     if (!currentSection) return
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur()
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+    saveSectionInProgressRef.current = true
+    sectionCommentsLocalEditRef.current = true
+    try {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+      }
+      const enterpriseSection = currentHolisticTab.enterpriseSection
+      const commentText = resolveSectionCommentText(enterpriseSection)
+      await flushHolisticTabMetadata()
+      await persistSectionComment(enterpriseSection, commentText)
+      await persistTabAnswers(currentTabQuestions, false)
+    } finally {
+      saveSectionInProgressRef.current = false
+      sectionCommentsLocalEditRef.current = false
     }
-    const enterpriseSection = currentHolisticTab.enterpriseSection
-    await persistSectionComment(enterpriseSection, sectionComments[String(enterpriseSection)])
-    await flushHolisticTabMetadata()
-    await persistTabAnswers(currentTabQuestions, false)
   }
 
   const selectSubmission = (id: string) => {
@@ -1599,6 +1647,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           {hubTab === 'review' ? (
             <div className="space-y-6">
               <InitialAssessmentManagerReviewPanel
+                serviceUserId={selectedId}
                 submission={submission}
                 reviewNotes={reviewNotes}
                 onReviewNotesChange={setReviewNotes}
@@ -1642,7 +1691,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
           {hubTab === 'schedule' ? (
             <div className="space-y-6">
-              <InitialAssessmentCareActivationPanel careActivation={summaryQuery.data?.careActivation} />
+              <InitialAssessmentCareActivationPanel
+                careActivation={summaryQuery.data?.careActivation}
+                serviceUserId={selectedId}
+              />
               <InitialAssessmentSchedulePanel
                 submission={submission}
                 sections={sections}
@@ -2016,19 +2068,18 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         value={sectionComments[String(currentSection.sectionNumber)]?.text ?? ''}
                         disabled={!editable || !canUpdate}
                         onChange={(text) => {
+                          sectionCommentsLocalEditRef.current = true
                           const key = String(currentSection.sectionNumber)
+                          sectionCommentDraftRef.current[key] = text
                           setSectionComments((prev) => {
                             const next = { ...prev }
-                            if (text.trim()) next[key] = { text }
+                            if (plainTextFromHtml(text)) next[key] = { text }
                             else delete next[key]
                             return next
                           })
                         }}
-                        onBlur={() =>
-                          void persistSectionComment(
-                            currentSection.sectionNumber,
-                            sectionComments[String(currentSection.sectionNumber)],
-                          )
+                        onBlur={(text) =>
+                          void persistSectionComment(currentSection.sectionNumber, text)
                         }
                       />
                       {editable && canUpdate ? (

@@ -381,7 +381,18 @@ export default function AddServiceUserPage() {
         </div>
           <div>
             <FieldLabel>Care type</FieldLabel>
-            {lookups ? mapSelect('careTypeId', 'Select care type', lookups.careTypes) : <Input disabled />}
+            {lookups ? (
+              <>
+                {mapSelect('careTypeId', 'Select care type', lookups.careTypes)}
+                {lookups.careTypes.length === 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No care types yet. Add them in Settings → Lookup data → Care types.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <Input disabled placeholder="Loading care types…" />
+            )}
         </div>
           <div>
             <FieldLabel>Funding type</FieldLabel>

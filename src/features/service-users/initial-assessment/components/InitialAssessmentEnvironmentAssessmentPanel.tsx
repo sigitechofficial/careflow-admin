@@ -4,7 +4,8 @@ import {
   HolisticAssessmentTableCell,
   HolisticAssessmentTableRow,
 } from '@/features/service-users/initial-assessment/components/holistic/HolisticAssessmentTable'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {

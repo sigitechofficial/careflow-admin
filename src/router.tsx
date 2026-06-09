@@ -431,9 +431,18 @@ const serviceUsersAddRoute = createRoute({
 const serviceUsersViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/view',
-  validateSearch: (raw: Record<string, unknown>): { focus?: string } => {
+  validateSearch: (raw: Record<string, unknown>): {
+    focus?: string
+    layout?: 'wed' | 'thu' | 'simple' | 'classic'
+  } => {
     const focus = raw.focus
-    return typeof focus === 'string' && focus.trim() ? { focus: focus.trim() } : {}
+    const layout = raw.layout
+    const next: { focus?: string; layout?: 'wed' | 'thu' | 'simple' | 'classic' } = {}
+    if (typeof focus === 'string' && focus.trim()) next.focus = focus.trim()
+    if (layout === 'wed' || layout === 'thu' || layout === 'simple' || layout === 'classic') {
+      next.layout = layout
+    }
+    return next
   },
   beforeLoad: requirePermission('service_users.read'),
   loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {

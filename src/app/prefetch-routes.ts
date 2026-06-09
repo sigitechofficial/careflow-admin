@@ -35,6 +35,8 @@ import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 import {
   fetchComplianceTypesList,
   fetchLookupList,
+  fetchServiceUserCareTypesList,
+  fetchServiceUserFundingTypesList,
   type LookupResource,
 } from '@/features/settings/api/lookups-admin-api'
 import {
@@ -332,6 +334,22 @@ export function prefetchSettingsTab(qc: QueryClient, tab: SettingsTabId = 'job-t
     void qc.prefetchQuery({
       queryKey: settingsKeys.complianceTypes(),
       queryFn: () => fetchComplianceTypesList(),
+      staleTime: ROUTE_STALE_MS,
+    })
+    return
+  }
+  if (tab === 'care-types') {
+    void qc.prefetchQuery({
+      queryKey: settingsKeys.serviceUserCareTypes(),
+      queryFn: () => fetchServiceUserCareTypesList(),
+      staleTime: ROUTE_STALE_MS,
+    })
+    return
+  }
+  if (tab === 'funding-types') {
+    void qc.prefetchQuery({
+      queryKey: settingsKeys.serviceUserFundingTypes(),
+      queryFn: () => fetchServiceUserFundingTypesList(),
       staleTime: ROUTE_STALE_MS,
     })
     return

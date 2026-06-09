@@ -4,7 +4,8 @@ import {
   HolisticAssessmentTableCell,
   HolisticAssessmentTableRow,
 } from '@/features/service-users/initial-assessment/components/holistic/HolisticAssessmentTable'
-import { Label, Textarea } from '@/shared/ui/form-field'
+import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
@@ -308,7 +309,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
             ))}
           </div>
 
-          <div className="grid gap-4 border-t border-slate-200 pt-4 lg:grid-cols-3 dark:border-slate-700">
+          <div className="space-y-6 border-t border-slate-200 pt-4 dark:border-slate-700">
             <div className="flex flex-col gap-1">
               <Label htmlFor="wl-comments" className={IA_QUESTION_LABEL_CLASS}>
                 Comments
@@ -323,7 +324,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
               />
             </div>
 
-            <div className="flex flex-col gap-3 border-x border-slate-200 px-0 lg:px-4 dark:border-slate-700">
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
               <p className={IA_QUESTION_LABEL_CLASS}>Recommendation</p>
               <Textarea
                 id="wl-recommendation"
@@ -375,7 +376,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
               </div>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 border-t border-slate-200 pt-4 dark:border-slate-700">
               <Label htmlFor="wl-action" className={IA_QUESTION_LABEL_CLASS}>
                 Action taken
               </Label>

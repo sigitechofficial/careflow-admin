@@ -68,6 +68,13 @@ export const serviceUserKeys = {
   domCare: (id: string) =>
     [...serviceUserKeys.detail(id), 'dom-care'] as const,
 
+  /** Visit plans (authorised care package). */
+  visitPlans: (id: string) =>
+    [...serviceUserKeys.detail(id), 'visit-plans'] as const,
+
+  visitPlanActive: (id: string) =>
+    [...serviceUserKeys.visitPlans(id), 'active'] as const,
+
   /** Live-in profile. */
   liveIn: (id: string) =>
     [...serviceUserKeys.detail(id), 'live-in'] as const,

@@ -161,6 +161,47 @@
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-1 ring-offset-background;
   }
+
+  /* Summernote — Tailwind preflight removes list markers inside the editor */
+  .summernote-editor-host .note-editable ul {
+    list-style: disc;
+    padding-left: 1.625rem;
+    margin: 0.35rem 0;
+  }
+  .summernote-editor-host .note-editable ol {
+    list-style: decimal;
+    padding-left: 1.625rem;
+    margin: 0.35rem 0;
+  }
+  .summernote-editor-host .note-editable li {
+    display: list-item;
+  }
+  .summernote-editor-host .note-editable img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Summernote — keep highlight (background colour) control visible in the toolbar */
+  .summernote-editor-host .note-toolbar {
+    overflow: visible;
+  }
+  .summernote-editor-host .note-color-back .note-current-color-button .note-recent-color {
+    background-color: #ffff00;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+    display: inline-block;
+    min-height: 14px;
+    min-width: 14px;
+  }
+  .summernote-editor-host .note-color-fore .note-current-color-button .note-recent-color {
+    color: #000000;
+    display: inline-block;
+    min-height: 14px;
+    min-width: 14px;
+  }
+  .summernote-editor-host .note-color .note-dropdown-menu {
+    z-index: 60;
+  }
 }
 
 @layer utilities {

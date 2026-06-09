@@ -5,7 +5,6 @@ import {
   HolisticAssessmentTableRow,
 } from '@/features/service-users/initial-assessment/components/holistic/HolisticAssessmentTable'
 import { Input } from '@/shared/ui/input'
-import { Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import type { ServiceUserDetail } from '@/features/service-users/api'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'

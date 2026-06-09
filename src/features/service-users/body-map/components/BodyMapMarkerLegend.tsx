@@ -5,22 +5,17 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu'
-import { cn } from '@/shared/lib/utils'
-
-const LEGEND_ITEMS: { swatch: string; label: string }[] = [
-  { swatch: 'bg-red-600', label: 'Injury / mark' },
-  { swatch: 'bg-violet-600', label: 'Wound' },
-  { swatch: 'bg-orange-600', label: 'Pressure area' },
-  { swatch: 'bg-blue-600', label: 'Medication site' },
-  { swatch: 'bg-blue-500', label: 'Patch site' },
-  { swatch: 'bg-teal-600', label: 'Injection site' },
-  { swatch: 'bg-cyan-600', label: 'Spray site' },
-  { swatch: 'bg-pink-600', label: 'Pain' },
-  { swatch: 'bg-yellow-600', label: 'Skin condition' },
-  { swatch: 'bg-red-900', label: 'Safeguarding' },
-]
+import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
+import {
+  bodyMapLegendItems,
+  buildBodyMapMarkerColorCatalog,
+} from '@/features/service-users/body-map/utils/body-map-marker-colors'
 
 export function BodyMapMarkerLegend() {
+  const lookupsQuery = useBodyMapLookups()
+  const catalog = buildBodyMapMarkerColorCatalog(lookupsQuery.data?.recordTypes)
+  const items = bodyMapLegendItems(catalog)
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -34,14 +29,20 @@ export function BodyMapMarkerLegend() {
           Pin colour = record type (subtype for meds)
         </p>
         <ul className="space-y-1">
-          {LEGEND_ITEMS.map(item => (
+          {items.map(item => (
             <li key={item.label} className="flex items-center gap-2 text-xs">
-              <span className={cn('size-3 shrink-0 rounded-full border border-white shadow-sm', item.swatch)} />
+              <span
+                className="size-3 shrink-0 rounded-full border border-white shadow-sm"
+                style={{ backgroundColor: item.color }}
+              />
               {item.label}
             </li>
           ))}
         </ul>
         <p className="mt-2 border-t border-border pt-2 text-[10px] text-muted-foreground">
+          Colours are managed in Settings → Lookup Data → Record types.
+        </p>
+        <p className="mt-1 text-[10px] text-muted-foreground">
           Numbers are the order records were opened (oldest = 1). Each record has one pin on the map.
         </p>
       </DropdownMenuContent>

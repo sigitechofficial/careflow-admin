@@ -35,7 +35,7 @@ import { RecordDetailDrawer } from '@/features/service-users/body-map/components
 import { CloseBodyMapRecordDialog } from '@/features/service-users/body-map/components/CloseBodyMapRecordDialog'
 import { SafeguardingChecklistDialog } from '@/features/service-users/body-map/components/SafeguardingChecklistDialog'
 import { BodyMapCqcEvidenceView } from '@/features/service-users/body-map/components/BodyMapCqcEvidenceView'
-import { BodyMapAttentionPanel } from '@/features/service-users/body-map/components/BodyMapAttentionPanel'
+import { BodyMapAttentionPanel, useBodyMapAttentionData } from '@/features/service-users/body-map/components/BodyMapAttentionPanel'
 import { BodyMapSummaryStrip } from '@/features/service-users/body-map/components/BodyMapSummaryStrip'
 import {
   canCloseBodyMap,
@@ -62,7 +62,7 @@ export default function ServiceUserBodyMapPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
   const serviceUserId = params.serviceUserId ?? ''
   const printRef = React.useRef<HTMLDivElement>(null)
-  const [mainView, setMainView] = React.useState<'map' | 'records'>('map')
+  const [mainView, setMainView] = React.useState<'map' | 'records' | 'attention'>('map')
   const [diagramTab, setDiagramTab] = React.useState<BodyMapDiagramTab>('standard')
   const { data: profile, isLoading: profileLoading } = useServiceUser(serviceUserId)
   const [showCleared, setShowCleared] = React.useState(false)
@@ -91,6 +91,7 @@ export default function ServiceUserBodyMapPage() {
 
   const { data, isLoading, error } = useServiceUserBodyMap(serviceUserId, showCleared)
   const { data: summary } = useBodyMapSummary(serviceUserId)
+  const attention = useBodyMapAttentionData(serviceUserId, summary)
   const { create, close, addReview } = useBodyMapMutations(serviceUserId)
 
   const records = data?.records ?? []
@@ -104,6 +105,12 @@ export default function ServiceUserBodyMapPage() {
     setMarkMode(true)
     toastInfo('Place the medication site on the body map, then link to the MAR chart line')
   }, [linkMedicationIdFromUrl])
+
+  React.useEffect(() => {
+    if (mainView === 'attention' && !attention.isLoading && attention.itemCount === 0) {
+      setMainView('map')
+    }
+  }, [attention.isLoading, attention.itemCount, mainView])
 
   const handlePlaceMarker = (coords: PlaceMarkerPayload) => {
     setMarkMode(true)
@@ -388,18 +395,7 @@ export default function ServiceUserBodyMapPage() {
               <BodyMapSummaryStrip summary={summary} />
             </div>
 
-            <BodyMapAttentionPanel
-              serviceUserId={serviceUserId}
-              summary={summary}
-              onSelectRecord={id => {
-                const rec = records.find(r => r.id === id)
-                if (rec) handleSelectRecord(rec)
-                else setSelectedRecordId(id)
-                setMainView('map')
-              }}
-            />
-
-            {/* Map | Records tabs */}
+            {/* Map | Records | Attention tabs */}
             <div className="flex items-center gap-1 border-b border-border print:hidden">
               <button
                 type="button"
@@ -425,7 +421,36 @@ export default function ServiceUserBodyMapPage() {
               >
                 Records ({tableRecords.length})
               </button>
+              {!attention.isLoading && attention.itemCount > 0 ? (
+                <button
+                  type="button"
+                  className={cn(
+                    'border-b-2 px-3 py-1.5 text-sm font-medium transition-colors',
+                    mainView === 'attention'
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                    attention.urgent && mainView !== 'attention' && 'text-amber-800',
+                  )}
+                  onClick={() => setMainView('attention')}
+                >
+                  Attention ({attention.itemCount})
+                </button>
+              ) : null}
             </div>
+
+            {mainView === 'attention' ? (
+              <BodyMapAttentionPanel
+                variant="tab"
+                serviceUserId={serviceUserId}
+                summary={summary}
+                onSelectRecord={id => {
+                  const rec = records.find(r => r.id === id)
+                  if (rec) handleSelectRecord(rec)
+                  else setSelectedRecordId(id)
+                  setMainView('map')
+                }}
+              />
+            ) : null}
 
             {mainView === 'map' ? (
               <div className="flex min-h-0 flex-1 flex-col lg:min-h-[calc(100dvh-13rem)]">
@@ -532,7 +557,7 @@ export default function ServiceUserBodyMapPage() {
                   ) : null}
                 </div>
               </div>
-            ) : (
+            ) : mainView === 'records' ? (
               <div className="min-h-0 flex-1 space-y-2 overflow-auto print:break-before-page">
                 <div className="flex flex-wrap items-center gap-2 print:hidden">
                   <FilterToggle
@@ -555,7 +580,7 @@ export default function ServiceUserBodyMapPage() {
                   }}
                 />
               </div>
-            )}
+            ) : null}
           </>
         )}
 
