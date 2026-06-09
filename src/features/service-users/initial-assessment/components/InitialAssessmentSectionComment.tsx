@@ -21,7 +21,7 @@ export function InitialAssessmentSectionComment({
   onChange,
   onBlur,
 }: Props) {
-  const plainLength = plainTextFromHtml(value)
+  const plainLength = plainTextFromHtml(value).length
 
   return (
     <div className="rounded-lg border border-teal-200/60 bg-teal-50/40 p-4 dark:border-teal-900 dark:bg-teal-950/20">
