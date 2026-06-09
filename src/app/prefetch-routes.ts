@@ -267,6 +267,22 @@ export function prefetchServiceUserCarePlanFormRoute(
   })
 }
 
+export function prefetchServiceUserVisitPlanRoute(qc: QueryClient, serviceUserId: string) {
+  prefetchServiceUserProfile(qc, serviceUserId)
+  void import('@/features/service-users/visit-plan/api').then(({ fetchServiceUserVisitPlans, fetchActiveServiceUserVisitPlan }) => {
+    void qc.prefetchQuery({
+      queryKey: serviceUserKeys.visitPlans(serviceUserId),
+      queryFn: () => fetchServiceUserVisitPlans(serviceUserId),
+      staleTime: ROUTE_STALE_MS,
+    })
+    void qc.prefetchQuery({
+      queryKey: serviceUserKeys.visitPlanActive(serviceUserId),
+      queryFn: () => fetchActiveServiceUserVisitPlan(serviceUserId),
+      staleTime: ROUTE_STALE_MS,
+    })
+  })
+}
+
 export function prefetchServiceUserObservationsRoute(qc: QueryClient, serviceUserId: string) {
   prefetchServiceUserProfile(qc, serviceUserId)
   void qc.prefetchQuery({

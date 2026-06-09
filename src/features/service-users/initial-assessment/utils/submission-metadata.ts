@@ -1,4 +1,8 @@
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
+import {
+  firstHolisticTabForEnterpriseSection,
+  holisticTabById,
+} from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import { parseMobilityMetadata } from '@/features/service-users/initial-assessment/utils/mobility-metadata'
 import {
   defaultPainAssessmentMetadata,
@@ -100,18 +104,11 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
   const raw = submission?.metadata
   const meta = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
 
-  const sectionComments: Record<string, SectionCommentEntry> = {}
-  const sc = meta.sectionComments
-  if (sc && typeof sc === 'object') {
-    for (const [k, v] of Object.entries(sc as Record<string, unknown>)) {
-      if (typeof v === 'string' && v.trim()) {
-        sectionComments[k] = { text: v }
-      } else if (v && typeof v === 'object' && 'text' in v) {
-        const entry = v as SectionCommentEntry
-        if (typeof entry.text === 'string' && entry.text.trim()) sectionComments[k] = entry
-      }
-    }
-  }
+  const sc =
+    meta.sectionComments && typeof meta.sectionComments === 'object'
+      ? (meta.sectionComments as Record<string, unknown>)
+      : undefined
+  const sectionComments = normalizeSectionComments(sc, meta)
 
   const waterlow: WaterlowMetadata =
     meta.waterlow && typeof meta.waterlow === 'object' ? (meta.waterlow as WaterlowMetadata) : {}
@@ -233,6 +230,60 @@ export {
 export type SectionCommentEntry = {
   text: string
   visibility?: 'care_team' | 'internal'
+}
+
+function parseSectionCommentEntry(v: unknown): SectionCommentEntry | null {
+  if (typeof v === 'string' && v.trim()) return { text: v }
+  if (v && typeof v === 'object' && 'text' in v) {
+    const entry = v as SectionCommentEntry
+    if (typeof entry.text === 'string' && entry.text.trim()) return entry
+  }
+  return null
+}
+
+function sectionCommentsUseHolisticTabKeys(
+  raw: Record<string, unknown>,
+  meta?: Record<string, unknown>,
+): boolean {
+  if (meta?.sectionCommentsKeyedByHolisticTab === true) return true
+  return Object.keys(raw).some((k) => {
+    const n = Number(k)
+    return Number.isInteger(n) && n >= 15
+  })
+}
+
+/** Normalize stored section comments to holistic tab ids (matches sectionFooters). */
+export function normalizeSectionComments(
+  raw: Record<string, unknown> | undefined,
+  meta?: Record<string, unknown>,
+): Record<string, SectionCommentEntry> {
+  const sectionComments: Record<string, SectionCommentEntry> = {}
+  if (!raw || typeof raw !== 'object') return sectionComments
+
+  const tabKeyed = sectionCommentsUseHolisticTabKeys(raw, meta)
+
+  for (const [k, v] of Object.entries(raw)) {
+    const entry = parseSectionCommentEntry(v)
+    if (!entry) continue
+
+    const n = Number(k)
+    if (!Number.isInteger(n) || n < 1) continue
+
+    if (tabKeyed) {
+      if (holisticTabById(n)) {
+        sectionComments[String(n)] = entry
+      }
+      continue
+    }
+
+    const tabId = firstHolisticTabForEnterpriseSection(n)
+    const tabKey = String(tabId)
+    if (!sectionComments[tabKey]) {
+      sectionComments[tabKey] = entry
+    }
+  }
+
+  return sectionComments
 }
 
 export function defaultAdlRows(): AdlRow[] {

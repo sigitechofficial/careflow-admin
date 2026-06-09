@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { cn } from '@/shared/lib/utils'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import {
@@ -32,30 +33,21 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
     <div className="space-y-4 rounded-lg border border-dashed border-border bg-background p-4">
       <p className="text-sm font-medium text-foreground">On which days of the month?</p>
 
-      <div className="flex flex-wrap gap-6">
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name={`monthly-mode-${slot.slotCode}`}
-            checked={slot.monthlyDayMode === 'BY_DATE'}
-            disabled={disabled}
-            onChange={() => onChange({ monthlyDayMode: 'BY_DATE' })}
-            className="h-4 w-4 accent-rose-600"
-          />
+      <RadioGroup
+        value={slot.monthlyDayMode}
+        disabled={disabled}
+        onValueChange={(v) => onChange({ monthlyDayMode: v as VisitPlanSlot['monthlyDayMode'] })}
+        className="flex flex-wrap gap-6"
+      >
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+          <RadioGroupItem value="BY_DATE" id={`${slot.slotCode}-by-date`} />
           Select by day?
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name={`monthly-mode-${slot.slotCode}`}
-            checked={slot.monthlyDayMode === 'BY_PATTERN'}
-            disabled={disabled}
-            onChange={() => onChange({ monthlyDayMode: 'BY_PATTERN' })}
-            className="h-4 w-4 accent-rose-600"
-          />
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+          <RadioGroupItem value="BY_PATTERN" id={`${slot.slotCode}-by-pattern`} />
           Select by pattern?
         </label>
-      </div>
+      </RadioGroup>
 
       {slot.monthlyDayMode === 'BY_DATE' ? (
         <div>

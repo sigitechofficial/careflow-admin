@@ -36,6 +36,7 @@ import ViewServiceUserPage from '@/features/service-users/pages/ViewServiceUserP
 import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUserMedicationPage'
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
+import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
@@ -113,6 +114,7 @@ import {
   prefetchServiceUserCalendar,
   prefetchServiceUserCarePlanFormRoute,
   prefetchServiceUserCarePlanRoute,
+  prefetchServiceUserVisitPlanRoute,
   prefetchServiceUserEditRoute,
   prefetchServiceUserMedicationRoute,
   prefetchServiceUserObservationsRoute,
@@ -227,6 +229,8 @@ function AppRootShell() {
                 ? 'Body Map Review Queue'
             : /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname)
               ? 'Care Plan'
+            : /^\/service-users\/[^/]+\/visit-plan$/.test(pathname)
+              ? 'Visit Plan'
             : /^\/service-users\/[^/]+$/.test(pathname)
             ? 'Edit Service User'
             : companyDisplayName?.trim() || 'CareAdmin')
@@ -239,6 +243,7 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
     /^\/service-users\/[^/]+\/body-map$/.test(pathname) ||
     /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
 
   return (
@@ -523,6 +528,24 @@ const serviceUsersCarePlanFormRoute = createRoute({
     prefetchServiceUserCarePlanFormRoute(qc, serviceUserId, formId)
   },
   component: ServiceUserCarePlanFormPage,
+})
+
+const serviceUsersVisitPlanRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/visit-plan',
+  validateSearch: (raw: Record<string, unknown>): { planId?: string; view?: 'details' } => {
+    const planId = raw.planId
+    const view = raw.view === 'details' ? 'details' : undefined
+    return {
+      planId: typeof planId === 'string' && planId.trim() ? planId.trim() : undefined,
+      view,
+    }
+  },
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserVisitPlanRoute(qc, serviceUserId)
+  },
+  component: ServiceUserVisitPlanPage,
 })
 
 const serviceUsersObservationsRoute = createRoute({
@@ -981,6 +1004,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersMedicationRoute,
     serviceUsersCarePlanRoute,
     serviceUsersCarePlanFormRoute,
+    serviceUsersVisitPlanRoute,
     serviceUsersObservationsRoute,
     serviceUsersBodyMapRoute,
     bodyMapReviewQueueRoute,

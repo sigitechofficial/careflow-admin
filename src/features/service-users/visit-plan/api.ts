@@ -1,5 +1,10 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
-import type { ServiceUserVisitPlan, VisitPlanSlot, VisitPlanSlotCode } from '@/features/service-users/visit-plan/types'
+import type {
+  ServiceUserVisitPlan,
+  VisitPlanCarerSuggestions,
+  VisitPlanSlot,
+  VisitPlanSlotCode,
+} from '@/features/service-users/visit-plan/types'
 
 function isVisitPlan(value: unknown): value is ServiceUserVisitPlan {
   return (
@@ -37,6 +42,8 @@ const SLOT_OPTION_DEFAULTS = {
   monthlyDaysOfMonth: [] as number[],
   monthlyPatternOrdinal: 'FIRST' as const,
   monthlyPatternWeekday: 1,
+  linkedCarePlanFormIds: [] as string[],
+  assignedEmployeeIds: [] as string[],
 }
 
 function normalizeSlot(slot: VisitPlanSlot): VisitPlanSlot {
@@ -44,6 +51,8 @@ function normalizeSlot(slot: VisitPlanSlot): VisitPlanSlot {
     ...SLOT_OPTION_DEFAULTS,
     ...slot,
     daysOfWeek: Array.isArray(slot.daysOfWeek) ? slot.daysOfWeek : [],
+    linkedCarePlanFormIds: Array.isArray(slot.linkedCarePlanFormIds) ? slot.linkedCarePlanFormIds : [],
+    assignedEmployeeIds: Array.isArray(slot.assignedEmployeeIds) ? slot.assignedEmployeeIds : [],
   }
 }
 
@@ -94,6 +103,26 @@ export type VisitPlanSlotInput = {
   monthlyDaysOfMonth?: number[]
   monthlyPatternOrdinal?: VisitPlanSlot['monthlyPatternOrdinal']
   monthlyPatternWeekday?: number | null
+  linkedCarePlanFormIds?: string[]
+  assignedEmployeeIds?: string[]
+}
+
+export async function suggestVisitPlanCarers(
+  serviceUserId: string,
+  body: {
+    slotCode: VisitPlanSlotCode
+    daysOfWeek: number[]
+    plannedStartTime: string
+    plannedEndTime: string
+    requiredCarers?: number
+    linkedCarePlanFormIds?: string[]
+  },
+) {
+  const res = await apiJson<ApiEnvelope<VisitPlanCarerSuggestions>>(
+    `/service-users/${serviceUserId}/visit-plans/suggest-carers`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
 }
 
 export async function fetchServiceUserVisitPlans(serviceUserId: string) {

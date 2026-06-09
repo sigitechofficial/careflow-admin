@@ -1201,9 +1201,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, adl, persistMetadata, onAnswerChange],
   )
 
-  const resolveSectionCommentText = React.useCallback((sectionNumber: number): string => {
-    const key = String(sectionNumber)
-    const host = document.getElementById(`ia-sec-comment-${sectionNumber}`)
+  const resolveSectionCommentText = React.useCallback((holisticTabId: number): string => {
+    const key = String(holisticTabId)
+    const host = document.getElementById(`ia-sec-comment-${holisticTabId}`)
     const fromDom = readInitialAssessmentTextareaValue(host)
     if (plainTextFromHtml(fromDom)) return fromDom
     const fromDraft = sectionCommentDraftRef.current[key]
@@ -1212,8 +1212,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   }, [sectionComments])
 
   const persistSectionComment = React.useCallback(
-    async (sectionNumber: number, text: string) => {
-      const key = String(sectionNumber)
+    async (holisticTabId: number, text: string) => {
+      const key = String(holisticTabId)
       const entry = plainTextFromHtml(text) ? { text } : undefined
       sectionCommentDraftRef.current[key] = text
       setSectionComments((prev) => {
@@ -1223,7 +1223,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         return next
       })
       try {
-        await persistMetadata({ sectionComments: { [key]: entry ?? '' } })
+        await persistMetadata({
+          sectionComments: { [key]: entry ?? '' },
+          sectionCommentsKeyedByHolisticTab: true,
+        })
       } finally {
         if (!saveSectionInProgressRef.current) {
           sectionCommentsLocalEditRef.current = false
@@ -1460,10 +1463,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         document.activeElement.blur()
         await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
       }
-      const enterpriseSection = currentHolisticTab.enterpriseSection
-      const commentText = resolveSectionCommentText(enterpriseSection)
+      const commentText = resolveSectionCommentText(activeHolisticTab)
       await flushHolisticTabMetadata()
-      await persistSectionComment(enterpriseSection, commentText)
+      await persistSectionComment(activeHolisticTab, commentText)
       await persistTabAnswers(currentTabQuestions, false)
     } finally {
       saveSectionInProgressRef.current = false
@@ -1851,9 +1853,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           progressContext,
                         )
                       : { percent: 0, total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 }
-                    const hasComment = Boolean(
-                      sectionComments[String(tab.enterpriseSection)]?.text?.trim(),
-                    )
+                    const hasComment = Boolean(sectionComments[String(tab.id)]?.text?.trim())
                     const navStatus = holisticTabNavStatus.get(tab.id) ?? 'ok'
                     return (
                       <button
@@ -2064,12 +2064,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         </Button>
                       ) : null}
                       <InitialAssessmentSectionComment
-                        sectionNumber={currentSection.sectionNumber}
-                        value={sectionComments[String(currentSection.sectionNumber)]?.text ?? ''}
+                        holisticTabId={activeHolisticTab}
+                        value={sectionComments[String(activeHolisticTab)]?.text ?? ''}
                         disabled={!editable || !canUpdate}
-                        onChange={(text) => {
+                        onChange={(tabId, text) => {
                           sectionCommentsLocalEditRef.current = true
-                          const key = String(currentSection.sectionNumber)
+                          const key = String(tabId)
                           sectionCommentDraftRef.current[key] = text
                           setSectionComments((prev) => {
                             const next = { ...prev }
@@ -2078,9 +2078,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                             return next
                           })
                         }}
-                        onBlur={(text) =>
-                          void persistSectionComment(currentSection.sectionNumber, text)
-                        }
+                        onBlur={(tabId, text) => void persistSectionComment(tabId, text)}
                       />
                       {editable && canUpdate ? (
                         <div className="flex flex-wrap gap-2 border-t border-border pt-4">

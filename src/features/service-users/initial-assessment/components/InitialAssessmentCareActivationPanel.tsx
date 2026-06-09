@@ -66,13 +66,12 @@ export function InitialAssessmentCareActivationPanel({ careActivation, serviceUs
                 plan, then generate rota visits.
               </p>
               <Link
-                to="/service-users/$serviceUserId"
+                to="/service-users/$serviceUserId/visit-plan"
                 params={{ serviceUserId }}
-                search={{ tab: 'visit-plan' }}
                 className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800 underline-offset-2 hover:underline dark:text-emerald-200"
               >
                 <MapPinned className="h-4 w-4" aria-hidden />
-                Open Visit Plan tab
+                Open Visit Plan
               </Link>
             </div>
           ) : null}

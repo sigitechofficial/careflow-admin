@@ -1,4 +1,5 @@
 import { Info } from 'lucide-react'
+import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import {
@@ -9,13 +10,13 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
-import { cn } from '@/shared/lib/utils'
 import type { VisitPlanSlot, VisitPlanSlotCode } from '@/features/service-users/visit-plan/types'
 import {
   VISIT_PLAN_ANALYSIS_AREAS,
   VISIT_PLAN_SCHEDULE_FREQUENCIES,
 } from '@/features/service-users/visit-plan/visit-plan-constants'
 import { VisitPlanMonthlyDaySection } from '@/features/service-users/visit-plan/VisitPlanMonthlyDaySection'
+import { VisitPlanWeeklyDaySection } from '@/features/service-users/visit-plan/VisitPlanWeeklyDaySection'
 
 function repeatUnitForFrequency(freq: VisitPlanSlot['scheduleFrequency']): VisitPlanSlot['repeatUnit'] {
   if (freq === 'MONTHLY') return 'MONTHS'
@@ -48,7 +49,7 @@ function FieldHelp({ text }: { text: string }) {
   )
 }
 
-function YesNoToggle({
+function YesNoRow({
   id,
   checked,
   disabled,
@@ -64,33 +65,20 @@ function YesNoToggle({
   help?: string
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 py-2">
-      <span className="text-sm text-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          id={id}
-          role="switch"
-          aria-checked={checked}
-          disabled={disabled}
-          onClick={() => onChange(!checked)}
-          className={cn(
-            'relative h-7 w-14 rounded-full transition-colors',
-            checked ? 'bg-emerald-600' : 'bg-muted',
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform',
-              checked ? 'translate-x-7' : 'translate-x-0.5',
-            )}
-          />
-        </button>
-        <span className="w-8 text-xs font-semibold uppercase text-muted-foreground">
-          {checked ? 'Yes' : 'No'}
-        </span>
+    <div className="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-1 items-start gap-1.5">
+        <span className="text-sm text-foreground">{label}</span>
         {help ? <FieldHelp text={help} /> : null}
       </div>
+      <NoYesToggle
+        id={id}
+        value={checked}
+        disabled={disabled}
+        onChange={onChange}
+        labelOff="NO"
+        labelOn="YES"
+        className="shrink-0"
+      />
     </div>
   )
 }
@@ -103,7 +91,12 @@ type Props = {
   onChange: (patch: Partial<VisitPlanSlot>) => void
 }
 
-export function VisitPlanSlotAdvancedPanel({ slotLabel, slot, disabled, onChange }: Props) {
+export function VisitPlanSlotAdvancedPanel({
+  slotLabel,
+  slot,
+  disabled,
+  onChange,
+}: Props) {
   const unitLabel = repeatUnitLabel(slot.scheduleFrequency)
 
   return (
@@ -168,18 +161,16 @@ export function VisitPlanSlotAdvancedPanel({ slotLabel, slot, disabled, onChange
         {slot.scheduleFrequency === 'MONTHLY' ? (
           <VisitPlanMonthlyDaySection slot={slot} disabled={disabled} onChange={onChange} />
         ) : slot.scheduleFrequency === 'WEEKLY' ? (
-          <p className="text-xs text-muted-foreground">
-            Select which weekdays apply in the <strong>Call pattern</strong> grid below (Mon–Sun).
-          </p>
+          <VisitPlanWeeklyDaySection slot={slot} disabled={disabled} onChange={onChange} />
         ) : (
           <p className="text-xs text-muted-foreground">
-            Daily visits use the weekday checkboxes in the <strong>Call pattern</strong> grid below.
+            Daily visits use the weekday checkboxes in the <strong>Call pattern</strong> grid above.
             Use &quot;Repeat every&quot; for every N days.
           </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <YesNoToggle
+          <YesNoRow
             id="time-critical"
             checked={slot.timeCritical}
             disabled={disabled}
@@ -204,10 +195,15 @@ export function VisitPlanSlotAdvancedPanel({ slotLabel, slot, disabled, onChange
           </div>
         </div>
 
+        <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          Link care plans and assign carers for each call in the <strong className="font-medium">Call pattern</strong>{' '}
+          section above — morning, lunch, tea, and other visits can have separate carers.
+        </p>
+
         <div>
           <Label className="text-xs text-muted-foreground">Time required</Label>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            From / To are set in the call pattern grid below. Set expected visit duration here.
+            From / To are set in the call pattern grid above. Set expected visit duration here.
           </p>
           <div className="mt-2 flex items-center gap-2">
             <Input
@@ -232,21 +228,21 @@ export function VisitPlanSlotAdvancedPanel({ slotLabel, slot, disabled, onChange
       <section className="rounded-lg border border-border bg-muted/10 p-4 space-y-1">
         <h4 className="mb-2 text-sm font-semibold text-foreground">Additional details</h4>
 
-        <YesNoToggle
+        <YesNoRow
           id="notes-required"
           checked={slot.notesRequired}
           disabled={disabled}
           onChange={(notesRequired) => onChange({ notesRequired })}
           label="Do you want to make the recording of notes mandatory?"
         />
-        <YesNoToggle
+        <YesNoRow
           id="photos-allowed"
           checked={slot.photoAllowed}
           disabled={disabled}
           onChange={(photoAllowed) => onChange({ photoAllowed })}
           label="Are photos allowed for this action?"
         />
-        <YesNoToggle
+        <YesNoRow
           id="share-family"
           checked={slot.shareOutcomeWithFamily}
           disabled={disabled}

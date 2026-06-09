@@ -36,6 +36,40 @@ export type VisitPlanSlot = {
   monthlyDaysOfMonth: number[]
   monthlyPatternOrdinal: VisitPlanMonthlyOrdinal | null
   monthlyPatternWeekday: number | null
+  linkedCarePlanFormIds: string[]
+  assignedEmployeeIds: string[]
+}
+
+export type VisitPlanCarerFit = 'good' | 'partial' | 'poor'
+
+export type VisitPlanCarerCandidate = {
+  employeeId: string
+  displayName: string
+  role: string | null
+  jobTitle: string | null
+  fit: VisitPlanCarerFit
+  isPreferred: boolean
+  isBlocked: boolean
+  availability: {
+    availableDays: number[]
+    unavailableDays: number[]
+    timeWindowOk: boolean
+    summary: string
+  }
+  skills: {
+    matched: string[]
+    missing: string[]
+  }
+  complianceIssues: number
+  warnings: string[]
+}
+
+export type VisitPlanCarerSuggestions = {
+  candidates: VisitPlanCarerCandidate[]
+  preferredCarerIds: string[]
+  blockedCarerIds: string[]
+  requiredSkillKeywords: string[]
+  requiredCarers: number
 }
 
 export type VisitPlanAmendment = {

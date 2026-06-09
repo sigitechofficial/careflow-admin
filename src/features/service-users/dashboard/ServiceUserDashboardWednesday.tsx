@@ -341,14 +341,13 @@ export function ServiceUserDashboardWednesday({ serviceUserId }: { serviceUserId
               <p className="text-muted-foreground">
                 Configure the call pattern on the{' '}
                 <Link
-                  to="/service-users/$serviceUserId"
+                  to="/service-users/$serviceUserId/visit-plan"
                   params={{ serviceUserId }}
-                  search={{ tab: 'visit-plan' }}
                   className="font-medium text-teal-800 underline-offset-2 hover:underline dark:text-teal-200"
                 >
                   Visit Plan
                 </Link>{' '}
-                tab, then generate rota visits.
+                module, then generate rota visits.
               </p>
             </DashCard>
 
