@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarClock, Eye, Loader2, Play, Save, Sparkles, UserPlus, Users } from 'lucide-react'
+import { CalendarClock, Eye, Loader2, PanelRightOpen, Play, Save, Sparkles, UserPlus, Users } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
@@ -18,14 +18,16 @@ import type {
   VisitPlanSlot,
 } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
-import { defaultEditableSlots } from '@/features/service-users/visit-plan/api'
+import { visitPlanSlotsFromMedicationRounds } from '@/features/service-users/visit-plan/visit-plan-time-slots.util'
+import { useMedicationRounds } from '@/features/settings/hooks/useMedicationRounds'
 import { VisitPlanSlotAdvancedPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdvancedPanel'
+import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdditionalDetailsPanel'
+import { VisitPlanSlotDetailsSheet } from '@/features/service-users/visit-plan/VisitPlanSlotDetailsSheet'
 import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
 import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarersDialog'
 import { VisitPlanSlotViewCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotViewCarersDialog'
 import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarePlansDialog'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
-import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
@@ -87,6 +89,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
   const { data: activePlan } = useActiveServiceUserVisitPlan(serviceUserId)
   const { create, update, activate, prefillDomCare, generateSchedule } =
     useServiceUserVisitPlanMutations(serviceUserId)
+  const { data: medicationRounds = [], isLoading: medicationRoundsLoading } = useMedicationRounds()
 
   const workingPlan = React.useMemo(() => {
     if (activePlan?.id) return activePlan
@@ -96,14 +99,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
     return drafts[0] ?? null
   }, [activePlan, plans])
 
-  const [slots, setSlots] = React.useState<VisitPlanSlot[]>(defaultEditableSlots())
+  const [slots, setSlots] = React.useState<VisitPlanSlot[]>([])
   const [weeklyHours, setWeeklyHours] = React.useState('')
   const [numberOfCarers, setNumberOfCarers] = React.useState(1)
   const [notes, setNotes] = React.useState('')
   const [amendmentReason, setAmendmentReason] = React.useState('')
   const [generateFrom, setGenerateFrom] = React.useState('')
   const [generateTo, setGenerateTo] = React.useState('')
-  const [configSlotCode, setConfigSlotCode] = React.useState<VisitPlanSlot['slotCode']>('MORNING')
+  const [configSlotCode, setConfigSlotCode] = React.useState<VisitPlanSlot['slotCode']>('')
+  const [detailsSlotCode, setDetailsSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(null)
   const [carersModalSlotCode, setCarersModalSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(null)
   const [viewCarersModalSlotCode, setViewCarersModalSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(
     null,
@@ -117,6 +121,12 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
     [slots, configSlotCode],
   )
   const configSlot = configSlotIndex >= 0 ? slots[configSlotIndex] : null
+
+  const detailsSlotIndex = React.useMemo(
+    () => (detailsSlotCode ? slots.findIndex((s) => s.slotCode === detailsSlotCode) : -1),
+    [slots, detailsSlotCode],
+  )
+  const detailsSlot = detailsSlotIndex >= 0 ? slots[detailsSlotIndex] : null
 
   const carersModalIndex = React.useMemo(
     () => (carersModalSlotCode ? slots.findIndex((s) => s.slotCode === carersModalSlotCode) : -1),
@@ -142,12 +152,28 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
   const employeeNameById = useEmployeeNameMap(assignedEmployeeIds)
 
   React.useEffect(() => {
-    if (!workingPlan) return
-    setSlots(workingPlan.slots?.length ? workingPlan.slots : defaultEditableSlots())
+    if (!medicationRounds.length) return
+    if (!workingPlan) {
+      setSlots(visitPlanSlotsFromMedicationRounds(medicationRounds))
+      return
+    }
+    setSlots(
+      visitPlanSlotsFromMedicationRounds(
+        medicationRounds,
+        workingPlan.slots?.length ? workingPlan.slots : undefined,
+      ),
+    )
     setWeeklyHours(workingPlan.weeklyContractedHours ?? '')
     setNumberOfCarers(workingPlan.numberOfCarers)
     setNotes(workingPlan.notes ?? '')
-  }, [workingPlan?.id, workingPlan?.updatedAt])
+  }, [workingPlan?.id, workingPlan?.updatedAt, medicationRounds])
+
+  React.useEffect(() => {
+    if (!slots.length) return
+    if (!configSlotCode || !slots.some(s => s.slotCode === configSlotCode)) {
+      setConfigSlotCode(slots[0]!.slotCode)
+    }
+  }, [slots, configSlotCode])
 
   const toggleDay = (slotIndex: number, day: number) => {
     setSlots((prev) =>
@@ -322,12 +348,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Scheduling &amp; visit options</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Per call slot — frequency, time rules, and recording requirements (CareBean-style).
+                  Per call slot — daily, weekly, or monthly frequency, time rules, and recording requirements.
                 </p>
               </div>
               <div className="min-w-[180px]">
                 <Label className="text-xs text-muted-foreground">Edit slot</Label>
-                <Select value={configSlotCode} onValueChange={(v) => setConfigSlotCode(v as VisitPlanSlot['slotCode'])}>
+                <Select
+                  value={configSlotCode}
+                  onValueChange={(v) => setConfigSlotCode(v as VisitPlanSlot['slotCode'])}
+                >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -358,10 +387,18 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
           <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 className="mb-1 text-sm font-semibold text-foreground">Call pattern</h3>
             <p className="mb-4 text-xs text-muted-foreground">
-              Set visit times, link care plans, and assign carers for each call slot. Morning, lunch, tea, and
-              other visits can have different carers. Weekday columns apply to daily visits only; weekly and
-              monthly visits use the day pickers in Scheduling options above.
+              Call slots match Settings → Time slots (Morning, Midday, Afternoon, etc.). Set visit times,
+              link care plans, and assign carers for each slot. Use <strong>Details</strong> for a quick
+              summary. Configure daily, weekly, or monthly rules in <strong>Scheduling &amp; visit options</strong>{' '}
+              above.
             </p>
+            {medicationRoundsLoading ? (
+              <p className="mb-3 text-xs text-muted-foreground">Loading time slots…</p>
+            ) : medicationRounds.length === 0 ? (
+              <p className="mb-3 text-xs text-amber-700 dark:text-amber-300">
+                No time slots configured. Add them under Settings → Time slots.
+              </p>
+            ) : null}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
@@ -378,11 +415,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
                     <th className="py-2 pl-2">Required</th>
                     <th className="py-2 pl-3">Care plans</th>
                     <th className="py-2 pl-3">Assigned carers</th>
+                    <th className="py-2 pl-3">Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {slots.map((slot, rowIndex) => {
-                    const linkedPlans = resolveCarePlansForSlot(slot, careContext.acceptedCarePlans)
                     const assignedIds = slot.assignedEmployeeIds ?? []
                     return (
                       <tr key={slot.slotCode} className="border-b border-border/60">
@@ -452,12 +489,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
                         </td>
                         <td className="py-2 pl-3">
                           {slot.isEnabled ? (
-                            <div className="flex min-w-[120px] flex-col gap-1.5">
-                              <span className="text-[10px] text-muted-foreground">
-                                {linkedPlans.length === 0
-                                  ? 'None linked'
-                                  : `${linkedPlans.length} plan${linkedPlans.length === 1 ? '' : 's'}`}
-                              </span>
+                            <div className="flex min-w-[120px]">
                               <Button
                                 type="button"
                                 variant="outline"
@@ -475,13 +507,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
                         </td>
                         <td className="py-2 pl-3">
                           {slot.isEnabled ? (
-                            <div className="flex min-w-[148px] flex-col gap-1.5">
-                              <span className="text-[10px] text-muted-foreground">
-                                {assignedIds.length === 0
-                                  ? 'None assigned'
-                                  : `${assignedIds.length} assigned`}
-                              </span>
-                              <div className="flex flex-wrap gap-1">
+                            <div className="flex min-w-[148px] flex-wrap gap-1">
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -500,13 +526,27 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
                                   onClick={() => setCarersModalSlotCode(slot.slotCode)}
                                 >
                                   <UserPlus className="mr-1 h-3.5 w-3.5" />
-                                  Assign
+                                  {assignedIds.length > 0 ? 'Change' : 'Assign'}
                                 </Button>
-                              </div>
                             </div>
                           ) : (
                             <span className="text-[10px] text-muted-foreground">—</span>
                           )}
+                        </td>
+                        <td className="py-2 pl-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              setConfigSlotCode(slot.slotCode)
+                              setDetailsSlotCode(slot.slotCode)
+                            }}
+                          >
+                            <PanelRightOpen className="mr-1 h-3.5 w-3.5" />
+                            Details
+                          </Button>
                         </td>
                       </tr>
                     )
@@ -515,6 +555,57 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
               </table>
             </div>
           </section>
+
+          <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Additional details</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Notes, photos, family sharing, and analysis reporting for the selected call slot.
+                </p>
+              </div>
+              <div className="min-w-[180px]">
+                <Label className="text-xs text-muted-foreground">Edit slot</Label>
+                <Select
+                  value={configSlotCode}
+                  onValueChange={(v) => setConfigSlotCode(v as VisitPlanSlot['slotCode'])}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {slots.map((s) => (
+                      <SelectItem key={s.slotCode} value={s.slotCode}>
+                        {s.label}
+                        {!s.isEnabled ? ' (off)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {configSlot ? (
+              <VisitPlanSlotAdditionalDetailsPanel
+                slot={configSlot}
+                onChange={(patch) => {
+                  if (configSlotIndex < 0) return
+                  updateSlot(configSlotIndex, patch)
+                }}
+              />
+            ) : null}
+          </section>
+
+          {detailsSlot ? (
+            <VisitPlanSlotDetailsSheet
+              open={detailsSlotCode !== null}
+              onOpenChange={(open) => {
+                if (!open) setDetailsSlotCode(null)
+              }}
+              slot={detailsSlot}
+              acceptedCarePlans={careContext.acceptedCarePlans}
+              employeeNameById={employeeNameById}
+            />
+          ) : null}
 
           {carersModalSlot ? (
             <VisitPlanSlotCarersDialog
@@ -539,6 +630,13 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
               }}
               slot={viewCarersModalSlot}
               employeeNameById={employeeNameById}
+              onRemoveCarer={(employeeId) => {
+                if (viewCarersModalIndex < 0) return
+                const current = viewCarersModalSlot.assignedEmployeeIds ?? []
+                updateSlot(viewCarersModalIndex, {
+                  assignedEmployeeIds: current.filter((id) => id !== employeeId),
+                })
+              }}
               onAssign={() => {
                 setViewCarersModalSlotCode(null)
                 setCarersModalSlotCode(viewCarersModalSlot.slotCode)
@@ -630,7 +728,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
               <h3 className="text-sm font-semibold text-foreground">Generate rota</h3>
               <p className="text-sm text-muted-foreground">
                 Create scheduled visits from this plan (max 31 days). View results in{' '}
-                <Link to="/scheduling/view" className="text-sky-600 underline">
+                <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
                   Scheduling
                 </Link>
                 .

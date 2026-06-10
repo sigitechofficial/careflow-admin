@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, User, Users } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, LayoutList, Table2, User, Users } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { shiftMedicationChartMonth } from '@/features/service-users/hooks/useMedicationMarChart'
@@ -24,33 +25,51 @@ import {
   VISIT_PLAN_DAY_LABELS,
   type ServiceUserVisitPlan,
   type VisitPlanSlot,
-  type VisitPlanSlotCode,
 } from '@/features/service-users/visit-plan/types'
+import {
+  fetchVisitPlanCalendarVisits,
+  type VisitPlanCalendarVisit,
+} from '@/features/service-users/visit-plan/api'
+import {
+  VisitPlanCalendarOutcomeDialog,
+  type VisitPlanCalendarSelection,
+} from '@/features/service-users/visit-plan/VisitPlanCalendarOutcomeDialog'
+import {
+  VISIT_PLAN_CALENDAR_OUTCOME_LEGEND,
+  visitPlanCalendarDisplayStatus,
+  visitPlanCalendarOutcomeMeta,
+  visitPlanCalendarOutcomeShortLabel,
+} from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
+import { toastWarning } from '@/shared/lib/toast'
 import '@/features/service-users/medication/mar-calendar.css'
 import '@/features/service-users/visit-plan/visit-plan-calendar.css'
 
-const SLOT_ROW_CLASS: Record<VisitPlanSlotCode, string> = {
-  MORNING: 'vp-slot-morning',
-  LUNCH: 'vp-slot-lunch',
-  TEA: 'vp-slot-tea',
-  EVENING: 'vp-slot-evening',
-  NIGHT: 'vp-slot-night',
-}
+const SLOT_ROW_CLASSES = [
+  'vp-slot-morning',
+  'vp-slot-lunch',
+  'vp-slot-tea',
+  'vp-slot-evening',
+  'vp-slot-night',
+] as const
 
-const SLOT_CHIP_CLASS: Record<VisitPlanSlotCode, string> = {
-  MORNING: 'vp-chip-morning',
-  LUNCH: 'vp-chip-lunch',
-  TEA: 'vp-chip-tea',
-  EVENING: 'vp-chip-evening',
-  NIGHT: 'vp-chip-night',
-}
+const SLOT_CHIP_CLASSES = [
+  'vp-chip-morning',
+  'vp-chip-lunch',
+  'vp-chip-tea',
+  'vp-chip-evening',
+  'vp-chip-night',
+] as const
 
-const SLOT_DOT_CLASS: Record<VisitPlanSlotCode, string> = {
-  MORNING: 'bg-amber-500',
-  LUNCH: 'bg-orange-500',
-  TEA: 'bg-sky-500',
-  EVENING: 'bg-indigo-500',
-  NIGHT: 'bg-violet-500',
+const SLOT_DOT_CLASSES = [
+  'bg-amber-500',
+  'bg-orange-500',
+  'bg-sky-500',
+  'bg-indigo-500',
+  'bg-violet-500',
+] as const
+
+function slotPaletteIndex(index: number): number {
+  return index % SLOT_ROW_CLASSES.length
 }
 
 const VIEW_MODES: { id: VisitPlanCalendarViewMode; label: string }[] = [
@@ -59,10 +78,84 @@ const VIEW_MODES: { id: VisitPlanCalendarViewMode; label: string }[] = [
   { id: 'monthly', label: 'Month' },
 ]
 
+type VisitPlanCalendarDisplayMode = 'calendar' | 'list'
+
+const DISPLAY_MODES: { id: VisitPlanCalendarDisplayMode; label: string; icon: typeof Table2 }[] = [
+  { id: 'calendar', label: 'Calendar', icon: Table2 },
+  { id: 'list', label: 'List', icon: LayoutList },
+]
+
+type VisitListEntry = {
+  iso: string
+  month: string
+  day: number
+  slot: VisitPlanSlot
+  start: string
+  end: string
+  carerNames: string[]
+}
+
+function buildVisitList(
+  enabledSlots: VisitPlanSlot[],
+  visibleDays: ReturnType<typeof visitPlanVisibleDayCells>,
+  anchorByMonth: Map<string, Date>,
+  employeeNameById: Map<string, string>,
+): VisitListEntry[] {
+  const entries: VisitListEntry[] = []
+  for (const cell of visibleDays) {
+    const anchor = anchorByMonth.get(cell.month)!
+    for (const slot of enabledSlots) {
+      if (!slotMatchesPlanDay(slot, cell.month, cell.day, anchor)) continue
+      const carers = carerLabels(slot, employeeNameById)
+      entries.push({
+        iso: cell.iso,
+        month: cell.month,
+        day: cell.day,
+        slot,
+        start: normalizeTimeForInput(slot.plannedStartTime),
+        end: normalizeTimeForInput(slot.plannedEndTime),
+        carerNames: carers.names,
+      })
+    }
+  }
+  return entries.sort((a, b) => {
+    if (a.iso !== b.iso) return a.iso.localeCompare(b.iso)
+    return a.slot.sortOrder - b.slot.sortOrder
+  })
+}
+
+function groupVisitListByDate(entries: VisitListEntry[]): Map<string, VisitListEntry[]> {
+  const groups = new Map<string, VisitListEntry[]>()
+  for (const entry of entries) {
+    const list = groups.get(entry.iso) ?? []
+    list.push(entry)
+    groups.set(entry.iso, list)
+  }
+  return groups
+}
+
 type Props = {
   plan: ServiceUserVisitPlan
+  serviceUserId: string
   employeeNameById: Map<string, string>
   className?: string
+}
+
+function outcomeKey(visitPlanSlotId: string | undefined, iso: string): string | null {
+  if (!visitPlanSlotId) return null
+  return `${visitPlanSlotId}:${iso}`
+}
+
+function carerNamesForCell(
+  slot: VisitPlanSlot,
+  outcome: VisitPlanCalendarVisit | null | undefined,
+  employeeNameById: Map<string, string>,
+): string[] {
+  const allocatedIds = outcome?.allocatedEmployeeIds ?? []
+  if (allocatedIds.length > 0) {
+    return allocatedIds.map((id) => resolveEmployeeDisplayName(employeeNameById, id))
+  }
+  return carerLabels(slot, employeeNameById).names
 }
 
 function carerLabels(slot: VisitPlanSlot, employeeNameById: Map<string, string>) {
@@ -101,6 +194,10 @@ function VisitCalendarCellTooltip({
   start,
   end,
   carerNames,
+  outcomeStatus,
+  outcomeNotes,
+  allocatedCount,
+  requiredCarers,
 }: {
   slot: VisitPlanSlot
   month: string
@@ -108,12 +205,21 @@ function VisitCalendarCellTooltip({
   start: string
   end: string
   carerNames: string[]
+  outcomeStatus: string
+  outcomeNotes?: string | null
+  allocatedCount?: number
+  requiredCarers?: number
 }) {
+  const outcome = visitPlanCalendarOutcomeMeta(outcomeStatus)
+  const carersRequired = requiredCarers ?? slot.requiredCarers
+  const carersAllocated = allocatedCount ?? carerNames.length
+  const understaffed = outcomeStatus === 'NEEDS_ATTENTION' || carersAllocated < carersRequired
   return (
     <div className="space-y-2.5 text-left">
       <div className="border-b border-border/60 pb-2">
         <p className="font-semibold text-foreground">{slot.label}</p>
-        <p className="text-xs text-muted-foreground">{formatCalendarDateLabel(month, day)}</p>
+        <p className="mt-1 text-xs font-medium">{outcome.label}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{formatCalendarDateLabel(month, day)}</p>
       </div>
       <dl className="space-y-2 text-xs">
         <div className="flex items-start gap-2.5">
@@ -140,8 +246,10 @@ function VisitCalendarCellTooltip({
               {slot.requiredCarers} carer{slot.requiredCarers === 1 ? '' : 's'} required
             </dt>
             <dd className="mt-1 text-muted-foreground">
-              {carerNames.length === 0 ? (
-                'No carers assigned'
+              {outcomeStatus === 'NOT_GENERATED' ? (
+                'Generate rota from Configure to create this visit on the schedule'
+              ) : carerNames.length === 0 ? (
+                'No carers assigned on rota'
               ) : (
                 <ul className="space-y-0.5">
                   {carerNames.map((name) => (
@@ -152,16 +260,33 @@ function VisitCalendarCellTooltip({
                 </ul>
               )}
             </dd>
+            {understaffed && outcomeStatus !== 'NOT_GENERATED' ? (
+              <dd className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                Needs attention: {carersAllocated}/{carersRequired} carers allocated
+              </dd>
+            ) : null}
           </div>
         </div>
+        {outcomeNotes?.trim() ? (
+          <div className="rounded-md bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">Notes</p>
+            <p className="mt-1 whitespace-pre-wrap">{outcomeNotes.trim()}</p>
+          </div>
+        ) : null}
       </dl>
     </div>
   )
 }
 
-export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Props) {
+export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, className }: Props) {
+  const [displayMode, setDisplayMode] = React.useState<VisitPlanCalendarDisplayMode>('calendar')
   const [viewMode, setViewMode] = React.useState<VisitPlanCalendarViewMode>('monthly')
   const [focusIso, setFocusIso] = React.useState(visitPlanTodayIsoDate)
+  const [outcomeDialogOpen, setOutcomeDialogOpen] = React.useState(false)
+  const [selectedVisit, setSelectedVisit] = React.useState<VisitPlanCalendarSelection | null>(null)
+  const [outcomeOverrides, setOutcomeOverrides] = React.useState<Map<string, VisitPlanCalendarVisit>>(
+    () => new Map(),
+  )
 
   const enabledSlots = React.useMemo(
     () => [...(plan.slots ?? [])].filter((s) => s.isEnabled).sort((a, b) => a.sortOrder - b.sortOrder),
@@ -217,12 +342,74 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
     setFocusIso((iso) => shiftVisitPlanIsoDate(iso, visitPlanCalendarNavStep(viewMode)))
   }
 
+  const visitList = React.useMemo(
+    () => buildVisitList(enabledSlots, visibleDays, anchorByMonth, employeeNameById),
+    [enabledSlots, visibleDays, anchorByMonth, employeeNameById],
+  )
+
+  const visitListByDate = React.useMemo(() => groupVisitListByDate(visitList), [visitList])
+
+  const outcomeRange = React.useMemo(() => {
+    if (!visibleDays.length) return null
+    const sorted = [...visibleDays].sort((a, b) => a.iso.localeCompare(b.iso))
+    return { from: sorted[0]!.iso, to: sorted[sorted.length - 1]!.iso }
+  }, [visibleDays])
+
+  const outcomesQuery = useQuery({
+    queryKey: ['visit-plan-calendar-visits', serviceUserId, plan.id, outcomeRange?.from, outcomeRange?.to],
+    queryFn: () => fetchVisitPlanCalendarVisits(serviceUserId, plan.id, outcomeRange!),
+    enabled: Boolean(serviceUserId && plan.id && outcomeRange),
+  })
+
+  const outcomeByKey = React.useMemo(() => {
+    const map = new Map<string, VisitPlanCalendarVisit>()
+    for (const row of outcomesQuery.data ?? []) {
+      const key = outcomeKey(row.visitPlanSlotId ?? undefined, row.occurrenceDate)
+      if (key) map.set(key, row)
+    }
+    for (const [key, row] of outcomeOverrides) map.set(key, row)
+    return map
+  }, [outcomesQuery.data, outcomeOverrides])
+
+  const generatedInPeriod = React.useMemo(() => {
+    let count = 0
+    for (const slot of enabledSlots) {
+      for (const cell of visibleDays) {
+        const anchor = anchorByMonth.get(cell.month)!
+        if (!slotMatchesPlanDay(slot, cell.month, cell.day, anchor)) continue
+        const key = outcomeKey(slot.id, cell.iso)
+        if (key && outcomeByKey.has(key)) count++
+      }
+    }
+    return count
+  }, [enabledSlots, visibleDays, anchorByMonth, outcomeByKey])
+
+  const openOutcomeDialog = (selection: VisitPlanCalendarSelection) => {
+    const key = outcomeKey(selection.slot.id, selection.iso)
+    const outcome = key ? outcomeByKey.get(key) : null
+    if (!outcome) {
+      toastWarning(
+        'Visit not on rota',
+        'Generate rota from the Configure tab to create scheduled visits for this date.',
+      )
+      return
+    }
+    setSelectedVisit(selection)
+    setOutcomeDialogOpen(true)
+  }
+
+  const selectedOutcome = React.useMemo(() => {
+    if (!selectedVisit?.slot.id) return null
+    const key = outcomeKey(selectedVisit.slot.id, selectedVisit.iso)
+    return key ? outcomeByKey.get(key) ?? null : null
+  }, [selectedVisit, outcomeByKey])
+
   const periodSummary =
     viewMode === 'daily'
-      ? `${visitsInPeriod} planned visit${visitsInPeriod === 1 ? '' : 's'} on this day`
+      ? `${visitsInPeriod} planned · ${generatedInPeriod} on rota`
       : viewMode === 'weekly'
-        ? `${visitsInPeriod} planned visit${visitsInPeriod === 1 ? '' : 's'} this week`
-        : `${visitsInPeriod} planned visit${visitsInPeriod === 1 ? '' : 's'} in ${periodLabel.toLowerCase()}`
+        ? `${visitsInPeriod} planned · ${generatedInPeriod} on rota this week`
+        : `${visitsInPeriod} planned · ${generatedInPeriod} on rota in ${periodLabel.toLowerCase()}`
 
   if (enabledSlots.length === 0) {
     return (
@@ -254,7 +441,9 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
               <CalendarDays className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="vp-cal-title">Visit calendar</h3>
+              <h3 className="vp-cal-title">
+                {displayMode === 'list' ? 'Visit list' : 'Visit calendar'}
+              </h3>
               <p className="vp-cal-subtitle">{periodSummary}</p>
             </div>
           </div>
@@ -272,7 +461,23 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
 
         <div className="vp-cal-toolbar">
           <div className="vp-cal-toolbar-group">
-            <div className="vp-cal-view-toggle" role="group" aria-label="Calendar view">
+            <div className="vp-cal-view-toggle" role="group" aria-label="Display mode">
+              {DISPLAY_MODES.map((mode) => {
+                const Icon = mode.icon
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    className={cn('vp-cal-view-btn vp-cal-display-btn', displayMode === mode.id && 'active')}
+                    onClick={() => setDisplayMode(mode.id)}
+                  >
+                    <Icon className="mr-1.5 inline h-3.5 w-3.5" aria-hidden />
+                    {mode.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="vp-cal-view-toggle" role="group" aria-label="Period">
               {VIEW_MODES.map((mode) => (
                 <button
                   key={mode.id}
@@ -319,19 +524,106 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
 
         <div className="vp-cal-legend">
           <div className="vp-cal-legend-items">
-            {enabledSlots.map((slot) => (
+            {enabledSlots.map((slot, index) => (
               <span
                 key={slot.slotCode}
-                className={cn('vp-cal-legend-chip', SLOT_CHIP_CLASS[slot.slotCode])}
+                className={cn('vp-cal-legend-chip', SLOT_CHIP_CLASSES[slotPaletteIndex(index)])}
               >
-                <span className={cn('vp-cal-legend-dot', SLOT_DOT_CLASS[slot.slotCode])} aria-hidden />
+                <span className={cn('vp-cal-legend-dot', SLOT_DOT_CLASSES[slotPaletteIndex(index)])} aria-hidden />
                 {slot.label}
               </span>
             ))}
           </div>
-          <p className="vp-cal-hint">Hover a visit cell for time and carer details</p>
+          <div className="vp-cal-legend-items vp-cal-outcome-legend">
+            {VISIT_PLAN_CALENDAR_OUTCOME_LEGEND.map((status) => {
+              const meta = visitPlanCalendarOutcomeMeta(status)
+              return (
+                <span key={status} className="vp-cal-legend-outcome-item">
+                  <span className={cn('vp-cal-outcome-swatch', meta.className)} aria-hidden />
+                  {meta.shortLabel}
+                </span>
+              )
+            })}
+          </div>
+          <p className="vp-cal-hint">
+            {displayMode === 'list'
+              ? 'Generated visits can be clicked to record carer outcome. Striped cells are planned but not yet on rota.'
+              : 'Click generated visits to record outcomes. Striped cells are planned but not yet on rota.'}
+          </p>
         </div>
 
+        {displayMode === 'list' ? (
+          <div className="vp-cal-list">
+            {visitList.length === 0 ? (
+              <div className="vp-cal-list-empty">
+                <LayoutList className="mx-auto h-8 w-8 text-muted-foreground/50" aria-hidden />
+                <p className="mt-2 text-sm text-muted-foreground">No visits planned in this period.</p>
+              </div>
+            ) : (
+              <ul className="vp-cal-list-groups">
+                {[...visitListByDate.entries()].map(([iso, dayEntries]) => (
+                  <li key={iso} className="vp-cal-list-group">
+                    <h4 className="vp-cal-list-date">{formatCalendarDateLabel(dayEntries[0]!.month, dayEntries[0]!.day)}</h4>
+                    <ul className="vp-cal-list-items">
+                      {dayEntries.map((entry) => {
+                        const key = outcomeKey(entry.slot.id, entry.iso)
+                        const outcome = key ? outcomeByKey.get(key) : null
+                        const outcomeStatus = visitPlanCalendarDisplayStatus(outcome)
+                        const outcomeMeta = visitPlanCalendarOutcomeMeta(outcomeStatus)
+                        const cellCarerNames = carerNamesForCell(entry.slot, outcome ?? undefined, employeeNameById)
+                        return (
+                          <li key={`${entry.iso}-${entry.slot.slotCode}`}>
+                            <button
+                              type="button"
+                              className={cn('vp-cal-list-item w-full text-left', outcomeMeta.className)}
+                              aria-label={`${entry.slot.label} ${formatCalendarDateLabel(entry.month, entry.day)} — ${outcomeMeta.label}`}
+                              onClick={() =>
+                                openOutcomeDialog({
+                                  iso: entry.iso,
+                                  month: entry.month,
+                                  day: entry.day,
+                                  slot: entry.slot,
+                                  start: entry.start,
+                                  end: entry.end,
+                                  carerNames: cellCarerNames,
+                                })
+                              }
+                            >
+                              <div className="vp-cal-list-item-main">
+                                <div className="min-w-0">
+                                  <p className="vp-cal-list-slot">{entry.slot.label}</p>
+                                  <p className="vp-cal-list-status">{outcomeMeta.label}</p>
+                                  <p className="vp-cal-list-time">
+                                    <Clock className="inline h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    {entry.start} – {entry.end}
+                                    {entry.slot.durationMinutes ? ` · ${entry.slot.durationMinutes} min` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="vp-cal-list-item-meta">
+                                <span className="vp-cal-list-carers">
+                                  <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                  {cellCarerNames.length === 0
+                                    ? outcomeStatus === 'NOT_GENERATED'
+                                      ? 'Not on rota'
+                                      : 'Unassigned'
+                                    : cellCarerNames.join(', ')}
+                                </span>
+                                <span className="vp-cal-list-required">
+                                  {entry.slot.requiredCarers} required
+                                </span>
+                              </div>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
         <TooltipProvider delayDuration={150}>
           <div className="mar-wrapper overflow-x-auto">
             <table className="mar-table">
@@ -373,7 +665,7 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
                           <td colSpan={visibleDays.length + 2} />
                         </tr>
                       ) : null}
-                      <tr className={cn('vp-cal-row med-group-row mar-med-card-start', SLOT_ROW_CLASS[slot.slotCode])}>
+                      <tr className={cn('vp-cal-row med-group-row mar-med-card-start', SLOT_ROW_CLASSES[slotPaletteIndex(rowIndex)])}>
                         <td className="sticky-col">
                           <p className="vp-cal-slot-name">{slot.label}</p>
                           <div className="vp-cal-slot-meta">
@@ -391,6 +683,11 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
                           const anchor = anchorByMonth.get(cell.month)!
                           const matches = slotMatchesPlanDay(slot, cell.month, cell.day, anchor)
                           const today = cell.iso === todayIso
+                          const key = outcomeKey(slot.id, cell.iso)
+                          const outcome = key ? outcomeByKey.get(key) : null
+                          const outcomeStatus = visitPlanCalendarDisplayStatus(outcome)
+                          const outcomeMeta = visitPlanCalendarOutcomeMeta(outcomeStatus)
+                          const cellCarerNames = carerNamesForCell(slot, outcome ?? undefined, employeeNameById)
                           return (
                             <td
                               key={`${slot.slotCode}-${cell.iso}`}
@@ -403,16 +700,27 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
                               {matches ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div
-                                      className={cn(
-                                        'vp-cal-visit',
-                                        SLOT_CHIP_CLASS[slot.slotCode],
-                                      )}
-                                      tabIndex={0}
+                                    <button
+                                      type="button"
+                                      className={cn('vp-cal-visit', outcomeMeta.className)}
+                                      aria-label={`${slot.label} ${formatCalendarDateLabel(cell.month, cell.day)} — ${outcomeMeta.label}`}
+                                      onClick={() =>
+                                        openOutcomeDialog({
+                                          iso: cell.iso,
+                                          month: cell.month,
+                                          day: cell.day,
+                                          slot,
+                                          start,
+                                          end,
+                                          carerNames: cellCarerNames,
+                                        })
+                                      }
                                     >
                                       <span className="vp-cal-visit-time">{start}</span>
-                                      <span className="vp-cal-visit-mark">{carers.cellMark}</span>
-                                    </div>
+                                      <span className="vp-cal-visit-label">
+                                        {visitPlanCalendarOutcomeShortLabel(outcomeStatus)}
+                                      </span>
+                                    </button>
                                   </TooltipTrigger>
                                   <TooltipContent
                                     side="top"
@@ -426,7 +734,11 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
                                       day={cell.day}
                                       start={start}
                                       end={end}
-                                      carerNames={carers.names}
+                                      carerNames={cellCarerNames}
+                                      outcomeStatus={outcomeStatus}
+                                      outcomeNotes={outcome?.notes}
+                                      allocatedCount={outcome?.allocatedCount}
+                                      requiredCarers={outcome?.requiredCarers}
                                     />
                                   </TooltipContent>
                                 </Tooltip>
@@ -442,12 +754,31 @@ export function VisitPlanCalendarTab({ plan, employeeNameById, className }: Prop
             </table>
           </div>
         </TooltipProvider>
+        )}
 
         <footer className="vp-cal-footer">
-          Preview from visit plan recurrence rules. Generate rota from an active plan to create scheduled visits
-          in Scheduling.
+          Generated visits reflect the scheduling rota. Record carer outcomes after visits occur. Striped cells are
+          planned from the visit plan but not yet generated — use Generate rota on Configure.
         </footer>
       </article>
+
+      <VisitPlanCalendarOutcomeDialog
+        open={outcomeDialogOpen}
+        onOpenChange={setOutcomeDialogOpen}
+        serviceUserId={serviceUserId}
+        planId={plan.id}
+        selection={selectedVisit}
+        existing={selectedOutcome}
+        onSaved={(visit) => {
+          const key = outcomeKey(visit.visitPlanSlotId ?? undefined, visit.occurrenceDate)
+          if (!key) return
+          setOutcomeOverrides((prev) => {
+            const next = new Map(prev)
+            next.set(key, visit)
+            return next
+          })
+        }}
+      />
     </section>
   )
 }

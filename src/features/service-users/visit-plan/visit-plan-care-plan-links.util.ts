@@ -14,10 +14,10 @@ function defaultSlotsForCarePlan(carePlan: AcceptedCarePlanItem): VisitPlanSlotC
   const name = carePlan.formName.trim().toLowerCase()
 
   if (area === 'Medication' || name.includes('medication') || name.includes('emar')) {
-    return ['MORNING', 'LUNCH', 'TEA', 'EVENING', 'NIGHT']
+    return ['MORNING', 'MIDDAY', 'AFTERNOON', 'EVENING', 'NIGHT']
   }
   if (area === 'Nutrition' || name.includes('eating') || name.includes('drinking')) {
-    return ['LUNCH', 'TEA']
+    return ['MIDDAY', 'AFTERNOON']
   }
   if (area === 'Continence' || name.includes('continence')) {
     return ['MORNING', 'EVENING', 'NIGHT']
@@ -29,10 +29,10 @@ function defaultSlotsForCarePlan(carePlan: AcceptedCarePlanItem): VisitPlanSlotC
     return ['MORNING', 'EVENING']
   }
   if (area === 'Mental Health' || name.includes('psycholog') || name.includes('mental')) {
-    return ['MORNING', 'TEA', 'EVENING']
+    return ['MORNING', 'AFTERNOON', 'EVENING']
   }
   if (area === 'Communication' || name.includes('communication')) {
-    return ['MORNING', 'LUNCH', 'TEA', 'EVENING']
+    return ['MORNING', 'MIDDAY', 'AFTERNOON', 'EVENING']
   }
   if (name.includes('night') || name.includes('sleep')) {
     return ['NIGHT', 'EVENING']
@@ -58,12 +58,9 @@ export function resolveCarePlansForSlot(
   acceptedCarePlans: AcceptedCarePlanItem[],
 ): AcceptedCarePlanItem[] {
   const byId = new Map(acceptedCarePlans.map((p) => [p.formId, p]))
-  const explicit = (slot.linkedCarePlanFormIds ?? [])
+  return (slot.linkedCarePlanFormIds ?? [])
     .map((id) => byId.get(id))
     .filter((p): p is AcceptedCarePlanItem => Boolean(p))
-  if (explicit.length > 0) return explicit
-
-  return acceptedCarePlans.filter((cp) => carePlanSuggestedForSlot(cp, slot))
 }
 
 export function buildCarePathwaySteps(input: {

@@ -52,6 +52,15 @@ export type MedicationRoundRow = {
   isActive: boolean
 }
 
+export type CreateMedicationRoundPayload = {
+  name: string
+  code?: string
+  time: string
+  windowStart?: string
+  windowEnd?: string
+  sortOrder?: number
+}
+
 export type UpdateMedicationRoundPayload = {
   name?: string
   time?: string
@@ -82,6 +91,18 @@ export async function listMedicationRounds(init?: RequestInit): Promise<Medicati
   )
   if (Array.isArray(res)) return res
   return (res as ApiEnvelope<MedicationRoundRow[]>).data ?? []
+}
+
+export async function createMedicationRound(
+  body: CreateMedicationRoundPayload,
+): Promise<MedicationRoundRow> {
+  const res = await apiJson<ApiEnvelope<MedicationRoundRow> | { data: MedicationRoundRow }>(
+    '/medication-administration-rounds',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res && typeof res === 'object' && 'data' in res
+    ? (res as { data: MedicationRoundRow }).data
+    : (res as MedicationRoundRow)
 }
 
 export async function patchMedicationRound(

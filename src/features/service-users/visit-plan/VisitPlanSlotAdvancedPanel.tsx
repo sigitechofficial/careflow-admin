@@ -11,10 +11,7 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import type { VisitPlanSlot, VisitPlanSlotCode } from '@/features/service-users/visit-plan/types'
-import {
-  VISIT_PLAN_ANALYSIS_AREAS,
-  VISIT_PLAN_SCHEDULE_FREQUENCIES,
-} from '@/features/service-users/visit-plan/visit-plan-constants'
+import { VISIT_PLAN_SCHEDULE_FREQUENCIES } from '@/features/service-users/visit-plan/visit-plan-constants'
 import { VisitPlanMonthlyDaySection } from '@/features/service-users/visit-plan/VisitPlanMonthlyDaySection'
 import { VisitPlanWeeklyDaySection } from '@/features/service-users/visit-plan/VisitPlanWeeklyDaySection'
 
@@ -161,12 +158,19 @@ export function VisitPlanSlotAdvancedPanel({
         {slot.scheduleFrequency === 'MONTHLY' ? (
           <VisitPlanMonthlyDaySection slot={slot} disabled={disabled} onChange={onChange} />
         ) : slot.scheduleFrequency === 'WEEKLY' ? (
-          <VisitPlanWeeklyDaySection slot={slot} disabled={disabled} onChange={onChange} />
+          <VisitPlanWeeklyDaySection
+            slot={slot}
+            variant="weekly"
+            disabled={disabled}
+            onChange={onChange}
+          />
         ) : (
-          <p className="text-xs text-muted-foreground">
-            Daily visits use the weekday checkboxes in the <strong>Call pattern</strong> grid below.
-            Use &quot;Repeat every&quot; for every N days.
-          </p>
+          <VisitPlanWeeklyDaySection
+            slot={slot}
+            variant="daily"
+            disabled={disabled}
+            onChange={onChange}
+          />
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -196,85 +200,9 @@ export function VisitPlanSlotAdvancedPanel({
         </div>
 
         <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-          Link care plans and assign carers for each call in the <strong className="font-medium">Call pattern</strong>{' '}
-          section below — morning, lunch, tea, and other visits can have separate carers.
+          Link care plans and assign carers in the <strong className="font-medium">Call pattern</strong> table below.
+          Recording options are in <strong className="font-medium">Additional details</strong> after the table.
         </p>
-
-        <div>
-          <Label className="text-xs text-muted-foreground">Time required</Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            From / To are set in the call pattern grid below. Set expected visit duration here.
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              type="number"
-              min={1}
-              max={480}
-              placeholder="duration"
-              disabled={disabled}
-              value={slot.durationMinutes ?? ''}
-              onChange={(e) =>
-                onChange({
-                  durationMinutes: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-              className="w-28"
-            />
-            <span className="text-sm text-muted-foreground">Min</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-muted/10 p-4 space-y-1">
-        <h4 className="mb-2 text-sm font-semibold text-foreground">Additional details</h4>
-
-        <YesNoRow
-          id="notes-required"
-          checked={slot.notesRequired}
-          disabled={disabled}
-          onChange={(notesRequired) => onChange({ notesRequired })}
-          label="Do you want to make the recording of notes mandatory?"
-        />
-        <YesNoRow
-          id="photos-allowed"
-          checked={slot.photoAllowed}
-          disabled={disabled}
-          onChange={(photoAllowed) => onChange({ photoAllowed })}
-          label="Are photos allowed for this action?"
-        />
-        <YesNoRow
-          id="share-family"
-          checked={slot.shareOutcomeWithFamily}
-          disabled={disabled}
-          onChange={(shareOutcomeWithFamily) => onChange({ shareOutcomeWithFamily })}
-          label="Do you want to share the outcome with the family?"
-        />
-
-        <div className="pt-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">
-              Do you want this as part of an analysis area report?
-            </Label>
-            <FieldHelp text="Groups visit outcomes into the selected analysis report category." />
-          </div>
-          <Select
-            value={slot.analysisArea ?? '__none__'}
-            disabled={disabled}
-            onValueChange={(v) => onChange({ analysisArea: v === '__none__' ? null : v })}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select analysis area" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Select analysis area</SelectItem>
-              {VISIT_PLAN_ANALYSIS_AREAS.filter((a) => a.value).map((a) => (
-                <SelectItem key={a.value} value={a.value}>
-                  {a.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </section>
     </div>
   )

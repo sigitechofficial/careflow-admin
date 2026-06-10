@@ -1,6 +1,7 @@
 export type VisitPlanStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'ENDED'
 
-export type VisitPlanSlotCode = 'MORNING' | 'LUNCH' | 'TEA' | 'EVENING' | 'NIGHT'
+/** Medication administration round code — same catalogue as Settings → Time slots. */
+export type VisitPlanSlotCode = string
 
 export type VisitPlanScheduleFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
@@ -100,10 +101,13 @@ export type ServiceUserVisitPlan = {
 
 export const VISIT_PLAN_DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
-export const VISIT_PLAN_SLOT_LABELS: Record<VisitPlanSlotCode, string> = {
-  MORNING: 'Morning call',
-  LUNCH: 'Lunch call',
-  TEA: 'Tea call',
-  EVENING: 'Evening call',
-  NIGHT: 'Night call',
+/** @deprecated Prefer `VisitPlanSlot.label` from medication round names. */
+export const VISIT_PLAN_SLOT_LABELS: Record<string, string> = {
+  MORNING: 'Morning',
+  MIDDAY: 'Midday',
+  AFTERNOON: 'Afternoon',
+  EVENING: 'Evening',
+  NIGHT: 'Night',
+  LUNCH: 'Midday',
+  TEA: 'Afternoon',
 }

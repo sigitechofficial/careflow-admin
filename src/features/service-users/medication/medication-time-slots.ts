@@ -52,9 +52,7 @@ export function newTimeSlot(partial?: Partial<MedicationTimeSlot>): MedicationTi
 }
 
 export function timeSlotsFromRounds(rounds: MedicationRoundLookup[]): MedicationTimeSlot[] {
-  const sorted = [...rounds].sort(
-    (a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99) || a.name.localeCompare(b.name),
-  )
+  const sorted = sortMedicationRounds(rounds)
   if (sorted.length === 0) {
     return DEFAULT_ADMINISTRATION_ROUNDS.map(r =>
       newTimeSlot({ roundName: r.name, dueTime: r.time }),
@@ -100,6 +98,38 @@ export function roundNameFromDueTime(dueTime: string | null | undefined): string
     if (dueM >= hmToMinutes(ws) && dueM <= hmToMinutes(we)) return r.name
   }
   return null
+}
+
+export const CUSTOM_ROUND_VALUE = '__custom__'
+
+export function sortMedicationRounds(rounds: MedicationRoundLookup[]): MedicationRoundLookup[] {
+  return [...rounds].sort(
+    (a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99) || a.name.localeCompare(b.name),
+  )
+}
+
+export function findMedicationRound(
+  rounds: MedicationRoundLookup[],
+  roundId: string | undefined,
+): MedicationRoundLookup | undefined {
+  if (!roundId) return undefined
+  return rounds.find(r => r.id === roundId)
+}
+
+export function nextUnusedMedicationRound(
+  rounds: MedicationRoundLookup[],
+  usedRoundIds: Iterable<string>,
+): MedicationRoundLookup | undefined {
+  const used = new Set(usedRoundIds)
+  return sortMedicationRounds(rounds).find(r => !used.has(r.id))
+}
+
+export function slotFromRound(round: MedicationRoundLookup): MedicationTimeSlot {
+  return newTimeSlot({
+    roundId: round.id,
+    roundName: round.name,
+    dueTime: normalizeDueTimeHm(round.time) ?? '',
+  })
 }
 
 export function matchRoundIdByTime(

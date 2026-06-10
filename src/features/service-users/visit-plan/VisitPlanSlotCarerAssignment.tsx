@@ -1,8 +1,10 @@
 import * as React from 'react'
-import { Loader2, Star, UserX } from 'lucide-react'
+import { Loader2, Star, UserX, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Checkbox, RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
+import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
+import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
 import type {
   VisitPlanCarerCandidate,
@@ -97,8 +99,20 @@ export function VisitPlanSlotCarerAssignment({
   const [candidates, setCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
   const [requiredSkills, setRequiredSkills] = React.useState<string[]>([])
 
-  const selected = new Set(slot.assignedEmployeeIds ?? [])
+  const assignedIds = slot.assignedEmployeeIds ?? []
+  const selected = new Set(assignedIds)
   const maxCarers = slot.requiredCarers || 1
+  const employeeNameById = useEmployeeNameMap(assignedIds)
+
+  const removeAssigned = (employeeId: string) => {
+    if (disabled) return
+    onChange(assignedIds.filter((id) => id !== employeeId))
+  }
+
+  const clearAssigned = () => {
+    if (disabled) return
+    onChange([])
+  }
 
   const loadSuggestions = React.useCallback(async () => {
     if (!serviceUserId) return
@@ -151,7 +165,33 @@ export function VisitPlanSlotCarerAssignment({
     onChange([...next])
   }
 
-  const singleSelectValue = maxCarers === 1 ? (slot.assignedEmployeeIds?.[0] ?? '') : undefined
+  const displayCandidates = React.useMemo(() => {
+    const byId = new Map(candidates.map((c) => [c.employeeId, c]))
+    for (const id of assignedIds) {
+      if (byId.has(id)) continue
+      byId.set(id, {
+        employeeId: id,
+        displayName: resolveEmployeeDisplayName(employeeNameById, id),
+        role: null,
+        jobTitle: null,
+        fit: 'partial',
+        isPreferred: false,
+        isBlocked: false,
+        availability: {
+          availableDays: [],
+          unavailableDays: [],
+          timeWindowOk: true,
+          summary: 'Currently assigned — not in latest suggestion list',
+        },
+        skills: { matched: [], missing: [] },
+        complianceIssues: 0,
+        warnings: ['Currently assigned to this slot'],
+      })
+    }
+    return [...byId.values()]
+  }, [assignedIds, candidates, employeeNameById])
+
+  const singleSelectValue = maxCarers === 1 ? (assignedIds[0] ?? '') : undefined
 
   return (
     <div
@@ -186,6 +226,42 @@ export function VisitPlanSlotCarerAssignment({
         </p>
       ) : null}
 
+      {assignedIds.length > 0 ? (
+        <div className="rounded-md border border-sky-200 bg-sky-50/50 px-3 py-2.5 dark:border-sky-800 dark:bg-sky-950/20">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium text-sky-900 dark:text-sky-100">Currently assigned</p>
+            {!disabled ? (
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearAssigned}>
+                Remove all
+              </Button>
+            ) : null}
+          </div>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {assignedIds.map((id) => (
+              <li
+                key={id}
+                className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-white py-1 pl-2.5 pr-1 text-xs font-medium text-sky-900 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100"
+              >
+                {resolveEmployeeDisplayName(employeeNameById, id)}
+                {!disabled ? (
+                  <button
+                    type="button"
+                    className="rounded-full p-0.5 text-sky-700 hover:bg-sky-100 dark:text-sky-200 dark:hover:bg-sky-900"
+                    aria-label={`Remove ${resolveEmployeeDisplayName(employeeNameById, id)}`}
+                    onClick={() => removeAssigned(id)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Remove a carer above, or pick a different employee below. Save the visit plan to keep changes.
+          </p>
+        </div>
+      ) : null}
+
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
       {loading && candidates.length === 0 ? (
@@ -199,19 +275,21 @@ export function VisitPlanSlotCarerAssignment({
         <p className="text-sm text-muted-foreground">No active employees found.</p>
       ) : null}
 
+      <p className="text-xs font-medium text-muted-foreground">Suggested carers</p>
+
       <ul className="max-h-80 space-y-2 overflow-y-auto pr-1">
         {maxCarers === 1 ? (
           <RadioGroup
             value={singleSelectValue}
             onValueChange={(employeeId) => {
               if (disabled) return
-              const candidate = candidates.find((c) => c.employeeId === employeeId)
+              const candidate = displayCandidates.find((c) => c.employeeId === employeeId)
               if (candidate?.isBlocked) return
               onChange(employeeId ? [employeeId] : [])
             }}
             className="space-y-2"
           >
-            {candidates.map((c) => {
+            {displayCandidates.map((c) => {
               const blocked = c.isBlocked
               return (
                 <li
@@ -238,7 +316,7 @@ export function VisitPlanSlotCarerAssignment({
             })}
           </RadioGroup>
         ) : (
-          candidates.map((c) => {
+          displayCandidates.map((c) => {
             const checked = selected.has(c.employeeId)
             const blocked = c.isBlocked
             const atLimit = !checked && selected.size >= maxCarers

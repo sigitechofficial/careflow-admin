@@ -5,6 +5,11 @@ import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
+  AddressPlacesField,
+  emptyAddressPlacesValue,
+  type AddressPlacesValue,
+} from '@/shared/ui/address-places-field'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -48,15 +53,9 @@ type FormState = {
   locationId: string
   keyWorkerId: string
   namedNurseId: string
-  addressLine1: string
-  addressLine2: string
-  town: string
-  county: string
-  country: string
-  postcode: string
   keySafeNumber: string
   accessInstructions: string
-}
+} & AddressPlacesValue
 
 const emptyForm: FormState = {
   firstName: '',
@@ -83,14 +82,9 @@ const emptyForm: FormState = {
   locationId: '',
   keyWorkerId: '',
   namedNurseId: '',
-  addressLine1: '',
-  addressLine2: '',
-  town: '',
-  county: '',
-  country: '',
-  postcode: '',
   keySafeNumber: '',
   accessInstructions: '',
+  ...emptyAddressPlacesValue(),
 }
 
 function Section({ children }: { children: React.ReactNode }) {
@@ -157,6 +151,8 @@ function hasAddressData(f: FormState): boolean {
     f.county,
     f.country,
     f.postcode,
+    f.latitude,
+    f.longitude,
     f.keySafeNumber,
     f.accessInstructions,
   ].some((s) => s.trim() !== '')
@@ -247,6 +243,8 @@ export default function AddServiceUserPage() {
               county: form.county.trim() || undefined,
               country: form.country.trim() || undefined,
               postcode: form.postcode.trim() || undefined,
+              latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
+              longitude: form.longitude.trim() ? Number(form.longitude) : undefined,
               keySafeNumber: form.keySafeNumber.trim() || undefined,
               accessInstructions: form.accessInstructions.trim() || undefined,
             }
@@ -583,56 +581,38 @@ export default function AddServiceUserPage() {
 
       <Section>
         <SHead>Address (optional — saved after create)</SHead>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <FieldLabel>Address line 1</FieldLabel>
-            <Input
-              data-testid="service-user-address-line1"
-              value={form.addressLine1}
-              onChange={(e) => set('addressLine1')(e.target.value)}
-            />
-        </div>
-          <div className="md:col-span-2">
-            <FieldLabel>Address line 2</FieldLabel>
-            <Input value={form.addressLine2} onChange={(e) => set('addressLine2')(e.target.value)} />
-        </div>
-          <div>
-            <FieldLabel>Town</FieldLabel>
-            <Input data-testid="service-user-town" value={form.town} onChange={(e) => set('town')(e.target.value)} />
-        </div>
-          <div>
-            <FieldLabel>County</FieldLabel>
-            <Input value={form.county} onChange={(e) => set('county')(e.target.value)} />
-        </div>
-          <div>
-            <FieldLabel>Country</FieldLabel>
-            <Input value={form.country} onChange={(e) => set('country')(e.target.value)} />
-        </div>
-          <div>
-            <FieldLabel>Postcode</FieldLabel>
-            <Input
-              data-testid="service-user-postcode"
-              value={form.postcode}
-              onChange={(e) => set('postcode')(e.target.value)}
-            />
-        </div>
-          <div>
-            <FieldLabel>Key safe number</FieldLabel>
-            <Input value={form.keySafeNumber} onChange={(e) => set('keySafeNumber')(e.target.value)} autoComplete="off" />
+        <AddressPlacesField
+          value={{
+            addressLine1: form.addressLine1,
+            addressLine2: form.addressLine2,
+            town: form.town,
+            county: form.county,
+            country: form.country,
+            postcode: form.postcode,
+            latitude: form.latitude,
+            longitude: form.longitude,
+          }}
+          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <FieldLabel>Key safe number</FieldLabel>
+              <Input value={form.keySafeNumber} onChange={(e) => set('keySafeNumber')(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="md:col-span-2">
+              <FieldLabel>Access instructions</FieldLabel>
+              <textarea
+                rows={2}
+                className={cn(
+                  'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
+                  'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                )}
+                value={form.accessInstructions}
+                onChange={(e) => set('accessInstructions')(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="md:col-span-2">
-            <FieldLabel>Access instructions</FieldLabel>
-            <textarea
-              rows={2}
-              className={cn(
-                'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
-                'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-              )}
-              value={form.accessInstructions}
-              onChange={(e) => set('accessInstructions')(e.target.value)}
-            />
-        </div>
-        </div>
+        </AddressPlacesField>
       </Section>
 
       <div className="flex justify-end gap-3 pt-2">

@@ -4,6 +4,7 @@ import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
+import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
 import {
   useHousekeepingDayJobs,
   useHousekeepingJobsNeedingAttention,
@@ -18,6 +19,7 @@ import {
   employeesLabel,
   formatDateTimeLocal,
   formatJobTimeRange,
+  jobNeedsCarerAssignment,
   serviceUserLabel,
   todayIso,
 } from '@/features/scheduling/utils/scheduling-format'
@@ -81,18 +83,31 @@ function Tabs({ tab, setTab }: { tab: TabId; setTab: (t: TabId) => void }) {
   )
 }
 
-function JobActions({ jobId }: { jobId: string }) {
+function JobActions({
+  job,
+  onAssign,
+}: {
+  job: HousekeepingJob
+  onAssign: (job: HousekeepingJob) => void
+}) {
   const complete = useCompleteHousekeepingJob()
   const cancel = useCancelHousekeepingJob()
   return (
-    <div className="flex items-center gap-2 justify-end">
+    <div className="flex items-center gap-2 justify-end flex-wrap">
+      <Button
+        size="sm"
+        variant={jobNeedsCarerAssignment(job) ? 'default' : 'outline'}
+        onClick={() => onAssign(job)}
+      >
+        {jobNeedsCarerAssignment(job) ? 'Assign carers' : 'Manage carers'}
+      </Button>
       <Button
         size="sm"
         variant="secondary"
         disabled={cancel.isPending || complete.isPending}
         onClick={() =>
           cancel.mutate(
-            { jobId },
+            { jobId: job.id },
             {
               onSuccess: () => toastSuccess('Job cancelled'),
               onError: e => toastApiError(e, 'Could not cancel job'),
@@ -107,7 +122,7 @@ function JobActions({ jobId }: { jobId: string }) {
         disabled={cancel.isPending || complete.isPending}
         onClick={() =>
           complete.mutate(
-            { jobId },
+            { jobId: job.id },
             {
               onSuccess: () => toastSuccess('Job completed'),
               onError: e => toastApiError(e, 'Could not complete job'),
@@ -121,17 +136,27 @@ function JobActions({ jobId }: { jobId: string }) {
   )
 }
 
-function JobRow({ job, showStatus, showId }: { job: HousekeepingJob; showStatus: boolean; showId: boolean }) {
+function JobRow({
+  job,
+  showStatus,
+  showId,
+  onAssign,
+}: {
+  job: HousekeepingJob
+  showStatus: boolean
+  showId: boolean
+  onAssign: (job: HousekeepingJob) => void
+}) {
   return (
     <tr className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-      {showId && <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap font-mono text-xs">{job.id.slice(0, 8)}â€¦</td>}
+      {showId && <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap font-mono text-xs">{job.id.slice(0, 8)}…</td>}
       <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{formatDateTimeLocal(job.scheduledStartDateTime)}</td>
       <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{job.jobName}</td>
       <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{serviceUserLabel(job.serviceUser)}</td>
       <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{employeesLabel(job)}</td>
       {showStatus && <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{job.status}</td>}
       <td className="px-3 py-2.5">
-        <JobActions jobId={job.id} />
+        <JobActions job={job} onAssign={onAssign} />
       </td>
     </tr>
   )
@@ -141,6 +166,8 @@ export default function ManageScheduleJobsPage() {
   const hasApi = !!getApiBaseUrl()
   const [tab, setTab] = React.useState<TabId>('jobs-not-started')
   const [dayDate, setDayDate] = React.useState(todayIso())
+  const [allocateJobId, setAllocateJobId] = React.useState<string | null>(null)
+  const [allocateOpen, setAllocateOpen] = React.useState(false)
   const page = 1
 
   const notStarted = useHousekeepingJobsNotStarted(page, hasApi && tab === 'jobs-not-started')
@@ -148,6 +175,31 @@ export default function ManageScheduleJobsPage() {
   const needingAttention = useHousekeepingJobsNeedingAttention(page, hasApi && tab === 'jobs-needing-attention')
 
   const dayJobs = useHousekeepingDayJobs(dayDate, page, hasApi && tab === 'day-jobs')
+
+  const openAllocate = (job: HousekeepingJob) => {
+    setAllocateJobId(job.id)
+    setAllocateOpen(true)
+  }
+
+  const refetchActiveTab = () => {
+    if (tab === 'jobs-not-started') void notStarted.refetch()
+    else if (tab === 'jobs-needing-attention') void needingAttention.refetch()
+    else void dayJobs.refetch()
+  }
+
+  const allocateJob = React.useMemo(() => {
+    if (!allocateJobId) return null
+    const pools = [
+      notStarted.data?.rows ?? [],
+      needingAttention.data?.rows ?? [],
+      dayJobs.data?.jobs ?? [],
+    ]
+    for (const pool of pools) {
+      const found = pool.find((j) => j.id === allocateJobId)
+      if (found) return found
+    }
+    return null
+  }, [allocateJobId, notStarted.data, needingAttention.data, dayJobs.data])
 
   const loading =
     (tab === 'jobs-not-started' && notStarted.isLoading) ||
@@ -203,7 +255,9 @@ export default function ManageScheduleJobsPage() {
                         </td>
                       </tr>
                     ) : (
-                      (notStarted.data?.rows ?? []).map(job => <JobRow key={job.id} job={job} showStatus showId />)
+                      (notStarted.data?.rows ?? []).map((job) => (
+                        <JobRow key={job.id} job={job} showStatus showId onAssign={openAllocate} />
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -246,7 +300,7 @@ export default function ManageScheduleJobsPage() {
                             {(job.attentionReasons ?? []).join('; ') || job.status}
                           </td>
                           <td className="px-3 py-2.5">
-                            <JobActions jobId={job.id} />
+                            <JobActions job={job} onAssign={openAllocate} />
                           </td>
                         </tr>
                       ))
@@ -308,7 +362,7 @@ export default function ManageScheduleJobsPage() {
                           <td className="px-3 py-2.5 text-muted-foreground">{serviceUserLabel(job.serviceUser)}</td>
                           <td className="px-3 py-2.5 text-muted-foreground">{job.status}</td>
                           <td className="px-3 py-2.5">
-                            <JobActions jobId={job.id} />
+                            <JobActions job={job} onAssign={openAllocate} />
                           </td>
                         </tr>
                       ))
@@ -321,6 +375,16 @@ export default function ManageScheduleJobsPage() {
           )}
         </div>
       </div>
+
+      <ScheduleJobAllocateDialog
+        open={allocateOpen}
+        onOpenChange={(open) => {
+          setAllocateOpen(open)
+          if (!open) setAllocateJobId(null)
+        }}
+        job={allocateJob}
+        onAllocated={refetchActiveTab}
+      />
     </div>
   )
 }

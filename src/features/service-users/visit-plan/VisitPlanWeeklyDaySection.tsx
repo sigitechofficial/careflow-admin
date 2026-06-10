@@ -5,11 +5,12 @@ import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types
 
 type Props = {
   slot: VisitPlanSlot
+  variant?: 'daily' | 'weekly'
   disabled?: boolean
   onChange: (patch: Partial<VisitPlanSlot>) => void
 }
 
-export function VisitPlanWeeklyDaySection({ slot, disabled, onChange }: Props) {
+export function VisitPlanWeeklyDaySection({ slot, variant = 'weekly', disabled, onChange }: Props) {
   const toggleDay = (day: number) => {
     const has = slot.daysOfWeek.includes(day)
     const daysOfWeek = has
@@ -22,8 +23,9 @@ export function VisitPlanWeeklyDaySection({ slot, disabled, onChange }: Props) {
     <div className="space-y-3 rounded-lg border border-dashed border-border bg-background p-4">
       <p className="text-sm font-medium text-foreground">On which days of the week?</p>
       <Label className="text-xs text-muted-foreground">
-        Select the weekdays this visit repeats each week (every {slot.repeatEvery}{' '}
-        {slot.repeatEvery === 1 ? 'week' : 'weeks'}).
+        {variant === 'daily'
+          ? `Select weekdays for this daily visit. Use "Repeat every" above for every N days (currently every ${slot.repeatEvery} ${slot.repeatEvery === 1 ? 'day' : 'days'}).`
+          : `Select the weekdays this visit repeats each week (every ${slot.repeatEvery} ${slot.repeatEvery === 1 ? 'week' : 'weeks'}).`}
       </Label>
 
       <div className="mt-2 flex flex-wrap gap-2">

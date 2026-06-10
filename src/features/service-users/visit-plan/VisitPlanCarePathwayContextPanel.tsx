@@ -130,7 +130,7 @@ export function VisitPlanCarePathwayContextPanel({
                       return (
                         <tr key={slot.slotCode} className="border-b border-border/60 align-top">
                           <td className="py-3 pr-4 font-medium whitespace-nowrap">
-                            {VISIT_PLAN_SLOT_LABELS[slot.slotCode]}
+                            {slot.label || VISIT_PLAN_SLOT_LABELS[slot.slotCode] || slot.slotCode}
                             <p className="text-xs font-normal text-muted-foreground">
                               {slot.plannedStartTime}–{slot.plannedEndTime}
                             </p>

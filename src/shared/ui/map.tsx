@@ -21,6 +21,8 @@ interface MapViewProps {
   showList?: boolean
   height?: number
   className?: string
+  /** When false, address card sits below the map instead of overlaying it. */
+  overlayOnMap?: boolean
 }
 
 const typeColors: Record<string, string> = {
@@ -48,9 +50,57 @@ function buildMapUrl(locations: MapLocation[], selected?: string) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox.minLon},${bbox.minLat},${bbox.maxLon},${bbox.maxLat}&layer=mapnik&marker=${loc.lat},${loc.lng}`
 }
 
-export function MapView({ locations = [], selectedId, onSelect, showList = true, height = 320, className }: MapViewProps) {
+function LocationCard({
+  selected,
+  copied,
+  onCopy,
+  className,
+}: {
+  selected: MapLocation
+  copied: boolean
+  onCopy: () => void
+  className?: string
+}) {
+  return (
+    <div className={cn("rounded-lg border border-border bg-background p-3 shadow-sm", className)}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0">
+          <div className={cn("mt-0.5 h-6 w-6 rounded-full flex items-center justify-center shrink-0", typeColors[selected.type ?? "other"])}>
+            <MapPin className="h-3.5 w-3.5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate">{selected.name}</p>
+            <p className="text-xs text-muted-foreground">{selected.address}</p>
+          </div>
+        </div>
+        <div className="flex gap-1 shrink-0">
+          <Button size="icon-sm" variant="ghost" onClick={onCopy} title="Copy address">
+            {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+          </Button>
+          <a href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`} target="_blank" rel="noreferrer">
+            <Button size="icon-sm" variant="ghost" title="Open in Google Maps">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MapView({
+  locations = [],
+  selectedId,
+  onSelect,
+  showList = true,
+  height = 320,
+  className,
+  overlayOnMap = true,
+}: MapViewProps) {
   const [copied, setCopied] = React.useState(false)
   const selected = locations.find(l => l.id === selectedId) ?? locations[0]
+  const mapHeightPx = `${height}px`
+  const showSidebar = showList && locations.length > 1
 
   const copyAddress = () => {
     if (!selected) return
@@ -59,48 +109,39 @@ export function MapView({ locations = [], selectedId, onSelect, showList = true,
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const mapFrame = (
+    <div
+      className="relative w-full shrink-0 overflow-hidden"
+      style={{ height: mapHeightPx, minHeight: mapHeightPx }}
+    >
+      <iframe
+        src={buildMapUrl(locations, selectedId)}
+        className="absolute inset-0 h-full w-full border-0"
+        title="Map"
+        loading="lazy"
+      />
+      {selected && overlayOnMap ? (
+        <div className="absolute bottom-3 left-3 right-3">
+          <LocationCard
+            selected={selected}
+            copied={copied}
+            onCopy={copyAddress}
+            className="bg-background/95 backdrop-blur-sm shadow-lg"
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+
   return (
     <div className={cn("rounded-xl border border-border overflow-hidden bg-background", className)}>
-      <div className={cn("flex", showList && locations.length > 1 ? "flex-col md:flex-row" : "flex-col")}>
-        {/* Map iframe */}
-        <div className="flex-1 relative" style={{ height }}>
-          <iframe
-            src={buildMapUrl(locations, selectedId)}
-            className="w-full h-full border-0"
-            title="Map"
-            loading="lazy"
-          />
-          {/* Overlay info */}
-          {selected && (
-            <div className="absolute bottom-3 left-3 right-3 rounded-lg border border-border bg-background/95 backdrop-blur-sm p-3 shadow-lg">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2 min-w-0">
-                  <div className={cn("mt-0.5 h-6 w-6 rounded-full flex items-center justify-center shrink-0", typeColors[selected.type ?? "other"])}>
-                    <MapPin className="h-3.5 w-3.5 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{selected.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{selected.address}</p>
-                  </div>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button size="icon-sm" variant="ghost" onClick={copyAddress} title="Copy address">
-                    {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                  </Button>
-                  <a href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`} target="_blank" rel="noreferrer">
-                    <Button size="icon-sm" variant="ghost" title="Open in Google Maps">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Location list */}
-        {showList && locations.length > 1 && (
-          <div className="w-full md:w-56 border-t md:border-t-0 md:border-l border-border overflow-y-auto" style={{ maxHeight: height }}>
+      {showSidebar ? (
+        <div className="flex flex-col md:flex-row">
+          <div className="min-h-0 flex-1">{mapFrame}</div>
+          <div
+            className="w-full md:w-56 border-t md:border-t-0 md:border-l border-border overflow-y-auto"
+            style={{ maxHeight: mapHeightPx }}
+          >
             {locations.map(loc => (
               <button
                 key={loc.id}
@@ -123,8 +164,15 @@ export function MapView({ locations = [], selectedId, onSelect, showList = true,
               </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          {mapFrame}
+          {selected && !overlayOnMap ? (
+            <LocationCard selected={selected} copied={copied} onCopy={copyAddress} className="border-0 border-t rounded-none" />
+          ) : null}
+        </>
+      )}
     </div>
   )
 }

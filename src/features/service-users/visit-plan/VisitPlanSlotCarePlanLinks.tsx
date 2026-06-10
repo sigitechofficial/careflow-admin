@@ -1,9 +1,8 @@
-import { Label } from '@/shared/ui/form-field'
 import { Checkbox } from '@/shared/ui/toggle-controls'
+import { StandardIconImage } from '@/shared/ui/standard-icon-image'
 import { cn } from '@/shared/lib/utils'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { carePlanSuggestedForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 
 type Props = {
   slot: VisitPlanSlot
@@ -20,8 +19,8 @@ export function VisitPlanSlotCarePlanLinks({
 }: Props) {
   if (acceptedCarePlans.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground">
-        Accept care plans on initial assessment to link them to this visit.
+      <p className="text-sm text-muted-foreground">
+        Accept care plans on initial assessment to select services for this visit.
       </p>
     )
   }
@@ -36,46 +35,38 @@ export function VisitPlanSlotCarePlanLinks({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-dashed border-border bg-background p-4">
-      <Label className="text-sm font-medium text-foreground">
-        Which care plans are delivered on this visit?
-      </Label>
-      <p className="text-xs text-muted-foreground">
-        Tick the clinical care plans carers should work through during this call. Leave all unchecked to use
-        suggested links from the assessment.
-      </p>
-      <ul className="mt-2 space-y-2">
-        {acceptedCarePlans.map((cp) => {
-          const checked = selected.has(cp.formId)
-          const suggested = carePlanSuggestedForSlot(cp, slot)
-          return (
-            <li
-              key={cp.formId}
-              className={cn(
-                'flex items-start gap-3 rounded-md border px-3 py-2',
-                checked ? 'border-teal-300 bg-teal-50/50 dark:border-teal-800 dark:bg-teal-950/20' : 'border-border',
-              )}
+    <ul className="space-y-2">
+      {acceptedCarePlans.map((cp) => {
+        const checked = selected.has(cp.formId)
+        return (
+          <li
+            key={cp.formId}
+            className={cn(
+              'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+              checked ? 'border-teal-300 bg-teal-50/50 dark:border-teal-800 dark:bg-teal-950/20' : 'border-border',
+            )}
+          >
+            <Checkbox
+              id={`${slot.slotCode}-cp-${cp.formId}`}
+              checked={checked}
+              disabled={disabled}
+              onCheckedChange={() => toggle(cp.formId)}
+            />
+            <label
+              htmlFor={`${slot.slotCode}-cp-${cp.formId}`}
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
             >
-              <Checkbox
-                id={`${slot.slotCode}-cp-${cp.formId}`}
-                checked={checked}
-                disabled={disabled}
-                onCheckedChange={() => toggle(cp.formId)}
-                className="mt-0.5"
+              <StandardIconImage
+                src={cp.pictureUrl}
+                label={cp.formName}
+                className="h-10 w-10 shrink-0"
+                imgClassName="h-10 w-10"
               />
-              <label htmlFor={`${slot.slotCode}-cp-${cp.formId}`} className="min-w-0 flex-1 cursor-pointer">
-                <span className="text-sm font-medium">{cp.formName}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{cp.carePlanArea}</span>
-                {!checked && suggested ? (
-                  <span className="mt-1 inline-block text-[11px] text-sky-700 dark:text-sky-300">
-                    Suggested for this call
-                  </span>
-                ) : null}
-              </label>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+              <span className="text-sm font-medium">{cp.formName}</span>
+            </label>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

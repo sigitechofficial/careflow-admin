@@ -30,7 +30,9 @@ export function VisitPlanSlotCarersDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-h-[90vh] overflow-hidden p-0">
         <DialogHeader>
-          <DialogTitle>Assign carers — {slot.label}</DialogTitle>
+          <DialogTitle>
+            {slot.assignedEmployeeIds?.length ? 'Change carers' : 'Assign carers'} — {slot.label}
+          </DialogTitle>
           <DialogDescription>
             Each call slot can have different carers. Assignments apply only to {slot.label.toLowerCase()} visits
             ({slot.plannedStartTime}–{slot.plannedEndTime}).

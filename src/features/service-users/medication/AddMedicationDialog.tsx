@@ -52,10 +52,12 @@ const HOW_ASSISTED_OPTIONS = [
   'Not applicable',
 ] as const
 
+import { MedicationTimeSlotRow } from '@/features/service-users/medication/MedicationTimeSlotRow'
 import {
-  formatRoundLabel,
   matchRoundIdByTime,
   newTimeSlot,
+  nextUnusedMedicationRound,
+  slotFromRound,
   timeSlotsFromRounds,
   type MedicationTimeSlot,
 } from '@/features/service-users/medication/medication-time-slots'
@@ -274,8 +276,15 @@ export function AddMedicationDialog({
   )
   const schedulePreview = schedulePreviewQuery.data
 
+  const usedRoundIds = React.useMemo(
+    () => new Set(timeSlots.map(s => s.roundId).filter((id): id is string => Boolean(id))),
+    [timeSlots],
+  )
+
   function addTimeSlot() {
-    setTimeSlots(prev => [...prev, newTimeSlot()])
+    const rounds = lookups?.rounds ?? []
+    const nextRound = nextUnusedMedicationRound(rounds, usedRoundIds)
+    setTimeSlots(prev => [...prev, nextRound ? slotFromRound(nextRound) : newTimeSlot()])
   }
 
   function removeTimeSlot(id: string) {
@@ -1059,8 +1068,8 @@ export function AddMedicationDialog({
                 <p className="min-w-0 flex-1 text-sm text-muted-foreground">
                   at times: <span className="text-destructive">*</span>{' '}
                   <span className="text-xs">
-                    Five administration slots (Morning → Night) — remove any the service user does not
-                    take. Set a dose per slot when it differs from the medication dose above.
+                    Slots come from Settings → Time slots. Remove any the service user does
+                    not take. Set a dose per slot when it differs from the medication dose above.
                   </span>
                 </p>
                 <Button
@@ -1075,69 +1084,27 @@ export function AddMedicationDialog({
                   Add time
                 </Button>
               </div>
+              {lookupsLoading ? (
+                <p className="text-xs text-muted-foreground">Loading time slots…</p>
+              ) : (lookups?.rounds?.length ?? 0) === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No time slots configured. Add them under Settings → Time slots.
+                </p>
+              ) : null}
               <ul className="space-y-2">
                 {timeSlots.map((slot, index) => (
-                  <li key={slot.id} className="flex flex-wrap items-end gap-2">
-                    <div className="min-w-[8rem] flex-1 space-y-1">
-                      {index === 0 && (
-                        <label className="text-xs text-muted-foreground">Time slot</label>
-                      )}
-                      <div className="text-xs font-semibold text-[#475569]">
-                        {slot.roundName ? formatRoundLabel(slot.roundName) : 'Custom'}
-                      </div>
-                      <Input
-                        type="time"
-                        value={slot.dueTime}
-                        onChange={e => {
-                          const dueTime = e.target.value
-                          const roundId = matchRoundIdByTime(lookups?.rounds ?? [], dueTime)
-                          const round = lookups?.rounds.find(r => r.id === roundId)
-                          updateTimeSlot(slot.id, {
-                            dueTime,
-                            roundId,
-                            roundName: round?.name ?? slot.roundName,
-                          })
-                        }}
-                        disabled={disabled}
-                        className="[&::-webkit-calendar-picker-indicator]:opacity-100"
-                      />
-                    </div>
-                    <div className="min-w-[7rem] flex-1 space-y-1">
-                      {index === 0 && (
-                        <label className="text-xs text-muted-foreground">Dose at this time</label>
-                      )}
-                      <Input
-                        value={slot.dose}
-                        onChange={e => updateTimeSlot(slot.id, { dose: e.target.value })}
-                        placeholder={dose.trim() || 'e.g. 2 tablets'}
-                        disabled={disabled}
-                      />
-                    </div>
-                    <div className="min-w-[12rem] flex-[2] space-y-1">
-                      {index === 0 && (
-                        <label className="text-xs text-muted-foreground">Care plan action</label>
-                      )}
-                      <Input
-                        value={slot.carePlanAction}
-                        onChange={e => updateTimeSlot(slot.id, { carePlanAction: e.target.value })}
-                        placeholder="Select Care Plan Action"
-                        disabled={disabled}
-                      />
-                    </div>
-                    <div className="pb-0.5">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="h-9 w-9 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
-                        onClick={() => removeTimeSlot(slot.id)}
-                        disabled={disabled || timeSlots.length <= 1}
-                        aria-label="Remove time"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </li>
+                  <MedicationTimeSlotRow
+                    key={slot.id}
+                    slot={slot}
+                    index={index}
+                    rounds={lookups?.rounds ?? []}
+                    usedRoundIds={usedRoundIds}
+                    disabled={disabled}
+                    dosePlaceholder={dose.trim() || 'e.g. 2 tablets'}
+                    canRemove={timeSlots.length > 1}
+                    onChange={patch => updateTimeSlot(slot.id, patch)}
+                    onRemove={() => removeTimeSlot(slot.id)}
+                  />
                 ))}
               </ul>
             </div>

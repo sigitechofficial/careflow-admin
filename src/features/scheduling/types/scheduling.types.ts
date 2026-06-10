@@ -22,6 +22,13 @@ export type ScheduleRunBrief = {
   sortOrder?: number
 }
 
+export type VisitPlanJobContext = {
+  slotId: string
+  slotCode: string
+  label: string
+  linkedCarePlanFormIds: string[]
+}
+
 export type TimelineJob = {
   id: string
   jobName: string
@@ -32,6 +39,10 @@ export type TimelineJob = {
   scheduledEndDateTime: string | null
   durationMinutes?: number
   requiredCarers: number
+  allocatedCarers?: number
+  underAllocated?: boolean
+  visitPlan?: VisitPlanJobContext | null
+  visits?: Array<{ id: string; visitName: string; visitPlanSlotId: string | null }>
   scheduleRunId?: string | null
   scheduleRun?: ScheduleRunBrief | null
   scheduleArea?: { id: string; name: string; code: string } | null

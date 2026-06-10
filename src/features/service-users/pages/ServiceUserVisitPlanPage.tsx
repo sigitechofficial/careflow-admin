@@ -244,6 +244,7 @@ export default function ServiceUserVisitPlanPage() {
             {detailsTab === 'calendar' ? (
               <VisitPlanCalendarTab
                 plan={selectedPlan}
+                serviceUserId={serviceUserId}
                 employeeNameById={employeeNameById}
               />
             ) : (

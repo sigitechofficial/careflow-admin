@@ -24,15 +24,36 @@ export function formatJobTimeRange(job: Pick<TimelineJob, 'scheduledStartDateTim
 }
 
 export function employeesLabel(job: TimelineJob): string {
-  const active = job.allocations?.filter(a => a.employee) ?? []
+  const active = job.allocations?.filter((a) => a.employee) ?? []
   if (!active.length) return '—'
   return active
-    .map(a => [a.employee?.firstName, a.employee?.lastName].filter(Boolean).join(' '))
+    .map((a) => {
+      const e = a.employee
+      if (!e) return ''
+      return [e.firstName, e.lastName].filter(Boolean).join(' ')
+    })
+    .filter(Boolean)
     .join(', ')
 }
 
+export function jobStatusLabel(status: string): string {
+  return status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
+}
+
+export function activeJobAllocationCount(job: TimelineJob): number {
+  if (typeof job.allocatedCarers === 'number') return job.allocatedCarers
+  return job.allocations?.length ?? 0
+}
+
+export function jobNeedsCarerAssignment(job: TimelineJob): boolean {
+  return activeJobAllocationCount(job) < job.requiredCarers
+}
+
 export function jobNeedsAlert(job: TimelineJob): boolean {
-  return ['NEEDS_ATTENTION', 'MISSED', 'PARTIALLY_COMPLETED', 'UNALLOCATED'].includes(job.status)
+  return (
+    jobNeedsCarerAssignment(job) ||
+    ['NEEDS_ATTENTION', 'MISSED', 'PARTIALLY_COMPLETED', 'UNALLOCATED'].includes(job.status)
+  )
 }
 
 export function todayIso(): string {

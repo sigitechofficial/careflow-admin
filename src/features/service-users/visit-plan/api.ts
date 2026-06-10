@@ -1,4 +1,8 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import type { MedicationRoundRow } from '@/features/settings/api/medication-settings.api'
+import {
+  defaultEditableVisitPlanSlots,
+} from '@/features/service-users/visit-plan/visit-plan-time-slots.util'
 import type {
   ServiceUserVisitPlan,
   VisitPlanCarerSuggestions,
@@ -209,26 +213,55 @@ export async function generateScheduleFromVisitPlan(
   return res.data
 }
 
-export function defaultEditableSlots(): VisitPlanSlot[] {
-  const codes: VisitPlanSlotCode[] = ['MORNING', 'LUNCH', 'TEA', 'EVENING', 'NIGHT']
-  const defaults: Record<VisitPlanSlotCode, { start: string; end: string }> = {
-    MORNING: { start: '06:00', end: '10:59' },
-    LUNCH: { start: '11:00', end: '14:59' },
-    TEA: { start: '15:00', end: '17:59' },
-    EVENING: { start: '18:00', end: '20:55' },
-    NIGHT: { start: '21:00', end: '07:00' },
-  }
-  return codes.map((slotCode, index) => ({
-    slotCode,
-    label: slotCode.charAt(0) + slotCode.slice(1).toLowerCase(),
-    daysOfWeek: [1, 2, 3, 4, 5, 6, 0],
-    plannedStartTime: defaults[slotCode].start,
-    plannedEndTime: defaults[slotCode].end,
-    requiredCarers: 1,
-    isEnabled: false,
-    medicationRoundCode: null,
-    notes: '',
-    sortOrder: index,
-    ...SLOT_OPTION_DEFAULTS,
-  }))
+export function defaultEditableSlots(rounds: MedicationRoundRow[] = []): VisitPlanSlot[] {
+  return defaultEditableVisitPlanSlots(rounds)
+}
+
+export type VisitPlanCalendarVisit = {
+  id: string
+  visitPlanSlotId: string | null
+  status: string
+  displayStatus?: string
+  jobStatus?: string
+  requiredCarers?: number
+  allocatedCount?: number
+  allocatedEmployeeIds?: string[]
+  slotLabel?: string | null
+  slotCode?: string | null
+  linkedCarePlanFormIds?: string[]
+  notes: string | null
+  scheduledStartDateTime: string
+  scheduledEndDateTime: string | null
+  occurrenceDate: string
+}
+
+export async function fetchVisitPlanCalendarVisits(
+  serviceUserId: string,
+  planId: string,
+  params: { from: string; to: string },
+): Promise<VisitPlanCalendarVisit[]> {
+  const qs = new URLSearchParams({ from: params.from, to: params.to })
+  const res = await apiJson<ApiEnvelope<VisitPlanCalendarVisit[]>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/calendar-visits?${qs}`,
+    { method: 'GET' },
+  )
+  return Array.isArray(res.data) ? res.data : []
+}
+
+export async function recordVisitPlanCalendarOutcome(
+  serviceUserId: string,
+  planId: string,
+  body: {
+    visitPlanSlotId: string
+    date: string
+    status: string
+    notes?: string
+  },
+): Promise<VisitPlanCalendarVisit> {
+  const res = await apiJson<ApiEnvelope<VisitPlanCalendarVisit>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/calendar-visits/record-outcome`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  if (!res.data?.id) throw new Error('Invalid visit outcome response from API')
+  return res.data
 }

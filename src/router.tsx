@@ -183,6 +183,11 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'leaving-reasons',
   'review-types',
   'travel-payment',
+  'medication',
+  'time-slots',
+  'care-types',
+  'funding-types',
+  'record-types',
 ]
 
 const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [

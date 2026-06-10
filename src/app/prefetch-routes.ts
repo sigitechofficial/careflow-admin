@@ -46,6 +46,12 @@ import {
   fetchServiceUserLocations,
 } from '@/features/settings/api/location-management.api'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
+import {
+  listMedicationRoundsAdmin,
+  listMedicationStatusCodesAdmin,
+} from '@/features/settings/api/medication-settings.api'
+import { medicationStatusCodesAdminKey } from '@/features/settings/hooks/useMedicationStatusCodesAdmin'
+import { medicationRoundsAdminKey } from '@/features/settings/hooks/useMedicationRoundsAdmin'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 import { settingsKeys } from '@/features/settings/keys'
 import {
@@ -366,6 +372,22 @@ export function prefetchSettingsTab(qc: QueryClient, tab: SettingsTabId = 'job-t
     void qc.prefetchQuery({
       queryKey: settingsKeys.serviceUserFundingTypes(),
       queryFn: () => fetchServiceUserFundingTypesList(),
+      staleTime: ROUTE_STALE_MS,
+    })
+    return
+  }
+  if (tab === 'medication') {
+    void qc.prefetchQuery({
+      queryKey: medicationStatusCodesAdminKey,
+      queryFn: ({ signal }) => listMedicationStatusCodesAdmin({ signal }),
+      staleTime: ROUTE_STALE_MS,
+    })
+    return
+  }
+  if (tab === 'time-slots') {
+    void qc.prefetchQuery({
+      queryKey: medicationRoundsAdminKey,
+      queryFn: ({ signal }) => listMedicationRoundsAdmin({ signal }),
       staleTime: ROUTE_STALE_MS,
     })
     return

@@ -136,6 +136,46 @@ export async function listCallOffVisits(params: Record<string, string | number |
   return { rows: res.data ?? [], meta: res.meta as PaginationMeta | undefined }
 }
 
+export type JobAllocationRow = {
+  id: string
+  scheduledJobId: string
+  scheduledVisitId: string | null
+  employeeId: string
+  status: string
+  requiresConfirmation: boolean
+  employee: {
+    id: string
+    personalDetail?: { firstName?: string; lastName?: string; email?: string | null } | null
+  } | null
+}
+
+export async function listJobAllocations(jobId: string, init?: RequestInit) {
+  const res = await apiJson<ApiEnvelope<JobAllocationRow[]>>(
+    `/scheduled-jobs/${jobId}/allocations`,
+    { method: 'GET', ...init },
+  )
+  return res.data ?? []
+}
+
+export async function allocateJob(
+  jobId: string,
+  body: { employeeId: string; scheduledVisitId?: string; force?: boolean; notes?: string },
+) {
+  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(`/scheduled-jobs/${jobId}/allocate`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return { message: res.message, data: res.data! }
+}
+
+export async function unallocateJob(jobId: string, body: { employeeId: string; reason?: string }) {
+  const res = await apiJson<ApiEnvelope<{ message: string; jobStatus?: string }>>(
+    `/scheduled-jobs/${jobId}/unallocate`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res
+}
+
 export async function createCallOffVisit(payload: {
   serviceUserId: string
   callOffDate: string
