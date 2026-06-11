@@ -179,6 +179,8 @@ import {
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 import {
   buildVitalsValidationErrors,
+  defaultVitalAcceptedRanges,
+  type VitalAcceptedRangesMetadata,
 } from '@/features/service-users/initial-assessment/utils/vitals-validation'
 import { buildValidationMaps } from '@/features/service-users/initial-assessment/utils/validation-maps'
 import { section12PanelExcludedIds } from '@/features/service-users/initial-assessment/utils/section-12-panel-exclusions'
@@ -383,6 +385,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [equipmentSelection, setEquipmentSelection] = React.useState<EquipmentSelectionMetadata>(
     parseSubmissionMetadata(undefined).equipmentSelection,
   )
+  const [vitalAcceptedRanges, setVitalAcceptedRanges] = React.useState<VitalAcceptedRangesMetadata>(
+    defaultVitalAcceptedRanges(),
+  )
   const [sectionFooters, setSectionFooters] = React.useState(
     parseSubmissionMetadata(undefined).sectionFooters,
   )
@@ -422,6 +427,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const skinIntegrityLocalEditRef = React.useRef(false)
   const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const skinIntegrityPendingPersistRef = React.useRef<SkinIntegrityCheckMetadata | null>(null)
+  const mentalCapacityLocalEditRef = React.useRef(false)
+  const mentalCapacityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mentalCapacityPendingPersistRef = React.useRef<MentalCapacityChecklistMetadata | null>(null)
+  const vitalRangesPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const vitalRangesPendingPersistRef = React.useRef<VitalAcceptedRangesMetadata | null>(null)
   const pendingLeaveActionRef = React.useRef<(() => void) | null>(null)
   const suppressLeaveGuardRef = React.useRef(false)
   const [unsavedLeaveOpen, setUnsavedLeaveOpen] = React.useState(false)
@@ -573,11 +583,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         ? prev
         : parsed.carePlanObjectives,
     )
-    setMentalCapacityChecklist((prev) =>
-      JSON.stringify(prev) === JSON.stringify(parsed.mentalCapacityChecklist)
+    setMentalCapacityChecklist((prev) => {
+      if (mentalCapacityLocalEditRef.current) return prev
+      return JSON.stringify(prev) === JSON.stringify(parsed.mentalCapacityChecklist)
         ? prev
-        : parsed.mentalCapacityChecklist,
-    )
+        : parsed.mentalCapacityChecklist
+    })
     setPhotographyConsent((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.photographyConsent)
         ? prev
@@ -587,6 +598,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       JSON.stringify(prev) === JSON.stringify(parsed.equipmentSelection)
         ? prev
         : parsed.equipmentSelection,
+    )
+    setVitalAcceptedRanges((prev) =>
+      JSON.stringify(prev) === JSON.stringify(parsed.vitalAcceptedRanges)
+        ? prev
+        : parsed.vitalAcceptedRanges,
     )
     setSectionFooters((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.sectionFooters) ? prev : parsed.sectionFooters,
@@ -738,8 +754,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   )
 
   const vitalsFieldErrors = React.useMemo(
-    () => buildVitalsValidationErrors(sections, draftAnswers),
-    [sections, draftAnswers],
+    () => buildVitalsValidationErrors(sections, draftAnswers, vitalAcceptedRanges),
+    [sections, draftAnswers, vitalAcceptedRanges],
   )
 
   const validation = {
@@ -1092,6 +1108,22 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, persistMetadata, onAnswerChange],
   )
 
+  const onVitalAcceptedRangesChange = React.useCallback(
+    (next: VitalAcceptedRangesMetadata) => {
+      setVitalAcceptedRanges(next)
+      vitalRangesPendingPersistRef.current = next
+      if (vitalRangesPersistTimerRef.current) {
+        clearTimeout(vitalRangesPersistTimerRef.current)
+      }
+      vitalRangesPersistTimerRef.current = setTimeout(() => {
+        const payload = vitalRangesPendingPersistRef.current
+        if (!payload) return
+        void persistMetadata({ vitalAcceptedRanges: payload })
+      }, 400)
+    },
+    [persistMetadata],
+  )
+
   const onSkinIntegrityRowSideChange = React.useCallback(
     (rowId: string, side: 'right' | 'left', text: string) => {
       skinIntegrityLocalEditRef.current = true
@@ -1175,8 +1207,19 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const onMentalCapacityChecklistChange = React.useCallback(
     (next: MentalCapacityChecklistMetadata) => {
+      mentalCapacityLocalEditRef.current = true
       setMentalCapacityChecklist(next)
-      void persistMetadata({ mentalCapacityChecklist: next })
+      mentalCapacityPendingPersistRef.current = next
+      if (mentalCapacityPersistTimerRef.current) {
+        clearTimeout(mentalCapacityPersistTimerRef.current)
+      }
+      mentalCapacityPersistTimerRef.current = setTimeout(() => {
+        const payload = mentalCapacityPendingPersistRef.current
+        if (!payload) return
+        void persistMetadata({ mentalCapacityChecklist: payload }).finally(() => {
+          mentalCapacityLocalEditRef.current = false
+        })
+      }, 400)
     },
     [persistMetadata],
   )
@@ -1312,7 +1355,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         }
         break
       case 'multi-section':
-        if (tab.id === 1) patch.painAssessment = painAssessment
+        if (tab.id === 1) {
+          patch.painAssessment = painAssessment
+          patch.vitalAcceptedRanges = vitalAcceptedRanges
+        }
         break
       default:
         break
@@ -1350,6 +1396,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     financeConsentQuestion,
     draftAnswers,
     sectionFooters,
+    vitalAcceptedRanges,
     persistMetadata,
   ])
 
@@ -1492,6 +1539,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     if (dirtyAnswerQuestionIdsRef.current.size > 0) return true
     if (sectionCommentsLocalEditRef.current) return true
     if (skinIntegrityLocalEditRef.current) return true
+    if (mentalCapacityLocalEditRef.current) return true
     for (const [key, draft] of Object.entries(sectionCommentDraftRef.current)) {
       const saved = sectionComments[key]?.text ?? ''
       if (plainTextFromHtml(draft) !== plainTextFromHtml(saved)) return true
@@ -1509,6 +1557,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       skinIntegrityPersistTimerRef.current = null
     }
     skinIntegrityPendingPersistRef.current = null
+    mentalCapacityLocalEditRef.current = false
+    if (mentalCapacityPersistTimerRef.current) {
+      clearTimeout(mentalCapacityPersistTimerRef.current)
+      mentalCapacityPersistTimerRef.current = null
+    }
+    mentalCapacityPendingPersistRef.current = null
     setDraftAnswers({ ...serverBaselineAnswersRef.current })
     const parsed = parseSubmissionMetadata(submission)
     setSectionComments(parsed.sectionComments)
@@ -1516,6 +1570,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       Object.entries(parsed.sectionComments).map(([key, entry]) => [key, entry.text]),
     )
     setSkinIntegrityCheck(parsed.skinIntegrityCheck)
+    setMentalCapacityChecklist(parsed.mentalCapacityChecklist)
   }, [submission])
 
   const saveAllPendingChanges = React.useCallback(async (): Promise<boolean> => {
@@ -1541,6 +1596,23 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       await persistMetadata({ skinIntegrityCheck: skinIntegrityPendingPersistRef.current })
       skinIntegrityPendingPersistRef.current = null
       skinIntegrityLocalEditRef.current = false
+    }
+    if (mentalCapacityPersistTimerRef.current) {
+      clearTimeout(mentalCapacityPersistTimerRef.current)
+      mentalCapacityPersistTimerRef.current = null
+    }
+    if (mentalCapacityPendingPersistRef.current) {
+      await persistMetadata({ mentalCapacityChecklist: mentalCapacityPendingPersistRef.current })
+      mentalCapacityPendingPersistRef.current = null
+      mentalCapacityLocalEditRef.current = false
+    }
+    if (vitalRangesPersistTimerRef.current) {
+      clearTimeout(vitalRangesPersistTimerRef.current)
+      vitalRangesPersistTimerRef.current = null
+    }
+    if (vitalRangesPendingPersistRef.current) {
+      await persistMetadata({ vitalAcceptedRanges: vitalRangesPendingPersistRef.current })
+      vitalRangesPendingPersistRef.current = null
     }
     const dirtyIds = [...dirtyAnswerQuestionIdsRef.current]
     if (dirtyIds.length > 0) {
@@ -2143,6 +2215,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onPhotographyConsentChange={onPhotographyConsentChange}
                         onEquipmentSelectionChange={onEquipmentSelectionChange}
                         onSkinIntegrityRowSideChange={onSkinIntegrityRowSideChange}
+                        vitalAcceptedRanges={vitalAcceptedRanges}
+                        onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
                         sectionFooter={sectionFooters[String(activeHolisticTab)]}
                         onSectionFooterChange={(patch) => onSectionFooterChange(activeHolisticTab, patch)}
                         onChange={onAnswerChange}

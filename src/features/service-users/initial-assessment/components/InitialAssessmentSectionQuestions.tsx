@@ -21,7 +21,11 @@ import {
 } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
 import { InitialAssessmentSectionFooterNotesPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionFooterNotesPanel'
 import { HolisticFooterFields } from '@/features/service-users/initial-assessment/components/holistic/HolisticFooterFields'
-import { InitialAssessmentSection1SimplePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection1SimplePanel'
+import {
+  InitialAssessmentSection1SimplePanel,
+  shouldHidePaperSectionFieldLabel,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentSection1SimplePanel'
+import { InitialAssessmentSection3SocialHistoryPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection3SocialHistoryPanel'
 import { InitialAssessmentSection5PainPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5PainPanel'
 import { InitialAssessmentSpecRefGroupPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecRefGroupPanel'
 import { specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
@@ -50,6 +54,7 @@ import { getVisibleSectionQuestions } from '@/features/service-users/initial-ass
 import {
   isClinicalMeasurementField,
   shouldLockVitalQuestion,
+  type VitalAcceptedRangesMetadata,
 } from '@/features/service-users/initial-assessment/utils/vitals-validation'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -111,6 +116,8 @@ type Props = {
   }) => void
   holisticTab?: HolisticAssessmentTab
   hidePainAssessmentTool?: boolean
+  vitalAcceptedRanges?: VitalAcceptedRangesMetadata
+  onVitalAcceptedRangesChange?: (next: VitalAcceptedRangesMetadata) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
   visibleQuestionsOptions?: Parameters<typeof getVisibleSectionQuestions>[3]
 }
@@ -144,6 +151,8 @@ export function InitialAssessmentSectionQuestions({
   onSectionFooterChange,
   holisticTab,
   hidePainAssessmentTool,
+  vitalAcceptedRanges,
+  onVitalAcceptedRangesChange,
   visibleQuestionsOptions,
   onChange,
 }: Props) {
@@ -372,6 +381,17 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
+    if (group.specRef === '1.2') {
+      return (
+        <InitialAssessmentSection3SocialHistoryPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={group}
+          renderField={renderField}
+          renderMultiSelect={renderMultiSelect}
+        />
+      )
+    }
+
     if (isSection1SimpleGroup(group.specRef)) {
       if (isPersonCentredCardGroup(group.specRef)) {
         const cardQuestions = questionsWithoutPreferredVisitTimes(group.questions)
@@ -391,8 +411,12 @@ export function InitialAssessmentSectionQuestions({
         )
       }
 
-      const renderQuestion = (q: InitialAssessmentQuestion) =>
-        isMultiSelectOptionsGridQuestion(q) && renderMultiSelect ? renderMultiSelect(q) : renderField(q)
+      const renderQuestion = (q: InitialAssessmentQuestion) => {
+        const hideLabel = group.specRef === '1.0' && shouldHidePaperSectionFieldLabel(q.questionText)
+        const fieldOptions = hideLabel ? { hideLabel: true } : undefined
+        if (isMultiSelectOptionsGridQuestion(q) && renderMultiSelect) return renderMultiSelect(q)
+        return renderField(q, fieldOptions)
+      }
 
       return (
         <InitialAssessmentSection1SimplePanel key={`${group.specRef}-${groupIndex}`} group={group}>
@@ -504,8 +528,14 @@ export function InitialAssessmentSectionQuestions({
           <p className={cn(IA_CALLOUT_NEUTRAL_CLASS, IA_INTRO_CLASS)}>{intro}</p>
         ) : null}
 
-        {section.sectionNumber === 4 ? (
-          <InitialAssessmentVitalsBanner sections={allSections} draftAnswers={draftAnswers} />
+        {section.sectionNumber === 4 && vitalAcceptedRanges && onVitalAcceptedRangesChange ? (
+          <InitialAssessmentVitalsBanner
+            sections={allSections}
+            draftAnswers={draftAnswers}
+            vitalAcceptedRanges={vitalAcceptedRanges}
+            disabled={disabled}
+            onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
+          />
         ) : null}
 
         {renderCatalogGroups()}

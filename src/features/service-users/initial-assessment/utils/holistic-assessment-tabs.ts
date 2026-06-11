@@ -79,16 +79,7 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
         sectionNumber: 1,
         questionTextsOnly: ['Previous medical history (summary)', 'Allergies (summary)'],
       },
-      {
-        sectionNumber: 1,
-        specRefs: ['1.2'],
-        includeQuestionTexts: [
-          'Family, representative, next of kin, advocate, key contacts',
-          'Representative relationship',
-          'Representative involved in assessment?',
-          'Representative name',
-        ],
-      },
+      { sectionNumber: 1, specRefs: ['1.2'] },
       { sectionNumber: 4 },
       { sectionNumber: 5, excludeSpecRefs: ['5.3'] },
       { sectionNumber: 6, excludeSpecRefs: ['6.8', '6.9', '6.10'] },
@@ -266,6 +257,27 @@ function applySectionFilter(
   if (ref && additionalSet.has(ref)) return true
 
   return false
+}
+
+/** Stable React key for multi-section tab slices (section 1 appears multiple times on tab 1). */
+export function holisticMultiSectionSliceKey(
+  tabId: number,
+  slice: { sectionNumber: number } & SectionQuestionFilter,
+  index: number,
+): string {
+  if (slice.specRefs?.length) {
+    return `${tabId}-sec-${slice.sectionNumber}-spec-${slice.specRefs.join(',')}`
+  }
+  if (slice.questionTextsOnly?.length) {
+    return `${tabId}-sec-${slice.sectionNumber}-texts-${slice.questionTextsOnly.join('|')}`
+  }
+  if (slice.includeQuestionTexts?.length) {
+    return `${tabId}-sec-${slice.sectionNumber}-inc-${slice.includeQuestionTexts.join('|')}`
+  }
+  if (slice.excludeSpecRefs?.length) {
+    return `${tabId}-sec-${slice.sectionNumber}-excl-${slice.excludeSpecRefs.join(',')}`
+  }
+  return `${tabId}-sec-${slice.sectionNumber}-full-${index}`
 }
 
 function questionMatchesTab(q: InitialAssessmentQuestion, tab: HolisticAssessmentTab): boolean {

@@ -32,8 +32,8 @@ const SECTION_1_ACT_DIVIDERS: Record<string, { title: string; hint?: string }> =
     hint: 'Section 1 — reason for referral. Section 2 — relevant health history and allergies.',
   },
   '1.2': {
-    title: 'Social history',
-    hint: 'Next of kin, carers, accommodation, access and lifestyle.',
+    title: 'Section 3 — Social history',
+    hint: 'Next of kin, informal carers, accommodation, property access, and lifestyle.',
   },
   '1.3': {
     title: 'Person-centred preferences',

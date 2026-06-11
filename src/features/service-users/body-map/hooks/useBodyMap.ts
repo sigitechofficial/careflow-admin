@@ -12,11 +12,16 @@ import type {
   CreateBodyMapRecordPayload,
 } from '@/features/service-users/body-map/types'
 
-export function useServiceUserBodyMap(serviceUserId: string, includeResolved = false) {
+export function useServiceUserBodyMap(
+  serviceUserId: string,
+  includeResolved = false,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: bodyMapKeys.list(serviceUserId, includeResolved),
     queryFn: ({ signal }) =>
       fetchServiceUserBodyMap(serviceUserId, { includeResolved, signal }),
+    enabled: Boolean(serviceUserId) && (options?.enabled ?? true),
   })
 }
 

@@ -19,7 +19,14 @@ export type VitalFieldKey =
   | 'spo2'
   | 'bloodGlucose'
 
-type VitalRule = {
+export type VitalAcceptedRange = {
+  min: number
+  max: number
+}
+
+export type VitalAcceptedRangesMetadata = Record<VitalFieldKey, VitalAcceptedRange>
+
+export type VitalRule = {
   fieldKey: VitalFieldKey
   label: string
   unit: string
@@ -30,7 +37,7 @@ type VitalRule = {
 
 export const VITALS_CONTEXT_FIELD_KEY = 'vitalsContext'
 
-export const VITAL_FIELD_RULES: VitalRule[] = [
+export const DEFAULT_VITAL_FIELD_RULES: VitalRule[] = [
   { fieldKey: 'temperature', label: 'Temperature', unit: '°C', min: 30, max: 45, decimal: true },
   { fieldKey: 'pulse', label: 'Pulse', unit: 'bpm', min: 30, max: 250 },
   { fieldKey: 'respirations', label: 'Respirations', unit: '/min', min: 5, max: 60 },
@@ -40,7 +47,54 @@ export const VITAL_FIELD_RULES: VitalRule[] = [
   { fieldKey: 'bloodGlucose', label: 'Blood glucose', unit: 'mmol/L', min: 1, max: 40, decimal: true },
 ]
 
-const VITAL_FIELD_KEYS = new Set<string>(VITAL_FIELD_RULES.map((r) => r.fieldKey))
+/** @deprecated Use {@link resolveVitalFieldRules} for persisted per-assessment ranges. */
+export const VITAL_FIELD_RULES = DEFAULT_VITAL_FIELD_RULES
+
+export function defaultVitalAcceptedRanges(): VitalAcceptedRangesMetadata {
+  return Object.fromEntries(
+    DEFAULT_VITAL_FIELD_RULES.map((rule) => [rule.fieldKey, { min: rule.min, max: rule.max }]),
+  ) as VitalAcceptedRangesMetadata
+}
+
+function parseRangeValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+export function normalizeVitalAcceptedRanges(raw: unknown): VitalAcceptedRangesMetadata {
+  const defaults = defaultVitalAcceptedRanges()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaults
+  const source = raw as Record<string, unknown>
+  const out = { ...defaults }
+  for (const rule of DEFAULT_VITAL_FIELD_RULES) {
+    const entry = source[rule.fieldKey]
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const row = entry as Record<string, unknown>
+    const min = parseRangeValue(row.min)
+    const max = parseRangeValue(row.max)
+    if (min != null && max != null && min < max) {
+      out[rule.fieldKey] = { min, max }
+    }
+  }
+  return out
+}
+
+export function resolveVitalFieldRules(
+  ranges?: VitalAcceptedRangesMetadata | null,
+): VitalRule[] {
+  const normalized = ranges ?? defaultVitalAcceptedRanges()
+  return DEFAULT_VITAL_FIELD_RULES.map((rule) => ({
+    ...rule,
+    min: normalized[rule.fieldKey]?.min ?? rule.min,
+    max: normalized[rule.fieldKey]?.max ?? rule.max,
+  }))
+}
+
+const VITAL_FIELD_KEYS = new Set<string>(DEFAULT_VITAL_FIELD_RULES.map((r) => r.fieldKey))
 
 export function isVitalSignQuestion(q: InitialAssessmentQuestion): boolean {
   const key = fieldKeyOf(q)
@@ -69,9 +123,12 @@ export function partitionVitalsSignsQuestions(questions: InitialAssessmentQuesti
   return { measurementQuestions, contextQuestion }
 }
 
-export function clinicalMeasurementUnit(q: InitialAssessmentQuestion): string {
+export function clinicalMeasurementUnit(
+  q: InitialAssessmentQuestion,
+  ranges?: VitalAcceptedRangesMetadata | null,
+): string {
   const key = fieldKeyOf(q)
-  const rule = VITAL_FIELD_RULES.find((r) => r.fieldKey === key)
+  const rule = resolveVitalFieldRules(ranges).find((r) => r.fieldKey === key)
   if (rule) return rule.unit
   if (key?.includes('Systolic') || key?.includes('Diastolic')) return 'mmHg'
   const fromLabel = q.questionText.match(/\(([^)]+)\)\s*$/)
@@ -109,9 +166,10 @@ export function vitalsClinicalFieldsLocked(
 export function validateVitalValue(
   fieldKey: VitalFieldKey,
   value: number | null | undefined,
+  ranges?: VitalAcceptedRangesMetadata | null,
 ): string | null {
   if (value == null || Number.isNaN(value)) return null
-  const rule = VITAL_FIELD_RULES.find((r) => r.fieldKey === fieldKey)
+  const rule = resolveVitalFieldRules(ranges).find((r) => r.fieldKey === fieldKey)
   if (!rule) return null
   if (value < rule.min || value > rule.max) {
     return `${rule.label} must be between ${rule.min} and ${rule.max} ${rule.unit}`
@@ -125,16 +183,18 @@ export function validateVitalValue(
 export function buildVitalsValidationErrors(
   sections: InitialAssessmentSection[],
   draftAnswers: Record<string, InitialAssessmentAnswerInput>,
+  ranges?: VitalAcceptedRangesMetadata | null,
 ): Map<string, string> {
   const errors = new Map<string, string>()
   const sec4 = sections.find((s) => s.sectionNumber === 4)
   if (!sec4) return errors
 
-  for (const rule of VITAL_FIELD_RULES) {
+  const rules = resolveVitalFieldRules(ranges)
+  for (const rule of rules) {
     const q = findQuestionByFieldKey(sections, rule.fieldKey)
     if (!q) continue
     const answer = draftAnswers[q.id]
-    const err = validateVitalValue(rule.fieldKey, answer?.numberValue ?? null)
+    const err = validateVitalValue(rule.fieldKey, answer?.numberValue ?? null, ranges)
     if (err) errors.set(q.id, err)
   }
 
@@ -155,7 +215,7 @@ export function hasAnyVitalSignEntered(
   sections: InitialAssessmentSection[],
   draftAnswers: Record<string, InitialAssessmentAnswerInput>,
 ): boolean {
-  for (const rule of VITAL_FIELD_RULES) {
+  for (const rule of DEFAULT_VITAL_FIELD_RULES) {
     const q = findQuestionByFieldKey(sections, rule.fieldKey)
     if (!q) continue
     const v = draftAnswers[q.id]?.numberValue

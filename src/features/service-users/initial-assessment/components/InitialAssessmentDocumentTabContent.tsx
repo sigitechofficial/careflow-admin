@@ -22,11 +22,13 @@ import { InitialAssessmentMovingHandlingOperationsPanel } from '@/features/servi
 import { InitialAssessmentMustPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMustPanel'
 import { InitialAssessmentWaterlowPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentWaterlowPanel'
 import type { ServiceUserDetail } from '@/features/service-users/api'
-import type {
-  HolisticAssessmentTab,
-  SectionQuestionFilter,
+import {
+  holisticMultiSectionSliceKey,
+  type HolisticAssessmentTab,
+  type SectionQuestionFilter,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import type { VitalAcceptedRangesMetadata } from '@/features/service-users/initial-assessment/utils/vitals-validation'
 import type { AdlWorksheetMetadata } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import type {
   DailyLivingAidsMetadata,
@@ -128,6 +130,8 @@ type Props = {
     assessorNameDesignation?: string
   }) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
+  vitalAcceptedRanges: VitalAcceptedRangesMetadata
+  onVitalAcceptedRangesChange: (next: VitalAcceptedRangesMetadata) => void
   section12: Section12Bundle
 }
 
@@ -192,6 +196,8 @@ export function InitialAssessmentDocumentTabContent({
   onSkinIntegrityRowSideChange,
   onSectionFooterChange,
   onChange,
+  vitalAcceptedRanges,
+  onVitalAcceptedRangesChange,
   section12,
 }: Props) {
   const footer = onSectionFooterChange ? (
@@ -456,13 +462,13 @@ export function InitialAssessmentDocumentTabContent({
   if (tab.kind === 'multi-section' && tab.multiSections?.length) {
     return (
       <>
-        {tab.multiSections.map((slice) => {
+        {tab.multiSections.map((slice, sliceIndex) => {
           const section = sections.find((s) => s.sectionNumber === slice.sectionNumber)
           if (!section) return null
           const hidePainTool = tab.id === 1 && slice.sectionNumber === 5
           return (
             <InitialAssessmentSectionQuestions
-              key={`${tab.id}-sec-${slice.sectionNumber}`}
+              key={holisticMultiSectionSliceKey(tab.id, slice, sliceIndex)}
               section={section}
               allSections={sections}
               draftAnswers={draftAnswers}
@@ -479,6 +485,8 @@ export function InitialAssessmentDocumentTabContent({
               onPainAssessmentChange={onPainAssessmentChange}
               holisticTab={toHolisticTabSlice(tab, slice.sectionNumber, slice)}
               hidePainAssessmentTool={hidePainTool}
+              vitalAcceptedRanges={vitalAcceptedRanges}
+              onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
               suppressIntro
               onChange={onChange}
             />
@@ -513,6 +521,8 @@ export function InitialAssessmentDocumentTabContent({
         sectionFooter={sectionFooter}
         onSectionFooterChange={onSectionFooterChange}
         holisticTab={tab}
+        vitalAcceptedRanges={vitalAcceptedRanges}
+        onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
         onChange={onChange}
       />
     </>

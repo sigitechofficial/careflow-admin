@@ -12,18 +12,46 @@ type Props = {
   children: ReactNode
 }
 
-function panelTitle(group: SpecRefGroup): string {
-  if (group.actDivider?.title) return group.actDivider.title
-  return group.label.replace(/^\d+\.\d+\s+/, '')
+const REASON_FOR_REFERRAL_TEXT = 'Reason for admission / starting care'
+const MEDICAL_HISTORY_TEXT = 'Previous medical history (summary)'
+const ALLERGIES_TEXT = 'Allergies (summary)'
+
+/** Paper document headers — aligned to Section 3 HolisticSectionHeader styling. */
+export function resolveSection1PaperHeader(group: SpecRefGroup): { title: string; subtitle?: string } {
+  const texts = new Set(group.questions.map((q) => q.questionText.trim()))
+
+  if (texts.has(REASON_FOR_REFERRAL_TEXT) && !texts.has(MEDICAL_HISTORY_TEXT) && !texts.has(ALLERGIES_TEXT)) {
+    return {
+      title: 'Section 1 — Reason for referral',
+      subtitle: 'Why care is starting and the referral context.',
+    }
+  }
+
+  if (texts.has(MEDICAL_HISTORY_TEXT) || texts.has(ALLERGIES_TEXT)) {
+    return {
+      title: 'Section 2 — Relevant health history and background information',
+      subtitle: 'Medical history summary and known allergies.',
+    }
+  }
+
+  if (group.actDivider?.title) {
+    return { title: group.actDivider.title, subtitle: group.actDivider.hint }
+  }
+
+  return { title: group.label.replace(/^\d+\.\d+\s+/, '') }
+}
+
+export function shouldHidePaperSectionFieldLabel(questionText: string): boolean {
+  const text = questionText.trim()
+  return text === REASON_FOR_REFERRAL_TEXT || text === MEDICAL_HISTORY_TEXT || text === ALLERGIES_TEXT
 }
 
 export function InitialAssessmentSection1SimplePanel({ group, children }: Props) {
-  const title = panelTitle(group)
-  const hint = group.actDivider?.hint
+  const { title, subtitle } = resolveSection1PaperHeader(group)
 
   return (
     <section className={HOLISTIC_SECTION_SHELL_CLASS} data-testid={`ia-section1-simple-${group.specRef}`}>
-      <HolisticSectionHeader title={title} subtitle={hint} />
+      <HolisticSectionHeader title={title} subtitle={subtitle} />
       <div className={cn(HOLISTIC_SECTION_BODY_CLASS, 'space-y-5')}>{children}</div>
     </section>
   )

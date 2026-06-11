@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   clinicalMeasurementUnit,
+  defaultVitalAcceptedRanges,
   isClinicalMeasurementField,
   isVitalsContextQuestion,
+  normalizeVitalAcceptedRanges,
   partitionVitalsSignsQuestions,
+  resolveVitalFieldRules,
 } from './vitals-validation'
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 
@@ -49,6 +52,17 @@ describe('clinical measurement fields', () => {
     ])
     expect(measurementQuestions).toEqual([measurement])
     expect(contextQuestion).toEqual(context)
+  })
+
+  it('normalizes persisted accepted ranges', () => {
+    const defaults = defaultVitalAcceptedRanges()
+    expect(normalizeVitalAcceptedRanges(undefined)).toEqual(defaults)
+    expect(
+      resolveVitalFieldRules({
+        ...defaults,
+        temperature: { min: 35, max: 42 },
+      }).find((r) => r.fieldKey === 'temperature'),
+    ).toMatchObject({ min: 35, max: 42 })
   })
 
   it('resolves display units', () => {

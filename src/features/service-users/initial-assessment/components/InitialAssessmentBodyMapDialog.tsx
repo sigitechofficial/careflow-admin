@@ -1,4 +1,8 @@
+import * as React from 'react'
 import { Link } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
+import { BodyMapCanvas } from '@/features/service-users/body-map/components/BodyMapCanvas'
+import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
 import {
   Dialog,
   DialogBody,
@@ -24,6 +28,14 @@ export function InitialAssessmentBodyMapDialog({
   submissionId,
   openRecordCount,
 }: Props) {
+  const [selectedRecordId, setSelectedRecordId] = React.useState<string | null>(null)
+  const bodyMapQuery = useServiceUserBodyMap(serviceUserId ?? '', false, { enabled: open })
+  const records = bodyMapQuery.data?.records ?? []
+
+  React.useEffect(() => {
+    if (!open) setSelectedRecordId(null)
+  }, [open])
+
   const bodyMapSearch = submissionId
     ? { from: 'initial-assessment', submissionId }
     : { from: 'initial-assessment' }
@@ -50,11 +62,34 @@ export function InitialAssessmentBodyMapDialog({
             </p>
           )}
           <div className="flex justify-center rounded-lg border border-border bg-muted/20 p-4">
-            <img
-              src="/assets/body-map-diagram.svg"
-              alt="Clinical body map — anterior and posterior figures"
-              className="max-h-[360px] w-full max-w-md object-contain"
-            />
+            {!serviceUserId ? (
+              <p className="py-8 text-sm text-muted-foreground">
+                Save the service user first to preview the body map.
+              </p>
+            ) : bodyMapQuery.isLoading ? (
+              <div className="flex min-h-[360px] w-full max-w-md items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+              </div>
+            ) : bodyMapQuery.isError ? (
+              <p className="py-8 text-sm text-destructive" role="alert">
+                {bodyMapQuery.error instanceof Error
+                  ? bodyMapQuery.error.message
+                  : 'Could not load body map'}
+              </p>
+            ) : (
+              <BodyMapCanvas
+                embedded
+                className="min-h-[360px] w-full max-w-md"
+                records={records}
+                pendingMarker={null}
+                selectedRecordId={selectedRecordId}
+                markMode={false}
+                showCleared={false}
+                showMeds
+                onPlaceMarker={() => {}}
+                onSelectRecord={setSelectedRecordId}
+              />
+            )}
           </div>
         </DialogBody>
         <DialogFooter>

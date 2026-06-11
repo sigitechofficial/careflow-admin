@@ -27,6 +27,7 @@ import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit
 import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarersDialog'
 import { VisitPlanSlotViewCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotViewCarersDialog'
 import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarePlansDialog'
+import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/VisitPlanCarersCountInput'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
@@ -320,12 +321,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Carers per visit (default)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={4}
+            <VisitPlanCarersCountInput
               value={numberOfCarers}
-              onChange={(e) => setNumberOfCarers(Number(e.target.value) || 1)}
+              onCommit={setNumberOfCarers}
             />
           </div>
           <div>
@@ -471,15 +469,12 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
                           />
                         </td>
                         <td className="py-2 pl-2">
-                          <Input
+                          <VisitPlanCarersCountInput
                             className="h-8 w-16"
-                            type="number"
-                            min={1}
-                            max={4}
                             disabled={!slot.isEnabled}
                             value={slot.requiredCarers}
-                            onChange={(e) => {
-                              const requiredCarers = Math.min(4, Math.max(1, Number(e.target.value) || 1))
+                            aria-label={`${slot.label} required carers`}
+                            onCommit={(requiredCarers) => {
                               const assigned = slot.assignedEmployeeIds ?? []
                               const assignedEmployeeIds =
                                 assigned.length > requiredCarers ? assigned.slice(0, requiredCarers) : assigned

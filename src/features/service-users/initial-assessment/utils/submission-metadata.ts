@@ -82,6 +82,10 @@ import {
   normalizeEquipmentSelectionMetadata,
   type EquipmentSelectionMetadata,
 } from '@/features/service-users/initial-assessment/utils/equipment-selection'
+import {
+  normalizeVitalAcceptedRanges,
+  type VitalAcceptedRangesMetadata,
+} from '@/features/service-users/initial-assessment/utils/vitals-validation'
 
 export type AdlRow = AdlWorksheetRow
 
@@ -182,6 +186,10 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
   const equipmentSelection: EquipmentSelectionMetadata =
     normalizeEquipmentSelectionMetadata(meta.equipmentSelection)
 
+  const vitalAcceptedRanges: VitalAcceptedRangesMetadata = normalizeVitalAcceptedRanges(
+    meta.vitalAcceptedRanges,
+  )
+
   return {
     sectionComments,
     waterlow,
@@ -200,6 +208,7 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
     mentalCapacityChecklist,
     photographyConsent,
     equipmentSelection,
+    vitalAcceptedRanges,
     managerReviewRequired,
     ...mobility,
     raw: meta,

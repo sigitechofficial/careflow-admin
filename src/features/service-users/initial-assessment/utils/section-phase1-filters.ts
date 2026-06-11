@@ -4,6 +4,7 @@
  */
 
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
+import { SECTION_1_HOLISTIC_EXTRA_CANONICAL } from '@/features/service-users/initial-assessment/utils/section-1-holistic-canonical'
 
 function filterByCanonical(
   questions: InitialAssessmentQuestion[],
@@ -79,6 +80,7 @@ export const SECTION_1_CANONICAL_QUESTION_TEXT = [
   'Care instructions for staff',
   'Planned number of carers',
   'Carer numbers / rota note',
+  ...SECTION_1_HOLISTIC_EXTRA_CANONICAL,
 ] as const
 
 export const SECTION_4_CANONICAL_QUESTION_TEXT = [
