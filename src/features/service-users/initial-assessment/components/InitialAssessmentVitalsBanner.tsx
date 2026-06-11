@@ -65,7 +65,7 @@ export function InitialAssessmentVitalsBanner({
 
   const displayValue = (fieldKey: VitalFieldKey, side: RangeSide): string => {
     const key = rangeDraftKey(fieldKey, side)
-    if (key in drafts) return drafts[key]
+    if (key in drafts) return drafts[key] ?? ''
     return String(vitalAcceptedRanges[fieldKey][side])
   }
 
@@ -92,7 +92,8 @@ export function InitialAssessmentVitalsBanner({
 
   const commitDraft = (fieldKey: VitalFieldKey, side: RangeSide, decimal?: boolean) => {
     const key = rangeDraftKey(fieldKey, side)
-    const raw = key in drafts ? drafts[key] : String(vitalAcceptedRanges[fieldKey][side])
+    const raw =
+      key in drafts ? (drafts[key] ?? '') : String(vitalAcceptedRanges[fieldKey][side])
 
     if (!isDraftInputValid(raw, decimal)) {
       setRangeErrors((prev) => ({ ...prev, [key]: 'Enter a valid number' }))
