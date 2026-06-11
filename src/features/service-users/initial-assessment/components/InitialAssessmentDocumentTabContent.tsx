@@ -121,7 +121,12 @@ type Props = {
   onEndOfLifeAssessmentChange: (next: EndOfLifeAssessmentMetadata) => void
   onClinicalOutcomeSummaryChange: (next: ClinicalAssessmentOutcomeSummaryMetadata) => void
   onCarePlanObjectivesChange: (next: CarePlanObjectivesMetadata) => void
-  onMentalCapacityChecklistChange: (next: MentalCapacityChecklistMetadata) => void
+  onMentalCapacityChecklistChange: (
+    updater:
+      | MentalCapacityChecklistMetadata
+      | ((prev: MentalCapacityChecklistMetadata) => MentalCapacityChecklistMetadata),
+    options?: { immediate?: boolean },
+  ) => void
   onPhotographyConsentChange: (next: PhotographyConsentMetadata) => void
   onEquipmentSelectionChange: (next: EquipmentSelectionMetadata) => void
   onSkinIntegrityRowSideChange: (rowId: string, side: 'right' | 'left', text: string) => void

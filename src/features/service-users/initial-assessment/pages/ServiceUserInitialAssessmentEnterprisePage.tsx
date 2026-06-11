@@ -430,6 +430,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const mentalCapacityLocalEditRef = React.useRef(false)
   const mentalCapacityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const mentalCapacityPendingPersistRef = React.useRef<MentalCapacityChecklistMetadata | null>(null)
+  const mentalCapacityPersistGenerationRef = React.useRef(0)
+  const mentalCapacityChecklistRef = React.useRef<MentalCapacityChecklistMetadata>(
+    parseSubmissionMetadata(undefined).mentalCapacityChecklist,
+  )
+  mentalCapacityChecklistRef.current = mentalCapacityChecklist
   const vitalRangesPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const vitalRangesPendingPersistRef = React.useRef<VitalAcceptedRangesMetadata | null>(null)
   const pendingLeaveActionRef = React.useRef<(() => void) | null>(null)
@@ -1205,23 +1210,54 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [persistMetadata],
   )
 
-  const onMentalCapacityChecklistChange = React.useCallback(
-    (next: MentalCapacityChecklistMetadata) => {
-      mentalCapacityLocalEditRef.current = true
-      setMentalCapacityChecklist(next)
-      mentalCapacityPendingPersistRef.current = next
+  const scheduleMentalCapacityPersist = React.useCallback(
+    (payload: MentalCapacityChecklistMetadata, immediate: boolean) => {
+      mentalCapacityPendingPersistRef.current = payload
+      const generation = ++mentalCapacityPersistGenerationRef.current
+
       if (mentalCapacityPersistTimerRef.current) {
         clearTimeout(mentalCapacityPersistTimerRef.current)
+        mentalCapacityPersistTimerRef.current = null
       }
-      mentalCapacityPersistTimerRef.current = setTimeout(() => {
-        const payload = mentalCapacityPendingPersistRef.current
-        if (!payload) return
-        void persistMetadata({ mentalCapacityChecklist: payload }).finally(() => {
+
+      const runPersist = () => {
+        const toSave = mentalCapacityPendingPersistRef.current
+        if (!toSave) return
+        void persistMetadata({ mentalCapacityChecklist: toSave }).finally(() => {
+          if (mentalCapacityPersistGenerationRef.current !== generation) return
+          if (mentalCapacityPendingPersistRef.current !== toSave) return
           mentalCapacityLocalEditRef.current = false
         })
+      }
+
+      if (immediate) {
+        runPersist()
+        return
+      }
+
+      mentalCapacityPersistTimerRef.current = setTimeout(() => {
+        mentalCapacityPersistTimerRef.current = null
+        runPersist()
       }, 400)
     },
     [persistMetadata],
+  )
+
+  const onMentalCapacityChecklistChange = React.useCallback(
+    (
+      updater:
+        | MentalCapacityChecklistMetadata
+        | ((prev: MentalCapacityChecklistMetadata) => MentalCapacityChecklistMetadata),
+      options?: { immediate?: boolean },
+    ) => {
+      mentalCapacityLocalEditRef.current = true
+      const next =
+        typeof updater === 'function' ? updater(mentalCapacityChecklistRef.current) : updater
+      mentalCapacityChecklistRef.current = next
+      setMentalCapacityChecklist(next)
+      scheduleMentalCapacityPersist(next, options?.immediate ?? false)
+    },
+    [scheduleMentalCapacityPersist],
   )
 
   const onPhotographyConsentChange = React.useCallback(

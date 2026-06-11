@@ -33,7 +33,12 @@ import {
 type Props = {
   value: MentalCapacityChecklistMetadata
   disabled?: boolean
-  onChange: (next: MentalCapacityChecklistMetadata) => void
+  onChange: (
+    updater:
+      | MentalCapacityChecklistMetadata
+      | ((prev: MentalCapacityChecklistMetadata) => MentalCapacityChecklistMetadata),
+    options?: { immediate?: boolean },
+  ) => void
 }
 
 function YesNoColumnCell({
@@ -64,6 +69,7 @@ function YesNoColumnCell({
         <input
           type="radio"
           name={name}
+          value={column}
           className={IA_RADIO_CLASS}
           checked={checked}
           disabled={disabled}
@@ -120,10 +126,11 @@ function AssessmentTypeRow({
 }
 
 export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled, onChange }: Props) {
-  const patch = (partial: Partial<MentalCapacityChecklistMetadata>) => onChange({ ...value, ...partial })
+  const patch = (partial: Partial<MentalCapacityChecklistMetadata>, immediate?: boolean) =>
+    onChange((prev) => ({ ...prev, ...partial }), { immediate })
 
   const patchQuestion = (id: MentalCapacityQuestionId, answer: boolean) => {
-    patch({ [mentalCapacityAnswerKey(id)]: answer })
+    patch({ [mentalCapacityAnswerKey(id)]: answer }, true)
   }
 
   const patchComments = (id: MentalCapacityQuestionId, comments: string) => {
@@ -145,7 +152,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
           <AssessmentTypeRow
             value={value.assessmentType ?? null}
             disabled={disabled}
-            onChange={(assessmentType) => patch({ assessmentType })}
+            onChange={(assessmentType) => patch({ assessmentType }, true)}
           />
 
           <div className="space-y-3 px-4 pb-4">
@@ -299,9 +306,12 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                   disabled={disabled}
                   value={value.assessorDate?.slice(0, 10) ?? ''}
                   onChange={(e) =>
-                    patch({
-                      assessorDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : '',
-                    })
+                    patch(
+                      {
+                        assessorDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : '',
+                      },
+                      true,
+                    )
                   }
                 />
               </div>
@@ -360,9 +370,12 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                   disabled={disabled}
                   value={value.representativeDate?.slice(0, 10) ?? ''}
                   onChange={(e) =>
-                    patch({
-                      representativeDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : '',
-                    })
+                    patch(
+                      {
+                        representativeDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : '',
+                      },
+                      true,
+                    )
                   }
                 />
               </div>
