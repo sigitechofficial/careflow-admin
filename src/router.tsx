@@ -188,6 +188,7 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'care-types',
   'funding-types',
   'record-types',
+  'allergies',
 ]
 
 const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [

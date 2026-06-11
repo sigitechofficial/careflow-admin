@@ -28,7 +28,6 @@ import {
   type SectionQuestionFilter,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
-import type { VitalAcceptedRangesMetadata } from '@/features/service-users/initial-assessment/utils/vitals-validation'
 import type { AdlWorksheetMetadata } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import type {
   DailyLivingAidsMetadata,
@@ -109,7 +108,8 @@ type Props = {
   showBodyMapCta?: boolean
   onSyncEmergencyContact?: () => void
   onMarkMedicationVerified?: () => void
-  onOpenBodyMap?: () => void
+  onSyncBodyMap?: () => void
+  syncBodyMapLoading?: boolean
   onOpenWaterlowTab?: () => void
   onPainAssessmentChange: (next: PainAssessmentMetadata) => void
   onWaterlowChange: (next: WaterlowMetadata) => void
@@ -135,8 +135,6 @@ type Props = {
     assessorNameDesignation?: string
   }) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
-  vitalAcceptedRanges: VitalAcceptedRangesMetadata
-  onVitalAcceptedRangesChange: (next: VitalAcceptedRangesMetadata) => void
   section12: Section12Bundle
 }
 
@@ -183,7 +181,8 @@ export function InitialAssessmentDocumentTabContent({
   showBodyMapCta,
   onSyncEmergencyContact,
   onMarkMedicationVerified,
-  onOpenBodyMap,
+  onSyncBodyMap,
+  syncBodyMapLoading,
   onOpenWaterlowTab,
   onPainAssessmentChange,
   onWaterlowChange,
@@ -201,8 +200,6 @@ export function InitialAssessmentDocumentTabContent({
   onSkinIntegrityRowSideChange,
   onSectionFooterChange,
   onChange,
-  vitalAcceptedRanges,
-  onVitalAcceptedRangesChange,
   section12,
 }: Props) {
   const footer = onSectionFooterChange ? (
@@ -417,8 +414,10 @@ export function InitialAssessmentDocumentTabContent({
       <InitialAssessmentTotalSkinIntegrityCheckPanel
         value={skinIntegrityCheck}
         disabled={disabled}
-        showBodyMapCta={showBodyMapCta}
-        onOpenBodyMap={onOpenBodyMap}
+        serviceUserId={serviceUserId}
+        submissionId={submissionId}
+        onSyncBodyMap={onSyncBodyMap}
+        syncBodyMapLoading={syncBodyMapLoading}
         onOpenWaterlowTab={onOpenWaterlowTab}
         onRowSideChange={onSkinIntegrityRowSideChange}
       />
@@ -490,8 +489,6 @@ export function InitialAssessmentDocumentTabContent({
               onPainAssessmentChange={onPainAssessmentChange}
               holisticTab={toHolisticTabSlice(tab, slice.sectionNumber, slice)}
               hidePainAssessmentTool={hidePainTool}
-              vitalAcceptedRanges={vitalAcceptedRanges}
-              onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
               suppressIntro
               onChange={onChange}
             />
@@ -526,8 +523,6 @@ export function InitialAssessmentDocumentTabContent({
         sectionFooter={sectionFooter}
         onSectionFooterChange={onSectionFooterChange}
         holisticTab={tab}
-        vitalAcceptedRanges={vitalAcceptedRanges}
-        onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
         onChange={onChange}
       />
     </>

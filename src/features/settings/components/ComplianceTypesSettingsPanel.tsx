@@ -14,6 +14,8 @@ import {
   useDeleteComplianceType,
   useUpdateComplianceType,
 } from '@/features/settings/hooks/useLookupsAdmin'
+import { SettingsTablePagination } from '@/features/settings/components/SettingsTablePagination'
+import { useClientPagination } from '@/features/settings/hooks/useClientPagination'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -64,6 +66,8 @@ export function ComplianceTypesSettingsPanel() {
     isLoading: loading,
     error: queryError,
   } = useComplianceTypes({ search: debouncedFilter || undefined, limit: 500 })
+
+  const pagination = useClientPagination(rows, { resetDeps: [debouncedFilter] })
 
   const createMutation = useCreateComplianceType()
   const updateMutation = useUpdateComplianceType()
@@ -212,7 +216,8 @@ export function ComplianceTypesSettingsPanel() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No compliance types found.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left">
@@ -224,7 +229,7 @@ export function ComplianceTypesSettingsPanel() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
+              {pagination.paginatedItems.map(row => (
                 <tr key={row.id} className="border-b border-border/60">
                   <td className="px-3 py-2">{row.name}</td>
                   <td className="px-3 py-2 font-mono text-xs">{row.code}</td>
@@ -265,6 +270,17 @@ export function ComplianceTypesSettingsPanel() {
               ))}
             </tbody>
           </table>
+          </div>
+          <SettingsTablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            pageSize={pagination.pageSize}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+          />
         </div>
       )}
 

@@ -108,8 +108,21 @@ export const IA_SIMPLE_FIELD_STACK_CLASS = 'space-y-5'
 /** Wrapper for a single field in the simplified §1 layout. */
 export const IA_SIMPLE_FIELD_CLASS = 'space-y-1.5'
 
-/** Short text inputs in §1 profile blocks. */
-export const IA_SIMPLE_INPUT_CLASS = 'h-10 max-w-md text-base'
+/** Muted card shell for standalone Yes/No template questions — matches h-10 control height. */
+export const IA_YES_NO_CARD_CLASS =
+  'rounded-lg border border-border/70 bg-muted/20 px-3 py-0'
+
+/** Short text inputs in §1 profile blocks — full width of the field column. */
+export const IA_SIMPLE_INPUT_CLASS = 'h-10 w-full text-base'
+
+/** Date inputs — calendar control aligned to the trailing edge. */
+export const IA_DATE_INPUT_CLASS = cn(
+  'pr-10',
+  '[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0',
+  '[&::-webkit-calendar-picker-indicator]:left-auto [&::-webkit-calendar-picker-indicator]:h-full',
+  '[&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer',
+  '[&::-webkit-calendar-picker-indicator]:opacity-0',
+)
 
 /** Shared subsection panel shell (§12 panels, embedded blocks). */
 export const IA_SUBSECTION_PANEL_CLASS = 'overflow-hidden rounded-xl border border-border bg-card shadow-sm'

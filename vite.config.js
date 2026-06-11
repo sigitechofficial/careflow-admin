@@ -1,9 +1,12 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { iaPlaywrightRunnerPlugin } from './scripts/vite-ia-playwright-runner.mjs';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, process.cwd(), '');
+    // Always load from care-admin root (not shell cwd) so .env is found reliably.
+    const env = loadEnv(mode, __dirname, '');
     Object.assign(process.env, env);
     const plugins = [react()];
     if (mode === 'development') {
@@ -11,6 +14,7 @@ export default defineConfig(({ mode }) => {
     }
     return {
         plugins,
+        envDir: __dirname,
         resolve: {
             alias: {
                 '@': path.resolve(__dirname, './src'),

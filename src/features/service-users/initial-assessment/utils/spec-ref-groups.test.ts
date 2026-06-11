@@ -27,4 +27,24 @@ describe('mergeSpecRefGroups', () => {
     expect(merged[0]!.specRef).toBe('12.5a')
     expect(merged[0]!.questions.map((x) => x.id)).toEqual(['a1', 'a2'])
   })
+
+  it('orders §1.1 personal details by paper form sequence', () => {
+    const groups: SpecRefGroup[] = [
+      {
+        specRef: '1.1',
+        label: '1.1',
+        questions: [
+          q('Funding type', '1.1', 5),
+          q('First name', '1.1', 76),
+          q('Preferred name', '1.1', 1),
+        ],
+      },
+    ]
+    const merged = mergeSpecRefGroups(groups)
+    expect(merged[0]!.questions.map((x) => x.questionText)).toEqual([
+      'First name',
+      'Preferred name',
+      'Funding type',
+    ])
+  })
 })

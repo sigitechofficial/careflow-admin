@@ -8,8 +8,11 @@ import { ComplianceTypesSettingsPanel } from '@/features/settings/components/Com
 import { MedicationStatusCodesSettingsPanel } from '@/features/settings/components/MedicationStatusCodesSettingsPanel'
 import { MedicationTimeSlotsSettingsPanel } from '@/features/settings/components/MedicationTimeSlotsSettingsPanel'
 import { ServiceUserCareTypesSettingsPanel } from '@/features/settings/components/ServiceUserCareTypesSettingsPanel'
+import { ServiceUserCodeNameLookupSettingsPanel } from '@/features/settings/components/ServiceUserCodeNameLookupSettingsPanel'
 import { ServiceUserFundingTypesSettingsPanel } from '@/features/settings/components/ServiceUserFundingTypesSettingsPanel'
+import { AllergiesCatalogSettingsPanel } from '@/features/settings/components/AllergiesCatalogSettingsPanel'
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
+import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
 
 export type SettingsTabId =
   | 'job-titles'
@@ -28,7 +31,11 @@ export type SettingsTabId =
   | 'time-slots'
   | 'care-types'
   | 'funding-types'
+  | 'ethnicities'
+  | 'languages'
   | 'record-types'
+  | 'allergies'
+  | 'vital-ranges'
 
 const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'job-titles', label: 'Job titles' },
@@ -47,7 +54,11 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'time-slots', label: 'Time slots' },
   { id: 'care-types', label: 'Care types' },
   { id: 'funding-types', label: 'Funding types' },
+  { id: 'ethnicities', label: 'Ethnicities' },
+  { id: 'languages', label: 'Languages' },
   { id: 'record-types', label: 'Record types' },
+  { id: 'allergies', label: 'Allergies' },
+  { id: 'vital-ranges', label: 'Accepted ranges' },
 ]
 
 export default function SettingsPage() {
@@ -63,8 +74,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-4" data-testid="settings-page">
+    <div
+      className="flex h-[calc(100dvh-3.5rem-2.5rem)] flex-col gap-4 overflow-hidden md:h-[calc(100dvh-3.5rem-3rem)]"
+      data-testid="settings-page"
+    >
       <PageHeader
+        className="shrink-0"
         title="Settings"
         description="Manage lookup data used across employee and service user forms."
         icon={<Settings className="h-4 w-4 text-muted-foreground" aria-hidden />}
@@ -74,9 +89,14 @@ export default function SettingsPage() {
         ]}
       />
 
-      <div className="flex min-h-[min(70vh,640px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav
-          className="flex max-h-[min(70vh,640px)] shrink-0 gap-0.5 overflow-x-auto overflow-y-auto border-b border-border bg-muted/30 p-2 md:w-56 md:flex-col md:overflow-x-visible md:border-b-0 md:border-r md:p-2"
+          className={cn(
+            'flex min-h-0 shrink-0 gap-0.5 overflow-x-auto overflow-y-hidden overscroll-y-contain',
+            'border-b border-border bg-muted/30 p-2',
+            'md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-hidden md:hover:overflow-y-auto',
+            'md:border-b-0 md:border-r md:p-2',
+          )}
           aria-label="Settings modules"
           data-testid="settings-tabs"
         >
@@ -103,7 +123,7 @@ export default function SettingsPage() {
           })}
         </nav>
 
-        <div className="min-w-0 flex-1 overflow-y-auto p-5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain p-5">
           {activeTab === 'job-titles' && (
             <LookupNamePanel
               resource="job-titles"
@@ -185,7 +205,11 @@ export default function SettingsPage() {
           {activeTab === 'time-slots' && <MedicationTimeSlotsSettingsPanel />}
           {activeTab === 'care-types' && <ServiceUserCareTypesSettingsPanel />}
           {activeTab === 'funding-types' && <ServiceUserFundingTypesSettingsPanel />}
+          {activeTab === 'ethnicities' && <ServiceUserCodeNameLookupSettingsPanel variant="ethnicities" />}
+          {activeTab === 'languages' && <ServiceUserCodeNameLookupSettingsPanel variant="languages" />}
           {activeTab === 'record-types' && <BodyMapRecordTypesSettingsPanel />}
+          {activeTab === 'allergies' && <AllergiesCatalogSettingsPanel />}
+          {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
         </div>
       </div>
     </div>

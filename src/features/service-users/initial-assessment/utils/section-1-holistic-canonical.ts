@@ -3,7 +3,10 @@
  * `HOLISTIC_SECTION_1_EXTRA_QUESTIONS` questionText exactly.
  */
 export const SECTION_1_HOLISTIC_EXTRA_CANONICAL = [
-  'Client legal name',
+  'First name',
+  'Middle name',
+  'Last name',
+  'NI number',
   'Ethnicity',
   'Languages spoken',
   'NHS number',

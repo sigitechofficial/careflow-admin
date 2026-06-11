@@ -1,6 +1,7 @@
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import { compareSpecRefs } from '@/features/service-users/initial-assessment/utils/compare-spec-ref'
 import { SECTION_12_GROUP_ORDER } from '@/features/service-users/initial-assessment/utils/section-12-display-order'
+import { sortPersonalDetailsQuestions } from '@/features/service-users/initial-assessment/utils/section-1-personal-details-order'
 
 /** §1 assessor-friendly order: who they are → preferences → admission context last. */
 const SECTION_1_GROUP_ORDER = [
@@ -181,7 +182,10 @@ export function mergeSpecRefGroups(groups: SpecRefGroup[]): SpecRefGroup[] {
   }
   const merged = [...byRef.values()]
   for (const g of merged) {
-    g.questions.sort((a, b) => a.sortOrder - b.sortOrder)
+    g.questions =
+      g.specRef === '1.1'
+        ? sortPersonalDetailsQuestions(g.questions)
+        : [...g.questions].sort((a, b) => a.sortOrder - b.sortOrder)
   }
   return merged
 }

@@ -9,6 +9,8 @@ import {
   useUpdateMedicationRound,
 } from '@/features/settings/hooks/useMedicationRoundsAdmin'
 import type { MedicationRoundRow } from '@/features/settings/api/medication-settings.api'
+import { SettingsTablePagination } from '@/features/settings/components/SettingsTablePagination'
+import { useClientPagination } from '@/features/settings/hooks/useClientPagination'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 export function MedicationTimeSlotsSettingsPanel() {
@@ -27,6 +29,7 @@ export function MedicationTimeSlotsSettingsPanel() {
   const [newRoundWindowEnd, setNewRoundWindowEnd] = React.useState('')
 
   const rounds = roundsQuery.data ?? []
+  const pagination = useClientPagination(rounds)
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -119,7 +122,8 @@ export function MedicationTimeSlotsSettingsPanel() {
         ) : rounds.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">No time slots configured.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs font-medium uppercase text-muted-foreground">
@@ -132,7 +136,7 @@ export function MedicationTimeSlotsSettingsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {rounds.map(r => {
+                {pagination.paginatedItems.map(r => {
                   const editing = editingRoundId === r.id
                   const saveRound = async () => {
                     if (!editingRoundId) return
@@ -289,6 +293,17 @@ export function MedicationTimeSlotsSettingsPanel() {
                 })}
               </tbody>
             </table>
+            </div>
+            <SettingsTablePagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              rangeStart={pagination.rangeStart}
+              rangeEnd={pagination.rangeEnd}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+            />
           </div>
         )}
       </section>

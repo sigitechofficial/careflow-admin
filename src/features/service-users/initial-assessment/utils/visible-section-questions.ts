@@ -4,6 +4,7 @@ import { filterSection10Questions } from '@/features/service-users/initial-asses
 import { filterSection311Questions } from '@/features/service-users/initial-assessment/utils/section-311-flooring'
 import { filterSection310Questions } from '@/features/service-users/initial-assessment/utils/section-310-environment'
 import { filterSection38Questions } from '@/features/service-users/initial-assessment/utils/section-38-pets'
+import { isSection31FireQuestion } from '@/features/service-users/initial-assessment/utils/section-31-fire-safety'
 import { filterSection5Questions } from '@/features/service-users/initial-assessment/utils/section-5-clinical'
 import { filterSection6Questions } from '@/features/service-users/initial-assessment/utils/section-6-nutrition'
 import {
@@ -33,7 +34,9 @@ function applySectionFilters(
 ): InitialAssessmentQuestion[] {
   let qs = filterPhase1SectionQuestions(questions)
   if (sectionNumber === 3) {
-    qs = filterSection38Questions(filterSection310Questions(filterSection311Questions(qs)))
+    qs = filterSection38Questions(filterSection310Questions(filterSection311Questions(qs))).filter(
+      (q) => !isSection31FireQuestion(q),
+    )
   }
   if (sectionNumber === 5) qs = filterSection5Questions(qs)
   if (sectionNumber === 6) qs = filterSection6Questions(qs)

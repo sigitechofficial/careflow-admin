@@ -23,6 +23,10 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import {
+  profileLookupSelectRows,
+  resolveStoredLookupCode,
+} from '@/features/service-users/utils/service-user-profile-lookup-rows'
 
 /** Stored in `ServiceUserReference` for fields not on core `ServiceUser` model. */
 const PROFILE_REF = {
@@ -43,48 +47,6 @@ const PROFILE_REF = {
 
 const PROFILE_REF_TYPES = new Set<string>(Object.values(PROFILE_REF))
 
-/** ONS 2021–style categories; values are stored as the label text in `ServiceUserReference`. */
-const ETHNICITY_STANDARD_ROWS: Array<{ id: string; name: string }> = [
-  { id: 'Prefer not to say', name: 'Prefer not to say' },
-  { id: 'White - English, Welsh, Scottish, Northern Irish or British', name: 'White - English, Welsh, Scottish, Northern Irish or British' },
-  { id: 'White - Irish', name: 'White - Irish' },
-  { id: 'White - Gypsy or Irish Traveller', name: 'White - Gypsy or Irish Traveller' },
-  { id: 'White - Roma', name: 'White - Roma' },
-  { id: 'White - Any other White background', name: 'White - Any other White background' },
-  { id: 'Mixed - White and Black Caribbean', name: 'Mixed - White and Black Caribbean' },
-  { id: 'Mixed - White and Black African', name: 'Mixed - White and Black African' },
-  { id: 'Mixed - White and Asian', name: 'Mixed - White and Asian' },
-  { id: 'Mixed - Any other Mixed or multiple background', name: 'Mixed - Any other Mixed or multiple background' },
-  { id: 'Asian or Asian British - Indian', name: 'Asian or Asian British - Indian' },
-  { id: 'Asian or Asian British - Pakistani', name: 'Asian or Asian British - Pakistani' },
-  { id: 'Asian or Asian British - Bangladeshi', name: 'Asian or Asian British - Bangladeshi' },
-  { id: 'Asian or Asian British - Chinese', name: 'Asian or Asian British - Chinese' },
-  { id: 'Asian or Asian British - Any other Asian background', name: 'Asian or Asian British - Any other Asian background' },
-  {
-    id: 'Black, Black British, Caribbean or African - Caribbean',
-    name: 'Black, Black British, Caribbean or African - Caribbean',
-  },
-  {
-    id: 'Black, Black British, Caribbean or African - African',
-    name: 'Black, Black British, Caribbean or African - African',
-  },
-  {
-    id: 'Black, Black British, Caribbean or African - Any other Black, Black British, or Caribbean background',
-    name: 'Black, Black British, Caribbean or African - Any other Black, Black British, or Caribbean background',
-  },
-  { id: 'Arab', name: 'Arab' },
-  { id: 'Other ethnic group', name: 'Other ethnic group' },
-]
-
-function ethnicityRowsForValue(current: string): Array<{ id: string; name: string }> {
-  const v = current.trim()
-  const base = ETHNICITY_STANDARD_ROWS.slice()
-  if (v && !base.some((r) => r.id === v)) {
-    base.unshift({ id: v, name: `${v} (saved value — pick a standard option to replace)` })
-  }
-  return base
-}
-
 /** Short help shown next to each field (hover or focus the info icon). */
 const FIELD_HELP = {
   nhsNumber:
@@ -103,7 +65,7 @@ const FIELD_HELP = {
   gender: 'Gender or sex recorded for this person, from your configured list. Align collection with your privacy and equality policies.',
   religion: 'Religion or belief only if the person chooses to provide it; used sensitively for pastoral or dietary needs where relevant.',
   ethnicity:
-    'Choose the option that best matches how the person identifies. Options follow an ONS-style grouping for consistent reporting and equality monitoring. A previously saved free-text value appears at the top until you pick a standard option.',
+    'Choose the option that best matches how the person identifies. Options are managed in Settings → Lookup data → Ethnicities.',
   preferredContactMethod: 'How this person prefers to be contacted first (for example phone, email, post).',
   addressLine1: 'Primary street address or building line for visits and post.',
   addressLine2: 'Second address line (flat, unit, or building detail) if needed.',
@@ -139,7 +101,8 @@ const FIELD_HELP = {
   sexualOrientation: 'Optional. Collect only with consent; used for equality monitoring and person-centred care where relevant.',
   disability: 'Disability or long-term condition information used to plan reasonable adjustments under equality law; record accurately and minimally.',
   maternity: 'Pregnancy or maternity-related flag only where your service legitimately needs it for care planning.',
-  language: 'Preferred spoken or written language for communication and accessible information.',
+  language:
+    'Preferred spoken or written language for communication and accessible information. Options are managed in Settings → Lookup data → Languages.',
 } as const
 
 function extValue(refs: ServiceUserDetailReference[], type: string): string {
@@ -240,7 +203,7 @@ type FormState = {
   residentGuid: string
 }
 
-function detailToForm(d: ServiceUserDetail): FormState {
+function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle): FormState {
   const r = d.references
   return {
     nhsNumber: d.nhsNumber ?? '',
@@ -257,11 +220,15 @@ function detailToForm(d: ServiceUserDetail): FormState {
     dateOfBirth: toInputDate(d.dateOfBirth),
     placeOfBirth: extValue(r, PROFILE_REF.placeOfBirth),
     religion: extValue(r, PROFILE_REF.religion),
-    ethnicity: extValue(r, PROFILE_REF.ethnicity),
+    ethnicity: lookups
+      ? resolveStoredLookupCode(extValue(r, PROFILE_REF.ethnicity), lookups.ethnicities)
+      : extValue(r, PROFILE_REF.ethnicity),
     sexualOrientation: extValue(r, PROFILE_REF.sexualOrientation),
     disability: extValue(r, PROFILE_REF.disability),
     maternity: extValue(r, PROFILE_REF.maternity),
-    language: extValue(r, PROFILE_REF.language),
+    language: lookups
+      ? resolveStoredLookupCode(extValue(r, PROFILE_REF.language), lookups.languages)
+      : extValue(r, PROFILE_REF.language),
     preferredContactMethod: extValue(r, PROFILE_REF.preferredContactMethod),
     emailType: extValue(r, PROFILE_REF.emailType),
     otherContactMethod: extValue(r, PROFILE_REF.otherContactMethod),
@@ -419,7 +386,7 @@ export function ServiceUserPersonalDetailsForm({
   const canAddress = useAuthStore((s) => s.can('service_users.address.update'))
   const updateMutation = useUpdateServiceUser(serviceUserId)
 
-  const [form, setForm] = React.useState<FormState>(() => detailToForm(detail))
+  const [form, setForm] = React.useState<FormState>(() => detailToForm(detail, lookups))
   const [kwSearch, setKwSearch] = React.useState('')
   const [nnSearch, setNnSearch] = React.useState('')
   const [debouncedKwSearch, setDebouncedKwSearch] = React.useState('')
@@ -442,14 +409,14 @@ export function ServiceUserPersonalDetailsForm({
   const nnHits = nnEmployeesQuery.data?.rows ?? []
 
   React.useEffect(() => {
-    setForm(detailToForm(detail))
+    setForm(detailToForm(detail, lookups))
     setKwLabel(employeeLabel(detail.keyWorker))
     setNnLabel(employeeLabel(detail.namedNurse))
     setKwSearch('')
     setNnSearch('')
     setDebouncedKwSearch('')
     setDebouncedNnSearch('')
-  }, [detail])
+  }, [detail, lookups])
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setDebouncedKwSearch(kwSearch), 300)
@@ -479,7 +446,14 @@ export function ServiceUserPersonalDetailsForm({
         })()
       : null
 
-  const ethnicityLookupRows = React.useMemo(() => ethnicityRowsForValue(form.ethnicity), [form.ethnicity])
+  const ethnicityLookupRows = React.useMemo(
+    () => profileLookupSelectRows(lookups.ethnicities, form.ethnicity),
+    [lookups.ethnicities, form.ethnicity],
+  )
+  const languageLookupRows = React.useMemo(
+    () => profileLookupSelectRows(lookups.languages, form.language),
+    [lookups.languages, form.language],
+  )
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault()
@@ -698,6 +672,7 @@ export function ServiceUserPersonalDetailsForm({
             onChange={set('ethnicity')}
             rows={ethnicityLookupRows}
             placeholder="Select ethnicity"
+            emptyHint="No ethnicities yet. Add them in Settings → Lookup data → Ethnicities."
           />
         </div>
       </section>
@@ -936,7 +911,15 @@ export function ServiceUserPersonalDetailsForm({
           />
           <FieldEditable label="Disability" tooltip={FIELD_HELP.disability} value={form.disability} onChange={set('disability')} />
           <FieldEditable label="Pregnant/Maternity" tooltip={FIELD_HELP.maternity} value={form.maternity} onChange={set('maternity')} />
-          <FieldEditable label="Language" tooltip={FIELD_HELP.language} value={form.language} onChange={set('language')} />
+          <LookupSelect
+            label="Language"
+            tooltip={FIELD_HELP.language}
+            value={form.language}
+            onChange={set('language')}
+            rows={languageLookupRows}
+            placeholder="Select language"
+            emptyHint="No languages yet. Add them in Settings → Lookup data → Languages."
+          />
         </div>
       </section>
 

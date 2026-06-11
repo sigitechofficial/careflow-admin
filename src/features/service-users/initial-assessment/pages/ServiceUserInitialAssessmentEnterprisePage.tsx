@@ -1,16 +1,17 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useBlocker, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ClipboardCheck, FileCode2, FileDown, Loader2, PanelRightClose, PanelRightOpen, TestTube2 } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastInfo, toastSuccess } from '@/shared/lib/toast'
+import { fetchServiceUserBodyMap } from '@/features/service-users/body-map/api'
 import { type ServiceUserDetail, type ServiceUserListRow } from '@/features/service-users/types'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
+import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
-import { useBodyMapSummary } from '@/features/service-users/body-map/hooks/useBodyMap'
 import { useAuthStore } from '@/features/auth/store'
 import { Label } from '@/shared/ui/form-field'
 import {
@@ -27,19 +28,9 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Button } from '@/shared/ui/button'
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
 import { InitialAssessmentAuditPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAuditPanel'
-import { InitialAssessmentBodyMapDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentBodyMapDialog'
 import {
   InitialAssessmentHubTabs,
   type HubTabId,
@@ -162,6 +153,7 @@ import {
   patchSkinIntegrityCheckRow,
   type SkinIntegrityCheckMetadata,
 } from '@/features/service-users/initial-assessment/utils/skin-integrity-check'
+import { syncSkinIntegrityCheckFromBodyMap } from '@/features/service-users/initial-assessment/utils/sync-skin-integrity-from-body-map'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
 import { batchRequiresCorrectionReason } from '@/features/service-users/initial-assessment/utils/answer-correction-check'
@@ -177,11 +169,9 @@ import {
   IA_FORM_ROOT_CLASS,
   IA_SECTION_TITLE_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
-import {
-  buildVitalsValidationErrors,
-  defaultVitalAcceptedRanges,
-  type VitalAcceptedRangesMetadata,
-} from '@/features/service-users/initial-assessment/utils/vitals-validation'
+import { buildVitalsValidationErrors } from '@/features/service-users/initial-assessment/utils/vitals-validation'
+import { useVitalAcceptedRangeLookup } from '@/features/service-users/initial-assessment/hooks/useVitalAcceptedRangeLookup'
+import { vitalAcceptedRangesFromLookup } from '@/features/service-users/initial-assessment/utils/vital-accepted-ranges.lookup'
 import { buildValidationMaps } from '@/features/service-users/initial-assessment/utils/validation-maps'
 import { section12PanelExcludedIds } from '@/features/service-users/initial-assessment/utils/section-12-panel-exclusions'
 import {
@@ -334,8 +324,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const submissionsQuery = useInitialAssessmentSubmissions(selectedId, hasApi && canRead && !!selectedId)
   const detailQuery = useServiceUser(selectedId, hasApi && canRead && !!selectedId)
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
-  const bodyMapSummaryQuery = useBodyMapSummary(selectedId)
-
+  const suLookupsQuery = useServiceUserLookups()
   const [submissionId, setSubmissionId] = React.useState<string | null>(null)
   const [draftAnswers, setDraftAnswers] = React.useState<Record<string, InitialAssessmentAnswerInput>>({})
   const [sectionComments, setSectionComments] = React.useState<Record<string, SectionCommentEntry>>({})
@@ -385,8 +374,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [equipmentSelection, setEquipmentSelection] = React.useState<EquipmentSelectionMetadata>(
     parseSubmissionMetadata(undefined).equipmentSelection,
   )
-  const [vitalAcceptedRanges, setVitalAcceptedRanges] = React.useState<VitalAcceptedRangesMetadata>(
-    defaultVitalAcceptedRanges(),
+  const vitalAcceptedRangeLookup = useVitalAcceptedRangeLookup()
+  const vitalAcceptedRanges = React.useMemo(
+    () => vitalAcceptedRangesFromLookup(vitalAcceptedRangeLookup.data ?? []),
+    [vitalAcceptedRangeLookup.data],
   )
   const [sectionFooters, setSectionFooters] = React.useState(
     parseSubmissionMetadata(undefined).sectionFooters,
@@ -408,7 +399,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [validationRevealed, setValidationRevealed] = React.useState(false)
   const [pdfModalOpen, setPdfModalOpen] = React.useState(false)
   const [htmlExportOpen, setHtmlExportOpen] = React.useState(false)
-  const [bodyMapOpen, setBodyMapOpen] = React.useState(false)
+  const [syncBodyMapLoading, setSyncBodyMapLoading] = React.useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = React.useState(false)
   const [reviewNotes, setReviewNotes] = React.useState('')
   const [reopenOpen, setReopenOpen] = React.useState(false)
@@ -427,6 +418,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const skinIntegrityLocalEditRef = React.useRef(false)
   const skinIntegrityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const skinIntegrityPendingPersistRef = React.useRef<SkinIntegrityCheckMetadata | null>(null)
+  const skinIntegrityCheckRef = React.useRef<SkinIntegrityCheckMetadata>(
+    parseSubmissionMetadata(undefined).skinIntegrityCheck,
+  )
+  skinIntegrityCheckRef.current = skinIntegrityCheck
   const mentalCapacityLocalEditRef = React.useRef(false)
   const mentalCapacityPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const mentalCapacityPendingPersistRef = React.useRef<MentalCapacityChecklistMetadata | null>(null)
@@ -435,12 +430,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     parseSubmissionMetadata(undefined).mentalCapacityChecklist,
   )
   mentalCapacityChecklistRef.current = mentalCapacityChecklist
-  const vitalRangesPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const vitalRangesPendingPersistRef = React.useRef<VitalAcceptedRangesMetadata | null>(null)
-  const pendingLeaveActionRef = React.useRef<(() => void) | null>(null)
-  const suppressLeaveGuardRef = React.useRef(false)
-  const [unsavedLeaveOpen, setUnsavedLeaveOpen] = React.useState(false)
-  const [leaveSaving, setLeaveSaving] = React.useState(false)
+  // Unsaved leave guard disabled for now — see promptIfUnsaved / AlertDialog below.
+  // const pendingLeaveActionRef = React.useRef<(() => void) | null>(null)
+  // const suppressLeaveGuardRef = React.useRef(false)
+  // const [unsavedLeaveOpen, setUnsavedLeaveOpen] = React.useState(false)
+  // const [leaveSaving, setLeaveSaving] = React.useState(false)
 
   const answersQuery = useInitialAssessmentAnswers(selectedId, submissionId)
   const actionsQuery = useInitialAssessmentActions(selectedId, submissionId, hasApi && canRead && !!submissionId)
@@ -604,11 +598,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         ? prev
         : parsed.equipmentSelection,
     )
-    setVitalAcceptedRanges((prev) =>
-      JSON.stringify(prev) === JSON.stringify(parsed.vitalAcceptedRanges)
-        ? prev
-        : parsed.vitalAcceptedRanges,
-    )
     setSectionFooters((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.sectionFooters) ? prev : parsed.sectionFooters,
     )
@@ -641,7 +630,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     const map = draftAnswersFromServerRows(answersQuery.data)
     serverBaselineAnswersRef.current = map
     const submissionEditable = submission ? EDITABLE.includes(submission.status) : false
-    const prefill = buildPrefillMap({ detail: detailQuery.data, domCare: domCareQuery.data })
+    const prefill = buildPrefillMap({
+      detail: detailQuery.data,
+      domCare: domCareQuery.data,
+      lookups: suLookupsQuery.data,
+    })
     const merged =
       submissionEditable && sections.length > 0 && prefill.size > 0
         ? applyPrefillToDraftAnswers(sections, map, prefill)
@@ -669,6 +662,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     answersQuery.data,
     detailQuery.data,
     domCareQuery.data,
+    suLookupsQuery.data,
     sections,
     submission?.status,
   ])
@@ -685,6 +679,36 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     (s) => s.sectionNumber === currentHolisticTab.enterpriseSection,
   )
   const editable = submission ? EDITABLE.includes(submission.status) : false
+
+  const isAssessmentWorkspaceLoading = React.useMemo(() => {
+    if (!selectedId) return false
+    if (submissionsQuery.isLoading) return true
+
+    const submissions = submissionsQuery.data
+    if (submissions && submissions.length > 0 && !submissionId) return true
+
+    if (!submissionId) return false
+
+    const needsTemplate =
+      hubTab === 'form' ||
+      hubTab === 'waterlow' ||
+      hubTab === 'compare' ||
+      hubTab === 'versions'
+
+    if (needsTemplate && templateQuery.isLoading) return true
+
+    if (hubTab === 'form' && answersQuery.isLoading) return true
+
+    return false
+  }, [
+    selectedId,
+    submissionsQuery.isLoading,
+    submissionsQuery.data,
+    submissionId,
+    templateQuery.isLoading,
+    hubTab,
+    answersQuery.isLoading,
+  ])
 
   const section12FinanceRequired = React.useMemo(() => {
     const sec12 = sections.find((s) => s.sectionNumber === 12)
@@ -928,8 +952,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   )
 
   const prefillMap = React.useMemo(
-    () => buildPrefillMap({ detail: detailQuery.data, domCare: domCareQuery.data }),
-    [detailQuery.data, domCareQuery.data],
+    () =>
+      buildPrefillMap({
+        detail: detailQuery.data,
+        domCare: domCareQuery.data,
+        lookups: suLookupsQuery.data,
+      }),
+    [detailQuery.data, domCareQuery.data, suLookupsQuery.data],
   )
 
   const showBodyMapCta = React.useMemo(() => {
@@ -1113,21 +1142,50 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, persistMetadata, onAnswerChange],
   )
 
-  const onVitalAcceptedRangesChange = React.useCallback(
-    (next: VitalAcceptedRangesMetadata) => {
-      setVitalAcceptedRanges(next)
-      vitalRangesPendingPersistRef.current = next
-      if (vitalRangesPersistTimerRef.current) {
-        clearTimeout(vitalRangesPersistTimerRef.current)
+  const syncSkinIntegrityFromBodyMap = React.useCallback(async () => {
+    if (!selectedId || !editable || !canUpdate) return
+    setSyncBodyMapLoading(true)
+    try {
+      const { records } = await fetchServiceUserBodyMap(selectedId, { includeResolved: false })
+      const { metadata, syncedRecordCount, skippedRecordCount } = syncSkinIntegrityCheckFromBodyMap(
+        skinIntegrityCheckRef.current,
+        records,
+      )
+
+      if (syncedRecordCount === 0) {
+        toastInfo(
+          'Nothing to sync',
+          records.length
+            ? 'No open skin-related body map records matched a worksheet body part.'
+            : 'Add markers on the body map first, then sync again.',
+        )
+        return
       }
-      vitalRangesPersistTimerRef.current = setTimeout(() => {
-        const payload = vitalRangesPendingPersistRef.current
-        if (!payload) return
-        void persistMetadata({ vitalAcceptedRanges: payload })
-      }, 400)
-    },
-    [persistMetadata],
-  )
+
+      if (skinIntegrityPersistTimerRef.current) {
+        clearTimeout(skinIntegrityPersistTimerRef.current)
+        skinIntegrityPersistTimerRef.current = null
+      }
+      skinIntegrityLocalEditRef.current = true
+      skinIntegrityPendingPersistRef.current = metadata
+      skinIntegrityCheckRef.current = metadata
+      setSkinIntegrityCheck(metadata)
+      await persistMetadata({ skinIntegrityCheck: metadata })
+      skinIntegrityLocalEditRef.current = false
+
+      toastSuccess(
+        'Body map synced',
+        skippedRecordCount > 0
+          ? `${syncedRecordCount} record${syncedRecordCount === 1 ? '' : 's'} added to the worksheet (${skippedRecordCount} skipped).`
+          : `${syncedRecordCount} record${syncedRecordCount === 1 ? '' : 's'} added to the worksheet.`,
+      )
+    } catch (e) {
+      skinIntegrityLocalEditRef.current = false
+      toastApiError(e, 'Could not sync body map')
+    } finally {
+      setSyncBodyMapLoading(false)
+    }
+  }, [selectedId, editable, canUpdate, persistMetadata])
 
   const onSkinIntegrityRowSideChange = React.useCallback(
     (rowId: string, side: 'right' | 'left', text: string) => {
@@ -1393,7 +1451,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       case 'multi-section':
         if (tab.id === 1) {
           patch.painAssessment = painAssessment
-          patch.vitalAcceptedRanges = vitalAcceptedRanges
         }
         break
       default:
@@ -1432,7 +1489,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     financeConsentQuestion,
     draftAnswers,
     sectionFooters,
-    vitalAcceptedRanges,
     persistMetadata,
   ])
 
@@ -1569,6 +1625,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     }
   }
 
+  // Unsaved leave guard disabled for now — "Save changes?" modal and route blocker.
+  /*
   const assessmentHasUnsavedChanges = React.useCallback((): boolean => {
     if (suppressLeaveGuardRef.current) return false
     if (!editable || !canUpdate || !submissionId) return false
@@ -1641,14 +1699,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       await persistMetadata({ mentalCapacityChecklist: mentalCapacityPendingPersistRef.current })
       mentalCapacityPendingPersistRef.current = null
       mentalCapacityLocalEditRef.current = false
-    }
-    if (vitalRangesPersistTimerRef.current) {
-      clearTimeout(vitalRangesPersistTimerRef.current)
-      vitalRangesPersistTimerRef.current = null
-    }
-    if (vitalRangesPendingPersistRef.current) {
-      await persistMetadata({ vitalAcceptedRanges: vitalRangesPendingPersistRef.current })
-      vitalRangesPendingPersistRef.current = null
     }
     const dirtyIds = [...dirtyAnswerQuestionIdsRef.current]
     if (dirtyIds.length > 0) {
@@ -1740,6 +1790,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     },
     [completePendingLeave, discardUnsavedChanges, saveAllPendingChanges],
   )
+  */
+
+  const promptIfUnsaved = React.useCallback((action: () => void) => {
+    action()
+  }, [])
 
   const selectSubmission = (id: string) => {
     if (id === submissionId) return
@@ -1817,6 +1872,20 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       {!selectedId ? (
         <div className="rounded-lg border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
           Select a service user to open the enterprise assessment.
+        </div>
+      ) : isAssessmentWorkspaceLoading ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 py-20 shadow-sm"
+          data-testid="ia-assessment-loading"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-teal-700 dark:text-teal-400" aria-hidden />
+          <p className="text-sm font-medium text-foreground">Loading assessment…</p>
+          <p className="text-xs text-muted-foreground">
+            Fetching submissions and opening the in-progress assessment.
+          </p>
         </div>
       ) : (
         <>
@@ -2235,7 +2304,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         showBodyMapCta={showBodyMapCta}
                         onSyncEmergencyContact={syncEmergencyContactFromProfile}
                         onMarkMedicationVerified={markMedicationListVerified}
-                        onOpenBodyMap={() => setBodyMapOpen(true)}
+                        onSyncBodyMap={syncSkinIntegrityFromBodyMap}
+                        syncBodyMapLoading={syncBodyMapLoading}
                         onOpenWaterlowTab={goToWaterlowTab}
                         onPainAssessmentChange={onPainAssessmentChange}
                         onWaterlowChange={onWaterlowChange}
@@ -2251,8 +2321,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onPhotographyConsentChange={onPhotographyConsentChange}
                         onEquipmentSelectionChange={onEquipmentSelectionChange}
                         onSkinIntegrityRowSideChange={onSkinIntegrityRowSideChange}
-                        vitalAcceptedRanges={vitalAcceptedRanges}
-                        onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
                         sectionFooter={sectionFooters[String(activeHolisticTab)]}
                         onSectionFooterChange={(patch) => onSectionFooterChange(activeHolisticTab, patch)}
                         onChange={onAnswerChange}
@@ -2450,14 +2518,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         }}
       />
 
-      <InitialAssessmentBodyMapDialog
-        open={bodyMapOpen}
-        onOpenChange={setBodyMapOpen}
-        serviceUserId={selectedId}
-        submissionId={submissionId}
-        openRecordCount={bodyMapSummaryQuery.data?.activeCount}
-      />
-
       <InitialAssessmentReopenDialog
         open={reopenOpen}
         onOpenChange={setReopenOpen}
@@ -2477,6 +2537,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         }
       />
 
+      {/* Unsaved leave guard disabled for now — "Save changes?" modal
       <AlertDialog
         open={unsavedLeaveOpen}
         onOpenChange={(open) => {
@@ -2511,6 +2572,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      */}
     </div>
   )
 }

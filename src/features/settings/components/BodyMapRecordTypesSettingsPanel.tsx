@@ -8,6 +8,8 @@ import {
   useDeleteBodyMapRecordType,
   useUpdateBodyMapRecordType,
 } from '@/features/settings/hooks/useLookupsAdmin'
+import { SettingsTablePagination } from '@/features/settings/components/SettingsTablePagination'
+import { useClientPagination } from '@/features/settings/hooks/useClientPagination'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Switch } from '@/shared/ui/toggle-controls'
@@ -127,6 +129,8 @@ export function BodyMapRecordTypesSettingsPanel() {
         g.children.some(c => c.name.toLowerCase().includes(q)),
     )
   }, [filter, groups])
+
+  const pagination = useClientPagination(filteredGroups, { resetDeps: [filter] })
 
   const cancelEdit = () => {
     setEditingId(null)
@@ -289,7 +293,7 @@ export function BodyMapRecordTypesSettingsPanel() {
         </p>
       ) : (
         <div className="space-y-3">
-          {filteredGroups.map(({ parent, children }) => {
+          {pagination.paginatedItems.map(({ parent, children }) => {
             const expanded = expandedIds.has(parent.id)
             const isEditingParent = editingId === parent.id
             const isAddingSubType = addingSubTypeTo === parent.id
@@ -548,6 +552,16 @@ export function BodyMapRecordTypesSettingsPanel() {
               </section>
             )
           })}
+          <SettingsTablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            pageSize={pagination.pageSize}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+          />
         </div>
       )}
     </div>

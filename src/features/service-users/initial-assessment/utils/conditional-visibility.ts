@@ -26,11 +26,11 @@ const INFERRED_RULES: { questionTextIncludes: string; when: ShowWhenRule }[] = [
   },
   { questionTextIncludes: 'language required', when: { gateTextIncludes: 'interpreter required', yes: true } },
   {
-    questionTextIncludes: 'london fire brigade contact',
-    when: { gateTextIncludes: 'london fire brigade informed', yes: true },
+    questionTextIncludes: 'measures needed if home is unsafe',
+    when: { gateTextIncludes: 'manage home environment safely', no: true },
   },
   {
-    questionTextIncludes: 'measures needed if home is unsafe',
+    questionTextIncludes: 'if no, what measure should be taken',
     when: { gateTextIncludes: 'manage home environment safely', no: true },
   },
   { questionTextIncludes: 'key safe code', when: { gateTextIncludes: 'key safe present', yes: true } },

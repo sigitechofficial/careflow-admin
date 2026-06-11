@@ -7,6 +7,8 @@ import {
   useMedicationStatusCodesAdmin,
   useUpdateMedicationStatusCode,
 } from '@/features/settings/hooks/useMedicationStatusCodesAdmin'
+import { SettingsTablePagination } from '@/features/settings/components/SettingsTablePagination'
+import { useClientPagination } from '@/features/settings/hooks/useClientPagination'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import type { MedicationStatusCodeRow } from '@/features/service-users/api/medication-mar.api'
 
@@ -32,6 +34,7 @@ export function MedicationStatusCodesSettingsPanel() {
   const [draft, setDraft] = React.useState<Partial<MedicationStatusCodeRow>>({})
 
   const rows = listQuery.data?.data ?? []
+  const pagination = useClientPagination(rows)
 
   const startEdit = (row: MedicationStatusCodeRow) => {
     setEditingId(row.id)
@@ -83,7 +86,8 @@ export function MedicationStatusCodesSettingsPanel() {
             Loading…
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs font-medium uppercase text-muted-foreground">
@@ -96,7 +100,7 @@ export function MedicationStatusCodesSettingsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(row => {
+                {pagination.paginatedItems.map(row => {
                   const editing = editingId === row.id
                   const display = editing ? { ...row, ...draft } : row
                   return (
@@ -204,6 +208,17 @@ export function MedicationStatusCodesSettingsPanel() {
                 })}
               </tbody>
             </table>
+            </div>
+            <SettingsTablePagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              rangeStart={pagination.rangeStart}
+              rangeEnd={pagination.rangeEnd}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+            />
           </div>
         )}
       </section>

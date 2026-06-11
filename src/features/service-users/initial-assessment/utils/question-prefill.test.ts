@@ -85,6 +85,8 @@ function minimalDetail(overrides: Partial<ServiceUserDetail> = {}): ServiceUserD
 describe('buildPrefillMap', () => {
   it('populates known prefill keys from service user detail', () => {
     const map = buildPrefillMap({ detail: minimalDetail(), domCare: null })
+    expect(map.get('firstName')).toBe('Margaret')
+    expect(map.get('lastName')).toBe('Hughes')
     expect(map.get('preferredName')).toBe('Margaret')
     expect(map.get('dateOfBirth')).toBe('1944-03-12')
     expect(map.get('gender')).toBe('female')
@@ -92,6 +94,41 @@ describe('buildPrefillMap', () => {
     expect(map.get('fundingType')).toBe('local_authority')
     expect(map.get('addressContact')).toContain('12 Oak Lane')
     expect(map.get('emergencyContact')).toContain('Sarah')
+  })
+
+  it('prefills GP contact from GP relationship contact', () => {
+    const map = buildPrefillMap({
+      detail: minimalDetail({
+        contacts: [
+          {
+            id: 'gp1',
+            firstName: 'Dr',
+            lastName: 'Patel',
+            phone: '02079460958',
+            mobile: null,
+            email: null,
+            address: 'Riverside Medical Centre',
+            isPrimary: false,
+            isEmergencyContact: false,
+            canReceiveUpdates: false,
+            notes: null,
+            relationshipType: { id: 'rgp', name: 'GP', code: 'GP' },
+          },
+        ],
+      }),
+      domCare: null,
+    })
+    expect(map.get('gpContact')).toContain('Dr Patel')
+    expect(map.get('gpContact')).toContain('02079460958')
+    expect(map.get('gpContact')).toContain('Riverside Medical Centre')
+  })
+
+  it('prefills NI number when present on service user', () => {
+    const map = buildPrefillMap({
+      detail: minimalDetail({ nationalInsuranceNumber: 'AB123456C' }),
+      domCare: null,
+    })
+    expect(map.get('nationalInsuranceNumber')).toBe('AB123456C')
   })
 })
 

@@ -1,5 +1,7 @@
-import { ExternalLink } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ExternalLink, RefreshCw } from 'lucide-react'
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
+import { initialAssessmentBodyMapSearch } from '@/features/service-users/initial-assessment/utils/body-map-navigation'
 import {
   HolisticAssessmentTable,
   HolisticAssessmentTableCell,
@@ -21,8 +23,10 @@ const BODY_DIAGRAM_URL = '/assets/body-map-diagram.png'
 type Props = {
   value: SkinIntegrityCheckMetadata
   disabled?: boolean
-  showBodyMapCta?: boolean
-  onOpenBodyMap?: () => void
+  serviceUserId?: string
+  submissionId?: string | null
+  onSyncBodyMap?: () => void
+  syncBodyMapLoading?: boolean
   onOpenWaterlowTab?: () => void
   onRowSideChange: (rowId: string, side: 'right' | 'left', text: string) => void
 }
@@ -30,8 +34,10 @@ type Props = {
 export function InitialAssessmentTotalSkinIntegrityCheckPanel({
   value,
   disabled,
-  showBodyMapCta,
-  onOpenBodyMap,
+  serviceUserId,
+  submissionId,
+  onSyncBodyMap,
+  syncBodyMapLoading = false,
   onOpenWaterlowTab,
   onRowSideChange,
 }: Props) {
@@ -67,7 +73,7 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
           </figure>
         </div>
 
-        {(onOpenWaterlowTab || (showBodyMapCta && onOpenBodyMap)) ? (
+        {onOpenWaterlowTab || serviceUserId || onSyncBodyMap ? (
           <div className="mb-4 flex flex-wrap gap-2">
             {onOpenWaterlowTab ? (
               <Button type="button" variant="outline" size="sm" onClick={onOpenWaterlowTab}>
@@ -75,9 +81,30 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
                 Open Waterlow tab
               </Button>
             ) : null}
-            {showBodyMapCta && onOpenBodyMap ? (
-              <Button type="button" variant="outline" size="sm" onClick={onOpenBodyMap}>
-                Open body map
+            {serviceUserId ? (
+              <Button type="button" variant="outline" size="sm" asChild>
+                <Link
+                  to="/service-users/$serviceUserId/body-map"
+                  params={{ serviceUserId }}
+                  search={initialAssessmentBodyMapSearch(submissionId)}
+                >
+                  Open body map
+                </Link>
+              </Button>
+            ) : null}
+            {onSyncBodyMap ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={disabled || syncBodyMapLoading}
+                onClick={onSyncBodyMap}
+              >
+                <RefreshCw
+                  className={cn('mr-2 h-4 w-4', syncBodyMapLoading && 'animate-spin')}
+                  aria-hidden
+                />
+                Sync from body map
               </Button>
             ) : null}
           </div>

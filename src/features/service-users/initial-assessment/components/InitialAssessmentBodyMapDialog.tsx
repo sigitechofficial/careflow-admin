@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { BodyMapCanvas } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
+import { initialAssessmentBodyMapSearch } from '@/features/service-users/initial-assessment/utils/body-map-navigation'
 import {
   Dialog,
   DialogBody,
@@ -36,9 +37,7 @@ export function InitialAssessmentBodyMapDialog({
     if (!open) setSelectedRecordId(null)
   }, [open])
 
-  const bodyMapSearch = submissionId
-    ? { from: 'initial-assessment', submissionId }
-    : { from: 'initial-assessment' }
+  const bodyMapSearch = initialAssessmentBodyMapSearch(submissionId)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

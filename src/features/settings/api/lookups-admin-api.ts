@@ -234,6 +234,78 @@ export async function deleteServiceUserFundingType(id: string): Promise<void> {
   })
 }
 
+export async function fetchServiceUserEthnicitiesList(): Promise<ServiceUserFundingTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
+    '/lookups/service-user-ethnicities',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserEthnicity(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    '/lookups/service-user-ethnicities',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserEthnicity(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    `/lookups/service-user-ethnicities/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserEthnicity(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-ethnicities/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function fetchServiceUserLanguagesList(): Promise<ServiceUserFundingTypeRow[]> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
+    '/lookups/service-user-languages',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createServiceUserLanguage(body: {
+  name: string
+  code: string
+}): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    '/lookups/service-user-languages',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserLanguage(
+  id: string,
+  body: { name?: string; code?: string },
+): Promise<ServiceUserFundingTypeRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow>>(
+    `/lookups/service-user-languages/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserLanguage(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/service-user-languages/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function fetchBodyMapRecordTypesList(): Promise<BodyMapRecordTypeRow[]> {
   const res = await apiJson<ApiEnvelope<BodyMapRecordTypeRow[]>>('/lookups/body-map-record-types', {
     method: 'GET',
@@ -275,6 +347,95 @@ export async function updateBodyMapRecordType(
 
 export async function deleteBodyMapRecordType(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/lookups/body-map-record-types/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export type VitalAcceptedRangeCatalogRow = {
+  id: string
+  fieldKey: string
+  label: string
+  unit: string
+  min: number
+  max: number
+  sortOrder: number
+  column: 'left' | 'right'
+  isActive: boolean
+}
+
+export async function fetchVitalAcceptedRangesCatalog(): Promise<VitalAcceptedRangeCatalogRow[]> {
+  const res = await apiJson<ApiEnvelope<VitalAcceptedRangeCatalogRow[]>>(
+    '/lookups/vital-accepted-ranges',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function updateVitalAcceptedRangeCatalog(
+  id: string,
+  body: { min?: number; max?: number },
+): Promise<VitalAcceptedRangeCatalogRow> {
+  const res = await apiJson<ApiEnvelope<VitalAcceptedRangeCatalogRow>>(
+    `/lookups/vital-accepted-ranges/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export type AllergyCatalogCategory =
+  | 'FOOD'
+  | 'DRINK'
+  | 'ENVIRONMENTAL'
+  | 'MEDICATION'
+  | 'OTHER'
+
+export type AllergyCatalogRow = {
+  id: string
+  name: string
+  code: string
+  category: AllergyCatalogCategory
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchAllergyCatalogList(): Promise<AllergyCatalogRow[]> {
+  const res = await apiJson<ApiEnvelope<AllergyCatalogRow[]>>('/lookups/allergy-catalog', {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createAllergyCatalog(body: {
+  name: string
+  code: string
+  category?: AllergyCatalogCategory
+  sortOrder?: number
+}): Promise<AllergyCatalogRow> {
+  const res = await apiJson<ApiEnvelope<AllergyCatalogRow>>('/lookups/allergy-catalog', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function updateAllergyCatalog(
+  id: string,
+  body: {
+    name?: string
+    code?: string
+    category?: AllergyCatalogCategory
+    sortOrder?: number
+  },
+): Promise<AllergyCatalogRow> {
+  const res = await apiJson<ApiEnvelope<AllergyCatalogRow>>(`/lookups/allergy-catalog/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function deleteAllergyCatalog(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/allergy-catalog/${id}`, {
     method: 'DELETE',
   })
 }

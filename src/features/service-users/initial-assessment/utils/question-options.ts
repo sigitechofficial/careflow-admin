@@ -5,6 +5,8 @@ export type QuestionOption = { value: string; label: string }
 export type QuestionOptionCatalogs = {
   woundTypeCatalog?: QuestionOption[]
   fundingTypeCatalog?: QuestionOption[]
+  ethnicityCatalog?: QuestionOption[]
+  languageCatalog?: QuestionOption[]
 }
 
 const LEGACY_OPTION_LABELS: Record<string, string> = {
@@ -31,6 +33,20 @@ export function usesServiceUserFundingTypeLookup(question: InitialAssessmentQues
   return meta.fieldKey === 'fundingType'
 }
 
+export function usesServiceUserEthnicityLookup(question: InitialAssessmentQuestion): boolean {
+  const meta = question.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  if (meta.optionsLookup === 'service_user_ethnicities') return true
+  return meta.fieldKey === 'ethnicity'
+}
+
+export function usesServiceUserLanguageLookup(question: InitialAssessmentQuestion): boolean {
+  const meta = question.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  if (meta.optionsLookup === 'service_user_languages') return true
+  return meta.fieldKey === 'languagesSpoken'
+}
+
 /** Maps service-user lookup rows to IA answer codes (lowercase `code`, same as prefill). */
 export function mapLookupRowsToQuestionOptions(
   rows: ReadonlyArray<{ name: string; code: string }>,
@@ -52,6 +68,12 @@ export function resolveQuestionOptions(
     const fromDb = catalogs.fundingTypeCatalog ?? []
     if (fromDb.length > 0) return fromDb
     return parseQuestionOptions(question.options)
+  }
+  if (usesServiceUserEthnicityLookup(question)) {
+    return catalogs.ethnicityCatalog ?? []
+  }
+  if (usesServiceUserLanguageLookup(question)) {
+    return catalogs.languageCatalog ?? []
   }
   return parseQuestionOptions(question.options)
 }

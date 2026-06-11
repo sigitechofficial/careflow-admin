@@ -7,6 +7,8 @@ import {
   normalizeVitalAcceptedRanges,
   partitionVitalsSignsQuestions,
   resolveVitalFieldRules,
+  validateVitalValue,
+  vitalAcceptedRangeWarning,
 } from './vitals-validation'
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 
@@ -57,12 +59,30 @@ describe('clinical measurement fields', () => {
   it('normalizes persisted accepted ranges', () => {
     const defaults = defaultVitalAcceptedRanges()
     expect(normalizeVitalAcceptedRanges(undefined)).toEqual(defaults)
+    expect(defaults.temperature).toEqual({ min: 30, max: 45 })
+    expect(defaults.pulse).toEqual({ min: 30, max: 250 })
     expect(
       resolveVitalFieldRules({
         ...defaults,
         temperature: { min: 35, max: 42 },
       }).find((r) => r.fieldKey === 'temperature'),
     ).toMatchObject({ min: 35, max: 42 })
+  })
+
+  it('migrates legacy wide default ranges to UK reference defaults', () => {
+    const migrated = normalizeVitalAcceptedRanges({
+      temperature: { min: 30, max: 45 },
+      pulse: { min: 30, max: 250 },
+    })
+    expect(migrated.temperature).toEqual({ min: 36, max: 38.5 })
+    expect(migrated.pulse).toEqual({ min: 50, max: 100 })
+  })
+
+  it('allows plausible abnormal values but warns outside accepted range', () => {
+    const ranges = defaultVitalAcceptedRanges()
+    expect(validateVitalValue('temperature', 39.5, ranges)).toBeNull()
+    expect(vitalAcceptedRangeWarning('temperature', 46, ranges)).toContain('outside the accepted range')
+    expect(validateVitalValue('temperature', 50, ranges)).toContain('must be between')
   })
 
   it('resolves display units', () => {

@@ -71,6 +71,8 @@ const EMPTY_SU_LOOKUPS: ServiceUserLookupsBundle = {
   maritalStatuses: [],
   careTypes: [],
   fundingTypes: [],
+  ethnicities: [],
+  languages: [],
   riskLevels: [],
   relationshipTypes: [],
   allergies: [],

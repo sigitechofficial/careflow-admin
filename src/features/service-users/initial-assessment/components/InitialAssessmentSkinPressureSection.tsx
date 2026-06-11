@@ -1,5 +1,7 @@
+import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
+import { initialAssessmentBodyMapSearch } from '@/features/service-users/initial-assessment/utils/body-map-navigation'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { holisticTabTitle } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import type { HolisticAssessmentTab } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
@@ -23,7 +25,6 @@ type Props = {
   serviceUserDetail?: ServiceUserDetail | null
   excludeQuestionIds?: Set<string>
   showBodyMapCta?: boolean
-  onOpenBodyMap?: () => void
   onOpenWaterlowTab?: () => void
   sectionFooter?: { dateCompleted?: string; assessorNameDesignation?: string }
   onSectionFooterChange?: (patch: {
@@ -48,7 +49,6 @@ export function InitialAssessmentSkinPressureSection({
   serviceUserDetail,
   excludeQuestionIds,
   showBodyMapCta,
-  onOpenBodyMap,
   onOpenWaterlowTab,
   sectionFooter,
   onSectionFooterChange,
@@ -76,9 +76,15 @@ export function InitialAssessmentSkinPressureSection({
                 Open Waterlow tab
               </Button>
             ) : null}
-            {showBodyMapCta && onOpenBodyMap ? (
-              <Button type="button" variant="outline" size="sm" onClick={onOpenBodyMap}>
-                Open body map
+            {showBodyMapCta && serviceUserId ? (
+              <Button type="button" variant="outline" size="sm" asChild>
+                <Link
+                  to="/service-users/$serviceUserId/body-map"
+                  params={{ serviceUserId }}
+                  search={initialAssessmentBodyMapSearch(submissionId)}
+                >
+                  Open body map
+                </Link>
               </Button>
             ) : null}
           </div>

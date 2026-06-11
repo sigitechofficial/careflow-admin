@@ -1,31 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createAllergyCatalog,
   createBodyMapRecordType,
   createComplianceType,
   createLookupItem,
   createServiceUserCareType,
+  createServiceUserEthnicity,
   createServiceUserFundingType,
+  createServiceUserLanguage,
+  deleteAllergyCatalog,
   deleteBodyMapRecordType,
   deleteComplianceType,
   deleteLookupItem,
   deleteServiceUserCareType,
+  deleteServiceUserEthnicity,
   deleteServiceUserFundingType,
+  deleteServiceUserLanguage,
+  fetchAllergyCatalogList,
   fetchBodyMapRecordTypesList,
   fetchComplianceTypesList,
   fetchLookupList,
   fetchServiceUserCareTypesList,
+  fetchServiceUserEthnicitiesList,
   fetchServiceUserFundingTypesList,
+  fetchServiceUserLanguagesList,
+  fetchVitalAcceptedRangesCatalog,
+  updateAllergyCatalog,
   updateBodyMapRecordType,
   updateComplianceType,
   updateLookupItem,
   updateServiceUserCareType,
+  updateServiceUserEthnicity,
   updateServiceUserFundingType,
+  updateServiceUserLanguage,
+  updateVitalAcceptedRangeCatalog,
   type ComplianceCategory,
   type LookupResource,
 } from '@/features/settings/api/lookups-admin-api'
 import { bodyMapKeys } from '@/features/service-users/body-map/keys'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { settingsKeys } from '@/features/settings/keys'
+import { vitalAcceptedRangeLookupKey } from '@/features/service-users/initial-assessment/hooks/useVitalAcceptedRangeLookup'
 
 export function useLookupList(resource: LookupResource, enabled = true) {
   return useQuery({
@@ -127,6 +142,9 @@ export function useDeleteComplianceType() {
 function invalidateServiceUserLookupCaches(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserCareTypes() })
   void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserFundingTypes() })
+  void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserEthnicities() })
+  void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserLanguages() })
+  void qc.invalidateQueries({ queryKey: settingsKeys.allergyCatalog() })
   void qc.invalidateQueries({ queryKey: serviceUserKeys.lookups() })
 }
 
@@ -203,6 +221,74 @@ export function useDeleteServiceUserFundingType() {
   })
 }
 
+export function useServiceUserEthnicities(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.serviceUserEthnicities(),
+    queryFn: () => fetchServiceUserEthnicitiesList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateServiceUserEthnicity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; code: string }) => createServiceUserEthnicity(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateServiceUserEthnicity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+      updateServiceUserEthnicity(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteServiceUserEthnicity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteServiceUserEthnicity(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useServiceUserLanguages(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.serviceUserLanguages(),
+    queryFn: () => fetchServiceUserLanguagesList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateServiceUserLanguage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; code: string }) => createServiceUserLanguage(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateServiceUserLanguage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+      updateServiceUserLanguage(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteServiceUserLanguage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteServiceUserLanguage(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
 export function useBodyMapRecordTypes(enabled = true) {
   return useQuery({
     queryKey: settingsKeys.bodyMapRecordTypes(),
@@ -252,5 +338,80 @@ export function useDeleteBodyMapRecordType() {
   return useMutation({
     mutationFn: (id: string) => deleteBodyMapRecordType(id),
     onSuccess: () => invalidateBodyMapLookupCaches(qc),
+  })
+}
+
+export function useAllergyCatalog(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.allergyCatalog(),
+    queryFn: () => fetchAllergyCatalogList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateAllergyCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      name: string
+      code: string
+      category?: import('@/features/settings/api/lookups-admin-api').AllergyCatalogCategory
+      sortOrder?: number
+    }) => createAllergyCatalog(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateAllergyCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        name?: string
+        code?: string
+        category?: import('@/features/settings/api/lookups-admin-api').AllergyCatalogCategory
+        sortOrder?: number
+      }
+    }) => updateAllergyCatalog(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteAllergyCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteAllergyCatalog(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useVitalAcceptedRangesCatalog(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.vitalAcceptedRanges(),
+    queryFn: () => fetchVitalAcceptedRangesCatalog(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateVitalAcceptedRangeCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: { min?: number; max?: number }
+    }) => updateVitalAcceptedRangeCatalog(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.vitalAcceptedRanges() })
+      void qc.invalidateQueries({ queryKey: vitalAcceptedRangeLookupKey })
+    },
   })
 }

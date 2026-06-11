@@ -21,6 +21,8 @@ type Props = {
   showDivider?: boolean
   /** Accessible name when visual label is omitted (e.g. table Yes/No column). */
   ariaLabel?: string
+  /** Single-row layout aligned to h-10 inputs (card fields in the holistic form). */
+  compact?: boolean
 }
 
 export function InitialAssessmentPaperYesNoRow({
@@ -35,11 +37,14 @@ export function InitialAssessmentPaperYesNoRow({
   dateDisabled,
   showDivider = false,
   ariaLabel,
+  compact = false,
 }: Props) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:gap-4',
+        compact
+          ? 'flex min-h-10 items-center gap-3 sm:gap-4'
+          : 'flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:gap-4',
         showDivider && 'border-b border-border/60 last:border-b-0',
       )}
     >

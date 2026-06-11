@@ -8,6 +8,7 @@ import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBo
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { mapLookupRowsToQuestionOptions } from '@/features/service-users/initial-assessment/utils/question-options'
 import { InitialAssessmentAddressContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentAddressContactField'
+import { InitialAssessmentGpContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentGpContactField'
 import {
   InitialAssessmentPersonCentredCards,
   isPersonCentredCardGroup,
@@ -25,10 +26,13 @@ import {
   InitialAssessmentSection1SimplePanel,
   shouldHidePaperSectionFieldLabel,
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection1SimplePanel'
+import { InitialAssessmentSection1PersonalDetailsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection1PersonalDetailsPanel'
 import { InitialAssessmentSection3SocialHistoryPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection3SocialHistoryPanel'
+import { InitialAssessmentSection5BreathingPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5BreathingPanel'
 import { InitialAssessmentSection5PainPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5PainPanel'
+import { InitialAssessmentSection5SwallowingPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5SwallowingPanel'
 import { InitialAssessmentSpecRefGroupPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecRefGroupPanel'
-import { specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import { fieldKeyOf, findQuestionByFieldKey, specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { isSection1SimpleGroup } from '@/features/service-users/initial-assessment/utils/section-1-simple-layout'
 import { InitialAssessmentVitalsBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentVitalsBanner'
 import { InitialAssessmentVitalsSignsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentVitalsSignsPanel'
@@ -54,7 +58,6 @@ import { getVisibleSectionQuestions } from '@/features/service-users/initial-ass
 import {
   isClinicalMeasurementField,
   shouldLockVitalQuestion,
-  type VitalAcceptedRangesMetadata,
 } from '@/features/service-users/initial-assessment/utils/vitals-validation'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -116,8 +119,6 @@ type Props = {
   }) => void
   holisticTab?: HolisticAssessmentTab
   hidePainAssessmentTool?: boolean
-  vitalAcceptedRanges?: VitalAcceptedRangesMetadata
-  onVitalAcceptedRangesChange?: (next: VitalAcceptedRangesMetadata) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
   visibleQuestionsOptions?: Parameters<typeof getVisibleSectionQuestions>[3]
 }
@@ -151,8 +152,6 @@ export function InitialAssessmentSectionQuestions({
   onSectionFooterChange,
   holisticTab,
   hidePainAssessmentTool,
-  vitalAcceptedRanges,
-  onVitalAcceptedRangesChange,
   visibleQuestionsOptions,
   onChange,
 }: Props) {
@@ -182,18 +181,26 @@ export function InitialAssessmentSectionQuestions({
   const suLookupsQuery = useServiceUserLookups()
   const woundTypeCatalog = bodyMapLookupsQuery.data?.woundTypes ?? []
   const fundingTypeCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.fundingTypes ?? [])
+  const ethnicityCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.ethnicities ?? [])
+  const languageCatalog = mapLookupRowsToQuestionOptions(suLookupsQuery.data?.languages ?? [])
 
   const isFieldDisabled = (q: InitialAssessmentQuestion) =>
     disabled || shouldLockVitalQuestion(q, allSections, draftAnswers)
 
   const renderField = (
     q: InitialAssessmentQuestion,
-    fieldOptions?: { hideLabel?: boolean },
+    fieldOptions?: { hideLabel?: boolean; yesNoPlain?: boolean },
   ) => {
     const raw = draftAnswers[q.id]
     const merged = mergePrefill(q, raw, prefillMap)
     const hint = prefillHintForQuestion(q, prefillMap)
     const simpleLayout = isSection1SimpleGroup(specRefOf(q))
+    if (
+      fieldKeyOf(q) === 'poNumber' &&
+      allSections.some((sec) => sec.questions.some((x) => prefillKeyForQuestion(x) === 'addressContact'))
+    ) {
+      return null
+    }
     if (isPreferredVisitTimesQuestion(q)) {
       return (
         <InitialAssessmentPreferredVisitTimesField
@@ -205,13 +212,39 @@ export function InitialAssessmentSectionQuestions({
         />
       )
     }
+    if (fieldKeyOf(q) === 'gpContactDetails') {
+      return (
+        <InitialAssessmentGpContactField
+          question={q}
+          value={merged}
+          serviceUserId={serviceUserId}
+          serviceUserDetail={serviceUserDetail}
+          errorMessage={questionErrors?.get(q.id)}
+          disabled={isFieldDisabled(q)}
+          variant={simpleLayout ? 'simple' : 'default'}
+          onChange={(patch) => onChange(q.id, patch)}
+        />
+      )
+    }
     if (prefillKeyForQuestion(q) === 'addressContact') {
+      const poQuestion = findQuestionByFieldKey(allSections, 'poNumber')
+      const poAnswer = poQuestion ? draftAnswers[poQuestion.id] : undefined
       return (
         <InitialAssessmentAddressContactField
           question={q}
           value={merged}
           serviceUserId={serviceUserId}
           serviceUserDetail={serviceUserDetail}
+          poNumber={
+            poQuestion
+              ? {
+                  questionId: poQuestion.id,
+                  value: poAnswer,
+                  errorMessage: questionErrors?.get(poQuestion.id),
+                  onChange: (patch) => onChange(poQuestion.id, patch),
+                }
+              : undefined
+          }
           errorMessage={questionErrors?.get(q.id)}
           disabled={isFieldDisabled(q)}
           variant={simpleLayout ? 'simple' : 'default'}
@@ -227,6 +260,7 @@ export function InitialAssessmentSectionQuestions({
         errorMessage={questionErrors?.get(q.id)}
         disabled={isFieldDisabled(q)}
         hideLabel={fieldOptions?.hideLabel}
+        yesNoPlain={fieldOptions?.yesNoPlain}
         serviceUserId={serviceUserId}
         submissionId={submissionId}
         layout={
@@ -240,6 +274,8 @@ export function InitialAssessmentSectionQuestions({
         }
         woundTypeCatalog={woundTypeCatalog}
         fundingTypeCatalog={fundingTypeCatalog}
+        ethnicityCatalog={ethnicityCatalog}
+        languageCatalog={languageCatalog}
         onChange={(patch) => onChange(q.id, patch)}
       />
     )
@@ -353,6 +389,34 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
+    if (group.specRef === '5.1') {
+      return (
+        <InitialAssessmentSection5BreathingPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={group}
+          draftAnswers={draftAnswers}
+          disabled={disabled}
+          questionErrors={questionErrors}
+          renderField={renderField}
+          onChange={onChange}
+        />
+      )
+    }
+
+    if (group.specRef === '5.4') {
+      return (
+        <InitialAssessmentSection5SwallowingPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={group}
+          draftAnswers={draftAnswers}
+          disabled={disabled}
+          questionErrors={questionErrors}
+          renderField={renderField}
+          onChange={onChange}
+        />
+      )
+    }
+
     if (group.specRef === '5.3' && painAssessment && onPainAssessmentChange) {
       return (
         <InitialAssessmentSection5PainPanel
@@ -386,6 +450,8 @@ export function InitialAssessmentSectionQuestions({
         <InitialAssessmentSection3SocialHistoryPanel
           key={`${group.specRef}-${groupIndex}`}
           group={group}
+          allSections={allSections}
+          draftAnswers={draftAnswers}
           renderField={renderField}
           renderMultiSelect={renderMultiSelect}
         />
@@ -421,20 +487,11 @@ export function InitialAssessmentSectionQuestions({
       return (
         <InitialAssessmentSection1SimplePanel key={`${group.specRef}-${groupIndex}`} group={group}>
           {group.specRef === '1.1' ? (
-            <div className="grid gap-5 sm:grid-cols-2">
-              {group.questions.map((q) => (
-                <div
-                  key={q.id}
-                  className={
-                    prefillKeyForQuestion(q) === 'addressContact' || q.questionType === 'TEXTAREA'
-                      ? 'sm:col-span-2'
-                      : undefined
-                  }
-                >
-                  {renderQuestion(q)}
-                </div>
-              ))}
-            </div>
+            <InitialAssessmentSection1PersonalDetailsPanel
+              group={group}
+              renderField={(q, fieldOptions) => renderField(q, fieldOptions)}
+              renderMultiSelect={renderMultiSelect}
+            />
           ) : (
             group.questions.map((q) => <div key={q.id}>{renderQuestion(q)}</div>)
           )}
@@ -528,14 +585,8 @@ export function InitialAssessmentSectionQuestions({
           <p className={cn(IA_CALLOUT_NEUTRAL_CLASS, IA_INTRO_CLASS)}>{intro}</p>
         ) : null}
 
-        {section.sectionNumber === 4 && vitalAcceptedRanges && onVitalAcceptedRangesChange ? (
-          <InitialAssessmentVitalsBanner
-            sections={allSections}
-            draftAnswers={draftAnswers}
-            vitalAcceptedRanges={vitalAcceptedRanges}
-            disabled={disabled}
-            onVitalAcceptedRangesChange={onVitalAcceptedRangesChange}
-          />
+        {section.sectionNumber === 4 ? (
+          <InitialAssessmentVitalsBanner sections={allSections} draftAnswers={draftAnswers} />
         ) : null}
 
         {renderCatalogGroups()}

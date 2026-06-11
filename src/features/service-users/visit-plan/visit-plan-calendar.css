@@ -326,6 +326,14 @@
   background: rgba(254, 243, 199, 0.35);
 }
 
+.visit-plan-cal-root .mar-cell.col-overdue {
+  background: rgba(254, 226, 226, 0.35);
+}
+
+.dark .visit-plan-cal-root .mar-cell.col-overdue {
+  background: rgba(127, 29, 29, 0.22);
+}
+
 .visit-plan-cal-root .vp-cal-slot-name {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -392,6 +400,37 @@
 .visit-plan-cal-root .vp-cal-visit:focus-visible {
   outline: 2px solid var(--vp-teal);
   outline-offset: 2px;
+}
+
+.visit-plan-cal-root .vp-cal-visit.vp-cal-visit-overdue,
+.visit-plan-cal-root .vp-cal-list-item.vp-cal-visit-overdue {
+  border-color: #dc2626 !important;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.35), 0 0 0 1px rgba(220, 38, 38, 0.2);
+  color: #991b1b;
+}
+
+.visit-plan-cal-root .vp-cal-visit.vp-cal-visit-overdue {
+  background: #fee2e2 !important;
+}
+
+.visit-plan-cal-root .vp-cal-list-item.vp-cal-visit-overdue {
+  background: #fef2f2;
+}
+
+.dark .visit-plan-cal-root .vp-cal-visit.vp-cal-visit-overdue,
+.dark .visit-plan-cal-root .vp-cal-list-item.vp-cal-visit-overdue {
+  border-color: #f87171 !important;
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+}
+
+.dark .visit-plan-cal-root .vp-cal-visit.vp-cal-visit-overdue {
+  background: rgba(127, 29, 29, 0.45) !important;
+}
+
+.visit-plan-cal-root .vp-cal-outcome-swatch.vp-cal-visit-overdue {
+  background: #fee2e2;
+  border-color: #dc2626;
 }
 
 .visit-plan-cal-root .vp-cal-visit-time {

@@ -3,7 +3,13 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveServiceUserIdFromRoute } from '@/features/service-users/service-user-route-id'
 import { useAuthStore } from '@/features/auth/store'
 
-export type SuLookupRow = { id: string; name: string; code: string; color?: string | null }
+export type SuLookupRow = {
+  id: string
+  name: string
+  code: string
+  color?: string | null
+  category?: string
+}
 
 export type ServiceUserLookupsBundle = {
   statuses: Array<SuLookupRow & { description?: string | null }>
@@ -12,6 +18,8 @@ export type ServiceUserLookupsBundle = {
   maritalStatuses: SuLookupRow[]
   careTypes: SuLookupRow[]
   fundingTypes: SuLookupRow[]
+  ethnicities: SuLookupRow[]
+  languages: SuLookupRow[]
   riskLevels: SuLookupRow[]
   relationshipTypes: SuLookupRow[]
   allergies: SuLookupRow[]

@@ -8,6 +8,8 @@ import {
   useServiceUserCareTypes,
   useUpdateServiceUserCareType,
 } from '@/features/settings/hooks/useLookupsAdmin'
+import { SettingsTablePagination } from '@/features/settings/components/SettingsTablePagination'
+import { useClientPagination } from '@/features/settings/hooks/useClientPagination'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { useAuthStore } from '@/features/auth/store'
@@ -53,6 +55,8 @@ export function ServiceUserCareTypesSettingsPanel() {
       r => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q),
     )
   }, [filter, rows])
+
+  const pagination = useClientPagination(filtered, { resetDeps: [filter] })
 
   const cancelEdit = () => {
     setEditingId(null)
@@ -163,7 +167,8 @@ export function ServiceUserCareTypesSettingsPanel() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left">
@@ -183,7 +188,7 @@ export function ServiceUserCareTypesSettingsPanel() {
                   </td>
                 </tr>
               ) : (
-                filtered.map(row =>
+                pagination.paginatedItems.map(row =>
                   editingId === row.id ? (
                     <tr key={row.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-2">
@@ -250,6 +255,17 @@ export function ServiceUserCareTypesSettingsPanel() {
               )}
             </tbody>
           </table>
+          </div>
+          <SettingsTablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            pageSize={pagination.pageSize}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+          />
         </div>
       )}
     </div>

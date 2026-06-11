@@ -6,18 +6,27 @@ import { toastApiError } from '@/shared/lib/toast'
 import { useUpdateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import type { ServiceUserDetail } from '@/features/service-users/api'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
+import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import {
   IA_HINT_CLASS,
-  IA_LABEL_SECONDARY_CLASS,
   IA_QUESTION_LABEL_CLASS,
   IA_SIMPLE_FIELD_CLASS,
+  IA_SIMPLE_INPUT_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
+
+type PoNumberBinding = {
+  questionId: string
+  value: InitialAssessmentAnswerInput | undefined
+  errorMessage?: string | null
+  onChange: (patch: InitialAssessmentAnswerInput) => void
+}
 
 type Props = {
   question: InitialAssessmentQuestion
   value: InitialAssessmentAnswerInput | undefined
   serviceUserId: string
   serviceUserDetail?: ServiceUserDetail | null
+  poNumber?: PoNumberBinding
   errorMessage?: string | null
   disabled?: boolean
   variant?: 'default' | 'simple'
@@ -65,6 +74,7 @@ export function InitialAssessmentAddressContactField({
   value,
   serviceUserId,
   serviceUserDetail,
+  poNumber,
   errorMessage,
   disabled,
   variant = 'default',
@@ -147,7 +157,77 @@ export function InitialAssessmentAddressContactField({
     })
   }
 
-  const fields: { key: keyof AddressContactDraft; label: string; placeholder: string }[] = [
+  const fields: { key: keyof AddressContactDraft; label: string }[] = [
+    { key: 'addressLine1', label: 'Address line 1' },
+    { key: 'addressLine2', label: 'Address line 2' },
+    { key: 'town', label: 'Town' },
+    { key: 'county', label: 'County' },
+    { key: 'postcode', label: 'Postcode' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'mobile', label: 'Mobile' },
+    { key: 'email', label: 'Email' },
+  ]
+
+  if (simple) {
+    return (
+      <div className="min-w-0 space-y-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {poNumber ? (
+            <div className={IA_SIMPLE_FIELD_CLASS}>
+              <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
+                PO Number
+              </Label>
+              <Input
+                id={`${question.id}-poNumber`}
+                value={poNumber.value?.textValue ?? ''}
+                onChange={(e) =>
+                  poNumber.onChange({
+                    ...(poNumber.value ?? { questionId: poNumber.questionId }),
+                    questionId: poNumber.questionId,
+                    textValue: e.target.value,
+                  })
+                }
+                disabled={disabled}
+                placeholder="Enter details"
+                className={IA_SIMPLE_INPUT_CLASS}
+              />
+              {poNumber.errorMessage ? (
+                <p className="text-xs font-medium text-destructive" role="alert">
+                  {poNumber.errorMessage}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {fields.map(({ key, label }) => (
+            <div key={key} className={IA_SIMPLE_FIELD_CLASS}>
+              <Label htmlFor={`${question.id}-${key}`} className={IA_QUESTION_LABEL_CLASS}>
+                {label}
+              </Label>
+              <Input
+                id={`${question.id}-${key}`}
+                value={draft[key]}
+                onChange={(e) => setField(key, e.target.value)}
+                onBlur={() => void persistProfile()}
+                disabled={disabled}
+                placeholder="Enter details"
+                className={IA_SIMPLE_INPUT_CLASS}
+              />
+            </div>
+          ))}
+        </div>
+        <p className={cn('text-xs', IA_HINT_CLASS)}>
+          Saves to the service user profile when you leave a field.
+        </p>
+        {errorMessage ? (
+          <p className="text-xs font-medium text-destructive" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+      </div>
+    )
+  }
+
+  const fieldsWithPlaceholder: { key: keyof AddressContactDraft; label: string; placeholder: string }[] = [
     { key: 'addressLine1', label: 'Address line 1', placeholder: 'Address line 1' },
     { key: 'addressLine2', label: 'Address line 2', placeholder: 'Address line 2' },
     { key: 'town', label: 'Town', placeholder: 'Town' },
@@ -159,44 +239,54 @@ export function InitialAssessmentAddressContactField({
   ]
 
   return (
-    <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-3 p-1'}>
-      {simple ? (
-        <div>
-          <p className={IA_QUESTION_LABEL_CLASS}>Address and contact</p>
-          <p className={cn('mt-0.5 text-xs', IA_HINT_CLASS)}>
-            Saves to the service user profile when you leave a field.
-          </p>
-        </div>
-      ) : (
-        <>
-          <Label className={IA_QUESTION_LABEL_CLASS}>
-            {question.questionText}
-            {question.isRequired ? (
-              <span className="text-teal-700 dark:text-teal-400" aria-hidden>
-                {' '}
-                *
-              </span>
-            ) : null}
-          </Label>
-          <p className={IA_HINT_CLASS}>Updates here will also update the Service User profile.</p>
-        </>
-      )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {fields.map(({ key, label, placeholder }) => (
-          <div key={key} className="space-y-1">
-            {simple ? (
-              <Label htmlFor={`${question.id}-${key}`} className={IA_LABEL_SECONDARY_CLASS}>
-                {label}
-              </Label>
-            ) : null}
+    <div className="space-y-3 p-1">
+      <Label className={IA_QUESTION_LABEL_CLASS}>
+        {holisticQuestionLabel(question.questionText)}
+        {question.isRequired ? (
+          <span className="text-teal-700 dark:text-teal-400" aria-hidden>
+            {' '}
+            *
+          </span>
+        ) : null}
+      </Label>
+      <p className={IA_HINT_CLASS}>Updates here will also update the Service User profile.</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {poNumber ? (
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
+              PO Number
+            </Label>
             <Input
-              id={simple ? `${question.id}-${key}` : undefined}
+              id={`${question.id}-poNumber`}
+              value={poNumber.value?.textValue ?? ''}
+              onChange={(e) =>
+                poNumber.onChange({
+                  ...(poNumber.value ?? { questionId: poNumber.questionId }),
+                  questionId: poNumber.questionId,
+                  textValue: e.target.value,
+                })
+              }
+              disabled={disabled}
+              placeholder="PO Number"
+              className="h-10 max-w-md text-base"
+            />
+            {poNumber.errorMessage ? (
+              <p className="text-xs font-medium text-destructive" role="alert">
+                {poNumber.errorMessage}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {fieldsWithPlaceholder.map(({ key, label, placeholder }) => (
+          <div key={key} className="space-y-1">
+            <Input
               value={draft[key]}
               onChange={(e) => setField(key, e.target.value)}
               onBlur={() => void persistProfile()}
               disabled={disabled}
               placeholder={placeholder}
               className="h-10 text-base"
+              aria-label={label}
             />
           </div>
         ))}

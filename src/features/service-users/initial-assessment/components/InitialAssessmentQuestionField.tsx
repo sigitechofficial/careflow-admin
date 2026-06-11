@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
+import { InitialAssessmentDateInput } from '@/features/service-users/initial-assessment/components/InitialAssessmentDateInput'
 import { InitialAssessmentTextarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import {
   InitialAssessmentControlTooltip,
@@ -34,17 +35,14 @@ import { holisticQuestionLabel } from '@/features/service-users/initial-assessme
 import {
   IA_META_BADGE_CLASS,
   IA_QUESTION_LABEL_CLASS,
-  IA_LABEL_SECONDARY_CLASS,
   IA_LEGEND_CLASS,
   IA_HINT_CLASS,
   IA_OPTION_LABEL_CLASS,
   IA_CHECKBOX_CLASS,
   IA_SIMPLE_FIELD_CLASS,
   IA_SIMPLE_INPUT_CLASS,
+  IA_YES_NO_CARD_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
-
-const ASSESSOR_NOTES_TOOLTIP =
-  'Optional context for auditors or care plan authors when this answer needs explanation.'
 
 type Props = {
   question: InitialAssessmentQuestion
@@ -57,9 +55,13 @@ type Props = {
   /** Compact row styling for §12 panel shells; `simple` = flat §1 profile layout. */
   layout?: 'default' | 'section12' | 'clinicalMeasurement' | 'simple'
   hideLabel?: boolean
+  /** When true, omit the muted card shell (e.g. Yes/No already inside a grouped panel). */
+  yesNoPlain?: boolean
   useHolisticLabels?: boolean
   woundTypeCatalog?: QuestionOption[]
   fundingTypeCatalog?: QuestionOption[]
+  ethnicityCatalog?: QuestionOption[]
+  languageCatalog?: QuestionOption[]
   onChange: (patch: InitialAssessmentAnswerInput) => void
 }
 
@@ -71,21 +73,6 @@ function yesNoTriState(value: InitialAssessmentAnswerInput | undefined): boolean
   if (value?.checked === true || value?.booleanValue === true) return true
   if (value?.checked === false || value?.booleanValue === false) return false
   return null
-}
-
-function showAssessorNotes(question: InitialAssessmentQuestion): boolean {
-  if (isClinicalMeasurementField(question)) return false
-  if (
-    question.questionType === 'YES_NO' ||
-    question.questionType === 'CHECKBOX' ||
-    question.questionType === 'SINGLE_SELECT' ||
-    question.questionType === 'MULTI_SELECT' ||
-    question.questionType === 'TEXTAREA'
-  ) {
-    return false
-  }
-  if (question.allowNotes === false) return false
-  return true
 }
 
 function selectedValues(value: InitialAssessmentAnswerInput | undefined): string[] {
@@ -105,14 +92,22 @@ export function InitialAssessmentQuestionField({
   submissionId,
   layout = 'default',
   hideLabel = false,
+  yesNoPlain = false,
   useHolisticLabels = true,
   woundTypeCatalog,
   fundingTypeCatalog,
+  ethnicityCatalog,
+  languageCatalog,
   onChange,
 }: Props) {
   const id = question.id
   const qid = question.id
-  const optionCatalogs: QuestionOptionCatalogs = { woundTypeCatalog, fundingTypeCatalog }
+  const optionCatalogs: QuestionOptionCatalogs = {
+    woundTypeCatalog,
+    fundingTypeCatalog,
+    ethnicityCatalog,
+    languageCatalog,
+  }
   const options = resolveQuestionOptions(question, optionCatalogs)
   const hasError = Boolean(errorMessage)
   const simple = layout === 'simple'
@@ -217,28 +212,6 @@ export function InitialAssessmentQuestionField({
     </span>
   ) : null
 
-  const notesEl =
-    showAssessorNotes(question) ? (
-      <div className="mt-2 space-y-1">
-        <Label htmlFor={`${id}-notes`} className={IA_LABEL_SECONDARY_CLASS}>
-          Assessor notes (optional)
-        </Label>
-        {withTooltip(
-          <InitialAssessmentTextarea
-            id={`${id}-notes`}
-            className={cn(disabled && 'opacity-70')}
-            compact
-            rows={2}
-            disabled={disabled}
-            placeholder="Context for auditors or care plan authors…"
-            value={value?.notes ?? ''}
-            onChange={(e) => onChange(toInput(qid, { ...value, notes: e.target.value }))}
-          />,
-          { content: ASSESSOR_NOTES_TOOLTIP, className: 'block w-full' },
-        )}
-      </div>
-    ) : null
-
   const fieldMetaFooter = (
     <>
       {hintEl}
@@ -246,40 +219,43 @@ export function InitialAssessmentQuestionField({
     </>
   )
 
-  const fieldFooter = (
-    <>
-      {fieldMetaFooter}
-      {notesEl}
-    </>
-  )
-
   if (question.questionType === 'YES_NO') {
+    const useYesNoCard = !yesNoPlain && !hideLabel
+    const yesNoRow = (
+      <InitialAssessmentPaperYesNoRow
+        label={hideLabel ? null : (questionLabel ?? displayText)}
+        ariaLabel={hideLabel ? displayText : undefined}
+        name={`ia-yesno-${id}`}
+        value={yesNoTriState(value)}
+        disabled={disabled}
+        showDivider={false}
+        compact={useYesNoCard}
+        onChange={(v) =>
+          onChange(
+            toInput(qid, {
+              checked: v,
+              booleanValue: v,
+            }),
+          )
+        }
+      />
+    )
+
     return (
       <div className={fieldShellClass}>
         {srHelpEl}
         {withTooltip(
-          <div className="min-w-0">
-            <InitialAssessmentPaperYesNoRow
-              label={hideLabel ? null : (questionLabel ?? displayText)}
-              ariaLabel={hideLabel ? displayText : undefined}
-              name={`ia-yesno-${id}`}
-              value={yesNoTriState(value)}
-              disabled={disabled}
-              showDivider={false}
-              onChange={(v) =>
-                onChange(
-                  toInput(qid, {
-                    checked: v,
-                    booleanValue: v,
-                  }),
-                )
-              }
-            />
-          </div>,
+          useYesNoCard ? (
+            <div className={IA_YES_NO_CARD_CLASS}>
+              {yesNoRow}
+              {hintEl || errorEl ? <div className="pb-2 pt-1">{fieldMetaFooter}</div> : null}
+            </div>
+          ) : (
+            <div className="min-w-0">{yesNoRow}</div>
+          ),
           { className: 'block w-full' },
         )}
-        {hintEl}
-        {errorEl}
+        {!useYesNoCard ? fieldMetaFooter : null}
       </div>
     )
   }
@@ -310,7 +286,7 @@ export function InitialAssessmentQuestionField({
           )}
           <span>
             {questionLabel ?? question.questionText}
-            {fieldFooter}
+            {fieldMetaFooter}
           </span>
         </label>
       </div>
@@ -322,27 +298,31 @@ export function InitialAssessmentQuestionField({
     return (
       <div className={fieldShellClass ?? 'space-y-1 p-1'}>
         {labelEl}
-        <Select
-          value={current || '_none'}
-          disabled={disabled}
-          onValueChange={(v) =>
-            onChange(toInput(qid, { selectedOptions: v === '_none' ? [] : [v] }))
-          }
-        >
-          <SelectTrigger id={id} className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 max-w-md text-base'}>
-            <SelectValue placeholder="Select…" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_none">Select…</SelectItem>
-            {options.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className={cn(simple && 'w-full min-w-0')}>
+          <Select
+            value={current || '_none'}
+            disabled={disabled}
+            onValueChange={(v) =>
+              onChange(toInput(qid, { selectedOptions: v === '_none' ? [] : [v] }))
+            }
+          >
+            <SelectTrigger
+              id={id}
+              className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 max-w-md text-base'}
+            >
+              <SelectValue placeholder="Select…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">Select…</SelectItem>
+              {options.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {fieldMetaFooter}
-        {notesEl}
       </div>
     )
   }
@@ -356,7 +336,7 @@ export function InitialAssessmentQuestionField({
           {requiredMark}
           {metaChips}
         </legend>
-        {fieldFooter}
+        {fieldMetaFooter}
         <div className="flex flex-col gap-2">
           {srHelpEl}
           {options.map((opt) => (
@@ -405,7 +385,6 @@ export function InitialAssessmentQuestionField({
           { className: 'block w-full' },
         )}
         {fieldMetaFooter}
-        {notesEl}
       </div>
     )
   }
@@ -469,10 +448,9 @@ export function InitialAssessmentQuestionField({
               onChange(toInput(qid, { numberValue: Number.isFinite(n) ? n : undefined }))
             }}
           />,
-          { className: simple ? 'inline-flex max-w-md w-full' : 'inline-flex max-w-xs w-full' },
+          { className: simple ? 'block w-full' : 'inline-flex max-w-xs w-full' },
         )}
         {fieldMetaFooter}
-        {notesEl}
       </div>
     )
   }
@@ -483,10 +461,9 @@ export function InitialAssessmentQuestionField({
         {labelEl}
         {srHelpEl}
         {withTooltip(
-          <Input
+          <InitialAssessmentDateInput
             id={id}
-            type="date"
-            className={inputClass}
+            simple={simple}
             disabled={disabled}
             aria-describedby={describedBy}
             value={value?.dateValue?.slice(0, 10) ?? ''}
@@ -496,10 +473,9 @@ export function InitialAssessmentQuestionField({
               }))
             }
           />,
-          { className: simple ? 'inline-flex max-w-md w-full' : 'inline-flex max-w-xs w-full' },
+          { className: 'block w-full' },
         )}
         {fieldMetaFooter}
-        {notesEl}
       </div>
     )
   }
@@ -517,7 +493,7 @@ export function InitialAssessmentQuestionField({
           {requiredMark}
           {metaChips}
         </Label>
-        {fieldFooter}
+        {fieldMetaFooter}
         {srHelpEl}
         {withTooltip(
           <span className="block w-full max-w-md">
@@ -552,10 +528,9 @@ export function InitialAssessmentQuestionField({
           value={value?.textValue ?? ''}
           onChange={(e) => onChange(toInput(qid, { ...value, textValue: e.target.value }))}
         />,
-        { className: simple ? 'block max-w-md' : 'block w-full' },
+        { className: 'block w-full' },
       )}
       {fieldMetaFooter}
-      {notesEl}
     </div>
   )
 }

@@ -36,10 +36,9 @@ import {
 } from '@/features/service-users/visit-plan/VisitPlanCalendarOutcomeDialog'
 import {
   VISIT_PLAN_CALENDAR_OUTCOME_LEGEND,
-  visitPlanCalendarDisplayStatus,
   visitPlanCalendarOutcomeMeta,
-  visitPlanCalendarOutcomeShortLabel,
 } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
+import { visitPlanCalendarSlotPresentation } from '@/features/service-users/visit-plan/visit-plan-calendar-overdue.util'
 import { toastWarning } from '@/shared/lib/toast'
 import '@/features/service-users/medication/mar-calendar.css'
 import '@/features/service-users/visit-plan/visit-plan-calendar.css'
@@ -195,6 +194,7 @@ function VisitCalendarCellTooltip({
   end,
   carerNames,
   outcomeStatus,
+  isOverdue,
   outcomeNotes,
   allocatedCount,
   requiredCarers,
@@ -206,6 +206,7 @@ function VisitCalendarCellTooltip({
   end: string
   carerNames: string[]
   outcomeStatus: string
+  isOverdue?: boolean
   outcomeNotes?: string | null
   allocatedCount?: number
   requiredCarers?: number
@@ -218,7 +219,9 @@ function VisitCalendarCellTooltip({
     <div className="space-y-2.5 text-left">
       <div className="border-b border-border/60 pb-2">
         <p className="font-semibold text-foreground">{slot.label}</p>
-        <p className="mt-1 text-xs font-medium">{outcome.label}</p>
+        <p className="mt-1 text-xs font-medium">
+          {isOverdue ? 'Overdue — no action recorded' : outcome.label}
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">{formatCalendarDateLabel(month, day)}</p>
       </div>
       <dl className="space-y-2 text-xs">
@@ -544,6 +547,10 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                 </span>
               )
             })}
+            <span className="vp-cal-legend-outcome-item">
+              <span className="vp-cal-outcome-swatch vp-cal-visit-overdue" aria-hidden />
+              Overdue
+            </span>
           </div>
           <p className="vp-cal-hint">
             {displayMode === 'list'
@@ -568,15 +575,23 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                       {dayEntries.map((entry) => {
                         const key = outcomeKey(entry.slot.id, entry.iso)
                         const outcome = key ? outcomeByKey.get(key) : null
-                        const outcomeStatus = visitPlanCalendarDisplayStatus(outcome)
-                        const outcomeMeta = visitPlanCalendarOutcomeMeta(outcomeStatus)
+                        const presentation = visitPlanCalendarSlotPresentation({
+                          occurrenceIso: entry.iso,
+                          plannedEndTime: entry.end,
+                          outcome,
+                        })
+                        const outcomeMeta = visitPlanCalendarOutcomeMeta(presentation.outcomeStatus)
                         const cellCarerNames = carerNamesForCell(entry.slot, outcome ?? undefined, employeeNameById)
                         return (
                           <li key={`${entry.iso}-${entry.slot.slotCode}`}>
                             <button
                               type="button"
-                              className={cn('vp-cal-list-item w-full text-left', outcomeMeta.className)}
-                              aria-label={`${entry.slot.label} ${formatCalendarDateLabel(entry.month, entry.day)} — ${outcomeMeta.label}`}
+                              className={cn(
+                                'vp-cal-list-item w-full text-left',
+                                outcomeMeta.className,
+                                presentation.isOverdue && 'vp-cal-visit-overdue',
+                              )}
+                              aria-label={`${entry.slot.label} ${formatCalendarDateLabel(entry.month, entry.day)} — ${presentation.isOverdue ? 'Overdue' : outcomeMeta.label}`}
                               onClick={() =>
                                 openOutcomeDialog({
                                   iso: entry.iso,
@@ -592,7 +607,9 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                               <div className="vp-cal-list-item-main">
                                 <div className="min-w-0">
                                   <p className="vp-cal-list-slot">{entry.slot.label}</p>
-                                  <p className="vp-cal-list-status">{outcomeMeta.label}</p>
+                                  <p className="vp-cal-list-status">
+                                    {presentation.isOverdue ? presentation.shortLabel : outcomeMeta.label}
+                                  </p>
                                   <p className="vp-cal-list-time">
                                     <Clock className="inline h-3.5 w-3.5 shrink-0" aria-hidden />
                                     {entry.start} – {entry.end}
@@ -604,7 +621,7 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                                 <span className="vp-cal-list-carers">
                                   <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                   {cellCarerNames.length === 0
-                                    ? outcomeStatus === 'NOT_GENERATED'
+                                    ? presentation.outcomeStatus === 'NOT_GENERATED'
                                       ? 'Not on rota'
                                       : 'Unassigned'
                                     : cellCarerNames.join(', ')}
@@ -685,8 +702,12 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                           const today = cell.iso === todayIso
                           const key = outcomeKey(slot.id, cell.iso)
                           const outcome = key ? outcomeByKey.get(key) : null
-                          const outcomeStatus = visitPlanCalendarDisplayStatus(outcome)
-                          const outcomeMeta = visitPlanCalendarOutcomeMeta(outcomeStatus)
+                          const presentation = visitPlanCalendarSlotPresentation({
+                            occurrenceIso: cell.iso,
+                            plannedEndTime: end,
+                            outcome,
+                          })
+                          const outcomeMeta = visitPlanCalendarOutcomeMeta(presentation.outcomeStatus)
                           const cellCarerNames = carerNamesForCell(slot, outcome ?? undefined, employeeNameById)
                           return (
                             <td
@@ -695,6 +716,7 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                                 'mar-cell',
                                 !matches && 'is-not-scheduled',
                                 today && matches && 'col-today',
+                                presentation.isOverdue && matches && 'col-overdue',
                               )}
                             >
                               {matches ? (
@@ -702,8 +724,12 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                                   <TooltipTrigger asChild>
                                     <button
                                       type="button"
-                                      className={cn('vp-cal-visit', outcomeMeta.className)}
-                                      aria-label={`${slot.label} ${formatCalendarDateLabel(cell.month, cell.day)} — ${outcomeMeta.label}`}
+                                      className={cn(
+                                        'vp-cal-visit',
+                                        outcomeMeta.className,
+                                        presentation.isOverdue && 'vp-cal-visit-overdue',
+                                      )}
+                                      aria-label={`${slot.label} ${formatCalendarDateLabel(cell.month, cell.day)} — ${presentation.isOverdue ? 'Overdue — no action recorded' : outcomeMeta.label}`}
                                       onClick={() =>
                                         openOutcomeDialog({
                                           iso: cell.iso,
@@ -717,9 +743,7 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                                       }
                                     >
                                       <span className="vp-cal-visit-time">{start}</span>
-                                      <span className="vp-cal-visit-label">
-                                        {visitPlanCalendarOutcomeShortLabel(outcomeStatus)}
-                                      </span>
+                                      <span className="vp-cal-visit-label">{presentation.shortLabel}</span>
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent
@@ -735,7 +759,8 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                                       start={start}
                                       end={end}
                                       carerNames={cellCarerNames}
-                                      outcomeStatus={outcomeStatus}
+                                      outcomeStatus={presentation.outcomeStatus}
+                                      isOverdue={presentation.isOverdue}
                                       outcomeNotes={outcome?.notes}
                                       allocatedCount={outcome?.allocatedCount}
                                       requiredCarers={outcome?.requiredCarers}

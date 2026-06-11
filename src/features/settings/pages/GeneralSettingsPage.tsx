@@ -61,8 +61,12 @@ export default function GeneralSettingsPage() {
   }
 
   return (
-    <div className="space-y-4" data-testid="general-settings-page">
+    <div
+      className="flex h-[calc(100dvh-3.5rem-2.5rem)] flex-col gap-4 overflow-hidden md:h-[calc(100dvh-3.5rem-3rem)]"
+      data-testid="general-settings-page"
+    >
       <PageHeader
+        className="shrink-0"
         title="General Settings"
         description="Organisation-wide care rules, time display, and module configuration."
         icon={<Settings className="h-4 w-4 text-muted-foreground" aria-hidden />}
@@ -73,9 +77,14 @@ export default function GeneralSettingsPage() {
         ]}
       />
 
-      <div className="flex min-h-[min(70vh,640px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav
-          className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-border bg-muted/30 p-2 md:w-64 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-2"
+          className={cn(
+            'flex min-h-0 shrink-0 gap-0.5 overflow-x-auto overflow-y-hidden overscroll-y-contain',
+            'border-b border-border bg-muted/30 p-2',
+            'md:w-64 md:flex-col md:overflow-x-visible md:overflow-y-hidden md:hover:overflow-y-auto',
+            'md:border-b-0 md:border-r md:p-2',
+          )}
           aria-label="General settings sections"
           data-testid="general-settings-tabs"
         >
@@ -102,7 +111,7 @@ export default function GeneralSettingsPage() {
           })}
         </nav>
 
-        <div className="min-w-0 flex-1 overflow-y-auto p-5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain p-5">
           {activeTab === 'general' && <GeneralSettingsGeneralPanel />}
           {activeTab === 'employee' && <GeneralSettingsEmployeeSection />}
           {activeTab === 'service-management' && <GeneralSettingsServiceManagementPanel />}

@@ -1,5 +1,6 @@
-import type { ServiceUserDetail } from '@/features/service-users/api'
+import type { ServiceUserDetail, ServiceUserLookupsBundle } from '@/features/service-users/api'
 import type { ServiceUserDomCareData } from '@/features/service-users/api/service-users.api'
+import { resolveStoredLookupCode } from '@/features/service-users/utils/service-user-profile-lookup-rows'
 import { parseAboutMeFromReferences } from '@/features/service-users/service-user-about-me'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
@@ -12,12 +13,49 @@ import type {
 export type PrefillContext = {
   detail: ServiceUserDetail | null | undefined
   domCare: ServiceUserDomCareData | null | undefined
+  lookups?: ServiceUserLookupsBundle | null
+}
+
+const PROFILE_REF_ETHNICITY = 'SU_PROFILE_ETHNICITY'
+const PROFILE_REF_LANGUAGE = 'SU_PROFILE_LANGUAGE'
+
+function profileReferenceValue(
+  detail: ServiceUserDetail,
+  referenceType: string,
+): string {
+  return (
+    detail.references?.find((r) => r.referenceType === referenceType)?.referenceValue?.trim() ?? ''
+  )
+}
+
+function prefillLookupAnswerCode(
+  stored: string,
+  rows: ReadonlyArray<{ name: string; code: string }> | undefined,
+): string {
+  if (!stored.trim()) return ''
+  if (!rows?.length) return stored.trim()
+  return resolveStoredLookupCode(stored, rows).trim().toLowerCase()
 }
 
 function formatAddress(detail: ServiceUserDetail): string {
   const a = detail.address
   if (!a) return ''
   return [a.addressLine1, a.addressLine2, a.town, a.county, a.postcode].filter(Boolean).join(', ')
+}
+
+function formatGpContact(detail: ServiceUserDetail): string {
+  const gp = detail.contacts?.find((c) => c.relationshipType?.code === 'GP')
+  if (!gp) return ''
+  const name = [gp.firstName, gp.lastName].filter(Boolean).join(' ').trim()
+  const phone = (gp.mobile || gp.phone || '').trim()
+  const other = [gp.address, gp.notes].filter((x) => x?.trim()).join('\n').trim()
+  return [
+    name ? `Name: ${name}` : '',
+    phone ? `Tel: ${phone}` : '',
+    other,
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 function formatEmergencyContact(detail: ServiceUserDetail): string {
@@ -71,13 +109,18 @@ function setIfNonEmpty(map: Map<string, string>, key: string, value: string | un
 
 export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
   const map = new Map<string, string>()
-  const { detail, domCare } = ctx
+  const { detail, domCare, lookups } = ctx
   if (!detail) return map
 
   const about = parseAboutMeFromReferences(detail.references)
   const cultureParts = [about.religiousSpiritualPreferences].filter((s) => s?.trim())
+  const ethnicityStored = profileReferenceValue(detail, PROFILE_REF_ETHNICITY)
+  const languageStored = profileReferenceValue(detail, PROFILE_REF_LANGUAGE)
 
   const values: Record<string, string> = {
+    firstName: detail.firstName?.trim() ?? '',
+    middleName: detail.middleName?.trim() ?? '',
+    lastName: detail.lastName?.trim() ?? '',
     preferredName: detail.preferredName?.trim() || detail.firstName || '',
     dateOfBirth: detail.dateOfBirth?.slice(0, 10) ?? '',
     gender: mapGenderToAssessmentOption(detail.gender),
@@ -90,6 +133,7 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
       .filter(Boolean)
       .join('\n'),
     emergencyContact: formatEmergencyContact(detail),
+    gpContact: formatGpContact(detail),
     aboutMePriorities: about.whatIsMostImportantToMe?.trim() || about.whatMakesAGoodDay?.trim() || '',
     aboutMeRoutine: routineSummary(detail),
     foodLikes: [about.foodDrinksLike, about.foodDrinksDontLike ? `Dislikes: ${about.foodDrinksDontLike}` : '']
@@ -97,15 +141,16 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
       .join('\n'),
     activityLikes: about.favouriteActivities?.trim() || about.hobbiesAndInterests?.trim() || '',
     culture: cultureParts.join(' · '),
-    language: about.howICommunicate?.trim() || '',
+    ethnicity: prefillLookupAnswerCode(ethnicityStored, lookups?.ethnicities),
+    language: prefillLookupAnswerCode(languageStored, lookups?.languages),
     careInstructions: domCare?.careInstructions?.trim() ?? '',
     plannedCarers: domCare?.numberOfCarers != null ? String(domCare.numberOfCarers) : '',
     accessInstruction: domCare?.accessInstruction?.trim() ?? '',
     doorCode: domCare?.doorCode ? '•••• (on file in DOM Care)' : '',
     fundingType: mapFundingTypeCode(detail.fundingType?.code),
     nhsNumber: detail.nhsNumber?.trim() ?? '',
+    nationalInsuranceNumber: detail.nationalInsuranceNumber?.trim() ?? '',
     serviceUserNumber: detail.serviceUserNumber?.trim() ?? '',
-    legalName: [detail.firstName, detail.middleName, detail.lastName].filter(Boolean).join(' '),
   }
 
   for (const [key, val] of Object.entries(values)) {

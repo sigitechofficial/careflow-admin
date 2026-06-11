@@ -19,7 +19,16 @@ export const settingsKeys = {
   serviceUserFundingTypes: () =>
     [...settingsKeys.all(), 'service-user-funding-types'] as const,
 
+  serviceUserEthnicities: () =>
+    [...settingsKeys.all(), 'service-user-ethnicities'] as const,
+
+  serviceUserLanguages: () => [...settingsKeys.all(), 'service-user-languages'] as const,
+
   bodyMapRecordTypes: () => [...settingsKeys.all(), 'body-map-record-types'] as const,
+
+  allergyCatalog: () => [...settingsKeys.all(), 'allergy-catalog'] as const,
+
+  vitalAcceptedRanges: () => [...settingsKeys.all(), 'vital-accepted-ranges'] as const,
 
   locationTree: () => [...settingsKeys.all(), 'location-management', 'tree'] as const,
 

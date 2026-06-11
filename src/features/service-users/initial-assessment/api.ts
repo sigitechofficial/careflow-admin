@@ -21,6 +21,7 @@ import type {
   InitialAssessmentRiskType,
   InitialAssessmentReviewQueueItem,
 } from '@/features/service-users/initial-assessment/types'
+import type { VitalAcceptedRangeLookupRow } from '@/features/service-users/initial-assessment/utils/vital-accepted-ranges.lookup'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import { ApiError } from '@/shared/api/api-client'
@@ -413,6 +414,20 @@ export async function fetchInitialAssessmentAgencySettings(
     { method: 'GET', ...init },
   )
   return res.data
+}
+
+export async function fetchVitalAcceptedRangeLookup(signal?: AbortSignal) {
+  const res = await apiJson<
+    ApiEnvelope<
+      Array<
+        VitalAcceptedRangeLookupRow & {
+          id: string
+          isActive?: boolean
+        }
+      >
+    >
+  >('/lookups/vital-accepted-ranges', { method: 'GET', signal })
+  return res.data.map(({ id: _id, isActive: _active, ...row }) => row)
 }
 
 export async function fetchInitialAssessmentRiskSummary(

@@ -31,9 +31,16 @@ import {
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 import {
+  ALLERGY_CATALOG_CATEGORY_LABELS,
+  ALLERGY_CATALOG_CATEGORY_ORDER,
+  type AllergyCatalogCategory,
+} from '@/features/settings/allergy-catalog-categories'
+import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
@@ -77,14 +84,31 @@ export function ServiceUserAllergiesTab({
   const [catalogId, setCatalogId] = React.useState<string>(SELECT_NONE)
   const [customName, setCustomName] = React.useState('')
   const [comment, setComment] = React.useState('')
+  const [catalogSearch, setCatalogSearch] = React.useState('')
   const [formError, setFormError] = React.useState<string | null>(null)
 
   const [deleteId, setDeleteId] = React.useState<string | null>(null)
+
+  const catalogByCategory = React.useMemo(() => {
+    const q = catalogSearch.trim().toLowerCase()
+    const grouped = new Map<AllergyCatalogCategory, SuLookupRow[]>()
+    for (const cat of ALLERGY_CATALOG_CATEGORY_ORDER) grouped.set(cat, [])
+    for (const item of allergyCatalog) {
+      const cat = (item.category as AllergyCatalogCategory | undefined) ?? 'OTHER'
+      if (!ALLERGY_CATALOG_CATEGORY_ORDER.includes(cat)) continue
+      if (q && !item.name.toLowerCase().includes(q) && !item.code.toLowerCase().includes(q)) {
+        continue
+      }
+      grouped.get(cat)!.push(item)
+    }
+    return grouped
+  }, [allergyCatalog, catalogSearch])
 
   function resetForm() {
     setCatalogId(SELECT_NONE)
     setCustomName('')
     setComment('')
+    setCatalogSearch('')
     setFormError(null)
   }
 
@@ -244,17 +268,32 @@ export function ServiceUserAllergiesTab({
               <label className="text-sm text-muted-foreground">
                 Allergy name <span className="text-destructive">*</span>
               </label>
+              <Input
+                value={catalogSearch}
+                onChange={e => setCatalogSearch(e.target.value)}
+                placeholder="Search catalogue (food, latex, penicillin…)"
+                className="mb-2"
+              />
               <Select value={catalogId} onValueChange={setCatalogId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Please select Allergy" />
                 </SelectTrigger>
-                <SelectContent className="max-h-64">
+                <SelectContent className="max-h-72">
                   <SelectItem value={SELECT_NONE}>Please select Allergy</SelectItem>
-                  {allergyCatalog.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name}
-                    </SelectItem>
-                  ))}
+                  {ALLERGY_CATALOG_CATEGORY_ORDER.map(cat => {
+                    const items = catalogByCategory.get(cat) ?? []
+                    if (items.length === 0) return null
+                    return (
+                      <SelectGroup key={cat}>
+                        <SelectLabel>{ALLERGY_CATALOG_CATEGORY_LABELS[cat]}</SelectLabel>
+                        {items.map(a => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )
+                  })}
                   <SelectItem value={SELECT_CUSTOM}>Other (type below)</SelectItem>
                 </SelectContent>
               </Select>

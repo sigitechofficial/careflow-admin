@@ -4,6 +4,10 @@ import {
   isExplicitNo,
   isYesAnswer,
 } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import {
+  VITAL_ACCEPTED_RANGE_LOOKUP,
+  vitalAcceptedRangesFromLookup,
+} from '@/features/service-users/initial-assessment/utils/vital-accepted-ranges.lookup'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
@@ -33,27 +37,126 @@ export type VitalRule = {
   min: number
   max: number
   decimal?: boolean
+  /** UK clinical reference note (NEWS2 / NHS / CQC). */
+  referenceNote?: string
+}
+
+type VitalFieldDefinition = {
+  fieldKey: VitalFieldKey
+  label: string
+  unit: string
+  decimal?: boolean
+  referenceNote: string
+  /** Per-assessment acceptable range — UK NEWS2 / NHS defaults (editable in the banner). */
+  acceptedDefault: VitalAcceptedRange
+  /** Hard limits for impossible readings / typos — allows recording abnormal but plausible values. */
+  plausibility: VitalAcceptedRange
+}
+
+/**
+ * UK reference defaults for domiciliary / care-home style observations.
+ * Sources: NEWS2 (RCP 2017), RESTORE2, CQC GP mythbuster 102 (pulse/BP), NICE diabetes (glucose).
+ * Individual baselines may differ — ranges are saved per assessment and should be adjusted when known.
+ */
+export const VITAL_FIELD_DEFINITIONS: VitalFieldDefinition[] = [
+  {
+    fieldKey: 'temperature',
+    label: 'Temperature',
+    unit: '°C',
+    decimal: true,
+    referenceNote: 'NEWS2 score 0: 36.1–38.0°C',
+    acceptedDefault: { min: 36.0, max: 38.5 },
+    plausibility: { min: 32, max: 42 },
+  },
+  {
+    fieldKey: 'pulse',
+    label: 'Pulse',
+    unit: 'bpm',
+    referenceNote: 'CQC/NHS adult: 60–100 bpm; NEWS2 score 0: 51–90',
+    acceptedDefault: { min: 50, max: 100 },
+    plausibility: { min: 30, max: 200 },
+  },
+  {
+    fieldKey: 'respirations',
+    label: 'Respirations',
+    unit: '/min',
+    referenceNote: 'NEWS2 score 0: 12–20 breaths/min',
+    acceptedDefault: { min: 10, max: 24 },
+    plausibility: { min: 4, max: 50 },
+  },
+  {
+    fieldKey: 'bpSystolic',
+    label: 'Systolic BP',
+    unit: 'mmHg',
+    referenceNote: 'NHS ideal from 90 mmHg; hypertension concern ≥140 (CQC)',
+    acceptedDefault: { min: 90, max: 160 },
+    plausibility: { min: 50, max: 250 },
+  },
+  {
+    fieldKey: 'bpDiastolic',
+    label: 'Diastolic BP',
+    unit: 'mmHg',
+    referenceNote: 'NHS ideal 60–80 mmHg (paired with systolic)',
+    acceptedDefault: { min: 50, max: 100 },
+    plausibility: { min: 30, max: 150 },
+  },
+  {
+    fieldKey: 'spo2',
+    label: 'SpO₂',
+    unit: '%',
+    referenceNote: 'NEWS2 SpO₂ Scale 1 on air score 0: ≥96% (Scale 2: 88–92% if prescribed)',
+    acceptedDefault: { min: 94, max: 100 },
+    plausibility: { min: 50, max: 100 },
+  },
+  {
+    fieldKey: 'bloodGlucose',
+    label: 'Blood glucose',
+    unit: 'mmol/L',
+    decimal: true,
+    referenceNote: 'NICE: review if <4.0 (hypo) or >11.0 mmol/L',
+    acceptedDefault: { min: 3.5, max: 15.0 },
+    plausibility: { min: 1.0, max: 35 },
+  },
+]
+
+/** Legacy wide defaults (pre-UK reference) — migrated on load. */
+const LEGACY_ACCEPTED_DEFAULTS: VitalAcceptedRangesMetadata = {
+  temperature: { min: 30, max: 45 },
+  pulse: { min: 30, max: 250 },
+  respirations: { min: 5, max: 60 },
+  bpSystolic: { min: 50, max: 250 },
+  bpDiastolic: { min: 30, max: 150 },
+  spo2: { min: 50, max: 100 },
+  bloodGlucose: { min: 1, max: 40 },
 }
 
 export const VITALS_CONTEXT_FIELD_KEY = 'vitalsContext'
 
-export const DEFAULT_VITAL_FIELD_RULES: VitalRule[] = [
-  { fieldKey: 'temperature', label: 'Temperature', unit: '°C', min: 30, max: 45, decimal: true },
-  { fieldKey: 'pulse', label: 'Pulse', unit: 'bpm', min: 30, max: 250 },
-  { fieldKey: 'respirations', label: 'Respirations', unit: '/min', min: 5, max: 60 },
-  { fieldKey: 'bpSystolic', label: 'Systolic BP', unit: 'mmHg', min: 50, max: 250 },
-  { fieldKey: 'bpDiastolic', label: 'Diastolic BP', unit: 'mmHg', min: 30, max: 150 },
-  { fieldKey: 'spo2', label: 'SpO₂', unit: '%', min: 50, max: 100 },
-  { fieldKey: 'bloodGlucose', label: 'Blood glucose', unit: 'mmol/L', min: 1, max: 40, decimal: true },
-]
+/** @deprecated Use {@link resolveVitalFieldRules} for persisted per-assessment ranges. */
+export const DEFAULT_VITAL_FIELD_RULES: VitalRule[] = VITAL_FIELD_DEFINITIONS.map((def) => ({
+  fieldKey: def.fieldKey,
+  label: def.label,
+  unit: def.unit,
+  decimal: def.decimal,
+  referenceNote: def.referenceNote,
+  min: def.acceptedDefault.min,
+  max: def.acceptedDefault.max,
+}))
 
 /** @deprecated Use {@link resolveVitalFieldRules} for persisted per-assessment ranges. */
 export const VITAL_FIELD_RULES = DEFAULT_VITAL_FIELD_RULES
 
 export function defaultVitalAcceptedRanges(): VitalAcceptedRangesMetadata {
-  return Object.fromEntries(
-    DEFAULT_VITAL_FIELD_RULES.map((rule) => [rule.fieldKey, { min: rule.min, max: rule.max }]),
-  ) as VitalAcceptedRangesMetadata
+  return vitalAcceptedRangesFromLookup(VITAL_ACCEPTED_RANGE_LOOKUP)
+}
+
+function rangesEqual(a: VitalAcceptedRange, b: VitalAcceptedRange): boolean {
+  return a.min === b.min && a.max === b.max
+}
+
+function isLegacyAcceptedRange(fieldKey: VitalFieldKey, range: VitalAcceptedRange): boolean {
+  const legacy = LEGACY_ACCEPTED_DEFAULTS[fieldKey]
+  return legacy != null && rangesEqual(range, legacy)
 }
 
 function parseRangeValue(value: unknown): number | null {
@@ -70,14 +173,17 @@ export function normalizeVitalAcceptedRanges(raw: unknown): VitalAcceptedRangesM
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaults
   const source = raw as Record<string, unknown>
   const out = { ...defaults }
-  for (const rule of DEFAULT_VITAL_FIELD_RULES) {
-    const entry = source[rule.fieldKey]
+  for (const def of VITAL_FIELD_DEFINITIONS) {
+    const entry = source[def.fieldKey]
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
     const row = entry as Record<string, unknown>
     const min = parseRangeValue(row.min)
     const max = parseRangeValue(row.max)
     if (min != null && max != null && min < max) {
-      out[rule.fieldKey] = { min, max }
+      const parsed = { min, max }
+      out[def.fieldKey] = isLegacyAcceptedRange(def.fieldKey, parsed)
+        ? { ...def.acceptedDefault }
+        : parsed
     }
   }
   return out
@@ -87,14 +193,22 @@ export function resolveVitalFieldRules(
   ranges?: VitalAcceptedRangesMetadata | null,
 ): VitalRule[] {
   const normalized = ranges ?? defaultVitalAcceptedRanges()
-  return DEFAULT_VITAL_FIELD_RULES.map((rule) => ({
-    ...rule,
-    min: normalized[rule.fieldKey]?.min ?? rule.min,
-    max: normalized[rule.fieldKey]?.max ?? rule.max,
+  return VITAL_FIELD_DEFINITIONS.map((def) => ({
+    fieldKey: def.fieldKey,
+    label: def.label,
+    unit: def.unit,
+    decimal: def.decimal,
+    referenceNote: def.referenceNote,
+    min: normalized[def.fieldKey]?.min ?? def.acceptedDefault.min,
+    max: normalized[def.fieldKey]?.max ?? def.acceptedDefault.max,
   }))
 }
 
-const VITAL_FIELD_KEYS = new Set<string>(DEFAULT_VITAL_FIELD_RULES.map((r) => r.fieldKey))
+function resolvePlausibilityRule(fieldKey: VitalFieldKey): VitalFieldDefinition | undefined {
+  return VITAL_FIELD_DEFINITIONS.find((def) => def.fieldKey === fieldKey)
+}
+
+const VITAL_FIELD_KEYS = new Set<string>(VITAL_FIELD_DEFINITIONS.map((r) => r.fieldKey))
 
 export function isVitalSignQuestion(q: InitialAssessmentQuestion): boolean {
   const key = fieldKeyOf(q)
@@ -163,7 +277,27 @@ export function vitalsClinicalFieldsLocked(
   return competent === false
 }
 
+/** Hard validation — rejects impossible / mistyped values only. */
 export function validateVitalValue(
+  fieldKey: VitalFieldKey,
+  value: number | null | undefined,
+  _ranges?: VitalAcceptedRangesMetadata | null,
+): string | null {
+  if (value == null || Number.isNaN(value)) return null
+  const def = resolvePlausibilityRule(fieldKey)
+  if (!def) return null
+  const { min, max } = def.plausibility
+  if (value < min || value > max) {
+    return `${def.label} must be between ${min} and ${max} ${def.unit}`
+  }
+  if (!def.decimal && !Number.isInteger(value)) {
+    return `${def.label} must be a whole number`
+  }
+  return null
+}
+
+/** Soft warning when a plausible value sits outside the assessment's accepted (clinical) range. */
+export function vitalAcceptedRangeWarning(
   fieldKey: VitalFieldKey,
   value: number | null | undefined,
   ranges?: VitalAcceptedRangesMetadata | null,
@@ -172,10 +306,7 @@ export function validateVitalValue(
   const rule = resolveVitalFieldRules(ranges).find((r) => r.fieldKey === fieldKey)
   if (!rule) return null
   if (value < rule.min || value > rule.max) {
-    return `${rule.label} must be between ${rule.min} and ${rule.max} ${rule.unit}`
-  }
-  if (!rule.decimal && !Number.isInteger(value)) {
-    return `${rule.label} must be a whole number`
+    return `${rule.label} is outside the accepted range (${rule.min}–${rule.max} ${rule.unit}) for this assessment`
   }
   return null
 }
@@ -189,13 +320,18 @@ export function buildVitalsValidationErrors(
   const sec4 = sections.find((s) => s.sectionNumber === 4)
   if (!sec4) return errors
 
-  const rules = resolveVitalFieldRules(ranges)
-  for (const rule of rules) {
-    const q = findQuestionByFieldKey(sections, rule.fieldKey)
+  for (const def of VITAL_FIELD_DEFINITIONS) {
+    const q = findQuestionByFieldKey(sections, def.fieldKey)
     if (!q) continue
     const answer = draftAnswers[q.id]
-    const err = validateVitalValue(rule.fieldKey, answer?.numberValue ?? null, ranges)
-    if (err) errors.set(q.id, err)
+    const value = answer?.numberValue ?? null
+    const err = validateVitalValue(def.fieldKey, value, ranges)
+    if (err) {
+      errors.set(q.id, err)
+      continue
+    }
+    const warn = vitalAcceptedRangeWarning(def.fieldKey, value, ranges)
+    if (warn) errors.set(q.id, warn)
   }
 
   const systolicQ = findQuestionByFieldKey(sections, 'bpSystolic')
@@ -215,8 +351,8 @@ export function hasAnyVitalSignEntered(
   sections: InitialAssessmentSection[],
   draftAnswers: Record<string, InitialAssessmentAnswerInput>,
 ): boolean {
-  for (const rule of DEFAULT_VITAL_FIELD_RULES) {
-    const q = findQuestionByFieldKey(sections, rule.fieldKey)
+  for (const def of VITAL_FIELD_DEFINITIONS) {
+    const q = findQuestionByFieldKey(sections, def.fieldKey)
     if (!q) continue
     const v = draftAnswers[q.id]?.numberValue
     if (v != null && !Number.isNaN(v)) return true
