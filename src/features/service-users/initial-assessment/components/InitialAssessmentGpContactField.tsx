@@ -77,13 +77,13 @@ export function parseGpContactAssessmentText(text: string | undefined | null): G
   let rest = raw
 
   const nameMatch = rest.match(/^Name:\s*(.+)(?:\r?\n|$)/i)
-  if (nameMatch) {
+  if (nameMatch?.[1]) {
     name = nameMatch[1].trim()
     rest = rest.slice(nameMatch[0].length).replace(/^\r?\n/, '')
   }
 
   const telMatch = rest.match(/^(?:Tel|Phone):\s*(.+)(?:\r?\n|$)/i)
-  if (telMatch) {
+  if (telMatch?.[1]) {
     phone = telMatch[1].trim()
     rest = rest.slice(telMatch[0].length).replace(/^\r?\n/, '')
   }
@@ -117,7 +117,7 @@ function splitContactName(name: string): { firstName: string; lastName?: string 
   const trimmed = name.trim()
   if (!trimmed) return { firstName: '' }
   const parts = trimmed.split(/\s+/)
-  if (parts.length === 1) return { firstName: parts[0] }
+  if (parts.length === 1) return { firstName: parts[0] ?? '' }
   return { firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] }
 }
 

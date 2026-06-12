@@ -1,6 +1,9 @@
 import type { ServiceUserDetail, ServiceUserLookupsBundle } from '@/features/service-users/api'
 import type { ServiceUserDomCareData } from '@/features/service-users/api/service-users.api'
-import { resolveStoredLookupCode } from '@/features/service-users/utils/service-user-profile-lookup-rows'
+import {
+  type CodeNameLookupRow,
+  resolveStoredLookupCode,
+} from '@/features/service-users/utils/service-user-profile-lookup-rows'
 import { parseAboutMeFromReferences } from '@/features/service-users/service-user-about-me'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
@@ -30,7 +33,7 @@ function profileReferenceValue(
 
 function prefillLookupAnswerCode(
   stored: string,
-  rows: ReadonlyArray<{ name: string; code: string }> | undefined,
+  rows: ReadonlyArray<CodeNameLookupRow> | undefined,
 ): string {
   if (!stored.trim()) return ''
   if (!rows?.length) return stored.trim()

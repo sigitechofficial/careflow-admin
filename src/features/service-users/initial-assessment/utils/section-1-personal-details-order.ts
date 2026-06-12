@@ -53,7 +53,7 @@ export const SECTION_1_1_ASSESSOR_QUESTIONS = [
   'Assessor designation',
 ] as const
 
-const ORDER_INDEX = new Map(
+const ORDER_INDEX = new Map<string, number>(
   SECTION_1_1_PERSONAL_DETAILS_ORDER.map((text, index) => [text, index]),
 )
 

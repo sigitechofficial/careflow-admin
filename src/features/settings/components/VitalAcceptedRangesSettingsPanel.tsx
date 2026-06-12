@@ -29,10 +29,13 @@ export function VitalAcceptedRangesSettingsPanel() {
   }, [rows])
 
   const setField = (id: string, side: 'min' | 'max', value: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], [side]: value },
-    }))
+    setDraft((prev) => {
+      const current = prev[id] ?? { min: '', max: '' }
+      return {
+        ...prev,
+        [id]: { ...current, [side]: value },
+      }
+    })
   }
 
   const saveRow = async (row: VitalAcceptedRangeCatalogRow) => {

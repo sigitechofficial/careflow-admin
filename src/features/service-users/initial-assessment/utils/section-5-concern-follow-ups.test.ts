@@ -17,6 +17,9 @@ function q(
     questionText: text,
     questionType: 'TEXT',
     sortOrder: 0,
+    isRequired: false,
+    riskFlag: false,
+    carePlanTrigger: false,
     metadata: meta,
   }
 }
