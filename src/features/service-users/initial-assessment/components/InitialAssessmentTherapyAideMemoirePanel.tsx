@@ -1,5 +1,5 @@
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { Input } from '@/shared/ui/input'
@@ -89,7 +89,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
           </ol>
 
           <section className="space-y-4 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
-            <InitialAssessmentPaperYesNoRow
+            <InitialAssessmentYesNoCardField
               label="Is further referral required?"
               name="therapy-further-referral"
               value={value.furtherReferralRequired ?? null}
@@ -102,7 +102,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
                 })
               }
             />
-            <InitialAssessmentPaperYesNoRow
+            <InitialAssessmentYesNoCardField
               label="Referral completed?"
               name="therapy-referral-completed"
               value={value.referralCompleted ?? null}

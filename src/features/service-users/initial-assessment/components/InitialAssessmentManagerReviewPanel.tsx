@@ -6,6 +6,7 @@ import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/
 import { cn } from '@/shared/lib/utils'
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
 import { parseSubmissionMetadata } from '@/features/service-users/initial-assessment/utils/submission-metadata'
+import { formatRichTextForDisplay } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   serviceUserId?: string
@@ -141,7 +142,8 @@ export function InitialAssessmentManagerReviewPanel({
           <div className="mt-4 space-y-2 text-sm">
             {submission.reviewNotes ? (
               <p>
-                <span className="font-medium">Review notes:</span> {submission.reviewNotes}
+                <span className="font-medium">Review notes:</span>{' '}
+                {formatRichTextForDisplay(submission.reviewNotes)}
               </p>
             ) : null}
             <p>
@@ -150,7 +152,8 @@ export function InitialAssessmentManagerReviewPanel({
             </p>
             {savedConditions ? (
               <p className="text-muted-foreground">
-                <span className="font-medium text-foreground">Conditions:</span> {savedConditions}
+                <span className="font-medium text-foreground">Conditions:</span>{' '}
+                {formatRichTextForDisplay(savedConditions)}
               </p>
             ) : null}
             {submission.reviewedAt ? (

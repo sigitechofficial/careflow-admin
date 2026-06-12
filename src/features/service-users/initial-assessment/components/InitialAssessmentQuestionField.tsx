@@ -30,8 +30,9 @@ import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
 } from '@/features/service-users/initial-assessment/types'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
-import { holisticQuestionLabel } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
+import { holisticQuestionLabel, holisticSimpleTextareaPlaceholder } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import {
   IA_META_BADGE_CLASS,
   IA_QUESTION_LABEL_CLASS,
@@ -41,7 +42,6 @@ import {
   IA_CHECKBOX_CLASS,
   IA_SIMPLE_FIELD_CLASS,
   IA_SIMPLE_INPUT_CLASS,
-  IA_YES_NO_CARD_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
 type Props = {
@@ -55,8 +55,6 @@ type Props = {
   /** Compact row styling for §12 panel shells; `simple` = flat §1 profile layout. */
   layout?: 'default' | 'section12' | 'clinicalMeasurement' | 'simple'
   hideLabel?: boolean
-  /** When true, omit the muted card shell (e.g. Yes/No already inside a grouped panel). */
-  yesNoPlain?: boolean
   useHolisticLabels?: boolean
   woundTypeCatalog?: QuestionOption[]
   fundingTypeCatalog?: QuestionOption[]
@@ -92,7 +90,6 @@ export function InitialAssessmentQuestionField({
   submissionId,
   layout = 'default',
   hideLabel = false,
-  yesNoPlain = false,
   useHolisticLabels = true,
   woundTypeCatalog,
   fundingTypeCatalog,
@@ -220,42 +217,36 @@ export function InitialAssessmentQuestionField({
   )
 
   if (question.questionType === 'YES_NO') {
-    const useYesNoCard = !yesNoPlain && !hideLabel
-    const yesNoRow = (
-      <InitialAssessmentPaperYesNoRow
-        label={hideLabel ? null : (questionLabel ?? displayText)}
-        ariaLabel={hideLabel ? displayText : undefined}
-        name={`ia-yesno-${id}`}
-        value={yesNoTriState(value)}
-        disabled={disabled}
-        showDivider={false}
-        compact={useYesNoCard}
-        onChange={(v) =>
-          onChange(
-            toInput(qid, {
-              checked: v,
-              booleanValue: v,
-            }),
-          )
-        }
-      />
-    )
+    const yesNoProps = {
+      label: hideLabel ? null : (questionLabel ?? displayText),
+      ariaLabel: hideLabel ? displayText : undefined,
+      name: `ia-yesno-${id}`,
+      value: yesNoTriState(value),
+      disabled,
+      showDivider: false as const,
+      onChange: (v: boolean) =>
+        onChange(
+          toInput(qid, {
+            checked: v,
+            booleanValue: v,
+          }),
+        ),
+    }
 
     return (
       <div className={fieldShellClass}>
         {srHelpEl}
         {withTooltip(
-          useYesNoCard ? (
-            <div className={IA_YES_NO_CARD_CLASS}>
-              {yesNoRow}
-              {hintEl || errorEl ? <div className="pb-2 pt-1">{fieldMetaFooter}</div> : null}
+          hideLabel ? (
+            <div className="min-w-0">
+              <InitialAssessmentPaperYesNoRow {...yesNoProps} />
             </div>
           ) : (
-            <div className="min-w-0">{yesNoRow}</div>
+            <InitialAssessmentYesNoCardField {...yesNoProps} />
           ),
           { className: 'block w-full' },
         )}
-        {!useYesNoCard ? fieldMetaFooter : null}
+        {fieldMetaFooter}
       </div>
     )
   }
@@ -378,7 +369,9 @@ export function InitialAssessmentQuestionField({
             rows={simple ? 2 : 3}
             compact={simple}
             aria-describedby={describedBy}
-            placeholder={simple ? 'Enter details…' : undefined}
+            placeholder={
+              simple ? holisticSimpleTextareaPlaceholder(question.questionText) : undefined
+            }
             value={value?.textValue ?? ''}
             onChange={(e) => onChange(toInput(qid, { ...value, textValue: e.target.value }))}
           />,

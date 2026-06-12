@@ -11,11 +11,16 @@ function RangeColumn({ rows }: { rows: ReturnType<typeof lookupRowsByColumn> }) 
   return (
     <dl className="space-y-3">
       {rows.map((row) => (
-        <div key={row.fieldKey} className="flex flex-wrap gap-x-1.5 text-sm leading-snug">
-          <dt className="font-medium text-foreground">{row.label}:</dt>
-          <dd className="text-muted-foreground">
-            {formatVitalAcceptedRangeValue(row.min, row.max, row.unit)}
-          </dd>
+        <div key={row.fieldKey} className="space-y-0.5">
+          <div className="flex flex-wrap gap-x-1.5 text-sm leading-snug">
+            <dt className="font-medium text-foreground">{row.label}:</dt>
+            <dd className="text-muted-foreground">
+              {formatVitalAcceptedRangeValue(row.min, row.max, row.unit)}
+            </dd>
+          </div>
+          {'referenceNote' in row && row.referenceNote ? (
+            <dd className="text-xs text-muted-foreground/80">{row.referenceNote}</dd>
+          ) : null}
         </div>
       ))}
     </dl>
@@ -52,9 +57,15 @@ export function InitialAssessmentAcceptedRangesGuidance() {
         Accepted ranges
       </button>
       {open ? (
-        <div className="grid gap-6 px-4 py-4 sm:grid-cols-2">
-          <RangeColumn rows={left} />
-          <RangeColumn rows={right} />
+        <div className="space-y-3 px-4 py-4">
+          <p className="text-xs text-muted-foreground">
+            RESTORE2 / NEWS2 score-0 reference ranges (CQC-endorsed for care settings). Compare to the
+            person&apos;s baseline; adjust in Settings if your agency uses different thresholds.
+          </p>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <RangeColumn rows={left} />
+            <RangeColumn rows={right} />
+          </div>
         </div>
       ) : null}
     </div>

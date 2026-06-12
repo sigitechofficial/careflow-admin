@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { Input } from '@/shared/ui/input'
@@ -420,7 +420,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
           </div>
 
           <div className="space-y-3 rounded-sm border border-slate-300 p-4 dark:border-slate-600">
-            <InitialAssessmentPaperYesNoRow
+            <InitialAssessmentYesNoCardField
               name="acp-legal-adrt"
               label="4. Do you have a Legal Advance Decision to Refuse Treatment document? (This is in keeping with the Mental Capacity Act (2005) and enables people to make decisions that will be useful if at some future stage they can no longer express their views themselves)"
               value={value.legalAdvanceDecision ?? null}

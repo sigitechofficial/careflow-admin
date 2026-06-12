@@ -59,8 +59,8 @@ describe('clinical measurement fields', () => {
   it('normalizes persisted accepted ranges', () => {
     const defaults = defaultVitalAcceptedRanges()
     expect(normalizeVitalAcceptedRanges(undefined)).toEqual(defaults)
-    expect(defaults.temperature).toEqual({ min: 30, max: 45 })
-    expect(defaults.pulse).toEqual({ min: 30, max: 250 })
+    expect(defaults.temperature).toEqual({ min: 36.1, max: 38.0 })
+    expect(defaults.pulse).toEqual({ min: 51, max: 90 })
     expect(
       resolveVitalFieldRules({
         ...defaults,
@@ -74,14 +74,14 @@ describe('clinical measurement fields', () => {
       temperature: { min: 30, max: 45 },
       pulse: { min: 30, max: 250 },
     })
-    expect(migrated.temperature).toEqual({ min: 36, max: 38.5 })
-    expect(migrated.pulse).toEqual({ min: 50, max: 100 })
+    expect(migrated.temperature).toEqual({ min: 36.1, max: 38.0 })
+    expect(migrated.pulse).toEqual({ min: 51, max: 90 })
   })
 
   it('allows plausible abnormal values but warns outside accepted range', () => {
     const ranges = defaultVitalAcceptedRanges()
     expect(validateVitalValue('temperature', 39.5, ranges)).toBeNull()
-    expect(vitalAcceptedRangeWarning('temperature', 46, ranges)).toContain('outside the accepted range')
+    expect(vitalAcceptedRangeWarning('temperature', 40, ranges)).toContain('outside the accepted range')
     expect(validateVitalValue('temperature', 50, ranges)).toContain('must be between')
   })
 

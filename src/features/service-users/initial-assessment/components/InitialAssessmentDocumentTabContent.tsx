@@ -13,6 +13,9 @@ import { InitialAssessmentMentalCapacityChecklistPanel } from '@/features/servic
 import { InitialAssessmentPhotographyConsentPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPhotographyConsentPanel'
 import { InitialAssessmentQuestionField } from '@/features/service-users/initial-assessment/components/InitialAssessmentQuestionField'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
+import { InitialAssessmentPaperSection4Block } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection4Block'
+import { InitialAssessmentPaperSection5EmotionalBlock } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection5EmotionalBlock'
+import { InitialAssessmentPaperSection7AdlBlock } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection7AdlBlock'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentTotalSkinIntegrityCheckPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTotalSkinIntegrityCheckPanel'
@@ -27,6 +30,11 @@ import {
   type HolisticAssessmentTab,
   type SectionQuestionFilter,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import {
+  isPaperSection4MainSlice,
+  isPaperSection4TailSlice,
+} from '@/features/service-users/initial-assessment/utils/section-4-physical-assessment-display-order'
+import { isPaperSection7AdlSlice } from '@/features/service-users/initial-assessment/utils/section-7-adl-display-order'
 import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 import type { AdlWorksheetMetadata } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import type {
@@ -111,6 +119,8 @@ type Props = {
   onSyncBodyMap?: () => void
   syncBodyMapLoading?: boolean
   onOpenWaterlowTab?: () => void
+  onOpenEnvironmentAssessmentTab?: () => void
+  onOpenFallsScreeningTab?: () => void
   onPainAssessmentChange: (next: PainAssessmentMetadata) => void
   onWaterlowChange: (next: WaterlowMetadata) => void
   onMustAssessmentChange: (next: MustMetadata) => void
@@ -184,6 +194,8 @@ export function InitialAssessmentDocumentTabContent({
   onSyncBodyMap,
   syncBodyMapLoading,
   onOpenWaterlowTab,
+  onOpenEnvironmentAssessmentTab,
+  onOpenFallsScreeningTab,
   onPainAssessmentChange,
   onWaterlowChange,
   onMustAssessmentChange,
@@ -464,36 +476,131 @@ export function InitialAssessmentDocumentTabContent({
   }
 
   if (tab.kind === 'multi-section' && tab.multiSections?.length) {
+    const renderMultiSectionSlice = (
+      slice: { sectionNumber: number } & SectionQuestionFilter,
+      sliceIndex: number,
+      underPaperSection4: boolean,
+      underPaperSection5Emotional: boolean,
+    ) => {
+      const section = sections.find((s) => s.sectionNumber === slice.sectionNumber)
+      if (!section) return null
+      const hidePainTool = tab.id === 1 && slice.sectionNumber === 5
+      return (
+        <InitialAssessmentSectionQuestions
+          key={holisticMultiSectionSliceKey(tab.id, slice, sliceIndex)}
+          section={section}
+          allSections={sections}
+          draftAnswers={draftAnswers}
+          prefillMap={prefillMap}
+          questionErrors={questionErrors}
+          disabled={disabled}
+          serviceUserId={serviceUserId}
+          submissionId={submissionId}
+          serviceUserDetail={serviceUserDetail}
+          onSyncEmergencyContact={onSyncEmergencyContact}
+          onMarkMedicationVerified={onMarkMedicationVerified}
+          onOpenWaterlowTab={onOpenWaterlowTab}
+          onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
+          excludeQuestionIds={excludeQuestionIds}
+          painAssessment={painAssessment}
+          onPainAssessmentChange={onPainAssessmentChange}
+          holisticTab={toHolisticTabSlice(tab, slice.sectionNumber, slice)}
+          hidePainAssessmentTool={hidePainTool}
+          underPaperSection4={underPaperSection4}
+          underPaperSection5Emotional={underPaperSection5Emotional}
+          suppressIntro
+          onChange={onChange}
+        />
+      )
+    }
+
+    const sliceNodes: ReactNode[] = []
+    const slices = tab.multiSections
+    let sliceIndex = 0
+
+    while (sliceIndex < slices.length) {
+      const slice = slices[sliceIndex]!
+
+      if (tab.id === 1 && isPaperSection4MainSlice(slice.sectionNumber)) {
+        const blockStart = sliceIndex
+        while (
+          sliceIndex < slices.length &&
+          isPaperSection4MainSlice(slices[sliceIndex]!.sectionNumber)
+        ) {
+          sliceIndex += 1
+        }
+        const blockSlices = slices.slice(blockStart, sliceIndex)
+        sliceNodes.push(
+          <InitialAssessmentPaperSection4Block key={`tab-${tab.id}-paper-section-4-${blockStart}`}>
+            {blockSlices.map((blockSlice, blockOffset) =>
+              renderMultiSectionSlice(blockSlice, blockStart + blockOffset, true, false),
+            )}
+          </InitialAssessmentPaperSection4Block>,
+        )
+        continue
+      }
+
+      if (tab.id === 1 && slice.sectionNumber === 10) {
+        const blockStart = sliceIndex
+        while (sliceIndex < slices.length && slices[sliceIndex]!.sectionNumber === 10) {
+          sliceIndex += 1
+        }
+        const blockSlices = slices.slice(blockStart, sliceIndex)
+        sliceNodes.push(
+          <InitialAssessmentPaperSection5EmotionalBlock key={`tab-${tab.id}-paper-section-5-emotional`}>
+            {blockSlices.map((blockSlice, blockOffset) =>
+              renderMultiSectionSlice(blockSlice, blockStart + blockOffset, false, true),
+            )}
+          </InitialAssessmentPaperSection5EmotionalBlock>,
+        )
+        continue
+      }
+
+      if (tab.id === 1 && isPaperSection7AdlSlice(slice)) {
+        sliceNodes.push(
+          <InitialAssessmentPaperSection7AdlBlock
+            key={`tab-${tab.id}-paper-section-7-adl`}
+            sections={sections}
+            draftAnswers={draftAnswers}
+            disabled={disabled}
+            adl={section12.adl}
+            dailyLivingAids={section12.dailyLivingAids}
+            onAdlChange={section12.onAdlChange}
+            onDailyLivingAidsChange={section12.onDailyLivingAidsChange}
+            onOpenFallsScreeningTab={onOpenFallsScreeningTab}
+          />,
+        )
+        sliceIndex += 1
+        continue
+      }
+
+      if (tab.id === 1 && isPaperSection4TailSlice(slice)) {
+        const tailStart = sliceIndex
+        while (sliceIndex < slices.length && isPaperSection4TailSlice(slices[sliceIndex]!)) {
+          sliceIndex += 1
+        }
+        const tailSlices = slices.slice(tailStart, sliceIndex)
+        sliceNodes.push(
+          <div
+            key={`tab-${tab.id}-paper-section-4-tail-${tailStart}`}
+            className="space-y-5"
+            data-testid="ia-paper-section-4-tail"
+          >
+            {tailSlices.map((tailSlice, tailOffset) =>
+              renderMultiSectionSlice(tailSlice, tailStart + tailOffset, true, false),
+            )}
+          </div>,
+        )
+        continue
+      }
+
+      sliceNodes.push(renderMultiSectionSlice(slice, sliceIndex, false, false))
+      sliceIndex += 1
+    }
+
     return (
       <>
-        {tab.multiSections.map((slice, sliceIndex) => {
-          const section = sections.find((s) => s.sectionNumber === slice.sectionNumber)
-          if (!section) return null
-          const hidePainTool = tab.id === 1 && slice.sectionNumber === 5
-          return (
-            <InitialAssessmentSectionQuestions
-              key={holisticMultiSectionSliceKey(tab.id, slice, sliceIndex)}
-              section={section}
-              allSections={sections}
-              draftAnswers={draftAnswers}
-              prefillMap={prefillMap}
-              questionErrors={questionErrors}
-              disabled={disabled}
-              serviceUserId={serviceUserId}
-              submissionId={submissionId}
-              serviceUserDetail={serviceUserDetail}
-              onSyncEmergencyContact={onSyncEmergencyContact}
-              onMarkMedicationVerified={onMarkMedicationVerified}
-              excludeQuestionIds={excludeQuestionIds}
-              painAssessment={painAssessment}
-              onPainAssessmentChange={onPainAssessmentChange}
-              holisticTab={toHolisticTabSlice(tab, slice.sectionNumber, slice)}
-              hidePainAssessmentTool={hidePainTool}
-              suppressIntro
-              onChange={onChange}
-            />
-          )
-        })}
+        {sliceNodes}
         {footer}
       </>
     )
@@ -517,6 +624,8 @@ export function InitialAssessmentDocumentTabContent({
         serviceUserDetail={serviceUserDetail}
         onSyncEmergencyContact={onSyncEmergencyContact}
         onMarkMedicationVerified={onMarkMedicationVerified}
+        onOpenWaterlowTab={onOpenWaterlowTab}
+        onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
         excludeQuestionIds={excludeQuestionIds}
         painAssessment={painAssessment}
         onPainAssessmentChange={onPainAssessmentChange}

@@ -9,8 +9,11 @@ import {
   IA_FORM_TEXTAREA_COMPACT_CLASS,
   IA_QUESTION_LABEL_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
-import { section12PanelTitle } from '@/features/service-users/initial-assessment/utils/section-12-panel-labels'
 import type { PracticalCareTasksMetadata } from '@/features/service-users/initial-assessment/utils/mobility-metadata'
+
+/** Paper practical care block — matches reference form wording. */
+export const PAPER_PRACTICAL_CARE_TITLE =
+  'Practical care Task Does the customer required assistance with:'
 
 type Props = {
   value: PracticalCareTasksMetadata
@@ -18,16 +21,16 @@ type Props = {
   onChange: (next: PracticalCareTasksMetadata) => void
 }
 
-const TASK_FIELDS: { id: keyof PracticalCareTasksMetadata; label: string; placeholder: string }[] = [
-  { id: 'laundry', label: 'Laundry', placeholder: 'Assistance required — describe routine and support level' },
-  { id: 'cleaning', label: 'Cleaning', placeholder: 'Assistance required — describe areas and frequency' },
-  { id: 'shopping', label: 'Shopping', placeholder: 'Assistance required — describe how shopping is managed' },
+const TASK_FIELDS: { id: keyof PracticalCareTasksMetadata; label: string }[] = [
+  { id: 'laundry', label: 'Laundry ?' },
+  { id: 'cleaning', label: 'Cleaning ?' },
+  { id: 'shopping', label: 'Shopping?' },
   {
     id: 'financeAssistance',
-    label: 'Finance — collecting pension or monies, paying bills',
-    placeholder: 'If support required it must be recorded here',
+    label:
+      'Finance , collecting pension or monies , paying bills ( if support required must be recorded ) state :',
   },
-  { id: 'otherComment', label: 'Other comment', placeholder: 'Any other practical care tasks' },
+  { id: 'otherComment', label: 'Other comment :' },
 ]
 
 export function InitialAssessmentPracticalCarePanel({ value, disabled, onChange }: Props) {
@@ -35,12 +38,11 @@ export function InitialAssessmentPracticalCarePanel({ value, disabled, onChange 
 
   return (
     <InitialAssessmentSection12PanelShell
-      title={section12PanelTitle('12.11')}
-      hint="Record assistance required for each task. Finance support controls are in §12.12 when finance support is required."
+      title={PAPER_PRACTICAL_CARE_TITLE}
       testId="ia-section-12-practical-care"
       bodyVariant="content"
     >
-      {TASK_FIELDS.map(({ id, label, placeholder }) => (
+      {TASK_FIELDS.map(({ id, label }) => (
         <InitialAssessmentSection12FieldRow key={id}>
           <Label htmlFor={`practical-care-${id}`} className={IA_QUESTION_LABEL_CLASS}>
             {label}
@@ -49,7 +51,7 @@ export function InitialAssessmentPracticalCarePanel({ value, disabled, onChange 
             id={`practical-care-${id}`}
             className={cn('mt-1.5', IA_FORM_TEXTAREA_COMPACT_CLASS)}
             disabled={disabled}
-            placeholder={placeholder}
+            rows={id === 'financeAssistance' ? 3 : 2}
             value={value[id] ?? ''}
             onChange={(e) => patch({ [id]: e.target.value })}
           />

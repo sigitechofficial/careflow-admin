@@ -4,6 +4,7 @@ import {
   HolisticAssessmentTableCell,
   HolisticAssessmentTableRow,
 } from '@/features/service-users/initial-assessment/components/holistic/HolisticAssessmentTable'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
@@ -17,9 +18,7 @@ import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-a
 import {
   IA_FORM_TEXTAREA_COMPACT_CLASS,
   IA_HINT_CLASS,
-  IA_OPTION_LABEL_CLASS,
   IA_QUESTION_LABEL_CLASS,
-  IA_RADIO_CLASS,
   IA_SECTION_BODY_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 import { cn } from '@/shared/lib/utils'
@@ -44,36 +43,13 @@ function YesNoField({
   onChange: (next: boolean) => void
 }) {
   return (
-    <div className="space-y-1">
-      <span className={IA_QUESTION_LABEL_CLASS}>{label}</span>
-      <div className="flex gap-4" role="radiogroup" aria-label={label}>
-        {(
-          [
-            { v: true, text: 'Yes' },
-            { v: false, text: 'No' },
-          ] as const
-        ).map(({ v, text }) => (
-          <label
-            key={text}
-            className={cn(
-              'flex cursor-pointer items-center gap-2',
-              IA_OPTION_LABEL_CLASS,
-              disabled && 'cursor-not-allowed opacity-60',
-            )}
-          >
-            <input
-              type="radio"
-              name={name}
-              className={IA_RADIO_CLASS}
-              checked={value === v}
-              disabled={disabled}
-              onChange={() => onChange(v)}
-            />
-            {text}
-          </label>
-        ))}
-      </div>
-    </div>
+    <InitialAssessmentYesNoCardField
+      name={name}
+      label={label}
+      value={value ?? null}
+      disabled={disabled}
+      onChange={onChange}
+    />
   )
 }
 

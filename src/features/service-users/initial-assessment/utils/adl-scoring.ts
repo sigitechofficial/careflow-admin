@@ -117,6 +117,8 @@ export type AdlWorksheetMetadata = {
   /** §12.7 — Falls trigger assessment completed */
   fallsAssessmentCompleted?: boolean | null
   fallsAssessmentDate?: string | null
+  /** Paper §7 — gate before falls trigger; opens Falls Screening tab when Yes */
+  fallsScreeningRequested?: boolean | null
   /** §12.8 — Mobility aids in use or required */
   mobilityAidsRequired?: boolean | null
   mobilityAidsList?: string
@@ -153,6 +155,7 @@ export function adlMetadataEqual(
   if ((a?.additionalComments ?? '') !== (b?.additionalComments ?? '')) return false
   if (a?.fallsAssessmentCompleted !== b?.fallsAssessmentCompleted) return false
   if ((a?.fallsAssessmentDate ?? '') !== (b?.fallsAssessmentDate ?? '')) return false
+  if (a?.fallsScreeningRequested !== b?.fallsScreeningRequested) return false
   if (a?.mobilityAidsRequired !== b?.mobilityAidsRequired) return false
   if ((a?.mobilityAidsList ?? '') !== (b?.mobilityAidsList ?? '')) return false
   const ar = a?.rows ?? []

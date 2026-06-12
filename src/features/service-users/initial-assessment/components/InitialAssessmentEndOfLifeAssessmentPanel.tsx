@@ -1,5 +1,5 @@
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { cn } from '@/shared/lib/utils'
@@ -24,6 +24,7 @@ import {
   IA_RADIO_CLASS,
   IA_SECTION_BODY_CLASS,
   IA_SUBSECTION_PANEL_HEADER_CLASS,
+  IA_YES_NO_CARD_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
 type Props = {
@@ -52,29 +53,31 @@ function YesNoUnknownRow({
   ]
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-      <span className={cn('min-w-0 flex-1 text-sm font-medium text-foreground')}>{label}</span>
-      <div className="flex flex-wrap items-center gap-4" role="radiogroup" aria-label={label}>
-        {options.map(({ id, text }) => (
-          <label
-            key={id}
-            className={cn(
-              'flex cursor-pointer items-center gap-1.5',
-              IA_OPTION_LABEL_CLASS,
-              disabled && 'cursor-not-allowed opacity-60',
-            )}
-          >
-            <input
-              type="radio"
-              name={name}
-              className={IA_RADIO_CLASS}
-              checked={value === id}
-              disabled={disabled}
-              onChange={() => onChange(id)}
-            />
-            {text}
-          </label>
-        ))}
+    <div className={IA_YES_NO_CARD_CLASS}>
+      <div className="flex min-h-10 items-center gap-3 sm:gap-4">
+        <span className={cn('min-w-0 flex-1 text-sm font-medium text-foreground')}>{label}</span>
+        <div className="flex flex-wrap items-center gap-4" role="radiogroup" aria-label={label}>
+          {options.map(({ id, text }) => (
+            <label
+              key={id}
+              className={cn(
+                'flex cursor-pointer items-center gap-1.5',
+                IA_OPTION_LABEL_CLASS,
+                disabled && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              <input
+                type="radio"
+                name={name}
+                className={IA_RADIO_CLASS}
+                checked={value === id}
+                disabled={disabled}
+                onChange={() => onChange(id)}
+              />
+              {text}
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -98,7 +101,7 @@ function QuestionBlock({
   return (
     <section className="space-y-3 border-b border-border/60 pb-5 last:border-b-0">
       {question.kind === 'yesNo' ? (
-        <InitialAssessmentPaperYesNoRow
+        <InitialAssessmentYesNoCardField
           name={`eol-${question.id}`}
           label={question.label}
           value={endOfLifeYesNoValue(value, question.id) ?? null}

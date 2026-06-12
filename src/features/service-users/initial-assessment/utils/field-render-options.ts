@@ -1,13 +1,13 @@
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 
 export type InitialAssessmentFieldRenderOptions = {
+  /** When true, omit the question label (parent provides context, e.g. table column). */
   hideLabel?: boolean
-  /** Skip the muted Yes/No card when the parent panel already provides grouping. */
-  yesNoPlain?: boolean
 }
 
+/** @deprecated Yes/No fields always use the card layout; kept for call-site compatibility. */
 export function groupedYesNoFieldOptions(
-  q: InitialAssessmentQuestion,
+  _q: InitialAssessmentQuestion,
 ): InitialAssessmentFieldRenderOptions | undefined {
-  return q.questionType === 'YES_NO' ? { yesNoPlain: true } : undefined
+  return undefined
 }

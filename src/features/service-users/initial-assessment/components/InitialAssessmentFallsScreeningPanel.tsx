@@ -4,7 +4,7 @@ import {
   HolisticAssessmentTableCell,
   HolisticAssessmentTableRow,
 } from '@/features/service-users/initial-assessment/components/holistic/HolisticAssessmentTable'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import { cn } from '@/shared/lib/utils'
@@ -26,6 +26,7 @@ import {
   IA_QUESTION_LABEL_CLASS,
   IA_RADIO_CLASS,
   IA_SECTION_BODY_CLASS,
+  IA_YES_NO_CARD_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
 type Props = {
@@ -93,29 +94,31 @@ function HeaderYesNoNaRow({
   ]
 
   return (
-    <div className="flex flex-col gap-2 border-b border-border/60 py-2 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
-      <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{label}</span>
-      <div className="flex flex-wrap items-center gap-4" role="radiogroup" aria-label={label}>
-        {options.map(({ id, text }) => (
-          <label
-            key={id}
-            className={cn(
-              'flex cursor-pointer items-center gap-1.5',
-              IA_OPTION_LABEL_CLASS,
-              disabled && 'cursor-not-allowed opacity-60',
-            )}
-          >
-            <input
-              type="radio"
-              name={name}
-              className={IA_RADIO_CLASS}
-              checked={value === id}
-              disabled={disabled}
-              onChange={() => onChange(id)}
-            />
-            {text}
-          </label>
-        ))}
+    <div className={IA_YES_NO_CARD_CLASS}>
+      <div className="flex min-h-10 items-center gap-3 sm:gap-4">
+        <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{label}</span>
+        <div className="flex flex-wrap items-center gap-4" role="radiogroup" aria-label={label}>
+          {options.map(({ id, text }) => (
+            <label
+              key={id}
+              className={cn(
+                'flex cursor-pointer items-center gap-1.5',
+                IA_OPTION_LABEL_CLASS,
+                disabled && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              <input
+                type="radio"
+                name={name}
+                className={IA_RADIO_CLASS}
+                checked={value === id}
+                disabled={disabled}
+                onChange={() => onChange(id)}
+              />
+              {text}
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -145,7 +148,7 @@ export function InitialAssessmentFallsScreeningPanel({ value, disabled, onChange
         <HolisticSectionHeader title="Falls screening" />
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
-          <section className="divide-y divide-border/60 rounded-sm border border-slate-300 dark:border-slate-600">
+          <section className="space-y-3">
             {FALLS_SCREENING_HEADER_QUESTIONS.map((q) => {
               if (q.kind === 'yesNoNa') {
                 return (
@@ -164,13 +167,12 @@ export function InitialAssessmentFallsScreeningPanel({ value, disabled, onChange
                 q.id === 'fallOrConcern' ? value.fallOrConcern : value.consentToSixQuestions
 
               return (
-                <InitialAssessmentPaperYesNoRow
+                <InitialAssessmentYesNoCardField
                   key={q.id}
                   name={`falls-header-${q.id}`}
                   label={q.label}
                   value={fieldValue ?? null}
                   disabled={disabled}
-                  showDivider
                   onChange={(v) => {
                     if (q.id === 'fallOrConcern') {
                       patch({ fallOrConcern: v })

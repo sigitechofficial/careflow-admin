@@ -246,6 +246,7 @@ export default function ServiceUserVisitPlanPage() {
                 plan={selectedPlan}
                 serviceUserId={serviceUserId}
                 employeeNameById={employeeNameById}
+                acceptedCarePlans={careContext.acceptedCarePlans}
               />
             ) : (
               <VisitPlanDetailsView

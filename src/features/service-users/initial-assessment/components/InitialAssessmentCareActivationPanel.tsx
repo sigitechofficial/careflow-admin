@@ -2,6 +2,7 @@ import { CheckCircle2, MapPinned, ShieldAlert } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
 import type { CareActivationStatus } from '@/features/service-users/initial-assessment/types'
+import { formatRichTextForDisplay } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   careActivation: CareActivationStatus | null | undefined
@@ -46,7 +47,7 @@ export function InitialAssessmentCareActivationPanel({ careActivation, serviceUs
           </p>
           {careStartConditions ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Conditions: {careStartConditions}
+              Conditions: {formatRichTextForDisplay(careStartConditions)}
             </p>
           ) : null}
           {blockers.length > 0 ? (

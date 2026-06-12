@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { ReactNode } from 'react'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import {
   InitialAssessmentSection12FieldRow,
   InitialAssessmentSection12PanelShell,
@@ -28,7 +28,7 @@ export function InitialAssessmentFallsMobilityPanel({
 
   return (
     <InitialAssessmentSection12PanelShell title={section12PanelTitle('12.7')} testId="ia-falls-panel">
-      <InitialAssessmentPaperYesNoRow
+      <InitialAssessmentYesNoCardField
         label="Falls trigger assessment completed?"
         name="adl-falls-completed"
         value={value.fallsAssessmentCompleted ?? null}

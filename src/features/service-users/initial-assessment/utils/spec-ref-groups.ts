@@ -1,6 +1,8 @@
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import { compareSpecRefs } from '@/features/service-users/initial-assessment/utils/compare-spec-ref'
 import { SECTION_12_GROUP_ORDER } from '@/features/service-users/initial-assessment/utils/section-12-display-order'
+import { sectionGroupOrderIndex } from '@/features/service-users/initial-assessment/utils/section-4-physical-assessment-display-order'
+import { paperSection5GroupOrderIndex } from '@/features/service-users/initial-assessment/utils/section-10-paper-section-5-form'
 import { sortPersonalDetailsQuestions } from '@/features/service-users/initial-assessment/utils/section-1-personal-details-order'
 
 /** §1 assessor-friendly order: who they are → preferences → admission context last. */
@@ -73,12 +75,12 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '3.11': '3.11 Flooring in the home',
   '3.12': '3.12 Car parking arrangements',
   '4.1': '4.1 Competency and clinical observations',
-  '4.2': 'Section 4 — Physical assessment (competent person only) — Vital signs',
-  '4.4': '4.4 Blood glucose and diabetes',
-  '4.5': '4.5 Ongoing vital signs monitoring',
+  '4.2': 'Base line vital signs',
+  '4.4': 'Diabetic / blood glucose',
+  '4.5': 'Does client require ongoing monitoring of vital signs?',
   '4.6': 'a. General physical wellbeing — feels well/unwell',
-  '4.7': '4.7 Physical assessment comments',
-  '4.10': '4.10 Height',
+  '4.7': 'Physical assessment additional comments',
+  '4.10': 'Height / build / weight',
   '5.0': '5.0 No concerns gate',
   '5.1': 'b. Breathing difficulties',
   '5.2': 'Breathing action plan',
@@ -89,8 +91,6 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '6.2': 'f. Appetite',
   '6.3': 'g. Hydration — drinking enough/adequately hydrated',
   '6.4': 'h. Nutrition',
-  '6.5': '6.5 Food preferences and allergies',
-  '6.6': '6.6 Nutrition monitoring',
   '6.8': '6.8 BMI',
   '6.9': '6.9 MUST assessment',
   '6.10': '6.10 Dietitian referral',
@@ -107,15 +107,10 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '8.3': 'm. Hearing impairment',
   '8.4': 'n. Sight impairment',
   '8.5': 'o. Impairment/Communication aids in use',
-  '8.6': '8.6 Additional communication aids',
+  '8.6': 'o. Impairment/Communication aids in use',
   '9.1': 'p. Medication',
-  '9.2': '9.2 Medication support level',
-  '9.3': '9.3 Insulin and controlled drugs',
-  '9.4': '9.4 Medication list and GP review',
-  '9.5': '9.5 Allergies, PRN and storage',
-  '9.6': '9.6 MAR / eMAR',
   '10.0': '10.0 No concerns gate',
-  '10.1': 'Section 5 — Emotional health',
+  '10.1': 'Emotional wellbeing',
   '10.2': 'a. Emotional well being — client states:',
   '10.4': 'Sleeping — Client states:',
   '10.5': '10.5 GP referral',
@@ -125,9 +120,6 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '10.7': '10.7 Abbreviated mental test (AMT)',
   '10.8': '10.8 Mental capacity assessment',
   '11.1': 'Section 6 — Skin Integrity',
-  '11.1a': '11.1a Skin checklist (legacy)',
-  '11.2': '11.2 Wounds and ulcers',
-  '11.3': '11.3 Pressure ulcer risk & equipment',
   '12.1': '12.1 ADL scoring guide',
   '12.2': '12.2 Self care',
   '12.3': '12.3 Everyday tasks',
@@ -216,6 +208,22 @@ export function sortSpecRefGroups(groups: SpecRefGroup[], sectionNumber: number)
       return compareSpecRefs(a.specRef, b.specRef)
     })
   }
+  if (sectionNumber >= 4 && sectionNumber <= 9) {
+    return [...groups].sort((a, b) => {
+      const da = sectionGroupOrderIndex(sectionNumber, a.specRef)
+      const db = sectionGroupOrderIndex(sectionNumber, b.specRef)
+      if (da !== db) return da - db
+      return compareSpecRefs(a.specRef, b.specRef)
+    })
+  }
+  if (sectionNumber === 10) {
+    return [...groups].sort((a, b) => {
+      const da = paperSection5GroupOrderIndex(a.specRef)
+      const db = paperSection5GroupOrderIndex(b.specRef)
+      if (da !== db) return da - db
+      return compareSpecRefs(a.specRef, b.specRef)
+    })
+  }
   return [...groups].sort((a, b) => compareSpecRefs(a.specRef, b.specRef))
 }
 
@@ -299,7 +307,7 @@ export function sectionTenIntroCopy(): string {
 }
 
 export function sectionElevenIntroCopy(): string {
-  return 'Skin condition, wounds, and pressure equipment. Complete Waterlow on its own tab; use the body map when wounds or pressure areas need marking.'
+  return 'Skin condition, wounds, pressure risk, and equipment. Complete Waterlow scoring on its dedicated tab when required.'
 }
 
 export function sectionTwelveIntroCopy(): string {

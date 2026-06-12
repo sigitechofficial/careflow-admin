@@ -131,8 +131,8 @@ export function VitalAcceptedRangesSettingsPanel() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">Accepted ranges</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Guidance limits shown on initial assessment Section 4 (Physical assessment). These are reference
-          ranges for assessors — they do not block data entry.
+          RESTORE2 / NEWS2 score-0 reference ranges shown on initial assessment Section 4. These guide
+          assessors and trigger soft warnings — they do not block data entry. Always compare to baseline.
         </p>
       </div>
 

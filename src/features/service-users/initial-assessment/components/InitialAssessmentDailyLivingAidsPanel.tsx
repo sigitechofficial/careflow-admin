@@ -1,8 +1,7 @@
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
-import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import {
   InitialAssessmentSection12FieldRow,
   InitialAssessmentSection12PanelShell,
@@ -17,20 +16,37 @@ import type { DailyLivingAidsMetadata } from '@/features/service-users/initial-a
 type Props = {
   value: DailyLivingAidsMetadata
   disabled?: boolean
+  /** Omit outer §12 panel shell (paper Section 7 composite block). */
+  embedded?: boolean
+  /** Paper Section 7 wording for equipment-order questions. */
+  paperSection7?: boolean
+  /** Render only aids, equipment, or the full block (default `all`). */
+  part?: 'all' | 'aids' | 'equipment'
   onChange: (next: DailyLivingAidsMetadata) => void
 }
 
-export function InitialAssessmentDailyLivingAidsPanel({ value, disabled, onChange }: Props) {
+export function InitialAssessmentDailyLivingAidsPanel({
+  value,
+  disabled,
+  embedded = false,
+  paperSection7 = false,
+  part = 'all',
+  onChange,
+}: Props) {
   const patch = (partial: Partial<DailyLivingAidsMetadata>) => onChange({ ...value, ...partial })
 
-  return (
-    <InitialAssessmentSection12PanelShell
-      title={section12PanelTitle('12.9')}
-      hint="Aids to support daily living activities — separate from mobility aids (§12.8)."
-      testId="ia-section-12-daily-living-aids"
-      bodyVariant="content"
-    >
-      <InitialAssessmentPaperYesNoRow
+  const furtherEquipmentLabel = paperSection7
+    ? 'Does the client require any further equipment to be ordered?'
+    : 'Does the client require any further daily-living equipment to be ordered?'
+
+  const showAids = part === 'all' || part === 'aids'
+  const showEquipment = part === 'all' || part === 'equipment'
+
+  const body = (
+    <>
+      {showAids ? (
+        <>
+      <InitialAssessmentYesNoCardField
         label="Are aids to support daily living activities in use or required?"
         name="daily-living-aids-required"
         value={value.aidsInUseOrRequired ?? null}
@@ -59,9 +75,13 @@ export function InitialAssessmentDailyLivingAidsPanel({ value, disabled, onChang
           />
         </InitialAssessmentSection12FieldRow>
       ) : null}
+        </>
+      ) : null}
 
-      <InitialAssessmentPaperYesNoRow
-        label="Does the client require any further daily-living equipment to be ordered?"
+      {showEquipment ? (
+        <>
+      <InitialAssessmentYesNoCardField
+        label={furtherEquipmentLabel}
         name="daily-living-further-equipment"
         value={value.furtherEquipmentRequired ?? null}
         disabled={disabled}
@@ -79,7 +99,7 @@ export function InitialAssessmentDailyLivingAidsPanel({ value, disabled, onChang
         <>
           <InitialAssessmentSection12FieldRow>
             <Label htmlFor="daily-living-further-details" className={IA_QUESTION_LABEL_CLASS}>
-              If yes, provide further details
+              {paperSection7 ? 'If YES provide further details' : 'If yes, provide further details'}
             </Label>
             <Textarea
               id="daily-living-further-details"
@@ -89,7 +109,7 @@ export function InitialAssessmentDailyLivingAidsPanel({ value, disabled, onChang
               onChange={(e) => patch({ furtherEquipmentDetails: e.target.value })}
             />
           </InitialAssessmentSection12FieldRow>
-          <InitialAssessmentPaperYesNoRow
+          <InitialAssessmentYesNoCardField
             label="Equipment ordered"
             name="daily-living-equipment-ordered"
             value={value.equipmentOrdered ?? null}
@@ -120,6 +140,27 @@ export function InitialAssessmentDailyLivingAidsPanel({ value, disabled, onChang
           onChange={(e) => patch({ additionalComments: e.target.value })}
         />
       </InitialAssessmentSection12FieldRow>
+        </>
+      ) : null}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div data-testid="ia-section-12-daily-living-aids" className="space-y-3">
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <InitialAssessmentSection12PanelShell
+      title={section12PanelTitle('12.9')}
+      hint="Aids to support daily living activities — separate from mobility aids (§12.8)."
+      testId="ia-section-12-daily-living-aids"
+      bodyVariant="content"
+    >
+      {body}
     </InitialAssessmentSection12PanelShell>
   )
 }

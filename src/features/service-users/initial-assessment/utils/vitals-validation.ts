@@ -4,15 +4,16 @@ import {
   isExplicitNo,
   isYesAnswer,
 } from '@/features/service-users/initial-assessment/utils/question-lookup'
-import {
-  VITAL_ACCEPTED_RANGE_LOOKUP,
-  vitalAcceptedRangesFromLookup,
-} from '@/features/service-users/initial-assessment/utils/vital-accepted-ranges.lookup'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
   InitialAssessmentSection,
 } from '@/features/service-users/initial-assessment/types'
+import { sortVitalsMeasurementQuestions } from '@/features/service-users/initial-assessment/utils/section-4-physical-assessment-display-order'
+import {
+  VITAL_ACCEPTED_RANGE_LOOKUP,
+  vitalAcceptedRangesFromLookup,
+} from '@/features/service-users/initial-assessment/utils/vital-accepted-ranges.lookup'
 
 export type VitalFieldKey =
   | 'temperature'
@@ -58,54 +59,60 @@ type VitalFieldDefinition = {
  * Sources: NEWS2 (RCP 2017), RESTORE2, CQC GP mythbuster 102 (pulse/BP), NICE diabetes (glucose).
  * Individual baselines may differ — ranges are saved per assessment and should be adjusted when known.
  */
+const ACCEPTED_DEFAULTS = vitalAcceptedRangesFromLookup(VITAL_ACCEPTED_RANGE_LOOKUP)
+
+const LOOKUP_REFERENCE_BY_FIELD = Object.fromEntries(
+  VITAL_ACCEPTED_RANGE_LOOKUP.map((row) => [row.fieldKey, row.referenceNote]),
+) as Record<VitalFieldKey, string>
+
 export const VITAL_FIELD_DEFINITIONS: VitalFieldDefinition[] = [
   {
     fieldKey: 'temperature',
     label: 'Temperature',
     unit: '°C',
     decimal: true,
-    referenceNote: 'NEWS2 score 0: 36.1–38.0°C',
-    acceptedDefault: { min: 36.0, max: 38.5 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.temperature,
+    acceptedDefault: ACCEPTED_DEFAULTS.temperature,
     plausibility: { min: 32, max: 42 },
   },
   {
     fieldKey: 'pulse',
     label: 'Pulse',
     unit: 'bpm',
-    referenceNote: 'CQC/NHS adult: 60–100 bpm; NEWS2 score 0: 51–90',
-    acceptedDefault: { min: 50, max: 100 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.pulse,
+    acceptedDefault: ACCEPTED_DEFAULTS.pulse,
     plausibility: { min: 30, max: 200 },
   },
   {
     fieldKey: 'respirations',
     label: 'Respirations',
     unit: '/min',
-    referenceNote: 'NEWS2 score 0: 12–20 breaths/min',
-    acceptedDefault: { min: 10, max: 24 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.respirations,
+    acceptedDefault: ACCEPTED_DEFAULTS.respirations,
     plausibility: { min: 4, max: 50 },
   },
   {
     fieldKey: 'bpSystolic',
     label: 'Systolic BP',
     unit: 'mmHg',
-    referenceNote: 'NHS ideal from 90 mmHg; hypertension concern ≥140 (CQC)',
-    acceptedDefault: { min: 90, max: 160 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.bpSystolic,
+    acceptedDefault: ACCEPTED_DEFAULTS.bpSystolic,
     plausibility: { min: 50, max: 250 },
   },
   {
     fieldKey: 'bpDiastolic',
     label: 'Diastolic BP',
     unit: 'mmHg',
-    referenceNote: 'NHS ideal 60–80 mmHg (paired with systolic)',
-    acceptedDefault: { min: 50, max: 100 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.bpDiastolic,
+    acceptedDefault: ACCEPTED_DEFAULTS.bpDiastolic,
     plausibility: { min: 30, max: 150 },
   },
   {
     fieldKey: 'spo2',
     label: 'SpO₂',
     unit: '%',
-    referenceNote: 'NEWS2 SpO₂ Scale 1 on air score 0: ≥96% (Scale 2: 88–92% if prescribed)',
-    acceptedDefault: { min: 94, max: 100 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.spo2,
+    acceptedDefault: ACCEPTED_DEFAULTS.spo2,
     plausibility: { min: 50, max: 100 },
   },
   {
@@ -113,21 +120,21 @@ export const VITAL_FIELD_DEFINITIONS: VitalFieldDefinition[] = [
     label: 'Blood glucose',
     unit: 'mmol/L',
     decimal: true,
-    referenceNote: 'NICE: review if <4.0 (hypo) or >11.0 mmol/L',
-    acceptedDefault: { min: 3.5, max: 15.0 },
+    referenceNote: LOOKUP_REFERENCE_BY_FIELD.bloodGlucose,
+    acceptedDefault: ACCEPTED_DEFAULTS.bloodGlucose,
     plausibility: { min: 1.0, max: 35 },
   },
 ]
 
-/** Legacy wide defaults (pre-UK reference) — migrated on load. */
-const LEGACY_ACCEPTED_DEFAULTS: VitalAcceptedRangesMetadata = {
-  temperature: { min: 30, max: 45 },
-  pulse: { min: 30, max: 250 },
-  respirations: { min: 5, max: 60 },
-  bpSystolic: { min: 50, max: 250 },
-  bpDiastolic: { min: 30, max: 150 },
-  spo2: { min: 50, max: 100 },
-  bloodGlucose: { min: 1, max: 40 },
+/** Outdated catalog defaults — migrated to current RESTORE2 / NEWS2 reference on load. */
+const OUTDATED_ACCEPTED_BY_FIELD: Partial<Record<VitalFieldKey, VitalAcceptedRange[]>> = {
+  temperature: [{ min: 30, max: 45 }, { min: 36, max: 38.5 }],
+  pulse: [{ min: 30, max: 250 }, { min: 50, max: 100 }],
+  respirations: [{ min: 5, max: 60 }, { min: 10, max: 24 }],
+  bpSystolic: [{ min: 50, max: 250 }, { min: 90, max: 160 }],
+  bpDiastolic: [{ min: 30, max: 150 }, { min: 50, max: 100 }],
+  spo2: [{ min: 50, max: 100 }, { min: 94, max: 100 }],
+  bloodGlucose: [{ min: 1, max: 40 }, { min: 3.5, max: 15 }],
 }
 
 export const VITALS_CONTEXT_FIELD_KEY = 'vitalsContext'
@@ -147,16 +154,20 @@ export const DEFAULT_VITAL_FIELD_RULES: VitalRule[] = VITAL_FIELD_DEFINITIONS.ma
 export const VITAL_FIELD_RULES = DEFAULT_VITAL_FIELD_RULES
 
 export function defaultVitalAcceptedRanges(): VitalAcceptedRangesMetadata {
-  return vitalAcceptedRangesFromLookup(VITAL_ACCEPTED_RANGE_LOOKUP)
+  const out = {} as VitalAcceptedRangesMetadata
+  for (const def of VITAL_FIELD_DEFINITIONS) {
+    out[def.fieldKey] = { ...def.acceptedDefault }
+  }
+  return out
 }
 
 function rangesEqual(a: VitalAcceptedRange, b: VitalAcceptedRange): boolean {
   return a.min === b.min && a.max === b.max
 }
 
-function isLegacyAcceptedRange(fieldKey: VitalFieldKey, range: VitalAcceptedRange): boolean {
-  const legacy = LEGACY_ACCEPTED_DEFAULTS[fieldKey]
-  return legacy != null && rangesEqual(range, legacy)
+function isOutdatedAcceptedRange(fieldKey: VitalFieldKey, range: VitalAcceptedRange): boolean {
+  const outdated = OUTDATED_ACCEPTED_BY_FIELD[fieldKey]
+  return outdated?.some((candidate) => rangesEqual(range, candidate)) ?? false
 }
 
 function parseRangeValue(value: unknown): number | null {
@@ -181,7 +192,7 @@ export function normalizeVitalAcceptedRanges(raw: unknown): VitalAcceptedRangesM
     const max = parseRangeValue(row.max)
     if (min != null && max != null && min < max) {
       const parsed = { min, max }
-      out[def.fieldKey] = isLegacyAcceptedRange(def.fieldKey, parsed)
+      out[def.fieldKey] = isOutdatedAcceptedRange(def.fieldKey, parsed)
         ? { ...def.acceptedDefault }
         : parsed
     }
@@ -233,7 +244,9 @@ export function partitionVitalsSignsQuestions(questions: InitialAssessmentQuesti
   contextQuestion?: InitialAssessmentQuestion
 } {
   const contextQuestion = questions.find(isVitalsContextQuestion)
-  const measurementQuestions = questions.filter((q) => !isVitalsContextQuestion(q))
+  const measurementQuestions = sortVitalsMeasurementQuestions(
+    questions.filter((q) => !isVitalsContextQuestion(q)),
+  )
   return { measurementQuestions, contextQuestion }
 }
 

@@ -226,12 +226,15 @@ export type VisitPlanCalendarVisit = {
   requiredCarers?: number
   allocatedCount?: number
   allocatedEmployeeIds?: string[]
+  attendingEmployeeId?: string | null
   slotLabel?: string | null
   slotCode?: string | null
   linkedCarePlanFormIds?: string[]
   notes: string | null
   scheduledStartDateTime: string
   scheduledEndDateTime: string | null
+  actualStartDateTime?: string | null
+  actualEndDateTime?: string | null
   occurrenceDate: string
 }
 
@@ -256,6 +259,9 @@ export async function recordVisitPlanCalendarOutcome(
     date: string
     status: string
     notes?: string
+    employeeId?: string
+    actualStartTime?: string
+    actualEndTime?: string
   },
 ): Promise<VisitPlanCalendarVisit> {
   const res = await apiJson<ApiEnvelope<VisitPlanCalendarVisit>>(

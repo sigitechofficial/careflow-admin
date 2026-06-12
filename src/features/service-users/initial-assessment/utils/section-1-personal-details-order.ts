@@ -2,55 +2,41 @@ import type { InitialAssessmentQuestion } from '@/features/service-users/initial
 
 /**
  * Display order for §1.1 Personal Details — matches the paper
- * "Initial Holistic Assessment and Care Needs Assessment" form (basic info first).
+ * "Initial Holistic Assessment and Care Needs Assessment" form (Tab 1, page 3).
  */
 export const SECTION_1_1_PERSONAL_DETAILS_ORDER = [
   'First name',
   'Middle name',
   'Last name',
   'Preferred name',
-  'NHS number',
-  'NI number',
   'Gender',
   'Date of birth',
+  'NHS number',
+  'NI number',
   'Ethnicity',
   'Languages spoken',
-  'Pendant / telecare in use?',
   'Beliefs',
   'Communication needs',
   'Address and contact details',
+  'Key safe present?',
+  'Key safe code',
   'GP contact details',
-  // LPOA — grouped in UI
+  'Pendant / telecare in use?',
+  'Assessment completed date and time',
   'LPOA appointed?',
   'LPOA designation',
   'LPOA name',
-  'LPOA contact details',
-  // Assessor — grouped in UI
-  'Assessment completed date and time',
   'Assessor name',
   'Assessor designation',
+  'LPOA contact details',
   'Social worker contact',
   'Care manager contact',
   'Mental health team contact',
   'Advocate contact',
-  // Assessment administration — after client identity and contacts
   'Funding type',
   'Referral source',
   'Assessment location',
   'Local authority ID (if funded)',
-] as const
-
-export const SECTION_1_1_LPOA_QUESTIONS = [
-  'LPOA appointed?',
-  'LPOA designation',
-  'LPOA name',
-  'LPOA contact details',
-] as const
-
-export const SECTION_1_1_ASSESSOR_QUESTIONS = [
-  'Assessment completed date and time',
-  'Assessor name',
-  'Assessor designation',
 ] as const
 
 const ORDER_INDEX = new Map<string, number>(

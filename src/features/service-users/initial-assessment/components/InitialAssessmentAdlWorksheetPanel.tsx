@@ -34,6 +34,13 @@ type Props = {
   disabled?: boolean
   /** `scores` = §12.1 legend + §12.2–12.5 grid; `total` = §12.6 total only */
   section: 'scores' | 'total'
+  /** Omit outer §12 panel shell (paper Section 7 composite block). */
+  embedded?: boolean
+  /** Use paper subsection letters (d. Self care, …) instead of spec labels. */
+  paperLabels?: boolean
+  /** When `section` is `total`, include the comments textarea. */
+  includeComments?: boolean
+  commentsLabel?: string
   onChange: (next: AdlWorksheetMetadata) => void
 }
 
@@ -41,10 +48,11 @@ type GroupBlockProps = {
   group: AdlWorksheetGroup
   rows: AdlWorksheetRow[]
   disabled?: boolean
+  paperLabels?: boolean
   onScore: (id: string, score: number) => void
 }
 
-function AdlPaperGroupBlock({ group, rows, disabled, onScore }: GroupBlockProps) {
+function AdlPaperGroupBlock({ group, rows, disabled, paperLabels, onScore }: GroupBlockProps) {
   const groupTotal = group.activities.reduce((s, a) => {
     const row = rows.find((r) => r.id === a.id)
     return s + (row?.score ?? 0)
@@ -52,7 +60,7 @@ function AdlPaperGroupBlock({ group, rows, disabled, onScore }: GroupBlockProps)
 
   return (
     <InitialAssessmentPaperScoreSection
-      title={specRefLabel(group.specRef)}
+      title={paperLabels ? group.paperLabel : specRefLabel(group.specRef)}
       meta={`Subtotal: ${groupTotal}`}
     >
       <div className="min-w-0">
@@ -79,6 +87,10 @@ export function InitialAssessmentAdlWorksheetPanel({
   value,
   disabled,
   section,
+  embedded = false,
+  paperLabels = false,
+  includeComments = true,
+  commentsLabel = 'ADL worksheet comments',
   onChange,
 }: Props) {
   const rows = React.useMemo(() => normalizeAdlWorksheetRows(value.rows), [value.rows])
@@ -90,22 +102,18 @@ export function InitialAssessmentAdlWorksheetPanel({
     onChange({ ...value, rows: nextRows })
   }
 
-  if (section === 'total') {
-    return (
-      <InitialAssessmentSection12PanelShell
-        title={section12PanelTitle('12.6')}
-        testId="ia-adl-total"
-        bodyVariant="content"
-      >
-        <InitialAssessmentPaperScoreSection meta={`${total} — ${band}`}>
-          <p className="px-1 py-2 text-sm font-semibold text-foreground">
-            Total score: <span className="text-teal-800 dark:text-teal-300">{total}</span>
-            <span className="ml-2 font-normal text-muted-foreground">({band})</span>
-          </p>
-        </InitialAssessmentPaperScoreSection>
+  const totalBody = (
+    <>
+      <InitialAssessmentPaperScoreSection meta={`${total} — ${band}`}>
+        <p className="px-1 py-2 text-sm font-semibold text-foreground">
+          Total score: <span className="text-teal-800 dark:text-teal-300">{total}</span>
+          <span className="ml-2 font-normal text-muted-foreground">({band})</span>
+        </p>
+      </InitialAssessmentPaperScoreSection>
+      {includeComments ? (
         <div className="space-y-1">
           <Label htmlFor="ia-adl-additional-comments" className={IA_QUESTION_LABEL_CLASS}>
-            ADL worksheet comments
+            {commentsLabel}
           </Label>
           <Textarea
             id="ia-adl-additional-comments"
@@ -117,19 +125,35 @@ export function InitialAssessmentAdlWorksheetPanel({
             onChange={(e) => onChange({ ...value, rows, additionalComments: e.target.value })}
           />
         </div>
+      ) : null}
+    </>
+  )
+
+  if (section === 'total') {
+    if (embedded) {
+      return (
+        <div data-testid="ia-adl-total" className="space-y-3">
+          {totalBody}
+        </div>
+      )
+    }
+    return (
+      <InitialAssessmentSection12PanelShell
+        title={section12PanelTitle('12.6')}
+        testId="ia-adl-total"
+        bodyVariant="content"
+      >
+        {totalBody}
       </InitialAssessmentSection12PanelShell>
     )
   }
 
-  return (
-    <InitialAssessmentSection12PanelShell
-      title={SECTION_12_ADL_WORKSHEET_PANEL_TITLE}
-      hint="Tick one score (0–4) per activity."
-      testId="ia-adl-worksheet"
-      bodyVariant="content"
-    >
+  const scoresBody = (
+    <>
       <div className={cn(IA_CALLOUT_NEUTRAL_CLASS, 'space-y-1 text-sm leading-snug')}>
-        <p className={IA_CALLOUT_TITLE_CLASS}>{section12PanelTitle('12.1')}</p>
+        {!paperLabels ? (
+          <p className={IA_CALLOUT_TITLE_CLASS}>{section12PanelTitle('12.1')}</p>
+        ) : null}
         {ADL_SCORE_LEGEND.map((line) => (
           <p key={line}>{line}</p>
         ))}
@@ -142,10 +166,30 @@ export function InitialAssessmentAdlWorksheetPanel({
             group={group}
             rows={rows}
             disabled={disabled}
+            paperLabels={paperLabels}
             onScore={(id, score) => updateRow(id, { score })}
           />
         ))}
       </div>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div data-testid="ia-adl-worksheet" className="space-y-4">
+        {scoresBody}
+      </div>
+    )
+  }
+
+  return (
+    <InitialAssessmentSection12PanelShell
+      title={SECTION_12_ADL_WORKSHEET_PANEL_TITLE}
+      hint="Tick one score (0–4) per activity."
+      testId="ia-adl-worksheet"
+      bodyVariant="content"
+    >
+      {scoresBody}
     </InitialAssessmentSection12PanelShell>
   )
 }

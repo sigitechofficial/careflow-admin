@@ -30,31 +30,31 @@ describe('sortPersonalDetailsQuestions', () => {
     expect(sorted.map((x) => x.questionText)).toEqual([
       'First name',
       'Preferred name',
-      'NI number',
       'Gender',
+      'NI number',
       'Ethnicity',
       'Funding type',
       'Referral source',
     ])
   })
 
-  it('places pendant/telecare immediately after languages', () => {
+  it('places key safe after address and before GP contact', () => {
     const sorted = sortPersonalDetailsQuestions([
-      q('Beliefs', 85),
-      q('Languages spoken', 83),
-      q('Pendant / telecare in use?', 91),
-      q('Ethnicity', 82),
+      q('GP contact details', 4),
+      q('Key safe code', 3),
+      q('Address and contact details', 1),
+      q('Key safe present?', 2),
     ])
 
     expect(sorted.map((x) => x.questionText)).toEqual([
-      'Ethnicity',
-      'Languages spoken',
-      'Pendant / telecare in use?',
-      'Beliefs',
+      'Address and contact details',
+      'Key safe present?',
+      'Key safe code',
+      'GP contact details',
     ])
   })
 
-  it('keeps LPOA fields together before assessor fields', () => {
+  it('interleaves LPOA and assessor fields per paper form', () => {
     const sorted = sortPersonalDetailsQuestions([
       q('Assessor designation', 3),
       q('LPOA name', 2),
@@ -66,13 +66,13 @@ describe('sortPersonalDetailsQuestions', () => {
     ])
 
     expect(sorted.map((x) => x.questionText)).toEqual([
+      'Assessment completed date and time',
       'LPOA appointed?',
       'LPOA designation',
       'LPOA name',
-      'LPOA contact details',
-      'Assessment completed date and time',
       'Assessor name',
       'Assessor designation',
+      'LPOA contact details',
     ])
   })
 })

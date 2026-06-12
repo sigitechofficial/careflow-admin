@@ -2,6 +2,8 @@ import type { InitialAssessmentQuestion, InitialAssessmentSection } from '@/feat
 import { findQuestionByFieldKey, findQuestionByTextIncludes } from '@/features/service-users/initial-assessment/utils/question-lookup'
 
 export const SECTION_31_FIRE_FIELD_KEYS = [
+  'fireSafetyRisksIdentified',
+  'fireSafetyRisksDetails',
   'fireSafetyRisks',
   'londonFireBrigadeInformed',
   'londonFireBrigadeDetails',
@@ -10,18 +12,42 @@ export const SECTION_31_FIRE_FIELD_KEYS = [
 ] as const
 
 export type Section31FireQuestions = {
-  fireRisks?: InitialAssessmentQuestion
+  fireRisksIdentified?: InitialAssessmentQuestion
+  fireRisksDetails?: InitialAssessmentQuestion
   lfbInformed?: InitialAssessmentQuestion
   lfbDetails?: InitialAssessmentQuestion
   manageHomeSafely?: InitialAssessmentQuestion
   safetyMeasures?: InitialAssessmentQuestion
 }
 
+function findFireRisksIdentifiedQuestion(
+  sections: InitialAssessmentSection[],
+): InitialAssessmentQuestion | undefined {
+  const byKey = findQuestionByFieldKey(sections, 'fireSafetyRisksIdentified')
+  if (byKey) return byKey
+  return sections
+    .flatMap((s) => s.questions)
+    .find(
+      (q) =>
+        q.questionType === 'YES_NO' &&
+        q.questionText.trim().toLowerCase() === 'any fire safety risks identified?',
+    )
+}
+
+function findFireRisksDetailsQuestion(
+  sections: InitialAssessmentSection[],
+): InitialAssessmentQuestion | undefined {
+  return (
+    findQuestionByFieldKey(sections, 'fireSafetyRisksDetails') ??
+    findQuestionByFieldKey(sections, 'fireSafetyRisks') ??
+    findQuestionByTextIncludes(sections, 'fire safety risks identified? (please state)')
+  )
+}
+
 export function findSection31FireQuestions(sections: InitialAssessmentSection[]): Section31FireQuestions {
   return {
-    fireRisks:
-      findQuestionByFieldKey(sections, 'fireSafetyRisks') ??
-      findQuestionByTextIncludes(sections, 'fire safety risks identified'),
+    fireRisksIdentified: findFireRisksIdentifiedQuestion(sections),
+    fireRisksDetails: findFireRisksDetailsQuestion(sections),
     lfbInformed:
       findQuestionByFieldKey(sections, 'londonFireBrigadeInformed') ??
       findQuestionByTextIncludes(sections, 'london fire brigade informed'),

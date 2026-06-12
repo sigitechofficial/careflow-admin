@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
 import { InitialAssessmentEquipmentChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentChecklistPanel'
-import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
+import { InitialAssessmentYesNoCardField } from '@/features/service-users/initial-assessment/components/InitialAssessmentYesNoCardField'
 import {
   InitialAssessmentSection12FieldRow,
   InitialAssessmentSection12PanelShell,
@@ -42,7 +42,7 @@ export function InitialAssessmentSection12EquipmentPanel({
       hint="Day-to-day aids, clinical equipment, and hoist or bed servicing where applicable."
       testId="ia-section-12-equipment"
     >
-      <InitialAssessmentPaperYesNoRow
+      <InitialAssessmentYesNoCardField
         label="Are mobility aids in use or required?"
         name="adl-mobility-aids"
         value={adl.mobilityAidsRequired ?? null}

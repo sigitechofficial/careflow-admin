@@ -1,5 +1,4 @@
 import { InitialAssessmentCognitionChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCognitionChecklistPanel'
-import { InitialAssessmentMedicationSpecRefPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMedicationSpecRefPanel'
 import { InitialAssessmentMultiSelectOptionsGrid } from '@/features/service-users/initial-assessment/components/InitialAssessmentMultiSelectOptionsGrid'
 import { InitialAssessmentNoConcernGatePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentNoConcernGatePanel'
 import { InitialAssessmentPanelFieldList } from '@/features/service-users/initial-assessment/components/InitialAssessmentPanelFieldList'
@@ -31,15 +30,24 @@ import { InitialAssessmentSection3SocialHistoryPanel } from '@/features/service-
 import { InitialAssessmentSection5BreathingPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5BreathingPanel'
 import { InitialAssessmentSection5PainPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5PainPanel'
 import { InitialAssessmentSection5SwallowingPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection5SwallowingPanel'
+import {
+  InitialAssessmentPaperSection5AdditionalCommentsPanel,
+  InitialAssessmentPaperSection5IntroPanel,
+  InitialAssessmentPaperSection5SubsectionPanel,
+  isPaperSection5AdditionalCommentsGroup,
+  isPaperSection5IntroGroup,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection5Panels'
+import {
+  collectPaperSection5CognitiveQuestions,
+  isPaperSection5HiddenCognitiveSpecRef,
+} from '@/features/service-users/initial-assessment/utils/section-10-paper-section-5-form'
 import { InitialAssessmentSpecRefGroupPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecRefGroupPanel'
 import { fieldKeyOf, findQuestionByFieldKey, specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { isSection1SimpleGroup } from '@/features/service-users/initial-assessment/utils/section-1-simple-layout'
-import { InitialAssessmentVitalsBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentVitalsBanner'
+import { isSection4FullWidthSpecRef } from '@/features/service-users/initial-assessment/utils/section-4-physical-assessment-display-order'
+import { InitialAssessmentSection4GlucosePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection4GlucosePanel'
 import { InitialAssessmentVitalsSignsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentVitalsSignsPanel'
-import { InitialAssessmentPressureRiskPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPressureRiskPanel'
 import { InitialAssessmentSkinIntegrityHolisticPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSkinIntegrityHolisticPanel'
-import { InitialAssessmentSkinWoundsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSkinWoundsPanel'
-import { excludeSkinIntegrityTableQuestions } from '@/features/service-users/initial-assessment/utils/skin-integrity-table'
 import { isMultiSelectOptionsGridQuestion } from '@/features/service-users/initial-assessment/utils/multi-select-options-grid'
 import { isNoConcernGateGroup } from '@/features/service-users/initial-assessment/utils/no-concern-gate'
 import {
@@ -108,6 +116,7 @@ type Props = {
   onSyncEmergencyContact?: () => void
   onMarkMedicationVerified?: () => void
   onOpenWaterlowTab?: () => void
+  onOpenEnvironmentAssessmentTab?: () => void
   suppressIntro?: boolean
   excludeQuestionIds?: Set<string>
   painAssessment?: PainAssessmentMetadata
@@ -119,6 +128,10 @@ type Props = {
   }) => void
   holisticTab?: HolisticAssessmentTab
   hidePainAssessmentTool?: boolean
+  /** When true, content renders inside {@link InitialAssessmentPaperSection4Block} (no duplicate header). */
+  underPaperSection4?: boolean
+  /** When true, content renders inside {@link InitialAssessmentPaperSection5EmotionalBlock}. */
+  underPaperSection5Emotional?: boolean
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
   visibleQuestionsOptions?: Parameters<typeof getVisibleSectionQuestions>[3]
 }
@@ -144,6 +157,7 @@ export function InitialAssessmentSectionQuestions({
   onSyncEmergencyContact,
   onMarkMedicationVerified,
   onOpenWaterlowTab,
+  onOpenEnvironmentAssessmentTab,
   suppressIntro,
   excludeQuestionIds,
   painAssessment,
@@ -152,6 +166,8 @@ export function InitialAssessmentSectionQuestions({
   onSectionFooterChange,
   holisticTab,
   hidePainAssessmentTool,
+  underPaperSection4,
+  underPaperSection5Emotional,
   visibleQuestionsOptions,
   onChange,
 }: Props) {
@@ -189,12 +205,13 @@ export function InitialAssessmentSectionQuestions({
 
   const renderField = (
     q: InitialAssessmentQuestion,
-    fieldOptions?: { hideLabel?: boolean; yesNoPlain?: boolean },
+    fieldOptions?: { hideLabel?: boolean },
   ) => {
     const raw = draftAnswers[q.id]
     const merged = mergePrefill(q, raw, prefillMap)
     const hint = prefillHintForQuestion(q, prefillMap)
-    const simpleLayout = isSection1SimpleGroup(specRefOf(q))
+    const simpleLayout =
+      isSection1SimpleGroup(specRefOf(q)) || isSection4FullWidthSpecRef(specRefOf(q))
     if (
       fieldKeyOf(q) === 'poNumber' &&
       allSections.some((sec) => sec.questions.some((x) => prefillKeyForQuestion(x) === 'addressContact'))
@@ -260,7 +277,6 @@ export function InitialAssessmentSectionQuestions({
         errorMessage={questionErrors?.get(q.id)}
         disabled={isFieldDisabled(q)}
         hideLabel={fieldOptions?.hideLabel}
-        yesNoPlain={fieldOptions?.yesNoPlain}
         serviceUserId={serviceUserId}
         submissionId={submissionId}
         layout={
@@ -296,6 +312,58 @@ export function InitialAssessmentSectionQuestions({
   }
 
   const renderPanelGroup = (group: (typeof groups)[number], groupIndex: number) => {
+    if (underPaperSection5Emotional && isPaperSection5IntroGroup(group)) {
+      return (
+        <InitialAssessmentPaperSection5IntroPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={group}
+          renderField={renderField}
+        />
+      )
+    }
+
+    if (underPaperSection5Emotional && isPaperSection5AdditionalCommentsGroup(group)) {
+      return (
+        <InitialAssessmentPaperSection5AdditionalCommentsPanel
+          key={`${group.specRef}-${groupIndex}-comments`}
+          question={group.questions[0]!}
+          renderField={renderField}
+        />
+      )
+    }
+
+    if (underPaperSection5Emotional && isPaperSection5HiddenCognitiveSpecRef(group.specRef)) {
+      return null
+    }
+
+    if (underPaperSection5Emotional && group.specRef === '10.6') {
+      return (
+        <InitialAssessmentPaperSection5SubsectionPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={{ ...group, questions: collectPaperSection5CognitiveQuestions(groups) }}
+          renderField={renderField}
+          valueFor={(q) => mergePrefill(q, draftAnswers[q.id], prefillMap)}
+          onChangeFor={(q, patch) => onChange(q.id, patch)}
+          questionErrors={questionErrors}
+          disabled={disabled}
+        />
+      )
+    }
+
+    if (underPaperSection5Emotional && (group.specRef === '10.2' || group.specRef === '10.4')) {
+      return (
+        <InitialAssessmentPaperSection5SubsectionPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={group}
+          renderField={renderField}
+          valueFor={(q) => mergePrefill(q, draftAnswers[q.id], prefillMap)}
+          onChangeFor={(q, patch) => onChange(q.id, patch)}
+          questionErrors={questionErrors}
+          disabled={disabled}
+        />
+      )
+    }
+
     if (group.specRef === '4.2') {
       return (
         <InitialAssessmentVitalsSignsPanel
@@ -305,6 +373,21 @@ export function InitialAssessmentSectionQuestions({
           renderField={renderField}
         />
       )
+    }
+
+    if (group.specRef === '4.4') {
+      return (
+        <InitialAssessmentSection4GlucosePanel
+          key={`${group.specRef}-${groupIndex}`}
+          title={group.label}
+          questions={group.questions}
+          renderField={renderField}
+        />
+      )
+    }
+
+    if (group.specRef === '7.0' || group.specRef === '8.0' || group.specRef === '10.0') {
+      return null
     }
 
     if (isNoConcernGateGroup(group.specRef)) {
@@ -319,22 +402,14 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
-    if (section.sectionNumber === 9 && (group.specRef === '9.3' || group.specRef === '9.4')) {
-      return (
-        <InitialAssessmentMedicationSpecRefPanel
-          key={`${group.specRef}-${groupIndex}`}
-          title={group.label}
-          specRef={group.specRef}
-          questions={group.questions}
-          allSections={allSections}
-          draftAnswers={draftAnswers}
-          serviceUserId={serviceUserId}
-          disabled={disabled}
-          onMarkVerified={onMarkMedicationVerified ?? (() => undefined)}
-          renderField={renderField}
-          renderMultiSelect={renderMultiSelect}
-        />
-      )
+    if (
+      group.specRef === '9.2' ||
+      group.specRef === '9.3' ||
+      group.specRef === '9.4' ||
+      group.specRef === '9.5' ||
+      group.specRef === '9.6'
+    ) {
+      return null
     }
 
     if (group.specRef === '10.6a') {
@@ -349,51 +424,28 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
-    if (group.specRef === '11.1') {
+    if (group.specRef === '11.1' || group.specRef === '11.1a' || group.specRef === '11.2' || group.specRef === '11.3') {
+      if (group.specRef !== '11.1') return null
       return (
         <InitialAssessmentSkinIntegrityHolisticPanel
           key={`${group.specRef}-${groupIndex}`}
           title={group.label}
-          questions={group.questions}
-          allSections={allSections}
-          renderField={renderField}
-          renderMultiSelect={renderMultiSelect}
-        />
-      )
-    }
-
-    if (group.specRef === '11.2') {
-      return (
-        <InitialAssessmentSkinWoundsPanel
-          key={`${group.specRef}-${groupIndex}`}
-          title={group.label}
-          questions={group.questions}
           allSections={allSections}
           draftAnswers={draftAnswers}
           renderField={renderField}
-          renderMultiSelect={renderMultiSelect}
-        />
-      )
-    }
-
-    if (group.specRef === '11.3') {
-      return (
-        <InitialAssessmentPressureRiskPanel
-          key={`${group.specRef}-${groupIndex}`}
-          title={group.label}
-          questions={excludeSkinIntegrityTableQuestions(group.questions)}
-          renderField={renderField}
-          renderMultiSelect={renderMultiSelect}
-          onOpenWaterlowTab={onOpenWaterlowTab}
         />
       )
     }
 
     if (group.specRef === '5.1') {
+      const actionPlanGroup = groups.find((g) => g.specRef === '5.2')
+      const breathingGroup = actionPlanGroup
+        ? { ...group, questions: [...group.questions, ...actionPlanGroup.questions] }
+        : group
       return (
         <InitialAssessmentSection5BreathingPanel
           key={`${group.specRef}-${groupIndex}`}
-          group={group}
+          group={breathingGroup}
           draftAnswers={draftAnswers}
           disabled={disabled}
           questionErrors={questionErrors}
@@ -401,6 +453,94 @@ export function InitialAssessmentSectionQuestions({
           onChange={onChange}
         />
       )
+    }
+
+    // Paper §4b: action plan follows breathing options — standalone §5.2 panel hidden.
+    // if (group.specRef === '5.2') {
+    //   return (
+    //     <InitialAssessmentSpecRefGroupPanel key={`${group.specRef}-${groupIndex}`} group={group} renderField={renderField}>
+    //       <InitialAssessmentPanelFieldList
+    //         questions={group.questions}
+    //         renderField={renderField}
+    //         renderMultiSelect={renderMultiSelect}
+    //       />
+    //     </InitialAssessmentSpecRefGroupPanel>
+    //   )
+    // }
+    if (group.specRef === '5.2') {
+      return null
+    }
+
+    // Paper §4: no standalone “no concerns” gate — options live on each subsection checklist.
+    // if (group.specRef === '5.0') {
+    //   return (
+    //     <InitialAssessmentSpecRefGroupPanel key={`${group.specRef}-${groupIndex}`} group={group} renderField={renderField}>
+    //       <InitialAssessmentPanelFieldList questions={group.questions} renderField={renderField} />
+    //     </InitialAssessmentSpecRefGroupPanel>
+    //   )
+    // }
+    if (group.specRef === '5.0') {
+      return null
+    }
+
+    if (group.specRef === '6.5' || group.specRef === '6.6') {
+      return null
+    }
+
+    if (group.specRef === '7.1') {
+      const denturesGroup = groups.find((g) => g.specRef === '7.2')
+      const oralGroup = denturesGroup
+        ? { ...group, questions: [...group.questions, ...denturesGroup.questions] }
+        : group
+      return (
+        <InitialAssessmentSpecRefGroupPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={oralGroup}
+          renderField={renderField}
+        >
+          <InitialAssessmentPanelFieldList
+            questions={oralGroup.questions}
+            renderField={renderField}
+            renderMultiSelect={renderMultiSelect}
+          />
+        </InitialAssessmentSpecRefGroupPanel>
+      )
+    }
+
+    if (group.specRef === '7.2') {
+      return null
+    }
+
+    if (group.specRef === '7.3' || group.specRef === '7.5' || group.specRef === '8.1' || group.specRef === '8.5') {
+      const followRef =
+        group.specRef === '7.3'
+          ? '7.4'
+          : group.specRef === '7.5'
+            ? '7.6'
+            : group.specRef === '8.1'
+              ? '8.2'
+              : '8.6'
+      const followGroup = groups.find((g) => g.specRef === followRef)
+      const mergedGroup = followGroup
+        ? { ...group, questions: [...group.questions, ...followGroup.questions] }
+        : group
+      return (
+        <InitialAssessmentSpecRefGroupPanel
+          key={`${group.specRef}-${groupIndex}`}
+          group={mergedGroup}
+          renderField={renderField}
+        >
+          <InitialAssessmentPanelFieldList
+            questions={mergedGroup.questions}
+            renderField={renderField}
+            renderMultiSelect={renderMultiSelect}
+          />
+        </InitialAssessmentSpecRefGroupPanel>
+      )
+    }
+
+    if (group.specRef === '7.4' || group.specRef === '7.6' || group.specRef === '8.2' || group.specRef === '8.6') {
+      return null
     }
 
     if (group.specRef === '5.4') {
@@ -454,6 +594,7 @@ export function InitialAssessmentSectionQuestions({
           draftAnswers={draftAnswers}
           renderField={renderField}
           renderMultiSelect={renderMultiSelect}
+          onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
         />
       )
     }
@@ -579,14 +720,10 @@ export function InitialAssessmentSectionQuestions({
         return renderPanelGroup(group, groupIndex)
       })
 
-    return (
-      <div className={IA_SECTION_BODY_CLASS}>
-        {intro && !suppressIntro && !holisticTabFiltered ? (
+    const body = (
+      <>
+        {intro && !suppressIntro && !holisticTabFiltered && !underPaperSection4 && !underPaperSection5Emotional ? (
           <p className={cn(IA_CALLOUT_NEUTRAL_CLASS, IA_INTRO_CLASS)}>{intro}</p>
-        ) : null}
-
-        {section.sectionNumber === 4 ? (
-          <InitialAssessmentVitalsBanner sections={allSections} draftAnswers={draftAnswers} />
         ) : null}
 
         {renderCatalogGroups()}
@@ -606,8 +743,14 @@ export function InitialAssessmentSectionQuestions({
             }
           />
         ) : null}
-      </div>
+      </>
     )
+
+    if (underPaperSection4 || underPaperSection5Emotional) {
+      return body
+    }
+
+    return <div className={IA_SECTION_BODY_CLASS}>{body}</div>
   }
 
   return (

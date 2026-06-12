@@ -156,9 +156,8 @@ import {
 import { syncSkinIntegrityCheckFromBodyMap } from '@/features/service-users/initial-assessment/utils/sync-skin-integrity-from-body-map'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
-import { batchRequiresCorrectionReason } from '@/features/service-users/initial-assessment/utils/answer-correction-check'
 import { syncDerivedConcernGates } from '@/features/service-users/initial-assessment/utils/concern-gate-utils'
-import { practicalCareHasAssistanceNeeds } from '@/features/service-users/initial-assessment/utils/practical-care-utils'
+import { draftAnswersEqual } from '@/features/service-users/initial-assessment/utils/draft-answers-equality'
 import { getSubmitValidationIssues } from '@/features/service-users/initial-assessment/utils/submit-validation'
 import { findQuestionBySpecRef } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { isYesAnswer } from '@/features/service-users/initial-assessment/utils/question-lookup'
@@ -406,7 +405,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [reopenReason, setReopenReason] = React.useState('')
   const answersHydratedRef = React.useRef(false)
   const serverBaselineAnswersRef = React.useRef<Record<string, InitialAssessmentAnswerInput>>({})
-  const correctionReasonRef = React.useRef<HTMLDivElement>(null)
   const dirtyAnswerQuestionIdsRef = React.useRef(new Set<string>())
   const skipAutosaveRef = React.useRef(true)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
@@ -617,6 +615,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     () => template?.sections ?? EMPTY_SECTIONS,
     [template?.sections],
   )
+  const sectionsHydrationKey = React.useMemo(
+    () => `${template?.id ?? ''}:${sections.length}`,
+    [template?.id, sections.length],
+  )
 
   React.useEffect(() => {
     dirtyAnswerQuestionIdsRef.current.clear()
@@ -643,14 +645,22 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     const isFirstHydration = !answersHydratedRef.current
 
     setDraftAnswers((prev) => {
-      if (isFirstHydration) return gateSynced
-      const dirty = dirtyAnswerQuestionIdsRef.current
-      if (!dirty.size) return gateSynced
-      const next = { ...gateSynced }
-      for (const id of dirty) {
-        if (prev[id]) next[id] = prev[id]
+      let next: Record<string, InitialAssessmentAnswerInput>
+      if (isFirstHydration) {
+        next = gateSynced
+      } else {
+        const dirty = dirtyAnswerQuestionIdsRef.current
+        if (!dirty.size) {
+          next = gateSynced
+        } else {
+          const merged = { ...gateSynced }
+          for (const id of dirty) {
+            if (prev[id]) merged[id] = prev[id]
+          }
+          next = syncDerivedConcernGates(sections, merged).answers
+        }
       }
-      return syncDerivedConcernGates(sections, next).answers
+      return draftAnswersEqual(prev, next) ? prev : next
     })
 
     answersHydratedRef.current = true
@@ -659,11 +669,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     }, 0)
     return () => window.clearTimeout(t)
   }, [
-    answersQuery.data,
-    detailQuery.data,
-    domCareQuery.data,
-    suLookupsQuery.data,
-    sections,
+    answersQuery.dataUpdatedAt,
+    answersQuery.data?.length,
+    detailQuery.dataUpdatedAt,
+    domCareQuery.dataUpdatedAt,
+    suLookupsQuery.dataUpdatedAt,
+    sectionsHydrationKey,
     submission?.status,
   ])
   const waterlowExcludedIds = React.useMemo(() => waterlowTemplateQuestionIds(sections), [sections])
@@ -918,9 +929,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   )
 
   const goToWaterlowTab = React.useCallback(() => {
-    goToHolisticTab(5)
-    setHubTab('form')
-  }, [goToHolisticTab, setHubTab])
+    setActiveSection(5)
+  }, [setActiveSection])
+
+  const goToEnvironmentAssessmentTab = React.useCallback(() => {
+    setActiveSection(12)
+  }, [setActiveSection])
+
+  const goToFallsScreeningTab = React.useCallback(() => {
+    setActiveSection(8)
+  }, [setActiveSection])
 
   /** Validation banners pass enterprise § numbers — map to the matching holistic tab. */
   const goToSection = React.useCallback(
@@ -997,14 +1015,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     return (meta as Record<string, unknown>).managerReviewRequired === true
   }, [submission?.metadata])
 
-  const correctionRequired = React.useMemo(() => {
-    const meta = submission?.metadata
-    if (!meta || typeof meta !== 'object') return false
-    return (meta as Record<string, unknown>).correctionRequired === true
-  }, [submission?.metadata])
-
-  const [correctionReason, setCorrectionReason] = React.useState('')
-
   const excludeQuestionIds = React.useMemo(() => {
     const ids = new Set<string>([...hubTabExcludedIds, ...painPanelExcludedIds])
     const sec12 = sections.find((s) => s.sectionNumber === 12)
@@ -1063,7 +1073,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         )
         for (const id of syncedQuestionIds) syncSaveQuestionIdsRef.current.add(id)
         const gateSync = syncDerivedConcernGates(sections, answers)
-        for (const id of gateSync.syncedQuestionIds) syncSaveQuestionIdsRef.current.add(id)
+        for (const id of gateSync.syncedQuestionIds) {
+          syncSaveQuestionIdsRef.current.add(id)
+          dirtyAnswerQuestionIdsRef.current.add(id)
+        }
+        if (draftAnswersEqual(prev, gateSync.answers)) return prev
         return gateSync.answers
       })
     },
@@ -1516,36 +1530,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         }
         return
       }
-      const needsCorrectionReason =
-        correctionRequired &&
-        batchRequiresCorrectionReason(
-          questionsForSave,
-          serverBaselineAnswersRef.current,
-          draftAnswers,
-          answers.map((a) => a.questionId),
-        )
-      if (needsCorrectionReason && correctionReason.trim().length < 10) {
-        if (!silent) {
-          correctionReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          focusInitialAssessmentTextarea(correctionReasonRef.current)
-          toastApiError(
-            new Error(
-              'Correction reason required (min 10 characters) when changing answers that were already saved',
-            ),
-            'Save failed',
-          )
-        }
-        setSaveIndicator('error')
-        return
-      }
       setSaveIndicator('saving')
       const savedQuestionIds = answers.map((a) => a.questionId)
       try {
-        await saveMutation.mutateAsync(
-          needsCorrectionReason
-            ? { answers, correctionReason: correctionReason.trim() }
-            : answers,
-        )
+        await saveMutation.mutateAsync(answers)
         for (const id of savedQuestionIds) {
           dirtyAnswerQuestionIdsRef.current.delete(id)
           const saved = draftAnswers[id]
@@ -1565,8 +1553,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       draftAnswers,
       saveMutation,
       sections,
-      correctionRequired,
-      correctionReason,
       currentHolisticTab,
     ],
   )
@@ -2112,31 +2098,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 </div>
               ) : null}
 
-              {editable && correctionRequired ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
-                  <p className="text-sm font-medium text-amber-950 dark:text-amber-100">
-                    Post-reopen correction
-                  </p>
-                  <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-200/80">
-                    This assessment was reopened for corrections. You can save new answers in empty fields
-                    without a reason. A correction reason (min 10 characters) is only required when you
-                    change answers that were already saved.
-                  </p>
-                  <div className="mt-3">
-                    <Label htmlFor="ia-correction-reason">Correction reason (when changing saved answers)</Label>
-                    <Textarea
-                      ref={correctionReasonRef}
-                      id="ia-correction-reason"
-                      rows={2}
-                      className="mt-1 bg-background"
-                      value={correctionReason}
-                      onChange={(e) => setCorrectionReason(e.target.value)}
-                      placeholder="e.g. Updated section 11 after district nurse review…"
-                    />
-                  </div>
-                </div>
-              ) : null}
-
               {editable && validationRevealed ? (
                 <InitialAssessmentBlockingBanner
                   blocks={validation.blocks}
@@ -2307,6 +2268,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onSyncBodyMap={syncSkinIntegrityFromBodyMap}
                         syncBodyMapLoading={syncBodyMapLoading}
                         onOpenWaterlowTab={goToWaterlowTab}
+                        onOpenEnvironmentAssessmentTab={goToEnvironmentAssessmentTab}
+                        onOpenFallsScreeningTab={goToFallsScreeningTab}
                         onPainAssessmentChange={onPainAssessmentChange}
                         onWaterlowChange={onWaterlowChange}
                         onMustAssessmentChange={onMustAssessmentChange}
@@ -2367,17 +2330,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           onPracticalCareChange: (next) => {
                             setPracticalCare(next)
                             void persistMetadata({ practicalCare: next })
-                            const sec12 = sections.find((s) => s.sectionNumber === 12)
-                            const domesticQ = sec12?.questions.find((q) =>
-                              q.questionText.toLowerCase().includes('domestic support required'),
-                            )
-                            if (domesticQ && practicalCareHasAssistanceNeeds(next)) {
-                              onAnswerChange(domesticQ.id, {
-                                questionId: domesticQ.id,
-                                checked: true,
-                                booleanValue: true,
-                              })
-                            }
                           },
                           onFinanceSupportChange: (next) => {
                             setFinanceSupport(next)

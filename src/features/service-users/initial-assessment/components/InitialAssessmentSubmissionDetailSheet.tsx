@@ -17,6 +17,7 @@ import {
 import {
   formatInitialAssessmentDateTime,
   formatInitialAssessmentUser,
+  formatRichTextForDisplay,
 } from '@/features/service-users/initial-assessment/utils/submission-display'
 import { computeWaterlowScore } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
@@ -193,7 +194,7 @@ export function InitialAssessmentSubmissionDetailSheet({
                           {formatInitialAssessmentDateTime(reopenedAt)}
                           {lastReopenReason ? (
                             <span className="mt-1 block text-xs text-muted-foreground">
-                              Reason: {lastReopenReason}
+                              Reason: {formatRichTextForDisplay(lastReopenReason)}
                             </span>
                           ) : null}
                         </>
@@ -223,13 +224,22 @@ export function InitialAssessmentSubmissionDetailSheet({
                       />
                     ) : null}
                     {careStartConditions ? (
-                      <DetailRow label="Care start conditions" value={careStartConditions} />
+                      <DetailRow
+                        label="Care start conditions"
+                        value={formatRichTextForDisplay(careStartConditions)}
+                      />
                     ) : null}
                     {submission.reviewNotes?.trim() ? (
-                      <DetailRow label="Review notes" value={submission.reviewNotes.trim()} />
+                      <DetailRow
+                        label="Review notes"
+                        value={formatRichTextForDisplay(submission.reviewNotes)}
+                      />
                     ) : null}
                     {submission.overallNotes?.trim() ? (
-                      <DetailRow label="Overall notes" value={submission.overallNotes.trim()} />
+                      <DetailRow
+                        label="Overall notes"
+                        value={formatRichTextForDisplay(submission.overallNotes)}
+                      />
                     ) : null}
                   </dl>
                 </section>

@@ -38,6 +38,8 @@ export type SectionQuestionFilter = {
   questionTextsOnly?: string[]
   includeQuestionTexts?: string[]
   additionalSpecRefs?: string[]
+  /** Tab 1 — render paper Section 7 ADL block (enterprise §12 worksheet + footer). */
+  paperSection7Adl?: boolean
 }
 
 export type HolisticAssessmentTab = {
@@ -80,13 +82,63 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
         questionTextsOnly: ['Previous medical history (summary)', 'Allergies (summary)'],
       },
       { sectionNumber: 1, specRefs: ['1.2'] },
-      { sectionNumber: 4 },
-      { sectionNumber: 5, excludeSpecRefs: ['5.3'] },
-      { sectionNumber: 6, excludeSpecRefs: ['6.8', '6.9', '6.10'] },
-      { sectionNumber: 7 },
-      { sectionNumber: 8 },
+      { sectionNumber: 4, excludeSpecRefs: ['4.7', '4.10'] },
+      { sectionNumber: 5 },
+      { sectionNumber: 6, specRefs: ['6.1'] },
+      { sectionNumber: 6, specRefs: ['6.2'] },
+      { sectionNumber: 6, specRefs: ['6.3'] },
+      { sectionNumber: 6, specRefs: ['6.4'] },
+      { sectionNumber: 7, specRefs: ['7.1', '7.2'] },
+      { sectionNumber: 7, specRefs: ['7.3', '7.4'] },
+      { sectionNumber: 7, specRefs: ['7.5', '7.6'] },
+      { sectionNumber: 8, specRefs: ['8.1', '8.2'] },
+      { sectionNumber: 8, specRefs: ['8.3'] },
+      { sectionNumber: 8, specRefs: ['8.4'] },
+      { sectionNumber: 8, specRefs: ['8.5', '8.6'] },
       { sectionNumber: 9 },
-      { sectionNumber: 10, excludeSpecRefs: ['10.6', '10.6a', '10.7', '10.8'] },
+      {
+        sectionNumber: 10,
+        specRefs: ['10.1'],
+        questionTextsOnly: [
+          'Current mental health issues reported?',
+          'Community Psychiatric Nurse involved?',
+          'Previous mental health issues reported?',
+        ],
+      },
+      {
+        sectionNumber: 10,
+        specRefs: ['10.2'],
+        questionTextsOnly: [
+          'Emotional wellbeing status',
+          'Feels low in mood?',
+          'Feels depressed?',
+          'GP referral for mental health made?',
+        ],
+      },
+      {
+        sectionNumber: 10,
+        specRefs: ['10.6'],
+        questionTextsOnly: [
+          'Cognitive impairment level',
+          'AMT completed?',
+          'Mental Capacity Assessment required?',
+          'GP referral for cognition requested?',
+          'GP referral for cognition made?',
+        ],
+      },
+      {
+        sectionNumber: 10,
+        specRefs: ['10.4'],
+        questionTextsOnly: ['Sleeping pattern'],
+      },
+      {
+        sectionNumber: 10,
+        questionTextsOnly: ['Emotional health comments'],
+      },
+      { sectionNumber: 4, specRefs: ['4.10'] },
+      { sectionNumber: 4, specRefs: ['4.7'] },
+      { sectionNumber: 11, excludeSpecRefs: ['11.4'] },
+      { sectionNumber: 12, paperSection7Adl: true },
     ],
   },
   {
@@ -94,15 +146,7 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
     title: 'Practical Task',
     kind: 'section12-blocks',
     enterpriseSection: 12,
-    section12Blocks: [
-      { kind: 'adl-worksheet-scores' },
-      { kind: 'questions', specRef: '12.5a' },
-      { kind: 'questions', specRef: '12.5b' },
-      { kind: 'questions', specRef: '12.5d' },
-      { kind: 'adl-worksheet-total' },
-      { kind: 'practical-care' },
-      { kind: 'questions', specRef: '12.10' },
-    ],
+    section12Blocks: [{ kind: 'practical-care' }],
   },
   {
     id: 3,
@@ -277,6 +321,9 @@ export function holisticMultiSectionSliceKey(
   if (slice.excludeSpecRefs?.length) {
     return `${tabId}-sec-${slice.sectionNumber}-excl-${slice.excludeSpecRefs.join(',')}`
   }
+  if (slice.paperSection7Adl) {
+    return `${tabId}-sec-${slice.sectionNumber}-paper-7-adl`
+  }
   return `${tabId}-sec-${slice.sectionNumber}-full-${index}`
 }
 
@@ -313,6 +360,8 @@ export function filterQuestionsForHolisticTab(
     !filter.includeQuestionTexts?.length &&
     !filter.additionalSpecRefs?.length &&
     !filter.excludeSpecRefs?.length
+
+  if (filter.paperSection7Adl) return []
 
   if (fullSection) return questions
 
@@ -351,7 +400,14 @@ export function questionsForDocumentTab(
   }
 
   if (tab.kind === 'section12-blocks') {
-    return visibleQuestionsBySection.get(12) ?? []
+    const blocks = tab.section12Blocks ?? []
+    const questionBlocks = blocks.filter((b) => b.kind === 'questions')
+    if (questionBlocks.length === 0) return []
+    const visible = visibleQuestionsBySection.get(12) ?? []
+    return visible.filter((q) => {
+      const ref = specRefOf(q)
+      return ref != null && questionBlocks.some((b) => b.specRef === ref)
+    })
   }
 
   if (tab.kind === 'placeholder') {
@@ -361,6 +417,7 @@ export function questionsForDocumentTab(
   if (tab.kind === 'multi-section' && tab.multiSections?.length) {
     const out: InitialAssessmentQuestion[] = []
     for (const slice of tab.multiSections) {
+      if (slice.paperSection7Adl) continue
       const visible = visibleQuestionsBySection.get(slice.sectionNumber) ?? []
       out.push(...filterQuestionsForHolisticTab(visible, slice))
     }
@@ -369,6 +426,19 @@ export function questionsForDocumentTab(
 
   const visible = visibleQuestionsBySection.get(tab.enterpriseSection) ?? []
   return filterQuestionsForHolisticTab(visible, tab)
+}
+
+function isFullSection12BlocksTab(tab: HolisticAssessmentTab): boolean {
+  if (tab.kind !== 'section12-blocks') return false
+  const blocks = tab.section12Blocks
+  if (!blocks?.length) return true
+  return blocks.some(
+    (b) =>
+      b.kind === 'adl-worksheet-scores' ||
+      b.kind === 'falls-panel' ||
+      b.kind === 'transfer-matrix' ||
+      b.kind === 'equipment-panel',
+  )
 }
 
 function issueAppliesToTabQuestions(issue: ValidationIssue, tabQuestions: InitialAssessmentQuestion[]): boolean {
@@ -591,7 +661,7 @@ export function buildHolisticTabNavStatus(params: {
     }
 
     const isFullTab =
-      tab.kind === 'section12-blocks' ||
+      isFullSection12BlocksTab(tab) ||
       (tab.kind === 'form-section' &&
         !tab.specRefs?.length &&
         !tab.questionTextsOnly?.length &&

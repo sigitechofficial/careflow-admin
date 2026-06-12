@@ -39,7 +39,8 @@ import {
   visitPlanCalendarOutcomeMeta,
 } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 import { visitPlanCalendarSlotPresentation } from '@/features/service-users/visit-plan/visit-plan-calendar-overdue.util'
-import { toastWarning } from '@/shared/lib/toast'
+import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
+import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import '@/features/service-users/medication/mar-calendar.css'
 import '@/features/service-users/visit-plan/visit-plan-calendar.css'
 
@@ -137,6 +138,7 @@ type Props = {
   plan: ServiceUserVisitPlan
   serviceUserId: string
   employeeNameById: Map<string, string>
+  acceptedCarePlans?: AcceptedCarePlanItem[]
   className?: string
 }
 
@@ -281,7 +283,13 @@ function VisitCalendarCellTooltip({
   )
 }
 
-export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, className }: Props) {
+export function VisitPlanCalendarTab({
+  plan,
+  serviceUserId,
+  employeeNameById,
+  acceptedCarePlans = [],
+  className,
+}: Props) {
   const [displayMode, setDisplayMode] = React.useState<VisitPlanCalendarDisplayMode>('calendar')
   const [viewMode, setViewMode] = React.useState<VisitPlanCalendarViewMode>('monthly')
   const [focusIso, setFocusIso] = React.useState(visitPlanTodayIsoDate)
@@ -345,13 +353,6 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
     setFocusIso((iso) => shiftVisitPlanIsoDate(iso, visitPlanCalendarNavStep(viewMode)))
   }
 
-  const visitList = React.useMemo(
-    () => buildVisitList(enabledSlots, visibleDays, anchorByMonth, employeeNameById),
-    [enabledSlots, visibleDays, anchorByMonth, employeeNameById],
-  )
-
-  const visitListByDate = React.useMemo(() => groupVisitListByDate(visitList), [visitList])
-
   const outcomeRange = React.useMemo(() => {
     if (!visibleDays.length) return null
     const sorted = [...visibleDays].sort((a, b) => a.iso.localeCompare(b.iso))
@@ -374,6 +375,35 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
     return map
   }, [outcomesQuery.data, outcomeOverrides])
 
+  const allocatedEmployeeIds = React.useMemo(() => {
+    const ids = new Set<string>()
+    for (const visit of outcomesQuery.data ?? []) {
+      for (const id of visit.allocatedEmployeeIds ?? []) {
+        if (id.trim()) ids.add(id)
+      }
+    }
+    for (const row of outcomeOverrides.values()) {
+      for (const id of row.allocatedEmployeeIds ?? []) {
+        if (id.trim()) ids.add(id)
+      }
+    }
+    return [...ids]
+  }, [outcomesQuery.data, outcomeOverrides])
+
+  const allocatedEmployeeNameById = useEmployeeNameMap(allocatedEmployeeIds)
+  const combinedEmployeeNameById = React.useMemo(() => {
+    const map = new Map(employeeNameById)
+    for (const [id, name] of allocatedEmployeeNameById) map.set(id, name)
+    return map
+  }, [employeeNameById, allocatedEmployeeNameById])
+
+  const visitList = React.useMemo(
+    () => buildVisitList(enabledSlots, visibleDays, anchorByMonth, combinedEmployeeNameById),
+    [enabledSlots, visibleDays, anchorByMonth, combinedEmployeeNameById],
+  )
+
+  const visitListByDate = React.useMemo(() => groupVisitListByDate(visitList), [visitList])
+
   const generatedInPeriod = React.useMemo(() => {
     let count = 0
     for (const slot of enabledSlots) {
@@ -388,15 +418,6 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
   }, [enabledSlots, visibleDays, anchorByMonth, outcomeByKey])
 
   const openOutcomeDialog = (selection: VisitPlanCalendarSelection) => {
-    const key = outcomeKey(selection.slot.id, selection.iso)
-    const outcome = key ? outcomeByKey.get(key) : null
-    if (!outcome) {
-      toastWarning(
-        'Visit not on rota',
-        'Generate rota from the Configure tab to create scheduled visits for this date.',
-      )
-      return
-    }
     setSelectedVisit(selection)
     setOutcomeDialogOpen(true)
   }
@@ -554,8 +575,8 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
           </div>
           <p className="vp-cal-hint">
             {displayMode === 'list'
-              ? 'Generated visits can be clicked to record carer outcome. Striped cells are planned but not yet on rota.'
-              : 'Click generated visits to record outcomes. Striped cells are planned but not yet on rota.'}
+              ? 'Click any planned visit to view details, carers, times, and record outcomes.'
+              : 'Click any planned visit cell to open visit details. Striped cells are not yet on rota — you can still record an outcome to create them.'}
           </p>
         </div>
 
@@ -581,7 +602,7 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                           outcome,
                         })
                         const outcomeMeta = visitPlanCalendarOutcomeMeta(presentation.outcomeStatus)
-                        const cellCarerNames = carerNamesForCell(entry.slot, outcome ?? undefined, employeeNameById)
+                        const cellCarerNames = carerNamesForCell(entry.slot, outcome ?? undefined, combinedEmployeeNameById)
                         return (
                           <li key={`${entry.iso}-${entry.slot.slotCode}`}>
                             <button
@@ -674,7 +695,7 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                 {enabledSlots.map((slot, rowIndex) => {
                   const start = normalizeTimeForInput(slot.plannedStartTime)
                   const end = normalizeTimeForInput(slot.plannedEndTime)
-                  const carers = carerLabels(slot, employeeNameById)
+                  const carers = carerLabels(slot, combinedEmployeeNameById)
                   return (
                     <React.Fragment key={slot.slotCode}>
                       {rowIndex > 0 ? (
@@ -708,7 +729,7 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
                             outcome,
                           })
                           const outcomeMeta = visitPlanCalendarOutcomeMeta(presentation.outcomeStatus)
-                          const cellCarerNames = carerNamesForCell(slot, outcome ?? undefined, employeeNameById)
+                          const cellCarerNames = carerNamesForCell(slot, outcome ?? undefined, combinedEmployeeNameById)
                           return (
                             <td
                               key={`${slot.slotCode}-${cell.iso}`}
@@ -794,6 +815,8 @@ export function VisitPlanCalendarTab({ plan, serviceUserId, employeeNameById, cl
         planId={plan.id}
         selection={selectedVisit}
         existing={selectedOutcome}
+        acceptedCarePlans={acceptedCarePlans}
+        employeeNameById={combinedEmployeeNameById}
         onSaved={(visit) => {
           const key = outcomeKey(visit.visitPlanSlotId ?? undefined, visit.occurrenceDate)
           if (!key) return

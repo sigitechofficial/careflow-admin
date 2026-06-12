@@ -7,7 +7,7 @@ export type SkinIntegrityTableRow = {
   commentOnly?: boolean
 }
 
-/** Paper form rows for Section 6 — Skin Integrity (Question / Assessment / Comment). */
+/** Paper Section 6 — Skin Integrity table rows (Question / Assessment / Comment). */
 export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
   {
     label: 'Does the client suffer from a skin condition?',
@@ -22,10 +22,12 @@ export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
   {
     label: 'Has a pressure ulcer risk assessment been completed? Including photography.',
     assessmentQuestionText: 'Pressure ulcer risk assessment completed (including photography)?',
+    commentQuestionText: 'Pressure ulcer risk assessment comment',
   },
   {
     label: 'Has a wound assessment been completed?',
     assessmentQuestionText: 'Has wound assessment been completed?',
+    commentQuestionText: 'Wound assessment comment',
   },
   {
     label: 'Skin integrity additional comments',
@@ -43,11 +45,30 @@ export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
   },
 ]
 
+/** Shown below the table when further pressure equipment is required (paper continuation). */
+export const SKIN_INTEGRITY_EQUIPMENT_ORDER_QUESTION_TEXTS = [
+  'Equipment ordered?',
+  'Date equipment ordered',
+  'Pressure equipment order additional comments',
+] as const
+
+/** Nutrition monitoring — moved from paper §6.6 into Section 6 — Skin Integrity. */
+export const SKIN_INTEGRITY_MONITORING_QUESTION_TEXTS = [
+  'Fluid chart required?',
+  'Weight monitoring required?',
+] as const
+
 export const SKIN_INTEGRITY_TABLE_QUESTION_TEXTS = new Set(
   SKIN_INTEGRITY_TABLE_ROWS.flatMap((row) =>
     [row.assessmentQuestionText, row.commentQuestionText].filter((t): t is string => Boolean(t)),
   ),
 )
+
+export const SKIN_INTEGRITY_PAPER_QUESTION_TEXTS = new Set([
+  ...SKIN_INTEGRITY_TABLE_QUESTION_TEXTS,
+  ...SKIN_INTEGRITY_EQUIPMENT_ORDER_QUESTION_TEXTS,
+  ...SKIN_INTEGRITY_MONITORING_QUESTION_TEXTS,
+])
 
 export function findQuestionByExactText(
   sections: InitialAssessmentSection[],
@@ -64,5 +85,5 @@ export function findQuestionByExactText(
 export function excludeSkinIntegrityTableQuestions(
   questions: InitialAssessmentQuestion[],
 ): InitialAssessmentQuestion[] {
-  return questions.filter((q) => !SKIN_INTEGRITY_TABLE_QUESTION_TEXTS.has(q.questionText.trim()))
+  return questions.filter((q) => !SKIN_INTEGRITY_PAPER_QUESTION_TEXTS.has(q.questionText.trim()))
 }

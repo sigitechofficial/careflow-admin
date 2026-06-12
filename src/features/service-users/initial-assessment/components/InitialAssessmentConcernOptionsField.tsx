@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   InitialAssessmentControlTooltip,
   iaQuestionTooltipText,
@@ -38,6 +38,13 @@ function selectedValues(value: InitialAssessmentAnswerInput | undefined): string
   if (Array.isArray(raw)) return raw.map(String)
   if (typeof raw === 'string' && raw) return [raw]
   return []
+}
+
+function selectedOptionsKey(value: InitialAssessmentAnswerInput | undefined): string {
+  const raw = value?.selectedOptions
+  if (Array.isArray(raw)) return raw.map(String).slice().sort().join('\0')
+  if (typeof raw === 'string' && raw) return raw
+  return ''
 }
 
 function ConcernFollowUpPanel({
@@ -99,8 +106,9 @@ export function InitialAssessmentConcernOptionsField({
   renderField,
 }: Props) {
   const options = parseQuestionOptions(question.options)
-  const selected = selectedValues(value)
-  const selectedSet = new Set(selected)
+  const selectionKey = selectedOptionsKey(value)
+  const selected = useMemo(() => selectedValues(value), [selectionKey])
+  const selectedSet = useMemo(() => new Set(selected), [selectionKey])
   const hasError = Boolean(errorMessage)
   const tooltipContent = iaQuestionTooltipText(question)
   const helpId = `${question.id}-help`
@@ -110,23 +118,18 @@ export function InitialAssessmentConcernOptionsField({
   const followUpGroups = followUpGroupsForConcernField(fieldKey)
   const activeGroups = useMemo(
     () => activeConcernFollowUpGroups(followUpGroups, selected),
-    [followUpGroups, selected],
+    [followUpGroups, selectionKey],
   )
 
-  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => new Set())
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() => new Set())
 
-  useEffect(() => {
-    setExpandedGroupIds((prev) => {
-      const next = new Set(prev)
-      for (const group of activeGroups) {
-        next.add(group.id)
-      }
-      for (const id of [...next]) {
-        if (!activeGroups.some((group) => group.id === id)) next.delete(id)
-      }
-      return next
-    })
-  }, [activeGroups])
+  const expandedGroupIds = useMemo(() => {
+    const expanded = new Set<string>()
+    for (const group of activeGroups) {
+      if (!collapsedGroupIds.has(group.id)) expanded.add(group.id)
+    }
+    return expanded
+  }, [activeGroups, collapsedGroupIds])
 
   const toggleOption = (optValue: string) => {
     const next = new Set(selectedSet)
@@ -136,7 +139,7 @@ export function InitialAssessmentConcernOptionsField({
   }
 
   const toggleGroup = (groupId: string) => {
-    setExpandedGroupIds((prev) => {
+    setCollapsedGroupIds((prev) => {
       const next = new Set(prev)
       if (next.has(groupId)) next.delete(groupId)
       else next.add(groupId)

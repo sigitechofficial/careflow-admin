@@ -25,7 +25,7 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Preferred name': "Like to be called",
   'Date of birth': 'Date of Birth',
   'Address and contact details': 'Client Address and Postcode',
-  'Previous medical history (summary)': 'Section 2 — Relevant health history and background information',
+  'Previous medical history (summary)': 'Details',
   'Allergies (summary)': 'Allergies',
   'Family, representative, next of kin, advocate, key contacts':
     'Contact details for next of kin / significant other',
@@ -81,10 +81,10 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Pressure ulcer risk assessment completed?':
     'Has a pressure ulcer risk assessment been completed? Including photography.',
   'Oral health options': 'i. Oral health',
-  'Bladder continence options': 'j. Continent bladder',
+  'Bladder continence options': 'Bladder continence',
   'Bowel continence options': 'k. Continent-bowel',
   'Speech impairment options': 'l. Speech impairment',
-  'Hearing impairment level': 'm. Hearing impairment',
+  'Hearing impairment level': 'Hearing level',
   'Sight impairment level': 'n. Sight impairment',
   'Visual aid in use?': 'Visual?',
   'Sign language required?': 'Sign Language?',
@@ -122,19 +122,32 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Cognitive impairment level': 'b. Cognitive/Memory Impairment',
   'Sleeping pattern options': 'Sleeping — Client states:',
   'Emotional health additional comments': 'Emotional health additional comments',
+  'Emotional health comments': 'Emotional health additional comments',
+  'GP referral for mental health made?': 'Referral to GP made',
+  'GP referral for cognition requested?': 'Referral to GP required',
+  'GP referral for cognition made?': 'Referral to GP made',
   'Skin condition or concern?': 'Does the client suffer from a skin condition?',
   'Currently has ulcers or wounds?': 'Does the client have any ulcers or wounds?',
   'Has wound assessment been completed?': 'Has a wound assessment been completed?',
+  'Skin condition comment': 'Comment',
+  'Ulcers or wounds comment': 'Comment',
+  'Pressure ulcer risk assessment comment': 'Comment',
+  'Wound assessment comment': 'Comment',
   'Skin / wound notes': 'Skin integrity additional comments',
   'Pressure relieving equipment in use?': 'Does client have any pressure relieving equipment?',
   'Pressure equipment details': 'If YES, provide details',
   'Further pressure equipment required?':
     'Does the client require any further pressure relieving equipment to be ordered?',
-  'Eating and drinking aids required?': 'e. Requires aids/special equipment for eating or drinking',
+  'Equipment ordered?': 'Equipment ordered',
+  'Date equipment ordered': 'Date ordered',
+  'Pressure equipment order additional comments': 'Additional comments',
+  'Requires aids for eating or drinking?': 'e. Requires aids/special equipment for eating or drinking',
+  'Appetite status': 'f. Appetite',
   'Appetite options': 'f. Appetite',
   'Adequately hydrated?': 'g. Is the client drinking enough/adequately hydrated',
   'Nutrition status options': 'h. Nutrition',
-  'Any fire safety risks identified? (Please state)': 'Any fire safety risks identified? (Please state)',
+  'Any fire safety risks identified?': 'Any fire safety risks identified?',
+  'Any fire safety risks identified? (Please state)': 'Please state the fire safety risks',
   'London Fire Brigade informed?': 'London Fire Brigade informed?',
   'London Fire Brigade informed — details': 'Details',
   Details: 'Details',
@@ -150,4 +163,12 @@ export function holisticSectionTitle(sectionNumber: number, fallback: string): s
 
 export function holisticQuestionLabel(questionText: string): string {
   return HOLISTIC_QUESTION_LABELS[questionText.trim()] ?? questionText
+}
+
+/** Placeholder hints for paper-style §1 simple text areas. */
+export function holisticSimpleTextareaPlaceholder(questionText: string): string {
+  const text = questionText.trim()
+  if (text === 'Previous medical history (summary)') return 'Enter medical history details…'
+  if (text === 'Allergies (summary)') return 'Enter known allergies…'
+  return 'Enter details…'
 }

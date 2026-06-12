@@ -12,8 +12,7 @@ import type {
 } from '@/features/service-users/initial-assessment/types'
 import type { InitialAssessmentFieldRenderOptions } from '@/features/service-users/initial-assessment/utils/field-render-options'
 import { groupedYesNoFieldOptions } from '@/features/service-users/initial-assessment/utils/field-render-options'
-import { shouldShowQuestion } from '@/features/service-users/initial-assessment/utils/conditional-visibility'
-import { findHolisticKeySafeQuestions } from '@/features/service-users/initial-assessment/utils/section-1-key-safe-fields'
+import { InitialAssessmentSection31FireSafetyPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection31FireSafetyPanel'
 import { findSection31FireQuestions } from '@/features/service-users/initial-assessment/utils/section-31-fire-safety'
 import type { SpecRefGroup } from '@/features/service-users/initial-assessment/utils/spec-ref-groups'
 
@@ -33,8 +32,6 @@ const SOCIAL_HISTORY_ORDER = [
   'Carer assessment referral date',
   'Type of living accommodation',
   'Other accommodation (please state)',
-  'Key safe present?',
-  'Key safe code',
   'Is client able to answer front door?',
   'Does the client live alone?',
   'Instructions for gaining access to client’s home',
@@ -48,6 +45,7 @@ type Props = {
   draftAnswers: Record<string, InitialAssessmentAnswerInput>
   renderField: (q: InitialAssessmentQuestion, fieldOptions?: InitialAssessmentFieldRenderOptions) => ReactNode
   renderMultiSelect?: (q: InitialAssessmentQuestion) => ReactNode
+  onOpenEnvironmentAssessmentTab?: () => void
 }
 
 function normalizeQuestionText(text: string): string {
@@ -92,13 +90,11 @@ export function InitialAssessmentSection3SocialHistoryPanel({
   draftAnswers,
   renderField,
   renderMultiSelect,
+  onOpenEnvironmentAssessmentTab,
 }: Props) {
   const questions = byPaperOrder(group.questions)
   const fire = findSection31FireQuestions(allSections)
-  const { keySafePresent, keySafeCode } = findHolisticKeySafeQuestions(allSections)
 
-  const showFireQuestion = (q: InitialAssessmentQuestion | undefined) =>
-    q ? shouldShowQuestion(q, allSections, draftAnswers) : false
   const find = (text: string) =>
     questions.find((q) => normalizeQuestionText(q.questionText) === normalizeQuestionText(text))
 
@@ -125,7 +121,8 @@ export function InitialAssessmentSection3SocialHistoryPanel({
 
   const placed = new Set(
     [
-      fire.fireRisks,
+      fire.fireRisksIdentified,
+      fire.fireRisksDetails,
       fire.lfbInformed,
       fire.lfbDetails,
       fire.manageHomeSafely,
@@ -145,8 +142,6 @@ export function InitialAssessmentSection3SocialHistoryPanel({
       referralDate,
       accommodation,
       accommodationOther,
-      keySafePresent,
-      keySafeCode,
       frontDoor,
       livesAlone,
       accessInstructions,
@@ -205,15 +200,6 @@ export function InitialAssessmentSection3SocialHistoryPanel({
           <p className="text-sm font-medium text-foreground">Type of living accommodation</p>
           {accommodation ? renderQuestion(accommodation, renderField, renderMultiSelect) : null}
           {accommodationOther ? renderQuestion(accommodationOther, renderField, renderMultiSelect) : null}
-          {keySafePresent
-            ? renderQuestion(
-                keySafePresent,
-                renderField,
-                renderMultiSelect,
-                groupedYesNoFieldOptions(keySafePresent),
-              )
-            : null}
-          {keySafeCode ? renderQuestion(keySafeCode, renderField, renderMultiSelect) : null}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -242,40 +228,14 @@ export function InitialAssessmentSection3SocialHistoryPanel({
           </div>
         ) : null}
 
-        {fire.fireRisks || fire.lfbInformed || fire.manageHomeSafely ? (
-          <div className="space-y-4 border-t border-border/60 pt-4">
-            <p className="text-sm font-medium text-foreground">Fire safety and home environment</p>
-            {fire.fireRisks ? (
-              <div>{renderQuestion(fire.fireRisks, renderField, renderMultiSelect)}</div>
-            ) : null}
-            {fire.lfbInformed ? (
-              <div className="space-y-4">
-                {renderQuestion(
-                  fire.lfbInformed,
-                  renderField,
-                  renderMultiSelect,
-                  groupedYesNoFieldOptions(fire.lfbInformed),
-                )}
-                {fire.lfbDetails ? (
-                  <div>{renderQuestion(fire.lfbDetails, renderField, renderMultiSelect)}</div>
-                ) : null}
-              </div>
-            ) : null}
-            {fire.manageHomeSafely ? (
-              <div className="space-y-4">
-                {renderQuestion(
-                  fire.manageHomeSafely,
-                  renderField,
-                  renderMultiSelect,
-                  groupedYesNoFieldOptions(fire.manageHomeSafely),
-                )}
-                {showFireQuestion(fire.safetyMeasures) && fire.safetyMeasures ? (
-                  <div>{renderQuestion(fire.safetyMeasures, renderField, renderMultiSelect)}</div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        <InitialAssessmentSection31FireSafetyPanel
+          fire={fire}
+          allSections={allSections}
+          draftAnswers={draftAnswers}
+          renderField={renderField}
+          renderMultiSelect={renderMultiSelect}
+          onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
+        />
       </div>
     </section>
   )

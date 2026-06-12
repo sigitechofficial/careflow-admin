@@ -116,6 +116,8 @@ export function InitialAssessmentSection12Content({
   displayBlocks,
 }: Props) {
   const blocks = displayBlocks ?? SECTION_12_DISPLAY_BLOCKS
+  const practicalCareOnly =
+    blocks.length === 1 && blocks[0]?.kind === 'practical-care'
   const visibleQuestions = filterSection12Questions(
     section.questions.filter((q) =>
       shouldShowQuestion(q, allSections, draftAnswers),
@@ -184,7 +186,7 @@ export function InitialAssessmentSection12Content({
     )
   }
 
-  const sectionIntro = sectionIntroCopy(12)
+  const sectionIntro = practicalCareOnly ? null : sectionIntroCopy(12)
 
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-section-12-content">

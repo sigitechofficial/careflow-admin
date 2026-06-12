@@ -43,7 +43,8 @@ export function resolveSection1PaperHeader(group: SpecRefGroup): { title: string
 
 export function shouldHidePaperSectionFieldLabel(questionText: string): boolean {
   const text = questionText.trim()
-  return text === REASON_FOR_REFERRAL_TEXT || text === MEDICAL_HISTORY_TEXT || text === ALLERGIES_TEXT
+  // Section header covers referral; health history fields keep their own labels.
+  return text === REASON_FOR_REFERRAL_TEXT
 }
 
 export function InitialAssessmentSection1SimplePanel({ group, children }: Props) {

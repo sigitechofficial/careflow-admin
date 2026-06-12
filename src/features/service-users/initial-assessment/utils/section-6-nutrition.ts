@@ -15,7 +15,6 @@ export const SECTION_6_CANONICAL_QUESTION_TEXT = [
   'Adequately hydrated?',
   'Hydration comment',
   'Daily fluid target (ml)',
-  'Fluid chart required?',
   'Thickened fluids required?',
   'Nutrition status',
   'Malnourished or at nutrition risk?',
@@ -23,13 +22,7 @@ export const SECTION_6_CANONICAL_QUESTION_TEXT = [
   'BMI value',
   'MUST assessment completed?',
   'MUST score',
-  'Food likes',
-  'Food dislikes',
-  'Food allergies documented?',
-  'Food allergy details',
-  'Dietary requirements (medical, cultural, religious)',
   'Dietitian referral date',
-  'Weight monitoring required?',
   'Nutrition / hydration comments',
 ] as const
 
