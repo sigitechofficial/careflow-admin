@@ -5,6 +5,8 @@ export type SkinIntegrityTableRow = {
   assessmentQuestionText?: string
   commentQuestionText?: string
   commentOnly?: boolean
+  /** When true, show body map links after a Yes answer on the assessment gate. */
+  bodyMapGate?: boolean
 }
 
 /** Paper Section 6 — Skin Integrity table rows (Question / Assessment / Comment). */
@@ -13,16 +15,19 @@ export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
     label: 'Does the client suffer from a skin condition?',
     assessmentQuestionText: 'Skin condition or concern?',
     commentQuestionText: 'Skin condition comment',
+    bodyMapGate: true,
   },
   {
     label: 'Does the client have any ulcers or wounds?',
     assessmentQuestionText: 'Currently has ulcers or wounds?',
     commentQuestionText: 'Ulcers or wounds comment',
+    bodyMapGate: true,
   },
   {
     label: 'Has a pressure ulcer risk assessment been completed? Including photography.',
     assessmentQuestionText: 'Pressure ulcer risk assessment completed (including photography)?',
     commentQuestionText: 'Pressure ulcer risk assessment comment',
+    bodyMapGate: true,
   },
   {
     label: 'Has a wound assessment been completed?',
@@ -42,6 +47,7 @@ export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
   {
     label: 'Does the client require any further pressure relieving equipment to be ordered?',
     assessmentQuestionText: 'Further pressure equipment required?',
+    commentQuestionText: 'Further pressure equipment comment',
   },
 ]
 

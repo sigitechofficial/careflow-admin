@@ -154,6 +154,7 @@ import {
   type SkinIntegrityCheckMetadata,
 } from '@/features/service-users/initial-assessment/utils/skin-integrity-check'
 import { syncSkinIntegrityCheckFromBodyMap } from '@/features/service-users/initial-assessment/utils/sync-skin-integrity-from-body-map'
+import { skinIntegrityBodyMapGateAnsweredYes } from '@/features/service-users/initial-assessment/utils/skin-integrity-body-map'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
 import { syncDerivedConcernGates } from '@/features/service-users/initial-assessment/utils/concern-gate-utils'
@@ -444,6 +445,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     DEFAULT_INITIAL_ASSESSMENT_AGENCY_SETTINGS
   const openActionsCount =
     actionsQuery.data?.filter((a) => a.status === 'OPEN' || a.status === 'IN_PROGRESS').length ?? 0
+  const carePlanRecommendationCount = summaryQuery.data?.carePlanRecommendations?.length ?? 0
   const riskQuery = useInitialAssessmentRiskSummary(selectedId, submissionId)
   const triggersQuery = useInitialAssessmentCarePlanTriggers(selectedId, submissionId)
   const validateQuery = useValidateInitialAssessment(
@@ -932,6 +934,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     setActiveSection(5)
   }, [setActiveSection])
 
+  const goToSkinIntegrityCheckTab = React.useCallback(() => {
+    setActiveSection(4)
+  }, [setActiveSection])
+
   const goToEnvironmentAssessmentTab = React.useCallback(() => {
     setActiveSection(12)
   }, [setActiveSection])
@@ -979,20 +985,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [detailQuery.data, domCareQuery.data, suLookupsQuery.data],
   )
 
-  const showBodyMapCta = React.useMemo(() => {
-    const sec11 = sections.find((s) => s.sectionNumber === 11)
-    if (!sec11) return false
-    return sec11.questions.some((q) => {
-      const a = draftAnswers[q.id]
-      const flagged = a?.checked === true || a?.booleanValue === true
-      return (
-        flagged &&
-        (q.metadata?.bodyMapModule === true ||
-          q.questionText.toLowerCase().includes('body map') ||
-          q.questionText.toLowerCase().includes('wound'))
-      )
-    })
-  }, [sections, draftAnswers])
+  const showBodyMapCta = React.useMemo(
+    () => skinIntegrityBodyMapGateAnsweredYes(sections, draftAnswers),
+    [sections, draftAnswers],
+  )
 
   const showEmarCta = React.useMemo(() => {
     const sec9 = sections.find((s) => s.sectionNumber === 9)
@@ -1803,11 +1799,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         skipIncompleteValidation ? { skipIncompleteValidation: true } : undefined,
       )
       setSubmitModalOpen(false)
+      setHubTab('schedule')
       toastSuccess(
         'Submitted',
         skipIncompleteValidation
-          ? 'Assessment submitted incomplete — manager review required.'
-          : 'Assessment submitted and locked.',
+          ? 'Assessment submitted incomplete — review schedule for care plan recommendations.'
+          : 'Assessment submitted — review schedule for care plan recommendations.',
       )
     } catch (e) {
       toastApiError(e, 'Submit failed')
@@ -1947,6 +1944,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
             active={hubTab}
             submissionCount={submissionsQuery.data?.length}
             openActionsCount={openActionsCount}
+            carePlanRecommendationCount={carePlanRecommendationCount}
             waterlowScore={submission ? waterlowScore : null}
             onChange={setHubTab}
           />
@@ -2268,6 +2266,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onSyncBodyMap={syncSkinIntegrityFromBodyMap}
                         syncBodyMapLoading={syncBodyMapLoading}
                         onOpenWaterlowTab={goToWaterlowTab}
+                        onOpenSkinIntegrityCheckTab={goToSkinIntegrityCheckTab}
                         onOpenEnvironmentAssessmentTab={goToEnvironmentAssessmentTab}
                         onOpenFallsScreeningTab={goToFallsScreeningTab}
                         onPainAssessmentChange={onPainAssessmentChange}

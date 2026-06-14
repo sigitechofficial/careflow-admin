@@ -120,12 +120,25 @@ export function boolAnswered(value: boolean | null | undefined): boolean {
   return value === true || value === false
 }
 
-export function isFallsScreeningComplete(meta: FallsScreeningMetadata | undefined): boolean {
+export function isFallsScreeningComplete(
+  meta: FallsScreeningMetadata | undefined,
+  options?: { externalConsent?: boolean },
+): boolean {
   if (!meta) return false
   if (!boolAnswered(meta.fallOrConcern)) return false
   if (meta.firstScreenSinceLastFall == null) return false
-  if (!boolAnswered(meta.consentToSixQuestions)) return false
-  if (meta.consentToSixQuestions !== true) return true
+
+  const consentGranted =
+    options?.externalConsent === true ||
+    (boolAnswered(meta.consentToSixQuestions) && meta.consentToSixQuestions === true)
+  const consentDeclined =
+    options?.externalConsent !== true &&
+    boolAnswered(meta.consentToSixQuestions) &&
+    meta.consentToSixQuestions === false
+
+  if (!consentGranted && !consentDeclined) return false
+  if (consentDeclined) return true
+
   return FALLS_SCREENING_TABLE_QUESTIONS.every((q) =>
     boolAnswered(fallsScreeningQuestionValue(meta, q.id)),
   )

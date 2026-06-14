@@ -1,4 +1,5 @@
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
+import { shouldUseSearchableSelect } from '@/shared/utils/searchable-select'
 
 export type QuestionOption = { value: string; label: string }
 
@@ -35,16 +36,47 @@ export function usesServiceUserFundingTypeLookup(question: InitialAssessmentQues
 
 export function usesServiceUserEthnicityLookup(question: InitialAssessmentQuestion): boolean {
   const meta = question.metadata
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return question.questionText.trim() === 'Ethnicity'
+  }
   if (meta.optionsLookup === 'service_user_ethnicities') return true
   return meta.fieldKey === 'ethnicity'
 }
 
 export function usesServiceUserLanguageLookup(question: InitialAssessmentQuestion): boolean {
   const meta = question.metadata
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return question.questionText.trim() === 'Languages spoken'
+  }
   if (meta.optionsLookup === 'service_user_languages') return true
   return meta.fieldKey === 'languagesSpoken'
+}
+
+/** Large service-user / body-map lookup lists — use shared searchable Combobox. */
+export function usesSearchableSingleSelectLookup(question: InitialAssessmentQuestion): boolean {
+  return (
+    usesServiceUserEthnicityLookup(question) ||
+    usesServiceUserLanguageLookup(question) ||
+    usesServiceUserFundingTypeLookup(question) ||
+    usesBodyMapWoundTypeLookup(question)
+  )
+}
+
+export function usesSearchableSingleSelect(
+  question: InitialAssessmentQuestion,
+  options: QuestionOption[],
+): boolean {
+  if (usesSearchableSingleSelectLookup(question)) return true
+  return shouldUseSearchableSelect(options.length)
+}
+
+/** Keep selected value visible while lookup catalog is loading or stale. */
+export function questionOptionsForCombobox(
+  options: QuestionOption[],
+  currentValue: string,
+): QuestionOption[] {
+  if (!currentValue || options.some((o) => o.value === currentValue)) return options
+  return [...options, { value: currentValue, label: currentValue }]
 }
 
 /** Maps service-user lookup rows to IA answer codes (lowercase `code`, same as prefill). */

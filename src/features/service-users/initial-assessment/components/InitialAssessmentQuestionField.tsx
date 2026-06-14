@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+﻿import type { ReactElement } from 'react'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { InitialAssessmentDateInput } from '@/features/service-users/initial-assessment/components/InitialAssessmentDateInput'
@@ -14,11 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { Combobox } from '@/shared/ui/combobox'
 import { cn } from '@/shared/lib/utils'
 import {
   type QuestionOption,
   type QuestionOptionCatalogs,
+  questionOptionsForCombobox,
   resolveQuestionOptions,
+  usesSearchableSingleSelect,
 } from '@/features/service-users/initial-assessment/utils/question-options'
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
 import {
@@ -52,14 +55,18 @@ type Props = {
   disabled?: boolean
   serviceUserId?: string
   submissionId?: string | null
-  /** Compact row styling for §12 panel shells; `simple` = flat §1 profile layout. */
+  /** Compact row styling for ┬º12 panel shells; `simple` = flat ┬º1 profile layout. */
   layout?: 'default' | 'section12' | 'clinicalMeasurement' | 'simple'
   hideLabel?: boolean
+  /** Native textarea (no Summernote) ? e.g. About Me routine grid cells. */
+  plainText?: boolean
   useHolisticLabels?: boolean
   woundTypeCatalog?: QuestionOption[]
   fundingTypeCatalog?: QuestionOption[]
   ethnicityCatalog?: QuestionOption[]
   languageCatalog?: QuestionOption[]
+  /** True while service-user ethnicity/language/funding lookup catalogues are loading. */
+  lookupCatalogLoading?: boolean
   onChange: (patch: InitialAssessmentAnswerInput) => void
 }
 
@@ -90,11 +97,13 @@ export function InitialAssessmentQuestionField({
   submissionId,
   layout = 'default',
   hideLabel = false,
+  plainText = false,
   useHolisticLabels = true,
   woundTypeCatalog,
   fundingTypeCatalog,
   ethnicityCatalog,
   languageCatalog,
+  lookupCatalogLoading = false,
   onChange,
 }: Props) {
   const id = question.id
@@ -284,8 +293,36 @@ export function InitialAssessmentQuestionField({
     )
   }
 
-  if (question.questionType === 'SINGLE_SELECT' && options.length > 0) {
+  if (question.questionType === 'SINGLE_SELECT') {
     const current = selectedValues(value)[0] ?? ''
+    const searchable = usesSearchableSingleSelect(question, options)
+
+    if (searchable) {
+      const comboboxOptions = questionOptionsForCombobox(options, current)
+      return (
+        <div className={fieldShellClass ?? 'space-y-1 p-1'}>
+          {labelEl}
+          <div className={cn(simple && 'w-full min-w-0')}>
+            <Combobox
+              options={comboboxOptions}
+              value={current}
+              onChange={(v) => onChange(toInput(qid, { selectedOptions: v ? [v] : [] }))}
+              placeholder="Select…"
+              searchPlaceholder={`Search ${displayText.toLowerCase()}…`}
+              emptyText="No matches."
+              disabled={disabled}
+              loading={lookupCatalogLoading && comboboxOptions.length === 0}
+              allowDeselect={!question.isRequired}
+              className={cn(simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 max-w-md text-base')}
+            />
+          </div>
+          {fieldMetaFooter}
+        </div>
+      )
+    }
+
+    if (options.length === 0) return null
+
     return (
       <div className={fieldShellClass ?? 'space-y-1 p-1'}>
         {labelEl}
@@ -368,6 +405,7 @@ export function InitialAssessmentQuestionField({
             disabled={disabled}
             rows={simple ? 2 : 3}
             compact={simple}
+            plain={plainText}
             aria-describedby={describedBy}
             placeholder={
               simple ? holisticSimpleTextareaPlaceholder(question.questionText) : undefined

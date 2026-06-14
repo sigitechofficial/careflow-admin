@@ -1,16 +1,40 @@
 ﻿import { ClipboardList } from 'lucide-react'
+import { CarePlanReviewBadge } from '@/features/service-users/care-plans/components/CarePlanReviewBadge'
+import type { CarePlanInstanceDisplayStatus, CarePlanReviewState } from '@/features/service-users/care-plans/types'
 import { StandardIconImage } from '@/shared/ui/standard-icon-image'
+import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 
-/** Care plan tile â€” matches Care 20:20 Figma inactive care plan cards (node 354-10508). */
+function statusBadgeVariant(
+  displayStatus: CarePlanInstanceDisplayStatus | undefined,
+): 'success' | 'warning' | 'secondary' | 'outline' {
+  switch (displayStatus) {
+    case 'PUBLISHED':
+      return 'success'
+    case 'PUBLISHED_WITH_DRAFT':
+      return 'secondary'
+    case 'DRAFT':
+      return 'warning'
+    default:
+      return 'outline'
+  }
+}
+
+/** Care plan tile — matches Care 20:20 Figma inactive care plan cards (node 354-10508). */
 export function CarePlanCard({
   title,
   pictureUrl,
   onOpen,
+  statusLabel,
+  displayStatus,
+  review,
 }: {
   title: string
   pictureUrl?: string | null
   onOpen: () => void
+  statusLabel?: string | null
+  displayStatus?: CarePlanInstanceDisplayStatus
+  review?: CarePlanReviewState | null
 }) {
   return (
     <button
@@ -39,7 +63,19 @@ export function CarePlanCard({
             />
           )}
         </div>
-        <p className="flex-1 text-[13px] font-normal leading-snug text-[#1e293b]">{title}</p>
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-[13px] font-normal leading-snug text-[#1e293b]">{title}</p>
+          {statusLabel || review ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {statusLabel ? (
+                <Badge variant={statusBadgeVariant(displayStatus)} size="sm" className="font-normal">
+                  {statusLabel}
+                </Badge>
+              ) : null}
+              <CarePlanReviewBadge review={review} compact />
+            </div>
+          ) : null}
+        </div>
       </div>
     </button>
   )

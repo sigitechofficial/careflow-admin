@@ -72,6 +72,8 @@ export async function saveCareFormSchema(
       helpText?: string
       required?: boolean
       sortOrder: number
+      optionsJson?: { options: string[] } | null
+      conditionalLogicJson?: Record<string, unknown> | null
     }[]
   }[],
 ): Promise<CareFormDetail> {

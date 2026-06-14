@@ -32,6 +32,8 @@ import {
 type Props = {
   value: FallsScreeningMetadata
   disabled?: boolean
+  /** When true, consent is captured outside this panel (assessment completion flow). */
+  hideEmbeddedConsent?: boolean
   onChange: (next: FallsScreeningMetadata) => void
 }
 
@@ -124,7 +126,12 @@ function HeaderYesNoNaRow({
   )
 }
 
-export function InitialAssessmentFallsScreeningPanel({ value, disabled, onChange }: Props) {
+export function InitialAssessmentFallsScreeningPanel({
+  value,
+  disabled,
+  hideEmbeddedConsent = false,
+  onChange,
+}: Props) {
   const patch = (partial: Partial<FallsScreeningMetadata>) => onChange({ ...value, ...partial })
 
   const patchQuestion = (id: FallsScreeningQuestionId, answer: boolean) => {
@@ -140,7 +147,8 @@ export function InitialAssessmentFallsScreeningPanel({ value, disabled, onChange
   }
 
   const activeActions = computeFallsScreeningActions(value)
-  const screeningTableEnabled = value.consentToSixQuestions === true
+  const screeningTableEnabled =
+    hideEmbeddedConsent || value.consentToSixQuestions === true
 
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-falls-screening-panel">
@@ -149,7 +157,9 @@ export function InitialAssessmentFallsScreeningPanel({ value, disabled, onChange
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
           <section className="space-y-3">
-            {FALLS_SCREENING_HEADER_QUESTIONS.map((q) => {
+            {FALLS_SCREENING_HEADER_QUESTIONS.filter(
+              (q) => !(hideEmbeddedConsent && q.id === 'consentToSixQuestions'),
+            ).map((q) => {
               if (q.kind === 'yesNoNa') {
                 return (
                   <HeaderYesNoNaRow
@@ -198,11 +208,11 @@ export function InitialAssessmentFallsScreeningPanel({ value, disabled, onChange
           </section>
 
           <section className="space-y-3">
-            {value.consentToSixQuestions === false ? (
+            {!hideEmbeddedConsent && value.consentToSixQuestions === false ? (
               <p className={cn('text-sm', IA_HINT_CLASS)}>
                 Client did not consent to the six screening questions — table answers are not required.
               </p>
-            ) : value.consentToSixQuestions == null ? (
+            ) : !hideEmbeddedConsent && value.consentToSixQuestions == null ? (
               <p className={cn('text-sm', IA_HINT_CLASS)}>
                 Record consent above before completing the six screening questions.
               </p>

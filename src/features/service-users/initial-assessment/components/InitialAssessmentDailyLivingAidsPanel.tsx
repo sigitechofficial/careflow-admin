@@ -89,43 +89,23 @@ export function InitialAssessmentDailyLivingAidsPanel({
           patch({
             furtherEquipmentRequired: v,
             furtherEquipmentDetails: v ? value.furtherEquipmentDetails : '',
-            equipmentOrdered: v ? value.equipmentOrdered : null,
-            equipmentOrderedDate: v ? value.equipmentOrderedDate : '',
           })
         }
       />
 
       {value.furtherEquipmentRequired === true ? (
-        <>
-          <InitialAssessmentSection12FieldRow>
-            <Label htmlFor="daily-living-further-details" className={IA_QUESTION_LABEL_CLASS}>
-              {paperSection7 ? 'If YES provide further details' : 'If yes, provide further details'}
-            </Label>
-            <Textarea
-              id="daily-living-further-details"
-              className={cn('mt-1.5', IA_FORM_TEXTAREA_COMPACT_CLASS)}
-              disabled={disabled}
-              value={value.furtherEquipmentDetails ?? ''}
-              onChange={(e) => patch({ furtherEquipmentDetails: e.target.value })}
-            />
-          </InitialAssessmentSection12FieldRow>
-          <InitialAssessmentYesNoCardField
-            label="Equipment ordered"
-            name="daily-living-equipment-ordered"
-            value={value.equipmentOrdered ?? null}
+        <InitialAssessmentSection12FieldRow>
+          <Label htmlFor="daily-living-further-details" className={IA_QUESTION_LABEL_CLASS}>
+            {paperSection7 ? 'If YES provide further details' : 'If yes, provide further details'}
+          </Label>
+          <Textarea
+            id="daily-living-further-details"
+            className={cn('mt-1.5', IA_FORM_TEXTAREA_COMPACT_CLASS)}
             disabled={disabled}
-            dateLabel="Date ordered"
-            dateValue={value.equipmentOrderedDate ?? undefined}
-            dateDisabled={value.equipmentOrdered !== true}
-            onChange={(v) =>
-              patch({
-                equipmentOrdered: v,
-                equipmentOrderedDate: v ? value.equipmentOrderedDate : '',
-              })
-            }
-            onDateChange={(iso) => patch({ equipmentOrderedDate: iso })}
+            value={value.furtherEquipmentDetails ?? ''}
+            onChange={(e) => patch({ furtherEquipmentDetails: e.target.value })}
           />
-        </>
+        </InitialAssessmentSection12FieldRow>
       ) : null}
 
       <InitialAssessmentSection12FieldRow>
@@ -138,6 +118,33 @@ export function InitialAssessmentDailyLivingAidsPanel({
           disabled={disabled}
           value={value.additionalComments ?? ''}
           onChange={(e) => patch({ additionalComments: e.target.value })}
+        />
+      </InitialAssessmentSection12FieldRow>
+
+      <InitialAssessmentYesNoCardField
+        label="Equipment ordered"
+        name="daily-living-equipment-ordered"
+        value={value.equipmentOrdered ?? null}
+        disabled={disabled}
+        showDivider={false}
+        onChange={(v) =>
+          patch({
+            equipmentOrdered: v,
+            equipmentOrderedDate: v ? value.equipmentOrderedDate : '',
+          })
+        }
+      />
+
+      <InitialAssessmentSection12FieldRow>
+        <Label htmlFor="daily-living-equipment-ordered-comments" className={IA_QUESTION_LABEL_CLASS}>
+          Equipment ordered comments
+        </Label>
+        <Textarea
+          id="daily-living-equipment-ordered-comments"
+          className={cn('mt-1.5', IA_FORM_TEXTAREA_COMPACT_CLASS)}
+          disabled={disabled}
+          value={value.equipmentOrderedComments ?? ''}
+          onChange={(e) => patch({ equipmentOrderedComments: e.target.value })}
         />
       </InitialAssessmentSection12FieldRow>
         </>

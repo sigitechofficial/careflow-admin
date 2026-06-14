@@ -40,7 +40,27 @@ const SECTION_1_ACT_DIVIDERS: Record<string, { title: string; hint?: string }> =
   },
   '1.3': {
     title: 'Person-centred preferences',
-    hint: 'Linked to About Me tab — expand in assessment where needed.',
+    hint: 'What matters, goals, routines, and boundaries — complements the About Me profile above.',
+  },
+  '1.4': {
+    title: 'Daily routine',
+    hint: 'Morning, meals, personal care preferences, and known triggers.',
+  },
+  '1.5': {
+    title: 'Likes and dislikes',
+    hint: 'Food, activities, and care preferences.',
+  },
+  '1.6': {
+    title: 'Dignity and privacy',
+    hint: 'Personal care boundaries and how staff should address the person.',
+  },
+  '1.7': {
+    title: 'Equality and cultural needs',
+    hint: 'Religion, culture, dietary requirements, and reasonable adjustments.',
+  },
+  '1.8': {
+    title: 'Accessible care needs',
+    hint: 'Communication format, interpreter, and sensory support.',
   },
 }
 
@@ -49,6 +69,13 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '1.1': 'Personal Details',
   '1.2': 'Section 3 — Social history',
   '1.3': '1.3 What matters to the Service User',
+  '1.3a': 'About Me',
+  '1.3b': 'Interests',
+  '1.3c': 'My Life History',
+  '1.3d': 'My Daily Routine',
+  '1.3e': 'Support I Need',
+  '1.3f': 'My Favourite Things',
+  '1.3g': 'Identification Characteristics',
   '1.4': '1.4 Daily routine',
   '1.5': '1.5 Likes and dislikes',
   '1.6': '1.6 Dignity and privacy',

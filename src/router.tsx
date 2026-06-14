@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import {
   Outlet,
   RouterProvider,
@@ -25,7 +25,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
 import type { Permission } from '@/features/auth/types'
 
-// ── Service-user pages (canonical) ──────────────────────────────────────────
+// ΓöÇΓöÇ Service-user pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ServiceUsersPage from '@/features/service-users/pages/ServiceUsersPage'
 import InitialAssessmentChecklistPage from '@/features/service-users/pages/InitialAssessmentChecklistPage'
 import ServiceUserInitialAssessmentEnterprisePage from '@/features/service-users/initial-assessment/pages/ServiceUserInitialAssessmentEnterprisePage'
@@ -41,14 +41,15 @@ import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceU
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
 import InitialAssessmentReviewQueuePage from '@/features/service-users/initial-assessment/pages/InitialAssessmentReviewQueuePage'
+import AssessmentReviewQueuePage from '@/features/service-users/assessments/pages/AssessmentReviewQueuePage'
 
-// ── Employee pages (canonical) ───────────────────────────────────────────────
+// ΓöÇΓöÇ Employee pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import EmployeePage from '@/features/employees/pages/EmployeePage'
 import GeneralEmployeeDocumentsPage from '@/features/employees/pages/GeneralEmployeeDocumentsPage'
 import AddEmployeePage from '@/features/employees/pages/AddEmployeePage'
 import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
 
-// ── Scheduling pages (canonical) ─────────────────────────────────────────────
+// ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
 import SchedulingReportPage from '@/features/scheduling/pages/SchedulingReportPage'
 import ManageScheduleJobsPage from '@/features/scheduling/pages/ManageScheduleJobsPage'
@@ -56,13 +57,13 @@ import BuildSchedulePage from '@/features/scheduling/pages/BuildSchedulePage'
 import ScheduleListPage from '@/features/scheduling/pages/ScheduleListPage'
 import ScheduleTemplatesPage from '@/features/scheduling/pages/ScheduleTemplatesPage'
 
-// ── Auth pages ────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Auth pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import LoginPage from '@/features/auth/pages/LoginPage'
 import ForgotPasswordPage from '@/features/auth/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/pages/ResetPasswordPage'
 import BlockedIpPage from '@/features/auth/pages/BlockedIpPage'
 
-// ── Account, home, admin, accidents ───────────────────────────────────────────
+// ΓöÇΓöÇ Account, home, admin, accidents ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
 import InProgressPage from '@/features/home/pages/InProgressPage'
@@ -72,7 +73,7 @@ import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 
-// ── Settings pages ────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Settings pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import SettingsPage from '@/features/settings/pages/SettingsPage'
 import GeneralSettingsPage from '@/features/settings/pages/GeneralSettingsPage'
 import type { GeneralSettingsTabId } from '@/features/settings/pages/GeneralSettingsPage'
@@ -81,7 +82,7 @@ import LocationManagementPage from '@/features/settings/pages/LocationManagement
 import CarePathwayPage from '@/features/settings/pages/CarePathwayPage'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 
-// ── Calendar + employee misc ──────────────────────────────────────────────────
+// ΓöÇΓöÇ Calendar + employee misc ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import CalendarPage from '@/features/service-users/calendar/pages/CalendarPage'
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
@@ -613,6 +614,13 @@ const initialAssessmentReviewQueueRoute = createRoute({
   component: InitialAssessmentReviewQueuePage,
 })
 
+const assessmentReviewQueueRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/assessments/review-queue',
+  beforeLoad: requirePermission('service_users.assessments.read'),
+  component: AssessmentReviewQueuePage,
+})
+
 const serviceUsersEditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId',
@@ -808,7 +816,7 @@ const accidentsIncidentsViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/view',
   beforeLoad: requirePermission('incidents.read'),
-  // UI-only register page — no list API to prefetch yet
+  // UI-only register page ΓÇö no list API to prefetch yet
   component: ViewAccidentsIncidentsPage,
 })
 
@@ -816,7 +824,7 @@ const accidentsIncidentsRaiseRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/raise',
   beforeLoad: requirePermission('incidents.read'),
-  // UI-only form page — no lookup API to prefetch yet
+  // UI-only form page ΓÇö no lookup API to prefetch yet
   component: RaiseAccidentsIncidentsPage,
 })
 
@@ -833,7 +841,7 @@ const adminSecurityRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/security',
   beforeLoad: requirePermission('security.admin'),
-  // Client-side auth store demo — no server security config API
+  // Client-side auth store demo ΓÇö no server security config API
   component: SecurityAdminPage,
 })
 
@@ -1015,6 +1023,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersBodyMapRoute,
     bodyMapReviewQueueRoute,
     initialAssessmentReviewQueueRoute,
+    assessmentReviewQueueRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
     schedulingReportRoute,

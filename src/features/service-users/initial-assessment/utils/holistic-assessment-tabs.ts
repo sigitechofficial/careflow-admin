@@ -1,5 +1,6 @@
-import type { InitialAssessmentQuestion, InitialAssessmentSection } from '@/features/service-users/initial-assessment/types'
+﻿import type { InitialAssessmentQuestion, InitialAssessmentSection } from '@/features/service-users/initial-assessment/types'
 import { specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import { isAboutMeIaSpecRef } from '@/features/service-users/initial-assessment/utils/about-me-ia-questions'
 import type { SectionNavStatus } from '@/features/service-users/initial-assessment/utils/validation-maps'
 import type { ValidationIssue } from '@/features/service-users/initial-assessment/utils/submit-validation'
 import {
@@ -38,8 +39,10 @@ export type SectionQuestionFilter = {
   questionTextsOnly?: string[]
   includeQuestionTexts?: string[]
   additionalSpecRefs?: string[]
-  /** Tab 1 — render paper Section 7 ADL block (enterprise §12 worksheet + footer). */
+  /** Tab 1 ΓÇö render paper Section 7 ADL block (enterprise ┬º12 worksheet + footer). */
   paperSection7Adl?: boolean
+  /** Tab 1 ΓÇö embed profile About Me editor (service user references). */
+  aboutMeEmbed?: boolean
 }
 
 export type HolisticAssessmentTab = {
@@ -54,15 +57,15 @@ export type HolisticAssessmentTab = {
   questionTextsOnly?: string[]
   includeQuestionTexts?: string[]
   additionalSpecRefs?: string[]
-  /** Tab 1 — stacked enterprise sections from the main assessment pages. */
+  /** Tab 1 ΓÇö stacked enterprise sections from the main assessment pages. */
   multiSections?: Array<{ sectionNumber: number } & SectionQuestionFilter>
-  /** §12 panel blocks for Practical Task / Equipment / Falls / Moving & Handling tabs. */
+  /** ┬º12 panel blocks for Practical Task / Equipment / Falls / Moving & Handling tabs. */
   section12Blocks?: Section12PanelBlock[]
   placeholderHint?: string
 }
 
 /**
- * Table of Contents — Initial Holistic Assessment and Care Needs Assessment.
+ * Table of Contents ΓÇö Initial Holistic Assessment and Care Needs Assessment.
  * Order matches the reference document (image 1).
  */
 export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
@@ -73,6 +76,13 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
     enterpriseSection: 1,
     multiSections: [
       { sectionNumber: 1, specRefs: ['1.1'] },
+      { sectionNumber: 1, aboutMeEmbed: true },
+      { sectionNumber: 1, specRefs: ['1.3'] },
+      { sectionNumber: 1, specRefs: ['1.4'] },
+      { sectionNumber: 1, specRefs: ['1.5'] },
+      { sectionNumber: 1, specRefs: ['1.6'] },
+      { sectionNumber: 1, specRefs: ['1.7'] },
+      { sectionNumber: 1, specRefs: ['1.8'] },
       {
         sectionNumber: 1,
         questionTextsOnly: ['Reason for admission / starting care'],
@@ -82,7 +92,7 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
         questionTextsOnly: ['Previous medical history (summary)', 'Allergies (summary)'],
       },
       { sectionNumber: 1, specRefs: ['1.2'] },
-      { sectionNumber: 4, excludeSpecRefs: ['4.7', '4.10'] },
+      { sectionNumber: 4 },
       { sectionNumber: 5 },
       { sectionNumber: 6, specRefs: ['6.1'] },
       { sectionNumber: 6, specRefs: ['6.2'] },
@@ -135,8 +145,6 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
         sectionNumber: 10,
         questionTextsOnly: ['Emotional health comments'],
       },
-      { sectionNumber: 4, specRefs: ['4.10'] },
-      { sectionNumber: 4, specRefs: ['4.7'] },
       { sectionNumber: 11, excludeSpecRefs: ['11.4'] },
       { sectionNumber: 12, paperSection7Adl: true },
     ],
@@ -324,6 +332,9 @@ export function holisticMultiSectionSliceKey(
   if (slice.paperSection7Adl) {
     return `${tabId}-sec-${slice.sectionNumber}-paper-7-adl`
   }
+  if (slice.aboutMeEmbed) {
+    return `${tabId}-about-me-embed`
+  }
   return `${tabId}-sec-${slice.sectionNumber}-full-${index}`
 }
 
@@ -418,6 +429,11 @@ export function questionsForDocumentTab(
     const out: InitialAssessmentQuestion[] = []
     for (const slice of tab.multiSections) {
       if (slice.paperSection7Adl) continue
+      if (slice.aboutMeEmbed) {
+        const visible = visibleQuestionsBySection.get(1) ?? []
+        out.push(...visible.filter((q) => isAboutMeIaSpecRef(specRefOf(q) ?? '')))
+        continue
+      }
       const visible = visibleQuestionsBySection.get(slice.sectionNumber) ?? []
       out.push(...filterQuestionsForHolisticTab(visible, slice))
     }

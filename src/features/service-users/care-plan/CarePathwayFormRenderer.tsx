@@ -13,6 +13,17 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import type { CarePlanDraftValues } from './care-plan-draft-storage'
+import {
+  parseFieldOptions,
+  parseMultiSelectValue,
+  serializeMultiSelectValue,
+} from '@/features/care-pathway/utils/form-builder-field-options.util'
+import { isFieldVisible } from '@/features/care-pathway/utils/form-builder-conditional-logic.util'
+import {
+  CarePathwayFileUploadField,
+  CarePathwayPhotoField,
+  CarePathwaySignatureField,
+} from '@/features/service-users/care-plan/CarePathwayMediaFields'
 import { RichTextEditor } from '@/shared/ui/rich-text-editor'
 import { SummernoteEditor } from '@/shared/ui/summernote-editor'
 
@@ -21,15 +32,7 @@ function fieldKey(sectionId: string, fieldId: string) {
 }
 
 function parseSelectOptions(optionsJson: unknown): string[] {
-  if (!optionsJson) return []
-  if (Array.isArray(optionsJson)) {
-    return optionsJson.map(o => (typeof o === 'string' ? o : String(o))).filter(Boolean)
-  }
-  if (typeof optionsJson === 'object' && optionsJson !== null && 'options' in optionsJson) {
-    const opts = (optionsJson as { options: unknown }).options
-    if (Array.isArray(opts)) return opts.map(o => String(o))
-  }
-  return []
+  return parseFieldOptions(optionsJson)
 }
 
 function CarePathwayFieldInput({
@@ -87,6 +90,33 @@ function CarePathwayFieldInput({
     )
   }
 
+  if (type === 'MULTI_SELECT') {
+    const options = parseSelectOptions(field.optionsJson)
+    const selected = parseMultiSelectValue(value)
+    return (
+      <div className="flex flex-wrap gap-3">
+        {options.map((option) => {
+          const checked = selected.includes(option)
+          return (
+            <label key={option} className="inline-flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={checked}
+                disabled={disabled}
+                onCheckedChange={(next) => {
+                  const nextSelected = next
+                    ? [...selected, option]
+                    : selected.filter((item) => item !== option)
+                  onChange(serializeMultiSelectValue(nextSelected))
+                }}
+              />
+              <span>{option}</span>
+            </label>
+          )
+        })}
+      </div>
+    )
+  }
+
   if (type === 'TEXTAREA') {
     return (
       <textarea
@@ -123,6 +153,36 @@ function CarePathwayFieldInput({
     )
   }
 
+  if (type === 'PHOTO') {
+    return (
+      <CarePathwayPhotoField
+        value={value}
+        onChange={(next) => onChange(next)}
+        disabled={disabled}
+      />
+    )
+  }
+
+  if (type === 'FILE_UPLOAD') {
+    return (
+      <CarePathwayFileUploadField
+        value={value}
+        onChange={(next) => onChange(next)}
+        disabled={disabled}
+      />
+    )
+  }
+
+  if (type === 'SIGNATURE') {
+    return (
+      <CarePathwaySignatureField
+        value={value}
+        onChange={(next) => onChange(next)}
+        disabled={disabled}
+      />
+    )
+  }
+
   const inputType =
     type === 'NUMBER'
       ? 'number'
@@ -140,6 +200,17 @@ function CarePathwayFieldInput({
       placeholder={field.placeholder ?? undefined}
       disabled={disabled}
     />
+  )
+}
+
+function SectionTextBlock({ field }: { field: CareFormFieldRow }) {
+  return (
+    <div className="rounded-sm border border-sky-100 bg-sky-50/40 px-3 py-3 text-sm leading-relaxed text-muted-foreground">
+      {field.label?.trim() ? <p className="font-medium text-foreground">{field.label}</p> : null}
+      {field.helpText?.trim() ? (
+        <p className={field.label?.trim() ? 'mt-2' : undefined}>{field.helpText}</p>
+      ) : null}
+    </div>
   )
 }
 
@@ -168,6 +239,9 @@ export function CarePathwayFormRenderer({
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6">
+        {form.description?.trim() && !embedded ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">{form.description}</p>
+        ) : null}
       {form.sections.map(section => (
         <section
           key={section.id}
@@ -181,9 +255,19 @@ export function CarePathwayFormRenderer({
           ) : null}
           <div className="mt-4 space-y-4">
             {section.fields.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No fields in this section.</p>
+              section.description ? null : (
+                <p className="text-sm text-muted-foreground">No fields in this section.</p>
+              )
             ) : (
               section.fields.map(field => {
+                if (field.fieldType === 'SECTION_TEXT') {
+                  return <SectionTextBlock key={field.id} field={field} />
+                }
+
+                if (!isFieldVisible(field, values)) {
+                  return null
+                }
+
                 const key = fieldKey(section.id, field.id)
                 const tooltip = field.helpText?.trim()
                 return (

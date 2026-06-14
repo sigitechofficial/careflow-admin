@@ -26,6 +26,8 @@ function filterByCanonical(
 
   return questions.filter((q) => {
     if (!isSectionQuestion(q)) return true
+    const meta = q.metadata
+    if (meta && typeof meta === 'object' && meta.aboutMeProfileField === true) return true
     return allowed.has(q.questionText.trim())
   })
 }
@@ -110,7 +112,11 @@ export const SECTION_4_CANONICAL_QUESTION_TEXT = [
   'General physical wellbeing comment',
   'Build type (frail / small / medium / large / obese)',
   'Height band or height (cm)',
+  'Unable to weigh using standard scales?',
   'Weight (kg)',
+  'Reason unable to weigh',
+  'Mid upper arm circumference (MUAC) (cm)',
+  'MUAC nutritional risk band',
   'Physical assessment additional comments',
 ] as const
 
@@ -188,6 +194,7 @@ export const SECTION_11_CANONICAL_QUESTION_TEXT = [
   'Pressure relieving equipment in use?',
   'Pressure equipment details',
   'Further pressure equipment required?',
+  'Further pressure equipment comment',
   'Equipment ordered?',
   'Date equipment ordered',
   'Pressure equipment order additional comments',

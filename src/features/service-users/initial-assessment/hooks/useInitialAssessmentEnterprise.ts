@@ -206,6 +206,12 @@ export function useSubmitInitialAssessment(serviceUserId: string, submissionId: 
       void qc.invalidateQueries({
         queryKey: initialAssessmentKeys.riskRecords(serviceUserId, submissionId),
       })
+      void qc.invalidateQueries({
+        queryKey: initialAssessmentKeys.summary(serviceUserId, submissionId),
+      })
+      void qc.invalidateQueries({
+        queryKey: initialAssessmentKeys.acceptedCarePlans(serviceUserId),
+      })
     },
   })
 }

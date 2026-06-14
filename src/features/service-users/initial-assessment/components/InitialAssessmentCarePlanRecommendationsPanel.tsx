@@ -1,9 +1,12 @@
 import * as React from 'react'
-import { FileText } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/shared/ui/button'
 import { decideInitialAssessmentCarePlanRecommendation } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
+import { createCarePlanDraftFromCompose } from '@/features/service-users/care-plans/api'
+import { serviceUserKeys } from '@/features/service-users/keys'
 import type {
   CarePlanRecommendation,
   InitialAssessmentStatus,
@@ -29,6 +32,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   onGoToSection,
 }: Props) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [activeRec, setActiveRec] = React.useState<CarePlanRecommendation | null>(null)
   const [mode, setMode] = React.useState<'accept' | 'decline'>('accept')
@@ -55,6 +59,19 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
       setActiveRec(null)
     },
     onError: (e) => toastApiError(e, 'Could not save decision'),
+  })
+
+  const createDraftMutation = useMutation({
+    mutationFn: (formId: string) => createCarePlanDraftFromCompose(serviceUserId, formId),
+    onSuccess: (_data, formId) => {
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
+      toastSuccess('Draft created', 'Care plan draft prefilled from assessment sources.')
+      void navigate({
+        to: '/service-users/$serviceUserId/care-plan/forms/$formId',
+        params: { serviceUserId, formId },
+      })
+    },
+    onError: (e) => toastApiError(e, 'Could not create care plan draft'),
   })
 
   const openDialog = (rec: CarePlanRecommendation, nextMode: 'accept' | 'decline') => {
@@ -158,9 +175,25 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                     </Button>
                   </div>
                 ) : rec.status === 'accepted' ? (
-                  <Button type="button" variant="outline" size="sm" disabled title="Care plan draft in a later phase">
-                    Create care plan
-                  </Button>
+                  rec.carePathwayFormId ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={createDraftMutation.isPending}
+                      onClick={() => void createDraftMutation.mutateAsync(rec.carePathwayFormId!)}
+                    >
+                      {createDraftMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Create care plan'
+                      )}
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm" disabled title="No care plan form linked">
+                      Create care plan
+                    </Button>
+                  )
                 ) : null}
               </div>
             </li>

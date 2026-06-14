@@ -1,5 +1,7 @@
 import type { TherapyAideMemoireMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 
+export type { TherapyAideMemoireMetadata }
+
 export const THERAPY_AIDE_MEMOIRE_SCREENING_ITEMS: {
   key: keyof Omit<
     TherapyAideMemoireMetadata,

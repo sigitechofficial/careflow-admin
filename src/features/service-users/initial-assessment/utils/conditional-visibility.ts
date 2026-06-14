@@ -65,24 +65,12 @@ const INFERRED_RULES: { questionTextIncludes: string; when: ShowWhenRule }[] = [
     when: { gateTextIncludes: 'requires aids for eating or drinking', yes: true },
   },
   {
-    questionTextIncludes: 'skin condition comment',
-    when: { gateTextIncludes: 'skin condition or concern', yes: true },
-  },
-  {
-    questionTextIncludes: 'ulcers or wounds comment',
-    when: { gateTextIncludes: 'currently has ulcers or wounds', yes: true },
-  },
-  {
     questionTextIncludes: 'wound type',
     when: { gateTextIncludes: 'currently has ulcers or wounds', yes: true },
   },
   {
     questionTextIncludes: 'has wound assessment been completed',
     when: { gateTextIncludes: 'currently has ulcers or wounds', yes: true },
-  },
-  {
-    questionTextIncludes: 'pressure equipment details',
-    when: { gateTextIncludes: 'pressure relieving equipment in use', yes: true },
   },
   { questionTextIncludes: 'equipment ordered', when: { gateTextIncludes: 'further pressure equipment required', yes: true } },
   { questionTextIncludes: 'date equipment ordered', when: { gateTextIncludes: 'equipment ordered', yes: true } },
@@ -179,6 +167,12 @@ export function shouldShowQuestion(
   const inferred = inferredRuleForQuestion(q)
   if (inferred) return gateAnswerMatches(sections, inferred, draftAnswers)
 
+  const fieldKey = typeof q.metadata?.fieldKey === 'string' ? q.metadata.fieldKey : undefined
+  if (fieldKey === 'weightKg' || q.questionText.trim().toLowerCase() === 'weight (kg)') {
+    const unableGate = findQuestionByFieldKey(sections, 'unableToWeigh')
+    if (unableGate && isYesAnswer(draftAnswers[unableGate.id])) return false
+  }
+
   // Capacity not intact → surface MCA block when capacity is No
   if (q.questionText.toLowerCase().includes('mca completed')) {
     const capacityQ = sections.flatMap((s) => s.questions).find((x) => x.metadata?.specRef === '2.4')
@@ -186,7 +180,6 @@ export function shouldShowQuestion(
   }
 
   // Assessor sign-off fields only on section 14
-  const fieldKey = q.metadata?.fieldKey
   if (typeof fieldKey === 'string' && ['assessorName', 'assessorRole', 'assessorSignDate'].includes(fieldKey)) {
     return sections.some((s) => s.sectionNumber === 14 && s.questions.some((x) => x.id === q.id))
   }

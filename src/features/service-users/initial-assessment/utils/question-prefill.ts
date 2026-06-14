@@ -4,7 +4,7 @@ import {
   type CodeNameLookupRow,
   resolveStoredLookupCode,
 } from '@/features/service-users/utils/service-user-profile-lookup-rows'
-import { parseAboutMeFromReferences } from '@/features/service-users/service-user-about-me'
+import { parseAboutMeFromReferences, ROUTINE_DAYS, ROUTINE_SLOTS } from '@/features/service-users/service-user-about-me'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
 import type {
@@ -120,6 +120,49 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
   const ethnicityStored = profileReferenceValue(detail, PROFILE_REF_ETHNICITY)
   const languageStored = profileReferenceValue(detail, PROFILE_REF_LANGUAGE)
 
+  const aboutMePrefill: Record<string, string> = {
+    aboutMe_whatIsMostImportantToMe: about.whatIsMostImportantToMe?.trim() ?? '',
+    aboutMe_peopleImportantToMe: about.peopleImportantToMe?.trim() ?? '',
+    aboutMe_externalAboutMeUrl: about.externalAboutMeUrl?.trim() ?? '',
+    aboutMe_howICommunicate: about.howICommunicate?.trim() ?? '',
+    aboutMe_myWellness: about.myWellness?.trim() ?? '',
+    aboutMe_whatMakesAGoodDay: about.whatMakesAGoodDay?.trim() ?? '',
+    aboutMe_whatMakesMeHappy: about.whatMakesMeHappy?.trim() ?? '',
+    aboutMe_whatMakesMeUnhappy: about.whatMakesMeUnhappy?.trim() ?? '',
+    aboutMe_whatMakesABadDay: about.whatMakesABadDay?.trim() ?? '',
+    aboutMe_howAndWhenToSupportMe: about.howAndWhenToSupportMe?.trim() ?? '',
+    aboutMe_alsoWorthKnowing: about.alsoWorthKnowing?.trim() ?? '',
+    aboutMe_supportedToWriteThisBy: about.supportedToWriteThisBy?.trim() ?? '',
+    aboutMe_hobbiesAndInterests: about.hobbiesAndInterests?.trim() ?? '',
+    aboutMe_religiousSpiritualPreferences: about.religiousSpiritualPreferences?.trim() ?? '',
+    aboutMe_whereIAmFrom: about.whereIAmFrom?.trim() ?? '',
+    aboutMe_whatILikeToTalkAbout: about.whatILikeToTalkAbout?.trim() ?? '',
+    aboutMe_familyAndFriends: about.familyAndFriends?.trim() ?? '',
+    aboutMe_myChildhood: about.myChildhood?.trim() ?? '',
+    aboutMe_myEducation: about.myEducation?.trim() ?? '',
+    aboutMe_myOccupation: about.myOccupation?.trim() ?? '',
+    aboutMe_myAdulthood: about.myAdulthood?.trim() ?? '',
+    aboutMe_lifeHistoryFavourites: about.lifeHistoryFavourites?.trim() ?? '',
+    aboutMe_personalHygiene: about.personalHygiene?.trim() ?? '',
+    aboutMe_domesticSupport: about.domesticSupport?.trim() ?? '',
+    aboutMe_shoppingArrangements: about.shoppingArrangements?.trim() ?? '',
+    aboutMe_nightSupport: about.nightSupport?.trim() ?? '',
+    aboutMe_supportOther: about.supportOther?.trim() ?? '',
+    aboutMe_foodDrinksLike: about.foodDrinksLike?.trim() ?? '',
+    aboutMe_foodDrinksDontLike: about.foodDrinksDontLike?.trim() ?? '',
+    aboutMe_favouriteItems: about.favouriteItems?.trim() ?? '',
+    aboutMe_tvProgrammes: about.tvProgrammes?.trim() ?? '',
+    aboutMe_favouriteActivities: about.favouriteActivities?.trim() ?? '',
+    aboutMe_favouriteRooms: about.favouriteRooms?.trim() ?? '',
+    aboutMe_favouriteOther: about.favouriteOther?.trim() ?? '',
+    aboutMe_identificationCharacteristics: about.identificationCharacteristics?.trim() ?? '',
+  }
+  for (const day of ROUTINE_DAYS) {
+    for (const slot of ROUTINE_SLOTS) {
+      aboutMePrefill[`aboutMe_routine_${day}_${slot}`] = about.routine[day][slot]?.trim() ?? ''
+    }
+  }
+
   const values: Record<string, string> = {
     firstName: detail.firstName?.trim() ?? '',
     middleName: detail.middleName?.trim() ?? '',
@@ -157,6 +200,9 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
   }
 
   for (const [key, val] of Object.entries(values)) {
+    setIfNonEmpty(map, key, val)
+  }
+  for (const [key, val] of Object.entries(aboutMePrefill)) {
     setIfNonEmpty(map, key, val)
   }
 

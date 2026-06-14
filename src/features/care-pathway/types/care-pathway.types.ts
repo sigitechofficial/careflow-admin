@@ -77,6 +77,7 @@ export type CareFormFieldRow = {
   required: boolean
   optionsJson: unknown
   validationJson: Record<string, unknown> | null
+  conditionalLogicJson: Record<string, unknown> | null
   sortOrder: number
 }
 

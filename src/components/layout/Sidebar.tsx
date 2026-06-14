@@ -166,6 +166,13 @@ const navItems: NavItem[] = [
         permission: 'service_users.initial_assessment.review',
         navTestId: 'nav-initial-assessments-review-queue',
       },
+      {
+        label: 'Assessment review queue',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/assessments/review-queue',
+        permission: 'service_users.assessments.read',
+        navTestId: 'nav-assessments-review-queue',
+      },
       { label: 'Add Service User',              icon: <UserRoundPlus className="h-4 w-4" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
     ],
   },

@@ -16,6 +16,7 @@ import { InitialAssessmentSection12Content } from '@/features/service-users/init
 import { InitialAssessmentPaperSection4Block } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection4Block'
 import { InitialAssessmentPaperSection5EmotionalBlock } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection5EmotionalBlock'
 import { InitialAssessmentPaperSection7AdlBlock } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection7AdlBlock'
+import { InitialAssessmentAboutMeSection } from '@/features/service-users/initial-assessment/components/InitialAssessmentAboutMeSection'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentTotalSkinIntegrityCheckPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTotalSkinIntegrityCheckPanel'
@@ -121,6 +122,7 @@ type Props = {
   onOpenWaterlowTab?: () => void
   onOpenEnvironmentAssessmentTab?: () => void
   onOpenFallsScreeningTab?: () => void
+  onOpenSkinIntegrityCheckTab?: () => void
   onPainAssessmentChange: (next: PainAssessmentMetadata) => void
   onWaterlowChange: (next: WaterlowMetadata) => void
   onMustAssessmentChange: (next: MustMetadata) => void
@@ -196,6 +198,7 @@ export function InitialAssessmentDocumentTabContent({
   onOpenWaterlowTab,
   onOpenEnvironmentAssessmentTab,
   onOpenFallsScreeningTab,
+  onOpenSkinIntegrityCheckTab,
   onPainAssessmentChange,
   onWaterlowChange,
   onMustAssessmentChange,
@@ -501,6 +504,9 @@ export function InitialAssessmentDocumentTabContent({
           onMarkMedicationVerified={onMarkMedicationVerified}
           onOpenWaterlowTab={onOpenWaterlowTab}
           onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
+          onOpenSkinIntegrityCheckTab={onOpenSkinIntegrityCheckTab}
+          onSyncBodyMap={onSyncBodyMap}
+          syncBodyMapLoading={syncBodyMapLoading}
           excludeQuestionIds={excludeQuestionIds}
           painAssessment={painAssessment}
           onPainAssessmentChange={onPainAssessmentChange}
@@ -553,6 +559,24 @@ export function InitialAssessmentDocumentTabContent({
             )}
           </InitialAssessmentPaperSection5EmotionalBlock>,
         )
+        continue
+      }
+
+      if (tab.id === 1 && slice.aboutMeEmbed) {
+        sliceNodes.push(
+          <InitialAssessmentAboutMeSection
+            key={`tab-${tab.id}-about-me`}
+            sections={sections}
+            draftAnswers={draftAnswers}
+            prefillMap={prefillMap}
+            questionErrors={questionErrors}
+            disabled={disabled}
+            serviceUserId={serviceUserId}
+            submissionId={submissionId}
+            onChange={onChange}
+          />,
+        )
+        sliceIndex += 1
         continue
       }
 

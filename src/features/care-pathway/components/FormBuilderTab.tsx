@@ -2,6 +2,17 @@ import * as React from 'react'
 import { Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { FormIconPicker } from './FormIconPicker'
+import { FormBuilderFieldEditor } from '@/features/care-pathway/components/FormBuilderFieldEditor'
+import {
+  flattenPriorFieldOptions,
+  parseConditionalLogic,
+  serializeConditionalLogic,
+} from '@/features/care-pathway/utils/form-builder-conditional-logic.util'
+import {
+  fieldTypeUsesOptions,
+  parseFieldOptions,
+  serializeFieldOptions,
+} from '@/features/care-pathway/utils/form-builder-field-options.util'
 import type {
   CareFormDetail,
   CareFormListRow,
@@ -43,8 +54,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/data-table'
-import { Checkbox } from '@/shared/ui/toggle-controls'
-import { looksLikeHtmlContent, SummernoteEditor } from '@/shared/ui/summernote-editor'
 import { useAuthStore } from '@/features/auth/store'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
 
@@ -62,10 +71,15 @@ const FIELD_TYPES: { value: FormFieldType; label: string }[] = [
   { value: 'DATE', label: 'Date' },
   { value: 'TIME', label: 'Time' },
   { value: 'SELECT', label: 'Dropdown' },
+  { value: 'RADIO', label: 'Radio (single choice)' },
+  { value: 'MULTI_SELECT', label: 'Multi select' },
   { value: 'CHECKBOX', label: 'Checkbox' },
   { value: 'YES_NO', label: 'Yes / No' },
-  { value: 'RICH_TEXT', label: 'Rich text (TipTap)' },
-  { value: 'SUMMERNOTE', label: 'Rich text (Summernote)' },
+  { value: 'SECTION_TEXT', label: 'Guidance text (display only)' },
+  { value: 'RICH_TEXT', label: 'Rich text' },
+  { value: 'FILE_UPLOAD', label: 'File upload' },
+  { value: 'PHOTO', label: 'Photo' },
+  { value: 'SIGNATURE', label: 'Signature' },
 ]
 
 function formTypeLabel(t: CarePathwayFormType) {
@@ -95,6 +109,7 @@ function emptyField(sortOrder: number) {
     required: false,
     optionsJson: null,
     validationJson: null,
+    conditionalLogicJson: null,
     sortOrder,
   }
 }
@@ -122,7 +137,6 @@ export function FormBuilderTab() {
   const [createName, setCreateName] = React.useState('')
   const [createType, setCreateType] = React.useState<CarePathwayFormType>('CARE_PLAN')
   const [createDescription, setCreateDescription] = React.useState('')
-  const [createDescUseSummernote, setCreateDescUseSummernote] = React.useState(false)
   const [createPictureUrl, setCreatePictureUrl] = React.useState<string | null>(null)
   const [createIconFile, setCreateIconFile] = React.useState<File | null>(null)
 
@@ -131,7 +145,6 @@ export function FormBuilderTab() {
   const [formName, setFormName] = React.useState('')
   const [formType, setFormType] = React.useState<CarePathwayFormType>('CARE_PLAN')
   const [formDescription, setFormDescription] = React.useState('')
-  const [editDescUseSummernote, setEditDescUseSummernote] = React.useState(false)
   const [formStatus, setFormStatus] = React.useState('')
   const [formPictureUrl, setFormPictureUrl] = React.useState<string | null>(null)
   const [formIconFile, setFormIconFile] = React.useState<File | null>(null)
@@ -174,7 +187,6 @@ export function FormBuilderTab() {
       setFormName(form.name)
       setFormType(form.formType)
       setFormDescription(form.description ?? '')
-      setEditDescUseSummernote(looksLikeHtmlContent(form.description))
       setFormStatus(form.status)
       setFormPictureUrl(form.pictureUrl ?? null)
       setFormIconFile(null)
@@ -194,7 +206,6 @@ export function FormBuilderTab() {
     setCreateName('')
     setCreateType('CARE_PLAN')
     setCreateDescription('')
-    setCreateDescUseSummernote(false)
     setCreatePictureUrl(null)
     setCreateIconFile(null)
     setCreateOpen(true)
@@ -259,7 +270,11 @@ export function FormBuilderTab() {
         sortOrder: i,
         fields: s.fields
           .map((f, fi) => ({ ...f, label: f.label.trim(), sortOrder: fi }))
-          .filter(f => f.label.length > 0),
+          .filter((f) =>
+            f.fieldType === 'SECTION_TEXT'
+              ? Boolean(f.label.trim() || f.helpText?.trim())
+              : f.label.length > 0,
+          ),
       }))
       .filter(s => s.title.length > 0)
 
@@ -288,14 +303,23 @@ export function FormBuilderTab() {
         title: s.title,
         description: s.description ?? undefined,
         sortOrder: s.sortOrder,
-        fields: s.fields.map(f => ({
-          label: f.label,
-          fieldType: f.fieldType,
-          placeholder: f.placeholder?.trim() || undefined,
-          helpText: f.helpText?.trim() || undefined,
-          required: f.required,
-          sortOrder: f.sortOrder,
-        })),
+        fields: s.fields.map((f) => {
+          const options = parseFieldOptions(f.optionsJson)
+          return {
+            label: f.label,
+            fieldType: f.fieldType,
+            placeholder: f.placeholder?.trim() || undefined,
+            helpText: f.helpText?.trim() || undefined,
+            required: f.fieldType === 'SECTION_TEXT' ? false : f.required,
+            sortOrder: f.sortOrder,
+            optionsJson:
+              fieldTypeUsesOptions(f.fieldType) && options.length
+                ? serializeFieldOptions(options)
+                : undefined,
+            conditionalLogicJson:
+              serializeConditionalLogic(parseConditionalLogic(f.conditionalLogicJson)) ?? undefined,
+          }
+        }),
       })),
     })
     return true
@@ -403,8 +427,9 @@ export function FormBuilderTab() {
         <div>
           <h2 className="text-lg font-semibold text-sky-700 dark:text-sky-400">Form Builder</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create customised care plans, assessments, and service forms. Save as draft, then publish
-            to make them available in Form Selection.
+            Create customised care plans, assessments, and service forms. Use sections, guidance text,
+            dropdowns with options, and multi-select fields for comprehensive assessments. Save as draft,
+            then publish to make them available in Form Selection.
           </p>
         </div>
         {canCreate && (
@@ -527,36 +552,18 @@ export function FormBuilderTab() {
               </Select>
             </div>
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label htmlFor="create-form-desc" className="text-sm font-medium">
-                  Description (optional)
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Checkbox
-                    checked={createDescUseSummernote}
-                    onCheckedChange={v => setCreateDescUseSummernote(v === true)}
-                  />
-                  Use Summernote editor
-                </label>
-              </div>
-              {createDescUseSummernote ? (
-                <SummernoteEditor
-                  value={createDescription}
-                  onChange={setCreateDescription}
-                  minHeight={120}
-                  placeholder="Shown at the top of the form when carers open it"
-                />
-              ) : (
-                <textarea
-                  id="create-form-desc"
-                  className={descriptionTextareaClass}
-                  value={createDescription}
-                  onChange={e => setCreateDescription(e.target.value)}
-                  rows={4}
-                  maxLength={2000}
-                  placeholder="Shown at the top of the form when carers open it"
-                />
-              )}
+              <label htmlFor="create-form-desc" className="text-sm font-medium">
+                Description (optional)
+              </label>
+              <textarea
+                id="create-form-desc"
+                className={descriptionTextareaClass}
+                value={createDescription}
+                onChange={e => setCreateDescription(e.target.value)}
+                rows={4}
+                maxLength={2000}
+                placeholder="Shown at the top of the form when carers open it"
+              />
             </div>
             <FormIconPicker
               pictureUrl={createPictureUrl}
@@ -635,49 +642,22 @@ export function FormBuilderTab() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label htmlFor="edit-form-desc" className="text-sm font-medium">
-                      Description
-                    </label>
-                    {canUpdate ? (
-                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Checkbox
-                          checked={editDescUseSummernote}
-                          onCheckedChange={v => {
-                            markDirty()
-                            setEditDescUseSummernote(v === true)
-                          }}
-                        />
-                        Use Summernote editor
-                      </label>
-                    ) : null}
-                  </div>
-                  {editDescUseSummernote ? (
-                    <SummernoteEditor
-                      value={formDescription}
-                      onChange={html => {
-                        markDirty()
-                        setFormDescription(html)
-                      }}
-                      disabled={!canUpdate}
-                      minHeight={120}
-                      placeholder="Shown at the top of the form when carers open it"
-                    />
-                  ) : (
-                    <textarea
-                      id="edit-form-desc"
-                      className={descriptionTextareaClass}
-                      value={formDescription}
-                      onChange={e => {
-                        markDirty()
-                        setFormDescription(e.target.value)
-                      }}
-                      disabled={!canUpdate}
-                      rows={4}
-                      maxLength={2000}
-                      placeholder="Shown at the top of the form when carers open it"
-                    />
-                  )}
+                  <label htmlFor="edit-form-desc" className="text-sm font-medium">
+                    Description
+                  </label>
+                  <textarea
+                    id="edit-form-desc"
+                    className={descriptionTextareaClass}
+                    value={formDescription}
+                    onChange={e => {
+                      markDirty()
+                      setFormDescription(e.target.value)
+                    }}
+                    disabled={!canUpdate}
+                    rows={4}
+                    maxLength={2000}
+                    placeholder="Shown at the top of the form when carers open it"
+                  />
                 </div>
                 <p className="text-xs text-muted-foreground">Status: {formStatus}</p>
 
@@ -729,83 +709,32 @@ export function FormBuilderTab() {
                           </Button>
                         )}
                       </div>
+                      <div className="space-y-1">
+                        <span className="text-sm font-medium">Section description</span>
+                        <textarea
+                          className={descriptionTextareaClass}
+                          value={section.description ?? ''}
+                          onChange={(event) =>
+                            updateSection(si, { description: event.target.value || null })
+                          }
+                          disabled={!canUpdate}
+                          rows={3}
+                          maxLength={2000}
+                          placeholder="Optional intro shown under the section title (e.g. guidance for staff)."
+                        />
+                      </div>
 
                       <ul className="space-y-3">
                         {section.fields.map((field, fi) => (
-                          <li key={field.id} className="space-y-2 rounded-md bg-muted/40 p-3">
-                            <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto_auto]">
-                              <Input
-                                placeholder="Field label"
-                                value={field.label}
-                                onChange={e => updateField(si, fi, { label: e.target.value })}
-                                disabled={!canUpdate}
-                              />
-                              <Select
-                                value={field.fieldType}
-                                onValueChange={v => updateField(si, fi, { fieldType: v as FormFieldType })}
-                                disabled={!canUpdate}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {FIELD_TYPES.map(t => (
-                                    <SelectItem key={t.value} value={t.value}>
-                                      {t.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <label className="flex items-center gap-2 text-sm">
-                                <Checkbox
-                                  checked={field.required}
-                                  onCheckedChange={v => updateField(si, fi, { required: v === true })}
-                                  disabled={!canUpdate}
-                                />
-                                Required
-                              </label>
-                              {canUpdate && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeField(si, fi)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <div className="space-y-1">
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  Tooltip
-                                </span>
-                                <Input
-                                  placeholder="Help text shown on hover (optional)"
-                                  value={field.helpText ?? ''}
-                                  onChange={e =>
-                                    updateField(si, fi, { helpText: e.target.value || null })
-                                  }
-                                  disabled={!canUpdate}
-                                  maxLength={500}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  Placeholder
-                                </span>
-                                <Input
-                                  placeholder="Placeholder inside the field (optional)"
-                                  value={field.placeholder ?? ''}
-                                  onChange={e =>
-                                    updateField(si, fi, { placeholder: e.target.value || null })
-                                  }
-                                  disabled={!canUpdate}
-                                  maxLength={500}
-                                />
-                              </div>
-                            </div>
-                          </li>
+                          <FormBuilderFieldEditor
+                            key={field.id}
+                            field={field}
+                            fieldTypes={FIELD_TYPES}
+                            priorFieldOptions={flattenPriorFieldOptions(sections, section.id, field.id)}
+                            disabled={!canUpdate}
+                            onChange={(patch) => updateField(si, fi, patch)}
+                            onRemove={() => removeField(si, fi)}
+                          />
                         ))}
                       </ul>
                       {canUpdate && (

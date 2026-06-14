@@ -138,6 +138,7 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Pressure equipment details': 'If YES, provide details',
   'Further pressure equipment required?':
     'Does the client require any further pressure relieving equipment to be ordered?',
+  'Further pressure equipment comment': 'Comment',
   'Equipment ordered?': 'Equipment ordered',
   'Date equipment ordered': 'Date ordered',
   'Pressure equipment order additional comments': 'Additional comments',

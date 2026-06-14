@@ -28,6 +28,8 @@ export type InitialAssessmentTextareaProps = Omit<
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>
   error?: boolean
   compact?: boolean
+  /** Native textarea — no Summernote (e.g. About Me routine grid cells). */
+  plain?: boolean
 }
 
 export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, InitialAssessmentTextareaProps>(
@@ -44,6 +46,7 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
       compact,
       error,
       maxLength,
+      plain = false,
       ...rest
     },
     ref,
@@ -51,6 +54,32 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
     void rest
 
     const minHeight = compact ? Math.min(rowsToMinHeight(rows), 120) : rowsToMinHeight(rows)
+
+    if (plain) {
+      const plainValue = plainTextFromHtml(value)
+      return (
+        <textarea
+          ref={ref as React.Ref<HTMLTextAreaElement>}
+          id={id}
+          rows={rows ?? (compact ? 2 : 3)}
+          className={cn(
+            'initial-assessment-textarea w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            error && 'border-destructive',
+            className,
+          )}
+          value={plainValue}
+          placeholder={placeholder}
+          disabled={disabled}
+          maxLength={maxLength}
+          aria-describedby={rest['aria-describedby']}
+          onChange={(e) => {
+            if (maxLength != null && e.target.value.length > maxLength) return
+            onChange?.(e)
+          }}
+          onBlur={onBlur}
+        />
+      )
+    }
 
     const handleChange = (html: string) => {
       if (maxLength != null && plainTextFromHtml(html).length > maxLength) return

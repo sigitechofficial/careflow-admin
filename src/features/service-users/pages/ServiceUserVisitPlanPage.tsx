@@ -14,6 +14,7 @@ import {
   useServiceUserVisitPlans,
 } from '@/features/service-users/visit-plan/hooks'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
+import { VisitPlanHistoryPanel } from '@/features/service-users/visit-plan/VisitPlanHistoryPanel'
 import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import type { ServiceUserVisitPlan } from '@/features/service-users/visit-plan/types'
@@ -24,7 +25,7 @@ import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 
 type VisitPlanView = 'configure' | 'details'
-type VisitPlanDetailsTab = 'summary' | 'calendar'
+type VisitPlanDetailsTab = 'summary' | 'calendar' | 'history'
 
 const VIEW_TABS: { id: VisitPlanView; label: string }[] = [
   { id: 'configure', label: 'Configure' },
@@ -34,6 +35,7 @@ const VIEW_TABS: { id: VisitPlanView; label: string }[] = [
 const DETAILS_TABS: { id: VisitPlanDetailsTab; label: string }[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'calendar', label: 'Calendar' },
+  { id: 'history', label: 'History' },
 ]
 
 function planStatusClass(status: ServiceUserVisitPlan['status']) {
@@ -55,7 +57,11 @@ export default function ServiceUserVisitPlanPage() {
 
   const view: VisitPlanView = search.view === 'details' ? 'details' : 'configure'
   const detailsTab: VisitPlanDetailsTab =
-    view === 'details' && search.detailsTab === 'calendar' ? 'calendar' : 'summary'
+    view === 'details' && search.detailsTab === 'calendar'
+      ? 'calendar'
+      : view === 'details' && search.detailsTab === 'history'
+        ? 'history'
+        : 'summary'
 
   const profileQuery = useServiceUser(serviceUserId)
   const { data: plans, isLoading: plansLoading } = useServiceUserVisitPlans(serviceUserId)
@@ -109,6 +115,7 @@ export default function ServiceUserVisitPlanPage() {
         ...(search.planId ? { planId: search.planId } : {}),
         view: 'details',
         ...(next === 'calendar' ? { detailsTab: 'calendar' } : {}),
+        ...(next === 'history' ? { detailsTab: 'history' } : {}),
       },
       replace: true,
     })
@@ -248,6 +255,8 @@ export default function ServiceUserVisitPlanPage() {
                 employeeNameById={employeeNameById}
                 acceptedCarePlans={careContext.acceptedCarePlans}
               />
+            ) : detailsTab === 'history' ? (
+              <VisitPlanHistoryPanel serviceUserId={serviceUserId} selectedPlanId={selectedPlan.id} />
             ) : (
               <VisitPlanDetailsView
                 plan={selectedPlan}

@@ -25,6 +25,7 @@ type Props = {
   active: HubTabId
   submissionCount?: number
   openActionsCount?: number
+  carePlanRecommendationCount?: number
   waterlowScore?: number | null
   onChange: (tab: HubTabId) => void
 }
@@ -33,6 +34,7 @@ export function InitialAssessmentHubTabs({
   active,
   submissionCount,
   openActionsCount,
+  carePlanRecommendationCount,
   waterlowScore,
   onChange,
 }: Props) {
@@ -60,6 +62,16 @@ export function InitialAssessmentHubTabs({
           {tab.id === 'schedule' && openActionsCount != null && openActionsCount > 0 ? (
             <span className="ml-1.5 rounded-full bg-teal-100 px-1.5 text-xs font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200">
               {openActionsCount}
+            </span>
+          ) : null}
+          {tab.id === 'schedule' &&
+          carePlanRecommendationCount != null &&
+          carePlanRecommendationCount > 0 ? (
+            <span
+              className="ml-1.5 rounded-full bg-sky-100 px-1.5 text-xs font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-200"
+              title="Care plan recommendations"
+            >
+              {carePlanRecommendationCount} CP
             </span>
           ) : null}
         </button>

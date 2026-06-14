@@ -51,6 +51,7 @@ export type DailyLivingAidsMetadata = {
   furtherEquipmentDetails?: string
   equipmentOrdered?: boolean | null
   equipmentOrderedDate?: string | null
+  equipmentOrderedComments?: string
   additionalComments?: string
 }
 

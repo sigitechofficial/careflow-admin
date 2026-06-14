@@ -1,4 +1,4 @@
-import { InitialAssessmentCognitionChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCognitionChecklistPanel'
+﻿import { InitialAssessmentCognitionChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCognitionChecklistPanel'
 import { InitialAssessmentMultiSelectOptionsGrid } from '@/features/service-users/initial-assessment/components/InitialAssessmentMultiSelectOptionsGrid'
 import { InitialAssessmentNoConcernGatePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentNoConcernGatePanel'
 import { InitialAssessmentPanelFieldList } from '@/features/service-users/initial-assessment/components/InitialAssessmentPanelFieldList'
@@ -46,6 +46,7 @@ import { fieldKeyOf, findQuestionByFieldKey, specRefOf } from '@/features/servic
 import { isSection1SimpleGroup } from '@/features/service-users/initial-assessment/utils/section-1-simple-layout'
 import { isSection4FullWidthSpecRef } from '@/features/service-users/initial-assessment/utils/section-4-physical-assessment-display-order'
 import { InitialAssessmentSection4GlucosePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection4GlucosePanel'
+import { InitialAssessmentHeightBuildWeightPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentHeightBuildWeightPanel'
 import { InitialAssessmentVitalsSignsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentVitalsSignsPanel'
 import { InitialAssessmentSkinIntegrityHolisticPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSkinIntegrityHolisticPanel'
 import { isMultiSelectOptionsGridQuestion } from '@/features/service-users/initial-assessment/utils/multi-select-options-grid'
@@ -98,7 +99,7 @@ import {
   type HolisticAssessmentTab,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 
-/** Sections using §12 panel shell + field-row layout (batch rollout). */
+/** Sections using ┬º12 panel shell + field-row layout (batch rollout). */
 const PANEL_LAYOUT_SECTIONS = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14])
 
 const SIGN_OFF_WORKFLOW_SPEC_REFS = new Set(['14.3', '14.4', '14.7'])
@@ -117,6 +118,9 @@ type Props = {
   onMarkMedicationVerified?: () => void
   onOpenWaterlowTab?: () => void
   onOpenEnvironmentAssessmentTab?: () => void
+  onOpenSkinIntegrityCheckTab?: () => void
+  onSyncBodyMap?: () => void
+  syncBodyMapLoading?: boolean
   suppressIntro?: boolean
   excludeQuestionIds?: Set<string>
   painAssessment?: PainAssessmentMetadata
@@ -158,6 +162,9 @@ export function InitialAssessmentSectionQuestions({
   onMarkMedicationVerified,
   onOpenWaterlowTab,
   onOpenEnvironmentAssessmentTab,
+  onOpenSkinIntegrityCheckTab,
+  onSyncBodyMap,
+  syncBodyMapLoading,
   suppressIntro,
   excludeQuestionIds,
   painAssessment,
@@ -292,6 +299,7 @@ export function InitialAssessmentSectionQuestions({
         fundingTypeCatalog={fundingTypeCatalog}
         ethnicityCatalog={ethnicityCatalog}
         languageCatalog={languageCatalog}
+        lookupCatalogLoading={suLookupsQuery.isLoading}
         onChange={(patch) => onChange(q.id, patch)}
       />
     )
@@ -386,6 +394,17 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
+    if (group.specRef === '4.10') {
+      return (
+        <InitialAssessmentHeightBuildWeightPanel
+          key={`${group.specRef}-${groupIndex}`}
+          title={group.label}
+          questions={group.questions}
+          renderField={renderField}
+        />
+      )
+    }
+
     if (group.specRef === '7.0' || group.specRef === '8.0' || group.specRef === '10.0') {
       return null
     }
@@ -432,6 +451,13 @@ export function InitialAssessmentSectionQuestions({
           title={group.label}
           allSections={allSections}
           draftAnswers={draftAnswers}
+          serviceUserId={serviceUserId}
+          submissionId={submissionId}
+          disabled={disabled}
+          onSyncBodyMap={onSyncBodyMap}
+          syncBodyMapLoading={syncBodyMapLoading}
+          onOpenSkinIntegrityCheckTab={onOpenSkinIntegrityCheckTab}
+          onOpenWaterlowTab={onOpenWaterlowTab}
           renderField={renderField}
         />
       )
@@ -455,7 +481,7 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
-    // Paper §4b: action plan follows breathing options — standalone §5.2 panel hidden.
+    // Paper ┬º4b: action plan follows breathing options ΓÇö standalone ┬º5.2 panel hidden.
     // if (group.specRef === '5.2') {
     //   return (
     //     <InitialAssessmentSpecRefGroupPanel key={`${group.specRef}-${groupIndex}`} group={group} renderField={renderField}>
@@ -471,7 +497,7 @@ export function InitialAssessmentSectionQuestions({
       return null
     }
 
-    // Paper §4: no standalone “no concerns” gate — options live on each subsection checklist.
+    // Paper ┬º4: no standalone ΓÇ£no concernsΓÇ¥ gate ΓÇö options live on each subsection checklist.
     // if (group.specRef === '5.0') {
     //   return (
     //     <InitialAssessmentSpecRefGroupPanel key={`${group.specRef}-${groupIndex}`} group={group} renderField={renderField}>
