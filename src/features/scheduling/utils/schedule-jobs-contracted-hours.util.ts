@@ -101,7 +101,9 @@ function visitPlanSlotStartMinutes(
 ): number {
   const normalized = normalizeTimeForInput(slot.plannedStartTime)
   if (!normalized) return 0
-  const [hours, minutes] = normalized.split(':').map((part) => Number.parseInt(part, 10))
+  const [hoursPart, minutesPart] = normalized.split(':')
+  const hours = Number.parseInt(hoursPart ?? '', 10)
+  const minutes = Number.parseInt(minutesPart ?? '', 10)
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0
   return hours * 60 + minutes
 }
