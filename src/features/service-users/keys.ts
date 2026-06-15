@@ -75,6 +75,9 @@ export const serviceUserKeys = {
   visitPlanActive: (id: string) =>
     [...serviceUserKeys.visitPlans(id), 'active'] as const,
 
+  visitPlanWorking: (id: string) =>
+    [...serviceUserKeys.visitPlans(id), 'working'] as const,
+
   /** Live-in profile. */
   liveIn: (id: string) =>
     [...serviceUserKeys.detail(id), 'live-in'] as const,

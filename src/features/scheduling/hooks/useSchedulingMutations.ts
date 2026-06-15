@@ -5,8 +5,10 @@ import {
   cancelHousekeepingJob,
   completeHousekeepingJob,
   unallocateJob,
+  updateScheduledJob,
 } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
+import { serviceUserKeys } from '@/features/service-users/keys'
 
 export function useBuildSchedule() {
   const qc = useQueryClient()
@@ -50,6 +52,32 @@ function invalidateSchedulingQueries(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
 }
 
+function invalidateVisitPlanForAllocation(
+  qc: ReturnType<typeof useQueryClient>,
+  data?: { scheduledJob?: { serviceUserId?: string | null } | null },
+) {
+  const serviceUserId = data?.scheduledJob?.serviceUserId
+  if (serviceUserId) {
+    void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
+  }
+}
+
+export function useUpdateScheduledJob() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      scheduledStartDateTime,
+      scheduledEndDateTime,
+    }: {
+      jobId: string
+      scheduledStartDateTime?: string
+      scheduledEndDateTime?: string | null
+    }) => updateScheduledJob(jobId, { scheduledStartDateTime, scheduledEndDateTime }),
+    onSuccess: () => invalidateSchedulingQueries(qc),
+  })
+}
+
 export function useAllocateJob() {
   const qc = useQueryClient()
   return useMutation({
@@ -66,7 +94,10 @@ export function useAllocateJob() {
       force?: boolean
       notes?: string
     }) => allocateJob(jobId, { employeeId, scheduledVisitId, force, notes }),
-    onSuccess: () => invalidateSchedulingQueries(qc),
+    onSuccess: (result) => {
+      invalidateSchedulingQueries(qc)
+      invalidateVisitPlanForAllocation(qc, result.data)
+    },
   })
 }
 
@@ -82,6 +113,9 @@ export function useUnallocateJob() {
       employeeId: string
       reason?: string
     }) => unallocateJob(jobId, { employeeId, reason }),
-    onSuccess: () => invalidateSchedulingQueries(qc),
+    onSuccess: (result) => {
+      invalidateSchedulingQueries(qc)
+      invalidateVisitPlanForAllocation(qc, result.data)
+    },
   })
 }

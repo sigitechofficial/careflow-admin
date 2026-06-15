@@ -6,8 +6,11 @@ export const schedulingKeys = {
   status: (date: string) => [...schedulingKeys.all(), 'status', date] as const,
 
   dayRuns: (date: string) => [...schedulingKeys.all(), 'day-runs', date] as const,
+  serviceUsersWeek: (weekStart: string) => [...schedulingKeys.all(), 'service-users-week', weekStart] as const,
 
   list: (date: string) => [...schedulingKeys.all(), 'list', date] as const,
+
+  employeesDay: (date: string) => [...schedulingKeys.all(), 'employees-day', date] as const,
 
   reportTypes: () => [...schedulingKeys.all(), 'report-types'] as const,
 

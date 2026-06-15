@@ -184,6 +184,7 @@ const navItems: NavItem[] = [
     badgeVariant: 'warning',
     children: [
       { label: 'View Schedule',          icon: <Eye className="h-4 w-4" />,        href: '/scheduling/view' },
+      { label: 'Schedule Jobs',          icon: <Calendar className="h-4 w-4" />,   href: '/scheduling/schedule-jobs' },
       { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-4 w-4" />, href: '/in-progress', ready: false },
       { label: 'Schedule Templates',     icon: <LayoutGrid className="h-4 w-4" />, href: '/scheduling/templates' },
       { label: 'Report',                 icon: <FileText className="h-4 w-4" />,   href: '/scheduling/report' },

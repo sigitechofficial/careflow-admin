@@ -40,11 +40,20 @@ export function AssessmentStandaloneToolPanel({
   const panelId = resolveAssessmentPanelId(assessmentKey, carePathwayFormId)
   const formQuery = useCareForm(carePathwayFormId ?? '', panelId === 'pathway-form' && Boolean(carePathwayFormId))
 
-  const shell = (children: React.ReactNode) => (
-    <div className="max-h-[min(52vh,28rem)] overflow-y-auto rounded-md border border-border/60">
-      {children}
-    </div>
-  )
+  const shell = (children: React.ReactNode) => {
+    if (disabled) {
+      return (
+        <div className="min-w-0 overflow-x-auto rounded-md border border-border/60 bg-card">
+          {children}
+        </div>
+      )
+    }
+    return (
+      <div className="max-h-[min(52vh,28rem)] overflow-y-auto rounded-md border border-border/60">
+        {children}
+      </div>
+    )
+  }
 
   if (panelId === 'waterlow') {
     return shell(
@@ -205,8 +214,8 @@ export function AssessmentStandaloneToolPanel({
         </p>
       )
     }
-    return (
-      <div className="max-h-[min(52vh,28rem)] overflow-y-auto rounded-md border border-border/60 p-3">
+    return shell(
+      <div className="p-3">
         <CarePathwayFormRenderer
           form={formQuery.data}
           values={state.formValues}
@@ -214,7 +223,7 @@ export function AssessmentStandaloneToolPanel({
           disabled={disabled}
           embedded
         />
-      </div>
+      </div>,
     )
   }
 

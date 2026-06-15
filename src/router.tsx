@@ -51,6 +51,7 @@ import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
+import ScheduleJobsPage from '@/features/scheduling/pages/ScheduleJobsPage'
 import SchedulingReportPage from '@/features/scheduling/pages/SchedulingReportPage'
 import ManageScheduleJobsPage from '@/features/scheduling/pages/ManageScheduleJobsPage'
 import BuildSchedulePage from '@/features/scheduling/pages/BuildSchedulePage'
@@ -111,6 +112,7 @@ import {
   prefetchSchedulingJobs,
   prefetchSchedulingList,
   prefetchSchedulingReport,
+  prefetchSchedulingScheduleJobs,
   prefetchSchedulingView,
   prefetchServiceUserCalendar,
   prefetchServiceUserCarePlanFormRoute,
@@ -142,6 +144,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/add': 'Add Service User',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
+  '/scheduling/schedule-jobs': 'Schedule Jobs',
   '/scheduling/report': 'Scheduling Reports',
   '/scheduling/jobs': 'Scheduled Jobs Housekeeping',
   '/scheduling/build': 'Build Schedule',
@@ -245,6 +248,7 @@ function AppRootShell() {
     pathname === '/service-users/all' ||
     pathname === '/service-users/initial-assessment' ||
     pathname === '/scheduling/view' ||
+    pathname === '/scheduling/schedule-jobs' ||
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
@@ -645,6 +649,16 @@ const schedulingViewRoute = createRoute({
   component: ViewSchedulePage,
 })
 
+const schedulingScheduleJobsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scheduling/schedule-jobs',
+  beforeLoad: requireScheduleAccess(),
+  loader: ({ context: { queryClient: qc } }) => {
+    prefetchSchedulingScheduleJobs(qc)
+  },
+  component: ScheduleJobsPage,
+})
+
 const schedulingReportRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/report',
@@ -1026,6 +1040,7 @@ const routeTree = rootRoute.addChildren([
     assessmentReviewQueueRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
+    schedulingScheduleJobsRoute,
     schedulingReportRoute,
     schedulingJobsRoute,
     schedulingBuildRoute,

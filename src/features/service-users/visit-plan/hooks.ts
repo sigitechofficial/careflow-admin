@@ -1,15 +1,28 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import * as React from 'react'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { schedulingKeys } from '@/features/scheduling/keys'
 import {
   activateServiceUserVisitPlan,
   createServiceUserVisitPlan,
   fetchActiveServiceUserVisitPlan,
   fetchServiceUserVisitPlans,
+  fetchWorkingServiceUserVisitPlan,
   generateScheduleFromVisitPlan,
   prefillVisitPlanFromDomCare,
   updateServiceUserVisitPlan,
 } from '@/features/service-users/visit-plan/api'
-import type { ServiceUserVisitPlan } from '@/features/service-users/visit-plan/types'
+import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import {
+  parseWeeklyContractedHours,
+  visitPlanWeeklyPlannedMinutes,
+} from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
+
+export type VisitPlanContractContext = {
+  contractedHours: number | null
+  slots: VisitPlanSlot[]
+  plannedMinutes: number
+}
 
 function mergePlanIntoList(list: ServiceUserVisitPlan[] | undefined, plan: ServiceUserVisitPlan) {
   const rows = Array.isArray(list) ? list : []
@@ -36,11 +49,50 @@ export function useActiveServiceUserVisitPlan(serviceUserId: string) {
   })
 }
 
+export function useVisitPlanContractByServiceUser(serviceUserIds: string[]) {
+  const uniqueIds = [...new Set(serviceUserIds.filter(Boolean))]
+  const queries = useQueries({
+    queries: uniqueIds.map((serviceUserId) => ({
+      queryKey: serviceUserKeys.visitPlanWorking(serviceUserId),
+      queryFn: () => fetchWorkingServiceUserVisitPlan(serviceUserId),
+      enabled: Boolean(serviceUserId),
+      staleTime: 60_000,
+    })),
+  })
+
+  return React.useMemo(() => {
+    const map = new Map<string, VisitPlanContractContext>()
+    for (const query of queries) {
+      const plan = query.data
+      if (!plan) continue
+      const slots = plan.slots ?? []
+      map.set(plan.serviceUserId, {
+        contractedHours: parseWeeklyContractedHours(plan.weeklyContractedHours),
+        slots,
+        plannedMinutes: visitPlanWeeklyPlannedMinutes(slots),
+      })
+    }
+    return map
+  }, [queries])
+}
+
+export function useVisitPlanContractedHoursByServiceUser(serviceUserIds: string[]) {
+  const contractByServiceUser = useVisitPlanContractByServiceUser(serviceUserIds)
+  return React.useMemo(() => {
+    const map = new Map<string, number>()
+    for (const [serviceUserId, context] of contractByServiceUser) {
+      if (context.contractedHours != null) map.set(serviceUserId, context.contractedHours)
+    }
+    return map
+  }, [contractByServiceUser])
+}
+
 export function useServiceUserVisitPlanMutations(serviceUserId: string) {
   const qc = useQueryClient()
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlans(serviceUserId) })
     void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlanActive(serviceUserId) })
+    void qc.invalidateQueries({ queryKey: serviceUserKeys.visitPlanWorking(serviceUserId) })
   }
 
   const create = useMutation({
@@ -65,6 +117,7 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
         qc.setQueryData(serviceUserKeys.visitPlanActive(serviceUserId), plan)
       }
       invalidate()
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
     },
   })
 
@@ -84,6 +137,9 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
       ...body
     }: { planId: string; fromDate: string; toDate: string; scheduleAreaId?: string | null }) =>
       generateScheduleFromVisitPlan(serviceUserId, planId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+    },
   })
 
   return { create, update, activate, prefillDomCare, generateSchedule }

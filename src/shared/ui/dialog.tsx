@@ -40,7 +40,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         'fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
-        'grid gap-0 bg-card border border-border shadow-card-lg rounded-xl overflow-hidden',
+        'flex max-h-[min(90dvh,90vh)] flex-col gap-0 bg-card border border-border shadow-card-lg rounded-xl overflow-hidden',
         'duration-200',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
@@ -67,20 +67,23 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col gap-1.5 p-5 border-b border-border', className)} {...props} />
+  <div className={cn('flex shrink-0 flex-col gap-1.5 p-5 border-b border-border', className)} {...props} />
 )
 DialogHeader.displayName = 'DialogHeader'
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('flex items-center justify-end gap-2 p-4 border-t border-border bg-muted/30', className)}
+    className={cn(
+      'flex shrink-0 items-center justify-end gap-2 p-4 border-t border-border bg-muted/30',
+      className,
+    )}
     {...props}
   />
 )
 DialogFooter.displayName = 'DialogFooter'
 
 const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('p-5', className)} {...props} />
+  <div className={cn('min-h-0 flex-1 overflow-y-auto p-5', className)} {...props} />
 )
 DialogBody.displayName = 'DialogBody'
 

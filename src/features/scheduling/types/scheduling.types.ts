@@ -3,6 +3,8 @@ export type PaginationMeta = {
   limit: number
   total: number
   totalPages?: number
+  hasNextPage?: boolean
+  hasPrevPage?: boolean
 }
 
 export type ServiceUserBrief = {
@@ -63,6 +65,53 @@ export type JobsDayRunsResponse = {
   date: string
   runs: Array<{ run: ScheduleRunBrief; jobs: TimelineJob[] }>
   unassignedJobs: TimelineJob[]
+}
+
+export type EmployeeBrief = {
+  id: string
+  firstName?: string
+  lastName?: string
+  email?: string | null
+  role?: { id: string; name: string } | null
+  jobTitle?: { id: string; name: string } | null
+  contractedWeeklyHours?: number | null
+  maximumWeeklyHours?: number | null
+  isBankStaff?: boolean
+  isAgencyStaff?: boolean
+}
+
+export type EmployeeDayAllocation = {
+  id: string
+  status: string
+  job: TimelineJob
+}
+
+export type EmployeeDayPattern = {
+  isAvailable: boolean
+  startTime: string | null
+  endTime: string | null
+  isPartial: boolean
+}
+
+export type EmployeeDayRow = {
+  employee: EmployeeBrief
+  allocations: EmployeeDayAllocation[]
+  totalMinutes: number
+  dayPattern?: EmployeeDayPattern | null
+}
+
+export type EmployeesDayTimelineResponse = {
+  date: string
+  employees: EmployeeDayRow[]
+}
+
+export type ServiceUsersWeekTimelineResponse = {
+  weekStart: string
+  weekEnd: string
+  serviceUsers: Array<{
+    serviceUser: ServiceUserBrief
+    jobs: TimelineJob[]
+  }>
 }
 
 export type HousekeepingJob = TimelineJob & {

@@ -51,6 +51,8 @@ export type VisitPlanCarerCandidate = {
   fit: VisitPlanCarerFit
   isPreferred: boolean
   isBlocked: boolean
+  hasRotaConflict?: boolean
+  rotaConflictJobs?: string[]
   availability: {
     availableDays: number[]
     unavailableDays: number[]

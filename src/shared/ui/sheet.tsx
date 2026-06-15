@@ -53,7 +53,7 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Co
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed z-50 flex flex-col gap-0 bg-background shadow-lg",
+          "fixed z-50 flex min-h-0 flex-col gap-0 bg-background shadow-lg",
           "duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out",
           sideVariants[side],
           sizeVariants[side][size],
@@ -85,7 +85,7 @@ const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 )
 
 const SheetBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex-1 overflow-y-auto px-6 py-4", className)} {...props} />
+  <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4", className)} {...props} />
 )
 
 const SheetTitle = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Title>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>>(

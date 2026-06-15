@@ -28,6 +28,7 @@ import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/V
 import { VisitPlanSlotViewCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotViewCarersDialog'
 import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarePlansDialog'
 import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/VisitPlanCarersCountInput'
+import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
@@ -229,7 +230,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
         slots: toSlotInput(slots),
       })
       setAmendmentReason('')
-      toastSuccess('Visit plan saved', 'Amendment recorded for CQC audit.')
+      toastSuccess(
+        'Visit plan saved',
+        'Carer assignments sync to future Schedule Jobs. Use Generate rota for new visit times.',
+      )
     } catch (e) {
       toastApiError(e, 'Could not save visit plan')
     }
@@ -338,6 +342,13 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
             />
           </div>
         </div>
+
+        <VisitPlanWeeklyHoursPanel
+          className="mt-4"
+          slots={slots}
+          weeklyContractedHours={weeklyHours}
+          anchorIso={workingPlan?.effectiveFrom}
+        />
       </section>
 
       <>
@@ -722,9 +733,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
             <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
               <h3 className="text-sm font-semibold text-foreground">Generate rota</h3>
               <p className="text-sm text-muted-foreground">
-                Create scheduled visits from this plan (max 31 days). View results in{' '}
-                <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
-                  Scheduling
+                Creates <strong>new</strong> scheduled jobs from enabled call slots (max 31 days). Existing jobs at
+                the same time are skipped — changing times or disabling slots does not remove old jobs. View results
+                in{' '}
+                <Link to="/scheduling/schedule-jobs" search={{ date: generateFrom }} className="text-sky-600 underline">
+                  Schedule Jobs
                 </Link>
                 .
               </p>

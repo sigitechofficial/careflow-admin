@@ -1,8 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Loader2, UserMinus, UserPlus } from 'lucide-react'
-import { ApiError } from '@/shared/api/api-client'
+import { AlertTriangle, ArrowLeftRight, Clock, Loader2, UserMinus, UserPlus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
@@ -23,6 +22,7 @@ import { employeeListRowDisplayName } from '@/features/employees/lib/employee-di
 import {
   useAllocateJob,
   useUnallocateJob,
+  useUpdateScheduledJob,
 } from '@/features/scheduling/hooks/useSchedulingMutations'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
@@ -36,28 +36,25 @@ import {
   jobAttentionReason,
   timelineJobVisitPlanSlot,
 } from '@/features/scheduling/utils/scheduling-visit-plan.util'
-
-type AllocationWarning = { type: string; message: string; severity: string }
+import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
+import { jobDurationMinutes } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import {
+  buildJobScheduleDateTimes,
+  isoToLocalTimeInput,
+  jobScheduleDateIso,
+  scheduleTimesChanged,
+} from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import {
+  warningsFromAllocateError,
+  type AllocationWarning,
+} from '@/features/scheduling/utils/allocate-job-warnings.util'
+import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   job: TimelineJob | null
   onAllocated?: () => void
-}
-
-function warningsFromAllocateError(e: unknown): AllocationWarning[] {
-  if (!(e instanceof ApiError)) return []
-  const body = e.body
-  if (!body || typeof body !== 'object') return []
-  const record = body as Record<string, unknown>
-  if (Array.isArray(record.warnings)) return record.warnings as AllocationWarning[]
-  const msg = record.message
-  if (msg && typeof msg === 'object' && !Array.isArray(msg)) {
-    const nested = msg as Record<string, unknown>
-    if (Array.isArray(nested.warnings)) return nested.warnings as AllocationWarning[]
-  }
-  return []
 }
 
 function employeeNameFromAllocation(
@@ -71,11 +68,18 @@ function employeeNameFromAllocation(
 export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated }: Props) {
   const [search, setSearch] = React.useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = React.useState<string | null>(null)
+  const [replacingEmployeeId, setReplacingEmployeeId] = React.useState<string | null>(null)
   const [pendingWarnings, setPendingWarnings] = React.useState<AllocationWarning[]>([])
   const [pendingEmployeeId, setPendingEmployeeId] = React.useState<string | null>(null)
+  const [allocatingEmployeeId, setAllocatingEmployeeId] = React.useState<string | null>(null)
+  const [startTime, setStartTime] = React.useState('')
+  const [endTime, setEndTime] = React.useState('')
+  const [savingTimes, setSavingTimes] = React.useState(false)
+  const [suggestCandidates, setSuggestCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
 
   const allocate = useAllocateJob()
   const unallocate = useUnallocateJob()
+  const updateJob = useUpdateScheduledJob()
 
   const employeesQuery = useQuery({
     queryKey: employeeKeys.allList({}),
@@ -87,32 +91,74 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
   React.useEffect(() => {
     if (!open) {
       setSearch('')
+      setSuggestCandidates([])
       setSelectedEmployeeId(null)
+      setReplacingEmployeeId(null)
       setPendingWarnings([])
       setPendingEmployeeId(null)
+      setAllocatingEmployeeId(null)
+      setStartTime('')
+      setEndTime('')
+      setSavingTimes(false)
     }
   }, [open])
 
+  React.useEffect(() => {
+    if (!open || !job) return
+    setStartTime(isoToLocalTimeInput(job.scheduledStartDateTime))
+    setEndTime(
+      isoToLocalTimeInput(job.scheduledEndDateTime) ||
+        isoToLocalTimeInput(
+          new Date(
+            new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
+          ).toISOString(),
+        ),
+    )
+  }, [open, job?.id, job?.scheduledStartDateTime, job?.scheduledEndDateTime])
+
   const allocatedCount = job ? activeJobAllocationCount(job) : 0
   const slotsRemaining = job ? Math.max(0, job.requiredCarers - allocatedCount) : 0
+  const needsMoreCarers = job ? jobNeedsCarerAssignment(job) : false
   const attention = job ? jobAttentionReason(job) : null
   const visitId = job?.visits?.[0]?.id
   const allocatedEmployeeIds = new Set((job?.allocations ?? []).map((a) => a.employeeId))
+  const replacingName = replacingEmployeeId
+    ? (job?.allocations ?? []).find((a) => a.employeeId === replacingEmployeeId)
+    : null
+
+  const rotaBookedEmployeeIds = React.useMemo(
+    () =>
+      new Set(
+        suggestCandidates.filter((c) => c.hasRotaConflict).map((candidate) => candidate.employeeId),
+      ),
+    [suggestCandidates],
+  )
 
   const filteredEmployees = React.useMemo(() => {
     const q = search.trim().toLowerCase()
     return (employeesQuery.data ?? [])
-      .filter((row) => !allocatedEmployeeIds.has(row.id))
+      .filter((row) => {
+        if (replacingEmployeeId) return row.id !== replacingEmployeeId
+        return !allocatedEmployeeIds.has(row.id)
+      })
+      .filter((row) => !rotaBookedEmployeeIds.has(row.id))
       .filter((row) => {
         if (!q) return true
         const name = employeeListRowDisplayName(row).toLowerCase()
         return name.includes(q) || row.id.toLowerCase().includes(q)
       })
       .slice(0, 40)
-  }, [employeesQuery.data, allocatedEmployeeIds, search])
+  }, [
+    employeesQuery.data,
+    allocatedEmployeeIds,
+    replacingEmployeeId,
+    rotaBookedEmployeeIds,
+    search,
+  ])
 
   const runAllocate = async (employeeId: string, force = false) => {
     if (!job) return
+    setAllocatingEmployeeId(employeeId)
     try {
       const result = await allocate.mutateAsync({
         jobId: job.id,
@@ -123,6 +169,7 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
       setPendingWarnings([])
       setPendingEmployeeId(null)
       setSelectedEmployeeId(null)
+      setReplacingEmployeeId(null)
       if (result.data.status === 'PENDING_CONFIRMATION') {
         toastWarning('Confirmation required', result.message)
       } else {
@@ -137,21 +184,102 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
         return
       }
       toastApiError(e, 'Could not allocate carer')
+    } finally {
+      setAllocatingEmployeeId(null)
     }
+  }
+
+  const runReplace = async (newEmployeeId: string, oldEmployeeId: string, force = false) => {
+    if (!job) return
+    setAllocatingEmployeeId(newEmployeeId)
+    try {
+      await unallocate.mutateAsync({ jobId: job.id, employeeId: oldEmployeeId })
+      const result = await allocate.mutateAsync({
+        jobId: job.id,
+        employeeId: newEmployeeId,
+        scheduledVisitId: visitId,
+        force,
+      })
+      setPendingWarnings([])
+      setPendingEmployeeId(null)
+      setSelectedEmployeeId(null)
+      setReplacingEmployeeId(null)
+      if (result.data.status === 'PENDING_CONFIRMATION') {
+        toastWarning('Confirmation required', result.message)
+      } else {
+        toastSuccess('Carer changed', 'The job has been reassigned.')
+      }
+      onAllocated?.()
+    } catch (e) {
+      const warnings = warningsFromAllocateError(e)
+      if (warnings.length > 0) {
+        setPendingWarnings(warnings)
+        setPendingEmployeeId(newEmployeeId)
+        return
+      }
+      toastApiError(e, 'Could not change carer')
+    } finally {
+      setAllocatingEmployeeId(null)
+    }
+  }
+
+  const handlePickEmployee = (employeeId: string, force = false) => {
+    if (replacingEmployeeId) {
+      void runReplace(employeeId, replacingEmployeeId, force)
+      return
+    }
+    void runAllocate(employeeId, force)
   }
 
   const handleAllocate = () => {
     if (!selectedEmployeeId) return
-    void runAllocate(selectedEmployeeId)
+    handlePickEmployee(selectedEmployeeId)
   }
 
   const handleForceAllocate = () => {
     if (!pendingEmployeeId) return
+    if (replacingEmployeeId) {
+      void runReplace(pendingEmployeeId, replacingEmployeeId, true)
+      return
+    }
     void runAllocate(pendingEmployeeId, true)
+  }
+
+  const scheduleDateIso = job ? jobScheduleDateIso(job) : ''
+  const nextScheduleTimes = React.useMemo(
+    () => (scheduleDateIso ? buildJobScheduleDateTimes(scheduleDateIso, startTime, endTime) : null),
+    [scheduleDateIso, startTime, endTime],
+  )
+  const timesChanged =
+    job && nextScheduleTimes ? scheduleTimesChanged(job, nextScheduleTimes) : false
+  const scheduleDurationMinutes = React.useMemo(() => {
+    if (!nextScheduleTimes) return null
+    const start = new Date(nextScheduleTimes.scheduledStartDateTime)
+    const end = new Date(nextScheduleTimes.scheduledEndDateTime)
+    return Math.round((end.getTime() - start.getTime()) / 60_000)
+  }, [nextScheduleTimes])
+
+  const handleSaveTimes = async () => {
+    if (!job || !nextScheduleTimes || !timesChanged) return
+    setSavingTimes(true)
+    try {
+      await updateJob.mutateAsync({
+        jobId: job.id,
+        scheduledStartDateTime: nextScheduleTimes.scheduledStartDateTime,
+        scheduledEndDateTime: nextScheduleTimes.scheduledEndDateTime,
+      })
+      toastSuccess('Schedule updated', 'Job start and end times saved.')
+      onAllocated?.()
+    } catch (e) {
+      toastApiError(e, 'Could not update job times')
+    } finally {
+      setSavingTimes(false)
+    }
   }
 
   const handleUnallocate = (employeeId: string) => {
     if (!job) return
+    if (replacingEmployeeId === employeeId) setReplacingEmployeeId(null)
     unallocate.mutate(
       { jobId: job.id, employeeId },
       {
@@ -166,11 +294,18 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
 
   if (!job) return null
 
+  const dialogTitle = needsMoreCarers ? 'Assign carers' : 'Manage job carers'
+  const manualSectionTitle = replacingEmployeeId
+    ? 'Choose replacement manually'
+    : needsMoreCarers
+      ? 'Add carer manually'
+      : 'Change carer manually'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-h-[90vh] overflow-hidden p-0">
         <DialogHeader>
-          <DialogTitle>Assign carers</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
             {serviceUserLabel(job.serviceUser)}
             {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
@@ -199,6 +334,74 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
             </div>
           ) : null}
 
+          <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" aria-hidden />
+              <h4 className="text-sm font-semibold text-foreground">Scheduled time</h4>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="job-start-time" className="text-xs text-muted-foreground">
+                  Start time
+                </Label>
+                <Input
+                  id="job-start-time"
+                  type="time"
+                  className="mt-1"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="job-end-time" className="text-xs text-muted-foreground">
+                  End time
+                </Label>
+                <Input
+                  id="job-end-time"
+                  type="time"
+                  className="mt-1"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
+            </div>
+            {scheduleDurationMinutes != null ? (
+              <p className="text-xs text-muted-foreground">
+                Duration: {scheduleDurationMinutes} min
+                {timesChanged ? ' · unsaved changes' : ''}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Enter a valid start and end time (minimum 5 minutes).
+              </p>
+            )}
+          </section>
+
+          {replacingEmployeeId ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100">
+              <p>
+                Replacing{' '}
+                <strong>
+                  {replacingName ? employeeNameFromAllocation(replacingName) : 'selected carer'}
+                </strong>{' '}
+                — pick a recommended carer or search below.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setReplacingEmployeeId(null)
+                  setSelectedEmployeeId(null)
+                  setPendingWarnings([])
+                  setPendingEmployeeId(null)
+                }}
+              >
+                Cancel change
+              </Button>
+            </div>
+          ) : null}
+
           <section className="space-y-2">
             <h4 className="text-sm font-semibold text-foreground">Assigned carers</h4>
             {(job.allocations ?? []).length === 0 ? (
@@ -216,16 +419,33 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
                       </p>
                       <p className="text-xs text-muted-foreground">{allocation.status}</p>
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={unallocate.isPending}
-                      onClick={() => handleUnallocate(allocation.employeeId)}
-                    >
-                      <UserMinus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      Remove
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={replacingEmployeeId === allocation.employeeId ? 'default' : 'outline'}
+                        disabled={!!allocatingEmployeeId || unallocate.isPending}
+                        onClick={() => {
+                          setReplacingEmployeeId(allocation.employeeId)
+                          setSelectedEmployeeId(null)
+                          setPendingWarnings([])
+                          setPendingEmployeeId(null)
+                        }}
+                      >
+                        <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                        Change
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={unallocate.isPending || !!allocatingEmployeeId}
+                        onClick={() => handleUnallocate(allocation.employeeId)}
+                      >
+                        <UserMinus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                        Remove
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -233,79 +453,91 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
             <p className="text-xs text-muted-foreground">On rota: {employeesLabel(job)}</p>
           </section>
 
-          {jobNeedsCarerAssignment(job) ? (
-            <section className="space-y-3 border-t border-border pt-4">
-              <h4 className="text-sm font-semibold text-foreground">Add carer</h4>
-              <div>
-                <Label htmlFor="allocate-employee-search" className="text-xs text-muted-foreground">
-                  Search employees
-                </Label>
-                <Input
-                  id="allocate-employee-search"
-                  className="mt-1"
-                  placeholder="Search by name…"
-                  value={search}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                />
+          <ScheduleJobRecommendedCarers
+            job={job}
+            allocatedEmployeeIds={allocatedEmployeeIds}
+            allocatingEmployeeId={allocatingEmployeeId}
+            replacingEmployeeId={replacingEmployeeId}
+            onAssign={(employeeId) => handlePickEmployee(employeeId)}
+            onCandidatesChange={setSuggestCandidates}
+          />
+
+          <section className="space-y-3 border-t border-border pt-4">
+            <h4 className="text-sm font-semibold text-foreground">{manualSectionTitle}</h4>
+            {rotaBookedEmployeeIds.size > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Carers already booked at this time are hidden from search.
+              </p>
+            ) : null}
+            <div>
+              <Label htmlFor="allocate-employee-search" className="text-xs text-muted-foreground">
+                Search employees
+              </Label>
+              <Input
+                id="allocate-employee-search"
+                className="mt-1"
+                placeholder="Search by name…"
+                value={search}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+              />
+            </div>
+
+            {employeesQuery.isLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Loading employees…
               </div>
-
-              {employeesQuery.isLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  Loading employees…
-                </div>
-              ) : (
-                <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border p-1">
-                  {filteredEmployees.length === 0 ? (
-                    <li className="px-2 py-3 text-center text-sm text-muted-foreground">
-                      No employees match your search.
+            ) : (
+              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border p-1">
+                {filteredEmployees.length === 0 ? (
+                  <li className="px-2 py-3 text-center text-sm text-muted-foreground">
+                    No employees match your search.
+                  </li>
+                ) : (
+                  filteredEmployees.map((row) => (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm hover:bg-muted/60',
+                          selectedEmployeeId === row.id && 'bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950/40',
+                        )}
+                        onClick={() => setSelectedEmployeeId(row.id)}
+                      >
+                        <span className="font-medium">{employeeListRowDisplayName(row)}</span>
+                        {selectedEmployeeId === row.id ? (
+                          <span className="text-xs text-sky-700 dark:text-sky-300">Selected</span>
+                        ) : null}
+                      </button>
                     </li>
-                  ) : (
-                    filteredEmployees.map((row) => (
-                      <li key={row.id}>
-                        <button
-                          type="button"
-                          className={cn(
-                            'flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm hover:bg-muted/60',
-                            selectedEmployeeId === row.id && 'bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950/40',
-                          )}
-                          onClick={() => setSelectedEmployeeId(row.id)}
-                        >
-                          <span className="font-medium">{employeeListRowDisplayName(row)}</span>
-                          {selectedEmployeeId === row.id ? (
-                            <span className="text-xs text-sky-700 dark:text-sky-300">Selected</span>
-                          ) : null}
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              )}
+                  ))
+                )}
+              </ul>
+            )}
 
-              {pendingWarnings.length > 0 ? (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30">
-                  <p className="font-semibold text-amber-950 dark:text-amber-100">
-                    Allocation warnings
-                  </p>
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-900 dark:text-amber-200">
-                    {pendingWarnings.map((w) => (
-                      <li key={`${w.type}-${w.message}`}>{w.message}</li>
-                    ))}
-                  </ul>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="mt-3"
-                    variant="secondary"
-                    disabled={allocate.isPending}
-                    onClick={handleForceAllocate}
-                  >
-                    Allocate anyway
-                  </Button>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
+            {pendingWarnings.length > 0 ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30">
+                <p className="font-semibold text-amber-950 dark:text-amber-100">
+                  Allocation warnings
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-900 dark:text-amber-200">
+                  {pendingWarnings.map((w) => (
+                    <li key={`${w.type}-${w.message}`}>{w.message}</li>
+                  ))}
+                </ul>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-3"
+                  variant="secondary"
+                  disabled={allocate.isPending || unallocate.isPending}
+                  onClick={handleForceAllocate}
+                >
+                  {replacingEmployeeId ? 'Change anyway' : 'Allocate anyway'}
+                </Button>
+              </div>
+            ) : null}
+          </section>
 
           {job.visitPlan ? (
             <p className="text-xs text-muted-foreground border-t border-border pt-3">
@@ -327,20 +559,31 @@ export function ScheduleJobAllocateDialog({ open, onOpenChange, job, onAllocated
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {jobNeedsCarerAssignment(job) ? (
-            <Button
-              type="button"
-              disabled={!selectedEmployeeId || allocate.isPending}
-              onClick={handleAllocate}
-            >
-              {allocate.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <UserPlus className="mr-2 h-4 w-4" aria-hidden />
-              )}
-              Allocate carer
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!timesChanged || !nextScheduleTimes || savingTimes || updateJob.isPending}
+            onClick={() => void handleSaveTimes()}
+          >
+            {savingTimes || updateJob.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Clock className="mr-2 h-4 w-4" aria-hidden />
+            )}
+            Save times
+          </Button>
+          <Button
+            type="button"
+            disabled={!selectedEmployeeId || allocate.isPending || unallocate.isPending}
+            onClick={handleAllocate}
+          >
+            {allocate.isPending || unallocate.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <UserPlus className="mr-2 h-4 w-4" aria-hidden />
+            )}
+            {replacingEmployeeId ? 'Change carer' : needsMoreCarers ? 'Allocate carer' : 'Assign carer'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

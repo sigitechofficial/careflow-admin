@@ -6,6 +6,7 @@ import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types
 import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
+import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
 import {
   formatAnalysisArea,
   formatMonthlyDays,
@@ -296,6 +297,13 @@ export function VisitPlanDetailsView({
             </dd>
           </div>
         </dl>
+
+        <VisitPlanWeeklyHoursPanel
+          className="mt-4"
+          slots={plan.slots ?? []}
+          weeklyContractedHours={plan.weeklyContractedHours ?? ''}
+          anchorIso={plan.effectiveFrom}
+        />
 
         {plan.notes?.trim() ? (
           <div className="mt-4 rounded-md border border-border/60 bg-muted/20 px-4 py-3">

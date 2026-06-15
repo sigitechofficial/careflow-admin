@@ -87,6 +87,7 @@ test.describe('Major routes audit', () => {
       { path: '/employee/documents', label: 'Employee documents' },
       { path: '/employee/add', label: 'Add employee' },
       { path: '/scheduling/view', label: 'View schedule' },
+      { path: '/scheduling/schedule-jobs', label: 'Schedule jobs' },
       { path: '/scheduling/build', label: 'Build schedule' },
       { path: '/scheduling/report', label: 'Scheduling report' },
       { path: '/scheduling/jobs', label: 'Manage schedule jobs' },

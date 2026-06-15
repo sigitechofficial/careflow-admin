@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import { recordVisitPlanCalendarOutcome } from '@/features/service-users/visit-plan/api'
@@ -97,6 +98,16 @@ function uniqueEmployeeIds(...lists: (string[] | undefined)[]): string[] {
   return [...ids]
 }
 
+function sortedEmployeeIds(nameById: Map<string, string>, priorityIds: string[] = []): string[] {
+  const priority = new Set(priorityIds.filter(Boolean))
+  const all = [...nameById.keys()].sort((a, b) =>
+    resolveEmployeeDisplayName(nameById, a).localeCompare(resolveEmployeeDisplayName(nameById, b), 'en'),
+  )
+  const head = priorityIds.filter((id) => nameById.has(id))
+  const tail = all.filter((id) => !priority.has(id))
+  return [...head, ...tail]
+}
+
 export function VisitPlanCalendarOutcomeDialog({
   open,
   onOpenChange,
@@ -172,6 +183,25 @@ export function VisitPlanCalendarOutcomeDialog({
     if (!actualEndTime && selection) setActualEndTime(selection.end)
   }
 
+  const allocatedIds = existing?.allocatedEmployeeIds ?? []
+  const planAssignedIds = selection?.slot.assignedEmployeeIds ?? []
+  const priorityEmployeeIds = uniqueEmployeeIds(
+    allocatedIds,
+    planAssignedIds,
+    existing?.attendingEmployeeId ? [existing.attendingEmployeeId] : [],
+    employeeId ? [employeeId] : [],
+  )
+  const allEmployeeNameById = useEmployeeNameMap(priorityEmployeeIds)
+  const employeeNameMap = React.useMemo(() => {
+    const map = new Map(allEmployeeNameById)
+    for (const [id, name] of employeeNameById) map.set(id, name)
+    return map
+  }, [allEmployeeNameById, employeeNameById])
+  const employeeOptions = React.useMemo(
+    () => sortedEmployeeIds(employeeNameMap, priorityEmployeeIds),
+    [employeeNameMap, priorityEmployeeIds],
+  )
+
   if (!selection) return null
 
   const slot = selection.slot
@@ -183,9 +213,6 @@ export function VisitPlanCalendarOutcomeDialog({
   const scheduledStart = formatIsoTime(existing?.scheduledStartDateTime) ?? selection.start
   const scheduledEnd = formatIsoTime(existing?.scheduledEndDateTime) ?? selection.end
 
-  const allocatedIds = existing?.allocatedEmployeeIds ?? []
-  const planAssignedIds = slot.assignedEmployeeIds ?? []
-  const employeeOptions = uniqueEmployeeIds(allocatedIds, planAssignedIds)
   const durationMins = visitDurationMinutes(actualStartTime, actualEndTime)
 
   const linkedPlans = resolveCarePlansForSlot(slot, acceptedCarePlans)
@@ -260,19 +287,20 @@ export function VisitPlanCalendarOutcomeDialog({
                   {employeeOptions.length > 0 ? (
                     <Select value={employeeId || undefined} onValueChange={setEmployeeId}>
                       <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select employee" />
+                        <SelectValue placeholder="Select carer" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-72">
                         {employeeOptions.map((id) => (
                           <SelectItem key={id} value={id}>
-                            {resolveEmployeeDisplayName(employeeNameById, id)}
+                            {resolveEmployeeDisplayName(employeeNameMap, id)}
+                            {planAssignedIds.includes(id) ? ' · assigned to slot' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   ) : (
                     <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                      No carers assigned to this slot — assign carers on the Configure tab first.
+                      No employees found — add staff in Employees first.
                     </p>
                   )}
                 </div>
@@ -319,7 +347,7 @@ export function VisitPlanCalendarOutcomeDialog({
                 {employeeId ? (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <User className="h-3.5 w-3.5" aria-hidden />
-                    Attending: {resolveEmployeeDisplayName(employeeNameById, employeeId)}
+                    Attending: {resolveEmployeeDisplayName(employeeNameMap, employeeId)}
                   </p>
                 ) : null}
               </section>

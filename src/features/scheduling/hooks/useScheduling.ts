@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import {
+  getEmployeesDayTimeline,
   getHousekeepingDayJobs,
   getHousekeepingJobsNeedingAttention,
   getHousekeepingJobsNotStarted,
   getJobsDayRuns,
   getJobsDayTimeline,
+  getServiceUsersWeekTimeline,
   getScheduleReport,
   getScheduleReportTypes,
   getScheduleStatus,
@@ -39,10 +41,31 @@ export function useScheduleDayRuns(
   })
 }
 
+export function useScheduleServiceUsersWeek(weekStart: string, enabled = true) {
+  return useQuery({
+    queryKey: schedulingKeys.serviceUsersWeek(weekStart),
+    queryFn: ({ signal }) => getServiceUsersWeekTimeline(weekStart, { limit: 300 }, { signal }),
+    enabled: enabled && Boolean(weekStart),
+    staleTime: 30_000,
+  })
+}
+
 export function useScheduleList(date: string, enabled = true) {
   return useQuery({
     queryKey: schedulingKeys.list(date),
     queryFn: ({ signal }) => getJobsDayTimeline(date, { limit: 200 }, { signal }),
+    enabled: enabled && Boolean(date),
+  })
+}
+
+export function useScheduleEmployeesDay(
+  date: string,
+  enabled = true,
+  params: { limit?: number } = {},
+) {
+  return useQuery({
+    queryKey: schedulingKeys.employeesDay(date),
+    queryFn: ({ signal }) => getEmployeesDayTimeline(date, { limit: params.limit ?? 200 }, { signal }),
     enabled: enabled && Boolean(date),
   })
 }

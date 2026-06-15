@@ -120,6 +120,8 @@ export async function suggestVisitPlanCarers(
     plannedEndTime: string
     requiredCarers?: number
     linkedCarePlanFormIds?: string[]
+    scheduledDate?: string
+    excludeScheduledJobId?: string
   },
 ) {
   const res = await apiJson<ApiEnvelope<VisitPlanCarerSuggestions>>(
@@ -141,6 +143,15 @@ export async function fetchActiveServiceUserVisitPlan(serviceUserId: string) {
     `/service-users/${serviceUserId}/visit-plans/active`,
   )
   return unwrapVisitPlan(res.data)
+}
+
+/** Active plan first; otherwise latest draft / most recent plan (for contracted-hours checks). */
+export async function fetchWorkingServiceUserVisitPlan(serviceUserId: string) {
+  const active = await fetchActiveServiceUserVisitPlan(serviceUserId)
+  if (active) return active
+  const plans = await fetchServiceUserVisitPlans(serviceUserId)
+  const draft = plans.find((p) => p.status === 'DRAFT')
+  return draft ?? plans[0] ?? null
 }
 
 export async function createServiceUserVisitPlan(

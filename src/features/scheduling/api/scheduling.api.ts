@@ -2,12 +2,14 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   CallOffVisitRow,
   DateRangeQuery,
+  EmployeesDayTimelineResponse,
   HousekeepingJob,
   JobsDayRunsResponse,
   PaginationMeta,
   ReportTypeRow,
   ScheduleAreaRow,
   ScheduleStatusResponse,
+  ServiceUsersWeekTimelineResponse,
   TimelineJob,
 } from '../types/scheduling.types'
 
@@ -39,6 +41,96 @@ export async function getJobsDayTimeline(date: string, params: { scheduleBatchId
     { method: 'GET', ...init },
   )
   return { jobs: res.data?.jobs ?? [], meta: res.meta as PaginationMeta | undefined }
+}
+
+export async function getServiceUsersWeekTimeline(
+  weekStart: string,
+  params: { limit?: number } = {},
+  init?: RequestInit,
+) {
+  const pageSize = Math.min(params.limit ?? 200, 200)
+  const byServiceUser = new Map<
+    string,
+    ServiceUsersWeekTimelineResponse['serviceUsers'][number]
+  >()
+  let page = 1
+  let weekStartLabel = weekStart
+  let weekEndLabel = weekStart
+  let lastMeta: PaginationMeta | undefined
+
+  for (;;) {
+    const res = await apiJson<ApiEnvelope<ServiceUsersWeekTimelineResponse>>(
+      `/schedule-timelines/service-users/week${buildQuery({ weekStart, limit: pageSize, page })}`,
+      { method: 'GET', ...init },
+    )
+    const data = res.data!
+    weekStartLabel = data.weekStart
+    weekEndLabel = data.weekEnd
+    lastMeta = res.meta as PaginationMeta | undefined
+
+    for (const row of data.serviceUsers) {
+      const suId = row.serviceUser.id
+      const existing = byServiceUser.get(suId)
+      if (!existing) {
+        byServiceUser.set(suId, { serviceUser: row.serviceUser, jobs: [...row.jobs] })
+      } else {
+        existing.jobs.push(...row.jobs)
+      }
+    }
+
+    const hasNext =
+      lastMeta?.hasNextPage ??
+      (lastMeta?.totalPages != null ? page < lastMeta.totalPages : false)
+    if (!hasNext || (data.serviceUsers.length === 0 && page > 1)) break
+    page += 1
+  }
+
+  return {
+    weekStart: weekStartLabel,
+    weekEnd: weekEndLabel,
+    serviceUsers: [...byServiceUser.values()],
+  }
+}
+
+export async function getEmployeesDayTimeline(
+  date: string,
+  params: { limit?: number; page?: number } = {},
+  init?: RequestInit,
+) {
+  const pageSize = Math.min(params.limit ?? 200, 200)
+  const allEmployees: EmployeesDayTimelineResponse['employees'] = []
+  let page = params.page ?? 1
+  let dateLabel = date
+  let lastMeta: PaginationMeta | undefined
+
+  for (;;) {
+    const res = await apiJson<ApiEnvelope<EmployeesDayTimelineResponse>>(
+      `/schedule-timelines/employees/day${buildQuery({ date, limit: pageSize, page })}`,
+      { method: 'GET', ...init },
+    )
+    dateLabel = res.data?.date ?? date
+    const rows = res.data?.employees ?? []
+    allEmployees.push(...rows)
+    lastMeta = res.meta as PaginationMeta | undefined
+
+    const hasNext =
+      lastMeta?.hasNextPage ??
+      (lastMeta?.totalPages != null
+        ? page < lastMeta.totalPages
+        : lastMeta?.total != null
+          ? allEmployees.length < lastMeta.total
+          : rows.length >= pageSize)
+
+    if (!hasNext || rows.length === 0) break
+    page += 1
+    if (page > 50) break
+  }
+
+  return {
+    date: dateLabel,
+    employees: allEmployees,
+    meta: lastMeta,
+  }
 }
 
 export async function getHousekeepingJobsNotStarted(params: Record<string, string | number | undefined>) {
@@ -143,6 +235,9 @@ export type JobAllocationRow = {
   employeeId: string
   status: string
   requiresConfirmation: boolean
+  scheduledJob?: {
+    serviceUserId?: string | null
+  } | null
   employee: {
     id: string
     personalDetail?: { firstName?: string; lastName?: string; email?: string | null } | null
@@ -157,6 +252,20 @@ export async function listJobAllocations(jobId: string, init?: RequestInit) {
   return res.data ?? []
 }
 
+export async function updateScheduledJob(
+  jobId: string,
+  body: {
+    scheduledStartDateTime?: string
+    scheduledEndDateTime?: string | null
+  },
+) {
+  const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs/${jobId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+  return res
+}
+
 export async function allocateJob(
   jobId: string,
   body: { employeeId: string; scheduledVisitId?: string; force?: boolean; notes?: string },
@@ -169,11 +278,11 @@ export async function allocateJob(
 }
 
 export async function unallocateJob(jobId: string, body: { employeeId: string; reason?: string }) {
-  const res = await apiJson<ApiEnvelope<{ message: string; jobStatus?: string }>>(
+  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(
     `/scheduled-jobs/${jobId}/unallocate`,
     { method: 'POST', body: JSON.stringify(body) },
   )
-  return res
+  return { message: res.message, data: res.data! }
 }
 
 export async function createCallOffVisit(payload: {

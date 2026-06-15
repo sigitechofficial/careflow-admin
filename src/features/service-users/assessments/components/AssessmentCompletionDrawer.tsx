@@ -51,8 +51,8 @@ export function AssessmentCompletionDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" size="lg" className="flex w-full flex-col sm:max-w-3xl">
-        <SheetHeader>
+      <SheetContent side="right" size="xl" className="flex h-full w-full max-w-3xl flex-col p-0">
+        <SheetHeader className="shrink-0 pr-12">
           <SheetTitle>{completion?.assessmentTitle ?? 'Assessment completion'}</SheetTitle>
           <SheetDescription>
             {completion?.assessmentKey ? `Assessment key: ${completion.assessmentKey}` : 'Assessment snapshot'}
