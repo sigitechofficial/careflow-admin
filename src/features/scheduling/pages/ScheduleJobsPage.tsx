@@ -7,16 +7,25 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { listAllEmployees } from '@/features/employees/api'
 import { employeeKeys } from '@/features/employees/keys'
+import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
+import { ScheduleJobNotesDialog } from '@/features/scheduling/components/ScheduleJobNotesDialog'
+import { ScheduleJobCompleteDialog } from '@/features/scheduling/components/ScheduleJobCompleteDialog'
 import { ScheduleJobsGantt } from '@/features/scheduling/components/ScheduleJobsGantt'
 import { ScheduleJobsToolbar } from '@/features/scheduling/components/ScheduleJobsToolbar'
 import { useScheduleDayRuns, useScheduleEmployeesDay, useScheduleServiceUsersWeek } from '@/features/scheduling/hooks/useScheduling'
 import {
   useAllocateJob,
+  useCancelHousekeepingJob,
   useUnallocateJob,
   useUpdateScheduledJob,
 } from '@/features/scheduling/hooks/useSchedulingMutations'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import type {
+  ScheduleJobAllocateDialogPanel,
+  ScheduleJobContextAction,
+} from '@/features/scheduling/types/schedule-job-context-actions.types'
+import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
   rowsEqual,
   scheduleTimesChanged,
@@ -24,19 +33,24 @@ import {
 } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import { mergeScheduleJobsEmployeeRoster } from '@/features/scheduling/utils/schedule-jobs-employee-roster.util'
 import {
+  buildEmployeeLocationCatalogMap,
+  filterEmployeeDayRowsByLocation,
+  filterTimelineJobsByLocation,
+} from '@/features/scheduling/utils/schedule-jobs-location-filter.util'
+import {
   mergedExcessWeeklyContractedJobIds,
   scheduleWeekStartIso,
   summarizeWeeklyContractUsage,
 } from '@/features/scheduling/utils/schedule-jobs-contracted-hours.util'
-import { useVisitPlanContractByServiceUser } from '@/features/service-users/visit-plan/hooks'
+import { useVisitPlanContractByServiceUser, useAcceptedCarePlansByServiceUser } from '@/features/service-users/visit-plan/hooks'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { formatVisitPlanWeeklyHours, visitPlanWeeklyPlannedMinutes } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import {
   allocationWarningsSummary,
+  isDragAllocationHardBlock,
   warningsFromAllocateError,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
-import { scheduleTimesFitCarerDayPattern } from '@/features/scheduling/utils/schedule-jobs-availability.util'
 import {
   buildScheduleJobsBoard,
   jobRequiredCarerMinutes,
@@ -50,28 +64,57 @@ type GroupBy = 'none' | 'area'
 export default function ScheduleJobsPage() {
   const hasApi = !!getApiBaseUrl()
   const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as { date?: string }
+  const search = useSearch({ strict: false }) as { date?: string; locationId?: string }
   const [date, setDate] = React.useState(search.date ?? todayIso())
   const [groupBy, setGroupBy] = React.useState<GroupBy>('none')
+  const [locationFilterId, setLocationFilterId] = React.useState<string | null>(search.locationId ?? null)
   const [allocateJobId, setAllocateJobId] = React.useState<string | null>(null)
+  const [allocateDialogPanel, setAllocateDialogPanel] =
+    React.useState<ScheduleJobAllocateDialogPanel>('allocate')
   const [allocateOpen, setAllocateOpen] = React.useState(false)
+  const [notesJob, setNotesJob] = React.useState<TimelineJob | null>(null)
+  const [notesOpen, setNotesOpen] = React.useState(false)
+  const [completeJobTarget, setCompleteJobTarget] = React.useState<TimelineJob | null>(null)
+  const [completeOpen, setCompleteOpen] = React.useState(false)
   const [savingJobId, setSavingJobId] = React.useState<string | null>(null)
 
   const updateJob = useUpdateScheduledJob()
   const allocate = useAllocateJob()
   const unallocate = useUnallocateJob()
+  const cancelJob = useCancelHousekeepingJob()
 
   const setScheduleDate = React.useCallback(
     (next: string) => {
       setDate(next)
-      void navigate({ to: '/scheduling/schedule-jobs', search: { date: next } })
+      void navigate({
+        to: '/scheduling/schedule-jobs',
+        search: { date: next, ...(locationFilterId ? { locationId: locationFilterId } : {}) },
+      })
     },
-    [navigate],
+    [locationFilterId, navigate],
+  )
+
+  const setScheduleLocationFilter = React.useCallback(
+    (next: string | null) => {
+      setLocationFilterId(next)
+      void navigate({
+        to: '/scheduling/schedule-jobs',
+        search: { date, ...(next ? { locationId: next } : {}) },
+      })
+    },
+    [date, navigate],
   )
 
   React.useEffect(() => {
     if (search.date) setDate(search.date)
   }, [search.date])
+
+  React.useEffect(() => {
+    setLocationFilterId(search.locationId ?? null)
+  }, [search.locationId])
+
+  const lookupsQuery = useEmployeeLookups(hasApi)
+  const locations = lookupsQuery.data?.locations ?? []
 
   const employeesQuery = useScheduleEmployeesDay(date, hasApi)
   const dayRunsQuery = useScheduleDayRuns(date, hasApi, { limit: 300 })
@@ -95,27 +138,57 @@ export default function ScheduleJobsPage() {
   const runJobs = dayRunsQuery.data?.runs.flatMap((run) => run.jobs) ?? []
   const runlessJobs = dayRunsQuery.data?.unassignedJobs ?? []
 
+  const locationNameMap = React.useMemo(
+    () => new Map(locations.map((loc) => [loc.id, loc.name])),
+    [locations],
+  )
+
+  const employeeCatalogById = React.useMemo(
+    () => new Map((employeeCatalogQuery.data ?? []).map((row) => [row.id, row])),
+    [employeeCatalogQuery.data],
+  )
+
+  const employeeLocationCatalog = React.useMemo(
+    () => buildEmployeeLocationCatalogMap(employeeCatalogQuery.data ?? []),
+    [employeeCatalogQuery.data],
+  )
+
+  const filteredRunJobs = React.useMemo(
+    () => filterTimelineJobsByLocation(runJobs, locationFilterId),
+    [locationFilterId, runJobs],
+  )
+  const filteredRunlessJobs = React.useMemo(
+    () => filterTimelineJobsByLocation(runlessJobs, locationFilterId),
+    [locationFilterId, runlessJobs],
+  )
+
   const employees = React.useMemo(
     () =>
-      mergeScheduleJobsEmployeeRoster(
-        employeesQuery.data?.employees ?? [],
-        employeeCatalogQuery.data ?? [],
-        [...runJobs, ...runlessJobs],
+      filterEmployeeDayRowsByLocation(
+        mergeScheduleJobsEmployeeRoster(
+          employeesQuery.data?.employees ?? [],
+          employeeCatalogQuery.data ?? [],
+          [...filteredRunJobs, ...filteredRunlessJobs],
+        ),
+        locationFilterId,
+        employeeLocationCatalog,
       ),
-    [employeesQuery.data?.employees, employeeCatalogQuery.data, runJobs, runlessJobs],
+    [
+      employeesQuery.data?.employees,
+      employeeCatalogQuery.data,
+      filteredRunJobs,
+      filteredRunlessJobs,
+      locationFilterId,
+      employeeLocationCatalog,
+    ],
   )
 
   const board = React.useMemo(
-    () => buildScheduleJobsBoard(employees, runJobs, runlessJobs),
-    [employees, runJobs, runlessJobs],
+    () => buildScheduleJobsBoard(employees, filteredRunJobs, filteredRunlessJobs),
+    [employees, filteredRunJobs, filteredRunlessJobs],
   )
 
   const { employeeRows, carers, unassignedJobs, allJobs } = board
-
-  const employeeRowById = React.useMemo(
-    () => new Map(employeeRows.map((row) => [row.employee.id, row])),
-    [employeeRows],
-  )
 
   const serviceUserIds = React.useMemo(() => {
     const weekSuIds =
@@ -124,6 +197,7 @@ export default function ScheduleJobsPage() {
     return [...new Set([...daySuIds, ...weekSuIds].filter(Boolean))]
   }, [allJobs, weekTimelineQuery.data])
   const visitPlanContractByServiceUser = useVisitPlanContractByServiceUser(serviceUserIds)
+  const acceptedCarePlansByServiceUser = useAcceptedCarePlansByServiceUser(serviceUserIds)
   const contractedHoursByServiceUser = React.useMemo(() => {
     const map = new Map<string, number>()
     for (const [serviceUserId, context] of visitPlanContractByServiceUser) {
@@ -139,8 +213,11 @@ export default function ScheduleJobsPage() {
     return map
   }, [visitPlanContractByServiceUser])
   const weekJobs = React.useMemo(
-    () => weekTimelineQuery.data?.serviceUsers.flatMap((row) => row.jobs) ?? [],
-    [weekTimelineQuery.data],
+    () => filterTimelineJobsByLocation(
+      weekTimelineQuery.data?.serviceUsers.flatMap((row) => row.jobs) ?? [],
+      locationFilterId,
+    ),
+    [weekTimelineQuery.data, locationFilterId],
   )
   const excessContractedJobIds = React.useMemo(
     () =>
@@ -201,10 +278,101 @@ export default function ScheduleJobsPage() {
 
   const allocateJob = allocateJobId ? allJobs.find((j) => j.id === allocateJobId) ?? null : null
 
-  const openAllocate = (job: TimelineJob) => {
-    setAllocateJobId(job.id)
-    setAllocateOpen(true)
-  }
+  const refreshBoard = React.useCallback(async () => {
+    await Promise.all([
+      employeesQuery.refetch(),
+      dayRunsQuery.refetch(),
+      employeeCatalogQuery.refetch(),
+      weekTimelineQuery.refetch(),
+    ])
+  }, [dayRunsQuery, employeeCatalogQuery, employeesQuery, weekTimelineQuery])
+
+  const openAllocate = React.useCallback(
+    (job: TimelineJob, panel: ScheduleJobAllocateDialogPanel = 'allocate') => {
+      setAllocateJobId(job.id)
+      setAllocateDialogPanel(panel)
+      setAllocateOpen(true)
+    },
+    [],
+  )
+
+  const handleUnallocateJob = React.useCallback(
+    async (job: TimelineJob) => {
+      const employeeIds = (job.allocations ?? []).map((allocation) => allocation.employeeId)
+      if (employeeIds.length === 0) return
+      setSavingJobId(job.id)
+      try {
+        for (const employeeId of employeeIds) {
+          await unallocate.mutateAsync({ jobId: job.id, employeeId })
+        }
+        toastSuccess('Job unallocated', 'All carers were removed from this job.')
+        await refreshBoard()
+      } catch (error) {
+        toastApiError(error, 'Could not unallocate job')
+        await refreshBoard()
+      } finally {
+        setSavingJobId(null)
+      }
+    },
+    [refreshBoard, unallocate],
+  )
+
+  const handleJobAction = React.useCallback(
+    (job: TimelineJob, action: ScheduleJobContextAction) => {
+      const readOnly = isScheduleJobReadOnly(job)
+      if (
+        readOnly &&
+        action !== 'allocate-employees' &&
+        action !== 'add-notes'
+      ) {
+        return
+      }
+      if (readOnly && action === 'add-notes') {
+        setNotesJob(job)
+        setNotesOpen(true)
+        return
+      }
+
+      switch (action) {
+        case 'unallocate-job':
+          void handleUnallocateJob(job)
+          return
+        case 'complete-job':
+          setCompleteJobTarget(job)
+          setCompleteOpen(true)
+          return
+        case 'cancel-job':
+          if (!window.confirm('Cancel this job? Assigned carers will be removed.')) return
+          cancelJob.mutate(
+            { jobId: job.id },
+            {
+              onSuccess: () => {
+                toastSuccess('Job cancelled')
+                void refreshBoard()
+              },
+              onError: (error) => toastApiError(error, 'Could not cancel job'),
+            },
+          )
+          return
+        case 'add-notes':
+          setNotesJob(job)
+          setNotesOpen(true)
+          return
+        case 'allocate-employees':
+          openAllocate(job, 'allocate')
+          return
+        case 'unallocate-employees':
+          openAllocate(job, 'unallocate')
+          return
+        case 'change-time':
+          openAllocate(job, 'time')
+          return
+        default:
+          return
+      }
+    },
+    [cancelJob, handleUnallocateJob, openAllocate, refreshBoard],
+  )
 
   const handleRefresh = () => {
     void Promise.all([
@@ -218,26 +386,16 @@ export default function ScheduleJobsPage() {
   const handleJobDrop = React.useCallback(
     async (payload: JobDropPayload) => {
       const { job, sourceRow, targetRow, scheduledStartDateTime, scheduledEndDateTime } = payload
+      if (isScheduleJobReadOnly(job)) {
+        toastWarning('Cannot move job', 'Completed and cancelled jobs are read only.')
+        return
+      }
       const timesChanged = scheduleTimesChanged(job, { scheduledStartDateTime, scheduledEndDateTime })
       const rowChanged = !rowsEqual(sourceRow, targetRow)
       if (!timesChanged && !rowChanged) return
 
       setSavingJobId(job.id)
       try {
-        if (targetRow.kind === 'carer') {
-          const dayPattern = employeeRowById.get(targetRow.employeeId)?.dayPattern
-          const hoursCheck = scheduleTimesFitCarerDayPattern(
-            dayPattern,
-            scheduledStartDateTime,
-            scheduledEndDateTime,
-          )
-          if (!hoursCheck.ok) {
-            toastWarning('Outside working hours', hoursCheck.message)
-            await Promise.all([employeesQuery.refetch(), dayRunsQuery.refetch()])
-            return
-          }
-        }
-
         if (timesChanged) {
           await updateJob.mutateAsync({
             jobId: job.id,
@@ -258,22 +416,31 @@ export default function ScheduleJobsPage() {
           } catch (allocateError) {
             const warnings = warningsFromAllocateError(allocateError)
             if (warnings.length > 0) {
-              toastWarning(
-                'Carer not assigned',
-                allocationWarningsSummary(warnings) ||
-                  'This carer is already booked at this time. Open the job to assign anyway.',
-              )
-              if (sourceCarerId) {
+              if (!isDragAllocationHardBlock(warnings)) {
                 await allocate.mutateAsync({
                   jobId: job.id,
-                  employeeId: sourceCarerId,
+                  employeeId: targetCarerId,
                   force: true,
                 })
+              } else {
+                toastWarning(
+                  'Carer not assigned',
+                  allocationWarningsSummary(warnings) ||
+                    'This carer is already booked at this time. Open the job to assign anyway.',
+                )
+                if (sourceCarerId) {
+                  await allocate.mutateAsync({
+                    jobId: job.id,
+                    employeeId: sourceCarerId,
+                    force: true,
+                  })
+                }
+                await Promise.all([employeesQuery.refetch(), dayRunsQuery.refetch()])
+                return
               }
-              await Promise.all([employeesQuery.refetch(), dayRunsQuery.refetch()])
-              return
+            } else {
+              throw allocateError
             }
-            throw allocateError
           }
         } else if (!targetCarerId && sourceCarerId) {
           await unallocate.mutateAsync({ jobId: job.id, employeeId: sourceCarerId })
@@ -288,7 +455,7 @@ export default function ScheduleJobsPage() {
         setSavingJobId(null)
       }
     },
-    [allocate, dayRunsQuery, employeeRowById, employeesQuery, unallocate, updateJob],
+    [allocate, dayRunsQuery, employeesQuery, unallocate, updateJob],
   )
 
   if (!hasApi) {
@@ -314,6 +481,9 @@ export default function ScheduleJobsPage() {
         date={date}
         groupBy={groupBy}
         onGroupByChange={setGroupBy}
+        locationId={locationFilterId}
+        locations={locations}
+        onLocationChange={setScheduleLocationFilter}
         onPrevDay={() => setScheduleDate(shiftIsoDate(date, -1))}
         onNextDay={() => setScheduleDate(shiftIsoDate(date, 1))}
         onToday={() => setScheduleDate(todayIso())}
@@ -332,6 +502,16 @@ export default function ScheduleJobsPage() {
         weeklyBookedVisitMinutes={weeklyContractSummary.bookedVisitMinutes}
         weeklyExcessContractMinutes={weeklyContractSummary.excessVisitMinutes}
       />
+
+      {locationFilterId ? (
+        <p className="mb-2 shrink-0 text-xs text-muted-foreground">
+          Showing carers at this location (primary or base) and jobs for service users assigned to{' '}
+          <span className="font-medium text-foreground">
+            {locations.find((l) => l.id === locationFilterId)?.name ?? 'selected location'}
+          </span>
+          .
+        </p>
+      ) : null}
 
       {groupBy === 'area' ? (
         <p className={cn('mb-2 shrink-0 text-xs italic text-muted-foreground')}>
@@ -379,10 +559,15 @@ export default function ScheduleJobsPage() {
           date={date}
           employeeRows={employeeRows}
           unassignedJobs={unassignedJobs}
+          employeeCatalogById={employeeCatalogById}
+          locationNames={locationNameMap}
           savingJobId={savingJobId}
           excessContractedJobIds={excessContractedJobIds}
           overAllocatedJobIds={overAllocatedJobIds}
+          visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+          acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
           onJobClick={openAllocate}
+          onJobAction={handleJobAction}
           onJobDrop={handleJobDrop}
         />
       </div>
@@ -391,13 +576,39 @@ export default function ScheduleJobsPage() {
         open={allocateOpen}
         onOpenChange={(open) => {
           setAllocateOpen(open)
-          if (!open) setAllocateJobId(null)
+          if (!open) {
+            setAllocateJobId(null)
+            setAllocateDialogPanel('allocate')
+          }
         }}
         job={allocateJob}
+        initialPanel={allocateDialogPanel}
         onAllocated={() => {
-          void employeesQuery.refetch()
-          void dayRunsQuery.refetch()
-          void employeeCatalogQuery.refetch()
+          void refreshBoard()
+        }}
+      />
+
+      <ScheduleJobCompleteDialog
+        open={completeOpen}
+        onOpenChange={(open) => {
+          setCompleteOpen(open)
+          if (!open) setCompleteJobTarget(null)
+        }}
+        job={completeJobTarget}
+        onCompleted={() => {
+          void refreshBoard()
+        }}
+      />
+
+      <ScheduleJobNotesDialog
+        open={notesOpen}
+        onOpenChange={(open) => {
+          setNotesOpen(open)
+          if (!open) setNotesJob(null)
+        }}
+        job={notesJob}
+        onSaved={() => {
+          void refreshBoard()
         }}
       />
     </div>

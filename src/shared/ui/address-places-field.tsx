@@ -413,6 +413,30 @@ export function AddressPlacesField({
             Map coordinates: {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
           </div>
         ) : null}
+        <div>
+          <Label className="text-sm font-medium">Latitude</Label>
+          <Input
+            className="mt-1.5"
+            inputMode="decimal"
+            placeholder="e.g. 51.454514"
+            value={value.latitude}
+            onChange={setField('latitude')}
+            disabled={disabled}
+            autoComplete="off"
+          />
+        </div>
+        <div>
+          <Label className="text-sm font-medium">Longitude</Label>
+          <Input
+            className="mt-1.5"
+            inputMode="decimal"
+            placeholder="e.g. -2.587910"
+            value={value.longitude}
+            onChange={setField('longitude')}
+            disabled={disabled}
+            autoComplete="off"
+          />
+        </div>
       </div>
 
       {children}

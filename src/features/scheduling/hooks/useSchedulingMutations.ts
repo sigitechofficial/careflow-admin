@@ -4,6 +4,7 @@ import {
   buildSchedule,
   cancelHousekeepingJob,
   completeHousekeepingJob,
+  setJobLeadCarer,
   unallocateJob,
   updateScheduledJob,
 } from '@/features/scheduling/api/scheduling.api'
@@ -29,10 +30,20 @@ export function useBuildSchedule() {
 export function useCompleteHousekeepingJob() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ jobId, notes }: { jobId: string; notes?: string }) =>
-      completeHousekeepingJob(jobId, notes),
+    mutationFn: ({
+      jobId,
+      notes,
+      deliveredCarePlanFormIds,
+      actualEndDateTime,
+    }: {
+      jobId: string
+      notes?: string
+      deliveredCarePlanFormIds?: string[]
+      actualEndDateTime?: string
+    }) => completeHousekeepingJob(jobId, { notes, deliveredCarePlanFormIds, actualEndDateTime }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
+      invalidateSchedulingQueries(qc)
     },
   })
 }
@@ -44,6 +55,7 @@ export function useCancelHousekeepingJob() {
       cancelHousekeepingJob(jobId, notes),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
+      invalidateSchedulingQueries(qc)
     },
   })
 }
@@ -69,11 +81,13 @@ export function useUpdateScheduledJob() {
       jobId,
       scheduledStartDateTime,
       scheduledEndDateTime,
+      notes,
     }: {
       jobId: string
       scheduledStartDateTime?: string
       scheduledEndDateTime?: string | null
-    }) => updateScheduledJob(jobId, { scheduledStartDateTime, scheduledEndDateTime }),
+      notes?: string | null
+    }) => updateScheduledJob(jobId, { scheduledStartDateTime, scheduledEndDateTime, notes }),
     onSuccess: () => invalidateSchedulingQueries(qc),
   })
 }
@@ -87,13 +101,27 @@ export function useAllocateJob() {
       scheduledVisitId,
       force,
       notes,
+      isLeadCarer,
     }: {
       jobId: string
       employeeId: string
       scheduledVisitId?: string
       force?: boolean
       notes?: string
-    }) => allocateJob(jobId, { employeeId, scheduledVisitId, force, notes }),
+      isLeadCarer?: boolean
+    }) => allocateJob(jobId, { employeeId, scheduledVisitId, force, notes, isLeadCarer }),
+    onSuccess: (result) => {
+      invalidateSchedulingQueries(qc)
+      invalidateVisitPlanForAllocation(qc, result.data)
+    },
+  })
+}
+
+export function useSetJobLeadCarer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, employeeId }: { jobId: string; employeeId: string }) =>
+      setJobLeadCarer(jobId, { employeeId }),
     onSuccess: (result) => {
       invalidateSchedulingQueries(qc)
       invalidateVisitPlanForAllocation(qc, result.data)

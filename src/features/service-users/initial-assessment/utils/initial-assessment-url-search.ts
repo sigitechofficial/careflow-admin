@@ -13,8 +13,11 @@ const HUB_TAB_IDS = new Set<HubTabId>([
 
 export type InitialAssessmentEnterpriseSearch = {
   serviceUserId?: string
+  /** Holistic document tab (1–18). */
   section?: number
   tab?: HubTabId
+  /** Open a specific submission (e.g. after API autofill / E2E). */
+  submissionId?: string
 }
 
 function parseSection(raw: unknown): number | undefined {
@@ -41,7 +44,11 @@ export function parseInitialAssessmentEnterpriseSearch(
       : undefined
   const section = parseSection(raw.section)
   const tab = parseTab(raw.tab)
-  return { serviceUserId, section, tab }
+  const submissionId =
+    typeof raw.submissionId === 'string' && raw.submissionId.trim()
+      ? raw.submissionId.trim()
+      : undefined
+  return { serviceUserId, section, tab, submissionId }
 }
 
 export function validateInitialAssessmentEnterpriseSearch(
@@ -57,5 +64,6 @@ export function buildInitialAssessmentEnterpriseSearch(
   if (params.serviceUserId?.trim()) out.serviceUserId = params.serviceUserId.trim()
   if (params.section != null && params.section >= 1) out.section = params.section
   if (params.tab) out.tab = params.tab
+  if (params.submissionId?.trim()) out.submissionId = params.submissionId.trim()
   return out
 }

@@ -12,6 +12,9 @@ import {
   prefillVisitPlanFromDomCare,
   updateServiceUserVisitPlan,
 } from '@/features/service-users/visit-plan/api'
+import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessment/api'
+import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
+import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import {
   parseWeeklyContractedHours,
@@ -85,6 +88,28 @@ export function useVisitPlanContractedHoursByServiceUser(serviceUserIds: string[
     }
     return map
   }, [contractByServiceUser])
+}
+
+export function useAcceptedCarePlansByServiceUser(serviceUserIds: string[]) {
+  const uniqueIds = [...new Set(serviceUserIds.filter(Boolean))]
+  const queries = useQueries({
+    queries: uniqueIds.map((serviceUserId) => ({
+      queryKey: initialAssessmentKeys.acceptedCarePlans(serviceUserId),
+      queryFn: () => fetchAcceptedCarePlans(serviceUserId),
+      enabled: Boolean(serviceUserId),
+      staleTime: 60_000,
+    })),
+  })
+
+  return React.useMemo(() => {
+    const map = new Map<string, AcceptedCarePlanItem[]>()
+    for (let i = 0; i < uniqueIds.length; i++) {
+      const serviceUserId = uniqueIds[i]!
+      const items = queries[i]?.data?.items
+      if (items?.length) map.set(serviceUserId, items)
+    }
+    return map
+  }, [queries, uniqueIds])
 }
 
 export function useServiceUserVisitPlanMutations(serviceUserId: string) {

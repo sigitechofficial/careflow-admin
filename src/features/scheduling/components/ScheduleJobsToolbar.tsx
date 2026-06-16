@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import * as PopoverPrimitive from '@radix-ui/react-popover'
+import { format } from 'date-fns'
 import {
   CalendarDays,
   ChevronLeft,
@@ -9,8 +11,10 @@ import {
   Settings,
   Users,
 } from 'lucide-react'
+import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { Calendar } from '@/shared/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import {
   formatHoursMinutes,
@@ -51,6 +55,9 @@ type Props = {
   date: string
   groupBy: GroupBy
   onGroupByChange: (value: GroupBy) => void
+  locationId: string | null
+  locations: Array<{ id: string; name: string }>
+  onLocationChange: (locationId: string | null) => void
   onPrevDay: () => void
   onNextDay: () => void
   onToday: () => void
@@ -70,10 +77,21 @@ type Props = {
   weeklyExcessContractMinutes?: number
 }
 
+function isoDateToLocalDate(isoDate: string): Date {
+  return new Date(`${isoDate}T12:00:00`)
+}
+
+function localDateToIsoDate(date: Date): string {
+  return format(date, 'yyyy-MM-dd')
+}
+
 export function ScheduleJobsToolbar({
   date,
   groupBy,
   onGroupByChange,
+  locationId,
+  locations,
+  onLocationChange,
   onPrevDay,
   onNextDay,
   onToday,
@@ -93,6 +111,8 @@ export function ScheduleJobsToolbar({
   weeklyExcessContractMinutes = 0,
 }: Props) {
   const isToday = date === todayIso()
+  const [calendarOpen, setCalendarOpen] = React.useState(false)
+  const selectedDate = React.useMemo(() => isoDateToLocalDate(date), [date])
 
   return (
     <div className="mb-3 shrink-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -114,16 +134,37 @@ export function ScheduleJobsToolbar({
             <Button type="button" size="icon-sm" variant="ghost" className="h-8 w-8" onClick={onNextDay}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <label className="flex h-8 cursor-pointer items-center border-l border-border px-2.5 hover:bg-muted/50">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => onDateChange(e.target.value)}
-                className="sr-only"
-                aria-label="Pick schedule date"
-              />
-            </label>
+            <PopoverPrimitive.Root open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverPrimitive.Trigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="h-8 w-8 rounded-none border-l border-border"
+                  aria-label="Pick schedule date"
+                >
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverPrimitive.Trigger>
+              <PopoverPrimitive.Portal>
+                <PopoverPrimitive.Content
+                  className="z-50 rounded-lg border border-border bg-popover shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+                  align="start"
+                  sideOffset={6}
+                >
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(nextDate) => {
+                      if (!nextDate) return
+                      onDateChange(localDateToIsoDate(nextDate))
+                      setCalendarOpen(false)
+                    }}
+                    autoFocus
+                  />
+                </PopoverPrimitive.Content>
+              </PopoverPrimitive.Portal>
+            </PopoverPrimitive.Root>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -150,6 +191,29 @@ export function ScheduleJobsToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Location</span>
+            <Select
+              value={locationId ?? '__all__'}
+              onValueChange={(v) => onLocationChange(v === '__all__' ? null : v)}
+            >
+              <SelectTrigger
+                className="h-7 w-[min(12rem,42vw)] border-0 bg-transparent px-1 text-xs shadow-none"
+                data-testid="schedule-jobs-location-filter"
+              >
+                <SelectValue placeholder="All locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All locations</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5">
             <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Group</span>
             <Select value={groupBy} onValueChange={(v) => onGroupByChange(v as GroupBy)}>

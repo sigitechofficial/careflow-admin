@@ -1604,6 +1604,19 @@ export async function listServiceUsers(
   }
 }
 
+export type PatchServiceUserAddressPayload = {
+  addressLine1?: string
+  addressLine2?: string
+  town?: string
+  county?: string
+  country?: string
+  postcode?: string
+  latitude?: number
+  longitude?: number
+  accessInstructions?: string
+  keySafeNumber?: string
+}
+
 /** Payload aligned with Nest `CreateServiceUserDto` (optional fields omitted when empty). */
 export type CreateServiceUserPayload = {
   firstName: string
@@ -1637,6 +1650,7 @@ export type CreateServiceUserPayload = {
     referenceValue: string
     notes?: string
   }>
+  address?: PatchServiceUserAddressPayload
 }
 
 export async function createServiceUser(body: CreateServiceUserPayload): Promise<{ id: string }> {
@@ -1645,19 +1659,6 @@ export async function createServiceUser(body: CreateServiceUserPayload): Promise
     body: JSON.stringify(body),
   })
   return res.data
-}
-
-export type PatchServiceUserAddressPayload = {
-  addressLine1?: string
-  addressLine2?: string
-  town?: string
-  county?: string
-  country?: string
-  postcode?: string
-  latitude?: number
-  longitude?: number
-  accessInstructions?: string
-  keySafeNumber?: string
 }
 
 export async function patchServiceUserAddress(

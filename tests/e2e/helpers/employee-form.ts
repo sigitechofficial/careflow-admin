@@ -62,6 +62,12 @@ export async function fillEmploymentStep(page: Page) {
   await pickFirstLookupOption(page, 'locationId')
 }
 
+/** Pick first option in a MultiSelect popover (employee base locations, etc.). */
+export async function pickFirstMultiSelectOption(page: Page, testId: string) {
+  await page.getByTestId(testId).locator('button').first().click()
+  await page.locator('[data-radix-popper-content-wrapper] .max-h-60 button').first().click()
+}
+
 /** Extra employment lookups + start date (all optional in API except the three above). */
 export async function fillEmploymentOptionalLookups(page: Page) {
   await pickFirstLookupOption(page, 'jobTitleId')
@@ -69,7 +75,7 @@ export async function fillEmploymentOptionalLookups(page: Page) {
   await pickFirstLookupOption(page, 'gradeId')
   await pickFirstLookupOption(page, 'contractTypeId')
   await pickFirstLookupOption(page, 'travelPaymentTypeId')
-  await pickFirstLookupOption(page, 'baseLocationId')
+  await pickFirstMultiSelectOption(page, 'baseLocationIds')
   const today = new Date().toISOString().slice(0, 10)
   await page.locator('#startDate').fill(today)
 }

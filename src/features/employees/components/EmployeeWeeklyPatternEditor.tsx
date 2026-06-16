@@ -2,7 +2,11 @@ import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import { ApiError } from '@/shared/api/api-client'
 import type { WorkingPatternRow } from '@/features/employees/types'
-import { WORKING_PATTERN_DAY_ORDER } from '@/features/employees/constants/working-pattern'
+import {
+  DEFAULT_WORK_PATTERN_END,
+  DEFAULT_WORK_PATTERN_START,
+  WORKING_PATTERN_DAY_ORDER,
+} from '@/features/employees/constants/working-pattern'
 import type { WorkingPatternDay } from '@/features/employees/types'
 import {
   useCreateWorkingPattern,
@@ -79,7 +83,11 @@ type DayState = {
 function emptyWeek(): Record<WorkingPatternDay, DayState> {
   const o = {} as Record<WorkingPatternDay, DayState>
   for (const d of WORKING_PATTERN_DAY_ORDER) {
-    o[d] = { startTime: '', endTime: '', level: 'None' }
+    o[d] = {
+      startTime: DEFAULT_WORK_PATTERN_START,
+      endTime: DEFAULT_WORK_PATTERN_END,
+      level: 'Fully',
+    }
   }
   return o
 }

@@ -4,7 +4,6 @@ import { formatPhoneForApi } from '@/features/employees/dial-codes'
 const emptyToUndef = (v: unknown) => (v === '' || v === undefined || v === null ? undefined : v)
 
 const UK_POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i
-const UK_NI_REGEX = /^[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]$/i
 const MIN_EMPLOYEE_AGE = 16
 const MAX_WEEKLY_HOURS = 168
 
@@ -51,10 +50,7 @@ const optionalNiNumber = z.preprocess(
     const raw = emptyToUndef(v)
     return typeof raw === 'string' ? raw.replace(/\s/g, '').toUpperCase() : raw
   },
-  z.union([
-    z.undefined(),
-    z.string().max(30).regex(UK_NI_REGEX, 'Enter a valid National Insurance number'),
-  ])
+  z.union([z.undefined(), z.string().max(30)]),
 )
 
 const optionalDateString = z.preprocess(
@@ -69,15 +65,20 @@ const optionalDateString = z.preprocess(
 
 const optionalDecimal = (max: number, unit: string) =>
   z.preprocess(
-    v => emptyToUndef(v),
+    v => {
+      const raw = emptyToUndef(v)
+      if (raw === undefined) return undefined
+      if (typeof raw === 'number') return Number.isFinite(raw) ? String(raw) : undefined
+      const s = String(raw).trim()
+      return s === '' ? undefined : s
+    },
     z.union([
       z.undefined(),
       z
         .string()
         .refine(s => /^\d+(\.\d{1,2})?$/.test(s), 'Enter a valid number')
-        .transform(s => Number(s))
-        .refine(n => n >= 0, 'Must be zero or more')
-        .refine(n => n <= max, `Cannot exceed ${max} ${unit}`),
+        .refine(s => Number(s) >= 0, 'Must be zero or more')
+        .refine(s => Number(s) <= max, `Cannot exceed ${max} ${unit}`),
     ])
   )
 
@@ -121,15 +122,23 @@ function refineEmploymentDates(
   }
 }
 
+function parseOptionalDecimal(v: string | number | undefined): number | undefined {
+  if (v === undefined || v === '') return undefined
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
 function refineWeeklyHours(
   data: {
-    minimumWeeklyHours?: number
-    contractedWeeklyHours?: number
-    maximumWeeklyHours?: number
+    minimumWeeklyHours?: string | number
+    contractedWeeklyHours?: string | number
+    maximumWeeklyHours?: string | number
   },
   ctx: z.RefinementCtx
 ) {
-  const { minimumWeeklyHours: min, contractedWeeklyHours: contracted, maximumWeeklyHours: max } = data
+  const min = parseOptionalDecimal(data.minimumWeeklyHours)
+  const contracted = parseOptionalDecimal(data.contractedWeeklyHours)
+  const max = parseOptionalDecimal(data.maximumWeeklyHours)
   if (min !== undefined && contracted !== undefined && min > contracted) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -181,8 +190,11 @@ export const personalStepSchema = z
       .optional()
       .transform(v => emptyToUndef(v) as string | undefined),
     town: z.string().max(100).optional().transform(v => emptyToUndef(v) as string | undefined),
+    county: z.string().max(100).optional().transform(v => emptyToUndef(v) as string | undefined),
     country: z.string().max(100).optional().transform(v => emptyToUndef(v) as string | undefined),
     postcode: optionalUkPostcode,
+    latitude: z.string().max(32).optional().transform(v => emptyToUndef(v) as string | undefined),
+    longitude: z.string().max(32).optional().transform(v => emptyToUndef(v) as string | undefined),
     homeDialCode: dialCodeSchema,
     mobileDialCode: dialCodeSchema,
     homeTelephone: phoneLocalOpt,
@@ -242,7 +254,7 @@ export const employmentStepSchema = z
     gradeId: uuidOpt,
     contractTypeId: uuidOpt,
     travelPaymentTypeId: uuidOpt,
-    baseLocationId: uuidOpt,
+    baseLocationIds: z.array(z.string().uuid()).optional().default([]),
     startDate: optionalDateString,
     endDate: optionalDateString,
     nationalInsuranceNo: optionalNiNumber,

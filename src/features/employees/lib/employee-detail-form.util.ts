@@ -14,8 +14,11 @@ export type EmployeeFormValues = {
   addressLine1: string
   addressLine2: string
   town: string
+  county: string
   country: string
   postcode: string
+  latitude: string
+  longitude: string
   homeDialCode: string
   homeTelephone: string
   mobileDialCode: string
@@ -29,7 +32,7 @@ export type EmployeeFormValues = {
   gradeId: string
   contractTypeId: string
   travelPaymentTypeId: string
-  baseLocationId: string
+  baseLocationIds: string[]
   startDate: string
   endDate: string
   nationalInsuranceNo: string
@@ -75,6 +78,7 @@ type EmployeeDetailEmploymentApi = NonNullable<EmployeeDetail['employment']> & {
   travelPaymentType?: LookupRef
   baseLocation?: LookupRef
   location?: LookupRef
+  baseLocations?: Array<{ location?: LookupRef }> | null
 }
 
 function pickLookupId(scalar: string | null | undefined, relation: LookupRef): string {
@@ -127,8 +131,11 @@ export function mapEmployeeDetailToFormValues(
         addressLine1: pd.addressLine1 ?? '',
         addressLine2: pd.addressLine2 ?? '',
         town: pd.town ?? '',
+        county: pd.county ?? '',
         country: pd.country ?? '',
         postcode: pd.postcode ?? '',
+        latitude: pd.latitude != null ? String(pd.latitude) : '',
+        longitude: pd.longitude != null ? String(pd.longitude) : '',
         homeDialCode: home.dial,
         homeTelephone: home.local,
         mobileDialCode: mobile.dial,
@@ -147,7 +154,15 @@ export function mapEmployeeDetailToFormValues(
         gradeId: pickLookupId(em.gradeId, em.grade),
         contractTypeId: pickLookupId(em.contractTypeId, em.contractType),
         travelPaymentTypeId: pickLookupId(em.travelPaymentTypeId, em.travelPaymentType),
-        baseLocationId: pickLookupId(em.baseLocationId, em.baseLocation),
+        baseLocationIds: (() => {
+          const fromJoin =
+            em.baseLocations
+              ?.map((row) => pickLookupId(null, row.location))
+              .filter((id) => id.length > 0) ?? []
+          if (fromJoin.length > 0) return [...new Set(fromJoin)]
+          const legacy = pickLookupId(em.baseLocationId, em.baseLocation)
+          return legacy ? [legacy] : []
+        })(),
         startDate: isoToDateInput(em.startDate ?? undefined),
         endDate: isoToDateInput(em.endDate ?? undefined),
         nationalInsuranceNo: em.nationalInsuranceNo ?? '',

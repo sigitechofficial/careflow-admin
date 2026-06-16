@@ -26,6 +26,7 @@ import {
 import { CarePlanEvidencePanel } from '@/features/service-users/care-plans/components/CarePlanEvidencePanel'
 import { CarePlanFactsheetPanel } from '@/features/service-users/care-plans/components/CarePlanFactsheetPanel'
 import { CarePlanPublishDialog } from '@/features/service-users/care-plans/components/CarePlanPublishDialog'
+import { hasPublishableCarePlanValues } from '@/features/service-users/care-plans/care-plan-publish.util'
 import { CarePlanReviewBadge } from '@/features/service-users/care-plans/components/CarePlanReviewBadge'
 import { CarePlanVersionHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanVersionHistoryPanel'
 import { Button } from '@/shared/ui/button'
@@ -121,11 +122,25 @@ export default function ServiceUserCarePlanFormPage() {
   }
 
   const onPublishConfirm = (payload: { gapAcknowledged: boolean; summary?: string }) => {
-    void publishMutation
+    if (!hasPublishableCarePlanValues(values)) {
+      toastApiError(
+        new Error('Add care plan field values or use Refresh from IA / profile before publishing.'),
+        'Could not publish care plan',
+      )
+      return
+    }
+    void saveDraftMutation
       .mutateAsync({
-        gapAcknowledged: payload.gapAcknowledged,
-        summary: payload.summary,
+        values,
+        composedFrom: composeQuery.data?.composedFrom,
+        gaps: composeQuery.data?.gaps,
       })
+      .then(() =>
+        publishMutation.mutateAsync({
+          gapAcknowledged: payload.gapAcknowledged,
+          summary: payload.summary,
+        }),
+      )
       .then(() => {
         setPublishOpen(false)
         toastSuccess('Published', 'Care plan version published.')
@@ -247,7 +262,8 @@ export default function ServiceUserCarePlanFormPage() {
         onOpenChange={setPublishOpen}
         formName={form?.name}
         gaps={composeQuery.data?.gaps ?? []}
-        publishing={publishMutation.isPending}
+        hasValues={hasPublishableCarePlanValues(values)}
+        publishing={publishMutation.isPending || saveDraftMutation.isPending}
         onConfirm={onPublishConfirm}
       />
     </div>

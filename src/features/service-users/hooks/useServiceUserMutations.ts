@@ -64,6 +64,7 @@ import {
   type UpdateServiceUserPayload,
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { ensureServiceUserAddressCoordinates } from '@/features/service-users/utils/ensure-service-user-address-coordinates.util'
 
 function invalidateDetail(qc: ReturnType<typeof useQueryClient>, serviceUserId: string) {
   void qc.invalidateQueries({ queryKey: serviceUserKeys.detail(serviceUserId) })
@@ -77,10 +78,13 @@ export function useCreateServiceUser() {
       payload: CreateServiceUserPayload
       address?: PatchServiceUserAddressPayload
     }) => {
-      const { id } = await createServiceUser(args.payload)
-      if (args.address) {
-        await patchServiceUserAddress(id, args.address)
-      }
+      const address = args.address
+        ? await ensureServiceUserAddressCoordinates(args.address)
+        : undefined
+      const { id } = await createServiceUser({
+        ...args.payload,
+        ...(address ? { address } : {}),
+      })
       return { id }
     },
     onSuccess: () => {

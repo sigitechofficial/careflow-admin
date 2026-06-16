@@ -25,6 +25,12 @@ async function expectSubmissionStatus(
   await expect(badge).toHaveText(pattern)
 }
 
+/** Wait until submissions, template, and answers have hydrated the form workspace. */
+async function waitForAssessmentWorkspaceReady(page: import('@playwright/test').Page) {
+  await expect(page.getByTestId('ia-assessment-loading')).toBeHidden({ timeout: 60_000 })
+  await expect(page.getByTestId('ia-section-nav')).toBeVisible({ timeout: 30_000 })
+}
+
 test.describe('Initial assessment: Playwright autofill', () => {
   test.beforeEach(() => {
     test.skip(!hasApiCreds, SKIP_MSG)
@@ -39,19 +45,19 @@ test.describe('Initial assessment: Playwright autofill', () => {
       await autofillInitialAssessmentViaApi(request, SERVICE_USER_ID, LEVEL)
 
     await page.goto(
-      `/service-users/initial-assessment?serviceUserId=${SERVICE_USER_ID}&section=1&tab=form`,
+      `/service-users/initial-assessment?serviceUserId=${SERVICE_USER_ID}&submissionId=${submissionId}&section=1&tab=form`,
       { waitUntil: 'domcontentloaded' },
     )
     await expect(page.getByTestId('initial-assessment-enterprise-page')).toBeVisible({
       timeout: 60_000,
     })
+    await waitForAssessmentWorkspaceReady(page)
 
     await test.step('Confirm submission status badge', async () => {
       await expectSubmissionStatus(page, /in progress|submitted|reviewed|draft/i)
     })
 
     const sectionNav = page.getByTestId('ia-section-nav')
-    await expect(sectionNav).toBeVisible({ timeout: 15_000 })
 
     await test.step(`Holistic document nav shows ${HOLISTIC_TAB_COUNT} tabs`, async () => {
       await expect(sectionNav.getByRole('button')).toHaveCount(HOLISTIC_TAB_COUNT, {
@@ -86,15 +92,17 @@ test.describe('Initial assessment: Playwright autofill', () => {
     await test.step('Worksheet panels render after autofill', async () => {
       await sectionNav.getByRole('button', { name: /Photography Consent/i }).click()
       await expect(page.getByTestId('ia-photography-consent-panel')).toBeVisible({
-        timeout: 15_000,
+        timeout: 30_000,
       })
-      await expect(page.locator('#photo-consent-surname')).toHaveValue('E2E')
+      await expect(page.locator('#photo-consent-surname')).toHaveValue('E2E', { timeout: 30_000 })
 
       await sectionNav.getByRole('button', { name: /Equipment Selection/i }).click()
       await expect(page.getByTestId('ia-equipment-selection-panel')).toBeVisible({
-        timeout: 15_000,
+        timeout: 30_000,
       })
-      await expect(page.locator('#equipment-selection-risk')).not.toHaveValue('')
+      await expect(page.locator('#equipment-selection-risk')).not.toHaveValue('', {
+        timeout: 30_000,
+      })
     })
 
     // eslint-disable-next-line no-console

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import {
   type JobDropPayload,
@@ -209,6 +210,7 @@ export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) 
   const startDrag = React.useCallback(
     (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => {
       if (event.button !== 0) return
+      if (isScheduleJobReadOnly(job)) return
       const target = event.currentTarget
       if (!(target instanceof HTMLElement)) return
 

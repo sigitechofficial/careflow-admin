@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { AddressPlacesField } from '@/shared/ui/address-places-field'
+import { cn } from '@/shared/lib/utils'
 import {
   profileLookupSelectRows,
   resolveStoredLookupCode,
@@ -302,6 +304,7 @@ function FieldEditable({
   onChange,
   required,
   type = 'text',
+  disabled,
 }: {
   label: string
   tooltip: string
@@ -309,11 +312,18 @@ function FieldEditable({
   onChange: (v: string) => void
   required?: boolean
   type?: string
+  disabled?: boolean
 }) {
   return (
     <div className="space-y-1">
       <LabelWithTooltip label={label} required={required} tooltip={tooltip} />
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="border-border" />
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border-border"
+        disabled={disabled}
+      />
     </div>
   )
 }
@@ -686,39 +696,6 @@ export function ServiceUserPersonalDetailsForm({
             value={form.preferredContactMethod}
             onChange={set('preferredContactMethod')}
           />
-          <FieldEditable
-            label="Address line 1"
-            tooltip={FIELD_HELP.addressLine1}
-            value={form.addressLine1}
-            onChange={set('addressLine1')}
-            required
-          />
-          <FieldEditable
-            label="Address line 2"
-            tooltip={FIELD_HELP.addressLine2}
-            value={form.addressLine2}
-            onChange={set('addressLine2')}
-          />
-          <FieldEditable label="Town" tooltip={FIELD_HELP.town} value={form.town} onChange={set('town')} />
-          <FieldEditable label="County" tooltip={FIELD_HELP.county} value={form.county} onChange={set('county')} />
-          <FieldEditable label="Country" tooltip={FIELD_HELP.country} value={form.country} onChange={set('country')} />
-          <FieldEditable label="Postcode" tooltip={FIELD_HELP.postcode} value={form.postcode} onChange={set('postcode')} />
-          <FieldEditable label="Latitude" tooltip={FIELD_HELP.latitude} value={form.latitude} onChange={set('latitude')} />
-          <FieldEditable label="Longitude" tooltip={FIELD_HELP.longitude} value={form.longitude} onChange={set('longitude')} />
-          <FieldEditable
-            label="Key safe number"
-            tooltip={FIELD_HELP.keySafeNumber}
-            value={form.keySafeNumber}
-            onChange={set('keySafeNumber')}
-          />
-          <div className="sm:col-span-2">
-            <FieldEditable
-              label="Access instructions"
-              tooltip={FIELD_HELP.accessInstructions}
-              value={form.accessInstructions}
-              onChange={set('accessInstructions')}
-            />
-          </div>
           <FieldEditable label="Phone Number" tooltip={FIELD_HELP.phone} value={form.phone} onChange={set('phone')} />
           <FieldEditable label="Mobile" tooltip={FIELD_HELP.mobile} value={form.mobile} onChange={set('mobile')} />
           <FieldEditable label="Email" tooltip={FIELD_HELP.email} value={form.email} onChange={set('email')} type="email" />
@@ -730,8 +707,56 @@ export function ServiceUserPersonalDetailsForm({
             onChange={set('otherContactMethod')}
           />
         </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
+          Address (optional — includes map coordinates)
+        </h2>
+        <AddressPlacesField
+          value={{
+            addressLine1: form.addressLine1,
+            addressLine2: form.addressLine2,
+            town: form.town,
+            county: form.county,
+            country: form.country,
+            postcode: form.postcode,
+            latitude: form.latitude,
+            longitude: form.longitude,
+          }}
+          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+          disabled={!canAddress}
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FieldEditable
+              label="Key safe number"
+              tooltip={FIELD_HELP.keySafeNumber}
+              value={form.keySafeNumber}
+              onChange={set('keySafeNumber')}
+              disabled={!canAddress}
+            />
+            <div className="md:col-span-2">
+              <div className="space-y-1">
+                <LabelWithTooltip label="Access instructions" tooltip={FIELD_HELP.accessInstructions} />
+                <textarea
+                  rows={2}
+                  className={cn(
+                    'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
+                    'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                    !canAddress && 'cursor-not-allowed opacity-60',
+                  )}
+                  value={form.accessInstructions}
+                  onChange={(e) => set('accessInstructions')(e.target.value)}
+                  disabled={!canAddress}
+                />
+              </div>
+            </div>
+          </div>
+        </AddressPlacesField>
         {!canAddress && (
-          <p className="mt-3 text-xs text-muted-foreground">Address fields require the service_users.address.update permission to save.</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Address fields require the service_users.address.update permission to save.
+          </p>
         )}
       </section>
 

@@ -516,9 +516,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       setSubmissionId(null)
       return
     }
+    const fromUrl = urlSearch.submissionId?.trim()
+    if (fromUrl && rows.some((r) => r.id === fromUrl)) {
+      setSubmissionId(fromUrl)
+      return
+    }
     const active = rows.find((r) => EDITABLE.includes(r.status))
-    setSubmissionId((prev) => prev ?? active?.id ?? rows[0]?.id ?? null)
-  }, [submissionsQuery.data])
+    setSubmissionId((prev) => {
+      if (prev && rows.some((r) => r.id === prev)) return prev
+      return active?.id ?? rows[0]?.id ?? null
+    })
+  }, [submissionsQuery.data, urlSearch.submissionId])
 
   React.useEffect(() => {
     setReviewNotes(submission?.reviewNotes ?? '')

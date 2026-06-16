@@ -54,6 +54,9 @@ export type EmployeeListRow = {
   contractType: { id: string; name: string } | null
   visaTypeId: string | null
   isInCountry: boolean
+  locationId?: string | null
+  location?: { id: string; name: string } | null
+  baseLocationIds?: string[]
 }
 
 export type EmployeeListMeta = {
@@ -93,8 +96,11 @@ export type EmployeeDetail = {
     addressLine1?: string | null
     addressLine2?: string | null
     town?: string | null
+    county?: string | null
     country?: string | null
     postcode?: string | null
+    latitude?: number | string | null
+    longitude?: number | string | null
     homeTelephone?: string | null
     mobileTelephone?: string | null
     photoUrl?: string | null
@@ -118,6 +124,7 @@ export type EmployeeDetail = {
     travelPaymentType?: { id: string; name: string } | null
     baseLocationId?: string | null
     baseLocation?: { id: string; name: string } | null
+    baseLocations?: Array<{ location?: { id: string; name: string } | null }> | null
     locationId?: string | null
     location?: { id: string; name: string } | null
     startDate?: string | null
@@ -236,8 +243,11 @@ export type PersonalDetailsPayload = {
   addressLine1?: string
   addressLine2?: string
   town?: string
+  county?: string
   country?: string
   postcode?: string
+  latitude?: number
+  longitude?: number
   homeTelephone?: string
   mobileTelephone?: string
   photoUrl?: string
@@ -303,6 +313,7 @@ export type EmploymentPayload = {
   payrollNumber?: string
   locationId?: string
   baseLocationId?: string
+  baseLocationIds?: string[]
   accessAllZones?: boolean
   contractedWeeklyHours?: number | null
   maximumWeeklyHours?: number | null

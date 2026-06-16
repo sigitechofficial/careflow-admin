@@ -1,7 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import { CheckCircle2, Circle, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
-import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
+import { Button } from '@/shared/ui/button'
+import {
+  hasExplicitCarePlanLinks,
+  resolveCarePlansForSlot,
+} from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import type { VisitPlanCareContextStep } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
@@ -28,6 +32,8 @@ type Props = {
   pathwaySteps: VisitPlanCareContextStep[]
   acceptedCarePlans: AcceptedCarePlanItem[]
   slots: VisitPlanSlot[]
+  onApplySuggestedLinks?: () => void
+  applyingSuggestedLinks?: boolean
 }
 
 export function VisitPlanCarePathwayContextPanel({
@@ -36,8 +42,14 @@ export function VisitPlanCarePathwayContextPanel({
   pathwaySteps,
   acceptedCarePlans,
   slots,
+  onApplySuggestedLinks,
+  applyingSuggestedLinks,
 }: Props) {
   const enabledSlots = slots.filter((s) => s.isEnabled)
+  const needsSuggestedLinks =
+    acceptedCarePlans.length > 0 &&
+    enabledSlots.length > 0 &&
+    enabledSlots.every((slot) => !hasExplicitCarePlanLinks(slot))
 
   return (
     <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
@@ -111,9 +123,22 @@ export function VisitPlanCarePathwayContextPanel({
             </p>
           ) : (
             <div>
-              <div className="mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" />
-                <h4 className="text-sm font-semibold">Which visit delivers which care plan?</h4>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" />
+                  <h4 className="text-sm font-semibold">Which visit delivers which care plan?</h4>
+                </div>
+                {needsSuggestedLinks && onApplySuggestedLinks ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={applyingSuggestedLinks}
+                    onClick={onApplySuggestedLinks}
+                  >
+                    {applyingSuggestedLinks ? 'Applying…' : 'Apply suggested links'}
+                  </Button>
+                ) : null}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] border-collapse text-sm">
@@ -126,7 +151,7 @@ export function VisitPlanCarePathwayContextPanel({
                   <tbody>
                     {enabledSlots.map((slot) => {
                       const linked = resolveCarePlansForSlot(slot, acceptedCarePlans)
-                      const isExplicit = (slot.linkedCarePlanFormIds ?? []).length > 0
+                      const isExplicit = hasExplicitCarePlanLinks(slot)
                       return (
                         <tr key={slot.slotCode} className="border-b border-border/60 align-top">
                           <td className="py-3 pr-4 font-medium whitespace-nowrap">
@@ -156,7 +181,8 @@ export function VisitPlanCarePathwayContextPanel({
                             )}
                             {!isExplicit && linked.length > 0 ? (
                               <p className="mt-1 text-[11px] text-muted-foreground">
-                                Suggested from assessment — assign explicitly in scheduling options below.
+                                Suggested from accepted care plans — tick slots in Scheduling &amp; visit
+                                options to confirm.
                               </p>
                             ) : null}
                           </td>

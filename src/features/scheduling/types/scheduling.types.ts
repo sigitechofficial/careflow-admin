@@ -13,6 +13,10 @@ export type ServiceUserBrief = {
   lastName: string
   preferredName?: string | null
   serviceUserNumber?: string | null
+  locationId?: string | null
+  location?: { id: string; name: string } | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export type ScheduleRunBrief = {
@@ -29,6 +33,14 @@ export type VisitPlanJobContext = {
   slotCode: string
   label: string
   linkedCarePlanFormIds: string[]
+  plannedStartTime?: string
+  plannedEndTime?: string
+  durationMinutes?: number | null
+  requiredCarers?: number
+  scheduleFrequency?: string
+  daysOfWeek?: number[]
+  medicationRoundCode?: string | null
+  isEnabled?: boolean
 }
 
 export type TimelineJob = {
@@ -52,6 +64,7 @@ export type TimelineJob = {
     id: string
     employeeId: string
     status: string
+    isLeadCarer?: boolean
     employee: {
       id: string
       firstName?: string
@@ -59,6 +72,7 @@ export type TimelineJob = {
       email?: string | null
     } | null
   }>
+  notes?: string | null
 }
 
 export type JobsDayRunsResponse = {

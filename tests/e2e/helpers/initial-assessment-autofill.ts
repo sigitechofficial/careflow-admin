@@ -453,7 +453,12 @@ export async function autofillInitialAssessmentViaApi(
   request: APIRequestContext,
   serviceUserId: string,
   level: IaFillLevel,
-): Promise<{ submissionId: string; sectionsFilled: number; answersSaved: number }> {
+): Promise<{
+  submissionId: string
+  sectionsFilled: number
+  answersSaved: number
+  metadataKeysSaved: number
+}> {
   const apiBase = process.env.E2E_API_BASE_URL!.replace(/\/$/, '')
   const token = await apiLogin(request, apiBase)
   const template = await fetchDefaultTemplate(request, apiBase, token)

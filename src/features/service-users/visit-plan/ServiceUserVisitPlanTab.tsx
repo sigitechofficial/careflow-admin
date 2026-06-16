@@ -30,6 +30,7 @@ import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-pla
 import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/VisitPlanCarersCountInput'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
+import { applySuggestedCarePlanLinks } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
@@ -280,6 +281,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
     }
   }
 
+  const handleApplySuggestedCarePlanLinks = () => {
+    setSlots((current) => applySuggestedCarePlanLinks(current, careContext.acceptedCarePlans))
+    toastSuccess('Suggestions applied', 'Save the visit plan to persist care plan links on each call.')
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -297,6 +303,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId }: Props) {
         pathwaySteps={careContext.pathwaySteps}
         acceptedCarePlans={careContext.acceptedCarePlans}
         slots={slots}
+        onApplySuggestedLinks={handleApplySuggestedCarePlanLinks}
       />
 
       <section className="rounded-xl border border-border bg-card p-6 shadow-sm">

@@ -16,6 +16,8 @@ type Props = {
   onOpenChange: (open: boolean) => void
   formName?: string | null
   gaps: CarePlanComposeGap[]
+  /** At least one non-empty field value in the current draft. */
+  hasValues?: boolean
   publishing?: boolean
   onConfirm: (payload: { gapAcknowledged: boolean; summary?: string }) => void
 }
@@ -25,6 +27,7 @@ export function CarePlanPublishDialog({
   onOpenChange,
   formName,
   gaps,
+  hasValues = true,
   publishing,
   onConfirm,
 }: Props) {
@@ -36,7 +39,7 @@ export function CarePlanPublishDialog({
     if (!open) setGapAcknowledged(false)
   }, [open])
 
-  const canPublish = blockingGaps.length === 0 || gapAcknowledged
+  const canPublish = hasValues && (blockingGaps.length === 0 || gapAcknowledged)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -52,6 +55,11 @@ export function CarePlanPublishDialog({
           </p>
 
           <div className="flex flex-wrap gap-2">
+            {!hasValues ? (
+              <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-900">
+                No field values
+              </span>
+            ) : null}
             {blockingGaps.length === 0 ? (
               <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
                 No blocking gaps
@@ -67,6 +75,13 @@ export function CarePlanPublishDialog({
               </span>
             ) : null}
           </div>
+
+          {!hasValues ? (
+            <p className="text-sm text-destructive">
+              Fill in care plan fields or use <strong>Refresh from IA / profile</strong> before
+              publishing. Your changes are only stored on the server after save or publish.
+            </p>
+          ) : null}
 
           {gaps.length > 0 ? (
             <ul className="space-y-2">
@@ -116,7 +131,7 @@ export function CarePlanPublishDialog({
               })
             }
           >
-            {publishing ? 'Publishing…' : 'Publish'}
+            {publishing ? 'Saving & publishing…' : 'Publish'}
           </Button>
         </DialogFooter>
       </DialogContent>

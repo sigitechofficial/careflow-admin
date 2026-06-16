@@ -30,10 +30,16 @@ export function employeesLabel(job: TimelineJob): string {
     .map((a) => {
       const e = a.employee
       if (!e) return ''
-      return [e.firstName, e.lastName].filter(Boolean).join(' ')
+      const name = [e.firstName, e.lastName].filter(Boolean).join(' ')
+      return a.isLeadCarer && job.requiredCarers > 1 ? `${name} (Lead)` : name
     })
     .filter(Boolean)
     .join(', ')
+}
+
+export function leadCarerAllocation(job: TimelineJob) {
+  if (job.requiredCarers <= 1) return null
+  return job.allocations?.find((a) => a.isLeadCarer && a.employee) ?? null
 }
 
 export function jobStatusLabel(status: string): string {

@@ -21,3 +21,17 @@ export function allocationWarningsSummary(warnings: AllocationWarning[]): string
   const list = (blocking.length > 0 ? blocking : warnings).map((w) => w.message)
   return list.slice(0, 2).join(' · ')
 }
+
+/** True when drag-assign should fail (rota clash, blocked carer, missing employee). */
+export function isDragAllocationHardBlock(warnings: AllocationWarning[]): boolean {
+  return warnings.some((w) => {
+    if (w.severity !== 'blocking') return false
+    if (w.type === 'TIME_CONFLICT' || w.type === 'BLOCKED_CARER') return true
+    if (w.type !== 'EMPLOYEE_NOT_AVAILABLE') return false
+    return (
+      w.message.includes('not found') ||
+      w.message.includes('inactive') ||
+      w.message.includes('no active personal')
+    )
+  })
+}

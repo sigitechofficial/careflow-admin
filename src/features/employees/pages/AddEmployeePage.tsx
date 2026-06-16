@@ -3,9 +3,10 @@ import { useNavigate } from '@tanstack/react-router'
 import { useForm, Controller, useWatch, type FieldPath, type UseFormSetError } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ChevronLeft, Calendar, Clock, Search, HelpCircle, Filter, Check, Plus } from 'lucide-react'
+import { ChevronLeft, Calendar, Clock, HelpCircle, Filter, Check, Plus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { ApiError } from '@/shared/api/api-client'
+import { apiErrorMessage, applyApiConflictFieldErrors } from '@/shared/lib/api-error-message'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -20,7 +21,6 @@ import {
   usePatchPersonalDetailsMutation,
   useUploadEmployeePhoto,
 } from '@/features/employees/hooks/useEmployeeMutations'
-import { lookupUkPostcode } from '@/features/employees/lib/postcode-lookup'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { EmployeeEmergencyContactsEditor } from '@/features/employees/components/EmployeeEmergencyContactsEditor'
 import { EmployeeDocumentsSection } from '@/features/employees/components/EmployeeDocumentsSection'
@@ -41,6 +41,10 @@ import {
   resolveEmployeeVisaTypes,
   weeklyHoursForVisaType,
 } from '@/features/settings/employee/employee-visa-defaults'
+import {
+  DEFAULT_WORK_PATTERN_END,
+  DEFAULT_WORK_PATTERN_START,
+} from '@/features/employees/constants/working-pattern'
 import {
   mapEmployeeDetailToFormValues,
   type EmployeeFormValues,
@@ -72,6 +76,12 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
+import { AddressPlacesField } from '@/shared/ui/address-places-field'
+import { MultiSelect } from '@/shared/ui/multi-select'
+import {
+  employeeAddressPayloadFromForm,
+  ensureEmployeeAddressCoordinates,
+} from '@/features/employees/utils/ensure-employee-address-coordinates.util'
 
 type TabId = 'personal' | 'employment' | 'working-pattern'
 
@@ -90,8 +100,11 @@ const defaultValues: FormValues = {
   addressLine1: '',
   addressLine2: '',
   town: '',
+  county: '',
   country: '',
   postcode: '',
+  latitude: '',
+  longitude: '',
   homeDialCode: '+44',
   homeTelephone: '',
   mobileDialCode: '+44',
@@ -105,7 +118,7 @@ const defaultValues: FormValues = {
   gradeId: '',
   contractTypeId: '',
   travelPaymentTypeId: '',
-  baseLocationId: '',
+  baseLocationIds: [],
   startDate: '',
   endDate: '',
   nationalInsuranceNo: '',
@@ -144,7 +157,8 @@ function applyZodErrors(
   }
 }
 
-function personalPayloadFromStep(p: z.infer<typeof personalStepSchema>) {
+async function personalPayloadFromStep(p: z.infer<typeof personalStepSchema>) {
+  const address = await ensureEmployeeAddressCoordinates(employeeAddressPayloadFromForm(p))
   return {
     firstName: p.firstName,
     lastName: p.lastName,
@@ -155,11 +169,14 @@ function personalPayloadFromStep(p: z.infer<typeof personalStepSchema>) {
     nationalityId: p.nationalityId,
     statusId: p.statusId,
     dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString() : undefined,
-    addressLine1: p.addressLine1,
-    addressLine2: p.addressLine2,
-    town: p.town,
-    country: p.country,
-    postcode: p.postcode,
+    addressLine1: address.addressLine1,
+    addressLine2: address.addressLine2,
+    town: address.town,
+    county: address.county,
+    country: address.country,
+    postcode: address.postcode,
+    latitude: address.latitude,
+    longitude: address.longitude,
     homeTelephone: formatPhoneForApi(p.homeDialCode, p.homeTelephone),
     mobileTelephone: formatPhoneForApi(p.mobileDialCode, p.mobileTelephone),
     photoUrl: p.photoUrl,
@@ -167,6 +184,11 @@ function personalPayloadFromStep(p: z.infer<typeof personalStepSchema>) {
 }
 
 function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
+  const toNum = (v: string | undefined) => {
+    if (v == null || v === '') return undefined
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
   return {
     workAreaId: e.workAreaId,
     roleId: e.roleId,
@@ -176,7 +198,7 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     gradeId: e.gradeId,
     contractTypeId: e.contractTypeId,
     travelPaymentTypeId: e.travelPaymentTypeId,
-    baseLocationId: e.baseLocationId,
+    baseLocationIds: e.baseLocationIds?.length ? e.baseLocationIds : undefined,
     startDate: e.startDate ? new Date(e.startDate).toISOString() : undefined,
     endDate: e.endDate ? new Date(e.endDate).toISOString() : undefined,
     nationalInsuranceNo: e.nationalInsuranceNo,
@@ -186,18 +208,18 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     accessAllZones: e.accessAllZones,
     visaTypeId: e.visaTypeId || null,
     isInCountry: e.isInCountry,
-    contractedWeeklyHours: e.contractedWeeklyHours,
-    maximumWeeklyHours: e.maximumWeeklyHours,
-    minimumWeeklyHours: e.minimumWeeklyHours,
+    contractedWeeklyHours: toNum(e.contractedWeeklyHours),
+    maximumWeeklyHours: toNum(e.maximumWeeklyHours),
+    minimumWeeklyHours: toNum(e.minimumWeeklyHours),
     optedOutOf48Hours: e.optedOutOf48Hours,
     isAgencyStaff: e.isAgencyStaff,
     agencyName: e.agencyName,
     agencyRating: e.agencyRating,
     isPreferredAgency: e.isPreferredAgency,
     isBlacklisted: e.isBlacklisted,
-    dailyRate: e.dailyRate,
-    hourlyDayRate: e.hourlyDayRate,
-    hourlyNightRate: e.hourlyNightRate,
+    dailyRate: toNum(e.dailyRate),
+    hourlyDayRate: toNum(e.hourlyDayRate),
+    hourlyNightRate: toNum(e.hourlyNightRate),
   }
 }
 
@@ -220,7 +242,17 @@ function FieldTip({ text }: { text: string }) {
   )
 }
 
-function TimeWithClock({ id, disabled }: { id?: string; disabled?: boolean }) {
+function TimeWithClock({
+  id,
+  disabled,
+  value,
+  onChange,
+}: {
+  id?: string
+  disabled?: boolean
+  value?: string
+  onChange?: (next: string) => void
+}) {
   const ref = React.useRef<HTMLInputElement>(null)
   return (
     <div className="flex min-w-0 gap-1.5">
@@ -231,6 +263,8 @@ function TimeWithClock({ id, disabled }: { id?: string; disabled?: boolean }) {
         type="time"
         step={60}
         disabled={disabled}
+        value={value ?? ''}
+        onChange={e => onChange?.(e.target.value)}
       />
       <button
         type="button"
@@ -461,7 +495,19 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     const initial: Record<string, AvailabilityLevel> = {}
     for (const week of ['Week 1', 'Week 2'] as const) {
       for (const d of days) {
-        initial[`${week}|${d}`] = 'None'
+        initial[`${week}|${d}`] = 'Fully'
+      }
+    }
+    return initial
+  })
+  const [patternTimes, setPatternTimes] = React.useState<Record<string, { start: string; end: string }>>(() => {
+    const initial: Record<string, { start: string; end: string }> = {}
+    for (const week of ['Week 1', 'Week 2'] as const) {
+      for (const d of days) {
+        initial[`${week}|${d}`] = {
+          start: DEFAULT_WORK_PATTERN_START,
+          end: DEFAULT_WORK_PATTERN_END,
+        }
       }
     }
     return initial
@@ -496,7 +542,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   }, [tab, editTab, clearErrors])
 
   const [localPhotoObjectUrl, setLocalPhotoObjectUrl] = React.useState<string | null>(null)
-  const [postcodeLookupBusy, setPostcodeLookupBusy] = React.useState(false)
   const pendingPhotoRef = React.useRef<File | null>(null)
   const photoFileInputRef = React.useRef<HTMLInputElement>(null)
   const hydratedDataTokenRef = React.useRef<string | null>(null)
@@ -704,31 +749,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     clearPendingPhotoSelection,
   ])
 
-  const onLookupPostcode = async () => {
-    setBanner(null)
-    const raw = getValues('postcode')
-    setPostcodeLookupBusy(true)
-    try {
-      const r = await lookupUkPostcode(raw)
-      if (!r.ok) {
-        setBanner({ type: 'error', text: r.error })
-        return
-      }
-      if (!getValues('town').trim() && r.adminDistrict) {
-        setValue('town', r.adminDistrict, { shouldDirty: true })
-      }
-      if (!getValues('country').trim()) {
-        setValue('country', 'United Kingdom', { shouldDirty: true })
-      }
-      setBanner({
-        type: 'success',
-        text: `Matched ${r.postcode}${r.region ? ` (${r.region})` : ''}. Check town and country.`,
-      })
-    } finally {
-      setPostcodeLookupBusy(false)
-    }
-  }
-
   const onCreateJobTitle = async () => {
     const trimmed = newJobTitleName.trim()
     if (!trimmed) {
@@ -760,7 +780,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     }
     try {
       const p = parsed.data
-      const personalBody = personalPayloadFromStep(p)
+      const personalBody = await personalPayloadFromStep(p)
       if (isEditMode && editEmployeeId) {
         await patchPersonalMutation.mutateAsync({ employeeId: editEmployeeId, body: personalBody })
         const photoOk = await flushPendingPhoto(editEmployeeId)
@@ -793,8 +813,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
       setBanner({ type: 'success', text: 'Employee created. Complete employment details on the next tab.' })
       setTab('employment')
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : 'Save failed.'
-      setBanner({ type: 'error', text: msg })
+      applyApiConflictFieldErrors(e, (name, err) => setError(name, err))
+      setBanner({ type: 'error', text: apiErrorMessage(e, 'Save failed.') })
     }
   }
 
@@ -1069,23 +1089,28 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     </div>
                   </FormField>
 
-                  <FormField label="Address line 1" htmlFor="addressLine1" error={errors.addressLine1?.message}>
-                    <Input
-                      id="addressLine1"
-                      autoComplete="address-line1"
-                      error={!!errors.addressLine1}
-                      {...register('addressLine1')}
+                  <div className="lg:col-span-2">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground">
+                      Address (optional — includes map coordinates)
+                    </h3>
+                    <AddressPlacesField
+                      value={{
+                        addressLine1: watch('addressLine1') ?? '',
+                        addressLine2: watch('addressLine2') ?? '',
+                        town: watch('town') ?? '',
+                        county: watch('county') ?? '',
+                        country: watch('country') ?? '',
+                        postcode: watch('postcode') ?? '',
+                        latitude: watch('latitude') ?? '',
+                        longitude: watch('longitude') ?? '',
+                      }}
+                      onChange={patch => {
+                        for (const [key, val] of Object.entries(patch)) {
+                          setValue(key as FieldPath<FormValues>, val ?? '', { shouldDirty: true })
+                        }
+                      }}
                     />
-                  </FormField>
-                  <FormField label="Address line 2" htmlFor="addressLine2" error={errors.addressLine2?.message}>
-                    <Input id="addressLine2" error={!!errors.addressLine2} {...register('addressLine2')} />
-                  </FormField>
-                  <FormField label="Town" htmlFor="town" error={errors.town?.message}>
-                    <Input id="town" error={!!errors.town} {...register('town')} />
-                  </FormField>
-                  <FormField label="Country" htmlFor="country" error={errors.country?.message}>
-                    <Input id="country" error={!!errors.country} {...register('country')} />
-                  </FormField>
+                  </div>
 
                   <FormField label="Nationality" htmlFor="nationalityId" error={errors.nationalityId?.message}>
                     <Controller
@@ -1107,27 +1132,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
-                  <FormField label="Postcode" htmlFor="postcode" error={errors.postcode?.message}>
-                    <div className="flex gap-2">
-                      <Input
-                        id="postcode"
-                        autoComplete="postal-code"
-                        placeholder="e.g. SW1A 1AA"
-                        error={!!errors.postcode}
-                        {...register('postcode')}
-                      />
-                      <button
-                        type="button"
-                        className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-md border border-input hover:bg-muted disabled:opacity-50"
-                        title="Look up UK postcode (postcodes.io)"
-                        aria-label="Look up UK postcode"
-                        disabled={postcodeLookupBusy}
-                        onClick={() => void onLookupPostcode()}
-                      >
-                        <Search className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </FormField>
                   <FormField label="Home telephone" htmlFor="homeTelephone" error={errors.homeTelephone?.message}>
                     <Controller
                       name="homeTelephone"
@@ -1551,21 +1555,28 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
-                  <FormField label="Base location" htmlFor="baseLocationId" error={errors.baseLocationId?.message}>
+                  <FormField
+                    label="Base locations"
+                    htmlFor="baseLocationIds"
+                    hint="Optional home sites for reporting and scheduling."
+                    error={errors.baseLocationIds?.message}
+                  >
                     <Controller
-                      name="baseLocationId"
+                      name="baseLocationIds"
                       control={control}
                       render={({ field }) => (
-                        <LookupSelect
-                          id="baseLocationId"
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={L?.locations ?? []}
-                          placeholder="Select base location"
-                          savedOptionName={savedEmployment?.baseLocation?.name}
-                          disabled={!L}
-                          tip="Optional home site for reporting."
-                        />
+                        <div id="baseLocationIds" data-testid="baseLocationIds">
+                          <MultiSelect
+                            options={(L?.locations ?? []).map(loc => ({
+                              value: loc.id,
+                              label: loc.name,
+                            }))}
+                            value={field.value ?? []}
+                            onChange={field.onChange}
+                            placeholder="Select one or more base locations"
+                            disabled={!L}
+                          />
+                        </div>
                       )}
                     />
                   </FormField>
@@ -1883,10 +1894,34 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                                       />
                                     </td>
                                     <td className="px-3 py-2.5">
-                                      <TimeWithClock id={`${key}-start`} />
+                                      <TimeWithClock
+                                        id={`${key}-start`}
+                                        value={patternTimes[key]?.start ?? DEFAULT_WORK_PATTERN_START}
+                                        onChange={start =>
+                                          setPatternTimes(prev => ({
+                                            ...prev,
+                                            [key]: {
+                                              start,
+                                              end: prev[key]?.end ?? DEFAULT_WORK_PATTERN_END,
+                                            },
+                                          }))
+                                        }
+                                      />
                                     </td>
                                     <td className="px-3 py-2.5">
-                                      <TimeWithClock id={`${key}-end`} />
+                                      <TimeWithClock
+                                        id={`${key}-end`}
+                                        value={patternTimes[key]?.end ?? DEFAULT_WORK_PATTERN_END}
+                                        onChange={end =>
+                                          setPatternTimes(prev => ({
+                                            ...prev,
+                                            [key]: {
+                                              start: prev[key]?.start ?? DEFAULT_WORK_PATTERN_START,
+                                              end,
+                                            },
+                                          }))
+                                        }
+                                      />
                                     </td>
                                   </tr>
                                 )

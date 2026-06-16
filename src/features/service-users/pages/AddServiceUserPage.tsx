@@ -158,6 +158,23 @@ function hasAddressData(f: FormState): boolean {
   ].some((s) => s.trim() !== '')
 }
 
+function buildAddressPayload(f: FormState) {
+  const lat = f.latitude.trim() ? Number(f.latitude) : undefined
+  const lng = f.longitude.trim() ? Number(f.longitude) : undefined
+  return {
+    addressLine1: f.addressLine1.trim() || undefined,
+    addressLine2: f.addressLine2.trim() || undefined,
+    town: f.town.trim() || undefined,
+    county: f.county.trim() || undefined,
+    country: f.country.trim() || undefined,
+    postcode: f.postcode.trim() || undefined,
+    latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
+    longitude: lng != null && Number.isFinite(lng) ? lng : undefined,
+    keySafeNumber: f.keySafeNumber.trim() || undefined,
+    accessInstructions: f.accessInstructions.trim() || undefined,
+  }
+}
+
 export default function AddServiceUserPage() {
   const navigate = useNavigate()
   const apiConfigured = Boolean(getApiBaseUrl())
@@ -235,20 +252,7 @@ export default function AddServiceUserPage() {
       const payload = buildPayload(form)
       await createMutation.mutateAsync({
         payload,
-        address: hasAddressData(form)
-          ? {
-              addressLine1: form.addressLine1.trim() || undefined,
-              addressLine2: form.addressLine2.trim() || undefined,
-              town: form.town.trim() || undefined,
-              county: form.county.trim() || undefined,
-              country: form.country.trim() || undefined,
-              postcode: form.postcode.trim() || undefined,
-              latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
-              longitude: form.longitude.trim() ? Number(form.longitude) : undefined,
-              keySafeNumber: form.keySafeNumber.trim() || undefined,
-              accessInstructions: form.accessInstructions.trim() || undefined,
-            }
-          : undefined,
+        address: hasAddressData(form) ? buildAddressPayload(form) : undefined,
       })
       toastSuccess('Service user created', 'Redirecting to the service user list.')
       await navigate({ to: '/service-users/all' })
@@ -580,7 +584,7 @@ export default function AddServiceUserPage() {
       </Section>
 
       <Section>
-        <SHead>Address (optional — saved after create)</SHead>
+        <SHead>Address (optional — includes map coordinates)</SHead>
         <AddressPlacesField
           value={{
             addressLine1: form.addressLine1,

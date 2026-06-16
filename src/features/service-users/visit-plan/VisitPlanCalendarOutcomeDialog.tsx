@@ -31,7 +31,7 @@ import {
 } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 import type { VisitPlanCalendarVisit } from '@/features/service-users/visit-plan/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
+import { resolveExplicitCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import {
   isoDateTimeToTimeInput,
   visitDurationMinutes,
@@ -215,7 +215,7 @@ export function VisitPlanCalendarOutcomeDialog({
 
   const durationMins = visitDurationMinutes(actualStartTime, actualEndTime)
 
-  const linkedPlans = resolveCarePlansForSlot(slot, acceptedCarePlans)
+  const linkedPlans = resolveExplicitCarePlansForSlot(slot, acceptedCarePlans)
   const requiredCarers = existing?.requiredCarers ?? slot.requiredCarers
 
   return (

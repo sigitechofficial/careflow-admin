@@ -53,7 +53,11 @@ export function carePlanSuggestedForSlot(
   return defaultSlotsForCarePlan(carePlan).includes(slot.slotCode)
 }
 
-export function resolveCarePlansForSlot(
+export function hasExplicitCarePlanLinks(slot: VisitPlanSlot): boolean {
+  return (slot.linkedCarePlanFormIds ?? []).length > 0
+}
+
+export function resolveExplicitCarePlansForSlot(
   slot: VisitPlanSlot,
   acceptedCarePlans: AcceptedCarePlanItem[],
 ): AcceptedCarePlanItem[] {
@@ -61,6 +65,36 @@ export function resolveCarePlansForSlot(
   return (slot.linkedCarePlanFormIds ?? [])
     .map((id) => byId.get(id))
     .filter((p): p is AcceptedCarePlanItem => Boolean(p))
+}
+
+export function suggestedCarePlansForSlot(
+  slot: VisitPlanSlot,
+  acceptedCarePlans: AcceptedCarePlanItem[],
+): AcceptedCarePlanItem[] {
+  return acceptedCarePlans.filter((cp) => carePlanSuggestedForSlot(cp, slot))
+}
+
+/** Explicit slot links when set; otherwise IA-based suggestions for display. */
+export function resolveCarePlansForSlot(
+  slot: VisitPlanSlot,
+  acceptedCarePlans: AcceptedCarePlanItem[],
+): AcceptedCarePlanItem[] {
+  const explicit = resolveExplicitCarePlansForSlot(slot, acceptedCarePlans)
+  if (explicit.length > 0) return explicit
+  return suggestedCarePlansForSlot(slot, acceptedCarePlans)
+}
+
+/** Apply suggested links to slots that have none yet (does not overwrite explicit links). */
+export function applySuggestedCarePlanLinks(
+  slots: VisitPlanSlot[],
+  acceptedCarePlans: AcceptedCarePlanItem[],
+): VisitPlanSlot[] {
+  if (acceptedCarePlans.length === 0) return slots
+  return slots.map((slot) => {
+    if (hasExplicitCarePlanLinks(slot)) return slot
+    const suggestedIds = suggestedCarePlansForSlot(slot, acceptedCarePlans).map((p) => p.formId)
+    return suggestedIds.length > 0 ? { ...slot, linkedCarePlanFormIds: suggestedIds } : slot
+  })
 }
 
 export function buildCarePathwaySteps(input: {

@@ -157,10 +157,23 @@ export async function getHousekeepingDayJobs(date: string, params: Record<string
   return { date: res.data?.date ?? date, jobs: res.data?.jobs ?? [], meta: res.meta as PaginationMeta | undefined }
 }
 
-export async function completeHousekeepingJob(id: string, notes?: string) {
+export async function completeHousekeepingJob(
+  id: string,
+  payload?: {
+    notes?: string
+    deliveredCarePlanFormIds?: string[]
+    actualEndDateTime?: string
+  },
+) {
+  const body: Record<string, unknown> = {}
+  if (payload?.notes?.trim()) body.notes = payload.notes.trim()
+  if (payload?.deliveredCarePlanFormIds?.length) {
+    body.deliveredCarePlanFormIds = payload.deliveredCarePlanFormIds
+  }
+  if (payload?.actualEndDateTime) body.actualEndDateTime = payload.actualEndDateTime
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {
     method: 'PATCH',
-    body: JSON.stringify(notes ? { notes } : {}),
+    body: JSON.stringify(body),
   })
   return res
 }
@@ -234,6 +247,7 @@ export type JobAllocationRow = {
   scheduledVisitId: string | null
   employeeId: string
   status: string
+  isLeadCarer?: boolean
   requiresConfirmation: boolean
   scheduledJob?: {
     serviceUserId?: string | null
@@ -257,6 +271,7 @@ export async function updateScheduledJob(
   body: {
     scheduledStartDateTime?: string
     scheduledEndDateTime?: string | null
+    notes?: string | null
   },
 ) {
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs/${jobId}`, {
@@ -268,9 +283,23 @@ export async function updateScheduledJob(
 
 export async function allocateJob(
   jobId: string,
-  body: { employeeId: string; scheduledVisitId?: string; force?: boolean; notes?: string },
+  body: {
+    employeeId: string
+    scheduledVisitId?: string
+    force?: boolean
+    notes?: string
+    isLeadCarer?: boolean
+  },
 ) {
   const res = await apiJson<ApiEnvelope<JobAllocationRow>>(`/scheduled-jobs/${jobId}/allocate`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return { message: res.message, data: res.data! }
+}
+
+export async function setJobLeadCarer(jobId: string, body: { employeeId: string }) {
+  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(`/scheduled-jobs/${jobId}/lead-carer`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
