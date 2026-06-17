@@ -253,16 +253,19 @@ export function jobRequiredCarerMinutes(
   return jobDurationMinutes(job) * Math.max(1, job.requiredCarers)
 }
 
-export type JobBlockTone = 'green' | 'orange' | 'red' | 'neutral'
+export type JobBlockTone = 'green' | 'orange' | 'red' | 'neutral' | 'completed'
 
 export function jobBlockTone(job: TimelineJob): JobBlockTone {
+  if (job.status === 'COMPLETED') return 'completed'
   if (job.status === 'NEEDS_ATTENTION' || job.underAllocated) return 'red'
-  if (['COMPLETED', 'ALLOCATED', 'IN_PROGRESS', 'CONFIRMED'].includes(job.status)) return 'green'
+  if (['ALLOCATED', 'IN_PROGRESS', 'CONFIRMED'].includes(job.status)) return 'green'
   if (['UNALLOCATED', 'PENDING'].includes(job.status)) return 'orange'
   return 'neutral'
 }
 
 export const JOB_BLOCK_TONE_CLASSES: Record<JobBlockTone, string> = {
+  completed:
+    'border-[#6ee7b7] text-[#047857] shadow-sm ring-1 ring-emerald-600/20 hover:ring-emerald-600/35',
   green:
     'border-emerald-600/70 bg-gradient-to-b from-emerald-100 to-emerald-200/90 text-emerald-950 shadow-sm ring-1 ring-emerald-700/10 hover:ring-emerald-600/30',
   orange:
@@ -271,6 +274,15 @@ export const JOB_BLOCK_TONE_CLASSES: Record<JobBlockTone, string> = {
   neutral:
     'border-slate-400/80 bg-gradient-to-b from-slate-100 to-slate-200/90 text-slate-900 shadow-sm ring-1 ring-slate-500/10 hover:ring-slate-400/30',
 }
+
+/** Visit-plan completed emerald with cross-hatch overlay (matches vp-outcome-completed palette). */
+export const jobBlockCompletedSurfaceStyle = {
+  backgroundColor: '#d1fae5',
+  backgroundImage: [
+    'repeating-linear-gradient(45deg, rgba(4, 120, 87, 0.22) 0, rgba(4, 120, 87, 0.22) 1px, transparent 1px, transparent 7px)',
+    'repeating-linear-gradient(-45deg, rgba(4, 120, 87, 0.22) 0, rgba(4, 120, 87, 0.22) 1px, transparent 1px, transparent 7px)',
+  ].join(', '),
+} as const
 
 export function scheduleJobsHourLabels(): number[] {
   return Array.from({ length: SCHEDULE_JOBS_TIMELINE_HOURS }, (_, hour) => hour)

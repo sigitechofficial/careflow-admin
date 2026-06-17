@@ -12,7 +12,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/shared/ui/context-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/shared/ui/tooltip'
 
 type Props = {
   job: TimelineJob

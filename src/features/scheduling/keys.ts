@@ -27,4 +27,9 @@ export const schedulingKeys = {
 
   housekeepingDay: (date: string, page: number) =>
     [...schedulingKeys.housekeeping(), 'day', date, page] as const,
+
+  runs: (params: { runDate?: string; employeeId?: string; status?: string }) =>
+    [...schedulingKeys.all(), 'runs', params] as const,
+
+  runDetail: (id: string) => [...schedulingKeys.all(), 'run', id] as const,
 } as const

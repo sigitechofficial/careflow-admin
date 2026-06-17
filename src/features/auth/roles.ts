@@ -174,6 +174,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...NOTIFICATION_INAPP,
     'notifications.create',
     ...CARE_PATHWAY_ADMIN,
+    'job_allocations.confirm',
   ],
   admin: [
     'users.read',
@@ -200,6 +201,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...NOTIFICATION_INAPP,
     'notifications.create',
     ...CARE_PATHWAY_ADMIN,
+    'job_allocations.confirm',
   ],
   manager: [
     'users.read',

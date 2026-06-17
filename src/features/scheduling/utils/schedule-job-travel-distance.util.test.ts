@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
+  addMinutesToHm,
   buildNextVisitTravelDetail,
   estimateTravelMinutesFromStraightLineKm,
   formatTravelDistanceKm,
+  gapMinutesBetweenJobs,
   haversineDistanceKm,
+  hasTravelGapConflict,
+  travelConflictJobIds,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 
 function job(
@@ -13,6 +17,7 @@ function job(
   lat: number | null,
   lng: number | null,
   name: { firstName: string; lastName: string },
+  end?: string,
 ): TimelineJob {
   return {
     id,
@@ -27,7 +32,7 @@ function job(
       longitude: lng,
     },
     scheduledStartDateTime: start,
-    scheduledEndDateTime: null,
+    scheduledEndDateTime: end ?? null,
     requiredCarers: 1,
     allocations: [],
   }
@@ -48,11 +53,11 @@ describe('schedule-job-travel-distance', () => {
   })
 
   it('builds next-visit travel detail for the following job on the row', () => {
-    const first = job('su-1', '2026-06-15T09:00:00.000Z', 51.5074, -0.1278, {
+    const first = job('su-1', new Date('2026-06-15T09:00:00').toISOString(), 51.5074, -0.1278, {
       firstName: 'Danish',
       lastName: 'Ali',
     })
-    const second = job('su-2', '2026-06-15T11:00:00.000Z', 51.5074, -0.06333, {
+    const second = job('su-2', new Date('2026-06-15T11:00:00').toISOString(), 51.5074, -0.06333, {
       firstName: 'Margaret',
       lastName: 'Hughes',
     })
@@ -80,5 +85,39 @@ describe('schedule-job-travel-distance', () => {
       lastName: 'Lovelace',
     })
     expect(buildNextVisitTravelDetail(only, [only])).toBeNull()
+  })
+
+  it('flags travel conflict when gap is shorter than travel plus buffer', () => {
+    const first = job(
+      'su-1',
+      '2026-06-15T10:00:00.000Z',
+      51.5074,
+      -0.1278,
+      { firstName: 'Danish', lastName: 'Ali' },
+      '2026-06-15T11:00:00.000Z',
+    )
+    const second = job('su-2', '2026-06-15T11:15:00.000Z', 51.5074, -0.06333, {
+      firstName: 'Margaret',
+      lastName: 'Hughes',
+    })
+    const detail = buildNextVisitTravelDetail(first, [first, second], { bufferMinutes: 15 })
+    expect(detail?.gapMinutes).toBe(15)
+    expect(detail?.hasTravelConflict).toBe(true)
+    expect(detail?.lateByMinutes).toBeGreaterThan(0)
+    expect(travelConflictJobIds([first, second], 15).has(first.id)).toBe(true)
+  })
+
+  it('detects travel gap conflicts from minutes', () => {
+    expect(hasTravelGapConflict(30, 40, 15)).toBe(true)
+    expect(hasTravelGapConflict(60, 40, 15)).toBe(false)
+    expect(hasTravelGapConflict(-5, 40, 0)).toBe(false)
+  })
+
+  it('adds minutes to HH:mm labels', () => {
+    expect(addMinutesToHm('11:00', 40)).toBe('11:40')
+    expect(gapMinutesBetweenJobs(
+      job('a', '2026-06-15T10:00:00.000Z', null, null, { firstName: 'A', lastName: 'A' }, '2026-06-15T11:00:00.000Z'),
+      job('b', '2026-06-15T11:30:00.000Z', null, null, { firstName: 'B', lastName: 'B' }),
+    )).toBe(30)
   })
 })

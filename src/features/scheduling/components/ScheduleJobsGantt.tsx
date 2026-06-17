@@ -4,19 +4,27 @@ import { cn } from '@/shared/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { useScheduleJobsDrag } from '@/features/scheduling/hooks/useScheduleJobsDrag'
 import type { EmployeeListRow } from '@/features/employees/api/employees.api'
-import type { EmployeeDayRow, TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import type { EmployeeDayRow, JobsDayRunsResponse, TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { ScheduleJobsRunLegend } from '@/features/scheduling/components/ScheduleJobsRunLegend'
+import {
+  scheduleRunAccentColor,
+  scheduleRunJobLabel,
+} from '@/features/scheduling/utils/schedule-run-board.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import { ScheduleCarerAvailabilityOverlay } from '@/features/scheduling/components/ScheduleCarerAvailabilityOverlay'
 import { ScheduleJobContextMenu } from '@/features/scheduling/components/ScheduleJobContextMenu'
 import { ScheduleCarerHoverCard } from '@/features/scheduling/components/ScheduleCarerHoverCard'
-import { ScheduleJobHoverCard } from '@/features/scheduling/components/ScheduleJobHoverCard'
+import { ScheduleJobHoverTooltip } from '@/features/scheduling/components/ScheduleJobHoverCard'
 import { ScheduleJobsDragOverlay } from '@/features/scheduling/components/ScheduleJobsDragOverlay'
+import { ScheduleJobsMarqueeOverlay } from '@/features/scheduling/components/ScheduleJobsMarqueeOverlay'
+import { useScheduleJobsMarqueeSelect } from '@/features/scheduling/hooks/useScheduleJobsMarqueeSelect'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import type { JobDropPayload, ScheduleJobsRowRef } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import type { ScheduleJobContextAction } from '@/features/scheduling/types/schedule-job-context-actions.types'
-import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import { isScheduleJobCompleted, isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import { travelConflictJobIds } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { buildCarerAvailabilitySegments } from '@/features/scheduling/utils/schedule-jobs-availability.util'
 import type { EmployeeDayPattern } from '@/features/scheduling/types/scheduling.types'
 import {
@@ -29,6 +37,7 @@ import {
   formatScheduleJobsHourLabel,
   formatScheduleJobsPeriodRange,
   JOB_BLOCK_TONE_CLASSES,
+  jobBlockCompletedSurfaceStyle,
   jobBlockLayoutPx,
   jobBlockTone,
   SCHEDULE_JOBS_CARER_COL_WIDTH,
@@ -56,6 +65,7 @@ type Props = {
   date: string
   employeeRows: EmployeeDayRow[]
   unassignedJobs: TimelineJob[]
+  runs?: JobsDayRunsResponse['runs']
   employeeCatalogById?: Map<string, EmployeeListRow>
   locationNames?: Map<string, string>
   savingJobId?: string | null
@@ -63,9 +73,11 @@ type Props = {
   overAllocatedJobIds?: Set<string>
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
+  travelBufferMinutes?: number
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
   onJobDrop: (payload: JobDropPayload) => void | Promise<void>
+  onJobsSelectedForRun?: (jobs: TimelineJob[]) => void
 }
 
 const BOARD_MIN_WIDTH = SCHEDULE_JOBS_CARER_COL_WIDTH + SCHEDULE_JOBS_TIMELINE_TRACK_WIDTH
@@ -82,7 +94,10 @@ function ScheduleJobBlock({
   overAllocated,
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
+  travelBufferMinutes,
+  travelConflictToNext,
   rowJobs,
+  isMarqueeSelected,
   onPointerDown,
   onClick,
   onJobAction,
@@ -99,7 +114,10 @@ function ScheduleJobBlock({
   overAllocated?: boolean
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
+  travelBufferMinutes?: number
+  travelConflictToNext?: boolean
   rowJobs?: TimelineJob[]
+  isMarqueeSelected?: boolean
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
@@ -108,16 +126,32 @@ function ScheduleJobBlock({
   const tone = jobBlockTone(job)
   const label = serviceUserLabel(job.serviceUser)
   const readOnly = isScheduleJobReadOnly(job)
+  const completed = isScheduleJobCompleted(job)
   const { leftPx, widthPx } = jobBlockLayoutPx(job, label)
+  const runAccent = job.scheduleRunId ? scheduleRunAccentColor(job.scheduleRunId) : null
+  const runLabel = scheduleRunJobLabel(job)
 
   const block = (
     <div
       role="button"
       tabIndex={0}
+      data-schedule-job-block
+      data-job-id={job.id}
       className={cn(
-        'absolute z-[2] flex select-none items-center gap-1 rounded-md border px-2 text-left text-[11px] font-semibold leading-tight transition-shadow',
+        'absolute z-[2] flex select-none flex-col overflow-hidden rounded-md border text-left text-[11px] font-semibold leading-tight transition-shadow',
         JOB_BLOCK_TONE_CLASSES[tone],
-        showBookedTooltip ? 'top-1 h-7' : alignTop ? 'top-0.5 h-8' : 'top-1.5 bottom-1.5',
+        job.scheduleRunId && 'border-l-[3px]',
+        job.scheduleRunId
+          ? showBookedTooltip
+            ? 'top-1 h-9'
+            : alignTop
+              ? 'top-0.5 h-9'
+              : 'top-1.5 bottom-1.5 min-h-9'
+          : showBookedTooltip
+            ? 'top-1 h-7'
+            : alignTop
+              ? 'top-0.5 h-8'
+              : 'top-1.5 bottom-1.5',
         readOnly
           ? isDragging
             ? 'pointer-events-none opacity-25'
@@ -128,15 +162,29 @@ function ScheduleJobBlock({
                 ? 'pointer-events-none cursor-grabbing opacity-25'
                 : 'cursor-grab hover:shadow-md active:scale-[0.99]',
             ),
+        isMarqueeSelected && 'ring-2 ring-primary ring-offset-1',
         excessContracted &&
+          !completed &&
           'border-amber-600 bg-[repeating-linear-gradient(135deg,rgba(251,191,36,0.22),rgba(251,191,36,0.22)_6px,rgba(255,255,255,0.45)_6px,rgba(255,255,255,0.45)_12px)] ring-2 ring-amber-500/70',
-        overAllocated && 'ring-2 ring-rose-500/80 border-rose-600',
+        overAllocated && !completed && 'ring-2 ring-rose-500/80 border-rose-600',
+        travelConflictToNext && !completed && 'ring-2 ring-orange-500/80 border-orange-600',
         saving && 'animate-pulse opacity-60',
       )}
-      style={{ left: leftPx, width: widthPx }}
+      style={{
+        left: leftPx,
+        width: widthPx,
+        ...(completed ? jobBlockCompletedSurfaceStyle : {}),
+        ...(runAccent ? { borderLeftColor: runAccent.border } : {}),
+      }}
       title={
-        readOnly
+        runLabel
+          ? `${runLabel} — ${label}`
+          : completed
+          ? 'Visit completed — click to view details'
+          : readOnly
           ? 'This job cannot be edited — click to view details'
+          : travelConflictToNext
+            ? 'Not enough travel time to reach the next visit — hover for details · click to manage'
           : excessContracted
           ? 'Exceeds weekly contracted hours from visit plan — click to manage carers · drag to move'
           : overAllocated
@@ -156,10 +204,36 @@ function ScheduleJobBlock({
         }
       }}
     >
-      {job.requiredCarers > 1 ? (
-        <Users className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+      <div className="flex min-h-0 flex-1 items-center gap-1 px-2">
+        {job.requiredCarers > 1 ? (
+          <Users className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+        ) : null}
+        <span className="relative z-[1] min-w-0 truncate whitespace-nowrap">{label}</span>
+      </div>
+      {job.scheduleRunId && runAccent && job.scheduleRun ? (
+        <div
+          className="flex h-3.5 w-full shrink-0 items-center gap-1 border-t px-1.5"
+          style={{
+            backgroundColor: runAccent.bg,
+            borderTopColor: runAccent.border,
+            color: runAccent.text,
+          }}
+          title={runLabel ?? undefined}
+        >
+          <span className="min-w-0 flex-1 truncate text-[8px] font-semibold leading-none">
+            {job.scheduleRun.name}
+          </span>
+          {job.runSequence != null ? (
+            <span
+              className="shrink-0 rounded px-0.5 text-[8px] font-bold leading-none"
+              style={{ backgroundColor: runAccent.border, color: '#fff' }}
+              aria-label={`Stop ${job.runSequence}`}
+            >
+              {job.runSequence}
+            </span>
+          ) : null}
+        </div>
       ) : null}
-      <span className="whitespace-nowrap">{label}</span>
     </div>
   )
 
@@ -170,19 +244,15 @@ function ScheduleJobBlock({
       job={job}
       onAction={onJobAction}
       tooltip={
-        <TooltipContent
-          side="top"
-          className="max-h-none max-w-none overflow-visible border-0 bg-transparent p-0 shadow-none"
-        >
-          <ScheduleJobHoverCard
-            job={job}
-            date={date}
-            variant={showBookedTooltip ? 'availability' : 'tooltip'}
-            visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
-            acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
-            rowJobs={rowJobs}
-          />
-        </TooltipContent>
+        <ScheduleJobHoverTooltip
+          job={job}
+          date={date}
+          variant={showBookedTooltip ? 'availability' : 'tooltip'}
+          visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+          acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+          rowJobs={rowJobs}
+          travelBufferMinutes={travelBufferMinutes}
+        />
       }
     >
       {block}
@@ -241,6 +311,7 @@ function CarerLabel({
 }) {
   const label = (
     <div
+      data-schedule-carer-label
       className={cn(
         'flex h-full shrink-0 items-center gap-2.5 border-r border-border/80 px-3',
         muted && 'bg-amber-50/50 dark:bg-amber-950/15',
@@ -311,6 +382,8 @@ function TimelineTrack({
   overAllocatedJobIds,
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
+  travelBufferMinutes,
+  previewJobIds,
   onPointerDown,
   onJobClick,
   onJobAction,
@@ -330,6 +403,8 @@ function TimelineTrack({
   overAllocatedJobIds?: Set<string>
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
+  travelBufferMinutes?: number
+  previewJobIds?: Set<string>
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
@@ -340,6 +415,13 @@ function TimelineTrack({
   const availabilitySegments = React.useMemo(
     () => (showCarerAvailability ? buildCarerAvailabilitySegments(jobs, dayPattern) : []),
     [showCarerAvailability, jobs, dayPattern],
+  )
+  const travelConflictJobIdSet = React.useMemo(
+    () =>
+      showCarerAvailability
+        ? travelConflictJobIds(jobs, travelBufferMinutes ?? 0)
+        : new Set<string>(),
+    [jobs, travelBufferMinutes, showCarerAvailability],
   )
 
   return (
@@ -405,7 +487,10 @@ function TimelineTrack({
           overAllocated={overAllocatedJobIds?.has(job.id)}
           visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
           acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+          travelBufferMinutes={travelBufferMinutes}
+          travelConflictToNext={travelConflictJobIdSet.has(job.id)}
           rowJobs={jobs}
+          isMarqueeSelected={previewJobIds?.has(job.id)}
           onPointerDown={onPointerDown}
           onClick={onJobClick}
           onJobAction={onJobAction}
@@ -438,6 +523,8 @@ const GanttRow = React.memo(function GanttRow({
   overAllocatedJobIds,
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
+  travelBufferMinutes,
+  previewJobIds,
   zebra,
   onPointerDown,
   onJobClick,
@@ -467,6 +554,8 @@ const GanttRow = React.memo(function GanttRow({
   overAllocatedJobIds?: Set<string>
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
+  travelBufferMinutes?: number
+  previewJobIds?: Set<string>
   zebra?: boolean
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onJobClick: (job: TimelineJob) => void
@@ -515,6 +604,8 @@ const GanttRow = React.memo(function GanttRow({
         overAllocatedJobIds={overAllocatedJobIds}
         visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
         acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+        travelBufferMinutes={travelBufferMinutes}
+        previewJobIds={previewJobIds}
         onPointerDown={onPointerDown}
         onJobClick={onJobClick}
         onJobAction={onJobAction}
@@ -557,6 +648,7 @@ function ScheduleJobsTimelineHeader() {
 
   return (
     <div
+      data-schedule-timeline-header
       className="sticky top-0 z-20 flex shrink-0 border-b border-border/80 bg-card/95 shadow-sm backdrop-blur-md"
       style={{ width: BOARD_MIN_WIDTH, minWidth: BOARD_MIN_WIDTH }}
     >
@@ -644,6 +736,8 @@ function ScheduleJobsLegend() {
       <LegendPill striped label="Outside hours" />
       <LegendPill striped label="Over weekly contract" />
       <LegendPill swatch="bg-rose-500" label="Over booked (extra carers)" />
+      <LegendPill swatch="border-2 border-orange-500 bg-orange-100/80" label="Travel time conflict" />
+      <LegendPill swatch="border-b-4 border-primary bg-background" label="Part of a run" />
       <div className="hidden h-4 w-px bg-border/80 sm:block" />
       {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
         <span
@@ -660,7 +754,7 @@ function ScheduleJobsLegend() {
       ))}
       <span className="ml-auto hidden items-center gap-1.5 text-[10px] text-muted-foreground lg:inline-flex">
         <Clock className="h-3 w-3" />
-        Click job to assign · drag to move
+        Click job to assign · drag job to move · drag on timeline to create a run
       </span>
     </div>
   )
@@ -670,6 +764,7 @@ export function ScheduleJobsGantt({
   date,
   employeeRows,
   unassignedJobs,
+  runs = [],
   employeeCatalogById,
   locationNames,
   savingJobId,
@@ -677,15 +772,41 @@ export function ScheduleJobsGantt({
   overAllocatedJobIds,
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
+  travelBufferMinutes,
   onJobClick,
   onJobAction,
   onJobDrop,
+  onJobsSelectedForRun,
 }: Props) {
   const locationNameMap = locationNames ?? new Map<string, string>()
   const drag = useScheduleJobsDrag({
     date,
     trackWidthPx: SCHEDULE_JOBS_TIMELINE_GRID_WIDTH,
     onJobDrop,
+  })
+
+  const jobsById = React.useMemo(() => {
+    const map = new Map<string, TimelineJob>()
+    for (const job of unassignedJobs) map.set(job.id, job)
+    for (const row of employeeRows) {
+      for (const allocation of row.allocations) {
+        map.set(allocation.job.id, allocation.job)
+      }
+    }
+    return map
+  }, [employeeRows, unassignedJobs])
+
+  const handleSelectionComplete = React.useCallback(
+    (jobs: TimelineJob[]) => {
+      onJobsSelectedForRun?.(jobs)
+    },
+    [onJobsSelectedForRun],
+  )
+
+  const marquee = useScheduleJobsMarqueeSelect({
+    jobsById,
+    onSelectionComplete: handleSelectionComplete,
+    minJobs: 2,
   })
 
   const duplicateNameIds = React.useMemo(
@@ -701,13 +822,17 @@ export function ScheduleJobsGantt({
   }, [date])
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delayDuration={200} disableHoverableContent={false}>
       <ScheduleJobsDragOverlay />
+      <ScheduleJobsMarqueeOverlay rect={marquee.marqueeRect} />
       <div
         data-schedule-jobs-board
         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm"
       >
-        <ScheduleJobsLegend />
+        <div data-schedule-jobs-legend>
+          <ScheduleJobsLegend />
+          <ScheduleJobsRunLegend runs={runs} />
+        </div>
         <div ref={scrollRef} data-schedule-jobs-scroll className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
           <div style={{ width: BOARD_MIN_WIDTH, minWidth: BOARD_MIN_WIDTH }}>
             <ScheduleJobsTimelineHeader />
@@ -737,6 +862,8 @@ export function ScheduleJobsGantt({
               overAllocatedJobIds={overAllocatedJobIds}
               visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
               acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+              travelBufferMinutes={travelBufferMinutes}
+              previewJobIds={marquee.previewJobIds}
               trackClassName="bg-amber-50/30 dark:bg-amber-950/10"
             />
 
@@ -770,6 +897,8 @@ export function ScheduleJobsGantt({
                   overAllocatedJobIds={overAllocatedJobIds}
                   visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
                   acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+                  travelBufferMinutes={travelBufferMinutes}
+                  previewJobIds={marquee.previewJobIds}
                   zebra={index % 2 === 1}
                   onPointerDown={drag.startDrag}
                   onJobClick={onJobClick}

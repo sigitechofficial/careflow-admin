@@ -73,6 +73,7 @@ export type Permission =
   | 'service_users.visit_plan.write'
   | 'service_users.visit_plan.activate'
   | 'scheduling.generate_from_visit_plan'
+  | 'job_allocations.confirm'
   | 'service_users.initial_assessment.read'
   | 'service_users.initial_assessment.create'
   | 'service_users.initial_assessment.update'

@@ -162,6 +162,7 @@ export async function completeHousekeepingJob(
   payload?: {
     notes?: string
     deliveredCarePlanFormIds?: string[]
+    actualStartDateTime?: string
     actualEndDateTime?: string
   },
 ) {
@@ -170,6 +171,7 @@ export async function completeHousekeepingJob(
   if (payload?.deliveredCarePlanFormIds?.length) {
     body.deliveredCarePlanFormIds = payload.deliveredCarePlanFormIds
   }
+  if (payload?.actualStartDateTime) body.actualStartDateTime = payload.actualStartDateTime
   if (payload?.actualEndDateTime) body.actualEndDateTime = payload.actualEndDateTime
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {
     method: 'PATCH',
@@ -309,6 +311,18 @@ export async function setJobLeadCarer(jobId: string, body: { employeeId: string 
 export async function unallocateJob(jobId: string, body: { employeeId: string; reason?: string }) {
   const res = await apiJson<ApiEnvelope<JobAllocationRow>>(
     `/scheduled-jobs/${jobId}/unallocate`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return { message: res.message, data: res.data! }
+}
+
+export async function confirmJobAllocation(
+  jobId: string,
+  allocationId: string,
+  body: { notes?: string } = {},
+) {
+  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(
+    `/scheduled-jobs/${jobId}/allocations/${allocationId}/confirm`,
     { method: 'POST', body: JSON.stringify(body) },
   )
   return { message: res.message, data: res.data! }

@@ -17,6 +17,10 @@ export function isScheduleJobTerminal(job: TimelineJob): boolean {
   return TERMINAL_JOB_STATUSES.has(job.status)
 }
 
+export function isScheduleJobCompleted(job: Pick<TimelineJob, 'status'>): boolean {
+  return job.status === 'COMPLETED'
+}
+
 /** Completed, cancelled, and called-off jobs cannot be edited on the rota board. */
 export function isScheduleJobReadOnly(job: TimelineJob): boolean {
   return isScheduleJobTerminal(job)

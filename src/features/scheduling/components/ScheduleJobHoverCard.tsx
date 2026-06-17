@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { TooltipContent } from '@/shared/ui/tooltip'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
@@ -24,19 +27,23 @@ import {
   leadCarerAllocation,
   serviceUserLabel,
 } from '@/features/scheduling/utils/scheduling-format'
+import { isScheduleJobCompleted } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import { isoToLocalTimeInput } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 
 type Props = {
   job: TimelineJob
   date: string
-  /** Affects header label only (e.g. "Booked" on carer rows). Body always shows full visit details. */
   variant?: 'tooltip' | 'appointment' | 'availability'
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
-  /** Other jobs on the same board row — used to compute travel to the next visit. */
   rowJobs?: TimelineJob[]
+  travelBufferMinutes?: number
 }
 
+const HOVER_COLLISION_PADDING = { top: 64, bottom: 24, left: 24, right: 24 } as const
+
 const TONE_HEADER: Record<ReturnType<typeof jobBlockTone>, string> = {
+  completed: 'Visit completed',
   green: 'Appointment',
   orange: 'Possibly Available',
   red: 'Not Available',
@@ -44,6 +51,7 @@ const TONE_HEADER: Record<ReturnType<typeof jobBlockTone>, string> = {
 }
 
 const TONE_HEADER_CLASS: Record<ReturnType<typeof jobBlockTone>, string> = {
+  completed: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800',
   green: 'text-[#2d7a32]',
   orange: 'text-[#c47a1a]',
   red: 'text-red-600',
@@ -54,66 +62,97 @@ type DetailField = {
   label: string
   value: string
   valueClassName?: string
-  colSpan?: 1 | 2 | 'full'
+  emphasis?: boolean
 }
 
-function DetailItem({ label, value, valueClassName, colSpan = 1 }: DetailField) {
+function DetailRow({ label, value, valueClassName, emphasis, compact }: DetailField & { compact?: boolean }) {
   return (
     <div
       className={cn(
-        'min-w-0',
-        colSpan === 'full' && 'col-span-full',
-        colSpan === 2 && 'col-span-2',
+        'grid items-baseline gap-x-3 gap-y-0.5 py-1',
+        compact ? 'grid-cols-[4.5rem_minmax(0,1fr)]' : 'grid-cols-[5.5rem_minmax(0,1fr)]',
       )}
     >
-      <p className="text-[10px] leading-tight text-muted-foreground">{label}</p>
-      <p
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span
         className={cn(
-          'mt-0.5 text-xs font-medium leading-snug text-foreground break-words',
+          'text-sm leading-snug text-foreground break-words',
+          emphasis ? 'font-semibold' : 'font-medium',
           valueClassName,
         )}
       >
         {value}
-      </p>
+      </span>
     </div>
   )
 }
 
-function DetailGrid({ fields, columns = 3 }: { fields: DetailField[]; columns?: 2 | 3 }) {
+function DetailGrid({ fields, compact }: { fields: DetailField[]; compact?: boolean }) {
   if (fields.length === 0) return null
   return (
-    <div
-      className={cn(
-        'grid gap-x-3 gap-y-2',
-        columns === 2 ? 'grid-cols-2' : 'grid-cols-3',
-      )}
-    >
+    <div className="divide-y divide-border/50">
       {fields.map((field, index) => (
-        <DetailItem key={`${field.label}-${index}`} {...field} />
+        <DetailRow key={`${field.label}-${index}`} {...field} compact={compact} />
       ))}
     </div>
   )
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionCard({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <p className="border-t border-border/80 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground first:border-t-0 first:pt-0">
+    <section className={cn('rounded-lg border border-border/70 bg-muted/20 px-3.5 py-3', className)}>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h4>
       {children}
-    </p>
+    </section>
   )
 }
 
-export function ScheduleJobHoverCard({
+function AlertBox({
+  tone,
+  title,
+  children,
+}: {
+  tone: 'amber' | 'orange'
+  title: string
+  children: ReactNode
+}) {
+  const styles =
+    tone === 'amber'
+      ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100'
+      : 'border-orange-300 bg-orange-50 text-orange-950 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-100'
+
+  return (
+    <div className={cn('rounded-lg border px-3.5 py-3', styles)}>
+      <p className="text-sm font-semibold">{title}</p>
+      <div className="mt-2 text-sm leading-relaxed">{children}</div>
+    </div>
+  )
+}
+
+export function JobHoverPanel({
   job,
   date,
   variant = 'tooltip',
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
   rowJobs,
+  travelBufferMinutes = 0,
 }: Props) {
   const tone = jobBlockTone(job)
-  const header =
-    variant === 'availability'
+  const completed = isScheduleJobCompleted(job)
+  const header = completed
+    ? 'Visit completed'
+    : variant === 'availability'
       ? tone === 'green'
         ? 'Booked'
         : tone === 'red'
@@ -130,11 +169,19 @@ export function ScheduleJobHoverCard({
   const carers = employeesLabel(job)
   const allocated = activeJobAllocationCount(job)
   const leadAllocation = leadCarerAllocation(job)
+  const leadName = leadAllocation?.employee
+    ? [leadAllocation.employee.firstName, leadAllocation.employee.lastName].filter(Boolean).join(' ')
+    : null
   const region = job.scheduleArea?.name
+  const serviceUserLocation = job.serviceUser.location?.name
   const runName = job.scheduleRun?.name
   const startDateLabel =
     formatScheduleJobsDateLabel(date).split(',').slice(1).join(',').trim() || date
-  const nextVisitTravel = buildNextVisitTravelDetail(job, rowJobs)
+  const nextVisitTravel = completed
+    ? null
+    : buildNextVisitTravelDetail(job, rowJobs, {
+        bufferMinutes: travelBufferMinutes,
+      })
   const acceptedCarePlans = acceptedCarePlansByServiceUser?.get(job.serviceUserId) ?? []
   const { plans: carePlans, source: carePlanSource } = carePlansForJobHover(
     job,
@@ -142,51 +189,69 @@ export function ScheduleJobHoverCard({
     acceptedCarePlans,
   )
 
-  const overviewFields: DetailField[] = [
-    { label: 'Client', value: serviceUserLabel(job.serviceUser), colSpan: 'full' },
-    { label: 'Job', value: job.jobName },
-    { label: 'Status', value: jobStatusLabel(job.status) },
-  ]
-
   const callPatternFields: DetailField[] = visitSlot
     ? [
         { label: 'Slot', value: `${visitSlot.label} (${visitSlot.slotCode})` },
         { label: 'Planned', value: formatJobTimeRangeLabel(callPattern!) },
         ...(visitSlot.medicationRoundCode
           ? [{ label: 'Round', value: visitSlot.medicationRoundCode }]
-          : [{ label: 'Carers', value: `${visitSlot.requiredCarers} required` }]),
-        { label: 'Schedule', value: visitPlanScheduleSummary(visitSlot), colSpan: 'full' },
-        ...(visitSlot.medicationRoundCode
-          ? [{ label: 'Carers', value: `${visitSlot.requiredCarers} required` }]
           : []),
+        { label: 'Carers', value: `${visitSlot.requiredCarers} required` },
+        { label: 'Schedule', value: visitPlanScheduleSummary(visitSlot) },
       ]
     : []
 
+  const actualStart = job.actualStartDateTime
+  const actualEnd = job.actualEndDateTime
+  const actualTimeLabel =
+    actualStart && actualEnd
+      ? `${isoToLocalTimeInput(actualStart)} – ${isoToLocalTimeInput(actualEnd)}`
+      : actualStart
+        ? isoToLocalTimeInput(actualStart)
+        : actualEnd
+          ? isoToLocalTimeInput(actualEnd)
+          : null
+
   const visitFields: DetailField[] = [
-    ...(timingChanged || !visitSlot
-      ? []
-      : [{ label: 'Time', value: formatJobTimeRangeLabel(rota) }]),
+    ...(completed
+      ? [
+          {
+            label: 'Status',
+            value: 'Completed',
+            valueClassName: 'text-emerald-800 dark:text-emerald-200 font-semibold',
+            emphasis: true,
+          },
+          ...(actualTimeLabel
+            ? [{ label: 'Actual time', value: actualTimeLabel, emphasis: true }]
+            : []),
+        ]
+      : []),
+    {
+      label: timingChanged ? 'Rota time' : 'Time',
+      value: formatJobTimeRangeLabel(rota),
+      emphasis: true,
+    },
     { label: 'Duration', value: formatDurationLabel(rota.durationMinutes) },
     { label: 'Date', value: startDateLabel },
+    ...(serviceUserLocation ? [{ label: 'Location', value: serviceUserLocation }] : []),
     {
       label: 'Allocated',
       value: `${allocated} / ${job.requiredCarers}`,
       valueClassName:
         allocated < job.requiredCarers ? 'text-amber-700 dark:text-amber-300' : undefined,
+      emphasis: allocated < job.requiredCarers,
     },
-    ...(carers !== '—' ? [{ label: 'Carer(s)', value: carers, colSpan: 'full' as const }] : []),
-    ...(leadAllocation?.employee
+    ...(carers !== '—' ? [{ label: 'Carer(s)', value: carers }] : []),
+    ...(runName
       ? [
           {
-            label: 'Lead',
-            value: [leadAllocation.employee.firstName, leadAllocation.employee.lastName]
-              .filter(Boolean)
-              .join(' '),
+            label: 'Run',
+            value: job.runSequence != null ? `${job.runSequence}. ${runName}` : runName,
           },
         ]
       : []),
-    ...(runName ? [{ label: 'Run', value: runName }] : []),
     ...(region ? [{ label: 'Region', value: region }] : []),
+    ...(leadName && !carers.includes(leadName) ? [{ label: 'Lead', value: leadName }] : []),
   ]
 
   const travelFields: DetailField[] = nextVisitTravel
@@ -194,93 +259,142 @@ export function ScheduleJobHoverCard({
         {
           label: 'Next client',
           value: `${nextVisitTravel.nextClientLabel} · ${nextVisitTravel.nextVisitTimeLabel}`,
-          colSpan: 'full',
         },
+        { label: 'Gap', value: `${nextVisitTravel.gapMinutes} min` },
+        { label: 'Travel', value: nextVisitTravel.travelLabel },
+        { label: 'Arrival', value: nextVisitTravel.estimatedArrivalLabel },
+        ...(nextVisitTravel.bufferMinutes > 0
+          ? [{ label: 'Buffer', value: `${nextVisitTravel.bufferMinutes} min` }]
+          : []),
         { label: 'Distance', value: nextVisitTravel.distanceLabel },
-        { label: 'Est. travel', value: nextVisitTravel.travelLabel },
       ]
     : []
 
   return (
-    <div className="w-[min(38rem,94vw)] rounded-md border border-border bg-popover shadow-lg">
+    <div className="flex h-full max-h-full w-[min(48rem,100%)] flex-col overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
       <div
-        className={`border-b border-border px-4 py-2 text-center text-sm font-semibold ${TONE_HEADER_CLASS[tone]}`}
+        className={cn(
+          'shrink-0 border-b px-4 py-2.5 text-center text-base font-semibold',
+          completed ? TONE_HEADER_CLASS.completed : TONE_HEADER_CLASS[tone],
+        )}
       >
-        {header}
+        <span className="inline-flex items-center justify-center gap-2">
+          {completed ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : null}
+          {header}
+        </span>
       </div>
-      <div className="space-y-2.5 px-4 py-3">
-        <DetailGrid fields={overviewFields} columns={2} />
 
-        {visitSlot ? (
-          <>
-            <SectionTitle>Call pattern</SectionTitle>
-            <DetailGrid fields={callPatternFields} />
-          </>
-        ) : null}
-
-        {carePlans.length > 0 ? (
-          <>
-            <SectionTitle>Care plans</SectionTitle>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] leading-snug">
-              {carePlans.map((plan) => (
-                <li key={plan.formId} className="min-w-0 truncate text-muted-foreground">
-                  <span className="text-foreground/90">{plan.formName}</span>
-                  {plan.carePlanArea && plan.carePlanArea !== plan.formName ? (
-                    <span> · {plan.carePlanArea}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-            {carePlanSource === 'suggested' ? (
-              <p className="text-[10px] leading-snug text-muted-foreground">
-                Suggested for this call — confirm on the visit plan to save links.
-              </p>
-            ) : null}
-          </>
-        ) : acceptedCarePlans.length > 0 ? (
-          <>
-            <SectionTitle>Care plans</SectionTitle>
-            <p className="text-[10px] text-muted-foreground">None linked to this call.</p>
-          </>
-        ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 [scrollbar-width:thin]">
+        <div className="mb-3 space-y-1 border-b border-border/60 pb-3">
+          <p className="text-base font-semibold leading-snug text-foreground">
+            {serviceUserLabel(job.serviceUser)}
+          </p>
+          {serviceUserLocation ? (
+            <p className="text-sm text-muted-foreground">{serviceUserLocation}</p>
+          ) : null}
+          <div className="grid gap-x-6 sm:grid-cols-2">
+            <DetailRow label="Job" value={job.jobName} compact />
+            <DetailRow label="Status" value={jobStatusLabel(job.status)} compact />
+          </div>
+        </div>
 
         {timingChanged && callPattern ? (
-          <div className="rounded-md border border-amber-300/80 bg-amber-50/90 px-2.5 py-2 text-xs dark:border-amber-800 dark:bg-amber-950/40">
-            <p className="font-semibold text-amber-950 dark:text-amber-100">Rescheduled on rota</p>
-            <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-amber-900 dark:text-amber-200">
-              <div className="min-w-0">
-                <p className="text-[10px] text-amber-800/80 dark:text-amber-300">Call pattern</p>
-                <p className="font-medium">{formatJobTimeRangeLabel(callPattern)}</p>
+          <div className="mb-3">
+            <AlertBox tone="amber" title="Rescheduled on rota">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-amber-800/80 dark:text-amber-300">Call pattern</p>
+                  <p className="mt-0.5 text-base font-semibold">
+                    {formatJobTimeRangeLabel(callPattern)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-amber-800/80 dark:text-amber-300">Rota now</p>
+                  <p className="mt-0.5 text-base font-semibold">{formatJobTimeRangeLabel(rota)}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-amber-800/80 dark:text-amber-300">Rota now</p>
-                <p className="font-semibold">{formatJobTimeRangeLabel(rota)}</p>
-              </div>
-            </div>
+            </AlertBox>
           </div>
         ) : null}
 
-        {!timingChanged && visitSlot ? <SectionTitle>Rota</SectionTitle> : null}
-        {!timingChanged && !visitSlot ? <SectionTitle>Visit</SectionTitle> : null}
-        {!timingChanged ? (
-          <DetailGrid
-            fields={
-              visitSlot
-                ? visitFields
-                : [{ label: 'Time', value: formatJobTimeRangeLabel(rota) }, ...visitFields]
-            }
-          />
-        ) : (
-          <DetailGrid fields={visitFields} />
-        )}
+        <div className="grid items-start gap-3 sm:grid-cols-2">
+          <div className="space-y-3">
+            {visitSlot ? (
+              <SectionCard title="Call pattern">
+                <DetailGrid fields={callPatternFields} compact />
+              </SectionCard>
+            ) : null}
 
-        {nextVisitTravel ? (
-          <>
-            <SectionTitle>Next visit travel</SectionTitle>
-            <DetailGrid fields={travelFields} columns={2} />
-          </>
-        ) : null}
+            {carePlans.length > 0 ? (
+              <SectionCard title="Care plans">
+                <ul className="space-y-1.5 text-sm leading-snug">
+                  {carePlans.map((plan) => (
+                    <li key={plan.formId} className="text-foreground">
+                      <span className="font-medium">{plan.formName}</span>
+                      {plan.carePlanArea && plan.carePlanArea !== plan.formName ? (
+                        <span className="text-muted-foreground"> · {plan.carePlanArea}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+                {carePlanSource === 'suggested' ? (
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    Suggested for this call — confirm on the visit plan to save links.
+                  </p>
+                ) : null}
+              </SectionCard>
+            ) : acceptedCarePlans.length > 0 ? (
+              <SectionCard title="Care plans">
+                <p className="text-sm text-muted-foreground">None linked to this call.</p>
+              </SectionCard>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            <SectionCard title={visitSlot ? 'Visit on rota' : 'Visit'}>
+              <DetailGrid fields={visitFields} compact />
+            </SectionCard>
+
+            {nextVisitTravel ? (
+              <SectionCard title="Next visit travel">
+                {nextVisitTravel.hasTravelConflict ? (
+                  <AlertBox tone="orange" title="Not enough time to reach next visit">
+                    <p>
+                      Needs ~{nextVisitTravel.requiredGapMinutes} min, only{' '}
+                      {nextVisitTravel.gapMinutes} min gap — carer may arrive ~
+                      {nextVisitTravel.lateByMinutes} min late (
+                      {nextVisitTravel.estimatedArrivalLabel} vs{' '}
+                      {nextVisitTravel.nextVisitTimeLabel} start).
+                    </p>
+                  </AlertBox>
+                ) : null}
+                <div className={nextVisitTravel.hasTravelConflict ? 'mt-3' : undefined}>
+                  <DetailGrid fields={travelFields} compact />
+                </div>
+              </SectionCard>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
+  )
+}
+
+export function ScheduleJobHoverTooltip(props: Props) {
+  return (
+    <TooltipContent
+      side="top"
+      align="center"
+      sideOffset={10}
+      sticky="always"
+      collisionPadding={HOVER_COLLISION_PADDING}
+      className="z-[100] max-w-none overflow-hidden border-0 bg-transparent p-0 shadow-none"
+      style={{
+        maxHeight: 'var(--radix-tooltip-content-available-height)',
+        maxWidth: 'var(--radix-tooltip-content-available-width)',
+      }}
+    >
+      <JobHoverPanel {...props} />
+    </TooltipContent>
   )
 }

@@ -19,6 +19,8 @@ export type ServiceUserBrief = {
   longitude?: number | null
 }
 
+export type ScheduleRunStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+
 export type ScheduleRunBrief = {
   id: string
   name: string
@@ -26,6 +28,37 @@ export type ScheduleRunBrief = {
   startTime?: string | null
   endTime?: string | null
   sortOrder?: number
+  status?: ScheduleRunStatus
+  shiftType?: string | null
+  employeeId?: string | null
+}
+
+export type ScheduleRunEmployeeBrief = {
+  id: string
+  firstName?: string
+  lastName?: string
+  email?: string | null
+}
+
+export type ScheduleRunRow = {
+  id: string
+  scheduleBatchId: string
+  scheduleAreaId?: string | null
+  employeeId?: string | null
+  name: string
+  description?: string | null
+  runDate: string
+  startTime?: string | null
+  endTime?: string | null
+  shiftType?: string | null
+  status: ScheduleRunStatus
+  sortOrder?: number
+  isActive?: boolean
+  jobCount?: number
+  createdAt?: string
+  updatedAt?: string
+  employee?: ScheduleRunEmployeeBrief | null
+  jobs?: Array<TimelineJob & { runSequence?: number | null }>
 }
 
 export type VisitPlanJobContext = {
@@ -56,8 +89,18 @@ export type TimelineJob = {
   allocatedCarers?: number
   underAllocated?: boolean
   visitPlan?: VisitPlanJobContext | null
-  visits?: Array<{ id: string; visitName: string; visitPlanSlotId: string | null }>
+  visits?: Array<{
+    id: string
+    visitName: string
+    visitPlanSlotId: string | null
+    status?: string
+    actualStartDateTime?: string | null
+    actualEndDateTime?: string | null
+  }>
+  actualStartDateTime?: string | null
+  actualEndDateTime?: string | null
   scheduleRunId?: string | null
+  runSequence?: number | null
   scheduleRun?: ScheduleRunBrief | null
   scheduleArea?: { id: string; name: string; code: string } | null
   allocations: Array<{

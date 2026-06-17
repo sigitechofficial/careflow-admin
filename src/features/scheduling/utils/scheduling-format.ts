@@ -46,6 +46,17 @@ export function jobStatusLabel(status: string): string {
   return status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
 }
 
+export function allocationStatusLabel(status: string): string {
+  if (status === 'PENDING_CONFIRMATION') return 'Pending confirmation'
+  if (status === 'CONFIRMED') return 'Confirmed'
+  if (status === 'ALLOCATED') return 'Allocated'
+  return jobStatusLabel(status)
+}
+
+export function isAllocationPendingConfirmation(status: string): boolean {
+  return status === 'PENDING_CONFIRMATION'
+}
+
 export function activeJobAllocationCount(job: TimelineJob): number {
   if (typeof job.allocatedCarers === 'number') return job.allocatedCarers
   return job.allocations?.length ?? 0
@@ -53,6 +64,10 @@ export function activeJobAllocationCount(job: TimelineJob): number {
 
 export function jobNeedsCarerAssignment(job: TimelineJob): boolean {
   return activeJobAllocationCount(job) < job.requiredCarers
+}
+
+export function jobIsOverAllocated(job: TimelineJob): boolean {
+  return activeJobAllocationCount(job) > job.requiredCarers
 }
 
 export function jobNeedsAlert(job: TimelineJob): boolean {

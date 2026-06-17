@@ -40,3 +40,23 @@ export function buildEmployeeLocationCatalogMap(
     ]),
   )
 }
+
+/** Block drag-assign when the visit's service user location does not match the target carer. */
+export function scheduleJobCarerLocationConflictMessage(
+  job: TimelineJob,
+  targetRow: { kind: 'unassigned' } | { kind: 'carer'; employeeId: string },
+  catalogById: Map<string, Pick<EmployeeListRow, 'locationId' | 'baseLocationIds'>>,
+  locationNameById: Map<string, string>,
+): string | null {
+  const jobLocationId = job.serviceUser.locationId
+  if (!jobLocationId || targetRow.kind !== 'carer') return null
+
+  if (employeeMatchesScheduleLocation(targetRow.employeeId, jobLocationId, catalogById)) {
+    return null
+  }
+
+  const visitLocation =
+    job.serviceUser.location?.name ?? locationNameById.get(jobLocationId) ?? 'this location'
+
+  return `This visit is for ${visitLocation}. You can only assign a job to a carer at the same location.`
+}

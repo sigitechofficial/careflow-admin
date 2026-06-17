@@ -1,8 +1,9 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowLeftRight, Clock, Crown, Loader2, UserMinus, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, CheckCircle2, Clock, Crown, Loader2, UserMinus, UserPlus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Label } from '@/shared/ui/form-field'
@@ -21,15 +22,20 @@ import { employeeKeys } from '@/features/employees/keys'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 import {
   useAllocateJob,
+  useConfirmJobAllocation,
   useSetJobLeadCarer,
   useUnallocateJob,
   useUpdateScheduledJob,
 } from '@/features/scheduling/hooks/useSchedulingMutations'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import {
   activeJobAllocationCount,
+  allocationStatusLabel,
   employeesLabel,
   formatJobTimeRange,
+  isAllocationPendingConfirmation,
+  jobIsOverAllocated,
   jobNeedsCarerAssignment,
   jobStatusLabel,
   serviceUserLabel,
@@ -39,6 +45,12 @@ import {
   timelineJobVisitPlanSlot,
 } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
+import {
+  callPatternTimeRange,
+  formatJobTimeRangeLabel,
+  resolveVisitPlanSlotForJob,
+  rotaTimingDiffersFromCallPattern,
+} from '@/features/scheduling/utils/schedule-job-hover-details.util'
 import { jobDurationMinutes } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import {
   buildJobScheduleDateTimes,
@@ -59,6 +71,7 @@ type Props = {
   onOpenChange: (open: boolean) => void
   job: TimelineJob | null
   initialPanel?: ScheduleJobAllocateDialogPanel
+  visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   onAllocated?: () => void
 }
 
@@ -75,6 +88,7 @@ export function ScheduleJobAllocateDialog({
   onOpenChange,
   job,
   initialPanel = 'allocate',
+  visitPlanSlotsByServiceUser,
   onAllocated,
 }: Props) {
   const timePanelRef = React.useRef<HTMLElement>(null)
@@ -90,8 +104,11 @@ export function ScheduleJobAllocateDialog({
   const [savingTimes, setSavingTimes] = React.useState(false)
   const [suggestCandidates, setSuggestCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
   const [assignAsLead, setAssignAsLead] = React.useState(false)
+  const [confirmingAllocationId, setConfirmingAllocationId] = React.useState<string | null>(null)
 
+  const canConfirmAllocation = useAuthStore((s) => s.can('job_allocations.confirm'))
   const allocate = useAllocateJob()
+  const confirmAllocation = useConfirmJobAllocation()
   const setLeadCarer = useSetJobLeadCarer()
   const unallocate = useUnallocateJob()
   const updateJob = useUpdateScheduledJob()
@@ -149,6 +166,8 @@ export function ScheduleJobAllocateDialog({
   const allocatedCount = job ? activeJobAllocationCount(job) : 0
   const slotsRemaining = job ? Math.max(0, job.requiredCarers - allocatedCount) : 0
   const needsMoreCarers = job ? jobNeedsCarerAssignment(job) : false
+  const overAllocated = job ? jobIsOverAllocated(job) : false
+  const canAddOrReplaceCarer = needsMoreCarers || !!replacingEmployeeId
   const multiCarerJob = (job?.requiredCarers ?? 0) > 1
   const attention = job ? jobAttentionReason(job) : null
   const visitId = job?.visits?.[0]?.id
@@ -189,6 +208,13 @@ export function ScheduleJobAllocateDialog({
 
   const runAllocate = async (employeeId: string, force = false, isLeadCarer?: boolean) => {
     if (!job) return
+    if (!replacingEmployeeId && allocatedCount >= job.requiredCarers) {
+      toastWarning(
+        'Visit fully allocated',
+        `This visit only needs ${job.requiredCarers} carer${job.requiredCarers === 1 ? '' : 's'}. Remove a carer before assigning another.`,
+      )
+      return
+    }
     setAllocatingEmployeeId(employeeId)
     try {
       const result = await allocate.mutateAsync({
@@ -297,6 +323,12 @@ export function ScheduleJobAllocateDialog({
     return Math.round((end.getTime() - start.getTime()) / 60_000)
   }, [nextScheduleTimes])
 
+  const visitSlot = job ? resolveVisitPlanSlotForJob(job, visitPlanSlotsByServiceUser) : null
+  const callPattern = visitSlot ? callPatternTimeRange(visitSlot) : null
+  const callPatternLabel = callPattern ? formatJobTimeRangeLabel(callPattern) : null
+  const rotaDiffersFromCallPattern =
+    job && visitSlot ? rotaTimingDiffersFromCallPattern(job, visitSlot) : false
+
   const handleSaveTimes = async () => {
     if (!job || !nextScheduleTimes || !timesChanged) return
     setSavingTimes(true)
@@ -344,9 +376,26 @@ export function ScheduleJobAllocateDialog({
     )
   }
 
+  const handleConfirmAllocation = async (allocationId: string) => {
+    if (!job) return
+    setConfirmingAllocationId(allocationId)
+    try {
+      const result = await confirmAllocation.mutateAsync({ jobId: job.id, allocationId })
+      toastSuccess('Allocation confirmed', result.message ?? 'Carer assignment confirmed.')
+      onAllocated?.()
+    } catch (e) {
+      toastApiError(e, 'Could not confirm allocation')
+    } finally {
+      setConfirmingAllocationId(null)
+    }
+  }
+
   if (!job) return null
 
   const readOnly = isScheduleJobReadOnly(job)
+  const pendingConfirmationCount = (job.allocations ?? []).filter((allocation) =>
+    isAllocationPendingConfirmation(allocation.status),
+  ).length
   const dialogTitle = readOnly
     ? 'View job details'
     : needsMoreCarers
@@ -389,7 +438,12 @@ export function ScheduleJobAllocateDialog({
             <span>
               <strong>{allocatedCount}</strong> / {job.requiredCarers} carers assigned
             </span>
-            {slotsRemaining > 0 ? (
+            {overAllocated ? (
+              <span className="font-medium text-rose-700 dark:text-rose-300">
+                Over allocated — remove {allocatedCount - job.requiredCarers} carer
+                {allocatedCount - job.requiredCarers === 1 ? '' : 's'}
+              </span>
+            ) : slotsRemaining > 0 ? (
               <span className="text-amber-800 dark:text-amber-200">
                 {slotsRemaining} more required
               </span>
@@ -418,6 +472,31 @@ export function ScheduleJobAllocateDialog({
               <Clock className="h-4 w-4 text-muted-foreground" aria-hidden />
               <h4 className="text-sm font-semibold text-foreground">Scheduled time</h4>
             </div>
+            {callPatternLabel ? (
+              <div className="rounded-md border border-dashed border-border/80 bg-muted/30 px-3 py-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Call pattern
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-foreground">
+                      {visitSlot ? `${visitSlot.label} · ` : ''}
+                      {callPatternLabel}
+                    </p>
+                  </div>
+                  {rotaDiffersFromCallPattern ? (
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      Rota differs
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {callPatternLabel ? (
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Rota time
+              </p>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="job-start-time" className="text-xs text-muted-foreground">
@@ -485,14 +564,34 @@ export function ScheduleJobAllocateDialog({
 
           <section ref={assignedPanelRef} className="space-y-2">
             <h4 className="text-sm font-semibold text-foreground">Assigned carers</h4>
+            {pendingConfirmationCount > 0 ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="font-medium">
+                  {pendingConfirmationCount} assignment{pendingConfirmationCount === 1 ? '' : 's'} need
+                  confirmation
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-900/90 dark:text-amber-200/90">
+                  {canConfirmAllocation
+                    ? 'Review the warnings below and confirm each carer to finalise the rota assignment.'
+                    : 'A scheduler with confirmation permission must approve these assignments.'}
+                </p>
+              </div>
+            ) : null}
             {(job.allocations ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No carers on this job yet.</p>
             ) : (
               <ul className="space-y-2">
-                {(job.allocations ?? []).map((allocation) => (
+                {(job.allocations ?? []).map((allocation) => {
+                  const pendingConfirmation = isAllocationPendingConfirmation(allocation.status)
+                  return (
                   <li
                     key={allocation.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2"
+                    className={cn(
+                      'flex items-center justify-between gap-2 rounded-md border px-3 py-2',
+                      pendingConfirmation
+                        ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20'
+                        : 'border-border bg-card',
+                    )}
                   >
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 text-sm font-medium truncate">
@@ -504,9 +603,37 @@ export function ScheduleJobAllocateDialog({
                           </span>
                         ) : null}
                       </p>
-                      <p className="text-xs text-muted-foreground">{allocation.status}</p>
+                      <p
+                        className={cn(
+                          'text-xs',
+                          pendingConfirmation
+                            ? 'font-medium text-amber-800 dark:text-amber-200'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {allocationStatusLabel(allocation.status)}
+                      </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                      {canConfirmAllocation && pendingConfirmation ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={
+                            confirmingAllocationId === allocation.id ||
+                            !!allocatingEmployeeId ||
+                            confirmAllocation.isPending
+                          }
+                          onClick={() => void handleConfirmAllocation(allocation.id)}
+                        >
+                          {confirmingAllocationId === allocation.id ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                          )}
+                          Confirm
+                        </Button>
+                      ) : null}
                       {!readOnly && multiCarerJob && !allocation.isLeadCarer ? (
                         <Button
                           type="button"
@@ -550,13 +677,14 @@ export function ScheduleJobAllocateDialog({
                       ) : null}
                     </div>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             )}
             <p className="text-xs text-muted-foreground">On rota: {employeesLabel(job)}</p>
           </section>
 
-          {!readOnly ? (
+          {!readOnly && canAddOrReplaceCarer ? (
             <ScheduleJobRecommendedCarers
               job={job}
               allocatedEmployeeIds={allocatedEmployeeIds}
@@ -567,7 +695,7 @@ export function ScheduleJobAllocateDialog({
             />
           ) : null}
 
-          {!readOnly ? (
+          {!readOnly && canAddOrReplaceCarer ? (
           <section className="space-y-3 border-t border-border pt-4">
             <h4 className="text-sm font-semibold text-foreground">{manualSectionTitle}</h4>
             {rotaBookedEmployeeIds.size > 0 ? (
@@ -657,6 +785,13 @@ export function ScheduleJobAllocateDialog({
           </section>
           ) : null}
 
+          {!readOnly && !canAddOrReplaceCarer ? (
+            <p className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              This visit has all required carers assigned. Use <strong>Change</strong> or{' '}
+              <strong>Remove</strong> on an assigned carer to make changes.
+            </p>
+          ) : null}
+
           {job.visitPlan && !readOnly ? (
             <p className="text-xs text-muted-foreground border-t border-border pt-3">
               To change default carers for future visits, update the{' '}
@@ -694,7 +829,12 @@ export function ScheduleJobAllocateDialog({
               </Button>
               <Button
                 type="button"
-                disabled={!selectedEmployeeId || allocate.isPending || unallocate.isPending}
+                disabled={
+                  !selectedEmployeeId ||
+                  !canAddOrReplaceCarer ||
+                  allocate.isPending ||
+                  unallocate.isPending
+                }
                 onClick={handleAllocate}
               >
                 {allocate.isPending || unallocate.isPending ? (

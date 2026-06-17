@@ -1,5 +1,6 @@
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { jobRotaTimeRange } from '@/features/scheduling/utils/schedule-job-hover-details.util'
+import { jobDurationMinutes } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 
 export type GeoCoordinates = {
@@ -15,6 +16,16 @@ export type NextVisitTravelDetail = {
   travelLabel: string
   nextClientLabel: string
   nextVisitTimeLabel: string
+  gapMinutes: number
+  bufferMinutes: number
+  requiredGapMinutes: number
+  hasTravelConflict: boolean
+  lateByMinutes: number
+  estimatedArrivalLabel: string
+}
+
+export type BuildNextVisitTravelOptions = {
+  bufferMinutes?: number
 }
 
 const EARTH_RADIUS_KM = 6371
@@ -79,9 +90,53 @@ export function findNextJobInRow(job: TimelineJob, rowJobs: TimelineJob[]): Time
   return ordered[index + 1] ?? null
 }
 
+function jobEndTimestampMs(job: TimelineJob): number {
+  if (job.scheduledEndDateTime) {
+    return new Date(job.scheduledEndDateTime).getTime()
+  }
+  return new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000
+}
+
+export function gapMinutesBetweenJobs(current: TimelineJob, next: TimelineJob): number {
+  const gapMs = new Date(next.scheduledStartDateTime).getTime() - jobEndTimestampMs(current)
+  return Math.round(gapMs / 60_000)
+}
+
+export function addMinutesToHm(hm: string, minutes: number): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hm.trim())
+  if (!match) return hm
+  const total = Number(match[1]) * 60 + Number(match[2]) + minutes
+  const normalized = ((total % (24 * 60)) + 24 * 60) % (24 * 60)
+  const hours = Math.floor(normalized / 60)
+  const mins = normalized % 60
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
+export function hasTravelGapConflict(
+  gapMinutes: number,
+  travelMinutes: number,
+  bufferMinutes: number,
+): boolean {
+  const requiredGapMinutes = travelMinutes + Math.max(0, bufferMinutes)
+  return gapMinutes >= 0 && gapMinutes < requiredGapMinutes
+}
+
+export function travelConflictJobIds(
+  rowJobs: TimelineJob[],
+  bufferMinutes = 0,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const job of rowJobs) {
+    const detail = buildNextVisitTravelDetail(job, rowJobs, { bufferMinutes })
+    if (detail?.hasTravelConflict) ids.add(job.id)
+  }
+  return ids
+}
+
 export function buildNextVisitTravelDetail(
   job: TimelineJob,
   rowJobs?: TimelineJob[],
+  options?: BuildNextVisitTravelOptions,
 ): NextVisitTravelDetail | null {
   if (!rowJobs?.length) return null
   const nextJob = findNextJobInRow(job, rowJobs)
@@ -94,6 +149,13 @@ export function buildNextVisitTravelDetail(
   const distanceKm = haversineDistanceKm(from, to)
   const travelMinutes = estimateTravelMinutesFromStraightLineKm(distanceKm)
   const nextVisitTimeLabel = jobRotaTimeRange(nextJob).start
+  const rota = jobRotaTimeRange(job)
+  const bufferMinutes = Math.max(0, options?.bufferMinutes ?? 0)
+  const gapMinutes = gapMinutesBetweenJobs(job, nextJob)
+  const requiredGapMinutes = travelMinutes + bufferMinutes
+  const hasTravelConflict = hasTravelGapConflict(gapMinutes, travelMinutes, bufferMinutes)
+  const lateByMinutes = hasTravelConflict ? requiredGapMinutes - gapMinutes : 0
+  const estimatedArrivalLabel = addMinutesToHm(rota.end, travelMinutes)
 
   return {
     nextJob,
@@ -103,5 +165,11 @@ export function buildNextVisitTravelDetail(
     travelLabel: formatTravelDurationMinutes(travelMinutes),
     nextClientLabel: serviceUserLabel(nextJob.serviceUser),
     nextVisitTimeLabel,
+    gapMinutes,
+    bufferMinutes,
+    requiredGapMinutes,
+    hasTravelConflict,
+    lateByMinutes,
+    estimatedArrivalLabel,
   }
 }

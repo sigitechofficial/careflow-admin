@@ -7,12 +7,9 @@ import {
   resolveCarePlansForSlot,
 } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import { formatVisitPlanFrequency, formatWeekdays } from '@/features/service-users/visit-plan/visit-plan-format'
-import {
-  isoDateTimeToTimeInput,
-  normalizeTimeForInput,
-  visitDurationMinutes,
-} from '@/features/service-users/visit-plan/visit-plan-time.util'
+import { normalizeTimeForInput, visitDurationMinutes } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { jobDurationMinutes } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { isoToLocalTimeInput } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 
 export type JobTimeRange = {
   start: string
@@ -62,11 +59,11 @@ export function resolveVisitPlanSlotForJob(
 }
 
 export function jobRotaTimeRange(job: TimelineJob): JobTimeRange {
-  const start = isoDateTimeToTimeInput(job.scheduledStartDateTime)
+  const start = isoToLocalTimeInput(job.scheduledStartDateTime)
   const durationMinutes = jobDurationMinutes(job)
   const end = job.scheduledEndDateTime
-    ? isoDateTimeToTimeInput(job.scheduledEndDateTime)
-    : isoDateTimeToTimeInput(
+    ? isoToLocalTimeInput(job.scheduledEndDateTime)
+    : isoToLocalTimeInput(
         new Date(
           new Date(job.scheduledStartDateTime).getTime() + durationMinutes * 60_000,
         ).toISOString(),

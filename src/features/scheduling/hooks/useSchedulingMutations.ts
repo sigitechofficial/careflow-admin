@@ -4,6 +4,7 @@ import {
   buildSchedule,
   cancelHousekeepingJob,
   completeHousekeepingJob,
+  confirmJobAllocation,
   setJobLeadCarer,
   unallocateJob,
   updateScheduledJob,
@@ -34,13 +35,21 @@ export function useCompleteHousekeepingJob() {
       jobId,
       notes,
       deliveredCarePlanFormIds,
+      actualStartDateTime,
       actualEndDateTime,
     }: {
       jobId: string
       notes?: string
       deliveredCarePlanFormIds?: string[]
+      actualStartDateTime?: string
       actualEndDateTime?: string
-    }) => completeHousekeepingJob(jobId, { notes, deliveredCarePlanFormIds, actualEndDateTime }),
+    }) =>
+      completeHousekeepingJob(jobId, {
+        notes,
+        deliveredCarePlanFormIds,
+        actualStartDateTime,
+        actualEndDateTime,
+      }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
       invalidateSchedulingQueries(qc)
@@ -141,6 +150,25 @@ export function useUnallocateJob() {
       employeeId: string
       reason?: string
     }) => unallocateJob(jobId, { employeeId, reason }),
+    onSuccess: (result) => {
+      invalidateSchedulingQueries(qc)
+      invalidateVisitPlanForAllocation(qc, result.data)
+    },
+  })
+}
+
+export function useConfirmJobAllocation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      allocationId,
+      notes,
+    }: {
+      jobId: string
+      allocationId: string
+      notes?: string
+    }) => confirmJobAllocation(jobId, allocationId, { notes }),
     onSuccess: (result) => {
       invalidateSchedulingQueries(qc)
       invalidateVisitPlanForAllocation(qc, result.data)

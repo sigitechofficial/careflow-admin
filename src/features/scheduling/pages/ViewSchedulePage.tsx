@@ -17,6 +17,7 @@ import {
   todayIso,
 } from '@/features/scheduling/utils/scheduling-format'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
+import { ScheduleRunsPanel } from '@/features/scheduling/components/ScheduleRunsPanel'
 import {
   buildCarePlanFormNameMap,
   formatLinkedCarePlanLabels,
@@ -78,6 +79,14 @@ function VisitCard({ job, carePlanNameById, onAssign }: JobCardProps) {
       <div className="flex items-center gap-1 mt-1 flex-wrap">
         {job.requiredCarers > 1 ? <Users className="h-3 w-3 text-slate-600" aria-hidden /> : null}
         {alert ? <AlertCircle className="h-3 w-3 text-red-600" aria-hidden /> : null}
+        {job.scheduleRun ? (
+          <span
+            className="text-[9px] font-semibold text-slate-800 bg-white/70 px-1 rounded"
+            title={`In run: ${job.scheduleRun.name}`}
+          >
+            Run {job.runSequence ?? '·'}
+          </span>
+        ) : null}
         {attention ? (
           <span className="text-[9px] font-semibold uppercase tracking-wide text-red-800 bg-red-100/80 px-1 rounded">
             Attention
@@ -255,6 +264,8 @@ export default function ViewSchedulePage() {
             )}
           </div>
         </div>
+
+        <ScheduleRunsPanel date={date} unassignedJobs={unassigned} onChanged={() => void refetch()} />
 
         <div className="flex flex-1 min-h-[480px] overflow-hidden bg-card rounded-xl border border-border shadow-sm">
           <div className="w-[250px] shrink-0 border-r border-border bg-card overflow-y-auto">
