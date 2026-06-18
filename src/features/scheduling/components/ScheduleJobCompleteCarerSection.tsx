@@ -11,6 +11,7 @@ import { employeeKeys } from '@/features/employees/keys'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 import { useAllocateJob } from '@/features/scheduling/hooks/useSchedulingMutations'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
+import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   activeJobAllocationCount,
@@ -31,6 +32,7 @@ type Props = {
 }
 
 export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: Props) {
+  const showBlockedCarers = useShowBlockedCarersInSchedule()
   const [search, setSearch] = React.useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = React.useState<string | null>(null)
   const [allocatingEmployeeId, setAllocatingEmployeeId] = React.useState<string | null>(null)
@@ -61,18 +63,45 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
     [suggestCandidates],
   )
 
+  const blockedEmployeeIds = React.useMemo(
+    () =>
+      showBlockedCarers
+        ? new Set<string>()
+        : new Set(suggestCandidates.filter((c) => c.isBlocked).map((c) => c.employeeId)),
+    [showBlockedCarers, suggestCandidates],
+  )
+
+  const preferredEmployeeIds = React.useMemo(
+    () => new Set(suggestCandidates.filter((c) => c.isPreferred).map((c) => c.employeeId)),
+    [suggestCandidates],
+  )
+
   const filteredEmployees = React.useMemo(() => {
     const q = search.trim().toLowerCase()
     return (employeesQuery.data ?? [])
       .filter((row) => !allocatedEmployeeIds.has(row.id))
       .filter((row) => !rotaBookedEmployeeIds.has(row.id))
+      .filter((row) => !blockedEmployeeIds.has(row.id))
       .filter((row) => {
         if (!q) return true
         const name = employeeListRowDisplayName(row).toLowerCase()
         return name.includes(q) || row.id.toLowerCase().includes(q)
       })
+      .sort((a, b) => {
+        const aPreferred = preferredEmployeeIds.has(a.id)
+        const bPreferred = preferredEmployeeIds.has(b.id)
+        if (aPreferred !== bPreferred) return aPreferred ? -1 : 1
+        return employeeListRowDisplayName(a).localeCompare(employeeListRowDisplayName(b))
+      })
       .slice(0, 40)
-  }, [allocatedEmployeeIds, employeesQuery.data, rotaBookedEmployeeIds, search])
+  }, [
+    allocatedEmployeeIds,
+    blockedEmployeeIds,
+    employeesQuery.data,
+    preferredEmployeeIds,
+    rotaBookedEmployeeIds,
+    search,
+  ])
 
   const runAllocate = async (employeeId: string, force = false) => {
     setAllocatingEmployeeId(employeeId)

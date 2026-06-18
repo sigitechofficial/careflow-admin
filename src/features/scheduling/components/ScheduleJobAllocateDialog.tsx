@@ -45,6 +45,7 @@ import {
   timelineJobVisitPlanSlot,
 } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
+import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import {
   callPatternTimeRange,
   formatJobTimeRangeLabel,
@@ -107,6 +108,7 @@ export function ScheduleJobAllocateDialog({
   const [confirmingAllocationId, setConfirmingAllocationId] = React.useState<string | null>(null)
 
   const canConfirmAllocation = useAuthStore((s) => s.can('job_allocations.confirm'))
+  const showBlockedCarers = useShowBlockedCarersInSchedule()
   const allocate = useAllocateJob()
   const confirmAllocation = useConfirmJobAllocation()
   const setLeadCarer = useSetJobLeadCarer()
@@ -184,6 +186,19 @@ export function ScheduleJobAllocateDialog({
     [suggestCandidates],
   )
 
+  const blockedEmployeeIds = React.useMemo(
+    () =>
+      showBlockedCarers
+        ? new Set<string>()
+        : new Set(suggestCandidates.filter((c) => c.isBlocked).map((c) => c.employeeId)),
+    [showBlockedCarers, suggestCandidates],
+  )
+
+  const preferredEmployeeIds = React.useMemo(
+    () => new Set(suggestCandidates.filter((c) => c.isPreferred).map((c) => c.employeeId)),
+    [suggestCandidates],
+  )
+
   const filteredEmployees = React.useMemo(() => {
     const q = search.trim().toLowerCase()
     return (employeesQuery.data ?? [])
@@ -192,10 +207,17 @@ export function ScheduleJobAllocateDialog({
         return !allocatedEmployeeIds.has(row.id)
       })
       .filter((row) => !rotaBookedEmployeeIds.has(row.id))
+      .filter((row) => !blockedEmployeeIds.has(row.id))
       .filter((row) => {
         if (!q) return true
         const name = employeeListRowDisplayName(row).toLowerCase()
         return name.includes(q) || row.id.toLowerCase().includes(q)
+      })
+      .sort((a, b) => {
+        const aPreferred = preferredEmployeeIds.has(a.id)
+        const bPreferred = preferredEmployeeIds.has(b.id)
+        if (aPreferred !== bPreferred) return aPreferred ? -1 : 1
+        return employeeListRowDisplayName(a).localeCompare(employeeListRowDisplayName(b))
       })
       .slice(0, 40)
   }, [
@@ -203,6 +225,8 @@ export function ScheduleJobAllocateDialog({
     allocatedEmployeeIds,
     replacingEmployeeId,
     rotaBookedEmployeeIds,
+    blockedEmployeeIds,
+    preferredEmployeeIds,
     search,
   ])
 
@@ -698,9 +722,15 @@ export function ScheduleJobAllocateDialog({
           {!readOnly && canAddOrReplaceCarer ? (
           <section className="space-y-3 border-t border-border pt-4">
             <h4 className="text-sm font-semibold text-foreground">{manualSectionTitle}</h4>
-            {rotaBookedEmployeeIds.size > 0 ? (
+            {rotaBookedEmployeeIds.size > 0 || (!showBlockedCarers && blockedEmployeeIds.size > 0) ? (
               <p className="text-xs text-muted-foreground">
-                Carers already booked at this time are hidden from search.
+                {rotaBookedEmployeeIds.size > 0
+                  ? 'Carers already booked at this time are hidden from search.'
+                  : null}
+                {rotaBookedEmployeeIds.size > 0 && !showBlockedCarers && blockedEmployeeIds.size > 0 ? ' ' : null}
+                {!showBlockedCarers && blockedEmployeeIds.size > 0
+                  ? 'Blocked carers for this service user are excluded.'
+                  : null}
               </p>
             ) : null}
             {multiCarerJob && (needsMoreCarers || replacingEmployeeId) ? (

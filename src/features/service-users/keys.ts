@@ -40,6 +40,10 @@ export const serviceUserKeys = {
   documents: (id: string) =>
     [...serviceUserKeys.detail(id), 'documents'] as const,
 
+  /** Document store (1G) with compliance dashboard. */
+  documentStore: (id: string) =>
+    [...serviceUserKeys.detail(id), 'document-store'] as const,
+
   /** Allergies list. */
   allergies: (id: string) =>
     [...serviceUserKeys.detail(id), 'allergies'] as const,

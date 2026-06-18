@@ -42,8 +42,17 @@ export function leadCarerAllocation(job: TimelineJob) {
   return job.allocations?.find((a) => a.isLeadCarer && a.employee) ?? null
 }
 
+import { visitPlanCalendarOutcomeLabel } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
+
+const JOB_STATUS_TO_OUTCOME_LABEL: Record<string, string> = {
+  DRAFT: 'Planned',
+  UNALLOCATED: 'Planned',
+  ALLOCATED: 'Planned',
+  IN_PROGRESS: 'In progress',
+}
+
 export function jobStatusLabel(status: string): string {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
+  return JOB_STATUS_TO_OUTCOME_LABEL[status] ?? visitPlanCalendarOutcomeLabel(status)
 }
 
 export function allocationStatusLabel(status: string): string {

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, Loader2, Pencil, Plus, Route, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Loader2, Map, Pencil, Plus, Route, Table2, X } from 'lucide-react'
 import { listAllEmployees } from '@/features/employees/api'
 import {
   useScheduleRunMutations,
@@ -9,6 +9,12 @@ import {
 import type { ScheduleRunRow, ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
 import { ScheduleRunsTable } from '@/features/scheduling/components/ScheduleRunsTable'
+import { ScheduleRunsMapView } from '@/features/scheduling/components/ScheduleRunsMapView'
+import {
+  ScheduleRunsDisplaySettingsButton,
+  ScheduleRunsDisplaySettingsDialog,
+} from '@/features/scheduling/components/ScheduleRunsDisplaySettingsDialog'
+import { useScheduleRunsDisplayPreferences } from '@/features/scheduling/hooks/useScheduleRunsDisplayPreferences'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
@@ -61,8 +67,14 @@ export function ScheduleRunsPanel({
 }: ScheduleRunsPanelProps) {
   const runsQuery = useScheduleRunsList({ runDate: date }, Boolean(date))
   const mutations = useScheduleRunMutations(date)
+  const { preferences: runDisplayPreferences, updatePreferences, resetPreferences } =
+    useScheduleRunsDisplayPreferences()
+  const [displaySettingsOpen, setDisplaySettingsOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editRun, setEditRun] = React.useState<ScheduleRunRow | null>(null)
+  const [editRunInitialTab, setEditRunInitialTab] = React.useState<'run' | 'map'>('run')
+  const [runsViewMode, setRunsViewMode] = React.useState<'table' | 'map'>('table')
+  const [mapSelectedRunId, setMapSelectedRunId] = React.useState<string | null>(null)
   const [addJobsRunId, setAddJobsRunId] = React.useState<string | null>(null)
   const [selectedJobIds, setSelectedJobIds] = React.useState<string[]>([])
 
@@ -93,15 +105,22 @@ export function ScheduleRunsPanel({
   const runs = runsQuery.data?.rows ?? []
   const addJobsRun = runs.find((r) => r.id === addJobsRunId) ?? null
 
-  const openEditRun = (run: ScheduleRunRow) => {
+  const openEditRun = (run: ScheduleRunRow, options?: { tab?: 'run' | 'map' }) => {
     setEditRun(run)
+    setEditRunInitialTab(options?.tab ?? 'run')
     setEditName(run.name)
     setEditEmployeeId(run.employeeId ?? '')
     setEditNotes(run.description ?? '')
   }
 
+  const openRunMap = (run: ScheduleRunRow) => {
+    setMapSelectedRunId(run.id)
+    setRunsViewMode('map')
+  }
+
   const closeEditRun = () => {
     setEditRun(null)
+    setEditRunInitialTab('run')
     setEditName('')
     setEditEmployeeId('')
     setEditNotes('')
@@ -301,30 +320,74 @@ export function ScheduleRunsPanel({
             <h2 className="text-sm font-semibold">Runs</h2>
             {embedded ? (
               <p className="text-[11px] text-muted-foreground">
-                Manage carer routes in a table — expand a run to see its visit sequence
+                Manage carer routes in a table or map — service user locations shown on the route map
               </p>
             ) : null}
           </div>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          New run
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {embedded ? (
+            <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={runsViewMode === 'table' ? 'secondary' : 'ghost'}
+                className="h-8"
+                onClick={() => setRunsViewMode('table')}
+              >
+                <Table2 className="mr-1.5 h-3.5 w-3.5" />
+                Table
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={runsViewMode === 'map' ? 'secondary' : 'ghost'}
+                className="h-8"
+                onClick={() => setRunsViewMode('map')}
+              >
+                <Map className="mr-1.5 h-3.5 w-3.5" />
+                Map
+              </Button>
+            </div>
+          ) : null}
+          <ScheduleRunsDisplaySettingsButton onClick={() => setDisplaySettingsOpen(true)} />
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            New run
+          </Button>
+        </div>
       </div>
 
       {embedded ? (
-        <ScheduleRunsTable
-          runs={runs}
-          unassignedJobs={unassignedJobs}
-          isLoading={runsQuery.isLoading}
-          travelBufferMinutes={travelBufferMinutes}
-          onJobClick={(job) => onJobClick?.(job)}
-          onEditRun={openEditRun}
-          onAddToRun={(runId) => {
-            setAddJobsRunId(runId)
-            setSelectedJobIds([])
-          }}
-        />
+        runsViewMode === 'map' ? (
+          <ScheduleRunsMapView
+            runs={runs}
+            isLoading={runsQuery.isLoading}
+            travelBufferMinutes={travelBufferMinutes}
+            selectedRunId={mapSelectedRunId}
+            onSelectRun={setMapSelectedRunId}
+            displayPreferences={runDisplayPreferences}
+            visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+            acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+          />
+        ) : (
+          <ScheduleRunsTable
+            runs={runs}
+            unassignedJobs={unassignedJobs}
+            isLoading={runsQuery.isLoading}
+            travelBufferMinutes={travelBufferMinutes}
+            displayPreferences={runDisplayPreferences}
+            visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+            acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+            onJobClick={(job) => onJobClick?.(job)}
+            onEditRun={openEditRun}
+            onViewRunMap={openRunMap}
+            onAddToRun={(runId) => {
+              setAddJobsRunId(runId)
+              setSelectedJobIds([])
+            }}
+          />
+        )
       ) : (
       <div className="p-3 space-y-2 max-h-[320px] overflow-y-auto">
         {runsQuery.isLoading ? (
@@ -630,6 +693,7 @@ export function ScheduleRunsPanel({
         carerOptions={carerComboboxOptions}
         carersLoading={employeesQuery.isLoading}
         onSwitchRun={openEditRun}
+        initialTab={editRunInitialTab}
         onSave={handleSaveEditRun}
         onSaveAndUpdateSchedule={handleSaveAndUpdateSchedule}
         onCancel={closeEditRun}
@@ -637,6 +701,14 @@ export function ScheduleRunsPanel({
         saving={mutations.update.isPending}
         updatingSchedule={mutations.update.isPending || mutations.syncCarer.isPending}
         deleting={mutations.remove.isPending}
+      />
+
+      <ScheduleRunsDisplaySettingsDialog
+        open={displaySettingsOpen}
+        onOpenChange={setDisplaySettingsOpen}
+        preferences={runDisplayPreferences}
+        onSave={updatePreferences}
+        onReset={resetPreferences}
       />
     </div>
   )

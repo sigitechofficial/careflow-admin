@@ -1,10 +1,14 @@
 import * as React from 'react'
-import { ChevronDown, ChevronRight, Loader2, Pencil, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, Map, Pencil, Plus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import type { ScheduleRunRow, ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { scheduleRunAccentColor } from '@/features/scheduling/utils/schedule-run-board.util'
 import { employeesLabel, formatJobTimeRange, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { RunVisitDisplayLabels } from '@/features/scheduling/components/RunVisitDisplayLabels'
+import type { ScheduleRunsDisplayPreferences } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
+import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
+import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { Button } from '@/shared/ui/button'
 
 const RUN_STATUS_LABELS: Record<ScheduleRunStatus, string> = {
@@ -29,8 +33,12 @@ type Props = {
   unassignedJobs: TimelineJob[]
   isLoading?: boolean
   travelBufferMinutes?: number
+  displayPreferences?: ScheduleRunsDisplayPreferences
+  visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
+  acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   onJobClick: (job: TimelineJob) => void
   onEditRun: (run: ScheduleRunRow) => void
+  onViewRunMap?: (run: ScheduleRunRow) => void
   onAddToRun: (runId: string) => void
 }
 
@@ -39,8 +47,12 @@ export function ScheduleRunsTable({
   unassignedJobs,
   isLoading,
   travelBufferMinutes = 0,
+  displayPreferences,
+  visitPlanSlotsByServiceUser,
+  acceptedCarePlansByServiceUser,
   onJobClick,
   onEditRun,
+  onViewRunMap,
   onAddToRun,
 }: Props) {
   const [expandedRunIds, setExpandedRunIds] = React.useState<Set<string>>(new Set())
@@ -182,6 +194,18 @@ export function ScheduleRunsTable({
                       </td>
                       <td className="px-3 py-2.5 align-middle">
                         <div className="flex justify-end gap-1">
+                          {jobs.length > 0 && onViewRunMap ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-8"
+                              onClick={() => onViewRunMap(run)}
+                            >
+                              <Map className="mr-1 h-3.5 w-3.5" />
+                              Map
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             size="sm"
@@ -227,10 +251,21 @@ export function ScheduleRunsTable({
                                   </span>
                                   <button
                                     type="button"
-                                    className="font-medium text-foreground hover:underline"
+                                    className="min-w-0 text-left hover:underline"
                                     onClick={() => onJobClick(job)}
                                   >
-                                    {serviceUserLabel(job.serviceUser)}
+                                    {displayPreferences ? (
+                                      <RunVisitDisplayLabels
+                                        job={job}
+                                        preferences={displayPreferences}
+                                        visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+                                        acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+                                      />
+                                    ) : (
+                                      <span className="font-medium text-foreground">
+                                        {serviceUserLabel(job.serviceUser)}
+                                      </span>
+                                    )}
                                   </button>
                                 </span>
                                 <span className="text-muted-foreground">{formatJobTimeRange(job)}</span>
@@ -279,7 +314,19 @@ export function ScheduleRunsTable({
                     key={job.id}
                     className="border-b border-amber-200/40 last:border-0 hover:bg-amber-100/40 dark:border-amber-900/40 dark:hover:bg-amber-950/25"
                   >
-                    <td className="px-3 py-2.5">{serviceUserLabel(job.serviceUser)}</td>
+                    <td className="px-3 py-2.5">
+                      {displayPreferences ? (
+                        <RunVisitDisplayLabels
+                          job={job}
+                          preferences={displayPreferences}
+                          visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+                          acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
+                          compact
+                        />
+                      ) : (
+                        serviceUserLabel(job.serviceUser)
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{formatJobTimeRange(job)}</td>
                     <td className="px-3 py-2.5 text-muted-foreground">{employeesLabel(job)}</td>
                     <td className="px-3 py-2.5 text-right">

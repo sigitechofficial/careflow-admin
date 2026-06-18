@@ -8,6 +8,7 @@ import {
   type ServiceUserDolsRow,
   type ServiceUserDocumentsBundle,
   type ServiceUserLegalDocuments,
+  type PatchServiceUserLegalDocumentsPayload,
 } from '@/features/service-users/types'
 import {
   useCreateServiceUserDolsRecord,
@@ -147,7 +148,7 @@ export function ServiceUserDocumentsTab({ serviceUserId }: { serviceUserId: stri
     })
   }
 
-  async function onPatchLegal(patch: { dnacprInPlace?: boolean; dnacprStartDate?: string | null }) {
+  async function onPatchLegal(patch: PatchServiceUserLegalDocumentsPayload) {
     if (!canUpdate) return
     try {
       const updated = await patchLegalMutation.mutateAsync(patch)
@@ -293,6 +294,39 @@ export function ServiceUserDocumentsTab({ serviceUserId }: { serviceUserId: stri
                   </span>
                 </div>
               </div>
+              <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">DNAR status confirmed</span>
+                  <select
+                    value={legal.dnacprStatusConfirmation ?? 'UNKNOWN'}
+                    disabled={!canUpdate || legalSaving}
+                    onChange={(e) =>
+                      void onPatchLegal({
+                        dnacprStatusConfirmation: e.target.value as PatchServiceUserLegalDocumentsPayload['dnacprStatusConfirmation'],
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="UNKNOWN">Unknown — confirm status</option>
+                    <option value="IN_PLACE">In place</option>
+                    <option value="NOT_IN_PLACE">Not in place</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Physical location in home</span>
+                  <Input
+                    defaultValue={legal.dnacprPhysicalLocation ?? ''}
+                    disabled={!canUpdate || legalSaving}
+                    placeholder="e.g. Red folder on kitchen counter"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null
+                      if (v !== (legal.dnacprPhysicalLocation ?? null)) {
+                        void onPatchLegal({ dnacprPhysicalLocation: v })
+                      }
+                    }}
+                  />
+                </div>
+              </div>
               {legal.dnacprInPlace && (
                 <div className="flex flex-col gap-4 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:items-start">
                   <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-md">
@@ -350,6 +384,24 @@ export function ServiceUserDocumentsTab({ serviceUserId }: { serviceUserId: stri
             <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
               Lasting power of attorney (LPA) Details
             </h2>
+            <div className="mb-4 space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">LPA status confirmed</span>
+              <select
+                value={legal.lpaStatusConfirmation ?? 'UNKNOWN'}
+                disabled={!canUpdate || legalSaving}
+                onChange={(e) =>
+                  void onPatchLegal({
+                    lpaStatusConfirmation: e.target.value as PatchServiceUserLegalDocumentsPayload['lpaStatusConfirmation'],
+                  })
+                }
+                className="flex h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="UNKNOWN">Unknown — confirm status</option>
+                <option value="IN_FORCE">In force</option>
+                <option value="NOT_IN_FORCE">Not in force</option>
+                <option value="NONE">None</option>
+              </select>
+            </div>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">Upload Cert Health</span>

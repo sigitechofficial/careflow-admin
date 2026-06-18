@@ -29,6 +29,10 @@ import {
 } from '@/features/scheduling/utils/scheduling-format'
 import { isScheduleJobCompleted } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { isoToLocalTimeInput } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import {
+  handleScheduleJobHoverWheel,
+  SCHEDULE_JOB_HOVER_SCROLL_ATTR,
+} from '@/features/scheduling/utils/schedule-jobs-scroll.util'
 
 type Props = {
   job: TimelineJob
@@ -40,7 +44,7 @@ type Props = {
   travelBufferMinutes?: number
 }
 
-const HOVER_COLLISION_PADDING = { top: 64, bottom: 24, left: 24, right: 24 } as const
+const HOVER_COLLISION_PADDING = { top: 64, bottom: 48, left: 24, right: 24 } as const
 
 const TONE_HEADER: Record<ReturnType<typeof jobBlockTone>, string> = {
   completed: 'Visit completed',
@@ -271,7 +275,7 @@ export function JobHoverPanel({
     : []
 
   return (
-    <div className="flex h-full max-h-full w-[min(48rem,100%)] flex-col overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
+    <div className="flex w-[min(48rem,calc(var(--radix-tooltip-content-available-width,100vw)-1rem))] max-h-[var(--radix-tooltip-content-available-height,calc(100vh-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
       <div
         className={cn(
           'shrink-0 border-b px-4 py-2.5 text-center text-base font-semibold',
@@ -284,7 +288,11 @@ export function JobHoverPanel({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 [scrollbar-width:thin]">
+      <div
+        {...{ [SCHEDULE_JOB_HOVER_SCROLL_ATTR]: '' }}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 [scrollbar-width:thin]"
+        onWheel={handleScheduleJobHoverWheel}
+      >
         <div className="mb-3 space-y-1 border-b border-border/60 pb-3">
           <p className="text-base font-semibold leading-snug text-foreground">
             {serviceUserLabel(job.serviceUser)}
@@ -386,13 +394,9 @@ export function ScheduleJobHoverTooltip(props: Props) {
       side="top"
       align="center"
       sideOffset={10}
-      sticky="always"
       collisionPadding={HOVER_COLLISION_PADDING}
-      className="z-[100] max-w-none overflow-hidden border-0 bg-transparent p-0 shadow-none"
-      style={{
-        maxHeight: 'var(--radix-tooltip-content-available-height)',
-        maxWidth: 'var(--radix-tooltip-content-available-width)',
-      }}
+      className="z-[100] flex max-h-[var(--radix-tooltip-content-available-height)] max-w-[var(--radix-tooltip-content-available-width)] flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none"
+      onWheel={handleScheduleJobHoverWheel}
     >
       <JobHoverPanel {...props} />
     </TooltipContent>

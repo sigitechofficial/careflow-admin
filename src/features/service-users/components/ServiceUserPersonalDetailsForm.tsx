@@ -11,7 +11,15 @@ import type {
   ServiceUserReferenceItemPayload,
   UpdateServiceUserPayload,
 } from '@/features/service-users/types'
-import { useUpdateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
+import { useUpdateServiceUser, usePatchServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserMutations'
+import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
+import {
+  carerPreferencesFromDomCare,
+  emptyCarerPreferences,
+  ServiceUserCarerPreferencesSection,
+  toDomCareCarerPayload,
+  type ServiceUserCarerPreferencesState,
+} from '@/features/service-users/components/ServiceUserCarerPreferencesSection'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -394,7 +402,15 @@ export function ServiceUserPersonalDetailsForm({
 }) {
   const canUpdate = useAuthStore((s) => s.can('service_users.update'))
   const canAddress = useAuthStore((s) => s.can('service_users.address.update'))
+  const canDomCare =
+    useAuthStore((s) => s.can('service_users.dom_care.update')) || canUpdate
   const updateMutation = useUpdateServiceUser(serviceUserId)
+  const domCarePatchMutation = usePatchServiceUserDomCare(serviceUserId)
+  const domCareQuery = useServiceUserDomCare(serviceUserId, canDomCare)
+
+  const [carerPreferences, setCarerPreferences] =
+    React.useState<ServiceUserCarerPreferencesState>(emptyCarerPreferences)
+  const [carerPrefsLoaded, setCarerPrefsLoaded] = React.useState(false)
 
   const [form, setForm] = React.useState<FormState>(() => detailToForm(detail, lookups))
   const [kwSearch, setKwSearch] = React.useState('')
@@ -427,6 +443,13 @@ export function ServiceUserPersonalDetailsForm({
     setDebouncedKwSearch('')
     setDebouncedNnSearch('')
   }, [detail, lookups])
+
+  React.useEffect(() => {
+    if (domCareQuery.data && !carerPrefsLoaded) {
+      setCarerPreferences(carerPreferencesFromDomCare(domCareQuery.data))
+      setCarerPrefsLoaded(true)
+    }
+  }, [domCareQuery.data, carerPrefsLoaded])
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setDebouncedKwSearch(kwSearch), 300)
@@ -553,6 +576,10 @@ export function ServiceUserPersonalDetailsForm({
             }
           : undefined,
       })
+
+      if (canDomCare) {
+        await domCarePatchMutation.mutateAsync(toDomCareCarerPayload(carerPreferences))
+      }
 
       onSaved(detail)
       setSaveOk(true)
@@ -947,6 +974,16 @@ export function ServiceUserPersonalDetailsForm({
           />
         </div>
       </section>
+
+      {canDomCare ? (
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+          <ServiceUserCarerPreferencesSection
+            value={carerPreferences}
+            onChange={setCarerPreferences}
+            disabled={!canUpdate}
+          />
+        </section>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
         {!canUpdate && (

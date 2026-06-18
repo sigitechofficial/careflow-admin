@@ -1249,8 +1249,11 @@ export type ServiceUserLegalDocuments = {
   id: string | null
   serviceUserId: string
   dnacprInPlace: boolean
+  dnacprStatusConfirmation: 'UNKNOWN' | 'IN_PLACE' | 'NOT_IN_PLACE'
+  dnacprPhysicalLocation: string | null
   dnacprCertificateUrl: string | null
   dnacprStartDate: string | null
+  lpaStatusConfirmation: 'UNKNOWN' | 'IN_FORCE' | 'NOT_IN_FORCE' | 'NONE'
   lpaHealthCertificateUrl: string | null
   lpaFinanceCertificateUrl: string | null
   updatedAt: string | null
@@ -1277,6 +1280,9 @@ export type ServiceUserDocumentsBundle = {
 
 export type PatchServiceUserLegalDocumentsPayload = {
   dnacprInPlace?: boolean
+  dnacprStatusConfirmation?: 'UNKNOWN' | 'IN_PLACE' | 'NOT_IN_PLACE'
+  dnacprPhysicalLocation?: string | null
+  lpaStatusConfirmation?: 'UNKNOWN' | 'IN_FORCE' | 'NOT_IN_FORCE' | 'NONE'
   dnacprStartDate?: string | null
 }
 

@@ -160,6 +160,7 @@ export async function getHousekeepingDayJobs(date: string, params: Record<string
 export async function completeHousekeepingJob(
   id: string,
   payload?: {
+    status?: string
     notes?: string
     deliveredCarePlanFormIds?: string[]
     actualStartDateTime?: string
@@ -167,6 +168,7 @@ export async function completeHousekeepingJob(
   },
 ) {
   const body: Record<string, unknown> = {}
+  if (payload?.status) body.status = payload.status
   if (payload?.notes?.trim()) body.notes = payload.notes.trim()
   if (payload?.deliveredCarePlanFormIds?.length) {
     body.deliveredCarePlanFormIds = payload.deliveredCarePlanFormIds
@@ -266,6 +268,15 @@ export async function listJobAllocations(jobId: string, init?: RequestInit) {
     { method: 'GET', ...init },
   )
   return res.data ?? []
+}
+
+export async function getScheduledJob(jobId: string, init?: RequestInit) {
+  const res = await apiJson<ApiEnvelope<TimelineJob>>(`/scheduled-jobs/${jobId}`, {
+    method: 'GET',
+    ...init,
+  })
+  if (!res.data) throw new Error('Scheduled job not found')
+  return res.data
 }
 
 export async function updateScheduledJob(

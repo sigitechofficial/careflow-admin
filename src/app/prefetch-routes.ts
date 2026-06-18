@@ -65,6 +65,7 @@ import {
   listServiceUserMedications,
   listServiceUsers,
 } from '@/features/service-users/api'
+import { fetchServiceUserDocumentStore } from '@/features/service-users/documents/service-user-document-store.api'
 import { getCalendarEventTypes } from '@/features/service-users/api/service-user-calendar.api'
 import {
   fetchObservationShareTargets,
@@ -319,6 +320,20 @@ export function prefetchServiceUserBodyMapRoute(qc: QueryClient, serviceUserId: 
   void qc.prefetchQuery({
     queryKey: bodyMapKeys.summary(serviceUserId),
     queryFn: ({ signal }) => fetchBodyMapSummary(serviceUserId, signal),
+    staleTime: ROUTE_STALE_MS,
+  })
+}
+
+export function prefetchServiceUserDocumentsRoute(qc: QueryClient, serviceUserId: string) {
+  prefetchServiceUserProfile(qc, serviceUserId)
+  void qc.prefetchQuery({
+    queryKey: serviceUserKeys.documentStore(serviceUserId),
+    queryFn: ({ signal }) => fetchServiceUserDocumentStore(serviceUserId, { signal }),
+    staleTime: ROUTE_STALE_MS,
+  })
+  void qc.prefetchQuery({
+    queryKey: serviceUserKeys.documents(serviceUserId),
+    queryFn: ({ signal }) => fetchServiceUserDocuments(serviceUserId, { signal }),
     staleTime: ROUTE_STALE_MS,
   })
 }

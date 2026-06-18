@@ -6,7 +6,7 @@ import { useScheduleRunMutations } from '@/features/scheduling/hooks/useSchedule
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
-import { formatJobTimeRange, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { formatJobTimeRange, activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import { formatScheduleJobsDateLabel } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
@@ -199,6 +199,10 @@ export function ScheduleRunCreateDialog({
                     <p className="truncate font-medium">{serviceUserLabel(job.serviceUser)}</p>
                     <p className="text-xs text-muted-foreground">{formatJobTimeRange(job)}</p>
                   </div>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {activeJobAllocationCount(job)}/{job.requiredCarers} carer
+                    {job.requiredCarers === 1 ? '' : 's'}
+                  </span>
                 </li>
               ))}
             </ol>

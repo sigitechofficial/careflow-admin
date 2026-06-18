@@ -161,6 +161,7 @@ export function usePatchServiceUserLegalDocuments(serviceUserId: string) {
       patchServiceUserLegalDocuments(serviceUserId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.documents(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.documentStore(serviceUserId) })
     },
   })
 }

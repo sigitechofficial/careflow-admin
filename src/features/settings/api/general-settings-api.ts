@@ -181,6 +181,7 @@ export type OrganisationGeneralSettings = {
   domFutureVisitsDays: number
   domShowWeeklyHours: boolean
   domShowServiceUserName: boolean
+  domShowBlockedCarersInSchedule: boolean
   domLateVisitAlertRequired: boolean
   domLateVisitAlertMinutes: number
   domLateVisitAlertEmail: boolean

@@ -47,6 +47,8 @@ export type BodyMapRecordRow = {
   managerReviewRequired: boolean
   closedAt: string | null
   closureNote: string | null
+  scheduledJobId?: string | null
+  scheduledVisitId?: string | null
   createdByName: string | null
   createdAt: string
   updatedAt: string
@@ -201,6 +203,7 @@ export type BodyMapLinkedModule =
   | 'RISK_ASSESSMENT'
   | 'REFERRAL'
   | 'CARE_NOTE'
+  | 'SCHEDULED_VISIT'
 
 export type BodyMapLink = {
   id: string
@@ -327,6 +330,8 @@ export type CreateBodyMapRecordPayload = {
   woundAssessment?: BodyMapWoundAssessmentPayload
   pressureAssessment?: BodyMapPressureAssessmentPayload
   medicationSite?: BodyMapMedicationSitePayload
+  scheduledJobId?: string
+  scheduledVisitId?: string
 }
 
 export type BodyMapWoundAssessmentPayload = {

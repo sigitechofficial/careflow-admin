@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Loader2, Sparkles, Star, UserPlus, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
 import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
 import { buildScheduleJobSuggestCarersRequest } from '@/features/scheduling/utils/schedule-job-recommend-carers.util'
@@ -41,6 +42,7 @@ export function ScheduleJobRecommendedCarers({
   onAssign,
   onCandidatesChange,
 }: Props) {
+  const showBlockedCarers = useShowBlockedCarersInSchedule()
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [candidates, setCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
@@ -72,18 +74,24 @@ export function ScheduleJobRecommendedCarers({
     () =>
       candidates
         .filter((c) => {
+          if (c.isBlocked && !showBlockedCarers) return false
           if (c.hasRotaConflict) return false
           if (replacingEmployeeId) return c.employeeId !== replacingEmployeeId
           return !allocatedEmployeeIds.has(c.employeeId)
         })
+        .sort((a, b) => {
+          if (a.isPreferred !== b.isPreferred) return a.isPreferred ? -1 : 1
+          if (a.isBlocked !== b.isBlocked) return a.isBlocked ? 1 : -1
+          return 0
+        })
         .slice(0, 8),
-    [allocatedEmployeeIds, candidates, replacingEmployeeId],
+    [allocatedEmployeeIds, candidates, replacingEmployeeId, showBlockedCarers],
   )
 
   const sectionTitle = replacingEmployeeId ? 'Recommended replacement carers' : 'Recommended carers'
   const sectionHint = replacingEmployeeId
     ? 'Pick a carer to replace the current assignment on this job.'
-    : 'Ranked by availability, skills, preferences, and compliance for this visit.'
+    : 'Preferred carers appear first, then ranked by availability, skills, and compliance.'
   const actionLabel = replacingEmployeeId ? 'Change to' : 'Assign'
 
   return (

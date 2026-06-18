@@ -16,7 +16,10 @@ function stopLetter(index: number): string {
   return String.fromCharCode(65 + index)
 }
 
-export function buildScheduleRunMapStops(jobs: TimelineJob[]): ScheduleRunMapStop[] {
+export function buildScheduleRunMapStops(
+  jobs: TimelineJob[],
+  nameForJob?: (job: TimelineJob) => string,
+): ScheduleRunMapStop[] {
   const sorted = sortJobsByStartTime(jobs)
   const stops: ScheduleRunMapStop[] = []
 
@@ -32,7 +35,7 @@ export function buildScheduleRunMapStops(jobs: TimelineJob[]): ScheduleRunMapSto
     stops.push({
       letter: stopLetter(stops.length),
       jobId: job.id,
-      name: serviceUserLabel(su),
+      name: nameForJob ? nameForJob(job) : serviceUserLabel(su),
       address,
       lat: coords.lat,
       lng: coords.lng,
@@ -78,15 +81,43 @@ export function buildGoogleMapsDirectionsExternalUrl(stops: ScheduleRunMapStop[]
 }
 
 export function buildMultiStopMapBboxUrl(stops: ScheduleRunMapStop[]): string | null {
+  const bbox = computeMapBbox(stops)
+  if (!bbox) return null
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}&layer=mapnik`
+}
+
+export type MapBbox = {
+  minLat: number
+  maxLat: number
+  minLng: number
+  maxLng: number
+}
+
+export function computeMapBbox(stops: ScheduleRunMapStop[], pad = 0.025): MapBbox | null {
   if (stops.length === 0) return null
   const lats = stops.map((s) => s.lat)
   const lngs = stops.map((s) => s.lng)
-  const pad = 0.025
-  const minLon = Math.min(...lngs) - pad
-  const maxLon = Math.max(...lngs) + pad
-  const minLat = Math.min(...lats) - pad
-  const maxLat = Math.max(...lats) + pad
-  const first = stops[0]
-  if (!first) return null
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${first.lat},${first.lng}`
+  return {
+    minLng: Math.min(...lngs) - pad,
+    maxLng: Math.max(...lngs) + pad,
+    minLat: Math.min(...lats) - pad,
+    maxLat: Math.max(...lats) + pad,
+  }
+}
+
+export function latLngToBboxPercent(
+  lat: number,
+  lng: number,
+  bbox: MapBbox,
+): { left: number; top: number } {
+  const lngSpan = bbox.maxLng - bbox.minLng || 1
+  const latSpan = bbox.maxLat - bbox.minLat || 1
+  return {
+    left: ((lng - bbox.minLng) / lngSpan) * 100,
+    top: ((bbox.maxLat - lat) / latSpan) * 100,
+  }
+}
+
+export function buildGoogleMapsSingleEmbedUrl(lat: number, lng: number): string {
+  return `https://maps.google.com/maps?q=${lat},${lng}&z=14&output=embed`
 }

@@ -39,6 +39,7 @@ import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceU
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
+import ServiceUserDocumentsModulePage from '@/features/service-users/pages/ServiceUserDocumentsModulePage'
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
 import InitialAssessmentReviewQueuePage from '@/features/service-users/initial-assessment/pages/InitialAssessmentReviewQueuePage'
 import AssessmentReviewQueuePage from '@/features/service-users/assessments/pages/AssessmentReviewQueuePage'
@@ -52,6 +53,7 @@ import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
 import ScheduleJobsPage from '@/features/scheduling/pages/ScheduleJobsPage'
+import CarerVisitHubPage from '@/features/scheduling/pages/CarerVisitHubPage'
 import SchedulingReportPage from '@/features/scheduling/pages/SchedulingReportPage'
 import ManageScheduleJobsPage from '@/features/scheduling/pages/ManageScheduleJobsPage'
 import BuildSchedulePage from '@/features/scheduling/pages/BuildSchedulePage'
@@ -122,6 +124,7 @@ import {
   prefetchServiceUserMedicationRoute,
   prefetchServiceUserObservationsRoute,
   prefetchServiceUserBodyMapRoute,
+  prefetchServiceUserDocumentsRoute,
   prefetchServiceUserProfile,
   prefetchSettingsTab,
   prefetchTemporaryInspectors,
@@ -145,6 +148,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
+  '/scheduling/visits/$jobId': 'Visit',
   '/scheduling/report': 'Scheduling Reports',
   '/scheduling/jobs': 'Scheduled Jobs Housekeeping',
   '/scheduling/build': 'Build Schedule',
@@ -235,6 +239,8 @@ function AppRootShell() {
             ? 'Observations'
             : /^\/service-users\/[^/]+\/body-map$/.test(pathname)
               ? 'Body Map'
+              : /^\/service-users\/[^/]+\/documents$/.test(pathname)
+                ? 'Documents'
               : pathname === '/body-map/review-queue'
                 ? 'Body Map Review Queue'
             : /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname)
@@ -253,6 +259,7 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
     /^\/service-users\/[^/]+\/body-map$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/documents$/.test(pathname) ||
     /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
     /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
@@ -604,6 +611,16 @@ const serviceUsersBodyMapRoute = createRoute({
   component: ServiceUserBodyMapPage,
 })
 
+const serviceUsersDocumentsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/documents',
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserDocumentsRoute(qc, serviceUserId)
+  },
+  component: ServiceUserDocumentsModulePage,
+})
+
 const bodyMapReviewQueueRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/body-map/review-queue',
@@ -657,6 +674,13 @@ const schedulingScheduleJobsRoute = createRoute({
     prefetchSchedulingScheduleJobs(qc)
   },
   component: ScheduleJobsPage,
+})
+
+const schedulingCarerVisitHubRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scheduling/visits/$jobId',
+  beforeLoad: requireScheduleAccess(),
+  component: CarerVisitHubPage,
 })
 
 const schedulingReportRoute = createRoute({
@@ -1035,12 +1059,14 @@ const routeTree = rootRoute.addChildren([
     serviceUsersVisitPlanRoute,
     serviceUsersObservationsRoute,
     serviceUsersBodyMapRoute,
+    serviceUsersDocumentsRoute,
     bodyMapReviewQueueRoute,
     initialAssessmentReviewQueueRoute,
     assessmentReviewQueueRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
     schedulingScheduleJobsRoute,
+    schedulingCarerVisitHubRoute,
     schedulingReportRoute,
     schedulingJobsRoute,
     schedulingBuildRoute,

@@ -151,6 +151,11 @@ export function RecordDetailDrawer({
           to: '/service-users/$serviceUserId/care-plan' as const,
           params: { serviceUserId },
         }
+      case 'SCHEDULED_VISIT':
+        return {
+          to: '/scheduling/visits/$jobId' as const,
+          params: { jobId: record.scheduledJobId ?? '' },
+        }
       default:
         return { to: '/service-users/$serviceUserId' as const, params: { serviceUserId } }
     }
@@ -325,6 +330,14 @@ export function RecordDetailDrawer({
                     >
                       {l.label ?? 'MAR chart line'}
                     </Link>
+                  ) : l.linkedModule === 'SCHEDULED_VISIT' ? (
+                    <Link
+                      to="/scheduling/visits/$jobId"
+                      params={{ jobId: record.scheduledJobId ?? l.linkedRecordId }}
+                      className="text-indigo-700 hover:underline"
+                    >
+                      {l.label ?? 'Scheduled visit'}
+                    </Link>
                   ) : (
                     <Link
                       {...linkHref(l.linkedModule)}
@@ -352,6 +365,7 @@ export function RecordDetailDrawer({
                 <option value="RISK_ASSESSMENT">Risk assessment</option>
                 <option value="REFERRAL">Referral</option>
                 <option value="CARE_NOTE">Care note</option>
+                <option value="SCHEDULED_VISIT">Scheduled visit</option>
               </select>
               {linkModule === 'MAR' ? (
                 <select

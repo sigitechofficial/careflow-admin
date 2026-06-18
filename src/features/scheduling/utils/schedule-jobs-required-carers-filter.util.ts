@@ -80,12 +80,10 @@ export function applyScheduleJobsRequiredCarersFilter(
 
   const visible = (job: TimelineJob) => timelineJobMatchesRequiredCarersFilter(job, filter)
 
-  const employeeRows = board.employeeRows
-    .map((row) => ({
-      ...row,
-      allocations: row.allocations.filter((allocation) => visible(allocation.job)),
-    }))
-    .filter((row) => row.allocations.length > 0)
+  const employeeRows = board.employeeRows.map((row) => ({
+    ...row,
+    allocations: row.allocations.filter((allocation) => visible(allocation.job)),
+  }))
 
   const unassignedJobs = board.unassignedJobs.filter(visible)
   const allJobs = board.allJobs.filter(visible)

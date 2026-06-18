@@ -1,6 +1,8 @@
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 
 export type ScheduleJobContextAction =
+  | 'open-visit-workspace'
+  | 'open-run'
   | 'unallocate-job'
   | 'complete-job'
   | 'cancel-job'

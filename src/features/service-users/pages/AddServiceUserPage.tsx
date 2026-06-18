@@ -27,6 +27,13 @@ import {
 import { useEmployeeLookups, useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useCreateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
+import { patchServiceUserDomCare } from '@/features/service-users/api/service-users.api'
+import {
+  emptyCarerPreferences,
+  ServiceUserCarerPreferencesSection,
+  toDomCareCarerPayload,
+  type ServiceUserCarerPreferencesState,
+} from '@/features/service-users/components/ServiceUserCarerPreferencesSection'
 
 type FormState = {
   firstName: string
@@ -202,6 +209,8 @@ export default function AddServiceUserPage() {
   const [nnDebounced, setNnDebounced] = React.useState('')
   const [keyWorkerLabel, setKeyWorkerLabel] = React.useState('')
   const [namedNurseLabel, setNamedNurseLabel] = React.useState('')
+  const [carerPreferences, setCarerPreferences] =
+    React.useState<ServiceUserCarerPreferencesState>(emptyCarerPreferences)
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setKwDebounced(kwSearch), 300)
@@ -250,10 +259,15 @@ export default function AddServiceUserPage() {
     }
     try {
       const payload = buildPayload(form)
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         payload,
         address: hasAddressData(form) ? buildAddressPayload(form) : undefined,
       })
+      const hasCarerPrefs =
+        carerPreferences.preferredCarers.length > 0 || carerPreferences.blockedCarers.length > 0
+      if (hasCarerPrefs) {
+        await patchServiceUserDomCare(created.id, toDomCareCarerPayload(carerPreferences))
+      }
       toastSuccess('Service user created', 'Redirecting to the service user list.')
       await navigate({ to: '/service-users/all' })
     } catch (err) {
@@ -581,6 +595,13 @@ export default function AddServiceUserPage() {
             />
           </div>
         </div>
+      </Section>
+
+      <Section>
+        <ServiceUserCarerPreferencesSection
+          value={carerPreferences}
+          onChange={setCarerPreferences}
+        />
       </Section>
 
       <Section>

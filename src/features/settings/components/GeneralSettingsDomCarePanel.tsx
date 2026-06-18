@@ -47,6 +47,8 @@ const TOOLTIPS = {
   emailTomorrow:
     'Automatically email tomorrow’s domiciliary schedule to configured recipients.',
   downloadAllSu: 'Allow the mobile app to download all service user records for offline use.',
+  showBlockedCarersInSchedule:
+    'When enabled, carers blocked by a service user still appear in schedule carer lists (marked as blocked and not assignable). When disabled, blocked carers are hidden from schedule pickers.',
   lateVisitRequired: 'Enable alerts when a carer is late checking in to a scheduled visit.',
   lateVisitMinutes: 'Number of minutes after the scheduled start time before a late visit alert is raised.',
   lateVisitNotification: 'Send late visit alerts as in-app notifications to selected staff per zone.',
@@ -66,6 +68,7 @@ type DomCareDraft = {
   domFutureVisitsDays: number
   domShowWeeklyHours: boolean
   domShowServiceUserName: boolean
+  domShowBlockedCarersInSchedule: boolean
   domLateVisitAlertRequired: boolean
   domLateVisitAlertMinutes: number
   domLateVisitAlertEmail: boolean
@@ -90,6 +93,7 @@ const DEFAULTS: DomCareDraft = {
   domFutureVisitsDays: 14,
   domShowWeeklyHours: true,
   domShowServiceUserName: true,
+  domShowBlockedCarersInSchedule: false,
   domLateVisitAlertRequired: true,
   domLateVisitAlertMinutes: 20,
   domLateVisitAlertEmail: true,
@@ -147,6 +151,7 @@ function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[
     domFutureVisitsDays: s.domFutureVisitsDays,
     domShowWeeklyHours: s.domShowWeeklyHours,
     domShowServiceUserName: s.domShowServiceUserName,
+    domShowBlockedCarersInSchedule: s.domShowBlockedCarersInSchedule ?? false,
     domLateVisitAlertRequired: s.domLateVisitAlertRequired,
     domLateVisitAlertMinutes: s.domLateVisitAlertMinutes,
     domLateVisitAlertEmail: s.domLateVisitAlertEmail,
@@ -242,10 +247,29 @@ export function GeneralSettingsDomCarePanel() {
   )
 
   React.useEffect(() => {
-    if (settingsQuery.data && areasQuery.data !== undefined) {
+    if (settingsQuery.data) {
       apply(settingsQuery.data, areasQuery.data ?? [])
     }
-  }, [settingsQuery.data, areasQuery.data, apply])
+  }, [settingsQuery.data, apply])
+
+  React.useEffect(() => {
+    if (!settingsQuery.data || areasQuery.data === undefined) return
+    setDraft((d) => ({
+      ...d,
+      domLateVisitZoneAlerts: mergeZoneAlerts(settingsQuery.data!.domLateVisitZoneAlerts, areasQuery.data),
+    }))
+    setSaved((s) =>
+      s
+        ? {
+            ...s,
+            domLateVisitZoneAlerts: mergeZoneAlerts(
+              settingsQuery.data!.domLateVisitZoneAlerts,
+              areasQuery.data,
+            ),
+          }
+        : s,
+    )
+  }, [areasQuery.data, settingsQuery.data])
 
   React.useEffect(() => {
     if (employeesQuery.data) {
@@ -297,6 +321,7 @@ export function GeneralSettingsDomCarePanel() {
       } = draft
       const updated = await updateMutation.mutateAsync({
         ...editable,
+        domShowBlockedCarersInSchedule: draft.domShowBlockedCarersInSchedule,
         domGlobalToleranceMinutes: clampInt(draft.domGlobalToleranceMinutes, 0, 1440),
         domGeofenceDistanceMeters: clampInt(draft.domGeofenceDistanceMeters, 0, 50000),
         domWorkPatternCycles: clampInt(draft.domWorkPatternCycles, 1, 52),
@@ -581,6 +606,16 @@ export function GeneralSettingsDomCarePanel() {
               <SettingsNoYesToggle
                 value={draft.domShowServiceUserName}
                 onChange={v => setDraft(d => ({ ...d, domShowServiceUserName: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="Show blocked carers in schedule"
+              hint={TOOLTIPS.showBlockedCarersInSchedule}
+            >
+              <SettingsNoYesToggle
+                value={draft.domShowBlockedCarersInSchedule}
+                onChange={v => setDraft(d => ({ ...d, domShowBlockedCarersInSchedule: v }))}
                 disabled={!canUpdate}
               />
             </SettingsRow>

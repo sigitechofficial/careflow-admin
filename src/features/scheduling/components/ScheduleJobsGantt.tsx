@@ -19,6 +19,10 @@ import { ScheduleJobHoverTooltip } from '@/features/scheduling/components/Schedu
 import { ScheduleJobsDragOverlay } from '@/features/scheduling/components/ScheduleJobsDragOverlay'
 import { ScheduleJobsMarqueeOverlay } from '@/features/scheduling/components/ScheduleJobsMarqueeOverlay'
 import { useScheduleJobsMarqueeSelect } from '@/features/scheduling/hooks/useScheduleJobsMarqueeSelect'
+import { buildRunVisitLabelLines } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
+import type { ScheduleRunsDisplayPreferences } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
+import { useScheduleRunsDisplayPreferences } from '@/features/scheduling/hooks/useScheduleRunsDisplayPreferences'
+import { handleScheduleJobHoverWheel } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import type { JobDropPayload, ScheduleJobsRowRef } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import type { ScheduleJobContextAction } from '@/features/scheduling/types/schedule-job-context-actions.types'
@@ -78,6 +82,7 @@ type Props = {
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
   onJobDrop: (payload: JobDropPayload) => void | Promise<void>
   onJobsSelectedForRun?: (jobs: TimelineJob[]) => void
+  onOpenRun?: (runId: string) => void
 }
 
 const BOARD_MIN_WIDTH = SCHEDULE_JOBS_CARER_COL_WIDTH + SCHEDULE_JOBS_TIMELINE_TRACK_WIDTH
@@ -98,9 +103,11 @@ function ScheduleJobBlock({
   travelConflictToNext,
   rowJobs,
   isMarqueeSelected,
+  runDisplayPreferences,
   onPointerDown,
   onClick,
   onJobAction,
+  onOpenRun,
   shouldIgnoreClick,
 }: {
   job: TimelineJob
@@ -118,18 +125,31 @@ function ScheduleJobBlock({
   travelConflictToNext?: boolean
   rowJobs?: TimelineJob[]
   isMarqueeSelected?: boolean
+  runDisplayPreferences?: ScheduleRunsDisplayPreferences
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
+  onOpenRun?: (runId: string) => void
   shouldIgnoreClick?: () => boolean
 }) {
   const tone = jobBlockTone(job)
-  const label = serviceUserLabel(job.serviceUser)
+  const useRunLabels = Boolean(job.scheduleRunId && runDisplayPreferences)
+  const labelLines = useRunLabels
+    ? buildRunVisitLabelLines(job, runDisplayPreferences!, {
+        visitPlanSlotsByServiceUser,
+        acceptedCarePlansByServiceUser,
+      })
+    : [serviceUserLabel(job.serviceUser)]
+  const layoutLabel = labelLines[0] ?? serviceUserLabel(job.serviceUser)
   const readOnly = isScheduleJobReadOnly(job)
   const completed = isScheduleJobCompleted(job)
-  const { leftPx, widthPx } = jobBlockLayoutPx(job, label)
+  const { leftPx, widthPx } = jobBlockLayoutPx(job, layoutLabel)
   const runAccent = job.scheduleRunId ? scheduleRunAccentColor(job.scheduleRunId) : null
   const runLabel = scheduleRunJobLabel(job)
+  const showDoubleUp =
+    (runDisplayPreferences?.showDoubleUpIcon ?? true) && job.requiredCarers > 1
+  const showTravelIcon =
+    (runDisplayPreferences?.showTravelMethodIcons ?? false) && Boolean(job.scheduleRunId)
 
   const block = (
     <div
@@ -178,7 +198,7 @@ function ScheduleJobBlock({
       }}
       title={
         runLabel
-          ? `${runLabel} — ${label}`
+          ? `${runLabel} — ${labelLines.join(' · ')}`
           : completed
           ? 'Visit completed — click to view details'
           : readOnly
@@ -204,21 +224,41 @@ function ScheduleJobBlock({
         }
       }}
     >
-      <div className="flex min-h-0 flex-1 items-center gap-1 px-2">
-        {job.requiredCarers > 1 ? (
-          <Users className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
-        ) : null}
-        <span className="relative z-[1] min-w-0 truncate whitespace-nowrap">{label}</span>
+      <div className="flex min-h-0 flex-1 items-center gap-1 px-2 py-0.5">
+        {(showDoubleUp || showTravelIcon) && (
+          <span className="flex shrink-0 flex-col gap-0.5">
+            {showDoubleUp ? <Users className="h-3 w-3 opacity-80" aria-hidden /> : null}
+            {showTravelIcon ? <Car className="h-3 w-3 opacity-70" aria-hidden /> : null}
+          </span>
+        )}
+        <span className="relative z-[1] min-w-0 flex-1">
+          {labelLines.slice(0, runDisplayPreferences?.linesOfData ?? 1).map((line, index) => (
+            <span
+              key={`${index}-${line}`}
+              className={cn(
+                'block truncate leading-tight',
+                index === 0 ? 'font-semibold' : 'text-[9px] font-medium text-muted-foreground',
+              )}
+            >
+              {line}
+            </span>
+          ))}
+        </span>
       </div>
       {job.scheduleRunId && runAccent && job.scheduleRun ? (
-        <div
-          className="flex h-3.5 w-full shrink-0 items-center gap-1 border-t px-1.5"
+        <button
+          type="button"
+          className="flex h-3.5 w-full shrink-0 items-center gap-1 border-t px-1.5 text-left hover:brightness-95"
           style={{
             backgroundColor: runAccent.bg,
             borderTopColor: runAccent.border,
             color: runAccent.text,
           }}
-          title={runLabel ?? undefined}
+          title={`Open run: ${runLabel ?? job.scheduleRun.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpenRun?.(job.scheduleRunId!)
+          }}
         >
           <span className="min-w-0 flex-1 truncate text-[8px] font-semibold leading-none">
             {job.scheduleRun.name}
@@ -232,7 +272,7 @@ function ScheduleJobBlock({
               {job.runSequence}
             </span>
           ) : null}
-        </div>
+        </button>
       ) : null}
     </div>
   )
@@ -349,6 +389,7 @@ function CarerLabel({
           side="right"
           align="start"
           className="max-h-none max-w-none overflow-visible border-0 bg-transparent p-0 shadow-none"
+          onWheel={handleScheduleJobHoverWheel}
         >
           {hoverCard}
         </TooltipContent>
@@ -384,9 +425,11 @@ function TimelineTrack({
   acceptedCarePlansByServiceUser,
   travelBufferMinutes,
   previewJobIds,
+  runDisplayPreferences,
   onPointerDown,
   onJobClick,
   onJobAction,
+  onOpenRun,
   shouldIgnoreClick,
   className,
 }: {
@@ -405,9 +448,11 @@ function TimelineTrack({
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   travelBufferMinutes?: number
   previewJobIds?: Set<string>
+  runDisplayPreferences?: ScheduleRunsDisplayPreferences
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
+  onOpenRun?: (runId: string) => void
   shouldIgnoreClick?: () => boolean
   className?: string
 }) {
@@ -491,9 +536,11 @@ function TimelineTrack({
           travelConflictToNext={travelConflictJobIdSet.has(job.id)}
           rowJobs={jobs}
           isMarqueeSelected={previewJobIds?.has(job.id)}
+          runDisplayPreferences={runDisplayPreferences}
           onPointerDown={onPointerDown}
           onClick={onJobClick}
           onJobAction={onJobAction}
+          onOpenRun={onOpenRun}
           shouldIgnoreClick={shouldIgnoreClick}
         />
       ))}
@@ -526,9 +573,11 @@ const GanttRow = React.memo(function GanttRow({
   travelBufferMinutes,
   previewJobIds,
   zebra,
+  runDisplayPreferences,
   onPointerDown,
   onJobClick,
   onJobAction,
+  onOpenRun,
   shouldIgnoreClick,
   trackClassName,
   carerHoverCard,
@@ -557,9 +606,11 @@ const GanttRow = React.memo(function GanttRow({
   travelBufferMinutes?: number
   previewJobIds?: Set<string>
   zebra?: boolean
+  runDisplayPreferences?: ScheduleRunsDisplayPreferences
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
+  onOpenRun?: (runId: string) => void
   shouldIgnoreClick?: () => boolean
   trackClassName?: string
   carerHoverCard?: React.ReactNode
@@ -606,9 +657,11 @@ const GanttRow = React.memo(function GanttRow({
         acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
         travelBufferMinutes={travelBufferMinutes}
         previewJobIds={previewJobIds}
+        runDisplayPreferences={runDisplayPreferences}
         onPointerDown={onPointerDown}
         onJobClick={onJobClick}
         onJobAction={onJobAction}
+        onOpenRun={onOpenRun}
         shouldIgnoreClick={shouldIgnoreClick}
         className={trackClassName}
       />
@@ -777,7 +830,9 @@ export function ScheduleJobsGantt({
   onJobAction,
   onJobDrop,
   onJobsSelectedForRun,
+  onOpenRun,
 }: Props) {
+  const { preferences: runDisplayPreferences } = useScheduleRunsDisplayPreferences()
   const locationNameMap = locationNames ?? new Map<string, string>()
   const drag = useScheduleJobsDrag({
     date,
@@ -856,6 +911,7 @@ export function ScheduleJobsGantt({
               onPointerDown={drag.startDrag}
               onJobClick={onJobClick}
               onJobAction={onJobAction}
+              onOpenRun={onOpenRun}
               shouldIgnoreClick={drag.shouldIgnoreClick}
               alignJobsTop
               excessContractedJobIds={excessContractedJobIds}
@@ -864,6 +920,7 @@ export function ScheduleJobsGantt({
               acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
               travelBufferMinutes={travelBufferMinutes}
               previewJobIds={marquee.previewJobIds}
+              runDisplayPreferences={runDisplayPreferences}
               trackClassName="bg-amber-50/30 dark:bg-amber-950/10"
             />
 
@@ -899,10 +956,12 @@ export function ScheduleJobsGantt({
                   acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
                   travelBufferMinutes={travelBufferMinutes}
                   previewJobIds={marquee.previewJobIds}
+                  runDisplayPreferences={runDisplayPreferences}
                   zebra={index % 2 === 1}
                   onPointerDown={drag.startDrag}
                   onJobClick={onJobClick}
                   onJobAction={onJobAction}
+                  onOpenRun={onOpenRun}
                   shouldIgnoreClick={drag.shouldIgnoreClick}
                   trackClassName={hasJobs ? undefined : 'bg-sky-50/35 dark:bg-sky-950/10'}
                   carerHoverCard={

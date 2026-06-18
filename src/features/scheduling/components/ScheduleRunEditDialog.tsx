@@ -6,7 +6,7 @@ import { ScheduleRunRouteMap } from '@/features/scheduling/components/ScheduleRu
 import type { ScheduleRunRow, ScheduleRunStatus } from '@/features/scheduling/types/scheduling.types'
 import type { ScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
-import { formatJobTimeRange, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { formatJobTimeRange, activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import { formatScheduleJobsDateLabel } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
@@ -51,6 +51,7 @@ type Props = {
   saving?: boolean
   updatingSchedule?: boolean
   deleting?: boolean
+  initialTab?: RunTab
 }
 
 const RUN_STATUS_LABELS: Record<ScheduleRunStatus, string> = {
@@ -96,16 +97,17 @@ export function ScheduleRunEditDialog({
   saving,
   updatingSchedule,
   deleting,
+  initialTab = 'run',
 }: Props) {
-  const [activeTab, setActiveTab] = React.useState<RunTab>('run')
+  const [activeTab, setActiveTab] = React.useState<RunTab>(initialTab)
   const [recommendOpen, setRecommendOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (open) {
-      setActiveTab('run')
+      setActiveTab(initialTab)
       setRecommendOpen(false)
     }
-  }, [open, run?.id])
+  }, [open, run?.id, initialTab])
 
   const runOptions = React.useMemo(
     () =>
@@ -273,6 +275,10 @@ export function ScheduleRunEditDialog({
                           <p className="truncate font-medium">{serviceUserLabel(job.serviceUser)}</p>
                           <p className="text-xs text-muted-foreground">{formatJobTimeRange(job)}</p>
                         </div>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          {activeJobAllocationCount(job)}/{job.requiredCarers} carer
+                          {job.requiredCarers === 1 ? '' : 's'}
+                        </span>
                       </li>
                     ))}
                   </ol>

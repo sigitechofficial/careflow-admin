@@ -85,6 +85,8 @@ type Props = {
   onPlaceMarker: (coords: PlaceMarkerPayload) => void
   onSelectRecord: (recordId: string) => void
   className?: string
+  /** Compact embed (e.g. visit workspace): diagram only, no toolbar. */
+  embedded?: boolean
 }
 
 export function BodyMapPostureCanvas({
@@ -100,6 +102,7 @@ export function BodyMapPostureCanvas({
   onPlaceMarker,
   onSelectRecord,
   className,
+  embedded,
 }: Props) {
   const lookupsQuery = useBodyMapLookups()
   const markerColorCatalog = React.useMemo(
@@ -249,10 +252,12 @@ export function BodyMapPostureCanvas({
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-col overflow-hidden border border-border bg-card rounded-xl',
+        'flex min-h-0 flex-col overflow-hidden border border-border bg-card',
+        embedded ? 'rounded-sm' : 'rounded-xl',
         className,
       )}
     >
+      {!embedded ? (
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-2 py-1.5">
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
           {VIEW_LABELS[posture]}
@@ -303,12 +308,14 @@ export function BodyMapPostureCanvas({
           </Button>
         </div>
       </div>
+      ) : null}
 
       <div
         ref={viewportRef}
         className={cn(
-          'relative min-h-[320px] flex-1 overflow-auto bg-white',
+          'relative flex-1 overflow-auto bg-white',
           markMode && ready && 'cursor-crosshair',
+          embedded ? 'min-h-[280px]' : 'min-h-[320px]',
         )}
       >
         {!ready && !loadError ? (
@@ -372,7 +379,7 @@ export function BodyMapPostureCanvas({
         </div>
       </div>
 
-      {pendingMarker && pendingMarker.canvasView === posture ? (
+      {pendingMarker && pendingMarker.canvasView === posture && !embedded ? (
         <p className="border-t border-indigo-100 bg-indigo-50/80 px-3 py-2 text-xs text-indigo-900">
           Selected: <strong>{pendingMarker.summaryLabel ?? pendingMarker.bodyPart}</strong>
           {' · '}

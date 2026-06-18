@@ -32,4 +32,6 @@ export const schedulingKeys = {
     [...schedulingKeys.all(), 'runs', params] as const,
 
   runDetail: (id: string) => [...schedulingKeys.all(), 'run', id] as const,
+
+  job: (id: string) => [...schedulingKeys.all(), 'job', id] as const,
 } as const

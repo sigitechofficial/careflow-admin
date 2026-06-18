@@ -53,6 +53,7 @@ import {
   useServiceUserBodyMap,
 } from '@/features/service-users/body-map/hooks/useBodyMap'
 import { recordViewToApiBodyView, prototypeSideToApi } from '@/features/service-users/body-map/utils/body-map-coords'
+import { parseBodyMapVisitSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
 import type {
   BodyMapRecordRow,
   BodyMapSafeguardingCheckPayload,
@@ -68,7 +69,16 @@ export default function ServiceUserBodyMapPage() {
   const [showCleared, setShowCleared] = React.useState(false)
   const [showMeds, setShowMeds] = React.useState(true)
   const [medSitesOnly, setMedSitesOnly] = React.useState(false)
-  const search = useSearch({ strict: false }) as { linkMedicationId?: string; view?: 'export' }
+  const search = useSearch({ strict: false }) as {
+    linkMedicationId?: string
+    view?: 'export'
+    from?: string
+    scheduledJobId?: string
+    scheduledVisitId?: string
+    returnTo?: string
+  }
+  const visitSearch = parseBodyMapVisitSearch(search)
+  const visitContextActive = visitSearch.from === 'schedule-visit' && Boolean(visitSearch.scheduledJobId)
   const showCqcEvidence = search.view === 'export'
   const linkMedicationIdFromUrl = search.linkMedicationId
   const [linkMedicationId, setLinkMedicationId] = React.useState<string | undefined>()
@@ -185,6 +195,12 @@ export default function ServiceUserBodyMapPage() {
         specificLocation: values.specificLocation ?? pendingMarker.summaryLabel,
         xCoordinate: pendingMarker.x,
         yCoordinate: pendingMarker.y,
+        ...(visitSearch.scheduledJobId
+          ? {
+              scheduledJobId: visitSearch.scheduledJobId,
+              scheduledVisitId: visitSearch.scheduledVisitId,
+            }
+          : {}),
       })
       setAddOpen(false)
       setPendingMarker(null)
@@ -278,6 +294,19 @@ export default function ServiceUserBodyMapPage() {
       <div className="print:hidden">
         <ServiceUserModuleHeader serviceUserId={serviceUserId} detail={profile} />
         <ServiceUserModuleTabs serviceUserId={serviceUserId} />
+        {visitContextActive ? (
+          <div className="mx-3 mt-2 rounded-lg border border-teal-200 bg-teal-50/80 px-4 py-3 text-sm text-teal-950 dark:border-teal-900 dark:bg-teal-950/30 dark:text-teal-100 sm:mx-4">
+            <p className="font-medium">Recording during a scheduled visit</p>
+            <p className="mt-1 text-xs text-teal-900/80 dark:text-teal-200">
+              New observations will be linked to this rota visit.
+            </p>
+            {visitSearch.returnTo ? (
+              <Button type="button" variant="outline" size="sm" className="mt-2" asChild>
+                <Link to={visitSearch.returnTo}>Back to visit workspace</Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-2 px-3 py-3 sm:px-4 sm:py-4">

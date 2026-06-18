@@ -10,10 +10,15 @@ import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
 import { ScheduleJobNotesDialog } from '@/features/scheduling/components/ScheduleJobNotesDialog'
 import { ScheduleJobCompleteDialog } from '@/features/scheduling/components/ScheduleJobCompleteDialog'
+import { ScheduleVisitWorkspaceSheet } from '@/features/scheduling/components/ScheduleVisitWorkspaceSheet'
+import type { ScheduleVisitWorkspaceTab } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
+import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
 import { ScheduleJobsGantt } from '@/features/scheduling/components/ScheduleJobsGantt'
 import { ScheduleJobsToolbar } from '@/features/scheduling/components/ScheduleJobsToolbar'
 import { ScheduleRunsPanel } from '@/features/scheduling/components/ScheduleRunsPanel'
 import { ScheduleRunCreateDialog } from '@/features/scheduling/components/ScheduleRunCreateDialog'
+import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
+import { useScheduleRunEditDialog } from '@/features/scheduling/hooks/useScheduleRunEditDialog'
 import { useScheduleDayRuns, useScheduleEmployeesDay, useScheduleServiceUsersWeek } from '@/features/scheduling/hooks/useScheduling'
 import {
   useAllocateJob,
@@ -116,6 +121,9 @@ export default function ScheduleJobsPage() {
     serviceUserId?: string
     requiredCarers?: string
     layout?: string
+    visitAction?: 'complete' | 'notes' | 'allocate' | 'workspace'
+    actionJobId?: string
+    visitTab?: ScheduleVisitWorkspaceTab
   }
   const [date, setDate] = React.useState(search.date ?? todayIso())
   const [layout, setLayout] = React.useState<ScheduleJobsLayout>(() => parseScheduleJobsLayout(search.layout))
@@ -134,6 +142,9 @@ export default function ScheduleJobsPage() {
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [completeJobTarget, setCompleteJobTarget] = React.useState<TimelineJob | null>(null)
   const [completeOpen, setCompleteOpen] = React.useState(false)
+  const [workspaceJob, setWorkspaceJob] = React.useState<TimelineJob | null>(null)
+  const [workspaceOpen, setWorkspaceOpen] = React.useState(false)
+  const [workspaceTab, setWorkspaceTab] = React.useState<ScheduleVisitWorkspaceTab>('overview')
   const [savingJobId, setSavingJobId] = React.useState<string | null>(null)
   const [jobOutcomeFilters, setJobOutcomeFilters] = React.useState(
     () => new Set(DEFAULT_SCHEDULE_JOB_OUTCOME_FILTERS),
@@ -392,6 +403,78 @@ export default function ScheduleJobsPage() {
 
   const { employeeRows, unassignedJobs } = filteredBoard
   const allJobs = board.allJobs
+
+  const openVisitWorkspace = React.useCallback(
+    (job: TimelineJob, tab: ScheduleVisitWorkspaceTab = 'overview') => {
+      setWorkspaceJob(job)
+      setWorkspaceTab(tab)
+      setWorkspaceOpen(true)
+    },
+    [],
+  )
+
+  const resolveJobForAction = React.useCallback(
+    async (jobId: string): Promise<TimelineJob | null> => {
+      const fromBoard = allJobs.find((row) => row.id === jobId)
+      if (fromBoard) return fromBoard
+      try {
+        return await getScheduledJob(jobId)
+      } catch {
+        return null
+      }
+    },
+    [allJobs],
+  )
+
+  React.useEffect(() => {
+    const jobId = search.actionJobId
+    const action = search.visitAction
+    if (!jobId || !action) return
+
+    let cancelled = false
+    void resolveJobForAction(jobId).then((job) => {
+      if (cancelled || !job) return
+      if (action === 'workspace') {
+        openVisitWorkspace(job, search.visitTab ?? 'overview')
+      } else if (action === 'complete') {
+        setCompleteJobTarget(job)
+        setCompleteOpen(true)
+      } else if (action === 'notes') {
+        setNotesJob(job)
+        setNotesOpen(true)
+      } else if (action === 'allocate') {
+        setAllocateJobId(job.id)
+        setAllocateDialogPanel('allocate')
+        setAllocateOpen(true)
+      }
+      void navigate({
+        to: '/scheduling/schedule-jobs',
+        search: buildScheduleJobsSearch({
+          date,
+          locationId: locationFilterId,
+          serviceUserId: serviceUserFilterId,
+          requiredCarers: requiredCarersFilter,
+          layout,
+        }),
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    search.actionJobId,
+    search.visitAction,
+    search.visitTab,
+    resolveJobForAction,
+    openVisitWorkspace,
+    navigate,
+    date,
+    locationFilterId,
+    serviceUserFilterId,
+    requiredCarersFilter,
+    layout,
+  ])
   const carers = board.carers
 
   const serviceUserIds = React.useMemo(() => {
@@ -500,6 +583,12 @@ export default function ScheduleJobsPage() {
     ])
   }, [date, dayRunsQuery, employeeCatalogQuery, employeesQuery, queryClient, weekTimelineQuery])
 
+  const runEdit = useScheduleRunEditDialog({
+    date,
+    travelBufferMinutes,
+    onChanged: () => void refreshBoard(),
+  })
+
   const openAllocate = React.useCallback(
     (job: TimelineJob, panel: ScheduleJobAllocateDialogPanel = 'allocate') => {
       setAllocateJobId(job.id)
@@ -536,7 +625,9 @@ export default function ScheduleJobsPage() {
       if (
         readOnly &&
         action !== 'allocate-employees' &&
-        action !== 'add-notes'
+        action !== 'add-notes' &&
+        action !== 'open-visit-workspace' &&
+        action !== 'open-run'
       ) {
         return
       }
@@ -547,6 +638,12 @@ export default function ScheduleJobsPage() {
       }
 
       switch (action) {
+        case 'open-visit-workspace':
+          openVisitWorkspace(job)
+          return
+        case 'open-run':
+          if (job.scheduleRunId) runEdit.openEditRunById(job.scheduleRunId)
+          return
         case 'unallocate-job':
           void handleUnallocateJob(job)
           return
@@ -584,7 +681,7 @@ export default function ScheduleJobsPage() {
           return
       }
     },
-    [cancelJob, handleUnallocateJob, openAllocate, refreshBoard],
+    [cancelJob, handleUnallocateJob, openAllocate, openVisitWorkspace, refreshBoard, runEdit.openEditRunById],
   )
 
   const handleRefresh = () => {
@@ -855,6 +952,7 @@ export default function ScheduleJobsPage() {
           travelBufferMinutes={travelBufferMinutes}
           onJobClick={openAllocate}
           onJobAction={handleJobAction}
+          onOpenRun={runEdit.openEditRunById}
           onJobDrop={handleJobDrop}
           onJobsSelectedForRun={(jobs) => {
             setCreateRunJobs(jobs)
@@ -878,6 +976,31 @@ export default function ScheduleJobsPage() {
         visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
         onAllocated={() => {
           void refreshBoard()
+        }}
+      />
+
+      <ScheduleVisitWorkspaceSheet
+        open={workspaceOpen}
+        onOpenChange={(open) => {
+          setWorkspaceOpen(open)
+          if (!open) setWorkspaceJob(null)
+        }}
+        job={workspaceJob}
+        date={date}
+        defaultTab={workspaceTab}
+        onCompleteVisit={(job) => {
+          setWorkspaceOpen(false)
+          setCompleteJobTarget(job)
+          setCompleteOpen(true)
+        }}
+        onAddNotes={(job) => {
+          setWorkspaceOpen(false)
+          setNotesJob(job)
+          setNotesOpen(true)
+        }}
+        onAllocate={(job) => {
+          setWorkspaceOpen(false)
+          openAllocate(job, 'allocate')
         }}
       />
 
@@ -922,6 +1045,8 @@ export default function ScheduleJobsPage() {
           void refreshBoard()
         }}
       />
+
+      <ScheduleRunEditDialog {...runEdit.dialogProps} />
     </div>
   )
 }

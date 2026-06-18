@@ -15,6 +15,7 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/medication'
     | '/service-users/$serviceUserId/observations'
     | '/service-users/$serviceUserId/body-map'
+    | '/service-users/$serviceUserId/documents'
 }
 
 /** Light circle behind glyph exports that omit a filled disc (meds includes its own). */
@@ -24,6 +25,7 @@ const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = 
   'visit-plan': null,
   'care-plan': '#E9F7FE',
   meds: null,
+  documents: '#FEF9E8',
   history: '#EDF3FE',
   'body-map': '#F1F2F3',
   alerts: '#FEEEEE',
@@ -51,6 +53,11 @@ const MODULE_TABS: ModuleTab[] = [
     label: 'Meds',
     to: '/service-users/$serviceUserId/medication',
   },
+  {
+    id: 'documents',
+    label: 'Documents',
+    to: '/service-users/$serviceUserId/documents',
+  },
   { id: 'history', label: 'History' },
   {
     id: 'body-map',
@@ -67,6 +74,7 @@ function isTabActive(tab: ModuleTab, pathname: string): boolean {
   if (tab.id === 'visit-plan') return pathname.includes('/visit-plan')
   if (tab.id === 'care-plan') return pathname.includes('/care-plan')
   if (tab.id === 'body-map') return pathname.includes('/body-map')
+  if (tab.id === 'documents') return pathname.includes('/documents')
   return false
 }
 

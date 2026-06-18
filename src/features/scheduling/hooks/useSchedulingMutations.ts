@@ -33,18 +33,21 @@ export function useCompleteHousekeepingJob() {
   return useMutation({
     mutationFn: ({
       jobId,
+      status,
       notes,
       deliveredCarePlanFormIds,
       actualStartDateTime,
       actualEndDateTime,
     }: {
       jobId: string
+      status?: string
       notes?: string
       deliveredCarePlanFormIds?: string[]
       actualStartDateTime?: string
       actualEndDateTime?: string
     }) =>
       completeHousekeepingJob(jobId, {
+        status,
         notes,
         deliveredCarePlanFormIds,
         actualStartDateTime,

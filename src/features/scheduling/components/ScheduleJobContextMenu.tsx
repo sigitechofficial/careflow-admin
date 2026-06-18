@@ -41,6 +41,14 @@ export function ScheduleJobContextMenu({ job, children, tooltip, onAction }: Pro
     <ContextMenu>
       {trigger}
       <ContextMenuContent className="min-w-[11rem]">
+        <ContextMenuItem onSelect={() => onAction(job, 'open-visit-workspace')}>
+          Open visit workspace
+        </ContextMenuItem>
+        {job.scheduleRunId ? (
+          <ContextMenuItem onSelect={() => onAction(job, 'open-run')}>
+            Open run{job.scheduleRun?.name ? ` (${job.scheduleRun.name})` : ''}
+          </ContextMenuItem>
+        ) : null}
         {readOnly ? (
           <>
             <ContextMenuItem onSelect={() => onAction(job, 'allocate-employees')}>

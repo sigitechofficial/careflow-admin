@@ -7,7 +7,6 @@ import {
   Calendar,
   CalendarOff,
   ClipboardList,
-  FileText,
   Heart,
   HelpCircle,
   Home,
@@ -37,7 +36,6 @@ import { ServiceUserContactsTab } from '@/features/service-users/components/Serv
 import { ServiceUserAboutMeForm } from '@/features/service-users/components/ServiceUserAboutMeForm'
 import { ServiceUserInventoryTab } from '@/features/service-users/components/ServiceUserInventoryTab'
 import { ServiceUserAllergiesTab } from '@/features/service-users/components/ServiceUserAllergiesTab'
-import { ServiceUserDocumentsTab } from '@/features/service-users/components/ServiceUserDocumentsTab'
 import { ServiceUserAbsencesTab } from '@/features/service-users/components/ServiceUserAbsencesTab'
 import { ServiceUserDomCareTab } from '@/features/service-users/components/ServiceUserDomCareTab'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
@@ -54,7 +52,6 @@ const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'photos', label: 'Photographs', Icon: Images },
   { id: 'inventory', label: 'Personal Inventory', Icon: Package },
   { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
-  { id: 'documents', label: 'Documents', Icon: FileText },
   { id: 'absences', label: 'Record Absences', Icon: CalendarOff },
   { id: 'calendar', label: 'Calendar', Icon: Calendar },
   { id: 'privacy', label: 'Privacy', Icon: Shield },
@@ -316,9 +313,6 @@ export default function EditServiceUserPage() {
             </TabsContent>
             <TabsContent value="allergies" className="mt-6">
               <ServiceUserAllergiesTab serviceUserId={serviceUserId} allergyCatalog={lookups?.allergies ?? []} />
-            </TabsContent>
-            <TabsContent value="documents" className="mt-6">
-              <ServiceUserDocumentsTab serviceUserId={serviceUserId} />
             </TabsContent>
             <TabsContent value="absences" className="mt-6">
               <ServiceUserAbsencesTab

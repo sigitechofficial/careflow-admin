@@ -6,6 +6,13 @@ import { Button } from '@/shared/ui/button'
 import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
+import {
   Dialog,
   DialogBody,
   DialogContent,
@@ -36,6 +43,14 @@ import {
   isoToLocalTimeInput,
   jobScheduleDateIso,
 } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import {
+  defaultScheduleJobVisitOutcome,
+  SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS,
+  scheduleJobVisitOutcomeRequiresCarePlans,
+  scheduleJobVisitOutcomeRequiresTimes,
+  scheduleJobVisitOutcomeSaveLabel,
+} from '@/features/scheduling/utils/schedule-job-visit-outcome.util'
+import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
 type Props = {
   open: boolean
@@ -55,6 +70,7 @@ export function ScheduleJobCompleteDialog({
   const completeJob = useCompleteHousekeepingJob()
   const [notes, setNotes] = React.useState('')
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
+  const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
   const [actualEndTime, setActualEndTime] = React.useState('')
 
@@ -92,6 +108,7 @@ export function ScheduleJobCompleteDialog({
     if (!open || !job) return
     setNotes(job.notes?.trim() ?? '')
     setDeliveredIds([])
+    setVisitStatus(defaultScheduleJobVisitOutcome(job))
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
     )
@@ -104,27 +121,37 @@ export function ScheduleJobCompleteDialog({
           ).toISOString(),
         ),
     )
-  }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime])
+  }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits])
 
   React.useEffect(() => {
     if (!open || !job || acceptedQuery.isLoading) return
     setDeliveredIds(defaultDeliveredCarePlanIds(job, carePlanOptions))
   }, [open, job, acceptedQuery.isLoading, carePlanOptions])
 
+  const requiresTimes = scheduleJobVisitOutcomeRequiresTimes(visitStatus)
+  const requiresCarePlans = scheduleJobVisitOutcomeRequiresCarePlans(visitStatus)
+  const saveLabel = scheduleJobVisitOutcomeSaveLabel(visitStatus)
+
+  const actualStartDateTime = React.useMemo(() => {
+    if (!scheduleDateIso || !actualStartTime || !/^\d{2}:\d{2}$/.test(actualStartTime)) return undefined
+    const start = new Date(`${scheduleDateIso}T${actualStartTime}:00`)
+    return Number.isNaN(start.getTime()) ? undefined : start.toISOString()
+  }, [actualStartTime, scheduleDateIso])
+
   const handleComplete = async () => {
     if (!job) return
     if (jobNeedsCarerAssignment(job)) {
       toastWarning(
         'Assign carers first',
-        `Allocate ${job.requiredCarers} carer${job.requiredCarers === 1 ? '' : 's'} before completing this visit.`,
+        `Allocate ${job.requiredCarers} carer${job.requiredCarers === 1 ? '' : 's'} before recording this visit.`,
       )
       return
     }
-    if (!actualStartTime || !actualEndTime || !actualDateTimes) {
-      toastWarning('Enter visit times', 'Actual start and end times are required to complete this job.')
+    if (requiresTimes && (!actualStartTime || !actualEndTime || !actualDateTimes)) {
+      toastWarning('Enter visit times', 'Actual start and end times are required for this visit status.')
       return
     }
-    if (deliveredIds.length === 0) {
+    if (requiresCarePlans && deliveredIds.length === 0) {
       toastWarning(
         'Select care plans',
         'Tick at least one care plan delivered on this visit, or add a note explaining why none apply.',
@@ -134,16 +161,21 @@ export function ScheduleJobCompleteDialog({
     try {
       await completeJob.mutateAsync({
         jobId: job.id,
+        status: visitStatus,
         notes: notes.trim() || undefined,
-        deliveredCarePlanFormIds: deliveredIds,
-        actualStartDateTime: actualDateTimes.scheduledStartDateTime,
-        actualEndDateTime: actualDateTimes.scheduledEndDateTime,
+        deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
+        actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
+        actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
       })
-      toastSuccess('Job completed')
+      toastSuccess(
+        visitStatus === 'COMPLETED' ? 'Job completed' : 'Visit saved',
+        SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)?.label ??
+          'Visit details recorded.',
+      )
       onCompleted?.()
       onOpenChange(false)
     } catch (error) {
-      toastApiError(error, 'Could not complete job')
+      toastApiError(error, 'Could not save visit')
     }
   }
 
@@ -154,7 +186,7 @@ export function ScheduleJobCompleteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>Complete visit</DialogTitle>
+          <DialogTitle>Record visit</DialogTitle>
           <DialogDescription>
             {job ? (
               <>
@@ -162,7 +194,7 @@ export function ScheduleJobCompleteDialog({
                 {visitLabel ? ` · ${visitLabel}` : ''} · {formatJobTimeRange(job)}
               </>
             ) : (
-              'Record care delivered and complete this job.'
+              'Record visit outcome, times, and care delivered.'
             )}
           </DialogDescription>
         </DialogHeader>
@@ -175,13 +207,41 @@ export function ScheduleJobCompleteDialog({
             />
           ) : null}
 
+          <section className="space-y-2">
+            <Label className="text-sm font-semibold text-foreground">Visit status</Label>
+            <Select
+              value={visitStatus}
+              onValueChange={(value) => setVisitStatus(value as VisitPlanCalendarOutcomeStatus)}
+              disabled={busy}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)
+                ?.description}
+            </p>
+          </section>
+
           <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" aria-hidden />
               <h4 className="text-sm font-semibold text-foreground">Actual visit times</h4>
             </div>
             <p className="text-xs text-muted-foreground">
-              Record when the visit started and ended. Defaults to the scheduled rota times.
+              {visitStatus === 'STARTED'
+                ? 'Record when the visit started. End time is optional until the visit is completed.'
+                : requiresTimes
+                  ? 'Record when the visit started and ended.'
+                  : 'Optional — add actual times if known.'}
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -213,32 +273,34 @@ export function ScheduleJobCompleteDialog({
             </div>
             {actualDurationMinutes != null ? (
               <p className="text-xs text-muted-foreground">Duration: {actualDurationMinutes} min</p>
-            ) : (
+            ) : requiresTimes ? (
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 Enter a valid start and end time (minimum 5 minutes).
               </p>
-            )}
+            ) : null}
           </section>
 
-          <section className="space-y-2">
-            <Label className="text-sm font-semibold text-foreground">Care plans delivered</Label>
-            <p className="text-xs text-muted-foreground">
-              Select which accepted care plans were delivered on this visit.
-            </p>
-            {acceptedQuery.isLoading ? (
-              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading care plans…
-              </div>
-            ) : (
-              <ScheduleJobDeliveredCarePlans
-                options={carePlanOptions}
-                selectedIds={deliveredIds}
-                disabled={busy}
-                onChange={setDeliveredIds}
-              />
-            )}
-          </section>
+          {requiresCarePlans ? (
+            <section className="space-y-2">
+              <Label className="text-sm font-semibold text-foreground">Care plans delivered</Label>
+              <p className="text-xs text-muted-foreground">
+                Select which accepted care plans were delivered on this visit.
+              </p>
+              {acceptedQuery.isLoading ? (
+                <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading care plans…
+                </div>
+              ) : (
+                <ScheduleJobDeliveredCarePlans
+                  options={carePlanOptions}
+                  selectedIds={deliveredIds}
+                  disabled={busy}
+                  onChange={setDeliveredIds}
+                />
+              )}
+            </section>
+          ) : null}
 
           <section className="space-y-2">
             <Label htmlFor="schedule-job-complete-notes" className="text-sm font-semibold text-foreground">
@@ -263,10 +325,10 @@ export function ScheduleJobCompleteDialog({
             {busy ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Completing…
+                Saving…
               </>
             ) : (
-              'Complete job'
+              saveLabel
             )}
           </Button>
         </DialogFooter>

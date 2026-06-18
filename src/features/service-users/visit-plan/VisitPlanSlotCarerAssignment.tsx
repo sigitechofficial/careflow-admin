@@ -6,6 +6,7 @@ import { Checkbox, RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-control
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
+import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type {
   VisitPlanCarerCandidate,
   VisitPlanCarerFit,
@@ -191,6 +192,13 @@ export function VisitPlanSlotCarerAssignment({
     return [...byId.values()]
   }, [assignedIds, candidates, employeeNameById])
 
+  const showBlockedCarers = useShowBlockedCarersInSchedule()
+
+  const visibleCandidates = React.useMemo(() => {
+    if (showBlockedCarers) return displayCandidates
+    return displayCandidates.filter((c) => !c.isBlocked)
+  }, [displayCandidates, showBlockedCarers])
+
   const singleSelectValue = maxCarers === 1 ? (assignedIds[0] ?? '') : undefined
 
   return (
@@ -283,13 +291,13 @@ export function VisitPlanSlotCarerAssignment({
             value={singleSelectValue}
             onValueChange={(employeeId) => {
               if (disabled) return
-              const candidate = displayCandidates.find((c) => c.employeeId === employeeId)
+              const candidate = visibleCandidates.find((c) => c.employeeId === employeeId)
               if (candidate?.isBlocked) return
               onChange(employeeId ? [employeeId] : [])
             }}
             className="space-y-2"
           >
-            {displayCandidates.map((c) => {
+            {visibleCandidates.map((c) => {
               const blocked = c.isBlocked
               return (
                 <li
@@ -316,7 +324,7 @@ export function VisitPlanSlotCarerAssignment({
             })}
           </RadioGroup>
         ) : (
-          displayCandidates.map((c) => {
+          visibleCandidates.map((c) => {
             const checked = selected.has(c.employeeId)
             const blocked = c.isBlocked
             const atLimit = !checked && selected.size >= maxCarers

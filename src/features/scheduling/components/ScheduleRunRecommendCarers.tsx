@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { Loader2, Sparkles, Star, UserPlus } from 'lucide-react'
+import { Loader2, Sparkles, Star, UserPlus, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
 import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
 import { buildScheduleJobSuggestCarersRequest } from '@/features/scheduling/utils/schedule-job-recommend-carers.util'
@@ -38,6 +39,7 @@ export function ScheduleRunRecommendCarers({
   open,
   onOpenChange,
 }: Props) {
+  const showBlockedCarers = useShowBlockedCarersInSchedule()
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [candidates, setCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
@@ -67,9 +69,17 @@ export function ScheduleRunRecommendCarers({
   const recommendations = React.useMemo(
     () =>
       candidates
-        .filter((c) => !c.hasRotaConflict)
+        .filter((c) => {
+          if (c.isBlocked && !showBlockedCarers) return false
+          return !c.hasRotaConflict
+        })
+        .sort((a, b) => {
+          if (a.isPreferred !== b.isPreferred) return a.isPreferred ? -1 : 1
+          if (a.isBlocked !== b.isBlocked) return a.isBlocked ? 1 : -1
+          return 0
+        })
         .slice(0, 8),
-    [candidates],
+    [candidates, showBlockedCarers],
   )
 
   if (!open) return null
@@ -155,6 +165,12 @@ export function ScheduleRunRecommendCarers({
                     <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
                       <Star className="h-3 w-3" fill="currentColor" aria-hidden />
                       Preferred
+                    </span>
+                  ) : null}
+                  {blocked ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-700 dark:text-red-300">
+                      <UserX className="h-3 w-3" aria-hidden />
+                      Blocked
                     </span>
                   ) : null}
                 </div>

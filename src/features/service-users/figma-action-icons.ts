@@ -100,6 +100,7 @@ export type ServiceUserModuleTabIconId =
   | 'visit-plan'
   | 'care-plan'
   | 'meds'
+  | 'documents'
   | 'history'
   | 'body-map'
   | 'alerts'
@@ -110,6 +111,7 @@ export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, s
   'visit-plan': `${moduleTabsBase}/visit-plan.svg`,
   'care-plan': `${moduleTabsBase}/care-plan.svg`,
   meds: `${moduleTabsBase}/meds.svg`,
+  documents: `${moduleTabsBase}/documents.svg`,
   history: `${moduleTabsBase}/history.svg`,
   'body-map': `${moduleTabsBase}/body-map.svg`,
   alerts: `${moduleTabsBase}/alerts.svg`,
