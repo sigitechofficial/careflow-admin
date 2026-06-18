@@ -8,6 +8,8 @@ import type {
   VisitPlanCarerSuggestions,
   VisitPlanSlot,
   VisitPlanSlotCode,
+  VisitPlanSlotCarerAssignment,
+  VisitPlanSlotException,
 } from '@/features/service-users/visit-plan/types'
 
 function isVisitPlan(value: unknown): value is ServiceUserVisitPlan {
@@ -48,15 +50,33 @@ const SLOT_OPTION_DEFAULTS = {
   monthlyPatternWeekday: 1,
   linkedCarePlanFormIds: [] as string[],
   assignedEmployeeIds: [] as string[],
+  slotKind: 'STANDARD' as const,
+  slotEffectiveFrom: null as string | null,
+  slotEffectiveTo: null as string | null,
+  oneOffDate: null as string | null,
+  allowBackfillDays: 0,
+  carerAssignments: [] as VisitPlanSlot['carerAssignments'],
+  exceptions: [] as VisitPlanSlot['exceptions'],
 }
 
 function normalizeSlot(slot: VisitPlanSlot): VisitPlanSlot {
+  const carerAssignments = Array.isArray(slot.carerAssignments) ? slot.carerAssignments : []
+  const exceptions = Array.isArray(slot.exceptions) ? slot.exceptions : []
+  const assignedFromRows = [
+    ...new Set(carerAssignments.map((a) => a.employeeId?.trim()).filter((id): id is string => Boolean(id))),
+  ]
   return {
     ...SLOT_OPTION_DEFAULTS,
     ...slot,
     daysOfWeek: Array.isArray(slot.daysOfWeek) ? slot.daysOfWeek : [],
     linkedCarePlanFormIds: Array.isArray(slot.linkedCarePlanFormIds) ? slot.linkedCarePlanFormIds : [],
-    assignedEmployeeIds: Array.isArray(slot.assignedEmployeeIds) ? slot.assignedEmployeeIds : [],
+    assignedEmployeeIds: assignedFromRows.length
+      ? assignedFromRows
+      : Array.isArray(slot.assignedEmployeeIds)
+        ? slot.assignedEmployeeIds
+        : [],
+    carerAssignments,
+    exceptions,
   }
 }
 
@@ -109,6 +129,13 @@ export type VisitPlanSlotInput = {
   monthlyPatternWeekday?: number | null
   linkedCarePlanFormIds?: string[]
   assignedEmployeeIds?: string[]
+  slotKind?: VisitPlanSlot['slotKind']
+  slotEffectiveFrom?: string | null
+  slotEffectiveTo?: string | null
+  oneOffDate?: string | null
+  allowBackfillDays?: number
+  carerAssignments?: VisitPlanSlotCarerAssignment[]
+  exceptions?: VisitPlanSlotException[]
 }
 
 export async function suggestVisitPlanCarers(
@@ -202,6 +229,40 @@ export async function activateServiceUserVisitPlan(serviceUserId: string, planId
   return plan
 }
 
+export async function suspendServiceUserVisitPlan(
+  serviceUserId: string,
+  planId: string,
+  reason: string,
+  cancelFutureVisits = true,
+) {
+  const res = await apiJson<
+    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+  >(`/service-users/${serviceUserId}/visit-plans/${planId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, cancelFutureVisits }),
+  })
+  const plan = unwrapVisitPlan(res.data)
+  if (!plan) throw new Error('Invalid visit plan response from API')
+  return { plan, scheduleImpact: res.scheduleImpact }
+}
+
+export async function endServiceUserVisitPlan(
+  serviceUserId: string,
+  planId: string,
+  reason: string,
+  cancelFutureVisits = true,
+) {
+  const res = await apiJson<
+    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+  >(`/service-users/${serviceUserId}/visit-plans/${planId}/end`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, cancelFutureVisits }),
+  })
+  const plan = unwrapVisitPlan(res.data)
+  if (!plan) throw new Error('Invalid visit plan response from API')
+  return { plan, scheduleImpact: res.scheduleImpact }
+}
+
 export async function prefillVisitPlanFromDomCare(serviceUserId: string, planId: string) {
   const res = await apiJson<ApiEnvelope<ServiceUserVisitPlan>>(
     `/service-users/${serviceUserId}/visit-plans/${planId}/prefill-dom-care`,
@@ -215,9 +276,17 @@ export async function prefillVisitPlanFromDomCare(serviceUserId: string, planId:
 export async function generateScheduleFromVisitPlan(
   serviceUserId: string,
   planId: string,
-  body: { fromDate: string; toDate: string; scheduleAreaId?: string | null },
+  body: { fromDate: string; toDate: string; scheduleAreaId?: string | null; backfillDays?: number },
 ) {
-  const res = await apiJson<ApiEnvelope<{ visitsCreated: number; visitsSkipped: number; fromDate: string; toDate: string }>>(
+  const res = await apiJson<
+    ApiEnvelope<{
+      visitsCreated: number
+      visitsSkipped: number
+      fromDate: string
+      toDate: string
+      backfillDays?: number
+    }>
+  >(
     `/service-users/${serviceUserId}/visit-plans/${planId}/generate-schedule`,
     { method: 'POST', body: JSON.stringify(body) },
   )

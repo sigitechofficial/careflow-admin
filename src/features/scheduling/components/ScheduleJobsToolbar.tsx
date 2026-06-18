@@ -92,6 +92,9 @@ type Props = {
   jobOutcomeFilters: ReadonlySet<ScheduleJobOutcomeFilter>
   jobOutcomeCounts: Record<ScheduleJobOutcomeFilter, number>
   onToggleJobOutcomeFilter: (filter: ScheduleJobOutcomeFilter) => void
+  operationalIssuesOnly?: boolean
+  operationalIssuesCount?: number
+  onToggleOperationalIssuesOnly?: () => void
   layout: ScheduleJobsLayout
   onLayoutChange: (layout: ScheduleJobsLayout) => void
 }
@@ -201,6 +204,9 @@ export function ScheduleJobsToolbar({
   jobOutcomeFilters,
   jobOutcomeCounts,
   onToggleJobOutcomeFilter,
+  operationalIssuesOnly = false,
+  operationalIssuesCount = 0,
+  onToggleOperationalIssuesOnly,
   layout,
   onLayoutChange,
 }: Props) {
@@ -533,6 +539,22 @@ export function ScheduleJobsToolbar({
                       onToggle={onToggleJobOutcomeFilter}
                     />
                   ))}
+                  {onToggleOperationalIssuesOnly ? (
+                    <button
+                      type="button"
+                      aria-pressed={operationalIssuesOnly}
+                      onClick={onToggleOperationalIssuesOnly}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                        operationalIssuesOnly
+                          ? 'border-amber-500/50 bg-amber-50 text-amber-900 shadow-sm dark:bg-amber-950/40 dark:text-amber-100'
+                          : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50',
+                      )}
+                    >
+                      Issues only
+                      <span className="tabular-nums opacity-80">({operationalIssuesCount})</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </>

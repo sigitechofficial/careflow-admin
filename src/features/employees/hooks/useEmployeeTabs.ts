@@ -3,6 +3,7 @@ import {
   fetchEmployeeSkillsOverview,
   fetchNonCoreActivitiesRegistry,
   listAllEmployees,
+  listEmployeeHolidays,
   listEmployeeNonCoreActivities,
   listEmployeeSkills,
   type ListEmployeesParams,
@@ -41,6 +42,14 @@ export function useEmployeeNonCoreActivities(employeeId: string, enabled = true)
   return useQuery({
     queryKey: employeeKeys.nonCoreActivities(employeeId),
     queryFn: () => listEmployeeNonCoreActivities(employeeId),
+    enabled: enabled && Boolean(employeeId),
+  })
+}
+
+export function useEmployeeHolidays(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: employeeKeys.holidays(employeeId),
+    queryFn: () => listEmployeeHolidays(employeeId),
     enabled: enabled && Boolean(employeeId),
   })
 }

@@ -88,6 +88,9 @@ export type TimelineJob = {
   requiredCarers: number
   allocatedCarers?: number
   underAllocated?: boolean
+  serviceUserAbsent?: boolean
+  carersOnLeave?: string[]
+  needsCover?: boolean
   visitPlan?: VisitPlanJobContext | null
   visits?: Array<{
     id: string

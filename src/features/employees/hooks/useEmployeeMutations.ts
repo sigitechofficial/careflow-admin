@@ -1,16 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   createEmployee,
+  createEmployeeHoliday,
   createEmployeeNonCoreActivity,
   createEmployeeSkill,
   createJobTitle,
+  deleteEmployeeHoliday,
   deleteEmployeeNonCoreActivity,
   deleteEmployeeSkill,
   patchEmployeeStatus,
   patchEmployment,
   patchPersonalDetails,
+  updateEmployeeHoliday,
   updateEmployeeNonCoreActivity,
   uploadEmployeePhoto,
+  type CreateEmployeeHolidayPayload,
   type CreateEmployeePayload,
   type CreateEmployeeSkillPayload,
   type CreateNonCoreActivityPayload,
@@ -244,6 +248,42 @@ export function useDeleteEmployeeNonCoreActivityMutation() {
     onSuccess: (_data, { employeeId }) => {
       void qc.invalidateQueries({ queryKey: employeeKeys.nonCoreActivities(employeeId) })
       void qc.invalidateQueries({ queryKey: employeeKeys.nonCoreRegistry() })
+    },
+  })
+}
+
+export function useCreateEmployeeHoliday(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreateEmployeeHolidayPayload) => createEmployeeHoliday(employeeId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.holidays(employeeId) })
+    },
+  })
+}
+
+export function useUpdateEmployeeHoliday(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      holidayId,
+      body,
+    }: {
+      holidayId: string
+      body: Partial<CreateEmployeeHolidayPayload>
+    }) => updateEmployeeHoliday(employeeId, holidayId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.holidays(employeeId) })
+    },
+  })
+}
+
+export function useDeleteEmployeeHoliday(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (holidayId: string) => deleteEmployeeHoliday(employeeId, holidayId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.holidays(employeeId) })
     },
   })
 }

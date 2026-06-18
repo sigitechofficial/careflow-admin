@@ -13,6 +13,7 @@ import type {
   VisitPlanSlot,
 } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
+import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 
 function fitStyles(fit: VisitPlanCarerFit) {
   if (fit === 'good') return 'border-emerald-300 bg-emerald-50/60 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100'
@@ -100,7 +101,7 @@ export function VisitPlanSlotCarerAssignment({
   const [candidates, setCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
   const [requiredSkills, setRequiredSkills] = React.useState<string[]>([])
 
-  const assignedIds = slot.assignedEmployeeIds ?? []
+  const assignedIds = slotAssignedEmployeeIds(slot)
   const selected = new Set(assignedIds)
   const maxCarers = slot.requiredCarers || 1
   const employeeNameById = useEmployeeNameMap(assignedIds)

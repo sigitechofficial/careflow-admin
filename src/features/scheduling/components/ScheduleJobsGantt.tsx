@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Car, Clock, Users, UserX } from 'lucide-react'
+import { Car, Clock, Users, UserX, AlertTriangle, BedDouble } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { useScheduleJobsDrag } from '@/features/scheduling/hooks/useScheduleJobsDrag'
@@ -150,6 +150,8 @@ function ScheduleJobBlock({
     (runDisplayPreferences?.showDoubleUpIcon ?? true) && job.requiredCarers > 1
   const showTravelIcon =
     (runDisplayPreferences?.showTravelMethodIcons ?? false) && Boolean(job.scheduleRunId)
+  const showOperationalBadges =
+    job.serviceUserAbsent || (job.carersOnLeave?.length ?? 0) > 0 || job.needsCover
 
   const block = (
     <div
@@ -231,6 +233,19 @@ function ScheduleJobBlock({
             {showTravelIcon ? <Car className="h-3 w-3 opacity-70" aria-hidden /> : null}
           </span>
         )}
+        {showOperationalBadges ? (
+          <span className="flex shrink-0 flex-col gap-0.5">
+            {job.serviceUserAbsent ? (
+              <BedDouble className="h-3 w-3 text-rose-600" aria-label="Client absent" title="Client absent" />
+            ) : null}
+            {(job.carersOnLeave?.length ?? 0) > 0 ? (
+              <Clock className="h-3 w-3 text-amber-600" aria-label="Carer on leave" title="Carer on leave" />
+            ) : null}
+            {job.needsCover && !job.serviceUserAbsent ? (
+              <AlertTriangle className="h-3 w-3 text-sky-600" aria-label="Needs cover" title="Needs cover" />
+            ) : null}
+          </span>
+        ) : null}
         <span className="relative z-[1] min-w-0 flex-1">
           {labelLines.slice(0, runDisplayPreferences?.linesOfData ?? 1).map((line, index) => (
             <span

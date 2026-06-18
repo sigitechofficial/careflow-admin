@@ -11,6 +11,34 @@ export type VisitPlanMonthlyDayMode = 'BY_DATE' | 'BY_PATTERN'
 
 export type VisitPlanMonthlyOrdinal = 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST'
 
+export type VisitPlanSlotKind = 'STANDARD' | 'OVERNIGHT' | 'ONE_OFF'
+
+export type VisitPlanSlotCarerRole = 'LEAD' | 'SECONDARY'
+
+export type VisitPlanSlotExceptionType = 'SKIP' | 'EXTRA'
+
+export type VisitPlanSlotCarerAssignment = {
+  id?: string
+  dayOfWeek: number | null
+  employeeId: string
+  role: VisitPlanSlotCarerRole
+  durationMinutes: number | null
+  plannedStartTime: string | null
+  plannedEndTime: string | null
+  sortOrder: number
+}
+
+export type VisitPlanSlotException = {
+  id?: string
+  exceptionDate: string
+  exceptionType: VisitPlanSlotExceptionType
+  plannedStartTime?: string | null
+  plannedEndTime?: string | null
+  durationMinutes?: number | null
+  requiredCarers?: number | null
+  notes?: string
+}
+
 export type VisitPlanSlot = {
   id?: string
   slotCode: VisitPlanSlotCode
@@ -39,6 +67,13 @@ export type VisitPlanSlot = {
   monthlyPatternWeekday: number | null
   linkedCarePlanFormIds: string[]
   assignedEmployeeIds: string[]
+  slotKind: VisitPlanSlotKind
+  slotEffectiveFrom: string | null
+  slotEffectiveTo: string | null
+  oneOffDate: string | null
+  allowBackfillDays: number
+  carerAssignments: VisitPlanSlotCarerAssignment[]
+  exceptions: VisitPlanSlotException[]
 }
 
 export type VisitPlanCarerFit = 'good' | 'partial' | 'poor'

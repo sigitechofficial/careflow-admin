@@ -35,6 +35,13 @@ const SLOT_OPTION_DEFAULTS: Omit<
   monthlyPatternWeekday: 1,
   linkedCarePlanFormIds: [],
   assignedEmployeeIds: [],
+  slotKind: 'STANDARD',
+  slotEffectiveFrom: null,
+  slotEffectiveTo: null,
+  oneOffDate: null,
+  allowBackfillDays: 0,
+  carerAssignments: [],
+  exceptions: [],
 }
 
 const LEGACY_SLOT_TO_ROUND: Record<string, string> = {
@@ -111,6 +118,13 @@ export function visitPlanSlotsFromMedicationRounds(
         prev?.monthlyPatternWeekday ?? SLOT_OPTION_DEFAULTS.monthlyPatternWeekday,
       linkedCarePlanFormIds: prev?.linkedCarePlanFormIds ?? [],
       assignedEmployeeIds: prev?.assignedEmployeeIds ?? [],
+      slotKind: prev?.slotKind ?? SLOT_OPTION_DEFAULTS.slotKind,
+      slotEffectiveFrom: prev?.slotEffectiveFrom ?? SLOT_OPTION_DEFAULTS.slotEffectiveFrom,
+      slotEffectiveTo: prev?.slotEffectiveTo ?? SLOT_OPTION_DEFAULTS.slotEffectiveTo,
+      oneOffDate: prev?.oneOffDate ?? SLOT_OPTION_DEFAULTS.oneOffDate,
+      allowBackfillDays: prev?.allowBackfillDays ?? SLOT_OPTION_DEFAULTS.allowBackfillDays,
+      carerAssignments: prev?.carerAssignments ?? SLOT_OPTION_DEFAULTS.carerAssignments,
+      exceptions: prev?.exceptions ?? SLOT_OPTION_DEFAULTS.exceptions,
     }
   })
 }

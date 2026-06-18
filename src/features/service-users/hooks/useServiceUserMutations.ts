@@ -299,6 +299,7 @@ export function useCreateServiceUserAbsence(serviceUserId: string) {
       createServiceUserAbsence(serviceUserId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.absences(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: ['scheduling'] })
     },
   })
 }

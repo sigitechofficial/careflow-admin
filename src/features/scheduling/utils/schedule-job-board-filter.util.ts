@@ -62,3 +62,29 @@ export function applyScheduleJobOutcomeFilters(
 
   return { employeeRows, carers, unassignedJobs, allJobs }
 }
+
+export function jobHasOperationalIssue(job: TimelineJob): boolean {
+  return Boolean(
+    job.serviceUserAbsent || job.needsCover || (job.carersOnLeave?.length ?? 0) > 0,
+  )
+}
+
+export function countScheduleJobsWithOperationalIssues(jobs: TimelineJob[]): number {
+  return jobs.filter(jobHasOperationalIssue).length
+}
+
+export function applyScheduleJobOperationalIssuesFilter(
+  board: ScheduleJobsBoard,
+  issuesOnly: boolean,
+): ScheduleJobsBoard {
+  if (!issuesOnly) return board
+  const visible = (job: TimelineJob) => jobHasOperationalIssue(job)
+  const employeeRows = board.employeeRows.map((row) => ({
+    ...row,
+    allocations: row.allocations.filter((allocation) => visible(allocation.job)),
+  }))
+  const unassignedJobs = board.unassignedJobs.filter(visible)
+  const allJobs = board.allJobs.filter(visible)
+  const carers = employeeRows.filter((row) => row.allocations.length > 0)
+  return { employeeRows, carers, unassignedJobs, allJobs }
+}

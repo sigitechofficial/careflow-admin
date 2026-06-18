@@ -8,6 +8,7 @@ export type EditEmployeeTabId =
   | 'staff-reviews'
   | 'documents'
   | 'non-core-activity'
+  | 'holidays'
   | 'working-pattern'
   | 'employment-compliance'
 
@@ -18,6 +19,7 @@ export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
   { id: 'staff-reviews', label: 'Staff Reviews' },
   { id: 'documents', label: 'Documents' },
   { id: 'non-core-activity', label: 'Non Core Activities' },
+  { id: 'holidays', label: 'Holidays & Leave' },
   { id: 'working-pattern', label: 'Working Pattern' },
   { id: 'employment-compliance', label: 'Employment Compliance' },
 ]

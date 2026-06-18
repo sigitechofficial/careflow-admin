@@ -134,7 +134,7 @@ export function ScheduleJobCompleteDialog({
 
   const actualStartDateTime = React.useMemo(() => {
     if (!scheduleDateIso || !actualStartTime || !/^\d{2}:\d{2}$/.test(actualStartTime)) return undefined
-    const start = new Date(`${scheduleDateIso}T${actualStartTime}:00`)
+    const start = new Date(`${scheduleDateIso}T${actualStartTime}:00.000Z`)
     return Number.isNaN(start.getTime()) ? undefined : start.toISOString()
   }, [actualStartTime, scheduleDateIso])
 

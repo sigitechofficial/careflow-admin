@@ -28,6 +28,7 @@ import { EmployeeWeeklyPatternEditor } from '@/features/employees/components/Emp
 import { EditEmployeeTabBar, type EditEmployeeTabId } from '@/features/employees/components/EditEmployeeTabBar'
 import { EmployeeEditSkillsPanel } from '@/features/employees/components/EmployeeEditSkillsPanel'
 import { EmployeeEditNonCorePanel } from '@/features/employees/components/EmployeeEditNonCorePanel'
+import { EmployeeEditHolidaysPanel } from '@/features/employees/components/EmployeeEditHolidaysPanel'
 import { EmployeeEditCompliancePanel } from '@/features/employees/components/EmployeeEditCompliancePanel'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
 import {
@@ -2125,6 +2126,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
             {isEditMode && editTab === 'non-core-activity' && editEmployeeId ? (
               <EmployeeEditNonCorePanel employeeId={editEmployeeId} />
+            ) : null}
+
+            {isEditMode && editTab === 'holidays' && editEmployeeId ? (
+              <EmployeeEditHolidaysPanel employeeId={editEmployeeId} />
             ) : null}
 
             {isEditMode && editTab === 'employment-compliance' && editEmployeeId ? (

@@ -450,6 +450,12 @@ export async function deleteEmployeeSkill(employeeId: string, skillId: string): 
 
 /* ─── Employee non-core activities ───────────────────────────── */
 
+export type ScheduleImpactSummary = {
+  jobsCancelled: number
+  jobsUnallocated: number
+  jobIds: string[]
+}
+
 export type NonCoreActivityRegistryRow = {
   id: string
   employeeId: string
@@ -497,17 +503,20 @@ export type CreateNonCoreActivityPayload = {
   includeInPayroll?: boolean
   onCallForPeriod?: boolean
   notes?: string
+  applyToSchedule?: boolean
 }
 
 export async function createEmployeeNonCoreActivity(
   employeeId: string,
   body: CreateNonCoreActivityPayload,
-): Promise<EmployeeNonCoreActivityRow> {
-  const res = await apiJson<ApiEnvelope<EmployeeNonCoreActivityRow>>(`/employees/${employeeId}/non-core-activities`, {
+): Promise<{ data: EmployeeNonCoreActivityRow; scheduleImpact?: ScheduleImpactSummary }> {
+  const res = await apiJson<
+    ApiEnvelope<EmployeeNonCoreActivityRow> & { scheduleImpact?: ScheduleImpactSummary }
+  >(`/employees/${employeeId}/non-core-activities`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return res.data
+  return { data: res.data, scheduleImpact: res.scheduleImpact }
 }
 
 export async function updateEmployeeNonCoreActivity(
@@ -524,6 +533,72 @@ export async function updateEmployeeNonCoreActivity(
 
 export async function deleteEmployeeNonCoreActivity(employeeId: string, activityId: string): Promise<void> {
   await apiJson(`/employees/${employeeId}/non-core-activities/${activityId}`, { method: 'DELETE' })
+}
+
+/* ─── Employee holidays ──────────────────────────────────────── */
+
+export type EmployeeHolidayRow = {
+  id: string
+  employeeId: string
+  startDate: string
+  endDate: string
+  notes: string | null
+}
+
+export type CreateEmployeeHolidayPayload = {
+  startDate: string
+  endDate: string
+  notes?: string
+  applyToSchedule?: boolean
+}
+
+export async function listEmployeeHolidays(employeeId: string): Promise<EmployeeHolidayRow[]> {
+  const res = await apiJson<ApiEnvelope<EmployeeHolidayRow[]>>(`/employees/${employeeId}/holidays`, {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createEmployeeHoliday(
+  employeeId: string,
+  body: CreateEmployeeHolidayPayload,
+): Promise<{ data: EmployeeHolidayRow; scheduleImpact?: ScheduleImpactSummary }> {
+  const res = await apiJson<
+    ApiEnvelope<EmployeeHolidayRow> & { scheduleImpact?: ScheduleImpactSummary }
+  >(`/employees/${employeeId}/holidays`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return { data: res.data, scheduleImpact: res.scheduleImpact }
+}
+
+export async function updateEmployeeHoliday(
+  employeeId: string,
+  holidayId: string,
+  body: Partial<CreateEmployeeHolidayPayload>,
+): Promise<EmployeeHolidayRow> {
+  const res = await apiJson<ApiEnvelope<EmployeeHolidayRow>>(
+    `/employees/${employeeId}/holidays/${holidayId}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteEmployeeHoliday(employeeId: string, holidayId: string): Promise<void> {
+  await apiJson(`/employees/${employeeId}/holidays/${holidayId}`, { method: 'DELETE' })
+}
+
+export async function previewEmployeeScheduleImpact(
+  employeeId: string,
+  params: { startDate: string; endDate?: string },
+): Promise<ScheduleImpactSummary> {
+  const qs = new URLSearchParams({ startDate: params.startDate })
+  if (params.endDate?.trim()) qs.set('endDate', params.endDate.trim())
+  const res = await apiJson<ApiEnvelope<ScheduleImpactSummary>>(
+    `/employees/${employeeId}/schedule-impact-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
 }
 
 /* ─── Employee documents (multipart upload) ─────────────────── */

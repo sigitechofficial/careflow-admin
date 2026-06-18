@@ -13,8 +13,8 @@ function job(partial: Partial<TimelineJob>): TimelineJob {
     status: 'SCHEDULED',
     serviceUserId: 'su-1',
     serviceUser: { id: 'su-1', firstName: 'Ada', lastName: 'Lovelace' },
-    scheduledStartDateTime: new Date('2026-06-15T09:00:00').toISOString(),
-    scheduledEndDateTime: new Date('2026-06-15T10:00:00').toISOString(),
+    scheduledStartDateTime: '2026-06-15T09:00:00.000Z',
+    scheduledEndDateTime: '2026-06-15T10:00:00.000Z',
     requiredCarers: 1,
     allocations: [],
     ...partial,
@@ -57,8 +57,8 @@ describe('schedule-job-hover-details', () => {
 
   it('detects rescheduled rota timing after drag', () => {
     const moved = job({
-      scheduledStartDateTime: new Date('2026-06-15T11:30:00').toISOString(),
-      scheduledEndDateTime: new Date('2026-06-15T12:30:00').toISOString(),
+      scheduledStartDateTime: '2026-06-15T11:30:00.000Z',
+      scheduledEndDateTime: '2026-06-15T12:30:00.000Z',
     })
     expect(rotaTimingDiffersFromCallPattern(moved, slot)).toBe(true)
     expect(jobRotaTimeRange(moved).start).toBe('11:30')

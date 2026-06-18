@@ -1441,6 +1441,13 @@ export type ServiceUserAbsenceRow = {
   updatedAt: string
 }
 
+export type ScheduleImpactSummary = {
+  jobsCancelled: number
+  jobsUnallocated: number
+  jobIds: string[]
+  planSkipExceptionsAdded?: number
+}
+
 export type CreateServiceUserAbsencePayload = {
   startDate: string
   endDate?: string | null
@@ -1450,6 +1457,7 @@ export type CreateServiceUserAbsencePayload = {
   absenceReasonCatalogId: string
   notes?: string
   contactInformation?: string
+  applyToSchedule?: boolean
 }
 
 export type UpdateServiceUserAbsencePayload = Partial<CreateServiceUserAbsencePayload>
@@ -1464,30 +1472,47 @@ export async function listServiceUserAbsences(serviceUserId: string): Promise<Se
 export async function createServiceUserAbsence(
   serviceUserId: string,
   body: CreateServiceUserAbsencePayload,
-): Promise<ServiceUserAbsenceRow> {
-  const res = await apiJson<ApiEnvelope<ServiceUserAbsenceRow>>(`/service-users/${serviceUserId}/absences`, {
+): Promise<{ data: ServiceUserAbsenceRow; scheduleImpact?: ScheduleImpactSummary }> {
+  const res = await apiJson<
+    ApiEnvelope<ServiceUserAbsenceRow> & { scheduleImpact?: ScheduleImpactSummary }
+  >(`/service-users/${serviceUserId}/absences`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return res.data
+  return { data: res.data, scheduleImpact: res.scheduleImpact }
 }
 
 export async function updateServiceUserAbsence(
   serviceUserId: string,
   absenceId: string,
   body: UpdateServiceUserAbsencePayload,
-): Promise<ServiceUserAbsenceRow> {
-  const res = await apiJson<ApiEnvelope<ServiceUserAbsenceRow>>(
+): Promise<{ data: ServiceUserAbsenceRow; scheduleImpact?: ScheduleImpactSummary }> {
+  const res = await apiJson<
+    ApiEnvelope<ServiceUserAbsenceRow> & { scheduleImpact?: ScheduleImpactSummary }
+  >(
     `/service-users/${serviceUserId}/absences/${absenceId}`,
     { method: 'PATCH', body: JSON.stringify(body) },
   )
-  return res.data
+  return { data: res.data, scheduleImpact: res.scheduleImpact }
 }
 
 export async function deleteServiceUserAbsence(serviceUserId: string, absenceId: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/absences/${absenceId}`, {
     method: 'DELETE',
   })
+}
+
+export async function previewServiceUserAbsenceScheduleImpact(
+  serviceUserId: string,
+  params: { startDate: string; endDate?: string },
+): Promise<ScheduleImpactSummary> {
+  const qs = new URLSearchParams({ startDate: params.startDate })
+  if (params.endDate?.trim()) qs.set('endDate', params.endDate.trim())
+  const res = await apiJson<ApiEnvelope<ScheduleImpactSummary>>(
+    `/service-users/${serviceUserId}/absences/schedule-impact-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
 }
 
 export type ServiceUserReferenceItemPayload = {

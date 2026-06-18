@@ -28,8 +28,8 @@ type VisitPlanView = 'configure' | 'details'
 type VisitPlanDetailsTab = 'summary' | 'calendar' | 'history'
 
 const VIEW_TABS: { id: VisitPlanView; label: string }[] = [
-  { id: 'configure', label: 'Configure' },
-  { id: 'details', label: 'Plan details' },
+  { id: 'configure', label: 'Set up visits' },
+  { id: 'details', label: 'Review & calendar' },
 ]
 
 const DETAILS_TABS: { id: VisitPlanDetailsTab; label: string }[] = [

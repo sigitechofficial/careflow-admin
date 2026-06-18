@@ -42,6 +42,9 @@ export const employeeKeys = {
   nonCoreActivities: (id: string) =>
     [...employeeKeys.detail(id), 'non-core-activities'] as const,
 
+  /** Holidays / leave for one employee. */
+  holidays: (id: string) => [...employeeKeys.detail(id), 'holidays'] as const,
+
   /** Organisation-wide non-core activity registry. */
   nonCoreRegistry: () => [...employeeKeys.all(), 'non-core-registry'] as const,
 

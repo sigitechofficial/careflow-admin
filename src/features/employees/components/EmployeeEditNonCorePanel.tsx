@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Filter, PenLine, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { toastApiError } from '@/shared/lib/toast'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { type EmployeeNonCoreActivityRow } from '@/features/employees/types'
 import {
@@ -23,6 +23,8 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { Label } from '@/shared/ui/form-field'
 import {
   Select,
   SelectContent,
@@ -87,6 +89,7 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
   const [formDateFrom, setFormDateFrom] = React.useState('')
   const [formDateTo, setFormDateTo] = React.useState('')
   const [formNotes, setFormNotes] = React.useState('')
+  const [formApplyToSchedule, setFormApplyToSchedule] = React.useState(true)
   const [formError, setFormError] = React.useState<string | null>(null)
   const saving = createMutation.isPending || updateMutation.isPending
 
@@ -96,6 +99,7 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
     setFormDateFrom('')
     setFormDateTo('')
     setFormNotes('')
+    setFormApplyToSchedule(true)
     setFormError(null)
     setModalOpen(true)
   }
@@ -129,13 +133,22 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
       dateFrom: dateFromIso,
       dateTo: dateToIso,
       notes: formNotes.trim() || undefined,
+      applyToSchedule: formApplyToSchedule,
     }
     setFormError(null)
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ activityId: editingId, body })
+        toastSuccess('Non-core activity updated', 'Record saved.')
       } else {
-        await createMutation.mutateAsync(body)
+        const result = await createMutation.mutateAsync(body)
+        const unallocated = result.scheduleImpact?.jobsUnallocated ?? 0
+        toastSuccess(
+          'Non-core activity recorded',
+          unallocated > 0
+            ? `${unallocated} scheduled visit${unallocated === 1 ? '' : 's'} unallocated on the rota.`
+            : 'Record saved.',
+        )
       }
       setModalOpen(false)
     } catch (e) {
@@ -282,6 +295,18 @@ export function EmployeeEditNonCorePanel({ employeeId }: { employeeId: string })
               <label className="text-xs text-muted-foreground">Notes</label>
               <Input value={formNotes} onChange={e => setFormNotes(e.target.value)} />
             </div>
+            {!editingId ? (
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+                <Checkbox
+                  id="nca-apply-schedule"
+                  checked={formApplyToSchedule}
+                  onCheckedChange={(checked) => setFormApplyToSchedule(checked === true)}
+                />
+                <Label htmlFor="nca-apply-schedule" className="cursor-pointer text-sm leading-snug">
+                  Unallocate this carer from scheduled visits during this period
+                </Label>
+              </div>
+            ) : null}
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>

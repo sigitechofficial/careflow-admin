@@ -2,10 +2,11 @@ import * as React from 'react'
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
-import {
-  type ServiceUserAbsenceRow,
-  type ServiceUserAbsenceType,
-  type SuLookupRow,
+import { previewServiceUserAbsenceScheduleImpact } from '@/features/service-users/api/service-users.api'
+import type {
+  ServiceUserAbsenceRow,
+  ServiceUserAbsenceType,
+  SuLookupRow,
 } from '@/features/service-users/types'
 import {
   useCreateServiceUserAbsence,
@@ -16,6 +17,8 @@ import { useServiceUserAbsences } from '@/features/service-users/hooks/useServic
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { Checkbox } from '@/shared/ui/toggle-controls'
+import { Label } from '@/shared/ui/form-field'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import {
   Select,
@@ -62,6 +65,7 @@ type FormState = {
   absenceReasonCatalogId: string
   notes: string
   contactInformation: string
+  applyToSchedule: boolean
 }
 
 function emptyForm(): FormState {
@@ -74,6 +78,7 @@ function emptyForm(): FormState {
     absenceReasonCatalogId: '',
     notes: '',
     contactInformation: '',
+    applyToSchedule: true,
   }
 }
 
@@ -87,6 +92,7 @@ function rowToForm(row: ServiceUserAbsenceRow): FormState {
     absenceReasonCatalogId: row.absenceReasonCatalogId,
     notes: row.notes ?? '',
     contactInformation: row.contactInformation ?? '',
+    applyToSchedule: true,
   }
 }
 
@@ -123,6 +129,32 @@ export function ServiceUserAbsencesTab({
   const [formError, setFormError] = React.useState<string | null>(null)
 
   const [deleteId, setDeleteId] = React.useState<string | null>(null)
+  const [impactPreview, setImpactPreview] = React.useState<number | null>(null)
+  const [impactPreviewLoading, setImpactPreviewLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!dialogOpen || !form.applyToSchedule || !form.startDate.trim()) {
+      setImpactPreview(null)
+      return
+    }
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setImpactPreviewLoading(true)
+        try {
+          const result = await previewServiceUserAbsenceScheduleImpact(serviceUserId, {
+            startDate: form.startDate.trim(),
+            endDate: form.endDate.trim() || undefined,
+          })
+          setImpactPreview(result.jobsCancelled)
+        } catch {
+          setImpactPreview(null)
+        } finally {
+          setImpactPreviewLoading(false)
+        }
+      })()
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [dialogOpen, form.applyToSchedule, form.startDate, form.endDate, serviceUserId])
 
   const formSaving = createMutation.isPending || updateMutation.isPending
   const deleteSaving = deleteMutation.isPending
@@ -163,14 +195,33 @@ export function ServiceUserAbsencesTab({
         absenceReasonCatalogId: form.absenceReasonCatalogId,
         notes: form.notes.trim(),
         contactInformation: form.contactInformation.trim(),
+        applyToSchedule: form.applyToSchedule,
       }
       if (editingId) {
-        await updateMutation.mutateAsync({ absenceId: editingId, body })
+        const result = await updateMutation.mutateAsync({ absenceId: editingId, body })
+        setDialogOpen(false)
+        const cancelled = result.scheduleImpact?.jobsCancelled ?? 0
+        const skips = result.scheduleImpact?.planSkipExceptionsAdded ?? 0
+        const parts: string[] = []
+        if (cancelled > 0) parts.push(`${cancelled} visit${cancelled === 1 ? '' : 's'} updated on the rota`)
+        if (skips > 0) parts.push(`${skips} visit-plan skip date${skips === 1 ? '' : 's'} added`)
+        toastSuccess(
+          'Absence updated',
+          parts.length ? parts.join('; ') + '.' : 'Absences have been saved.',
+        )
       } else {
-        await createMutation.mutateAsync(body)
+        const result = await createMutation.mutateAsync(body)
+        setDialogOpen(false)
+        const cancelled = result.scheduleImpact?.jobsCancelled ?? 0
+        const skips = result.scheduleImpact?.planSkipExceptionsAdded ?? 0
+        const parts: string[] = []
+        if (cancelled > 0) parts.push(`${cancelled} visit${cancelled === 1 ? '' : 's'} updated on the rota`)
+        if (skips > 0) parts.push(`${skips} visit-plan skip date${skips === 1 ? '' : 's'} added`)
+        toastSuccess(
+          'Absence recorded',
+          parts.length ? parts.join('; ') + '.' : 'Absences have been saved.',
+        )
       }
-      setDialogOpen(false)
-      toastSuccess(editingId ? 'Absence updated' : 'Absence recorded', 'Absences have been saved.')
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Save failed')
       toastApiError(e, 'Save failed')
@@ -343,6 +394,44 @@ export function ServiceUserAbsencesTab({
                 </div>
               </div>
             </div>
+            {!editingId ? (
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+                <Checkbox
+                  id="absence-apply-schedule"
+                  checked={form.applyToSchedule}
+                  onCheckedChange={(checked) =>
+                    setForm((f) => ({ ...f, applyToSchedule: checked === true }))
+                  }
+                />
+                <Label htmlFor="absence-apply-schedule" className="cursor-pointer text-sm leading-snug">
+                  Cancel scheduled visits in this date range and add visit-plan skip dates (recommended for hospital stays)
+                </Label>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+                <Checkbox
+                  id="absence-apply-schedule-edit"
+                  checked={form.applyToSchedule}
+                  onCheckedChange={(checked) =>
+                    setForm((f) => ({ ...f, applyToSchedule: checked === true }))
+                  }
+                />
+                <Label htmlFor="absence-apply-schedule-edit" className="cursor-pointer text-sm leading-snug">
+                  Re-apply rota impact for updated dates (cancels/calls off visits and syncs skip dates)
+                </Label>
+              </div>
+            )}
+            {form.applyToSchedule && form.startDate.trim() ? (
+              <p className="text-xs text-muted-foreground">
+                {impactPreviewLoading
+                  ? 'Checking rota impact…'
+                  : impactPreview != null
+                    ? impactPreview > 0
+                      ? `${impactPreview} scheduled visit${impactPreview === 1 ? '' : 's'} would be cancelled or called off; matching visit-plan skip dates will be added.`
+                      : 'No cancellable visits found in this date range; visit-plan skip dates will still be synced.'
+                    : null}
+              </p>
+            ) : null}
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Notes</label>
               <textarea

@@ -10,13 +10,13 @@ export function formatDateTimeLocal(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
 export function formatJobTimeRange(job: Pick<TimelineJob, 'scheduledStartDateTime' | 'scheduledEndDateTime' | 'durationMinutes'>): string {
   const start = new Date(job.scheduledStartDateTime)
   const pad = (n: number) => String(n).padStart(2, '0')
-  const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const fmt = (d: Date) => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
   const end = job.scheduledEndDateTime ? new Date(job.scheduledEndDateTime) : null
   const mins = job.durationMinutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60_000) : 60)
   const endLabel = end ? fmt(end) : fmt(new Date(start.getTime() + mins * 60_000))

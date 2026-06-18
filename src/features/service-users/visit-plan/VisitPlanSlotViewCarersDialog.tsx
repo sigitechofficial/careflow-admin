@@ -13,6 +13,7 @@ import { Button } from '@/shared/ui/button'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 
 type Props = {
   open: boolean
@@ -33,7 +34,7 @@ export function VisitPlanSlotViewCarersDialog({
   onRemoveCarer,
   onAssign,
 }: Props) {
-  const assignedIds = slot.assignedEmployeeIds ?? []
+  const assignedIds = slotAssignedEmployeeIds(slot)
   const start = normalizeTimeForInput(slot.plannedStartTime)
   const end = normalizeTimeForInput(slot.plannedEndTime)
 

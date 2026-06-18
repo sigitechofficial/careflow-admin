@@ -5,11 +5,13 @@ import { schedulingKeys } from '@/features/scheduling/keys'
 import {
   activateServiceUserVisitPlan,
   createServiceUserVisitPlan,
+  endServiceUserVisitPlan,
   fetchActiveServiceUserVisitPlan,
   fetchServiceUserVisitPlans,
   fetchWorkingServiceUserVisitPlan,
   generateScheduleFromVisitPlan,
   prefillVisitPlanFromDomCare,
+  suspendServiceUserVisitPlan,
   updateServiceUserVisitPlan,
 } from '@/features/service-users/visit-plan/api'
 import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessment/api'
@@ -151,6 +153,38 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
     onSuccess: invalidate,
   })
 
+  const suspend = useMutation({
+    mutationFn: ({
+      planId,
+      reason,
+      cancelFutureVisits,
+    }: {
+      planId: string
+      reason: string
+      cancelFutureVisits?: boolean
+    }) => suspendServiceUserVisitPlan(serviceUserId, planId, reason, cancelFutureVisits),
+    onSuccess: () => {
+      invalidate()
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+    },
+  })
+
+  const end = useMutation({
+    mutationFn: ({
+      planId,
+      reason,
+      cancelFutureVisits,
+    }: {
+      planId: string
+      reason: string
+      cancelFutureVisits?: boolean
+    }) => endServiceUserVisitPlan(serviceUserId, planId, reason, cancelFutureVisits),
+    onSuccess: () => {
+      invalidate()
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
+    },
+  })
+
   const prefillDomCare = useMutation({
     mutationFn: (planId: string) => prefillVisitPlanFromDomCare(serviceUserId, planId),
     onSuccess: invalidate,
@@ -160,12 +194,12 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
     mutationFn: ({
       planId,
       ...body
-    }: { planId: string; fromDate: string; toDate: string; scheduleAreaId?: string | null }) =>
+    }: { planId: string; fromDate: string; toDate: string; scheduleAreaId?: string | null; backfillDays?: number }) =>
       generateScheduleFromVisitPlan(serviceUserId, planId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
     },
   })
 
-  return { create, update, activate, prefillDomCare, generateSchedule }
+  return { create, update, activate, suspend, end, prefillDomCare, generateSchedule }
 }

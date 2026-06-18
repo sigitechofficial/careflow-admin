@@ -167,7 +167,7 @@ export function shiftIsoDate(isoDate: string, days: number): string {
 export function minutesFromDayStart(iso: string, dayStartHour = SCHEDULE_JOBS_DAY_START_HOUR): number {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return 0
-  const minutes = (d.getHours() - dayStartHour) * 60 + d.getMinutes()
+  const minutes = (d.getUTCHours() - dayStartHour) * 60 + d.getUTCMinutes()
   return Math.max(0, Math.min(SCHEDULE_JOBS_TIMELINE_MINUTES, minutes))
 }
 
@@ -229,7 +229,7 @@ export function formatTimeHm(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
 export function formatDurationLabel(minutes: number): string {

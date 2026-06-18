@@ -14,7 +14,7 @@ export type ScheduleJobSuggestCarersRequest = {
 
 function formatHm(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
 }
 
 export function buildScheduleJobSuggestCarersRequest(job: TimelineJob): ScheduleJobSuggestCarersRequest {
@@ -25,7 +25,7 @@ export function buildScheduleJobSuggestCarersRequest(job: TimelineJob): Schedule
 
   return {
     slotCode: job.visitPlan?.slotCode ?? 'SCHEDULED',
-    daysOfWeek: [start.getDay()],
+    daysOfWeek: [start.getUTCDay()],
     plannedStartTime: formatHm(start),
     plannedEndTime: formatHm(end),
     requiredCarers: job.requiredCarers,

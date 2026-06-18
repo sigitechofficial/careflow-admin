@@ -74,7 +74,9 @@ import {
 import { serviceUserLabel, activeJobAllocationCount, todayIso } from '@/features/scheduling/utils/scheduling-format'
 import {
   applyScheduleJobOutcomeFilters,
+  applyScheduleJobOperationalIssuesFilter,
   countScheduleJobsByOutcome,
+  countScheduleJobsWithOperationalIssues,
   DEFAULT_SCHEDULE_JOB_OUTCOME_FILTERS,
   type ScheduleJobOutcomeFilter,
 } from '@/features/scheduling/utils/schedule-job-board-filter.util'
@@ -149,6 +151,7 @@ export default function ScheduleJobsPage() {
   const [jobOutcomeFilters, setJobOutcomeFilters] = React.useState(
     () => new Set(DEFAULT_SCHEDULE_JOB_OUTCOME_FILTERS),
   )
+  const [operationalIssuesOnly, setOperationalIssuesOnly] = React.useState(false)
   const [createRunOpen, setCreateRunOpen] = React.useState(false)
   const [createRunJobs, setCreateRunJobs] = React.useState<TimelineJob[]>([])
 
@@ -384,10 +387,15 @@ export default function ScheduleJobsPage() {
     [boardAfterRequiredCarers.allJobs],
   )
 
-  const filteredBoard = React.useMemo(
-    () => applyScheduleJobOutcomeFilters(boardAfterRequiredCarers, jobOutcomeFilters),
-    [boardAfterRequiredCarers, jobOutcomeFilters],
+  const operationalIssuesCount = React.useMemo(
+    () => countScheduleJobsWithOperationalIssues(boardAfterRequiredCarers.allJobs),
+    [boardAfterRequiredCarers.allJobs],
   )
+
+  const filteredBoard = React.useMemo(() => {
+    const afterOutcome = applyScheduleJobOutcomeFilters(boardAfterRequiredCarers, jobOutcomeFilters)
+    return applyScheduleJobOperationalIssuesFilter(afterOutcome, operationalIssuesOnly)
+  }, [boardAfterRequiredCarers, jobOutcomeFilters, operationalIssuesOnly])
 
   const toggleJobOutcomeFilter = React.useCallback((filter: ScheduleJobOutcomeFilter) => {
     setJobOutcomeFilters((current) => {
@@ -843,6 +851,9 @@ export default function ScheduleJobsPage() {
         jobOutcomeFilters={jobOutcomeFilters}
         jobOutcomeCounts={jobOutcomeCounts}
         onToggleJobOutcomeFilter={toggleJobOutcomeFilter}
+        operationalIssuesOnly={operationalIssuesOnly}
+        operationalIssuesCount={operationalIssuesCount}
+        onToggleOperationalIssuesOnly={() => setOperationalIssuesOnly((v) => !v)}
         layout={layout}
         onLayoutChange={setScheduleLayout}
       />

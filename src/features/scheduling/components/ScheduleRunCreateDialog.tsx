@@ -85,7 +85,7 @@ export function ScheduleRunCreateDialog({
   React.useEffect(() => {
     if (!open) return
     const firstHour = sortedJobs[0]?.scheduledStartDateTime
-      ? new Date(sortedJobs[0].scheduledStartDateTime).getHours()
+      ? new Date(sortedJobs[0].scheduledStartDateTime).getUTCHours()
       : 8
     const shift = firstHour < 12 ? 'AM' : 'PM'
     setName(`${shift} Run ${existingRunCount + 1}`)

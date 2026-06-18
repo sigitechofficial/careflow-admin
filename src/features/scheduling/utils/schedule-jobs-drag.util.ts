@@ -31,7 +31,7 @@ export function dateTimeFromScheduleMinutes(dateIso: string, minutesFromTimeline
   const h = Math.floor(totalMin / 60) % 24
   const m = totalMin % 60
   const pad = (n: number) => String(n).padStart(2, '0')
-  const d = new Date(`${dateIso}T${pad(h)}:${pad(m)}:00`)
+  const d = new Date(`${dateIso}T${pad(h)}:${pad(m)}:00.000Z`)
   return d.toISOString()
 }
 
@@ -39,15 +39,16 @@ export function jobScheduleDateIso(job: Pick<TimelineJob, 'scheduledStartDateTim
   const d = new Date(job.scheduledStartDateTime)
   if (Number.isNaN(d.getTime())) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
 }
 
+/** HH:mm from ISO using UTC wall clock (matches visit plan + backend schedule generation). */
 export function isoToLocalTimeInput(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
 export function buildJobScheduleDateTimes(
@@ -56,8 +57,8 @@ export function buildJobScheduleDateTimes(
   endTime: string,
 ): { scheduledStartDateTime: string; scheduledEndDateTime: string } | null {
   if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return null
-  const start = new Date(`${dateIso}T${startTime}:00`)
-  let end = new Date(`${dateIso}T${endTime}:00`)
+  const start = new Date(`${dateIso}T${startTime}:00.000Z`)
+  let end = new Date(`${dateIso}T${endTime}:00.000Z`)
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
   if (end <= start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000)
   if (end.getTime() - start.getTime() < 5 * 60 * 1000) return null

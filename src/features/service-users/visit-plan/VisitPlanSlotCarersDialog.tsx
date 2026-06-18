@@ -15,6 +15,8 @@ type Props = {
   serviceUserId: string
   slot: VisitPlanSlot
   disabled?: boolean
+  dialogTitle?: string
+  dialogDescription?: string
   onChange: (assignedEmployeeIds: string[]) => void
 }
 
@@ -24,18 +26,20 @@ export function VisitPlanSlotCarersDialog({
   serviceUserId,
   slot,
   disabled,
+  dialogTitle,
+  dialogDescription,
   onChange,
 }: Props) {
+  const defaultTitle = `${slot.assignedEmployeeIds?.length ? 'Change carers' : 'Assign carers'} — ${slot.label}`
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-h-[90vh] overflow-hidden p-0">
         <DialogHeader>
-          <DialogTitle>
-            {slot.assignedEmployeeIds?.length ? 'Change carers' : 'Assign carers'} — {slot.label}
-          </DialogTitle>
+          <DialogTitle>{dialogTitle ?? defaultTitle}</DialogTitle>
           <DialogDescription>
-            Each call slot can have different carers. Assignments apply only to {slot.label.toLowerCase()} visits
-            ({slot.plannedStartTime}–{slot.plannedEndTime}).
+            {dialogDescription ??
+              `Each call slot can have different carers. Assignments apply only to ${slot.label.toLowerCase()} visits (${slot.plannedStartTime}–${slot.plannedEndTime}).`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="max-h-[calc(90vh-8rem)] overflow-y-auto">
