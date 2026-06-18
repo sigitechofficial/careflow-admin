@@ -53,6 +53,7 @@ export type EmployeeListRow = {
   grade: { id: string; name: string } | null
   contractType: { id: string; name: string } | null
   visaTypeId: string | null
+  visaTypeLabel?: string | null
   isInCountry: boolean
   locationId?: string | null
   location?: { id: string; name: string } | null
@@ -139,6 +140,9 @@ export type EmployeeDetail = {
     contractedWeeklyHours?: number | string | null
     maximumWeeklyHours?: number | string | null
     minimumWeeklyHours?: number | string | null
+    weeklyHoursCapOverride?: number | string | null
+    weeklyHoursCapOverrideReason?: string | null
+    weeklyHoursCapOverrideExpiresAt?: string | null
     optedOutOf48Hours?: boolean | null
     isAgencyStaff?: boolean | null
     agencyName?: string | null
@@ -315,9 +319,14 @@ export type EmploymentPayload = {
   baseLocationId?: string
   baseLocationIds?: string[]
   accessAllZones?: boolean
+  visaTypeId?: string | null
+  isInCountry?: boolean
   contractedWeeklyHours?: number | null
   maximumWeeklyHours?: number | null
   minimumWeeklyHours?: number | null
+  weeklyHoursCapOverride?: number | null
+  weeklyHoursCapOverrideReason?: string | null
+  weeklyHoursCapOverrideExpiresAt?: string | null
   optedOutOf48Hours?: boolean
   isAgencyStaff?: boolean
   agencyName?: string

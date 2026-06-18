@@ -48,6 +48,8 @@ export function ComplianceTypesSettingsPanel() {
   const [code, setCode] = React.useState('')
   const [category, setCategory] = React.useState<ComplianceCategory>('EMPLOYMENT')
   const [mandatory, setMandatory] = React.useState(false)
+  const [hasExpiry, setHasExpiry] = React.useState(true)
+  const [validityMonths, setValidityMonths] = React.useState('12')
 
   const [editOpen, setEditOpen] = React.useState(false)
   const [editRow, setEditRow] = React.useState<ComplianceTypeRow | null>(null)
@@ -55,6 +57,8 @@ export function ComplianceTypesSettingsPanel() {
   const [editCode, setEditCode] = React.useState('')
   const [editCategory, setEditCategory] = React.useState<ComplianceCategory>('EMPLOYMENT')
   const [editMandatory, setEditMandatory] = React.useState(false)
+  const [editHasExpiry, setEditHasExpiry] = React.useState(true)
+  const [editValidityMonths, setEditValidityMonths] = React.useState('')
 
   React.useEffect(() => {
     const t = window.setTimeout(() => setDebouncedFilter(filter), 200)
@@ -65,7 +69,7 @@ export function ComplianceTypesSettingsPanel() {
     data: rows = [],
     isLoading: loading,
     error: queryError,
-  } = useComplianceTypes({ search: debouncedFilter || undefined, limit: 500 })
+  } = useComplianceTypes({ search: debouncedFilter || undefined, limit: 100 })
 
   const pagination = useClientPagination(rows, { resetDeps: [debouncedFilter] })
 
@@ -82,6 +86,14 @@ export function ComplianceTypesSettingsPanel() {
         ? 'Could not load compliance types.'
         : null)
 
+  const parseValidityMonths = (raw: string, expiring: boolean): number | null => {
+    if (!expiring) return null
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    const n = Number.parseInt(trimmed, 10)
+    return Number.isFinite(n) && n >= 1 ? n : null
+  }
+
   const onAdd = async () => {
     if (!canCreate) return
     const n = name.trim()
@@ -94,10 +106,14 @@ export function ComplianceTypesSettingsPanel() {
         code: c,
         category,
         isMandatoryByDefault: mandatory,
+        hasExpiry,
+        defaultValidityMonths: parseValidityMonths(validityMonths, hasExpiry),
       })
       setName('')
       setCode('')
       setMandatory(false)
+      setHasExpiry(true)
+      setValidityMonths('12')
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : 'Could not create compliance type.')
     }
@@ -109,6 +125,10 @@ export function ComplianceTypesSettingsPanel() {
     setEditCode(row.code ?? '')
     setEditCategory(row.category as ComplianceCategory)
     setEditMandatory(row.isMandatoryByDefault)
+    setEditHasExpiry(row.hasExpiry)
+    setEditValidityMonths(
+      row.defaultValidityMonths != null ? String(row.defaultValidityMonths) : '',
+    )
     setEditOpen(true)
   }
 
@@ -126,6 +146,8 @@ export function ComplianceTypesSettingsPanel() {
           code: c,
           category: editCategory,
           isMandatoryByDefault: editMandatory,
+          hasExpiry: editHasExpiry,
+          defaultValidityMonths: parseValidityMonths(editValidityMonths, editHasExpiry),
         },
       })
       setEditOpen(false)
@@ -171,7 +193,7 @@ export function ComplianceTypesSettingsPanel() {
       </div>
 
       {canCreate ? (
-        <div className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto_auto]">
+        <div className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_minmax(6rem,8rem)_auto_auto_auto]">
           <Input
             placeholder="Name"
             value={name}
@@ -201,6 +223,20 @@ export function ComplianceTypesSettingsPanel() {
             </SelectContent>
           </Select>
           <label className="flex items-center gap-2 text-sm">
+            <Switch checked={hasExpiry} onCheckedChange={setHasExpiry} disabled={saving} />
+            Expires
+          </label>
+          <Input
+            placeholder="Validity (mo)"
+            value={validityMonths}
+            onChange={e => setValidityMonths(e.target.value)}
+            disabled={saving || !hasExpiry}
+            type="number"
+            min={1}
+            max={600}
+            className="h-9"
+          />
+          <label className="flex items-center gap-2 text-sm">
             <Switch checked={mandatory} onCheckedChange={setMandatory} disabled={saving} />
             Mandatory
           </label>
@@ -224,6 +260,8 @@ export function ComplianceTypesSettingsPanel() {
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Code</th>
                 <th className="px-3 py-2 font-medium">Category</th>
+                <th className="px-3 py-2 font-medium">Expires</th>
+                <th className="px-3 py-2 font-medium">Validity (mo)</th>
                 <th className="px-3 py-2 font-medium">Mandatory</th>
                 {(canUpdate || canDelete) && <th className="px-3 py-2 font-medium">Actions</th>}
               </tr>
@@ -234,6 +272,10 @@ export function ComplianceTypesSettingsPanel() {
                   <td className="px-3 py-2">{row.name}</td>
                   <td className="px-3 py-2 font-mono text-xs">{row.code}</td>
                   <td className="px-3 py-2">{row.category}</td>
+                  <td className="px-3 py-2">{row.hasExpiry ? 'Yes' : 'No'}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {row.hasExpiry && row.defaultValidityMonths != null ? row.defaultValidityMonths : '—'}
+                  </td>
                   <td className="px-3 py-2">{row.isMandatoryByDefault ? 'Yes' : 'No'}</td>
                   {(canUpdate || canDelete) && (
                     <td className="px-3 py-2">
@@ -318,6 +360,19 @@ export function ComplianceTypesSettingsPanel() {
                 ))}
               </SelectContent>
             </Select>
+            <label className="flex items-center gap-2 text-sm">
+              <Switch checked={editHasExpiry} onCheckedChange={setEditHasExpiry} disabled={saving} />
+              Has expiry date
+            </label>
+            <Input
+              placeholder="Default validity (months)"
+              value={editValidityMonths}
+              onChange={e => setEditValidityMonths(e.target.value)}
+              disabled={saving || !editHasExpiry}
+              type="number"
+              min={1}
+              max={600}
+            />
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={editMandatory} onCheckedChange={setEditMandatory} disabled={saving} />
               Mandatory by default

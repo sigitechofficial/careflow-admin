@@ -7,7 +7,7 @@ type EmployeeSettingsSubTab = 'general' | 'visa'
 
 const SUB_TABS: { id: EmployeeSettingsSubTab; label: string }[] = [
   { id: 'general', label: 'General' },
-  { id: 'visa', label: 'Visa & contracted hours' },
+  { id: 'visa', label: 'Immigration statuses' },
 ]
 
 export function GeneralSettingsEmployeeSection() {

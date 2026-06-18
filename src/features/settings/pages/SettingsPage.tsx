@@ -4,7 +4,9 @@ import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
 import { LookupNamePanel } from '@/features/settings/components/LookupNamePanel'
+import { LookupIntervalPanel } from '@/features/settings/components/LookupIntervalPanel'
 import { ComplianceTypesSettingsPanel } from '@/features/settings/components/ComplianceTypesSettingsPanel'
+import { ComplianceRequirementsSettingsPanel } from '@/features/settings/components/ComplianceRequirementsSettingsPanel'
 import { MedicationStatusCodesSettingsPanel } from '@/features/settings/components/MedicationStatusCodesSettingsPanel'
 import { MedicationTimeSlotsSettingsPanel } from '@/features/settings/components/MedicationTimeSlotsSettingsPanel'
 import { ServiceUserCareTypesSettingsPanel } from '@/features/settings/components/ServiceUserCareTypesSettingsPanel'
@@ -13,13 +15,16 @@ import { ServiceUserFundingTypesSettingsPanel } from '@/features/settings/compon
 import { AllergiesCatalogSettingsPanel } from '@/features/settings/components/AllergiesCatalogSettingsPanel'
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
 import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
+import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
 
 export type SettingsTabId =
   | 'job-titles'
   | 'skills'
   | 'compliance'
+  | 'compliance-requirements'
   | 'work-areas'
   | 'contract-types'
+  | 'immigration-statuses'
   | 'grades'
   | 'locations'
   | 'certifications'
@@ -41,8 +46,10 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'job-titles', label: 'Job titles' },
   { id: 'skills', label: 'Skills' },
   { id: 'compliance', label: 'Compliance documents' },
+  { id: 'compliance-requirements', label: 'Compliance requirements' },
   { id: 'work-areas', label: 'Work areas' },
   { id: 'contract-types', label: 'Contract types' },
+  { id: 'immigration-statuses', label: 'Immigration statuses' },
   { id: 'grades', label: 'Grades' },
   { id: 'locations', label: 'Locations' },
   { id: 'certifications', label: 'Certifications' },
@@ -133,14 +140,18 @@ export default function SettingsPage() {
             />
           )}
           {activeTab === 'skills' && (
-            <LookupNamePanel
+            <LookupIntervalPanel
               resource="skill-types"
               title="Skills"
-              description="Skill types available when editing employee skills."
-              placeholder="Filter skillsâ€¦"
+              description="Skill types for employee records. Default refresh months suggest when a skill should be renewed."
+              intervalLabel="Refresh (months)"
+              intervalField="defaultRefreshMonths"
+              intervalMax={120}
+              placeholder="Filter skills…"
             />
           )}
           {activeTab === 'compliance' && <ComplianceTypesSettingsPanel />}
+          {activeTab === 'compliance-requirements' && <ComplianceRequirementsSettingsPanel />}
           {activeTab === 'work-areas' && (
             <LookupNamePanel
               resource="work-areas"
@@ -156,6 +167,7 @@ export default function SettingsPage() {
               description="Employment contract options on the employee form."
             />
           )}
+          {activeTab === 'immigration-statuses' && <GeneralSettingsEmployeeVisaPanel />}
           {activeTab === 'grades' && (
             <LookupNamePanel resource="grades" title="Grades" description="Pay grades on employee employment." />
           )}
@@ -167,10 +179,13 @@ export default function SettingsPage() {
             />
           )}
           {activeTab === 'certifications' && (
-            <LookupNamePanel
+            <LookupIntervalPanel
               resource="certification-types"
               title="Certifications"
-              description="Certification types for employee skills and training records."
+              description="Certification types for employee training records. Default validity months prefill expiry when recording a certificate."
+              intervalLabel="Validity (months)"
+              intervalField="defaultValidityMonths"
+              intervalMax={600}
             />
           )}
           {activeTab === 'non-core' && (
@@ -188,10 +203,13 @@ export default function SettingsPage() {
             />
           )}
           {activeTab === 'review-types' && (
-            <LookupNamePanel
+            <LookupIntervalPanel
               resource="review-types"
               title="Review types"
-              description="Staff review types for employee performance records."
+              description="Staff review types (supervision, appraisal, probation). Default interval drives overdue review alerts."
+              intervalLabel="Interval (days)"
+              intervalField="defaultIntervalDays"
+              intervalMax={3650}
             />
           )}
           {activeTab === 'travel-payment' && (

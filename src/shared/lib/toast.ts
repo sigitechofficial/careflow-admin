@@ -1,4 +1,4 @@
-import { ApiError } from '@/shared/api/api-client'
+import { ApiError, formatApiErrorMessage } from '@/shared/api/api-client'
 import { useToastStore, type ToastVariant } from '@/store/toast.store'
 
 export function toastSuccess(title: string, description?: string) {
@@ -22,7 +22,13 @@ export function extractApiErrorMessage(
   e: unknown,
   fallback = 'Please try again or contact support if the problem continues.',
 ): string {
-  if (e instanceof ApiError) return e.message
+  if (e instanceof ApiError) {
+    if (e.body) {
+      const detail = formatApiErrorMessage(e.body, e.message)
+      if (detail && detail !== 'Validation failed') return detail
+    }
+    return e.message
+  }
   if (e instanceof Error && e.message.trim()) return e.message
   if (typeof e === 'string' && e.trim()) return e
   return fallback

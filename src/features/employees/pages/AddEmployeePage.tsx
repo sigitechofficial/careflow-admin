@@ -29,7 +29,7 @@ import { EditEmployeeTabBar, type EditEmployeeTabId } from '@/features/employees
 import { EmployeeEditSkillsPanel } from '@/features/employees/components/EmployeeEditSkillsPanel'
 import { EmployeeEditNonCorePanel } from '@/features/employees/components/EmployeeEditNonCorePanel'
 import { EmployeeEditCompliancePanel } from '@/features/employees/components/EmployeeEditCompliancePanel'
-import { EmployeeEditPlaceholderPanel } from '@/features/employees/components/EmployeeEditPlaceholderPanel'
+import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
 import {
   personalStepSchema,
   employmentStepSchema,
@@ -38,8 +38,15 @@ import {
 } from '@/schemas/add-employee.schema'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import {
+  defaultContractedHoursForVisaType,
+  effectiveWeeklyHoursCap,
+  employmentHoursVisaError,
+  isWeeklyHoursCapOverrideActive,
+  labelForVisaType,
+  maxWeeklyHoursForVisaType,
+  normalizeVisaTypeRow,
   resolveEmployeeVisaTypes,
-  weeklyHoursForVisaType,
+  visaTypeAutoFillsContractedHours,
 } from '@/features/settings/employee/employee-visa-defaults'
 import {
   DEFAULT_WORK_PATTERN_END,
@@ -131,6 +138,9 @@ const defaultValues: FormValues = {
   contractedWeeklyHours: '',
   maximumWeeklyHours: '',
   minimumWeeklyHours: '',
+  weeklyHoursCapOverride: '',
+  weeklyHoursCapOverrideReason: '',
+  weeklyHoursCapOverrideExpiresAt: '',
   optedOutOf48Hours: false,
   isAgencyStaff: false,
   agencyName: '',
@@ -211,6 +221,14 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     contractedWeeklyHours: toNum(e.contractedWeeklyHours),
     maximumWeeklyHours: toNum(e.maximumWeeklyHours),
     minimumWeeklyHours: toNum(e.minimumWeeklyHours),
+    weeklyHoursCapOverride:
+      e.weeklyHoursCapOverride != null && e.weeklyHoursCapOverride !== ''
+        ? toNum(String(e.weeklyHoursCapOverride))
+        : null,
+    weeklyHoursCapOverrideReason: e.weeklyHoursCapOverrideReason?.trim() || null,
+    weeklyHoursCapOverrideExpiresAt: e.weeklyHoursCapOverrideExpiresAt
+      ? new Date(e.weeklyHoursCapOverrideExpiresAt).toISOString()
+      : null,
     optedOutOf48Hours: e.optedOutOf48Hours,
     isAgencyStaff: e.isAgencyStaff,
     agencyName: e.agencyName,
@@ -696,10 +714,45 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const visaTypeId = useWatch({ control, name: 'visaTypeId' })
   const generalSettingsQuery = useGeneralSettings(apiReady)
   const visaTypes = React.useMemo(() => {
-    const base = resolveEmployeeVisaTypes(generalSettingsQuery.data?.employeeVisaTypes)
+    const base = resolveEmployeeVisaTypes(generalSettingsQuery.data?.employeeVisaTypes).map(
+      normalizeVisaTypeRow,
+    )
     if (!visaTypeId || base.some(vt => vt.id === visaTypeId)) return base
-    return [{ id: visaTypeId, label: visaTypeId, weeklyHours: 0 }, ...base]
+    return [
+      {
+        id: visaTypeId,
+        label: labelForVisaType(base, visaTypeId) ?? visaTypeId,
+        maxWeeklyHours: 40,
+        defaultContractedHours: null,
+      },
+      ...base,
+    ]
   }, [generalSettingsQuery.data?.employeeVisaTypes, visaTypeId])
+
+  const visaMaxHours = maxWeeklyHoursForVisaType(visaTypes, visaTypeId)
+  const weeklyHoursCapOverride = useWatch({ control, name: 'weeklyHoursCapOverride' })
+  const weeklyHoursCapOverrideReason = useWatch({ control, name: 'weeklyHoursCapOverrideReason' })
+  const weeklyHoursCapOverrideExpiresAt = useWatch({ control, name: 'weeklyHoursCapOverrideExpiresAt' })
+  const hoursCapOverride = React.useMemo(
+    () => ({
+      weeklyHoursCapOverride,
+      weeklyHoursCapOverrideReason,
+      weeklyHoursCapOverrideExpiresAt,
+    }),
+    [weeklyHoursCapOverride, weeklyHoursCapOverrideReason, weeklyHoursCapOverrideExpiresAt],
+  )
+  const effectiveVisaCap = effectiveWeeklyHoursCap(visaTypes, visaTypeId, hoursCapOverride)
+  const overrideActive = isWeeklyHoursCapOverrideActive(hoursCapOverride)
+  const contractedWeeklyHours = useWatch({ control, name: 'contractedWeeklyHours' })
+  const maximumWeeklyHours = useWatch({ control, name: 'maximumWeeklyHours' })
+  const visaHoursError = React.useMemo(
+    () =>
+      employmentHoursVisaError(visaTypes, visaTypeId, {
+        contractedWeeklyHours,
+        maximumWeeklyHours,
+      }, hoursCapOverride),
+    [visaTypes, visaTypeId, contractedWeeklyHours, maximumWeeklyHours, hoursCapOverride],
+  )
 
   const savedPersonal = employeeQuery.data?.personalDetail
   const savedEmployment = employeeQuery.data?.employment
@@ -715,10 +768,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     }
     if (prevVisaTypeIdRef.current === visaTypeId) return
     prevVisaTypeIdRef.current = visaTypeId
-    const hours = weeklyHoursForVisaType(visaTypes, visaTypeId)
-    if (hours !== undefined) {
-      setValue('contractedWeeklyHours', String(hours), { shouldDirty: true })
-    }
+    if (!visaTypeAutoFillsContractedHours(visaTypes, visaTypeId)) return
+    const hours = defaultContractedHoursForVisaType(visaTypes, visaTypeId)
+    if (hours === undefined) return
+    setValue('contractedWeeklyHours', String(hours), { shouldDirty: true })
+    setValue('minimumWeeklyHours', String(Math.min(hours, 16)), { shouldDirty: true })
+    setValue('maximumWeeklyHours', String(hours), { shouldDirty: true })
   }, [visaTypeId, visaTypes, setValue])
 
   React.useEffect(() => {
@@ -829,6 +884,18 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     if (!parsed.success) {
       applyZodErrors(parsed, setError)
       setBanner({ type: 'error', text: 'Fix employment fields marked in red.' })
+      return
+    }
+    const visaErr = employmentHoursVisaError(visaTypes, parsed.data.visaTypeId, {
+      contractedWeeklyHours: parsed.data.contractedWeeklyHours,
+      maximumWeeklyHours: parsed.data.maximumWeeklyHours,
+    }, {
+      weeklyHoursCapOverride: parsed.data.weeklyHoursCapOverride,
+      weeklyHoursCapOverrideReason: parsed.data.weeklyHoursCapOverrideReason,
+      weeklyHoursCapOverrideExpiresAt: parsed.data.weeklyHoursCapOverrideExpiresAt,
+    })
+    if (visaErr) {
+      setBanner({ type: 'error', text: visaErr })
       return
     }
     try {
@@ -1593,9 +1660,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
                 <div className="grid grid-cols-1 gap-x-10 gap-y-6 pt-2 lg:grid-cols-2">
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Visa & working hours</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Immigration status & working hours</h3>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <FormField label="Visa type" htmlFor="visaTypeId" error={errors.visaTypeId?.message}>
+                      <FormField
+                        label="Immigration status"
+                        htmlFor="visaTypeId"
+                        error={errors.visaTypeId?.message}
+                      >
                         <Controller
                           name="visaTypeId"
                           control={control}
@@ -1609,12 +1680,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                                 data-testid="employee-visa-type"
                                 error={!!errors.visaTypeId}
                               >
-                                <SelectValue placeholder="Select visa type" />
+                                <SelectValue placeholder="Select immigration status" />
                               </SelectTrigger>
                               <SelectContent>
                                 {visaTypes.map(vt => (
                                   <SelectItem key={vt.id} value={vt.id}>
-                                    {vt.label} ({vt.weeklyHours}h / week)
+                                    {vt.label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -1622,6 +1693,26 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           )}
                         />
                       </FormField>
+                      {effectiveVisaCap != null && visaTypeId ? (
+                        <p className="text-xs text-muted-foreground md:col-span-2">
+                          {overrideActive ? (
+                            <>
+                              Effective allowed limit: {effectiveVisaCap} hours per week (approved override
+                              {visaMaxHours != null ? `; status default ${visaMaxHours}h` : ''}).
+                            </>
+                          ) : (
+                            <>
+                              Allowed limit for this status: {effectiveVisaCap} hours per week (configured in
+                              Settings).
+                            </>
+                          )}
+                        </p>
+                      ) : null}
+                      {visaHoursError ? (
+                        <p className="text-xs text-destructive md:col-span-2" role="alert">
+                          {visaHoursError}
+                        </p>
+                      ) : null}
                       <div className="flex items-center justify-between md:col-span-2">
                         <span className="text-sm font-medium">Currently in the country</span>
                         <Controller
@@ -1660,6 +1751,58 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           {...register('minimumWeeklyHours')}
                         />
                       </FormField>
+                      <div className="md:col-span-2 rounded-lg border border-border/80 bg-muted/20 p-4 space-y-4">
+                        <div>
+                          <h4 className="text-sm font-semibold text-foreground">
+                            Approved extra weekly hours
+                          </h4>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Use when immigration status cap is too low but you have documented approval to
+                            increase hours for this person (e.g. holiday cover). Rostering will warn at the
+                            effective cap.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <FormField
+                            label="Override cap (hours/week)"
+                            htmlFor="weeklyHoursCapOverride"
+                            error={errors.weeklyHoursCapOverride?.message}
+                          >
+                            <Input
+                              id="weeklyHoursCapOverride"
+                              inputMode="decimal"
+                              placeholder="Leave blank for status default"
+                              error={!!errors.weeklyHoursCapOverride}
+                              {...register('weeklyHoursCapOverride')}
+                            />
+                          </FormField>
+                          <FormField
+                            label="Expires (optional)"
+                            htmlFor="weeklyHoursCapOverrideExpiresAt"
+                            error={errors.weeklyHoursCapOverrideExpiresAt?.message}
+                          >
+                            <Input
+                              id="weeklyHoursCapOverrideExpiresAt"
+                              type="date"
+                              error={!!errors.weeklyHoursCapOverrideExpiresAt}
+                              {...register('weeklyHoursCapOverrideExpiresAt')}
+                            />
+                          </FormField>
+                          <FormField
+                            label="Reason / approval note"
+                            htmlFor="weeklyHoursCapOverrideReason"
+                            error={errors.weeklyHoursCapOverrideReason?.message}
+                            className="md:col-span-2"
+                          >
+                            <Input
+                              id="weeklyHoursCapOverrideReason"
+                              placeholder="Required when override cap is set"
+                              error={!!errors.weeklyHoursCapOverrideReason}
+                              {...register('weeklyHoursCapOverrideReason')}
+                            />
+                          </FormField>
+                        </div>
+                      </div>
                       <div className="flex items-center justify-between md:col-span-2">
                         <span className="text-sm font-medium">Opted out of 48h week</span>
                         <Controller
@@ -1966,8 +2109,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <EmployeeEditSkillsPanel employeeId={editEmployeeId} />
             ) : null}
 
-            {isEditMode && editTab === 'staff-reviews' ? (
-              <EmployeeEditPlaceholderPanel title="Staff Reviews" />
+            {isEditMode && editTab === 'staff-reviews' && editEmployeeId ? (
+              <EmployeeEditReviewsPanel employeeId={editEmployeeId} />
             ) : null}
 
             {isEditMode && editTab === 'documents' && editEmployeeId ? (

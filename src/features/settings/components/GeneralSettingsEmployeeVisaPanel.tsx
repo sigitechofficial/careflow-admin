@@ -20,32 +20,55 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import {
   DEFAULT_EMPLOYEE_VISA_TYPES,
+  isBuiltInVisaTypeId,
+  normalizeVisaTypeRow,
   resolveEmployeeVisaTypes,
 } from '@/features/settings/employee/employee-visa-defaults'
 
 function newVisaType(index: number): EmployeeVisaType {
   return {
-    id: `visa_${Date.now()}_${index}`,
+    id: `custom_${Date.now()}_${index}`,
     label: '',
-    weeklyHours: 40,
+    maxWeeklyHours: 40,
+    defaultContractedHours: null,
   }
+}
+
+function parseOptionalHours(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const n = Number(trimmed)
+  return Number.isFinite(n) ? n : null
 }
 
 function normalizeVisaTypes(types: EmployeeVisaType[]): EmployeeVisaType[] {
   return types
-    .map((t, index) => ({
-      id: t.id.trim() || `visa_${index}`,
-      label: t.label.trim(),
-      weeklyHours:
-        typeof t.weeklyHours === 'number' && Number.isFinite(t.weeklyHours)
-          ? Math.min(168, Math.max(0, t.weeklyHours))
-          : 0,
-    }))
+    .map((t, index) => {
+      const row = normalizeVisaTypeRow(t)
+      return {
+        id: row.id.trim() || `custom_${index}`,
+        label: row.label.trim(),
+        maxWeeklyHours: Math.min(168, Math.max(0, row.maxWeeklyHours)),
+        defaultContractedHours:
+          row.defaultContractedHours != null
+            ? Math.min(168, Math.max(0, row.defaultContractedHours))
+            : null,
+      }
+    })
     .filter(t => t.label.length > 0)
+    .map(t => {
+      if (
+        t.defaultContractedHours != null &&
+        t.defaultContractedHours > t.maxWeeklyHours
+      ) {
+        return { ...t, defaultContractedHours: t.maxWeeklyHours }
+      }
+      return t
+    })
 }
 
 function toDraft(s: OrganisationGeneralSettings): EmployeeVisaType[] {
-  return resolveEmployeeVisaTypes(s.employeeVisaTypes).map(row => ({ ...row }))
+  return resolveEmployeeVisaTypes(s.employeeVisaTypes).map(row => normalizeVisaTypeRow(row))
 }
 
 export function GeneralSettingsEmployeeVisaPanel() {
@@ -59,7 +82,7 @@ export function GeneralSettingsEmployeeVisaPanel() {
     queryError instanceof ApiError
       ? queryError.message
       : queryError
-        ? 'Could not load visa settings.'
+        ? 'Could not load immigration status settings.'
         : null
 
   React.useEffect(() => {
@@ -74,7 +97,7 @@ export function GeneralSettingsEmployeeVisaPanel() {
     if (!canUpdate) return
     const normalized = normalizeVisaTypes(draft)
     if (normalized.length === 0) {
-      toastApiError(new Error('Add at least one visa type with a label.'), 'Save failed')
+      toastApiError(new Error('Add at least one immigration status with a label.'), 'Save failed')
       return
     }
     try {
@@ -82,7 +105,7 @@ export function GeneralSettingsEmployeeVisaPanel() {
       const d = toDraft(updated)
       setSaved(d)
       setDraft(d)
-      toastSuccess('Saved', 'Visa and contracted hours settings updated.')
+      toastSuccess('Saved', 'Immigration status limits updated.')
     } catch (e) {
       toastApiError(e, 'Save failed')
     }
@@ -109,17 +132,21 @@ export function GeneralSettingsEmployeeVisaPanel() {
         </p>
       ) : null}
 
-      <GeneralSettingsCard title="Visa types & contracted hours">
+      <GeneralSettingsCard title="Immigration statuses & weekly hour limits">
         <p className="text-sm text-muted-foreground">
-          Define visa types and the default contracted hours per week used on the employee employment form.
+          Configure immigration status labels and the maximum hours allowed per week for each status
+          (standard 40h; lower for student routes). Optional default contracted hours prefill the
+          employment form when a status is selected — leave blank to keep existing hours. Admins can
+          add custom statuses, edit labels and limits, and remove custom rows. Built-in status ids
+          cannot be deleted. Right-to-work evidence stays on Employment Compliance.
         </p>
         <div className="space-y-4">
           {draft.map((row, index) => (
             <div
               key={row.id || `row-${index}`}
-              className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_1fr_8rem_auto]"
+              className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_minmax(7rem,9rem)_minmax(7rem,9rem)_minmax(7rem,9rem)_auto]"
             >
-              <FormField label="Visa type label" htmlFor={`visa-label-${index}`}>
+              <FormField label="Status label" htmlFor={`visa-label-${index}`}>
                 <Input
                   id={`visa-label-${index}`}
                   value={row.label}
@@ -128,14 +155,14 @@ export function GeneralSettingsEmployeeVisaPanel() {
                     const label = e.target.value
                     setDraft(d => d.map((r, i) => (i === index ? { ...r, label } : r)))
                   }}
-                  placeholder="e.g. Full time visa"
+                  placeholder="e.g. Skilled Worker"
                 />
               </FormField>
               <FormField label="Type id" htmlFor={`visa-id-${index}`}>
                 <Input
                   id={`visa-id-${index}`}
                   value={row.id}
-                  disabled={!canUpdate || index < 2}
+                  disabled={!canUpdate || isBuiltInVisaTypeId(row.id)}
                   onChange={e => {
                     const id = e.target.value.replace(/\s+/g, '_')
                     setDraft(d => d.map((r, i) => (i === index ? { ...r, id } : r)))
@@ -143,21 +170,44 @@ export function GeneralSettingsEmployeeVisaPanel() {
                   className="font-mono text-xs"
                 />
               </FormField>
-              <FormField label="Hours / week" htmlFor={`visa-hours-${index}`}>
+              <FormField label="Max hours / week" htmlFor={`visa-max-${index}`}>
                 <Input
-                  id={`visa-hours-${index}`}
+                  id={`visa-max-${index}`}
                   type="number"
                   min={0}
                   max={168}
                   step={0.5}
-                  value={row.weeklyHours}
+                  value={row.maxWeeklyHours}
                   disabled={!canUpdate}
                   onChange={e => {
-                    const weeklyHours = Number(e.target.value)
+                    const maxWeeklyHours = Number(e.target.value)
                     setDraft(d =>
                       d.map((r, i) =>
-                        i === index ? { ...r, weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : 0 } : r,
+                        i === index
+                          ? {
+                              ...r,
+                              maxWeeklyHours: Number.isFinite(maxWeeklyHours) ? maxWeeklyHours : 0,
+                            }
+                          : r,
                       ),
+                    )
+                  }}
+                />
+              </FormField>
+              <FormField label="Default contracted" htmlFor={`visa-default-${index}`}>
+                <Input
+                  id={`visa-default-${index}`}
+                  type="number"
+                  min={0}
+                  max={168}
+                  step={0.5}
+                  placeholder="Optional"
+                  value={row.defaultContractedHours ?? ''}
+                  disabled={!canUpdate}
+                  onChange={e => {
+                    const defaultContractedHours = parseOptionalHours(e.target.value)
+                    setDraft(d =>
+                      d.map((r, i) => (i === index ? { ...r, defaultContractedHours } : r)),
                     )
                   }}
                 />
@@ -167,8 +217,8 @@ export function GeneralSettingsEmployeeVisaPanel() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  disabled={!canUpdate || draft.length <= 1}
-                  aria-label="Remove visa type"
+                  disabled={!canUpdate || draft.length <= 1 || isBuiltInVisaTypeId(row.id)}
+                  aria-label="Remove immigration status"
                   onClick={() => setDraft(d => d.filter((_, i) => i !== index))}
                 >
                   <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -185,7 +235,7 @@ export function GeneralSettingsEmployeeVisaPanel() {
             onClick={() => setDraft(d => [...d, newVisaType(d.length)])}
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            Add visa type
+            Add custom status
           </Button>
         </div>
 

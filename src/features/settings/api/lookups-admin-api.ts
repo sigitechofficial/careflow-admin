@@ -15,6 +15,14 @@ export type LookupResource =
   | 'zones'
   | 'travel-payment-types'
 
+export type LookupRowWithInterval = LookupRow & {
+  defaultRefreshMonths?: number | null
+  defaultValidityMonths?: number | null
+  defaultIntervalDays?: number | null
+}
+
+export type IntervalLookupResource = 'skill-types' | 'certification-types' | 'review-types'
+
 const GET_PATH: Record<LookupResource, string> = {
   'job-titles': '/lookups/job-titles',
   'skill-types': '/lookups/skill-types',
@@ -32,6 +40,30 @@ const GET_PATH: Record<LookupResource, string> = {
 
 export async function fetchLookupList(resource: LookupResource): Promise<LookupRow[]> {
   const res = await apiJson<ApiEnvelope<LookupRow[]>>(GET_PATH[resource], { method: 'GET' })
+  return res.data
+}
+
+export async function fetchLookupListWithInterval(
+  resource: IntervalLookupResource,
+): Promise<LookupRowWithInterval[]> {
+  const res = await apiJson<ApiEnvelope<LookupRowWithInterval[]>>(GET_PATH[resource], { method: 'GET' })
+  return res.data
+}
+
+export async function updateLookupIntervalItem(
+  resource: IntervalLookupResource,
+  id: string,
+  body: {
+    name?: string
+    defaultRefreshMonths?: number | null
+    defaultValidityMonths?: number | null
+    defaultIntervalDays?: number | null
+  },
+): Promise<LookupRowWithInterval> {
+  const res = await apiJson<ApiEnvelope<LookupRowWithInterval>>(`/lookups/${resource}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
   return res.data
 }
 
@@ -66,6 +98,7 @@ export type ComplianceTypeRow = {
   category: string
   isMandatoryByDefault: boolean
   hasExpiry: boolean
+  defaultValidityMonths?: number | null
 }
 
 export type ComplianceCategory =
@@ -87,7 +120,7 @@ export async function fetchComplianceTypesList(params?: {
   limit?: number
 }): Promise<ComplianceTypeRow[]> {
   const qs = new URLSearchParams()
-  qs.set('limit', String(params?.limit ?? 500))
+  qs.set('limit', String(Math.min(params?.limit ?? 100, 100)))
   qs.set('sortBy', 'name')
   qs.set('sortOrder', 'asc')
   if (params?.search?.trim()) qs.set('search', params.search.trim())
@@ -103,11 +136,13 @@ export async function createComplianceType(body: {
   code: string
   category: ComplianceCategory
   isMandatoryByDefault?: boolean
+  hasExpiry?: boolean
+  defaultValidityMonths?: number | null
 }): Promise<ComplianceTypeRow> {
   const res = await apiJson<ApiEnvelope<ComplianceTypeRow>>('/compliance-types', {
     method: 'POST',
     body: JSON.stringify({
-      hasExpiry: true,
+      hasExpiry: body.hasExpiry ?? true,
       requiresDocument: true,
       requiresVerification: true,
       isMandatoryByDefault: body.isMandatoryByDefault ?? false,
@@ -124,6 +159,8 @@ export async function updateComplianceType(
     code?: string
     category?: ComplianceCategory
     isMandatoryByDefault?: boolean
+    hasExpiry?: boolean
+    defaultValidityMonths?: number | null
   },
 ): Promise<ComplianceTypeRow> {
   const res = await apiJson<ApiEnvelope<ComplianceTypeRow>>(`/compliance-types/${id}`, {

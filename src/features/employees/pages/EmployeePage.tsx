@@ -20,6 +20,7 @@ import {
   useEmployeeLookups,
 } from '@/features/employees/hooks/useEmployees'
 import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmployeeMutations'
+import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
 import { EmployeeSkillsTab } from '@/features/employees/components/EmployeeSkillsTab'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
 import { Badge } from '@/shared/ui/badge'
@@ -47,20 +48,6 @@ interface EmployeePageProps {
 }
 
 /* --- Sample Data --------------------------------------------- */
-const reviewData = [
-  { employee: 'Kwamie Abubaka', reviewType: 'Carer Communication form', status: 'In Progress', lastDone: '31/03/2026', nextDue: '04/04/2026', overdue: true },
-  { employee: 'Kwamie Abubaka', reviewType: 'PHONE USE AGREEMENT',      status: 'In Progress', lastDone: '23/11/2025', nextDue: '30/11/2025', overdue: true },
-  { employee: 'Kwamie Abubaka', reviewType: 'Supervision',              status: 'In Progress', lastDone: '01/12/2025', nextDue: '01/01/2026', overdue: true },
-  { employee: 'Briana adjei',   reviewType: 'Carer Communication form', status: 'Published',   lastDone: '04/02/2026', nextDue: '05/02/2026', overdue: true },
-  { employee: 'Briana adjei',   reviewType: 'Supervision',              status: 'Published',   lastDone: '24/11/2025', nextDue: '26/01/2026', overdue: true },
-  { employee: 'Saima Ahmad',    reviewType: 'Carer Communication form', status: 'Published',   lastDone: '25/03/2026', nextDue: '30/03/2026', overdue: true },
-  { employee: 'Saima Ahmad',    reviewType: 'COMPLIMENT event form',    status: 'Published',   lastDone: '11/03/2026', nextDue: '15/04/2026', overdue: true },
-  { employee: 'Saima Ahmad',    reviewType: 'PHONE USE AGREEMENT',      status: 'Published',   lastDone: '22/11/2025', nextDue: '20/11/2026', overdue: false },
-  { employee: 'Saima Ahmad',    reviewType: 'Supervision',              status: 'Published',   lastDone: '24/11/2025', nextDue: '29/12/2025', overdue: true },
-  { employee: 'Asiya Ahmed',    reviewType: 'Carer Communication form', status: 'Published',   lastDone: '10/10/2025', nextDue: '14/10/2025', overdue: true },
-  { employee: 'Ahmad Alam',     reviewType: 'Carer Communication form', status: 'Published',   lastDone: '01/04/2026', nextDue: '27/04/2026', overdue: true },
-]
-
 const employeeReports = [
   { title: 'Carer Activity Summary Report',      desc: 'reports on the actions completed by Employee and the notes they left' },
   { title: 'Compliance Report',                 desc: 'shows certifications/skills that are nearing or past their expiry date' },
@@ -212,7 +199,7 @@ function StaffStatusCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
       <h3 className="text-center font-bold text-sm mb-4">Staff Status Chart</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">Loadingù</p>
+        <p className="text-xs text-muted-foreground text-center py-6">Loading?</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center">{error}</p>
       ) : (
@@ -261,7 +248,7 @@ function ComplianceCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
       <h3 className="font-bold text-sm mb-1">Compliance</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">Loadingù</p>
+        <p className="text-xs text-muted-foreground py-12">Loading?</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -309,13 +296,13 @@ function SkillsChartCard({
       <h3 className="font-bold text-sm mb-0.5">Skills Chart</h3>
       {loading || error ? null : hasData ? (
         <p className="mb-2 text-center text-[10px] text-muted-foreground">
-          {totalAssignments} skill assignment{totalAssignments === 1 ? '' : 's'} ù from database
+          {totalAssignments} skill assignment{totalAssignments === 1 ? '' : 's'} ? from database
         </p>
       ) : (
         <p className="mb-2 text-center text-[10px] text-muted-foreground">From employee skill assignments</p>
       )}
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">Loadingù</p>
+        <p className="text-xs text-muted-foreground py-12">Loading?</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -387,7 +374,7 @@ function ReviewsCard({
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col items-center">
       <h3 className="font-bold text-sm mb-1">Reviews</h3>
       {loading ? (
-        <p className="text-xs text-muted-foreground py-12">Loadingù</p>
+        <p className="text-xs text-muted-foreground py-12">Loading?</p>
       ) : error ? (
         <p className="text-xs text-amber-800 dark:text-amber-200 text-center px-2 py-6">{error}</p>
       ) : !hasData ? (
@@ -431,7 +418,7 @@ function staffRowInitials(row: EmployeeListRow) {
     if (first && first.length >= 2) return first.slice(0, 2).toUpperCase()
     if (first) return first.slice(0, 1).toUpperCase()
   }
-  return 'ù'
+  return '?'
 }
 
 function staffAvatarColor(id: string) {
@@ -577,6 +564,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                 { label: 'Picture',         filter: false },
                 { label: 'Employee Name',   filter: true },
                 { label: 'Status',          filter: false },
+                { label: 'Immigration',     filter: false },
                 { label: 'Job Title',       filter: true },
                 { label: 'Role',            filter: false },
                 { label: 'Grade',           filter: false },
@@ -595,19 +583,19 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
           <tbody>
             {loading ? (
               <tr data-testid="employee-staff-loading">
-                <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">
-                  Loadingù
+                <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
+                  Loading?
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr data-testid="employee-staff-empty">
-                <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">
-                  {error ? 'ù' : 'No employees match this filter.'}
+                <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
+                  {error ? 'Could not load employees.' : 'No employees match this filter.'}
                 </td>
               </tr>
             ) : (
               rows.map(emp => {
-                const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || 'ù'
+                const name = emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '?'
                 const { label: statusLabel, norm: statusNorm } = staffRowEffectiveStatus(emp)
                 const photoSrc = resolveMediaUrl(emp.photoUrl)
                 const rowStatusSwitch =
@@ -675,11 +663,14 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                         {rowStatusSwitch}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? 'ù'}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? 'ù'}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.grade?.name ?? 'ù'}</td>
                     <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                      {emp.contractType?.name ?? 'ù'}
+                      {emp.visaTypeLabel ?? '?'}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? '?'}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? '?'}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{emp.grade?.name ?? '?'}</td>
+                    <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
+                      {emp.contractType?.name ?? '?'}
                     </td>
                     <td className="px-3 py-3">
                       <button
@@ -797,17 +788,55 @@ function ComplianceTab({ allEmployee, setAllEmployee, hideNoLonger, setHideNoLon
 
 /* --- Review Status Tab ---------------------------------------- */
 function ReviewStatusTab() {
+  const apiConfigured = Boolean(getApiBaseUrl())
+  const jwtPresent = Boolean(useAuthStore(s => s.accessToken)?.includes('.'))
+  const canRead = useAuthStore(s => s.can('employees.read'))
+  const overviewQuery = useEmployeeReviewsOverview(apiConfigured && jwtPresent && canRead)
+  const rows = overviewQuery.data ?? []
+
+  const formatDate = (iso: string | null | undefined) => {
+    if (!iso) return '?'
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '?'
+    return d.toLocaleDateString('en-GB')
+  }
+
+  const employeeName = (row: (typeof rows)[number]) => {
+    const p = row.employee?.personalDetail
+    if (!p) return '?'
+    return `${p.firstName} ${p.lastName}`.trim()
+  }
+
+  const isOverdue = (nextDue: string | null | undefined) => {
+    if (!nextDue) return false
+    return new Date(nextDue).getTime() < Date.now()
+  }
+
+  if (overviewQuery.isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading review status?</p>
+  }
+
+  if (overviewQuery.error) {
+    return (
+      <p className="text-sm text-destructive">
+        {overviewQuery.error instanceof ApiError
+          ? overviewQuery.error.message
+          : 'Could not load review status.'}
+      </p>
+    )
+  }
+
   return (
     <div className="overflow-x-auto rounded-lg border border-border" data-testid="employee-review-status-table">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40">
             {[
-              { label: 'Employee',    filter: true },
+              { label: 'Employee', filter: true },
               { label: 'Review Type', filter: true },
-              { label: 'Status',      filter: false },
-              { label: 'Last Done',   filter: true },
-              { label: 'Next Due',    filter: true },
+              { label: 'Status', filter: false },
+              { label: 'Last Done', filter: true },
+              { label: 'Next Due', filter: true },
             ].map(col => (
               <th key={col.label} className="text-left px-3 py-2.5 font-medium text-muted-foreground whitespace-nowrap">
                 <div className="flex items-center gap-1">
@@ -819,21 +848,32 @@ function ReviewStatusTab() {
           </tr>
         </thead>
         <tbody>
-          {reviewData.map((row, i) => (
-            <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-              <td className="px-3 py-2.5 font-medium whitespace-nowrap">{row.employee}</td>
-              <td className="px-3 py-2.5 text-muted-foreground">{row.reviewType}</td>
-              <td className="px-3 py-2.5">
-                <Badge variant={row.status === 'Published' ? 'success' : 'warning'} size="sm">
-                  {row.status}
-                </Badge>
-              </td>
-              <td className="px-3 py-2.5 text-muted-foreground">{row.lastDone}</td>
-              <td className={cn('px-3 py-2.5 font-medium', row.overdue ? 'text-destructive' : 'text-muted-foreground')}>
-                {row.nextDue}
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-3 py-6 text-muted-foreground">
+                No staff review records yet.
               </td>
             </tr>
-          ))}
+          ) : (
+            rows.map(row => {
+              const overdue = isOverdue(row.nextDue)
+              return (
+                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                  <td className="px-3 py-2.5 font-medium whitespace-nowrap">{employeeName(row)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{row.reviewType?.name ?? '?'}</td>
+                  <td className="px-3 py-2.5">
+                    <Badge variant={overdue ? 'warning' : 'success'} size="sm">
+                      {row.status ?? (overdue ? 'Overdue' : 'Scheduled')}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{formatDate(row.lastDone)}</td>
+                  <td className={cn('px-3 py-2.5 font-medium', overdue ? 'text-destructive' : 'text-muted-foreground')}>
+                    {formatDate(row.nextDue)}
+                  </td>
+                </tr>
+              )
+            })
+          )}
         </tbody>
       </table>
     </div>

@@ -283,6 +283,16 @@ export const employmentStepSchema = z
     contractedWeeklyHours: optionalDecimal(MAX_WEEKLY_HOURS, 'hours per week'),
     maximumWeeklyHours: optionalDecimal(MAX_WEEKLY_HOURS, 'hours per week'),
     minimumWeeklyHours: optionalDecimal(MAX_WEEKLY_HOURS, 'hours per week'),
+    weeklyHoursCapOverride: optionalDecimal(MAX_WEEKLY_HOURS, 'hours per week'),
+    weeklyHoursCapOverrideReason: z
+      .string()
+      .max(500)
+      .optional()
+      .transform(v => emptyToUndef(v) as string | undefined),
+    weeklyHoursCapOverrideExpiresAt: z
+      .string()
+      .optional()
+      .transform(v => emptyToUndef(v) as string | undefined),
     optedOutOf48Hours: z.boolean(),
     isAgencyStaff: z.boolean(),
     agencyName: z
@@ -304,6 +314,16 @@ export const employmentStepSchema = z
   .superRefine((data, ctx) => {
     refineEmploymentDates(data, ctx)
     refineWeeklyHours(data, ctx)
+    const capOverride = parseOptionalDecimal(data.weeklyHoursCapOverride)
+    if (capOverride !== undefined) {
+      if (!data.weeklyHoursCapOverrideReason?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Reason is required when approving extra weekly hours',
+          path: ['weeklyHoursCapOverrideReason'],
+        })
+      }
+    }
     if (data.isAgencyStaff && !data.agencyName?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

@@ -20,6 +20,7 @@ import {
   fetchBodyMapRecordTypesList,
   fetchComplianceTypesList,
   fetchLookupList,
+  fetchLookupListWithInterval,
   fetchServiceUserCareTypesList,
   fetchServiceUserEthnicitiesList,
   fetchServiceUserFundingTypesList,
@@ -29,12 +30,14 @@ import {
   updateBodyMapRecordType,
   updateComplianceType,
   updateLookupItem,
+  updateLookupIntervalItem,
   updateServiceUserCareType,
   updateServiceUserEthnicity,
   updateServiceUserFundingType,
   updateServiceUserLanguage,
   updateVitalAcceptedRangeCatalog,
   type ComplianceCategory,
+  type IntervalLookupResource,
   type LookupResource,
 } from '@/features/settings/api/lookups-admin-api'
 import { bodyMapKeys } from '@/features/service-users/body-map/keys'
@@ -81,6 +84,43 @@ export function useDeleteLookupItem(resource: LookupResource) {
   })
 }
 
+export function useLookupListWithInterval(resource: IntervalLookupResource, enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.lookups(resource),
+    queryFn: () => fetchLookupListWithInterval(resource),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateLookupIntervalItem(resource: IntervalLookupResource) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      name,
+      defaultRefreshMonths,
+      defaultValidityMonths,
+      defaultIntervalDays,
+    }: {
+      id: string
+      name?: string
+      defaultRefreshMonths?: number | null
+      defaultValidityMonths?: number | null
+      defaultIntervalDays?: number | null
+    }) =>
+      updateLookupIntervalItem(resource, id, {
+        ...(name !== undefined ? { name } : {}),
+        ...(defaultRefreshMonths !== undefined ? { defaultRefreshMonths } : {}),
+        ...(defaultValidityMonths !== undefined ? { defaultValidityMonths } : {}),
+        ...(defaultIntervalDays !== undefined ? { defaultIntervalDays } : {}),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.lookups(resource) })
+    },
+  })
+}
+
 export function useComplianceTypes(
   params?: { search?: string; limit?: number },
   enabled = true,
@@ -101,6 +141,8 @@ export function useCreateComplianceType() {
       code: string
       category: ComplianceCategory
       isMandatoryByDefault?: boolean
+      hasExpiry?: boolean
+      defaultValidityMonths?: number | null
     }) => createComplianceType(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: settingsKeys.complianceTypes() })
@@ -121,6 +163,8 @@ export function useUpdateComplianceType() {
         code?: string
         category?: ComplianceCategory
         isMandatoryByDefault?: boolean
+        hasExpiry?: boolean
+        defaultValidityMonths?: number | null
       }
     }) => updateComplianceType(id, body),
     onSuccess: () => {

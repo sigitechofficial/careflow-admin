@@ -45,6 +45,9 @@ export type EmployeeFormValues = {
   contractedWeeklyHours: string
   maximumWeeklyHours: string
   minimumWeeklyHours: string
+  weeklyHoursCapOverride: string
+  weeklyHoursCapOverrideReason: string
+  weeklyHoursCapOverrideExpiresAt: string
   optedOutOf48Hours: boolean
   isAgencyStaff: boolean
   agencyName: string
@@ -175,6 +178,15 @@ export function mapEmployeeDetailToFormValues(
         contractedWeeklyHours: numToInput(em.contractedWeeklyHours),
         maximumWeeklyHours: numToInput(em.maximumWeeklyHours),
         minimumWeeklyHours: numToInput(em.minimumWeeklyHours),
+        weeklyHoursCapOverride: numToInput(
+          (em as { weeklyHoursCapOverride?: unknown }).weeklyHoursCapOverride,
+        ),
+        weeklyHoursCapOverrideReason:
+          (em as { weeklyHoursCapOverrideReason?: string | null }).weeklyHoursCapOverrideReason ??
+          '',
+        weeklyHoursCapOverrideExpiresAt: isoToDateInput(
+          (em as { weeklyHoursCapOverrideExpiresAt?: string | null }).weeklyHoursCapOverrideExpiresAt,
+        ),
         optedOutOf48Hours: Boolean(em.optedOutOf48Hours),
         isAgencyStaff: Boolean(em.isAgencyStaff),
         agencyName: em.agencyName ?? '',

@@ -118,7 +118,10 @@ export type IncidentTypeSetting = {
 export type EmployeeVisaType = {
   id: string
   label: string
-  weeklyHours: number
+  maxWeeklyHours: number
+  defaultContractedHours: number | null
+  /** @deprecated Legacy API field — same as maxWeeklyHours */
+  weeklyHours?: number
 }
 
 export type DomCareAllocationRule = {

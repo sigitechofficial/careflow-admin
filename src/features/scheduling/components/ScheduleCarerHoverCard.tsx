@@ -90,6 +90,9 @@ export function ScheduleCarerHoverCard({ row, catalog, locationNames }: Props) {
         {baseLocationLabels.length > 0 ? (
           <DetailRow label="Base sites" value={baseLocationLabels.join(', ')} />
         ) : null}
+        {catalog?.visaTypeLabel ? (
+          <DetailRow label="Immigration" value={catalog.visaTypeLabel} />
+        ) : null}
         {employee.contractedWeeklyHours != null ? (
           <DetailRow label="Contracted" value={`${employee.contractedWeeklyHours}h / week`} />
         ) : null}

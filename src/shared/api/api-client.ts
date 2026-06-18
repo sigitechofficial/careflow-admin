@@ -12,6 +12,44 @@ export type ApiEnvelope<T> = {
   meta?: unknown
 }
 
+export type ApiErrorBody = {
+  success?: boolean
+  message?: string
+  errors?: unknown[]
+}
+
+/** Turn Nest validation `errors[]` into a readable single-line message. */
+export function formatApiErrorMessage(body: unknown, fallback: string): string {
+  if (typeof body !== 'object' || body === null) return fallback
+  const record = body as ApiErrorBody
+  const errors = record.errors
+  if (Array.isArray(errors) && errors.length > 0) {
+    const parts = errors.map(item => {
+      if (typeof item === 'string') return item
+      if (typeof item === 'object' && item !== null) {
+        const row = item as Record<string, unknown>
+        if (typeof row.message === 'string') return row.message
+        if (Array.isArray(row.constraints)) {
+          return row.constraints.filter((c): c is string => typeof c === 'string').join(', ')
+        }
+        if (row.constraints && typeof row.constraints === 'object') {
+          return Object.values(row.constraints as Record<string, string>).join(', ')
+        }
+        if (typeof row.property === 'string' && row.constraints) {
+          return `${row.property}: ${Object.values(row.constraints as Record<string, string>).join(', ')}`
+        }
+      }
+      return String(item)
+    })
+    const detail = parts.filter(Boolean).join('; ')
+    if (detail) return detail
+  }
+  if (typeof record.message === 'string' && record.message.trim() && record.message !== 'Validation failed') {
+    return record.message
+  }
+  return fallback
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -109,11 +147,12 @@ export async function apiJson<T>(
       body = text
     }
     if (!res.ok) {
+      const fallback = res.statusText || 'Request failed'
       const msg =
         typeof body === 'object' && body !== null && 'message' in body
-          ? String((body as { message: unknown }).message)
-          : res.statusText
-      throw new ApiError(msg || 'Request failed', res.status, body)
+          ? formatApiErrorMessage(body, String((body as { message: unknown }).message) || fallback)
+          : fallback
+      throw new ApiError(msg || fallback, res.status, body)
     }
     return body as T
   }

@@ -1,4 +1,4 @@
-﻿import type { ListEmployeesParams } from '@/features/employees/api'
+import type { ListEmployeesParams } from '@/features/employees/api'
 
 /**
  * Typed query key factory for all employee queries.
@@ -61,4 +61,10 @@ export const employeeKeys = {
   /** Compliance checklist for one employee. */
   complianceChecklist: (id: string, ensure: boolean) =>
     [...employeeKeys.detail(id), 'compliance-checklist', { ensure }] as const,
+
+  /** Staff reviews for one employee. */
+  reviews: (id: string) => [...employeeKeys.detail(id), 'reviews'] as const,
+
+  /** Organisation-wide staff reviews (hub). */
+  reviewsOverview: () => [...employeeKeys.all(), 'reviews-overview'] as const,
 } as const
