@@ -31,6 +31,8 @@ import { scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-dr
 import { travelConflictJobIds } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import { buildCarerAvailabilitySegments } from '@/features/scheduling/utils/schedule-jobs-availability.util'
 import type { EmployeeDayPattern } from '@/features/scheduling/types/scheduling.types'
+import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
+import { resolveJobTimeCritical } from '@/features/scheduling/utils/schedule-job-time-critical.util'
 import {
   carerAvatarTone,
   employeeBriefDisplayName,
@@ -161,6 +163,7 @@ function ScheduleJobBlock({
     (runDisplayPreferences?.showTravelMethodIcons ?? false) && Boolean(job.scheduleRunId)
   const showOperationalBadges =
     job.serviceUserAbsent || (job.carersOnLeave?.length ?? 0) > 0 || job.needsCover
+  const timeCritical = resolveJobTimeCritical(job, visitPlanSlotsByServiceUser)
 
   const block = (
     <div
@@ -246,6 +249,13 @@ function ScheduleJobBlock({
         }
       }}
     >
+      {timeCritical ? (
+        <TimeCriticalDot
+          toleranceMinutes={timeCritical.timeToleranceMinutes}
+          position="corner"
+          size="xs"
+        />
+      ) : null}
       <div className="flex min-h-0 flex-1 items-center gap-1 px-2 py-0.5">
         {stackedLanes && overlapLayout ? (
           <span

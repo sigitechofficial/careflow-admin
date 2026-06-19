@@ -3,6 +3,7 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { ScheduleJobContextAction } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
   isScheduleJobReadOnly,
+  isScheduleJobReinstatable,
   isScheduleJobTerminal,
   scheduleJobHasAllocations,
 } from '@/features/scheduling/types/schedule-job-context-actions.types'
@@ -24,6 +25,7 @@ type Props = {
 export function ScheduleJobContextMenu({ job, children, tooltip, onAction }: Props) {
   const readOnly = isScheduleJobReadOnly(job)
   const terminal = isScheduleJobTerminal(job)
+  const reinstatable = isScheduleJobReinstatable(job)
   const hasAllocations = scheduleJobHasAllocations(job)
 
   const trigger = tooltip ? (
@@ -69,6 +71,11 @@ export function ScheduleJobContextMenu({ job, children, tooltip, onAction }: Pro
         <ContextMenuItem disabled={terminal} onSelect={() => onAction(job, 'cancel-job')} destructive>
           Cancel Job
         </ContextMenuItem>
+        {reinstatable ? (
+          <ContextMenuItem onSelect={() => onAction(job, 'reinstate-job')}>
+            Reinstate visit
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem disabled={readOnly} onSelect={() => onAction(job, 'add-notes')}>
           Add Notes
         </ContextMenuItem>

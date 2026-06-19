@@ -1,4 +1,5 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import type { CancelHousekeepingJobPayload } from '@/features/scheduling/utils/visit-cancellation.constants'
 import type {
   CallOffVisitRow,
   DateRangeQuery,
@@ -182,10 +183,18 @@ export async function completeHousekeepingJob(
   return res
 }
 
-export async function cancelHousekeepingJob(id: string, notes?: string) {
+export async function cancelHousekeepingJob(id: string, payload: CancelHousekeepingJobPayload) {
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/cancel`, {
     method: 'PATCH',
-    body: JSON.stringify(notes ? { notes } : {}),
+    body: JSON.stringify(payload),
+  })
+  return res
+}
+
+export async function reinstateHousekeepingJob(id: string, payload?: { notes?: string }) {
+  const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/reinstate`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload ?? {}),
   })
   return res
 }

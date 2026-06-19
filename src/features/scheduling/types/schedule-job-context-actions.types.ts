@@ -6,6 +6,7 @@ export type ScheduleJobContextAction =
   | 'unallocate-job'
   | 'complete-job'
   | 'cancel-job'
+  | 'reinstate-job'
   | 'add-notes'
   | 'allocate-employees'
   | 'unallocate-employees'
@@ -23,7 +24,11 @@ export function isScheduleJobCompleted(job: Pick<TimelineJob, 'status'>): boolea
   return job.status === 'COMPLETED'
 }
 
-/** Completed, cancelled, and called-off jobs cannot be edited on the rota board. */
+export function isScheduleJobReinstatable(job: Pick<TimelineJob, 'status'>): boolean {
+  return job.status === 'CANCELLED' || job.status === 'CALLED_OFF'
+}
+
+/** Completed, cancelled, and called-off jobs cannot be edited on the rota board (until reinstated). */
 export function isScheduleJobReadOnly(job: TimelineJob): boolean {
   return isScheduleJobTerminal(job)
 }

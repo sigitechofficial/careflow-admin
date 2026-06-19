@@ -14,6 +14,7 @@ import {
   formatWeekdays,
   formatYesNo,
 } from '@/features/service-users/visit-plan/visit-plan-format'
+import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
 
 function AssignedCarerBadges({
   employeeIds,
@@ -64,7 +65,12 @@ function CallPatternOverviewCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-sm font-semibold text-foreground">{slot.label}</h4>
+          <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            {slot.timeCritical ? (
+              <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
+            ) : null}
+            {slot.label}
+          </h4>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {start} – {end} · {slot.requiredCarers} required
           </p>
@@ -162,7 +168,12 @@ function SlotDetailCard({
     <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-sm font-semibold text-foreground">{slot.label}</h4>
+          <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            {slot.timeCritical ? (
+              <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
+            ) : null}
+            {slot.label}
+          </h4>
           <span className="text-xs text-muted-foreground">
             {normalizeTimeForInput(slot.plannedStartTime)} – {normalizeTimeForInput(slot.plannedEndTime)} ·{' '}
             {slot.requiredCarers} carer{slot.requiredCarers === 1 ? '' : 's'} required
