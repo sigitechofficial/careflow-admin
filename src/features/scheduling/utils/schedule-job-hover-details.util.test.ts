@@ -48,6 +48,13 @@ const slot: VisitPlanSlot = {
   monthlyPatternWeekday: null,
   linkedCarePlanFormIds: [],
   assignedEmployeeIds: [],
+  slotKind: 'STANDARD',
+  slotEffectiveFrom: null,
+  slotEffectiveTo: null,
+  oneOffDate: null,
+  allowBackfillDays: 0,
+  carerAssignments: [],
+  exceptions: [],
 }
 
 describe('schedule-job-hover-details', () => {

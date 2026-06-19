@@ -236,13 +236,19 @@ function ScheduleJobBlock({
         {showOperationalBadges ? (
           <span className="flex shrink-0 flex-col gap-0.5">
             {job.serviceUserAbsent ? (
-              <BedDouble className="h-3 w-3 text-rose-600" aria-label="Client absent" title="Client absent" />
+              <span title="Client absent">
+                <BedDouble className="h-3 w-3 text-rose-600" aria-label="Client absent" />
+              </span>
             ) : null}
             {(job.carersOnLeave?.length ?? 0) > 0 ? (
-              <Clock className="h-3 w-3 text-amber-600" aria-label="Carer on leave" title="Carer on leave" />
+              <span title="Carer on leave">
+                <Clock className="h-3 w-3 text-amber-600" aria-label="Carer on leave" />
+              </span>
             ) : null}
             {job.needsCover && !job.serviceUserAbsent ? (
-              <AlertTriangle className="h-3 w-3 text-sky-600" aria-label="Needs cover" title="Needs cover" />
+              <span title="Needs cover">
+                <AlertTriangle className="h-3 w-3 text-sky-600" aria-label="Needs cover" />
+              </span>
             ) : null}
           </span>
         ) : null}
