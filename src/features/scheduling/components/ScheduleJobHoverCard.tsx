@@ -5,6 +5,7 @@ import { TooltipContent } from '@/shared/ui/tooltip'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import { timeCriticalLabel } from '@/features/service-users/visit-plan/TimeCriticalDot'
 import {
   callPatternTimeRange,
   carePlansForJobHover,
@@ -202,6 +203,9 @@ export function JobHoverPanel({
           : []),
         { label: 'Carers', value: `${visitSlot.requiredCarers} required` },
         { label: 'Schedule', value: visitPlanScheduleSummary(visitSlot) },
+        ...(visitSlot.timeCritical
+          ? [{ label: 'Time critical', value: timeCriticalLabel(visitSlot.timeToleranceMinutes) }]
+          : []),
       ]
     : []
 

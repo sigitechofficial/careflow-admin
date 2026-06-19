@@ -10,6 +10,8 @@ import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
 import { ScheduleJobNotesDialog } from '@/features/scheduling/components/ScheduleJobNotesDialog'
 import { ScheduleJobCompleteDialog } from '@/features/scheduling/components/ScheduleJobCompleteDialog'
+import { ScheduleJobCancelDialog } from '@/features/scheduling/components/ScheduleJobCancelDialog'
+import { ScheduleJobReinstateDialog } from '@/features/scheduling/components/ScheduleJobReinstateDialog'
 import { ScheduleVisitWorkspaceSheet } from '@/features/scheduling/components/ScheduleVisitWorkspaceSheet'
 import type { ScheduleVisitWorkspaceTab } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
 import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
@@ -22,7 +24,6 @@ import { useScheduleRunEditDialog } from '@/features/scheduling/hooks/useSchedul
 import { useScheduleDayRuns, useScheduleEmployeesDay, useScheduleServiceUsersWeek } from '@/features/scheduling/hooks/useScheduling'
 import {
   useAllocateJob,
-  useCancelHousekeepingJob,
   useUnallocateJob,
   useUpdateScheduledJob,
 } from '@/features/scheduling/hooks/useSchedulingMutations'
@@ -144,6 +145,10 @@ export default function ScheduleJobsPage() {
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [completeJobTarget, setCompleteJobTarget] = React.useState<TimelineJob | null>(null)
   const [completeOpen, setCompleteOpen] = React.useState(false)
+  const [cancelJobTarget, setCancelJobTarget] = React.useState<TimelineJob | null>(null)
+  const [cancelOpen, setCancelOpen] = React.useState(false)
+  const [reinstateJobTarget, setReinstateJobTarget] = React.useState<TimelineJob | null>(null)
+  const [reinstateOpen, setReinstateOpen] = React.useState(false)
   const [workspaceJob, setWorkspaceJob] = React.useState<TimelineJob | null>(null)
   const [workspaceOpen, setWorkspaceOpen] = React.useState(false)
   const [workspaceTab, setWorkspaceTab] = React.useState<ScheduleVisitWorkspaceTab>('overview')
@@ -158,8 +163,6 @@ export default function ScheduleJobsPage() {
   const updateJob = useUpdateScheduledJob()
   const allocate = useAllocateJob()
   const unallocate = useUnallocateJob()
-  const cancelJob = useCancelHousekeepingJob()
-
   const setScheduleDate = React.useCallback(
     (next: string) => {
       setDate(next)
@@ -660,17 +663,12 @@ export default function ScheduleJobsPage() {
           setCompleteOpen(true)
           return
         case 'cancel-job':
-          if (!window.confirm('Cancel this job? Assigned carers will be removed.')) return
-          cancelJob.mutate(
-            { jobId: job.id },
-            {
-              onSuccess: () => {
-                toastSuccess('Job cancelled')
-                void refreshBoard()
-              },
-              onError: (error) => toastApiError(error, 'Could not cancel job'),
-            },
-          )
+          setCancelJobTarget(job)
+          setCancelOpen(true)
+          return
+        case 'reinstate-job':
+          setReinstateJobTarget(job)
+          setReinstateOpen(true)
           return
         case 'add-notes':
           setNotesJob(job)
@@ -689,7 +687,7 @@ export default function ScheduleJobsPage() {
           return
       }
     },
-    [cancelJob, handleUnallocateJob, openAllocate, openVisitWorkspace, refreshBoard, runEdit.openEditRunById],
+    [handleUnallocateJob, openAllocate, openVisitWorkspace, refreshBoard, runEdit.openEditRunById],
   )
 
   const handleRefresh = () => {
@@ -1026,6 +1024,31 @@ export default function ScheduleJobsPage() {
           void refreshBoard()
         }}
         onJobUpdated={() => {
+          void refreshBoard()
+        }}
+      />
+
+      <ScheduleJobCancelDialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          setCancelOpen(open)
+          if (!open) setCancelJobTarget(null)
+        }}
+        job={cancelJobTarget}
+        visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+        onCancelled={() => {
+          void refreshBoard()
+        }}
+      />
+
+      <ScheduleJobReinstateDialog
+        open={reinstateOpen}
+        onOpenChange={(open) => {
+          setReinstateOpen(open)
+          if (!open) setReinstateJobTarget(null)
+        }}
+        job={reinstateJobTarget}
+        onReinstated={() => {
           void refreshBoard()
         }}
       />

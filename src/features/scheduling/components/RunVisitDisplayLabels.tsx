@@ -3,10 +3,12 @@ import { cn } from '@/shared/lib/utils'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
 import {
   buildRunVisitLabelLines,
   type ScheduleRunsDisplayPreferences,
 } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
+import { resolveJobTimeCritical } from '@/features/scheduling/utils/schedule-job-time-critical.util'
 
 type Props = {
   job: TimelineJob
@@ -33,11 +35,16 @@ export function RunVisitDisplayLabels({
   })
   const showDoubleUp = preferences.showDoubleUpIcon && job.requiredCarers > 1
   const showTravel = preferences.showTravelMethodIcons && Boolean(job.scheduleRunId)
+  const timeCritical = resolveJobTimeCritical(job, visitPlanSlotsByServiceUser)
+  const showLeadingIcons = timeCritical || showDoubleUp || showTravel
 
   return (
     <div className={cn('flex min-w-0 items-start gap-1.5', className)}>
-      {(showDoubleUp || showTravel) ? (
+      {showLeadingIcons ? (
         <span className="flex shrink-0 items-center gap-0.5 pt-0.5">
+          {timeCritical ? (
+            <TimeCriticalDot toleranceMinutes={timeCritical.timeToleranceMinutes} size="xs" />
+          ) : null}
           {showDoubleUp ? (
             <Users className="h-3 w-3 opacity-80" aria-label="Double up visit" />
           ) : null}

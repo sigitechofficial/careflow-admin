@@ -5,13 +5,13 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
+import { ScheduleJobCancelDialog } from '@/features/scheduling/components/ScheduleJobCancelDialog'
 import {
   useHousekeepingDayJobs,
   useHousekeepingJobsNeedingAttention,
   useHousekeepingJobsNotStarted,
 } from '@/features/scheduling/hooks/useScheduling'
 import {
-  useCancelHousekeepingJob,
   useCompleteHousekeepingJob,
 } from '@/features/scheduling/hooks/useSchedulingMutations'
 import type { HousekeepingJob, PaginationMeta } from '@/features/scheduling/types/scheduling.types'
@@ -91,48 +91,43 @@ function JobActions({
   onAssign: (job: HousekeepingJob) => void
 }) {
   const complete = useCompleteHousekeepingJob()
-  const cancel = useCancelHousekeepingJob()
+  const [cancelOpen, setCancelOpen] = React.useState(false)
   return (
-    <div className="flex items-center gap-2 justify-end flex-wrap">
-      <Button
-        size="sm"
-        variant={jobNeedsCarerAssignment(job) ? 'default' : 'outline'}
-        onClick={() => onAssign(job)}
-      >
-        {jobNeedsCarerAssignment(job) ? 'Assign carers' : 'Manage carers'}
-      </Button>
-      <Button
-        size="sm"
-        variant="secondary"
-        disabled={cancel.isPending || complete.isPending}
-        onClick={() =>
-          cancel.mutate(
-            { jobId: job.id },
-            {
-              onSuccess: () => toastSuccess('Job cancelled'),
-              onError: e => toastApiError(e, 'Could not cancel job'),
-            },
-          )
-        }
-      >
-        Cancel Job
-      </Button>
-      <Button
-        size="sm"
-        disabled={cancel.isPending || complete.isPending}
-        onClick={() =>
-          complete.mutate(
-            { jobId: job.id },
-            {
-              onSuccess: () => toastSuccess('Job completed'),
-              onError: e => toastApiError(e, 'Could not complete job'),
-            },
-          )
-        }
-      >
-        Complete Job
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center gap-2 justify-end flex-wrap">
+        <Button
+          size="sm"
+          variant={jobNeedsCarerAssignment(job) ? 'default' : 'outline'}
+          onClick={() => onAssign(job)}
+        >
+          {jobNeedsCarerAssignment(job) ? 'Assign carers' : 'Manage carers'}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={complete.isPending}
+          onClick={() => setCancelOpen(true)}
+        >
+          Cancel Job
+        </Button>
+        <Button
+          size="sm"
+          disabled={complete.isPending}
+          onClick={() =>
+            complete.mutate(
+              { jobId: job.id },
+              {
+                onSuccess: () => toastSuccess('Job completed'),
+                onError: e => toastApiError(e, 'Could not complete job'),
+              },
+            )
+          }
+        >
+          Complete Job
+        </Button>
+      </div>
+      <ScheduleJobCancelDialog open={cancelOpen} onOpenChange={setCancelOpen} job={job} />
+    </>
   )
 }
 

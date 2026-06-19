@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { CancelHousekeepingJobPayload } from '@/features/scheduling/utils/visit-cancellation.constants'
 import {
   allocateJob,
   buildSchedule,
   cancelHousekeepingJob,
   completeHousekeepingJob,
   confirmJobAllocation,
+  reinstateHousekeepingJob,
   setJobLeadCarer,
   unallocateJob,
   updateScheduledJob,
@@ -60,11 +62,23 @@ export function useCompleteHousekeepingJob() {
   })
 }
 
-export function useCancelHousekeepingJob() {
+export function useReinstateHousekeepingJob() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ jobId, notes }: { jobId: string; notes?: string }) =>
-      cancelHousekeepingJob(jobId, notes),
+      reinstateHousekeepingJob(jobId, { notes }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
+      invalidateSchedulingQueries(qc)
+    },
+  })
+}
+
+export function useCancelHousekeepingJob() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, ...payload }: CancelHousekeepingJobPayload & { jobId: string }) =>
+      cancelHousekeepingJob(jobId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
       invalidateSchedulingQueries(qc)

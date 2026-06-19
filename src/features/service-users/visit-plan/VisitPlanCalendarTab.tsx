@@ -39,6 +39,7 @@ import {
   visitPlanCalendarOutcomeMeta,
 } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 import { visitPlanCalendarSlotPresentation } from '@/features/service-users/visit-plan/visit-plan-calendar-overdue.util'
+import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import '@/features/service-users/medication/mar-calendar.css'
@@ -555,6 +556,13 @@ export function VisitPlanCalendarTab({
               >
                 <span className={cn('vp-cal-legend-dot', SLOT_DOT_CLASSES[slotPaletteIndex(index)])} aria-hidden />
                 {slot.label}
+                {slot.timeCritical ? (
+                  <TimeCriticalDot
+                    toleranceMinutes={slot.timeToleranceMinutes}
+                    size="xs"
+                    className="ml-1 align-middle"
+                  />
+                ) : null}
               </span>
             ))}
           </div>
@@ -571,6 +579,10 @@ export function VisitPlanCalendarTab({
             <span className="vp-cal-legend-outcome-item">
               <span className="vp-cal-outcome-swatch vp-cal-visit-overdue" aria-hidden />
               Overdue
+            </span>
+            <span className="vp-cal-legend-outcome-item">
+              <TimeCriticalDot size="xs" toleranceMinutes={15} />
+              Time critical
             </span>
           </div>
           <p className="vp-cal-hint">
@@ -627,7 +639,15 @@ export function VisitPlanCalendarTab({
                             >
                               <div className="vp-cal-list-item-main">
                                 <div className="min-w-0">
-                                  <p className="vp-cal-list-slot">{entry.slot.label}</p>
+                                  <p className="vp-cal-list-slot flex items-center gap-1.5">
+                                    {entry.slot.timeCritical ? (
+                                      <TimeCriticalDot
+                                        toleranceMinutes={entry.slot.timeToleranceMinutes}
+                                        size="xs"
+                                      />
+                                    ) : null}
+                                    {entry.slot.label}
+                                  </p>
                                   <p className="vp-cal-list-status">
                                     {presentation.isOverdue ? presentation.shortLabel : outcomeMeta.label}
                                   </p>
@@ -705,7 +725,12 @@ export function VisitPlanCalendarTab({
                       ) : null}
                       <tr className={cn('vp-cal-row med-group-row mar-med-card-start', SLOT_ROW_CLASSES[slotPaletteIndex(rowIndex)])}>
                         <td className="sticky-col">
-                          <p className="vp-cal-slot-name">{slot.label}</p>
+                          <p className="vp-cal-slot-name flex items-center gap-1.5">
+                            {slot.timeCritical ? (
+                              <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
+                            ) : null}
+                            {slot.label}
+                          </p>
                           <div className="vp-cal-slot-meta">
                             <User className="h-3 w-3 shrink-0" aria-hidden />
                             <span className="vp-cal-carer-line" title={carers.names.join(', ') || undefined}>
@@ -746,11 +771,11 @@ export function VisitPlanCalendarTab({
                                     <button
                                       type="button"
                                       className={cn(
-                                        'vp-cal-visit',
+                                        'vp-cal-visit relative',
                                         outcomeMeta.className,
                                         presentation.isOverdue && 'vp-cal-visit-overdue',
                                       )}
-                                      aria-label={`${slot.label} ${formatCalendarDateLabel(cell.month, cell.day)} — ${presentation.isOverdue ? 'Overdue — no action recorded' : outcomeMeta.label}`}
+                                      aria-label={`${slot.label} ${formatCalendarDateLabel(cell.month, cell.day)} — ${slot.timeCritical ? 'Time critical. ' : ''}${presentation.isOverdue ? 'Overdue — no action recorded' : outcomeMeta.label}`}
                                       onClick={() =>
                                         openOutcomeDialog({
                                           iso: cell.iso,
@@ -763,6 +788,13 @@ export function VisitPlanCalendarTab({
                                         })
                                       }
                                     >
+                                      {slot.timeCritical ? (
+                                        <TimeCriticalDot
+                                          toleranceMinutes={slot.timeToleranceMinutes}
+                                          position="corner"
+                                          size="xs"
+                                        />
+                                      ) : null}
                                       <span className="vp-cal-visit-time">{start}</span>
                                       <span className="vp-cal-visit-label">{presentation.shortLabel}</span>
                                     </button>
