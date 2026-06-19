@@ -4,6 +4,9 @@ import { activeJobAllocationCount } from '@/features/scheduling/utils/scheduling
 export const SCHEDULE_JOBS_DAY_START_HOUR = 0
 export const SCHEDULE_JOBS_DAY_END_HOUR = 24
 export const SCHEDULE_JOBS_ROW_HEIGHT = 56
+export const SCHEDULE_JOBS_JOB_LANE_HEIGHT = 26
+export const SCHEDULE_JOBS_ROW_LANE_GAP = 2
+export const SCHEDULE_JOBS_ROW_VERTICAL_PAD = 4
 export const SCHEDULE_JOBS_CARER_COL_WIDTH = 260
 /** Pixels per hour on the 24h grid. */
 export const SCHEDULE_JOBS_HOUR_WIDTH = 64

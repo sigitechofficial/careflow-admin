@@ -47,6 +47,7 @@ import {
   SCHEDULE_JOBS_CARER_COL_WIDTH,
   SCHEDULE_JOBS_DAY_PERIOD_BANDS,
   SCHEDULE_JOBS_HOUR_WIDTH,
+  SCHEDULE_JOBS_JOB_LANE_HEIGHT,
   SCHEDULE_JOBS_ROW_HEIGHT,
   SCHEDULE_JOBS_TIMELINE_GRID_WIDTH,
   SCHEDULE_JOBS_TIMELINE_PAD_RIGHT,
@@ -56,6 +57,11 @@ import {
   scheduleJobsPeriodBandHeaderClass,
   scheduleJobsPeriodHourCellClass,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import {
+  computeScheduleJobOverlapLayout,
+  scheduleJobLaneTopPx,
+  type JobOverlapLayout,
+} from '@/features/scheduling/utils/schedule-jobs-overlap-lanes.util'
 
 const PERIOD_ICONS: Record<string, string> = {
   night: '🌙',
@@ -104,6 +110,7 @@ function ScheduleJobBlock({
   rowJobs,
   isMarqueeSelected,
   runDisplayPreferences,
+  overlapLayout,
   onPointerDown,
   onClick,
   onJobAction,
@@ -126,6 +133,7 @@ function ScheduleJobBlock({
   rowJobs?: TimelineJob[]
   isMarqueeSelected?: boolean
   runDisplayPreferences?: ScheduleRunsDisplayPreferences
+  overlapLayout?: JobOverlapLayout
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
@@ -146,6 +154,7 @@ function ScheduleJobBlock({
   const { leftPx, widthPx } = jobBlockLayoutPx(job, layoutLabel)
   const runAccent = job.scheduleRunId ? scheduleRunAccentColor(job.scheduleRunId) : null
   const runLabel = scheduleRunJobLabel(job)
+  const stackedLanes = (overlapLayout?.laneCount ?? 1) > 1
   const showDoubleUp =
     (runDisplayPreferences?.showDoubleUpIcon ?? true) && job.requiredCarers > 1
   const showTravelIcon =
@@ -163,17 +172,19 @@ function ScheduleJobBlock({
         'absolute z-[2] flex select-none flex-col overflow-hidden rounded-md border text-left text-[11px] font-semibold leading-tight transition-shadow',
         JOB_BLOCK_TONE_CLASSES[tone],
         job.scheduleRunId && 'border-l-[3px]',
-        job.scheduleRunId
-          ? showBookedTooltip
-            ? 'top-1 h-9'
-            : alignTop
-              ? 'top-0.5 h-9'
-              : 'top-1.5 bottom-1.5 min-h-9'
-          : showBookedTooltip
-            ? 'top-1 h-7'
-            : alignTop
-              ? 'top-0.5 h-8'
-              : 'top-1.5 bottom-1.5',
+        stackedLanes
+          ? 'h-[var(--schedule-job-lane-height)]'
+          : job.scheduleRunId
+            ? showBookedTooltip
+              ? 'top-1 h-9'
+              : alignTop
+                ? 'top-0.5 h-9'
+                : 'top-1.5 bottom-1.5 min-h-9'
+            : showBookedTooltip
+              ? 'top-1 h-7'
+              : alignTop
+                ? 'top-0.5 h-8'
+                : 'top-1.5 bottom-1.5',
         readOnly
           ? isDragging
             ? 'pointer-events-none opacity-25'
@@ -195,11 +206,20 @@ function ScheduleJobBlock({
       style={{
         left: leftPx,
         width: widthPx,
+        ...(stackedLanes && overlapLayout
+          ? {
+              top: scheduleJobLaneTopPx(overlapLayout.lane),
+              zIndex: overlapLayout.lane + 2,
+              ['--schedule-job-lane-height' as string]: `${SCHEDULE_JOBS_JOB_LANE_HEIGHT}px`,
+            }
+          : {}),
         ...(completed ? jobBlockCompletedSurfaceStyle : {}),
         ...(runAccent ? { borderLeftColor: runAccent.border } : {}),
       }}
       title={
-        runLabel
+        stackedLanes && overlapLayout
+          ? `Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time — ${labelLines.join(' · ')}`
+          : runLabel
           ? `${runLabel} — ${labelLines.join(' · ')}`
           : completed
           ? 'Visit completed — click to view details'
@@ -227,6 +247,14 @@ function ScheduleJobBlock({
       }}
     >
       <div className="flex min-h-0 flex-1 items-center gap-1 px-2 py-0.5">
+        {stackedLanes && overlapLayout ? (
+          <span
+            className="shrink-0 rounded bg-slate-900/80 px-1 text-[9px] font-bold tabular-nums text-white"
+            aria-label={`Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time`}
+          >
+            {overlapLayout.lane + 1}/{overlapLayout.laneCount}
+          </span>
+        ) : null}
         {(showDoubleUp || showTravelIcon) && (
           <span className="flex shrink-0 flex-col gap-0.5">
             {showDoubleUp ? <Users className="h-3 w-3 opacity-80" aria-hidden /> : null}
@@ -266,7 +294,7 @@ function ScheduleJobBlock({
           ))}
         </span>
       </div>
-      {job.scheduleRunId && runAccent && job.scheduleRun ? (
+      {job.scheduleRunId && runAccent && job.scheduleRun && !stackedLanes ? (
         <button
           type="button"
           className="flex h-3.5 w-full shrink-0 items-center gap-1 border-t px-1.5 text-left hover:brightness-95"
@@ -447,6 +475,7 @@ function TimelineTrack({
   travelBufferMinutes,
   previewJobIds,
   runDisplayPreferences,
+  overlapByJobId,
   onPointerDown,
   onJobClick,
   onJobAction,
@@ -470,6 +499,7 @@ function TimelineTrack({
   travelBufferMinutes?: number
   previewJobIds?: Set<string>
   runDisplayPreferences?: ScheduleRunsDisplayPreferences
+  overlapByJobId?: Map<string, JobOverlapLayout>
   onPointerDown: (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => void
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
@@ -558,6 +588,7 @@ function TimelineTrack({
           rowJobs={jobs}
           isMarqueeSelected={previewJobIds?.has(job.id)}
           runDisplayPreferences={runDisplayPreferences}
+          overlapLayout={overlapByJobId?.get(job.id)}
           onPointerDown={onPointerDown}
           onClick={onJobClick}
           onJobAction={onJobAction}
@@ -636,6 +667,8 @@ const GanttRow = React.memo(function GanttRow({
   trackClassName?: string
   carerHoverCard?: React.ReactNode
 }) {
+  const overlapLayout = React.useMemo(() => computeScheduleJobOverlapLayout(jobs), [jobs])
+
   return (
     <div
       data-schedule-row-id={rowKey}
@@ -645,12 +678,12 @@ const GanttRow = React.memo(function GanttRow({
         isDropTarget && 'bg-primary/5 ring-1 ring-inset ring-primary/30',
       )}
       style={{
-        height: SCHEDULE_JOBS_ROW_HEIGHT,
+        height: overlapLayout.rowHeightPx,
         width: BOARD_MIN_WIDTH,
         minWidth: BOARD_MIN_WIDTH,
       }}
     >
-      <div className="sticky left-0 z-10 shrink-0 bg-card/95 backdrop-blur-sm">
+      <div className="sticky left-0 z-10 flex shrink-0 self-stretch bg-card/95 backdrop-blur-sm">
         <CarerLabel
           name={label}
           fullName={fullName}
@@ -679,6 +712,7 @@ const GanttRow = React.memo(function GanttRow({
         travelBufferMinutes={travelBufferMinutes}
         previewJobIds={previewJobIds}
         runDisplayPreferences={runDisplayPreferences}
+        overlapByJobId={overlapLayout.byJobId}
         onPointerDown={onPointerDown}
         onJobClick={onJobClick}
         onJobAction={onJobAction}
@@ -812,6 +846,7 @@ function ScheduleJobsLegend() {
       <LegendPill swatch="bg-rose-500" label="Over booked (extra carers)" />
       <LegendPill swatch="border-2 border-orange-500 bg-orange-100/80" label="Travel time conflict" />
       <LegendPill swatch="border-b-4 border-primary bg-background" label="Part of a run" />
+      <LegendPill label="2/3 = visit slot when times overlap" />
       <div className="hidden h-4 w-px bg-border/80 sm:block" />
       {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
         <span
