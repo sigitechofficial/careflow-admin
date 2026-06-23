@@ -71,6 +71,10 @@ import {
   warningsFromAllocateError,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
 import {
+  CARER_ROTA_CONFLICT_MESSAGE,
+  scheduleJobCarerRotaConflictMessage,
+} from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
+import {
   buildScheduleJobsBoard,
   jobRequiredCarerMinutes,
   shiftIsoDate,
@@ -922,6 +926,25 @@ export default function ScheduleJobsPage() {
         }
       }
 
+      const assignCarerId =
+        targetRow.kind === 'carer'
+          ? targetCarerId
+          : sourceRow.kind === 'carer' && !targetCarerId
+            ? sourceCarerId
+            : null
+      if (assignCarerId) {
+        const rotaConflict = scheduleJobCarerRotaConflictMessage(
+          job,
+          assignCarerId,
+          boardAfterRequiredCarers.allJobs,
+          { scheduledStartDateTime, scheduledEndDateTime },
+        )
+        if (rotaConflict) {
+          toastWarning('Carer not assigned', rotaConflict)
+          return
+        }
+      }
+
       const runConflict = scheduleRunDragConflictMessage(job, {
         targetRow,
         scheduledStartDateTime,
@@ -958,8 +981,7 @@ export default function ScheduleJobsPage() {
               } else {
                 toastWarning(
                   'Carer not assigned',
-                  allocationWarningsSummary(warnings) ||
-                    'This carer is already booked at this time. Open the job to assign anyway.',
+                  allocationWarningsSummary(warnings) || CARER_ROTA_CONFLICT_MESSAGE,
                 )
                 if (sourceCarerId) {
                   await allocate.mutateAsync({
@@ -988,7 +1010,17 @@ export default function ScheduleJobsPage() {
         setSavingJobId(null)
       }
     },
-    [allocate, dayRunsQuery, employeeLocationCatalog, employeesQuery, locationNameMap, rowAxis, unallocate, updateJob],
+    [
+      allocate,
+      boardAfterRequiredCarers.allJobs,
+      dayRunsQuery,
+      employeeLocationCatalog,
+      employeesQuery,
+      locationNameMap,
+      rowAxis,
+      unallocate,
+      updateJob,
+    ],
   )
 
   if (!hasApi) {
@@ -1210,6 +1242,7 @@ export default function ScheduleJobsPage() {
         job={allocateJob}
         initialPanel={allocateDialogPanel}
         visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
+        boardJobs={allJobs}
         onAllocated={() => {
           void refreshBoard()
         }}

@@ -61,8 +61,10 @@ import {
 } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import {
   warningsFromAllocateError,
+  isDragAllocationHardBlock,
   type AllocationWarning,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
+import { scheduleJobCarerRotaConflictMessage } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 import type { ScheduleJobAllocateDialogPanel } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
@@ -73,6 +75,7 @@ type Props = {
   job: TimelineJob | null
   initialPanel?: ScheduleJobAllocateDialogPanel
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
+  boardJobs?: TimelineJob[]
   onAllocated?: () => void
 }
 
@@ -90,6 +93,7 @@ export function ScheduleJobAllocateDialog({
   job,
   initialPanel = 'allocate',
   visitPlanSlotsByServiceUser,
+  boardJobs,
   onAllocated,
 }: Props) {
   const timePanelRef = React.useRef<HTMLElement>(null)
@@ -239,6 +243,22 @@ export function ScheduleJobAllocateDialog({
       )
       return
     }
+    if (!force && boardJobs?.length) {
+      const scheduleWindow =
+        job && startTime && endTime
+          ? buildJobScheduleDateTimes(jobScheduleDateIso(job), startTime, endTime)
+          : undefined
+      const rotaConflict = scheduleJobCarerRotaConflictMessage(
+        job,
+        employeeId,
+        boardJobs,
+        scheduleWindow ?? undefined,
+      )
+      if (rotaConflict) {
+        toastWarning('Carer not assigned', rotaConflict)
+        return
+      }
+    }
     setAllocatingEmployeeId(employeeId)
     try {
       const result = await allocate.mutateAsync({
@@ -274,6 +294,22 @@ export function ScheduleJobAllocateDialog({
 
   const runReplace = async (newEmployeeId: string, oldEmployeeId: string, force = false) => {
     if (!job) return
+    if (!force && boardJobs?.length) {
+      const scheduleWindow =
+        startTime && endTime
+          ? buildJobScheduleDateTimes(jobScheduleDateIso(job), startTime, endTime)
+          : undefined
+      const rotaConflict = scheduleJobCarerRotaConflictMessage(
+        job,
+        newEmployeeId,
+        boardJobs,
+        scheduleWindow ?? undefined,
+      )
+      if (rotaConflict) {
+        toastWarning('Carer not assigned', rotaConflict)
+        return
+      }
+    }
     const replacingWasLead =
       multiCarerJob &&
       (job.allocations ?? []).some((a) => a.employeeId === oldEmployeeId && a.isLeadCarer)
@@ -800,16 +836,18 @@ export function ScheduleJobAllocateDialog({
                     <li key={`${w.type}-${w.message}`}>{w.message}</li>
                   ))}
                 </ul>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="mt-3"
-                  variant="secondary"
-                  disabled={allocate.isPending || unallocate.isPending}
-                  onClick={handleForceAllocate}
-                >
-                  {replacingEmployeeId ? 'Change anyway' : 'Allocate anyway'}
-                </Button>
+                {!isDragAllocationHardBlock(pendingWarnings) ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-3"
+                    variant="secondary"
+                    disabled={allocate.isPending || unallocate.isPending}
+                    onClick={handleForceAllocate}
+                  >
+                    {replacingEmployeeId ? 'Change anyway' : 'Allocate anyway'}
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </section>

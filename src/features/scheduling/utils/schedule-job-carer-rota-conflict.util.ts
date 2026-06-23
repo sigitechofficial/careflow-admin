@@ -3,7 +3,7 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { jobsTimeOverlap } from '@/features/scheduling/utils/schedule-jobs-overlap-lanes.util'
 
 export const CARER_ROTA_CONFLICT_MESSAGE =
-  'This carer is already allocated to another visit at the same time.'
+  'Carer has already a visit, please use another slot'
 
 type JobScheduleWindow = Pick<
   TimelineJob,
