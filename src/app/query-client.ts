@@ -1,6 +1,13 @@
 ﻿import { QueryClient } from '@tanstack/react-query'
 import { isAbortError } from '@/shared/api/api-client'
 
+
+
+
+
+
+
+
 /**
  * Singleton QueryClient for the application.
  *
