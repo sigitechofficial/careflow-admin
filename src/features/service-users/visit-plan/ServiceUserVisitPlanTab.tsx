@@ -61,6 +61,7 @@ import { VisitPlanReactivateDialog } from '@/features/service-users/visit-plan/V
 import { VisitPlanActivateDialog } from '@/features/service-users/visit-plan/VisitPlanActivateDialog'
 import { VisitPlanGeneratePreviewDialog } from '@/features/service-users/visit-plan/VisitPlanGeneratePreviewDialog'
 import { VisitPlanWorkingPatternSyncDialog } from '@/features/service-users/visit-plan/VisitPlanWorkingPatternSyncDialog'
+import { VisitPlanDevClearRotaToolbar } from '@/features/service-users/visit-plan/VisitPlanDevClearRotaToolbar'
 import { VisitPlanConfirmGate } from '@/features/service-users/visit-plan/components/VisitPlanConfirmGate'
 import {
   previewVisitPlanAmendmentImpact,
@@ -655,6 +656,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   return (
     <div className="space-y-6">
+      <VisitPlanDevClearRotaToolbar serviceUserId={serviceUserId} />
+
       {editablePlans.length > 1 && workingPlan ? (
         <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
           <p className="text-xs font-medium text-foreground">Which package are you editing?</p>

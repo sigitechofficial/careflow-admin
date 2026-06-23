@@ -324,6 +324,37 @@ export async function fetchSuspensionReviewsOverdue() {
   return Array.isArray(res.data) ? res.data : []
 }
 
+export type ClearVisitPlansAndRotaCounts = {
+  visitAction: number
+  jobAllocation: number
+  callOffVisit: number
+  scheduledVisit: number
+  scheduledJob: number
+  scheduleRun: number
+  scheduleAreaStatus: number
+  scheduleBatch: number
+  visitPlanAmendment: number
+  visitPlanSlot: number
+  serviceUserVisitPlan: number
+}
+
+export type ClearVisitPlansAndRotaResult = {
+  dryRun: boolean
+  counts: ClearVisitPlansAndRotaCounts
+  deleted: ClearVisitPlansAndRotaCounts | null
+}
+
+/** Clears all visit plans and rota — same as prisma/scripts/clear-visit-plans-and-rota.ts */
+export async function clearAllVisitPlansAndRota(dryRun: boolean): Promise<ClearVisitPlansAndRotaResult> {
+  const qs = dryRun ? '?dryRun=true' : ''
+  const res = await apiJson<ApiEnvelope<ClearVisitPlansAndRotaResult>>(
+    `/visit-plans/dev/clear-visit-plans-and-rota${qs}`,
+    { method: 'POST' },
+  )
+  if (!res.data) throw new Error('Invalid clear visit plans response from API')
+  return res.data
+}
+
 export async function activateServiceUserVisitPlan(
   serviceUserId: string,
   planId: string,
