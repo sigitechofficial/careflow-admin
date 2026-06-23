@@ -131,8 +131,13 @@ export function buildCarerAvailabilitySegments(
   jobs: TimelineJob[],
   dayPattern?: EmployeeDayPattern | null,
   dayStartHour = SCHEDULE_JOBS_DAY_START_HOUR,
+  options?: { onHoliday?: boolean },
 ): CarerAvailabilitySegment[] {
   const dayEnd = SCHEDULE_JOBS_TIMELINE_MINUTES
+  if (options?.onHoliday) {
+    return [{ kind: 'unavailable', startMin: 0, endMin: dayEnd }]
+  }
+
   const { workStart, workEnd, unavailable, isPartial } = workingWindow(dayPattern, dayStartHour)
 
   if (unavailable) {
@@ -213,4 +218,55 @@ export function segmentPositionPx(segment: CarerAvailabilitySegment): { leftPx: 
   const leftPx = (segment.startMin / dayMinutes) * gridWidth
   const widthPx = Math.max(((segment.endMin - segment.startMin) / dayMinutes) * gridWidth, 2)
   return { leftPx, widthPx }
+}
+
+export type CarerDayAvailabilityBadgeKind = 'not-available' | 'partial'
+
+export type CarerDayAvailabilityBadge = {
+  kind: CarerDayAvailabilityBadgeKind
+  /** Short label for the row badge. */
+  label: string
+  /** Full description for tooltips. */
+  title: string
+  timeRange?: string
+}
+
+export function formatDayPatternTimeRange(dayPattern: EmployeeDayPattern): string | null {
+  const start = dayPattern.startTime?.trim()
+  const end = dayPattern.endTime?.trim()
+  if (start && end) return `${start}–${end}`
+  if (start) return `from ${start}`
+  if (end) return `until ${end}`
+  return null
+}
+
+/** Row-label badge for working-pattern availability (leave is handled separately). */
+export function resolveCarerDayAvailabilityBadge(
+  dayPattern: EmployeeDayPattern | null | undefined,
+  onHoliday?: boolean,
+): CarerDayAvailabilityBadge | null {
+  if (onHoliday) return null
+  if (!dayPattern) return null
+
+  const timeRange = formatDayPatternTimeRange(dayPattern)
+
+  if (!dayPattern.isAvailable) {
+    return {
+      kind: 'not-available',
+      label: 'Not available',
+      title: 'Not available on this day',
+    }
+  }
+
+  // "Fully" in the pattern editor = isPartial false, even when hours are bounded (e.g. 09:00–17:00).
+  // Outside those hours the timeline shows grey stripes; the row label should not say "Partial".
+  if (dayPattern.isPartial) {
+    const title = timeRange
+      ? `Partially available · ${timeRange}`
+      : 'Partially available today'
+    const label = timeRange ? `Partial · ${timeRange}` : 'Partially available'
+    return { kind: 'partial', label, title, timeRange: timeRange ?? undefined }
+  }
+
+  return null
 }

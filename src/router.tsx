@@ -1,4 +1,4 @@
-﻿import * as React from 'react'
+import * as React from 'react'
 import {
   Outlet,
   RouterProvider,
@@ -13,8 +13,10 @@ import { useEffect } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { queryClient } from '@/app/query-client'
 
-import { AppLayout } from '@/components/layout/AppLayout'
+import { DevUiTraceChip } from '@/dev/DevUiTraceChip'
+import { traceUi } from '@/dev/ui-trace'
 import { AppToaster } from '@/components/layout/AppToaster'
+import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { SessionRefresh } from '@/features/auth/components/SessionRefresh'
 import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBootstrap'
@@ -59,6 +61,8 @@ import ManageScheduleJobsPage from '@/features/scheduling/pages/ManageScheduleJo
 import BuildSchedulePage from '@/features/scheduling/pages/BuildSchedulePage'
 import ScheduleListPage from '@/features/scheduling/pages/ScheduleListPage'
 import ScheduleTemplatesPage from '@/features/scheduling/pages/ScheduleTemplatesPage'
+import BulkGenerateRotaPage from '@/features/scheduling/pages/BulkGenerateRotaPage'
+import { ScheduleJobsRouteError } from '@/features/scheduling/pages/ScheduleJobsRouteError'
 
 // ΓöÇΓöÇ Auth pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import LoginPage from '@/features/auth/pages/LoginPage'
@@ -154,6 +158,7 @@ const pageTitles: Record<string, string> = {
   '/scheduling/build': 'Build Schedule',
   '/scheduling/list': 'List View of Schedule',
   '/scheduling/templates': 'Schedule Templates',
+  '/scheduling/bulk-generate-rota': 'Bulk Generate Rota',
   '/employee': 'Employee',
   '/employee/staff-list': 'Employee',
   '/employee/compliance': 'Employee',
@@ -227,6 +232,12 @@ function AppRootShell() {
   useNotificationSocket()
   const companyDisplayName = useCompanyStore(s => s.branding?.displayName)
   const pathname = useRouterState({ select: s => s.location.pathname })
+  const search = useRouterState({ select: s => s.location.search })
+
+  React.useEffect(() => {
+    traceUi('NAV', 'route', { pathname, search })
+  }, [pathname, search])
+
   const pageTitle =
     pageTitles[pathname] ??
     (/^\/employee\/[^/]+\/edit$/.test(pathname)
@@ -263,13 +274,19 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
     /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
+  const employeeManagementWide =
+    /^\/employee(?:\/(?:staff-list|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
+      pathname,
+    )
+  const contentLayout = fullBleed ? 'full' : employeeManagementWide ? 'wide' : 'default'
 
   return (
     <>
       <SessionRefresh />
       <CompanyBrandingBootstrap />
       <AppToaster />
-      <AppLayout pageTitle={pageTitle} fullBleed={fullBleed}>
+      <DevUiTraceChip />
+      <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
         <Outlet />
       </AppLayout>
     </>
@@ -398,7 +415,7 @@ const serviceUsersInitialAssessmentEnterpriseRoute = createRoute({
   path: '/service-users/initial-assessment',
   validateSearch: validateInitialAssessmentEnterpriseSearch,
   beforeLoad: requireAnyPermission('service_users.initial_assessment.read', 'service_users.read'),
-  loader: ({ context: { queryClient: qc }, location }) => {
+  loader: async ({ context: { queryClient: qc }, location }) => {
     const serviceUserId =
       typeof location.search === 'object' &&
       location.search !== null &&
@@ -406,7 +423,7 @@ const serviceUsersInitialAssessmentEnterpriseRoute = createRoute({
       typeof (location.search as { serviceUserId?: string }).serviceUserId === 'string'
         ? (location.search as { serviceUserId: string }).serviceUserId.trim()
         : undefined
-    prefetchInitialAssessmentEnterprise(qc, serviceUserId || undefined)
+    await prefetchInitialAssessmentEnterprise(qc, serviceUserId || undefined)
   },
   component: ServiceUserInitialAssessmentEnterprisePage,
 })
@@ -551,12 +568,19 @@ const serviceUsersCarePlanFormRoute = createRoute({
 const serviceUsersVisitPlanRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/visit-plan',
-  validateSearch: (raw: Record<string, unknown>): { planId?: string; view?: 'details' } => {
+  validateSearch: (raw: Record<string, unknown>): {
+    planId?: string
+    view?: 'details'
+    detailsTab?: 'calendar' | 'history'
+  } => {
     const planId = raw.planId
     const view = raw.view === 'details' ? 'details' : undefined
+    const detailsTab =
+      raw.detailsTab === 'calendar' || raw.detailsTab === 'history' ? raw.detailsTab : undefined
     return {
       planId: typeof planId === 'string' && planId.trim() ? planId.trim() : undefined,
       view,
+      detailsTab,
     }
   },
   beforeLoad: requirePermission('service_users.read'),
@@ -674,6 +698,7 @@ const schedulingScheduleJobsRoute = createRoute({
     prefetchSchedulingScheduleJobs(qc)
   },
   component: ScheduleJobsPage,
+  errorComponent: ScheduleJobsRouteError,
 })
 
 const schedulingCarerVisitHubRoute = createRoute({
@@ -723,6 +748,17 @@ const schedulingListRoute = createRoute({
   component: ScheduleListPage,
 })
 
+const schedulingBulkGenerateRotaRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/scheduling/bulk-generate-rota',
+  beforeLoad: requireAnyPermission(
+    'scheduling.generate_from_visit_plan',
+    'schedules.build',
+    'scheduled_visits.create',
+  ),
+  component: BulkGenerateRotaPage,
+})
+
 const schedulingTemplatesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/scheduling/templates',
@@ -750,6 +786,57 @@ const employeeStaffListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/staff-list',
   beforeLoad: requirePermission('employees.read'),
+  validateSearch: (raw: Record<string, unknown>): {
+    q?: string
+    status?: string
+    branch?: string
+    role?: string
+    jobTitle?: string
+    grade?: string
+    contract?: string
+    immigration?: string
+    inCountry?: 'in' | 'out'
+    branchScope?: string
+    compliance?: 'needs_attention' | 'up_to_date'
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  } => {
+    const out: {
+      q?: string
+      status?: string
+      branch?: string
+      role?: string
+      jobTitle?: string
+      grade?: string
+      contract?: string
+      immigration?: string
+      inCountry?: 'in' | 'out'
+      branchScope?: string
+      compliance?: 'needs_attention' | 'up_to_date'
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+    } = {}
+    if (typeof raw.q === 'string' && raw.q.trim()) out.q = raw.q.trim()
+    if (typeof raw.status === 'string' && raw.status.trim()) out.status = raw.status.trim()
+    if (typeof raw.branch === 'string' && raw.branch.trim()) out.branch = raw.branch.trim()
+    if (typeof raw.role === 'string' && raw.role.trim()) out.role = raw.role.trim()
+    if (typeof raw.jobTitle === 'string' && raw.jobTitle.trim()) out.jobTitle = raw.jobTitle.trim()
+    if (typeof raw.grade === 'string' && raw.grade.trim()) out.grade = raw.grade.trim()
+    if (typeof raw.contract === 'string' && raw.contract.trim()) out.contract = raw.contract.trim()
+    if (typeof raw.immigration === 'string' && raw.immigration.trim()) {
+      out.immigration = raw.immigration.trim()
+    }
+    if (raw.inCountry === 'in' || raw.inCountry === 'out') out.inCountry = raw.inCountry
+    if (typeof raw.branchScope === 'string' && raw.branchScope.trim()) {
+      out.branchScope = raw.branchScope.trim()
+    }
+    if (raw.compliance === 'needs_attention' || raw.compliance === 'up_to_date') {
+      out.compliance = raw.compliance
+    }
+    if (typeof raw.sortBy === 'string' && raw.sortBy.trim()) out.sortBy = raw.sortBy.trim()
+    if (raw.sortOrder === 'asc' || raw.sortOrder === 'desc') out.sortOrder = raw.sortOrder
+    return out
+  },
   loader: ({ context: { queryClient: qc } }) => {
     prefetchEmployeeTab(qc, 'staff-list')
   },
@@ -1071,6 +1158,7 @@ const routeTree = rootRoute.addChildren([
     schedulingJobsRoute,
     schedulingBuildRoute,
     schedulingListRoute,
+    schedulingBulkGenerateRotaRoute,
     schedulingTemplatesRoute,
     employeeRoute,
     employeeStaffListRoute,

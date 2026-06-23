@@ -1,10 +1,13 @@
 import type { EmployeeBrief, EmployeeDayRow, TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { isScheduleJobCancelled } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { activeJobAllocationCount } from '@/features/scheduling/utils/scheduling-format'
 
 export const SCHEDULE_JOBS_DAY_START_HOUR = 0
 export const SCHEDULE_JOBS_DAY_END_HOUR = 24
-export const SCHEDULE_JOBS_ROW_HEIGHT = 56
-export const SCHEDULE_JOBS_JOB_LANE_HEIGHT = 26
+export const SCHEDULE_JOBS_ROW_HEIGHT = 64
+export const SCHEDULE_JOBS_JOB_LANE_HEIGHT = 40
+/** Taller overlap lane when rota board shows icons / name / run on separate lines. */
+export const SCHEDULE_JOBS_JOB_LANE_HEIGHT_RUNS_BOARD = 56
 export const SCHEDULE_JOBS_ROW_LANE_GAP = 2
 export const SCHEDULE_JOBS_ROW_VERTICAL_PAD = 4
 export const SCHEDULE_JOBS_CARER_COL_WIDTH = 260
@@ -12,7 +15,9 @@ export const SCHEDULE_JOBS_CARER_COL_WIDTH = 260
 export const SCHEDULE_JOBS_HOUR_WIDTH = 64
 /** Extra space after 24:00 so end-of-day job labels are not clipped. */
 export const SCHEDULE_JOBS_TIMELINE_PAD_RIGHT = 180
-/** Minimum job card width so client name + number stay readable. */
+/** Minimum click target for very short visits (does not stretch timeline past duration). */
+export const SCHEDULE_JOBS_JOB_MIN_CLICK_WIDTH = 32
+/** @deprecated Timeline width is duration-based; kept for tests/tooling that referenced the old floor. */
 export const SCHEDULE_JOBS_JOB_MIN_WIDTH = 128
 
 export const SCHEDULE_JOBS_TIMELINE_MINUTES = SCHEDULE_JOBS_DAY_END_HOUR * 60
@@ -88,10 +93,15 @@ export type ScheduleJobsBoard = {
   employeeRows: EmployeeDayRow[]
   carers: EmployeeDayRow[]
   unassignedJobs: TimelineJob[]
+  cancelledJobs: TimelineJob[]
   allJobs: TimelineJob[]
 }
 
-/** Build gantt rows: unassigned jobs row, then all carers in fixed name order. */
+function sortJobsByStartTime(a: TimelineJob, b: TimelineJob): number {
+  return new Date(a.scheduledStartDateTime).getTime() - new Date(b.scheduledStartDateTime).getTime()
+}
+
+/** Build gantt rows: unassigned, cancelled, then all carers in fixed name order. */
 export function buildScheduleJobsBoard(
   employees: EmployeeDayRow[],
   runJobs: TimelineJob[],
@@ -105,20 +115,26 @@ export function buildScheduleJobsBoard(
   const sortByName = (a: EmployeeDayRow, b: EmployeeDayRow) =>
     employeeBriefFullName(a.employee).localeCompare(employeeBriefFullName(b.employee), 'en')
 
-  const employeeRows = employees.sort(sortByName)
+  const employeeRows = employees
+    .sort(sortByName)
+    .map((row) => ({
+      ...row,
+      allocations: row.allocations.filter((allocation) => !isScheduleJobCancelled(allocation.job)),
+    }))
 
   const carers = employeeRows.filter((row) => row.allocations.length > 0)
 
-  const unassignedJobs = [...jobById.values()]
-    .filter((job) => activeJobAllocationCount(job) < job.requiredCarers)
-    .sort(
-      (a, b) =>
-        new Date(a.scheduledStartDateTime).getTime() - new Date(b.scheduledStartDateTime).getTime(),
-    )
-
   const allJobs = [...jobById.values()]
 
-  return { employeeRows, carers, unassignedJobs, allJobs }
+  const cancelledJobs = allJobs.filter(isScheduleJobCancelled).sort(sortJobsByStartTime)
+
+  const unassignedJobs = allJobs
+    .filter(
+      (job) => !isScheduleJobCancelled(job) && activeJobAllocationCount(job) < job.requiredCarers,
+    )
+    .sort(sortJobsByStartTime)
+
+  return { employeeRows, carers, unassignedJobs, cancelledJobs, allJobs }
 }
 
 export function formatScheduleJobsDateLabel(isoDate: string): string {
@@ -198,22 +214,18 @@ export type JobBlockLayoutPx = {
   endMin: number
 }
 
-export function estimateJobLabelMinWidthPx(label: string): number {
-  const textWidth = Math.ceil(label.trim().length * 6.5)
-  return Math.max(SCHEDULE_JOBS_JOB_MIN_WIDTH, textWidth + 28)
-}
-
 export function jobBlockLayoutPx(
   job: Pick<TimelineJob, 'scheduledStartDateTime' | 'scheduledEndDateTime' | 'durationMinutes'>,
-  label?: string,
 ): JobBlockLayoutPx {
   const { startMin, endMin } = jobBlockPosition(job)
   const gridWidth = SCHEDULE_JOBS_TIMELINE_GRID_WIDTH
   const trackWidth = SCHEDULE_JOBS_TIMELINE_TRACK_WIDTH
   const durationPx = ((endMin - startMin) / SCHEDULE_JOBS_TIMELINE_MINUTES) * gridWidth
   const leftPx = (startMin / SCHEDULE_JOBS_TIMELINE_MINUTES) * gridWidth
-  const minWidth = label ? estimateJobLabelMinWidthPx(label) : SCHEDULE_JOBS_JOB_MIN_WIDTH
-  const widthPx = Math.min(Math.max(durationPx, minWidth), Math.max(minWidth, trackWidth - leftPx))
+  const widthPx = Math.min(
+    Math.max(durationPx, SCHEDULE_JOBS_JOB_MIN_CLICK_WIDTH),
+    Math.max(SCHEDULE_JOBS_JOB_MIN_CLICK_WIDTH, trackWidth - leftPx),
+  )
   return { leftPx, widthPx, startMin, endMin }
 }
 
@@ -256,11 +268,17 @@ export function jobRequiredCarerMinutes(
   return jobDurationMinutes(job) * Math.max(1, job.requiredCarers)
 }
 
-export type JobBlockTone = 'green' | 'orange' | 'red' | 'neutral' | 'completed'
+export type JobBlockTone = 'green' | 'orange' | 'red' | 'neutral' | 'completed' | 'cancelled'
 
-export function jobBlockTone(job: TimelineJob): JobBlockTone {
+export function jobBlockTone(
+  job: TimelineJob,
+  options?: { outsideWorkingPattern?: boolean },
+): JobBlockTone {
   if (job.status === 'COMPLETED') return 'completed'
+  if (isScheduleJobCancelled(job)) return 'cancelled'
+  if (options?.outsideWorkingPattern) return 'orange'
   if (job.status === 'NEEDS_ATTENTION' || job.underAllocated) return 'red'
+  if ((job.carersOnLeave?.length ?? 0) > 0 || job.needsCover) return 'orange'
   if (['ALLOCATED', 'IN_PROGRESS', 'CONFIRMED'].includes(job.status)) return 'green'
   if (['UNALLOCATED', 'PENDING'].includes(job.status)) return 'orange'
   return 'neutral'
@@ -269,6 +287,8 @@ export function jobBlockTone(job: TimelineJob): JobBlockTone {
 export const JOB_BLOCK_TONE_CLASSES: Record<JobBlockTone, string> = {
   completed:
     'border-[#6ee7b7] text-[#047857] shadow-sm ring-1 ring-emerald-600/20 hover:ring-emerald-600/35',
+  cancelled:
+    'border-slate-500/80 text-slate-800 shadow-sm ring-1 ring-slate-500/20 hover:ring-slate-500/35 dark:border-slate-600 dark:text-slate-100',
   green:
     'border-emerald-600/70 bg-gradient-to-b from-emerald-100 to-emerald-200/90 text-emerald-950 shadow-sm ring-1 ring-emerald-700/10 hover:ring-emerald-600/30',
   orange:
@@ -277,6 +297,15 @@ export const JOB_BLOCK_TONE_CLASSES: Record<JobBlockTone, string> = {
   neutral:
     'border-slate-400/80 bg-gradient-to-b from-slate-100 to-slate-200/90 text-slate-900 shadow-sm ring-1 ring-slate-500/10 hover:ring-slate-400/30',
 }
+
+/** Cancelled / called-off visits — consistent slate cross-hatch on the rota board. */
+export const jobBlockCancelledSurfaceStyle = {
+  backgroundColor: '#e2e8f0',
+  backgroundImage: [
+    'repeating-linear-gradient(135deg, rgba(100, 116, 139, 0.2) 0, rgba(100, 116, 139, 0.2) 1px, transparent 1px, transparent 7px)',
+    'repeating-linear-gradient(-45deg, rgba(100, 116, 139, 0.2) 0, rgba(100, 116, 139, 0.2) 1px, transparent 1px, transparent 7px)',
+  ].join(', '),
+} as const
 
 /** Visit-plan completed emerald with cross-hatch overlay (matches vp-outcome-completed palette). */
 export const jobBlockCompletedSurfaceStyle = {
@@ -308,8 +337,7 @@ export type ScheduleJobsDayPeriodBand = {
 
 /** Full-day bands aligned with domiciliary care call rounds (Morning → Night). */
 export const SCHEDULE_JOBS_DAY_PERIOD_BANDS: ScheduleJobsDayPeriodBand[] = [
-  { id: 'night-early', period: 'night', label: 'Night', startHour: 0, endHour: 6 },
-  { id: 'morning', period: 'morning', label: 'Morning', startHour: 6, endHour: 12 },
+  { id: 'morning', period: 'morning', label: 'Morning', startHour: 0, endHour: 12 },
   { id: 'midday', period: 'midday', label: 'Midday', startHour: 12, endHour: 14 },
   { id: 'afternoon', period: 'afternoon', label: 'Afternoon', startHour: 14, endHour: 18 },
   { id: 'evening', period: 'evening', label: 'Evening', startHour: 18, endHour: 22 },

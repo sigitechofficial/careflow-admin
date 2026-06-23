@@ -1,7 +1,8 @@
 ﻿import * as React from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ClipboardList, Loader2, Sun, User, Users, AlertCircle } from 'lucide-react'
+import { AlertTriangle, ClipboardList, Loader2, Sun, User, AlertCircle } from 'lucide-react'
+import { ScheduleJobRequiredCarersIcon } from '@/features/scheduling/components/ScheduleJobRequiredCarersIcon'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
@@ -54,7 +55,7 @@ function VisitCard({ job, carePlanNameById, onAssign }: JobCardProps) {
     <button
       type="button"
       className={cn(
-        'relative rounded p-2.5 min-w-[240px] max-w-[360px] border transition-all overflow-hidden shrink-0 text-left cursor-pointer hover:brightness-95',
+        'relative rounded p-2 min-w-[150px] max-w-[200px] border transition-all overflow-hidden shrink-0 text-left cursor-pointer hover:brightness-95',
         bg,
         border,
       )}
@@ -77,7 +78,9 @@ function VisitCard({ job, carePlanNameById, onAssign }: JobCardProps) {
         <span className="truncate">{carers}</span>
       </p>
       <div className="flex items-center gap-1 mt-1 flex-wrap">
-        {job.requiredCarers > 1 ? <Users className="h-3 w-3 text-slate-600" aria-hidden /> : null}
+        {job.requiredCarers > 1 ? (
+          <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3 text-slate-600" />
+        ) : null}
         {alert ? <AlertCircle className="h-3 w-3 text-red-600" aria-hidden /> : null}
         {job.scheduleRun ? (
           <span
@@ -127,7 +130,9 @@ function JobCard({ job, carePlanNameById, onAssign }: JobCardProps) {
       <div className="relative flex items-center justify-between mt-0.5 gap-1">
         <p className="text-[10px] text-slate-600 truncate">{carers}</p>
         <div className="flex items-center gap-1 shrink-0">
-          {job.requiredCarers > 1 ? <Users className="h-3 w-3 text-slate-500" aria-hidden /> : null}
+          {job.requiredCarers > 1 ? (
+            <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3 text-slate-500" />
+          ) : null}
           {alert ? <AlertCircle className="h-3 w-3 text-red-500" aria-hidden /> : null}
         </div>
       </div>
@@ -192,7 +197,7 @@ export default function ViewSchedulePage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-background px-4 py-5 md:px-6 md:py-6">
+    <div className="mx-auto max-w-7xl p-5 md:p-6">
       <div className="flex flex-col h-full min-h-0 w-full bg-background space-y-4">
         <PageHeader
           title="View Schedule"
@@ -267,8 +272,8 @@ export default function ViewSchedulePage() {
 
         <ScheduleRunsPanel date={date} unassignedJobs={unassigned} onChanged={() => void refetch()} />
 
-        <div className="flex min-h-[520px] flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="w-[320px] shrink-0 overflow-y-auto border-r border-border bg-card">
+        <div className="flex flex-1 min-h-[480px] overflow-hidden bg-card rounded-xl border border-border shadow-sm">
+          <div className="w-[250px] shrink-0 border-r border-border bg-card overflow-y-auto">
             <div className="px-2 py-2 text-xs font-semibold text-muted-foreground border-b">All jobs</div>
             <div className="p-2 space-y-1">
               {allJobs.length === 0 && !isLoading && (
@@ -285,7 +290,7 @@ export default function ViewSchedulePage() {
             </div>
           </div>
 
-          <div className="w-[240px] shrink-0 overflow-y-auto border-r border-border bg-card">
+          <div className="w-[180px] shrink-0 border-r border-border bg-card overflow-y-auto">
             <div className="px-3 py-2 text-center font-semibold text-sm border-b bg-muted/40">Runs</div>
             <div className="divide-y divide-border">
               {runs.map(({ run, jobs }) => (
@@ -325,13 +330,13 @@ export default function ViewSchedulePage() {
             </div>
             <div className="divide-y divide-border">
               {runs.map(({ run, jobs }, idx) => (
-                <div key={run.id} className="flex min-h-[112px] items-stretch">
-                  <div className="flex w-16 shrink-0 items-center justify-center border-r bg-muted/30">
+                <div key={run.id} className="flex items-stretch min-h-[96px]">
+                  <div className="w-14 shrink-0 flex items-center justify-center bg-muted/30 border-r">
                     <span className="text-xs font-bold text-muted-foreground -rotate-90 whitespace-nowrap">
                       {idx + 1}
                     </span>
                   </div>
-                  <div className="flex flex-1 flex-wrap gap-2 p-3">
+                  <div className="flex flex-wrap gap-1.5 p-2 flex-1">
                     {jobs.map((job) => (
                       <VisitCard
                         key={job.id}

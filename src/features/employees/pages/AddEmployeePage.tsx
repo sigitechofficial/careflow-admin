@@ -24,7 +24,7 @@ import {
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { EmployeeEmergencyContactsEditor } from '@/features/employees/components/EmployeeEmergencyContactsEditor'
 import { EmployeeDocumentsSection } from '@/features/employees/components/EmployeeDocumentsSection'
-import { EmployeeWeeklyPatternEditor } from '@/features/employees/components/EmployeeWeeklyPatternEditor'
+import { EmployeeFortnightPatternEditor } from '@/features/employees/components/EmployeeFortnightPatternEditor'
 import { EditEmployeeTabBar, type EditEmployeeTabId } from '@/features/employees/components/EditEmployeeTabBar'
 import { EmployeeEditSkillsPanel } from '@/features/employees/components/EmployeeEditSkillsPanel'
 import { EmployeeEditNonCorePanel } from '@/features/employees/components/EmployeeEditNonCorePanel'
@@ -49,10 +49,6 @@ import {
   resolveEmployeeVisaTypes,
   visaTypeAutoFillsContractedHours,
 } from '@/features/settings/employee/employee-visa-defaults'
-import {
-  DEFAULT_WORK_PATTERN_END,
-  DEFAULT_WORK_PATTERN_START,
-} from '@/features/employees/constants/working-pattern'
 import {
   mapEmployeeDetailToFormValues,
   type EmployeeFormValues,
@@ -453,50 +449,6 @@ function LookupSelect({
   )
 }
 
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-type AvailabilityLevel = 'Fully' | 'Partial' | 'None'
-
-function AvailabilityPills({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: AvailabilityLevel
-  onChange: (next: AvailabilityLevel) => void
-  disabled?: boolean
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Day availability"
-      className={cn(
-        'inline-flex max-w-full flex-wrap gap-0.5 rounded-md border border-border bg-muted/40 p-0.5',
-        disabled && 'pointer-events-none opacity-50'
-      )}
-    >
-      {(['Fully', 'Partial', 'None'] as const).map(x => (
-        <button
-          key={x}
-          type="button"
-          disabled={disabled}
-          role="radio"
-          aria-checked={value === x}
-          onClick={() => onChange(x)}
-          className={cn(
-            'min-w-[3.25rem] rounded-sm px-2 py-1.5 text-[11px] font-semibold transition-colors',
-            value === x
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'text-muted-foreground hover:bg-background/90 hover:text-foreground'
-          )}
-        >
-          {x}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: string } = {}) {
   const navigate = useNavigate()
   const isEditMode = Boolean(editEmployeeId)
@@ -510,27 +462,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const [createdEmployeeId, setCreatedEmployeeId] = React.useState<string | null>(null)
   const [employmentSaved, setEmploymentSaved] = React.useState(false)
   const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [patternAvailability, setPatternAvailability] = React.useState<Record<string, AvailabilityLevel>>(() => {
-    const initial: Record<string, AvailabilityLevel> = {}
-    for (const week of ['Week 1', 'Week 2'] as const) {
-      for (const d of days) {
-        initial[`${week}|${d}`] = 'Fully'
-      }
-    }
-    return initial
-  })
-  const [patternTimes, setPatternTimes] = React.useState<Record<string, { start: string; end: string }>>(() => {
-    const initial: Record<string, { start: string; end: string }> = {}
-    for (const week of ['Week 1', 'Week 2'] as const) {
-      for (const d of days) {
-        initial[`${week}|${d}`] = {
-          start: DEFAULT_WORK_PATTERN_START,
-          end: DEFAULT_WORK_PATTERN_END,
-        }
-      }
-    }
-    return initial
-  })
 
   const activeWizardStepRef = React.useRef<EmployeeWizardStepId | string>('personal')
   activeWizardStepRef.current = isEditMode ? editTab : tab
@@ -1926,8 +1857,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             {((isEditMode && editTab === 'working-pattern') || (!isEditMode && tab === 'working-pattern')) && (
               <div className="space-y-6" data-testid="employee-working-pattern-section">
                 <p className="text-sm text-muted-foreground">
-                  Use the fortnight grid for quick planning. The <span className="font-medium">standard week</span> block
-                  below persists to <span className="font-mono text-xs">EmployeeWorkingPattern</span>.
+                  Configure a standard week or fortnight pattern. Saved rows are used by Schedule Jobs rota availability
+                  and visit-plan carer suggestions.
                 </p>
 
                 <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
@@ -1998,111 +1929,25 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   )}
                 </div>
 
-                {availableForWork && workingPatternRequired ? (
-                  <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
-                    {[
-                      { title: 'Working pattern', week: 'Week 1' },
-                      { title: 'Working pattern', week: 'Week 2' },
-                    ].map(w => (
-                      <div key={w.week} className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-semibold text-foreground">{w.title}</div>
-                          <div className="text-xs text-muted-foreground">{w.week}</div>
-                        </div>
-                        <div className="overflow-x-auto rounded-lg border border-border">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-border bg-muted/40">
-                                {['Day', 'Availability', 'Available start', 'Available end'].map(h => (
-                                  <th key={h} className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-muted-foreground">
-                                    {h}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {days.map(d => {
-                                const key = `${w.week}|${d}`
-                                return (
-                                  <tr key={d} className="border-b border-border last:border-0">
-                                    <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">{d}</td>
-                                    <td className="min-w-[12rem] px-3 py-2.5 align-top">
-                                      <AvailabilityPills
-                                        value={patternAvailability[key] ?? 'None'}
-                                        onChange={next =>
-                                          setPatternAvailability(prev => ({
-                                            ...prev,
-                                            [key]: next,
-                                          }))
-                                        }
-                                      />
-                                    </td>
-                                    <td className="px-3 py-2.5">
-                                      <TimeWithClock
-                                        id={`${key}-start`}
-                                        value={patternTimes[key]?.start ?? DEFAULT_WORK_PATTERN_START}
-                                        onChange={start =>
-                                          setPatternTimes(prev => ({
-                                            ...prev,
-                                            [key]: {
-                                              start,
-                                              end: prev[key]?.end ?? DEFAULT_WORK_PATTERN_END,
-                                            },
-                                          }))
-                                        }
-                                      />
-                                    </td>
-                                    <td className="px-3 py-2.5">
-                                      <TimeWithClock
-                                        id={`${key}-end`}
-                                        value={patternTimes[key]?.end ?? DEFAULT_WORK_PATTERN_END}
-                                        onChange={end =>
-                                          setPatternTimes(prev => ({
-                                            ...prev,
-                                            [key]: {
-                                              start: prev[key]?.start ?? DEFAULT_WORK_PATTERN_START,
-                                              end,
-                                            },
-                                          }))
-                                        }
-                                      />
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-border bg-muted/20 p-5 text-sm text-muted-foreground">
-                    Turn on <span className="font-medium text-foreground">Available for work</span> and{' '}
-                    <span className="font-medium text-foreground">Working pattern required</span> to edit the week grids
-                    and times (preview). Save the standard week below when ready.
-                  </div>
-                )}
-
                 <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                  <h3 className="mb-2 text-sm font-semibold text-foreground">Standard week (server)</h3>
-                  <EmployeeWeeklyPatternEditor
+                  <EmployeeFortnightPatternEditor
                     employeeId={createdEmployeeId ?? editEmployeeId ?? null}
                     apiReady={apiReady}
                     enabled={Boolean(availableForWork && workingPatternRequired)}
+                    employmentStartDate={watch('startDate') || undefined}
                   />
                 </div>
 
-                <div className="flex flex-wrap justify-end gap-3 pt-4">
-                  {!isEditMode ? (
+                {!isEditMode ? (
+                  <div className="flex flex-wrap justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" onClick={() => setTab('employment')}>
                       Back
                     </Button>
-                  ) : null}
-                  <Button type="button" data-testid="employee-wizard-done" onClick={onFinish}>
-                    {isEditMode ? 'Close' : 'Done — return to staff list'}
-                  </Button>
-                </div>
+                    <Button type="button" data-testid="employee-wizard-done" onClick={onFinish}>
+                      Done — return to staff list
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             )}
 

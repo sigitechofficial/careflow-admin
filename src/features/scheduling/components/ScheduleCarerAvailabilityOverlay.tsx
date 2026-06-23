@@ -5,11 +5,26 @@ import {
   segmentPositionPx,
   type CarerAvailabilitySegment,
 } from '@/features/scheduling/utils/schedule-jobs-availability.util'
+import {
+  segmentPositionPxInViewport,
+  type ScheduleJobsTimelineViewport,
+} from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import { SCHEDULE_JOBS_DAY_START_HOUR } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 
 type Props = {
   segments: CarerAvailabilitySegment[]
   showAvailabilityLines?: boolean
+  viewport?: ScheduleJobsTimelineViewport
+}
+
+function resolveSegmentPositionPx(
+  segment: CarerAvailabilitySegment,
+  viewport?: ScheduleJobsTimelineViewport,
+): { leftPx: number; widthPx: number } | null {
+  if (viewport) {
+    return segmentPositionPxInViewport(segment, viewport)
+  }
+  return segmentPositionPx(segment)
 }
 
 function AvailabilityTooltipCard({
@@ -57,13 +72,17 @@ function SegmentLine({
   colorClass,
   tone,
   zClass,
+  viewport,
 }: {
   segment: CarerAvailabilitySegment
   colorClass: string
   tone: 'available' | 'booked' | 'possibly-available' | 'unavailable'
   zClass?: string
+  viewport?: ScheduleJobsTimelineViewport
 }) {
-  const { leftPx, widthPx } = segmentPositionPx(segment)
+  const position = resolveSegmentPositionPx(segment, viewport)
+  if (!position) return null
+  const { leftPx, widthPx } = position
   const { title, timeRange } = formatAvailabilitySegmentLabel(segment, SCHEDULE_JOBS_DAY_START_HOUR)
   const key = `${segment.kind}-${segment.startMin}-${segment.endMin}`
 
@@ -88,6 +107,7 @@ function SegmentLine({
 export function ScheduleCarerAvailabilityOverlay({
   segments,
   showAvailabilityLines = true,
+  viewport,
 }: Props) {
   if (!segments.length) return null
 
@@ -99,7 +119,9 @@ export function ScheduleCarerAvailabilityOverlay({
   return (
     <>
       {unavailable.map((segment) => {
-        const { leftPx, widthPx } = segmentPositionPx(segment)
+        const position = resolveSegmentPositionPx(segment, viewport)
+        if (!position) return null
+        const { leftPx, widthPx } = position
         const { title, timeRange } = formatAvailabilitySegmentLabel(segment, SCHEDULE_JOBS_DAY_START_HOUR)
         const key = `unavailable-${segment.startMin}-${segment.endMin}`
 
@@ -133,6 +155,7 @@ export function ScheduleCarerAvailabilityOverlay({
               colorClass="bg-[#5a9f5e] shadow-[0_0_0_1px_rgba(255,255,255,0.65)]"
               tone="available"
               zClass="z-[1]"
+              viewport={viewport}
             />
           ))}
           {possiblyAvailable.map((segment) => (
@@ -142,6 +165,7 @@ export function ScheduleCarerAvailabilityOverlay({
               colorClass="bg-[#e8a54b] shadow-[0_0_0_1px_rgba(255,255,255,0.65)]"
               tone="possibly-available"
               zClass="z-[1]"
+              viewport={viewport}
             />
           ))}
           {booked.map((segment) => (
@@ -151,6 +175,7 @@ export function ScheduleCarerAvailabilityOverlay({
               colorClass="bg-red-500 shadow-[0_0_0_1px_rgba(255,255,255,0.65)]"
               tone="booked"
               zClass="z-[2]"
+              viewport={viewport}
             />
           ))}
         </>

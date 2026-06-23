@@ -16,8 +16,13 @@ import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import {
   type CarerAssignmentGroup,
+  ALL_WEEKDAYS_SELECT_LABEL,
+  ALL_WEEKDAYS_SELECT_VALUE,
+  allWeekdaySelectValues,
   carerAssignmentDisplayDurationMinutes,
   groupCarerAssignments,
+  isAllWeekdaysSelected,
+  normalizeCarerByDaySelection,
   parseCarerAssignmentDurationInput,
   removeGroup,
   replaceGroupDays,
@@ -26,10 +31,13 @@ import {
   slotDefaultDurationMinutes,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 
-const DAY_OPTIONS = VISIT_PLAN_DAY_LABELS.map((label, dayOfWeek) => ({
-  value: String(dayOfWeek),
-  label,
-}))
+const DAY_OPTIONS = [
+  { value: ALL_WEEKDAYS_SELECT_VALUE, label: ALL_WEEKDAYS_SELECT_LABEL },
+  ...VISIT_PLAN_DAY_LABELS.map((label, dayOfWeek) => ({
+    value: String(dayOfWeek),
+    label,
+  })),
+]
 
 type Props = {
   slot: VisitPlanSlot
@@ -99,7 +107,24 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                   placeholder="Select days…"
                   searchPlaceholder="Search days…"
                   className="min-h-9 py-1.5"
-                  onChange={(values) => onChange(replaceGroupDays(slot.carerAssignments, group, values))}
+                  isOptionSelected={(option, value) =>
+                    option.value === ALL_WEEKDAYS_SELECT_VALUE
+                      ? isAllWeekdaysSelected(value)
+                      : value.includes(option.value)
+                  }
+                  formatSelectedOptions={(selected) =>
+                    isAllWeekdaysSelected(selected.map((option) => option.value))
+                      ? [{ value: ALL_WEEKDAYS_SELECT_VALUE, label: ALL_WEEKDAYS_SELECT_LABEL }]
+                      : selected.filter((option) => option.value !== ALL_WEEKDAYS_SELECT_VALUE)
+                  }
+                  onRemoveOption={(option, value) =>
+                    option.value === ALL_WEEKDAYS_SELECT_VALUE ? [] : value.filter((item) => item !== option.value)
+                  }
+                  onChange={(values) => {
+                    const prev = selectedDayValuesForGroup(group.days)
+                    const normalized = normalizeCarerByDaySelection(prev, values)
+                    onChange(replaceGroupDays(slot.carerAssignments, group, normalized))
+                  }}
                 />
               </div>
               <div className="sm:col-span-2">

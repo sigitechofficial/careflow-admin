@@ -118,14 +118,18 @@ export default function BuildSchedulePage() {
           <p className="text-sm text-muted-foreground">
             Batch: {statusQuery.data.batch?.status ?? 'none'} ({statusQuery.data.batch?.id?.slice(0, 8) ?? '—'})
           </p>
+            {statusQuery.data.areas?.length ? (
           <ul className="text-sm space-y-1">
-            {statusQuery.data.areas.map(a => (
+            {(statusQuery.data.areas ?? []).map(a => (
               <li key={a.scheduleAreaId} className="flex justify-between border-b border-border/50 py-1">
                 <span>{a.scheduleArea.name}</span>
                 <span className="text-muted-foreground">{a.status}</span>
               </li>
             ))}
           </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No schedule areas configured.</p>
+            )}
         </div>
       )}
     </div>

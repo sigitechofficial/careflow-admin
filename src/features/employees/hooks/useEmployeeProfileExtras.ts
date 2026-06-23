@@ -8,6 +8,7 @@ import {
   fetchEmployeeDocuments,
   listEmergencyContacts,
   listWorkingPatterns,
+  replaceWorkingPatternsBulk,
   updateEmergencyContact,
   uploadEmployeeDocument,
 } from '@/features/employees/api'
@@ -102,6 +103,17 @@ export function useWorkingPatterns(employeeId: string | null, enabled = true) {
     queryFn: () => listWorkingPatterns(employeeId!),
     enabled: !!employeeId && enabled,
     staleTime: 30_000,
+  })
+}
+
+export function useReplaceWorkingPatternsBulk(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof replaceWorkingPatternsBulk>[1]) =>
+      replaceWorkingPatternsBulk(employeeId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.workingPatterns(employeeId) })
+    },
   })
 }
 

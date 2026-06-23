@@ -15,37 +15,30 @@ import {
 } from '@/features/service-users/visit-plan/hooks'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
 import { VisitPlanHistoryPanel } from '@/features/service-users/visit-plan/VisitPlanHistoryPanel'
-import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
+import { VisitPlanVersionPicker } from '@/features/service-users/visit-plan/VisitPlanVersionPicker'
+import { VisitPlanContextBanner } from '@/features/service-users/visit-plan/VisitPlanContextBanner'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
-import type { ServiceUserVisitPlan } from '@/features/service-users/visit-plan/types'
+import { sortVisitPlanVersions, resolveEditableVisitPlan } from '@/features/service-users/visit-plan/visit-plan-version.util'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 
-type VisitPlanView = 'configure' | 'details'
-type VisitPlanDetailsTab = 'summary' | 'calendar' | 'history'
+type VisitPlanPageTab = 'setup' | 'summary' | 'calendar' | 'history'
 
-const VIEW_TABS: { id: VisitPlanView; label: string }[] = [
-  { id: 'configure', label: 'Set up visits' },
-  { id: 'details', label: 'Review & calendar' },
+const PAGE_TABS: { id: VisitPlanPageTab; label: string; hint?: string }[] = [
+  { id: 'setup', label: 'Set up visits', hint: 'Edit the live package, activate, generate rota' },
+  { id: 'summary', label: 'Call pattern', hint: 'Read-only summary of slots, carers, and rules' },
+  { id: 'calendar', label: 'Visit calendar', hint: 'Scheduled visits and outcomes for this plan version' },
+  { id: 'history', label: 'Versions & audit', hint: 'Compare plan versions and amendment history' },
 ]
 
-const DETAILS_TABS: { id: VisitPlanDetailsTab; label: string }[] = [
-  { id: 'summary', label: 'Summary' },
-  { id: 'calendar', label: 'Calendar' },
-  { id: 'history', label: 'History' },
-]
-
-function planStatusClass(status: ServiceUserVisitPlan['status']) {
-  const styles: Record<ServiceUserVisitPlan['status'], string> = {
-    DRAFT: 'border-amber-300 bg-amber-50 dark:bg-amber-950/30',
-    ACTIVE: 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30',
-    SUSPENDED: 'border-orange-300 bg-orange-50 dark:bg-orange-950/30',
-    ENDED: 'border-border bg-muted/30',
-  }
-  return styles[status]
+function resolvePageTab(search: { view?: string; detailsTab?: string }): VisitPlanPageTab {
+  if (search.view !== 'details') return 'setup'
+  if (search.detailsTab === 'calendar') return 'calendar'
+  if (search.detailsTab === 'history') return 'history'
+  return 'summary'
 }
 
 export default function ServiceUserVisitPlanPage() {
@@ -55,13 +48,8 @@ export default function ServiceUserVisitPlanPage() {
   const serviceUserId = params.serviceUserId ?? ''
   const apiConfigured = Boolean(getApiBaseUrl())
 
-  const view: VisitPlanView = search.view === 'details' ? 'details' : 'configure'
-  const detailsTab: VisitPlanDetailsTab =
-    view === 'details' && search.detailsTab === 'calendar'
-      ? 'calendar'
-      : view === 'details' && search.detailsTab === 'history'
-        ? 'history'
-        : 'summary'
+  const activeTab = resolvePageTab(search)
+  const isReviewTab = activeTab !== 'setup'
 
   const profileQuery = useServiceUser(serviceUserId)
   const { data: plans, isLoading: plansLoading } = useServiceUserVisitPlans(serviceUserId)
@@ -70,19 +58,46 @@ export default function ServiceUserVisitPlanPage() {
   const loading = profileQuery.isLoading || plansLoading || activeLoading
   const error = profileQuery.error instanceof Error ? profileQuery.error.message : null
 
-  const sortedPlans = React.useMemo(() => {
-    const rows = [...(plans ?? [])]
-    return rows.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [plans])
+  const sortedPlans = React.useMemo(() => sortVisitPlanVersions(plans ?? []), [plans])
 
   const selectedPlan = React.useMemo(() => {
+    if (!plansLoading && sortedPlans.length === 0) return null
     if (search.planId) {
       return sortedPlans.find((p) => p.id === search.planId) ?? null
     }
-    if (activePlan?.id) return activePlan
-    const draft = sortedPlans.find((p) => p.status === 'DRAFT')
-    return draft ?? sortedPlans[0] ?? null
-  }, [search.planId, activePlan, sortedPlans])
+    return resolveEditableVisitPlan(sortedPlans, activePlan, undefined, !plansLoading) ?? sortedPlans[0] ?? null
+  }, [search.planId, activePlan, sortedPlans, plansLoading])
+
+  React.useEffect(() => {
+    if (plansLoading) return
+    const stalePlanId =
+      search.planId &&
+      (sortedPlans.length === 0 || !sortedPlans.some((p) => p.id === search.planId))
+    if (!stalePlanId) return
+    void navigate({
+      to: '/service-users/$serviceUserId/visit-plan',
+      params: { serviceUserId },
+      search: {
+        ...(search.view === 'details'
+          ? {
+              view: 'details' as const,
+              ...(search.detailsTab === 'calendar' ? { detailsTab: 'calendar' as const } : {}),
+              ...(search.detailsTab === 'history' ? { detailsTab: 'history' as const } : {}),
+            }
+          : {}),
+      },
+      replace: true,
+    })
+  }, [plansLoading, search, sortedPlans, navigate, serviceUserId])
+
+  const selectPlanForConfigure = (planId: string) => {
+    void navigate({
+      to: '/service-users/$serviceUserId/visit-plan',
+      params: { serviceUserId },
+      search: { planId },
+      replace: true,
+    })
+  }
 
   const careContext = useVisitPlanCareContext(
     serviceUserId,
@@ -95,27 +110,33 @@ export default function ServiceUserVisitPlanPage() {
   )
   const employeeNameById = useEmployeeNameMap(assignedEmployeeIds)
 
-  const setView = (next: VisitPlanView) => {
+  const setPageTab = (next: VisitPlanPageTab) => {
     void navigate({
       to: '/service-users/$serviceUserId/visit-plan',
       params: { serviceUserId },
       search: {
         ...(search.planId ? { planId: search.planId } : {}),
-        ...(next === 'details' ? { view: 'details' } : {}),
+        ...(next === 'setup'
+          ? {}
+          : {
+              view: 'details' as const,
+              ...(next === 'calendar' ? { detailsTab: 'calendar' as const } : {}),
+              ...(next === 'history' ? { detailsTab: 'history' as const } : {}),
+            }),
       },
       replace: true,
     })
   }
 
-  const setDetailsTab = (next: VisitPlanDetailsTab) => {
+  const selectPlanForReview = (planId: string, tab: VisitPlanPageTab = activeTab) => {
     void navigate({
       to: '/service-users/$serviceUserId/visit-plan',
       params: { serviceUserId },
       search: {
-        ...(search.planId ? { planId: search.planId } : {}),
+        planId,
         view: 'details',
-        ...(next === 'calendar' ? { detailsTab: 'calendar' } : {}),
-        ...(next === 'history' ? { detailsTab: 'history' } : {}),
+        ...(tab === 'calendar' ? { detailsTab: 'calendar' } : {}),
+        ...(tab === 'history' ? { detailsTab: 'history' } : {}),
       },
       replace: true,
     })
@@ -151,17 +172,18 @@ export default function ServiceUserVisitPlanPage() {
 
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         <div className="mb-4 flex flex-wrap gap-2 border-b border-border">
-          {VIEW_TABS.map((tab) => (
+          {PAGE_TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
+              title={tab.hint}
               className={cn(
                 '-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                view === tab.id
+                activeTab === tab.id
                   ? 'border-teal-600 text-teal-800 dark:border-teal-400 dark:text-teal-200'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
-              onClick={() => setView(tab.id)}
+              onClick={() => setPageTab(tab.id)}
             >
               {tab.label}
             </button>
@@ -172,91 +194,56 @@ export default function ServiceUserVisitPlanPage() {
           <p className="text-sm text-muted-foreground">API is not configured.</p>
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
-        ) : loading && view === 'details' ? (
+        ) : loading && isReviewTab ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading visit plan…
           </div>
-        ) : view === 'configure' ? (
-          <ServiceUserVisitPlanTab serviceUserId={serviceUserId} />
+        ) : activeTab === 'setup' ? (
+          <ServiceUserVisitPlanTab
+            serviceUserId={serviceUserId}
+            planId={search.planId}
+            onSelectPlan={selectPlanForConfigure}
+          />
         ) : !selectedPlan ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm">
             <h2 className="text-lg font-semibold text-foreground">No visit plan to show yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Configure and save a draft visit plan first, then return here to review the summary.
+              Configure and save a draft visit plan first, then use Call pattern to review the summary.
             </p>
-            <Button type="button" className="mt-6" onClick={() => setView('configure')}>
-              Configure visit plan
+            <Button type="button" className="mt-6" onClick={() => setPageTab('setup')}>
+              Set up visits
             </Button>
           </div>
         ) : (
           <div className="space-y-6">
-            {sortedPlans.length > 1 ? (
-              <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                <h3 className="mb-3 text-sm font-semibold text-foreground">All visit plans</h3>
-                <div className="flex flex-wrap gap-2">
-                  {sortedPlans.map((plan) => (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() =>
-                        void navigate({
-                          to: '/service-users/$serviceUserId/visit-plan',
-                          params: { serviceUserId },
-                          search: { planId: plan.id, view: 'details' },
-                        })
-                      }
-                      className={cn(
-                        'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                        planStatusClass(plan.status),
-                        selectedPlan.id === plan.id && 'ring-2 ring-sky-500 ring-offset-2',
-                      )}
-                    >
-                      <span className="text-xs font-medium uppercase">{plan.status}</span>
-                      <span className="mt-0.5 block text-muted-foreground">
-                        Updated {new Date(plan.updatedAt).toLocaleDateString('en-GB')}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <VisitPlanCarePathwayContextPanel
-              serviceUserId={serviceUserId}
-              isLoading={careContext.isLoading}
-              pathwaySteps={careContext.pathwaySteps}
-              acceptedCarePlans={careContext.acceptedCarePlans}
-              slots={selectedPlan.slots ?? []}
+            <VisitPlanVersionPicker
+              plans={sortedPlans}
+              selectedPlanId={selectedPlan.id}
+              onSelectPlan={(planId) => selectPlanForReview(planId)}
             />
 
-            <div className="flex flex-wrap gap-2 border-b border-border">
-              {DETAILS_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={cn(
-                    '-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                    detailsTab === tab.id
-                      ? 'border-sky-600 text-sky-800 dark:border-sky-400 dark:text-sky-200'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setDetailsTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <VisitPlanContextBanner
+              plan={selectedPlan}
+              context={
+                activeTab === 'calendar' ? 'calendar' : activeTab === 'history' ? 'history' : 'summary'
+              }
+              otherPlanCount={sortedPlans.length - 1}
+            />
 
-            {detailsTab === 'calendar' ? (
+            {activeTab === 'calendar' ? (
               <VisitPlanCalendarTab
                 plan={selectedPlan}
                 serviceUserId={serviceUserId}
                 employeeNameById={employeeNameById}
                 acceptedCarePlans={careContext.acceptedCarePlans}
               />
-            ) : detailsTab === 'history' ? (
-              <VisitPlanHistoryPanel serviceUserId={serviceUserId} selectedPlanId={selectedPlan.id} />
+            ) : activeTab === 'history' ? (
+              <VisitPlanHistoryPanel
+                serviceUserId={serviceUserId}
+                selectedPlanId={selectedPlan.id}
+                onSelectPlan={(planId) => selectPlanForReview(planId, 'summary')}
+              />
             ) : (
               <VisitPlanDetailsView
                 plan={selectedPlan}

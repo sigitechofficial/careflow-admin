@@ -73,6 +73,8 @@ function highRiskAlert(r: ServiceUserListRow): boolean {
   return r.riskLevel?.code === 'HIGH' || r.riskLevel?.code === 'CRITICAL'
 }
 
+import { formatServiceUserBranchLabel } from '@/features/settings/location-management/format-service-user-branch-label'
+
 function SuUserDetailsBlock({
   user,
   archived,
@@ -82,7 +84,14 @@ function SuUserDetailsBlock({
 }) {
   const kw = employeeLabel(user.keyWorker)
   const nn = employeeLabel(user.namedNurse)
-  const loc = user.location?.name?.trim()
+  const loc = formatServiceUserBranchLabel({
+    locationId: user.location?.id,
+    locationName: user.location?.name,
+    zoneName: user.location?.zoneName,
+    branchName: user.location?.branchName,
+    branchLayers: user.location?.branchLayers,
+    displayLabel: user.location?.displayLabel,
+  })
   const risk = highRiskAlert(user)
 
   return (

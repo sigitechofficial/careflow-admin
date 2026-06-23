@@ -31,6 +31,7 @@ export function useScheduleRunEditDialog({
   const [editName, setEditName] = React.useState('')
   const [editEmployeeId, setEditEmployeeId] = React.useState('')
   const [editNotes, setEditNotes] = React.useState('')
+  const previousEmployeeIdRef = React.useRef<string | null>(null)
 
   const pendingRunQuery = useScheduleRunDetail(pendingRunId, Boolean(pendingRunId))
 
@@ -58,6 +59,7 @@ export function useScheduleRunEditDialog({
     setEditRunInitialTab(options?.tab ?? 'run')
     setEditName(run.name)
     setEditEmployeeId(run.employeeId ?? '')
+    previousEmployeeIdRef.current = run.employeeId ?? null
     setEditNotes(run.description ?? '')
   }, [])
 
@@ -133,7 +135,13 @@ export function useScheduleRunEditDialog({
         },
       })
       if (editEmployeeId) {
-        await mutations.syncCarer.mutateAsync(editRun.id)
+        await mutations.syncCarer.mutateAsync({
+          id: editRun.id,
+          payload: {
+            force: true,
+            unallocateEmployeeId: previousEmployeeIdRef.current ?? undefined,
+          },
+        })
       }
       if (editRun.status === 'DRAFT') {
         await mutations.update.mutateAsync({ id: editRun.id, payload: { status: 'PUBLISHED' } })

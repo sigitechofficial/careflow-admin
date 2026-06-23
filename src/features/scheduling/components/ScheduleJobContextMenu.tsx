@@ -51,6 +51,11 @@ export function ScheduleJobContextMenu({ job, children, tooltip, onAction }: Pro
             Open run{job.scheduleRun?.name ? ` (${job.scheduleRun.name})` : ''}
           </ContextMenuItem>
         ) : null}
+        {job.scheduleRunId ? (
+          <ContextMenuItem disabled={readOnly} onSelect={() => onAction(job, 'reassign-run')}>
+            Reassign run carer
+          </ContextMenuItem>
+        ) : null}
         {readOnly ? (
           <>
             <ContextMenuItem onSelect={() => onAction(job, 'allocate-employees')}>

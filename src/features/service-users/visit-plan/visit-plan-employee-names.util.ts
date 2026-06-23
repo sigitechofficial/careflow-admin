@@ -38,7 +38,9 @@ export function normalizeSlotCarerFields(slot: VisitPlanSlot): Pick<
   VisitPlanSlot,
   'assignedEmployeeIds' | 'carerAssignments'
 > {
-  const carerAssignments = (slot.carerAssignments ?? []).filter((a) => a.employeeId?.trim())
+  const carerAssignments = (slot.carerAssignments ?? [])
+    .filter((a) => a.employeeId?.trim())
+    .map(({ id: _id, ...assignment }) => assignment)
   const assignedEmployeeIds =
     carerAssignments.length > 0
       ? [...new Set(carerAssignments.map((a) => a.employeeId))]

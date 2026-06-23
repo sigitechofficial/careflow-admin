@@ -74,6 +74,7 @@ const EMPTY_SU_LOOKUPS: ServiceUserLookupsBundle = {
   relationshipTypes: [],
   allergies: [],
   absenceReasons: [],
+  visitPlanPauseReasons: [],
 }
 
 function formatDob(iso: string | null): string {

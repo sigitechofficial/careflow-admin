@@ -148,3 +148,26 @@ export function buildCarePathwaySteps(input: {
     },
   ]
 }
+
+export function carePathwayHasBlockers(steps: VisitPlanCareContextStep[]): boolean {
+  return steps.some((step) => step.status === 'current' || step.status === 'blocked')
+}
+
+export function visitPlanNeedsCarePlanLinking(
+  slots: VisitPlanSlot[],
+  acceptedCarePlans: AcceptedCarePlanItem[],
+): boolean {
+  const enabled = slots.filter((slot) => slot.isEnabled)
+  if (!acceptedCarePlans.length || !enabled.length) return false
+  return enabled.every((slot) => !hasExplicitCarePlanLinks(slot))
+}
+
+export function shouldShowVisitPlanCarePathwayPanel(
+  pathwaySteps: VisitPlanCareContextStep[],
+  slots: VisitPlanSlot[],
+  acceptedCarePlans: AcceptedCarePlanItem[],
+): boolean {
+  if (acceptedCarePlans.length === 0) return true
+  if (carePathwayHasBlockers(pathwaySteps)) return true
+  return visitPlanNeedsCarePlanLinking(slots, acceptedCarePlans)
+}

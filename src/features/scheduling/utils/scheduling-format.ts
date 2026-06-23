@@ -6,6 +6,12 @@ export function serviceUserLabel(su: ServiceUserBrief): string {
   return `${name}${num}`.trim() || su.id
 }
 
+/** Shorter rota block label — name without service-user number. */
+export function serviceUserNameOnly(su: ServiceUserBrief): string {
+  const name = su.preferredName?.trim() || [su.firstName, su.lastName].filter(Boolean).join(' ')
+  return name.trim() || su.serviceUserNumber || su.id
+}
+
 export function formatDateTimeLocal(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -35,6 +41,19 @@ export function employeesLabel(job: TimelineJob): string {
     })
     .filter(Boolean)
     .join(', ')
+}
+
+/** Compact carer label for narrow rota blocks — first carer + count. */
+export function employeesShortLabel(job: TimelineJob): string {
+  const active = job.allocations?.filter((a) => a.employee) ?? []
+  if (!active.length) return 'Unassigned'
+  const first = active[0]!.employee!
+  const firstName = first.firstName?.trim() ?? ''
+  const lastInitial = first.lastName?.trim()?.charAt(0)
+  const name = [firstName, lastInitial ? `${lastInitial}.` : ''].filter(Boolean).join(' ')
+  const lead = active[0]!.isLeadCarer && job.requiredCarers > 1 ? ' ★' : ''
+  const extra = active.length > 1 ? ` +${active.length - 1}` : ''
+  return `${name}${lead}${extra}`.trim()
 }
 
 export function leadCarerAllocation(job: TimelineJob) {

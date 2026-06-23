@@ -15,6 +15,10 @@ export type ServiceUserBrief = {
   serviceUserNumber?: string | null
   locationId?: string | null
   location?: { id: string; name: string } | null
+  zoneName?: string | null
+  branchName?: string | null
+  branchLayers?: string[]
+  displayLabel?: string | null
   latitude?: number | null
   longitude?: number | null
 }
@@ -105,7 +109,7 @@ export type TimelineJob = {
   scheduleRunId?: string | null
   runSequence?: number | null
   scheduleRun?: ScheduleRunBrief | null
-  scheduleArea?: { id: string; name: string; code: string } | null
+  scheduleArea?: { id: string; name: string; code: string; locationId?: string | null } | null
   allocations: Array<{
     id: string
     employeeId: string
@@ -158,6 +162,9 @@ export type EmployeeDayRow = {
   allocations: EmployeeDayAllocation[]
   totalMinutes: number
   dayPattern?: EmployeeDayPattern | null
+  /** True when the carer has approved leave covering this timeline day. */
+  onHoliday?: boolean
+  holidayEndDate?: string | null
 }
 
 export type EmployeesDayTimelineResponse = {

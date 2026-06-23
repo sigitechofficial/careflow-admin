@@ -14,6 +14,8 @@ import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-di
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
+import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 
 type Props = {
   open: boolean
@@ -35,6 +37,7 @@ export function VisitPlanSlotViewCarersDialog({
   onAssign,
 }: Props) {
   const assignedIds = slotAssignedEmployeeIds(slot)
+  const hasCarerByDay = slotHasCarerByDayAssignments(slot)
   const start = normalizeTimeForInput(slot.plannedStartTime)
   const end = normalizeTimeForInput(slot.plannedEndTime)
 
@@ -49,7 +52,7 @@ export function VisitPlanSlotViewCarersDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
-          {assignedIds.length === 0 ? (
+          {assignedIds.length === 0 && !hasCarerByDay ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
               <p className="text-sm text-muted-foreground">No carers assigned to this call yet.</p>
               {onAssign ? (
@@ -58,6 +61,14 @@ export function VisitPlanSlotViewCarersDialog({
                 </Button>
               ) : null}
             </div>
+          ) : hasCarerByDay ? (
+            <VisitPlanSlotCarerByDaySummaryList
+              slot={slot}
+              employeeNameById={employeeNameById}
+              disabled={disabled}
+              onRemoveEmployee={onRemoveCarer}
+              onNavigate={() => onOpenChange(false)}
+            />
           ) : (
             <ul className="space-y-2">
               {assignedIds.map((id, index) => (

@@ -54,7 +54,10 @@ export async function listScheduleRuns(params: ListScheduleRunsParams = {}, init
 }
 
 export async function getScheduleRun(id: string, init?: RequestInit) {
-  const res = await apiJson<ApiEnvelope<ScheduleRunRow>>(`/schedule-runs/${id}`, { method: 'GET', ...init })
+  const res = await apiJson<ApiEnvelope<ScheduleRunRow>>(
+    `/schedule-runs/${id}?includeJobs=true`,
+    { method: 'GET', ...init },
+  )
   return res.data!
 }
 
@@ -118,10 +121,27 @@ export async function deleteScheduleRun(id: string, init?: RequestInit) {
   return res.data!
 }
 
-export async function syncScheduleRunCarer(id: string, init?: RequestInit) {
-  const res = await apiJson<ApiEnvelope<ScheduleRunRow>>(
+export type SyncScheduleRunCarerPayload = {
+  force?: boolean
+  unallocateEmployeeId?: string
+}
+
+export type SyncScheduleRunCarerResult = {
+  run: ScheduleRunRow
+  warnings?: Array<{ jobId: string; message: string }>
+}
+
+export async function syncScheduleRunCarer(
+  id: string,
+  payload: SyncScheduleRunCarerPayload = {},
+  init?: RequestInit,
+) {
+  const res = await apiJson<ApiEnvelope<ScheduleRunRow> & { warnings?: SyncScheduleRunCarerResult['warnings'] }>(
     `/schedule-runs/${id}/sync-carer`,
-    { method: 'POST', ...init },
+    { method: 'POST', body: JSON.stringify(payload), ...init },
   )
-  return res.data!
+  return {
+    run: res.data!,
+    warnings: res.warnings,
+  }
 }

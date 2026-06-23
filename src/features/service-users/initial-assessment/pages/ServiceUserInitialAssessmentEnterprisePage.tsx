@@ -41,6 +41,7 @@ import { InitialAssessmentReopenDialog } from '@/features/service-users/initial-
 import { InitialAssessmentHtmlExportDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentHtmlExportDialog'
 import { InitialAssessmentPdfDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentPdfDialog'
 import { InitialAssessmentPlaywrightTestsDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentPlaywrightTestsDialog'
+import { InitialAssessmentWorkspaceSkeleton } from '@/features/service-users/initial-assessment/components/InitialAssessmentWorkspaceSkeleton'
 import { InitialAssessmentProfileCard } from '@/features/service-users/initial-assessment/components/InitialAssessmentProfileCard'
 import { InitialAssessmentStatusBadge } from '@/features/service-users/initial-assessment/components/InitialAssessmentStatusBadge'
 import { InitialAssessmentRiskRecordsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRiskRecordsPanel'
@@ -179,6 +180,7 @@ import {
   parseInitialAssessmentEnterpriseSearch,
   type InitialAssessmentEnterpriseSearch,
 } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
+import { resolveInitialAssessmentSubmissionId } from '@/features/service-users/initial-assessment/utils/resolve-initial-assessment-submission-id.util'
 import {
   useCreateInitialAssessmentSubmission,
   useDefaultInitialAssessmentTemplate,
@@ -262,10 +264,20 @@ function questionsHaveDirtyAnswers(
 
 type SaveIndicator = 'idle' | 'saving' | 'saved' | 'error'
 
-function customerLabel(row: ServiceUserListRow): string {
+function customerLabel(row: Pick<ServiceUserListRow, 'id' | 'preferredName' | 'firstName' | 'lastName' | 'serviceUserNumber'>): string {
   const name = row.preferredName?.trim() || [row.firstName, row.lastName].filter(Boolean).join(' ')
   const num = row.serviceUserNumber ? ` (${row.serviceUserNumber})` : ''
   return `${name}${num}`.trim() || row.id
+}
+
+function serviceUserDetailLabel(detail: ServiceUserDetail): string {
+  return customerLabel({
+    id: detail.id,
+    preferredName: detail.preferredName,
+    firstName: detail.firstName,
+    lastName: detail.lastName,
+    serviceUserNumber: detail.serviceUserNumber,
+  })
 }
 
 export default function ServiceUserInitialAssessmentEnterprisePage() {
@@ -325,7 +337,15 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const detailQuery = useServiceUser(selectedId, hasApi && canRead && !!selectedId)
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
   const suLookupsQuery = useServiceUserLookups()
-  const [submissionId, setSubmissionId] = React.useState<string | null>(null)
+  const autoSubmissionId = React.useMemo(
+    () => resolveInitialAssessmentSubmissionId(submissionsQuery.data, urlSearch.submissionId),
+    [submissionsQuery.data, urlSearch.submissionId],
+  )
+  const [manualSubmissionId, setManualSubmissionId] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    setManualSubmissionId(null)
+  }, [selectedId, urlSearch.submissionId])
+  const submissionId = manualSubmissionId ?? autoSubmissionId
   const [draftAnswers, setDraftAnswers] = React.useState<Record<string, InitialAssessmentAnswerInput>>({})
   const [sectionComments, setSectionComments] = React.useState<Record<string, SectionCommentEntry>>({})
   const [waterlow, setWaterlow] = React.useState(parseSubmissionMetadata(undefined).waterlow)
@@ -436,9 +456,22 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   // const [leaveSaving, setLeaveSaving] = React.useState(false)
 
   const answersQuery = useInitialAssessmentAnswers(selectedId, submissionId)
-  const actionsQuery = useInitialAssessmentActions(selectedId, submissionId, hasApi && canRead && !!submissionId)
-  const summaryQuery = useInitialAssessmentSummary(selectedId, submissionId, hasApi && canRead && !!submissionId)
-  const agencySettingsQuery = useInitialAssessmentAgencySettings(hasApi && canRead)
+  const needsScheduleData =
+    hubTab === 'schedule' || submitModalOpen
+  const needsRiskSidebarData = rightSidebarOpen || submitModalOpen
+  const actionsQuery = useInitialAssessmentActions(
+    selectedId,
+    submissionId,
+    hasApi && canRead && !!submissionId && needsScheduleData,
+  )
+  const summaryQuery = useInitialAssessmentSummary(
+    selectedId,
+    submissionId,
+    hasApi && canRead && !!submissionId && needsScheduleData,
+  )
+  const agencySettingsQuery = useInitialAssessmentAgencySettings(
+    hasApi && canRead && needsScheduleData,
+  )
   const agencySettings =
     summaryQuery.data?.agencySettings ??
     agencySettingsQuery.data ??
@@ -446,8 +479,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const openActionsCount =
     actionsQuery.data?.filter((a) => a.status === 'OPEN' || a.status === 'IN_PROGRESS').length ?? 0
   const carePlanRecommendationCount = summaryQuery.data?.carePlanRecommendations?.length ?? 0
-  const riskQuery = useInitialAssessmentRiskSummary(selectedId, submissionId)
-  const triggersQuery = useInitialAssessmentCarePlanTriggers(selectedId, submissionId)
+  const riskQuery = useInitialAssessmentRiskSummary(
+    selectedId,
+    submissionId,
+    hasApi && canRead && !!submissionId && needsRiskSidebarData,
+  )
+  const triggersQuery = useInitialAssessmentCarePlanTriggers(
+    selectedId,
+    submissionId,
+    hasApi && canRead && !!submissionId && needsRiskSidebarData,
+  )
   const validateQuery = useValidateInitialAssessment(
     selectedId,
     submissionId,
@@ -509,24 +550,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     hasApi && canRead && !!selectedId && !templateIdForLoad,
   )
   const templateQuery = templateIdForLoad ? templateByIdQuery : defaultTemplateQuery
-
-  React.useEffect(() => {
-    const rows = submissionsQuery.data
-    if (!rows?.length) {
-      setSubmissionId(null)
-      return
-    }
-    const fromUrl = urlSearch.submissionId?.trim()
-    if (fromUrl && rows.some((r) => r.id === fromUrl)) {
-      setSubmissionId(fromUrl)
-      return
-    }
-    const active = rows.find((r) => EDITABLE.includes(r.status))
-    setSubmissionId((prev) => {
-      if (prev && rows.some((r) => r.id === prev)) return prev
-      return active?.id ?? rows[0]?.id ?? null
-    })
-  }, [submissionsQuery.data, urlSearch.submissionId])
 
   React.useEffect(() => {
     setReviewNotes(submission?.reviewNotes ?? '')
@@ -704,10 +727,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const isAssessmentWorkspaceLoading = React.useMemo(() => {
     if (!selectedId) return false
     if (submissionsQuery.isLoading) return true
-
-    const submissions = submissionsQuery.data
-    if (submissions && submissions.length > 0 && !submissionId) return true
-
     if (!submissionId) return false
 
     const needsTemplate =
@@ -724,7 +743,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   }, [
     selectedId,
     submissionsQuery.isLoading,
-    submissionsQuery.data,
     submissionId,
     templateQuery.isLoading,
     hubTab,
@@ -1579,7 +1597,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       search: id ? { serviceUserId: id } : {},
       replace: true,
     })
-    setSubmissionId(null)
+    setManualSubmissionId(null)
     setDraftAnswers({})
     dirtyAnswerQuestionIdsRef.current.clear()
   }
@@ -1588,7 +1606,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     if (!canCreate) return
     try {
       const created = await createMutation.mutateAsync()
-      setSubmissionId(created.id)
+      setManualSubmissionId(created.id)
       patchUrlSearch({ section: 1, tab: 'form' })
       toastSuccess('Assessment started', 'Enterprise initial assessment draft created.')
     } catch (e) {
@@ -1789,7 +1807,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const selectSubmission = (id: string) => {
     if (id === submissionId) return
     promptIfUnsaved(() => {
-      setSubmissionId(id)
+      setManualSubmissionId(id)
       setDraftAnswers({})
       dirtyAnswerQuestionIdsRef.current.clear()
       answersHydratedRef.current = false
@@ -1823,6 +1841,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     return <p className="p-6 text-sm text-muted-foreground">Configure VITE_API_BASE_URL to load assessments.</p>
   }
 
+  const selectedInList = serviceUsers.some((su) => su.id === selectedId)
+  const showServiceUserPicker = !listLoading || Boolean(selectedId)
+
   if (!canRead) {
     return <p className="p-6 text-sm text-destructive">You do not have permission to view initial assessments.</p>
   }
@@ -1838,18 +1859,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         <Label htmlFor="ia-enterprise-su">
           Service user <span className="text-destructive">*</span>
         </Label>
-        {listLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading…
-          </div>
-        ) : (
+        {showServiceUserPicker ? (
           <Select value={selectedId || '_none'} onValueChange={(v) => onCustomerChange(v === '_none' ? '' : v)}>
             <SelectTrigger id="ia-enterprise-su">
               <SelectValue placeholder="Select a service user…" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="_none">Select a service user…</SelectItem>
+              {selectedId && !selectedInList && detailQuery.data ? (
+                <SelectItem value={selectedId}>{serviceUserDetailLabel(detailQuery.data)}</SelectItem>
+              ) : null}
               {serviceUsers.map((su) => (
                 <SelectItem key={su.id} value={su.id}>
                   {customerLabel(su)}
@@ -1857,6 +1876,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               ))}
             </SelectContent>
           </Select>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading…
+          </div>
         )}
       </div>
 
@@ -1865,19 +1889,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           Select a service user to open the enterprise assessment.
         </div>
       ) : isAssessmentWorkspaceLoading ? (
-        <div
-          className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 py-20 shadow-sm"
-          data-testid="ia-assessment-loading"
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <Loader2 className="h-8 w-8 animate-spin text-teal-700 dark:text-teal-400" aria-hidden />
-          <p className="text-sm font-medium text-foreground">Loading assessment…</p>
-          <p className="text-xs text-muted-foreground">
-            Fetching submissions and opening the in-progress assessment.
-          </p>
-        </div>
+        <InitialAssessmentWorkspaceSkeleton />
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">

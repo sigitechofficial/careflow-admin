@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -20,8 +20,16 @@ import { ScheduleJobsToolbar } from '@/features/scheduling/components/ScheduleJo
 import { ScheduleRunsPanel } from '@/features/scheduling/components/ScheduleRunsPanel'
 import { ScheduleRunCreateDialog } from '@/features/scheduling/components/ScheduleRunCreateDialog'
 import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
+import { ScheduleRunReassignDialog } from '@/features/scheduling/components/ScheduleRunReassignDialog'
 import { useScheduleRunEditDialog } from '@/features/scheduling/hooks/useScheduleRunEditDialog'
-import { useScheduleDayRuns, useScheduleEmployeesDay, useScheduleServiceUsersWeek } from '@/features/scheduling/hooks/useScheduling'
+import { useScheduleRunReassignDialog } from '@/features/scheduling/hooks/useScheduleRunReassignDialog'
+import { useScheduleJobsBoardPreferences } from '@/features/scheduling/hooks/useScheduleJobsBoardPreferences'
+import { useScheduleDayRuns, useScheduleEmployeesDay, useScheduleServiceUsersWeek, useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
+import {
+  buildBranchSummariesFromTimelineJobs,
+  buildServiceUserBranchFilterOptions,
+} from '@/features/settings/location-management/build-service-user-branch-filter-options'
 import {
   useAllocateJob,
   useUnallocateJob,
@@ -73,44 +81,71 @@ import {
   findScheduleJobsServiceUserBrief,
 } from '@/features/scheduling/utils/schedule-jobs-service-user-filter.util'
 import { serviceUserLabel, activeJobAllocationCount, todayIso } from '@/features/scheduling/utils/scheduling-format'
+import { collectOutsidePatternJobIds } from '@/features/scheduling/utils/schedule-jobs-outside-pattern.util'
 import {
   applyScheduleJobOutcomeFilters,
-  applyScheduleJobOperationalIssuesFilter,
+  applyScheduleOperationalFilters,
+  countScheduleCarersOnLeaveToday,
+  countScheduleJobsByOperationalFilter,
   countScheduleJobsByOutcome,
   countScheduleJobsWithOperationalIssues,
   DEFAULT_SCHEDULE_JOB_OUTCOME_FILTERS,
+  parseScheduleCarerOperationalFilters,
+  parseScheduleJobOperationalFilters,
+  type ScheduleCarerOperationalFilter,
+  type ScheduleJobOperationalFilter,
   type ScheduleJobOutcomeFilter,
 } from '@/features/scheduling/utils/schedule-job-board-filter.util'
 import {
   applyScheduleJobsRequiredCarersFilter,
   buildScheduleJobsRequiredCarersOptions,
   countScheduleJobsByRequiredCarers,
-  parseScheduleJobsRequiredCarersFilter,
-  scheduleJobsRequiredCarersFilterLabel,
-  type ScheduleJobsRequiredCarersFilter,
+  parseScheduleJobsRequiredCarersFilters,
+  scheduleJobsRequiredCarersFiltersLabel,
+  type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
 import {
   parseScheduleJobsLayout,
   type ScheduleJobsLayout,
 } from '@/features/scheduling/utils/schedule-jobs-layout.util'
+import {
+  buildScheduleJobsServiceUserRows,
+  parseScheduleJobsBoardRowAxis,
+  type ScheduleJobsBoardRowAxis,
+} from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import { useQueryClient } from '@tanstack/react-query'
 
+function parseCommaSeparatedFilterIds(value?: string | null): string[] {
+  if (!value?.trim()) return []
+  return value.split(',').map((id) => id.trim()).filter(Boolean)
+}
+
 function buildScheduleJobsSearch(params: {
   date: string
-  locationId: string | null
-  serviceUserId: string | null
-  requiredCarers?: ScheduleJobsRequiredCarersFilter
+  locationIds: string[]
+  serviceUserIds: string[]
+  requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
+  jobOperationalFilters?: ScheduleJobOperationalFilter[]
+  carerOperationalFilters?: ScheduleCarerOperationalFilter[]
   layout?: ScheduleJobsLayout
+  rowAxis?: ScheduleJobsBoardRowAxis
 }) {
   return {
     date: params.date,
-    ...(params.locationId ? { locationId: params.locationId } : {}),
-    ...(params.serviceUserId ? { serviceUserId: params.serviceUserId } : {}),
-    ...(params.requiredCarers && params.requiredCarers !== 'all'
-      ? { requiredCarers: params.requiredCarers }
+    ...(params.locationIds.length ? { locationId: params.locationIds.join(',') } : {}),
+    ...(params.serviceUserIds.length ? { serviceUserId: params.serviceUserIds.join(',') } : {}),
+    ...(params.requiredCarersFilters.length
+      ? { requiredCarers: params.requiredCarersFilters.join(',') }
+      : {}),
+    ...(params.jobOperationalFilters?.length
+      ? { op: params.jobOperationalFilters.join(',') }
+      : {}),
+    ...(params.carerOperationalFilters?.length
+      ? { carerOp: params.carerOperationalFilters.join(',') }
       : {}),
     ...(params.layout && params.layout !== 'board' ? { layout: params.layout } : {}),
+    ...(params.rowAxis && params.rowAxis !== 'carers' ? { rowAxis: params.rowAxis } : {}),
   }
 }
 
@@ -123,20 +158,28 @@ export default function ScheduleJobsPage() {
     locationId?: string
     serviceUserId?: string
     requiredCarers?: string
+    op?: string
+    carerOp?: string
     layout?: string
+    rowAxis?: string
     visitAction?: 'complete' | 'notes' | 'allocate' | 'workspace'
     actionJobId?: string
     visitTab?: ScheduleVisitWorkspaceTab
   }
   const [date, setDate] = React.useState(search.date ?? todayIso())
   const [layout, setLayout] = React.useState<ScheduleJobsLayout>(() => parseScheduleJobsLayout(search.layout))
-  const [locationFilterId, setLocationFilterId] = React.useState<string | null>(search.locationId ?? null)
-  const [serviceUserFilterId, setServiceUserFilterId] = React.useState<string | null>(
-    search.serviceUserId ?? null,
+  const [rowAxis, setRowAxis] = React.useState<ScheduleJobsBoardRowAxis>(() =>
+    parseScheduleJobsBoardRowAxis(search.rowAxis),
   )
-  const [requiredCarersFilter, setRequiredCarersFilter] = React.useState<ScheduleJobsRequiredCarersFilter>(
-    () => parseScheduleJobsRequiredCarersFilter(search.requiredCarers),
+  const [locationFilterIds, setLocationFilterIds] = React.useState<string[]>(
+    () => parseCommaSeparatedFilterIds(search.locationId),
   )
+  const [serviceUserFilterIds, setServiceUserFilterIds] = React.useState<string[]>(
+    () => parseCommaSeparatedFilterIds(search.serviceUserId),
+  )
+  const [requiredCarersFilters, setRequiredCarersFilters] = React.useState<
+    ScheduleJobsRequiredCarersFilterValue[]
+  >(() => parseScheduleJobsRequiredCarersFilters(search.requiredCarers))
   const [allocateJobId, setAllocateJobId] = React.useState<string | null>(null)
   const [allocateDialogPanel, setAllocateDialogPanel] =
     React.useState<ScheduleJobAllocateDialogPanel>('allocate')
@@ -156,9 +199,58 @@ export default function ScheduleJobsPage() {
   const [jobOutcomeFilters, setJobOutcomeFilters] = React.useState(
     () => new Set(DEFAULT_SCHEDULE_JOB_OUTCOME_FILTERS),
   )
-  const [operationalIssuesOnly, setOperationalIssuesOnly] = React.useState(false)
+  const [jobOperationalFilters, setJobOperationalFilters] = React.useState<
+    ScheduleJobOperationalFilter[]
+  >(() => parseScheduleJobOperationalFilters(search.op))
+  const [carerOperationalFilters, setCarerOperationalFilters] = React.useState<
+    ScheduleCarerOperationalFilter[]
+  >(() => parseScheduleCarerOperationalFilters(search.carerOp))
   const [createRunOpen, setCreateRunOpen] = React.useState(false)
   const [createRunJobs, setCreateRunJobs] = React.useState<TimelineJob[]>([])
+  const { preferences: boardPreferences, setShowRunsOnBoard } = useScheduleJobsBoardPreferences()
+
+  const buildCurrentScheduleJobsSearch = React.useCallback(
+    (partial?: {
+      date?: string
+      locationIds?: string[]
+      serviceUserIds?: string[]
+      requiredCarersFilters?: ScheduleJobsRequiredCarersFilterValue[]
+      jobOperationalFilters?: ScheduleJobOperationalFilter[]
+      carerOperationalFilters?: ScheduleCarerOperationalFilter[]
+      layout?: ScheduleJobsLayout
+      rowAxis?: ScheduleJobsBoardRowAxis
+    }) =>
+      buildScheduleJobsSearch({
+        date: partial?.date ?? date,
+        locationIds: partial?.locationIds ?? locationFilterIds,
+        serviceUserIds: partial?.serviceUserIds ?? serviceUserFilterIds,
+        requiredCarersFilters: partial?.requiredCarersFilters ?? requiredCarersFilters,
+        jobOperationalFilters: partial?.jobOperationalFilters ?? jobOperationalFilters,
+        carerOperationalFilters: partial?.carerOperationalFilters ?? carerOperationalFilters,
+        layout: partial?.layout ?? layout,
+        rowAxis: partial?.rowAxis ?? rowAxis,
+      }),
+    [
+      date,
+      locationFilterIds,
+      serviceUserFilterIds,
+      requiredCarersFilters,
+      jobOperationalFilters,
+      carerOperationalFilters,
+      layout,
+      rowAxis,
+    ],
+  )
+
+  const updateScheduleJobsUrl = React.useCallback(
+    (partial?: Parameters<typeof buildCurrentScheduleJobsSearch>[0]) => {
+      void navigate({
+        to: '/scheduling/schedule-jobs',
+        search: buildCurrentScheduleJobsSearch(partial),
+      })
+    },
+    [buildCurrentScheduleJobsSearch, navigate],
+  )
 
   const updateJob = useUpdateScheduledJob()
   const allocate = useAllocateJob()
@@ -166,86 +258,81 @@ export default function ScheduleJobsPage() {
   const setScheduleDate = React.useCallback(
     (next: string) => {
       setDate(next)
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date: next,
-          locationId: locationFilterId,
-          serviceUserId: serviceUserFilterId,
-          requiredCarers: requiredCarersFilter,
-          layout,
-        }),
-      })
+      updateScheduleJobsUrl({ date: next })
     },
-    [layout, locationFilterId, navigate, requiredCarersFilter, serviceUserFilterId],
+    [updateScheduleJobsUrl],
+  )
+
+  const setScheduleRowAxis = React.useCallback(
+    (next: ScheduleJobsBoardRowAxis) => {
+      setRowAxis(next)
+      updateScheduleJobsUrl({ rowAxis: next })
+    },
+    [updateScheduleJobsUrl],
   )
 
   const setScheduleLayout = React.useCallback(
     (next: ScheduleJobsLayout) => {
       setLayout(next)
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date,
-          locationId: locationFilterId,
-          serviceUserId: serviceUserFilterId,
-          requiredCarers: requiredCarersFilter,
-          layout: next,
-        }),
-      })
+      updateScheduleJobsUrl({ layout: next })
     },
-    [date, locationFilterId, navigate, requiredCarersFilter, serviceUserFilterId],
+    [updateScheduleJobsUrl],
   )
 
   const setScheduleLocationFilter = React.useCallback(
-    (next: string | null) => {
-      setLocationFilterId(next)
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date,
-          locationId: next,
-          serviceUserId: serviceUserFilterId,
-          requiredCarers: requiredCarersFilter,
-          layout,
-        }),
+    (next: string[]) => {
+      setLocationFilterIds(next)
+      setServiceUserFilterIds([])
+      setRequiredCarersFilters([])
+      updateScheduleJobsUrl({
+        locationIds: next,
+        serviceUserIds: [],
+        requiredCarersFilters: [],
       })
     },
-    [date, layout, navigate, requiredCarersFilter, serviceUserFilterId],
+    [updateScheduleJobsUrl],
   )
 
   const setScheduleServiceUserFilter = React.useCallback(
-    (next: string | null) => {
-      setServiceUserFilterId(next)
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date,
-          locationId: locationFilterId,
-          serviceUserId: next,
-          requiredCarers: requiredCarersFilter,
-          layout,
-        }),
-      })
+    (next: string[]) => {
+      setServiceUserFilterIds(next)
+      updateScheduleJobsUrl({ serviceUserIds: next })
     },
-    [date, layout, locationFilterId, navigate, requiredCarersFilter],
+    [updateScheduleJobsUrl],
   )
 
-  const setScheduleRequiredCarersFilter = React.useCallback(
-    (next: ScheduleJobsRequiredCarersFilter) => {
-      setRequiredCarersFilter(next)
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date,
-          locationId: locationFilterId,
-          serviceUserId: serviceUserFilterId,
-          requiredCarers: next,
-          layout,
-        }),
+  const setScheduleRequiredCarersFilters = React.useCallback(
+    (next: ScheduleJobsRequiredCarersFilterValue[]) => {
+      setRequiredCarersFilters(next)
+      updateScheduleJobsUrl({ requiredCarersFilters: next })
+    },
+    [updateScheduleJobsUrl],
+  )
+
+  const toggleJobOperationalFilter = React.useCallback(
+    (filter: ScheduleJobOperationalFilter) => {
+      setJobOperationalFilters((current) => {
+        const next = current.includes(filter)
+          ? current.filter((entry) => entry !== filter)
+          : [...current, filter]
+        updateScheduleJobsUrl({ jobOperationalFilters: next })
+        return next
       })
     },
-    [date, layout, locationFilterId, navigate, serviceUserFilterId],
+    [updateScheduleJobsUrl],
+  )
+
+  const toggleCarerOperationalFilter = React.useCallback(
+    (filter: ScheduleCarerOperationalFilter) => {
+      setCarerOperationalFilters((current) => {
+        const next = current.includes(filter)
+          ? current.filter((entry) => entry !== filter)
+          : [...current, filter]
+        updateScheduleJobsUrl({ carerOperationalFilters: next })
+        return next
+      })
+    },
+    [updateScheduleJobsUrl],
   )
 
   React.useEffect(() => {
@@ -257,19 +344,33 @@ export default function ScheduleJobsPage() {
   }, [search.layout])
 
   React.useEffect(() => {
-    setRequiredCarersFilter(parseScheduleJobsRequiredCarersFilter(search.requiredCarers))
+    setRowAxis(parseScheduleJobsBoardRowAxis(search.rowAxis))
+  }, [search.rowAxis])
+
+  React.useEffect(() => {
+    setRequiredCarersFilters(parseScheduleJobsRequiredCarersFilters(search.requiredCarers))
   }, [search.requiredCarers])
 
   React.useEffect(() => {
-    setLocationFilterId(search.locationId ?? null)
+    setLocationFilterIds(parseCommaSeparatedFilterIds(search.locationId))
   }, [search.locationId])
 
   React.useEffect(() => {
-    setServiceUserFilterId(search.serviceUserId ?? null)
+    setServiceUserFilterIds(parseCommaSeparatedFilterIds(search.serviceUserId))
   }, [search.serviceUserId])
+
+  React.useEffect(() => {
+    setJobOperationalFilters(parseScheduleJobOperationalFilters(search.op))
+  }, [search.op])
+
+  React.useEffect(() => {
+    setCarerOperationalFilters(parseScheduleCarerOperationalFilters(search.carerOp))
+  }, [search.carerOp])
 
   const lookupsQuery = useEmployeeLookups(hasApi)
   const locations = lookupsQuery.data?.locations ?? []
+  const scheduleAreasQuery = useScheduleAreas()
+  const serviceUserLocationsQuery = useServiceUserLocations(hasApi)
 
   const employeesQuery = useScheduleEmployeesDay(date, hasApi)
   const dayRunsQuery = useScheduleDayRuns(date, hasApi, { limit: 300 })
@@ -292,11 +393,28 @@ export default function ScheduleJobsPage() {
 
   const runJobs = dayRunsQuery.data?.runs.flatMap((run) => run.jobs) ?? []
   const runlessJobs = dayRunsQuery.data?.unassignedJobs ?? []
+  const allDayJobs = React.useMemo(() => [...runJobs, ...runlessJobs], [runJobs, runlessJobs])
 
-  const locationNameMap = React.useMemo(
-    () => new Map(locations.map((loc) => [loc.id, loc.name])),
-    [locations],
-  )
+  const branchFilterOptions = React.useMemo(() => {
+    const summariesByLocationId = buildBranchSummariesFromTimelineJobs(allDayJobs)
+    return buildServiceUserBranchFilterOptions({
+      scheduleAreas: scheduleAreasQuery.data ?? [],
+      zones: serviceUserLocationsQuery.data?.zones,
+      summariesByLocationId,
+    })
+  }, [
+    allDayJobs,
+    scheduleAreasQuery.data,
+    serviceUserLocationsQuery.data?.zones,
+  ])
+
+  const locationNameMap = React.useMemo(() => {
+    const map = new Map(locations.map((loc) => [loc.id, loc.name]))
+    for (const option of branchFilterOptions) {
+      map.set(option.id, option.displayLabel)
+    }
+    return map
+  }, [branchFilterOptions, locations])
 
   const employeeCatalogById = React.useMemo(
     () => new Map((employeeCatalogQuery.data ?? []).map((row) => [row.id, row])),
@@ -309,12 +427,12 @@ export default function ScheduleJobsPage() {
   )
 
   const filteredRunJobs = React.useMemo(
-    () => filterTimelineJobsByLocation(runJobs, locationFilterId),
-    [locationFilterId, runJobs],
+    () => filterTimelineJobsByLocation(runJobs, locationFilterIds),
+    [locationFilterIds, runJobs],
   )
   const filteredRunlessJobs = React.useMemo(
-    () => filterTimelineJobsByLocation(runlessJobs, locationFilterId),
-    [locationFilterId, runlessJobs],
+    () => filterTimelineJobsByLocation(runlessJobs, locationFilterIds),
+    [locationFilterIds, runlessJobs],
   )
 
   const employees = React.useMemo(
@@ -325,7 +443,7 @@ export default function ScheduleJobsPage() {
           employeeCatalogQuery.data ?? [],
           [...filteredRunJobs, ...filteredRunlessJobs],
         ),
-        locationFilterId,
+        locationFilterIds,
         employeeLocationCatalog,
       ),
     [
@@ -333,7 +451,7 @@ export default function ScheduleJobsPage() {
       employeeCatalogQuery.data,
       filteredRunJobs,
       filteredRunlessJobs,
-      locationFilterId,
+      locationFilterIds,
       employeeLocationCatalog,
     ],
   )
@@ -343,31 +461,54 @@ export default function ScheduleJobsPage() {
     [employees, filteredRunJobs, filteredRunlessJobs],
   )
 
+  const visitPlanLookupServiceUserIds = React.useMemo(() => {
+    const weekSuIds =
+      weekTimelineQuery.data?.serviceUsers.map((row) => row.serviceUser.id) ?? []
+    const daySuIds = board.allJobs.map((job) => job.serviceUserId)
+    return [...new Set([...daySuIds, ...weekSuIds, ...serviceUserFilterIds].filter(Boolean))]
+  }, [board.allJobs, weekTimelineQuery.data, serviceUserFilterIds])
+
+  const visitPlanContractByServiceUser = useVisitPlanContractByServiceUser(
+    visitPlanLookupServiceUserIds,
+  )
+  const acceptedCarePlansByServiceUser = useAcceptedCarePlansByServiceUser(
+    visitPlanLookupServiceUserIds,
+  )
+  const visitPlanSlotsByServiceUser = React.useMemo(() => {
+    const map = new Map<string, VisitPlanSlot[]>()
+    for (const [serviceUserId, context] of visitPlanContractByServiceUser) {
+      if (context.slots.length > 0) map.set(serviceUserId, context.slots)
+    }
+    return map
+  }, [visitPlanContractByServiceUser])
+
   const serviceUserOptions = React.useMemo(
     () => buildScheduleJobsServiceUserOptions(board.allJobs),
     [board.allJobs],
   )
 
   React.useEffect(() => {
-    if (!serviceUserFilterId) return
-    if (!serviceUserOptions.some((option) => option.id === serviceUserFilterId)) {
-      setServiceUserFilterId(null)
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date,
-          locationId: locationFilterId,
-          serviceUserId: null,
-          requiredCarers: requiredCarersFilter,
-          layout,
-        }),
-      })
+    if (!serviceUserFilterIds.length) return
+    const valid = serviceUserFilterIds.filter((id) =>
+      serviceUserOptions.some((option) => option.id === id),
+    )
+    if (valid.length !== serviceUserFilterIds.length) {
+      setServiceUserFilterIds(valid)
+      updateScheduleJobsUrl({ serviceUserIds: valid })
     }
-  }, [date, layout, locationFilterId, navigate, requiredCarersFilter, serviceUserFilterId, serviceUserOptions])
+  }, [
+    serviceUserFilterIds,
+    serviceUserOptions,
+    updateScheduleJobsUrl,
+  ])
 
   const boardAfterServiceUser = React.useMemo(
-    () => applyScheduleJobsServiceUserFilter(board, serviceUserFilterId),
-    [board, serviceUserFilterId],
+    () =>
+      applyScheduleJobsServiceUserFilter(board, serviceUserFilterIds, {
+        visitPlanSlotsByServiceUser,
+        employeeCatalogById,
+      }),
+    [board, serviceUserFilterIds, visitPlanSlotsByServiceUser, employeeCatalogById],
   )
 
   const requiredCarersCounts = React.useMemo(
@@ -381,13 +522,28 @@ export default function ScheduleJobsPage() {
   )
 
   const boardAfterRequiredCarers = React.useMemo(
-    () => applyScheduleJobsRequiredCarersFilter(boardAfterServiceUser, requiredCarersFilter),
-    [boardAfterServiceUser, requiredCarersFilter],
+    () => applyScheduleJobsRequiredCarersFilter(boardAfterServiceUser, requiredCarersFilters),
+    [boardAfterServiceUser, requiredCarersFilters],
   )
 
   const jobOutcomeCounts = React.useMemo(
     () => countScheduleJobsByOutcome(boardAfterRequiredCarers.allJobs),
     [boardAfterRequiredCarers.allJobs],
+  )
+
+  const outsidePatternJobIds = React.useMemo(
+    () => collectOutsidePatternJobIds(boardAfterRequiredCarers.employeeRows),
+    [boardAfterRequiredCarers.employeeRows],
+  )
+
+  const jobOperationalCounts = React.useMemo(
+    () => countScheduleJobsByOperationalFilter(boardAfterRequiredCarers.allJobs, outsidePatternJobIds),
+    [boardAfterRequiredCarers.allJobs, outsidePatternJobIds],
+  )
+
+  const carerOnLeaveTodayCount = React.useMemo(
+    () => countScheduleCarersOnLeaveToday(boardAfterRequiredCarers.employeeRows),
+    [boardAfterRequiredCarers.employeeRows],
   )
 
   const operationalIssuesCount = React.useMemo(
@@ -397,8 +553,19 @@ export default function ScheduleJobsPage() {
 
   const filteredBoard = React.useMemo(() => {
     const afterOutcome = applyScheduleJobOutcomeFilters(boardAfterRequiredCarers, jobOutcomeFilters)
-    return applyScheduleJobOperationalIssuesFilter(afterOutcome, operationalIssuesOnly)
-  }, [boardAfterRequiredCarers, jobOutcomeFilters, operationalIssuesOnly])
+    return applyScheduleOperationalFilters(
+      afterOutcome,
+      new Set(jobOperationalFilters),
+      new Set(carerOperationalFilters),
+      outsidePatternJobIds,
+    )
+  }, [
+    boardAfterRequiredCarers,
+    jobOutcomeFilters,
+    jobOperationalFilters,
+    carerOperationalFilters,
+    outsidePatternJobIds,
+  ])
 
   const toggleJobOutcomeFilter = React.useCallback((filter: ScheduleJobOutcomeFilter) => {
     setJobOutcomeFilters((current) => {
@@ -412,7 +579,11 @@ export default function ScheduleJobsPage() {
     })
   }, [])
 
-  const { employeeRows, unassignedJobs } = filteredBoard
+  const { employeeRows, unassignedJobs, cancelledJobs } = filteredBoard
+  const serviceUserRows = React.useMemo(
+    () => buildScheduleJobsServiceUserRows(filteredBoard.allJobs),
+    [filteredBoard.allJobs],
+  )
   const allJobs = board.allJobs
 
   const openVisitWorkspace = React.useCallback(
@@ -458,16 +629,7 @@ export default function ScheduleJobsPage() {
         setAllocateDialogPanel('allocate')
         setAllocateOpen(true)
       }
-      void navigate({
-        to: '/scheduling/schedule-jobs',
-        search: buildScheduleJobsSearch({
-          date,
-          locationId: locationFilterId,
-          serviceUserId: serviceUserFilterId,
-          requiredCarers: requiredCarersFilter,
-          layout,
-        }),
-      })
+      updateScheduleJobsUrl()
     })
 
     return () => {
@@ -479,23 +641,10 @@ export default function ScheduleJobsPage() {
     search.visitTab,
     resolveJobForAction,
     openVisitWorkspace,
-    navigate,
-    date,
-    locationFilterId,
-    serviceUserFilterId,
-    requiredCarersFilter,
-    layout,
+    updateScheduleJobsUrl,
   ])
   const carers = board.carers
 
-  const serviceUserIds = React.useMemo(() => {
-    const weekSuIds =
-      weekTimelineQuery.data?.serviceUsers.map((row) => row.serviceUser.id) ?? []
-    const daySuIds = allJobs.map((job) => job.serviceUserId)
-    return [...new Set([...daySuIds, ...weekSuIds].filter(Boolean))]
-  }, [allJobs, weekTimelineQuery.data])
-  const visitPlanContractByServiceUser = useVisitPlanContractByServiceUser(serviceUserIds)
-  const acceptedCarePlansByServiceUser = useAcceptedCarePlansByServiceUser(serviceUserIds)
   const generalSettingsQuery = useGeneralSettings(hasApi)
   const travelBufferMinutes = React.useMemo(
     () => resolveTimeBetweenJobsBufferMinutes(generalSettingsQuery.data?.domCareAllocationRules),
@@ -508,19 +657,12 @@ export default function ScheduleJobsPage() {
     }
     return map
   }, [visitPlanContractByServiceUser])
-  const visitPlanSlotsByServiceUser = React.useMemo(() => {
-    const map = new Map<string, VisitPlanSlot[]>()
-    for (const [serviceUserId, context] of visitPlanContractByServiceUser) {
-      if (context.slots.length > 0) map.set(serviceUserId, context.slots)
-    }
-    return map
-  }, [visitPlanContractByServiceUser])
   const weekJobs = React.useMemo(
     () => filterTimelineJobsByLocation(
       weekTimelineQuery.data?.serviceUsers.flatMap((row) => row.jobs) ?? [],
-      locationFilterId,
+      locationFilterIds,
     ),
-    [weekTimelineQuery.data, locationFilterId],
+    [weekTimelineQuery.data, locationFilterIds],
   )
   const excessContractedJobIds = React.useMemo(
     () =>
@@ -600,6 +742,14 @@ export default function ScheduleJobsPage() {
     onChanged: () => void refreshBoard(),
   })
 
+  const dayRuns = dayRunsQuery.data?.runs ?? []
+  const runReassign = useScheduleRunReassignDialog({
+    date,
+    runs: dayRuns,
+    onChanged: () => void refreshBoard(),
+    onOpenFullEditor: runEdit.openEditRunById,
+  })
+
   const openAllocate = React.useCallback(
     (job: TimelineJob, panel: ScheduleJobAllocateDialogPanel = 'allocate') => {
       setAllocateJobId(job.id)
@@ -638,7 +788,9 @@ export default function ScheduleJobsPage() {
         action !== 'allocate-employees' &&
         action !== 'add-notes' &&
         action !== 'open-visit-workspace' &&
-        action !== 'open-run'
+        action !== 'open-run' &&
+        action !== 'reassign-run' &&
+        action !== 'reinstate-job'
       ) {
         return
       }
@@ -654,6 +806,9 @@ export default function ScheduleJobsPage() {
           return
         case 'open-run':
           if (job.scheduleRunId) runEdit.openEditRunById(job.scheduleRunId)
+          return
+        case 'reassign-run':
+          if (job.scheduleRunId) runReassign.openForRunId(job.scheduleRunId)
           return
         case 'unallocate-job':
           void handleUnallocateJob(job)
@@ -687,7 +842,7 @@ export default function ScheduleJobsPage() {
           return
       }
     },
-    [handleUnallocateJob, openAllocate, openVisitWorkspace, refreshBoard, runEdit.openEditRunById],
+    [handleUnallocateJob, openAllocate, openVisitWorkspace, refreshBoard, runEdit.openEditRunById, runReassign.openForRunId],
   )
 
   const handleRefresh = () => {
@@ -706,6 +861,47 @@ export default function ScheduleJobsPage() {
         toastWarning('Cannot move job', 'Completed and cancelled jobs are read only.')
         return
       }
+
+      if (rowAxis === 'service-users') {
+        if (targetRow.kind === 'service-user' && targetRow.serviceUserId !== job.serviceUserId) {
+          toastWarning('Cannot move visit', 'This visit stays on its service user row.')
+          return
+        }
+        if (targetRow.kind === 'unassigned' || targetRow.kind === 'cancelled') {
+          return
+        }
+        if (!scheduleTimesChanged(job, { scheduledStartDateTime, scheduledEndDateTime })) {
+          return
+        }
+        const runConflict = scheduleRunDragConflictMessage(job, {
+          targetRow,
+          scheduledStartDateTime,
+        })
+        if (runConflict) {
+          toastWarning('Run schedule conflict', runConflict)
+        }
+        setSavingJobId(job.id)
+        try {
+          await updateJob.mutateAsync({
+            jobId: job.id,
+            scheduledStartDateTime,
+            scheduledEndDateTime,
+          })
+          toastSuccess('Schedule updated')
+          await Promise.all([employeesQuery.refetch(), dayRunsQuery.refetch()])
+        } catch (error) {
+          toastApiError(error, 'Could not update schedule')
+          await Promise.all([employeesQuery.refetch(), dayRunsQuery.refetch()])
+        } finally {
+          setSavingJobId(null)
+        }
+        return
+      }
+
+      if (targetRow.kind === 'cancelled') {
+        toastWarning('Cannot move job', 'Cancelled visits stay on the Cancelled row.')
+        return
+      }
       const timesChanged = scheduleTimesChanged(job, { scheduledStartDateTime, scheduledEndDateTime })
       const rowChanged = !rowsEqual(sourceRow, targetRow)
       if (!timesChanged && !rowChanged) return
@@ -713,7 +909,7 @@ export default function ScheduleJobsPage() {
       const sourceCarerId = sourceRow.kind === 'carer' ? sourceRow.employeeId : null
       const targetCarerId = targetRow.kind === 'carer' ? targetRow.employeeId : null
 
-      if (targetCarerId && targetCarerId !== sourceCarerId) {
+      if (targetCarerId && targetCarerId !== sourceCarerId && targetRow.kind === 'carer') {
         const locationConflict = scheduleJobCarerLocationConflictMessage(
           job,
           targetRow,
@@ -792,7 +988,7 @@ export default function ScheduleJobsPage() {
         setSavingJobId(null)
       }
     },
-    [allocate, dayRunsQuery, employeeLocationCatalog, employeesQuery, locationNameMap, unallocate, updateJob],
+    [allocate, dayRunsQuery, employeeLocationCatalog, employeesQuery, locationNameMap, rowAxis, unallocate, updateJob],
   )
 
   if (!hasApi) {
@@ -820,15 +1016,18 @@ export default function ScheduleJobsPage() {
 
       <ScheduleJobsToolbar
         date={date}
-        locationId={locationFilterId}
-        locations={locations}
+        locationIds={locationFilterIds}
+        branchFilterOptions={branchFilterOptions}
+        allBranchesLabel={`All branches (${allDayJobs.length})`}
         onLocationChange={setScheduleLocationFilter}
-        serviceUserId={serviceUserFilterId}
+        serviceUserIds={serviceUserFilterIds}
         serviceUsers={serviceUserOptions}
+        allServiceUsersLabel={`All service users (${serviceUserOptions.length})`}
         onServiceUserChange={setScheduleServiceUserFilter}
-        requiredCarersFilter={requiredCarersFilter}
+        requiredCarersFilters={requiredCarersFilters}
         requiredCarersOptions={requiredCarersOptions}
-        onRequiredCarersFilterChange={setScheduleRequiredCarersFilter}
+        onRequiredCarersFiltersChange={setScheduleRequiredCarersFilters}
+        allVisitsLabel={`All visits (${boardAfterServiceUser.allJobs.length})`}
         onPrevDay={() => setScheduleDate(shiftIsoDate(date, -1))}
         onNextDay={() => setScheduleDate(shiftIsoDate(date, 1))}
         onToday={() => setScheduleDate(todayIso())}
@@ -849,44 +1048,62 @@ export default function ScheduleJobsPage() {
         jobOutcomeFilters={jobOutcomeFilters}
         jobOutcomeCounts={jobOutcomeCounts}
         onToggleJobOutcomeFilter={toggleJobOutcomeFilter}
-        operationalIssuesOnly={operationalIssuesOnly}
+        jobOperationalFilters={jobOperationalFilters}
+        jobOperationalCounts={jobOperationalCounts}
+        onToggleJobOperationalFilter={toggleJobOperationalFilter}
+        carerOperationalFilters={carerOperationalFilters}
+        carerOnLeaveTodayCount={carerOnLeaveTodayCount}
+        onToggleCarerOperationalFilter={toggleCarerOperationalFilter}
         operationalIssuesCount={operationalIssuesCount}
-        onToggleOperationalIssuesOnly={() => setOperationalIssuesOnly((v) => !v)}
         layout={layout}
         onLayoutChange={setScheduleLayout}
+        rowAxis={rowAxis}
+        onRowAxisChange={setScheduleRowAxis}
+        showRunsOnBoard={boardPreferences.showRunsOnBoard}
+        onShowRunsOnBoardChange={setShowRunsOnBoard}
       />
 
-      {layout === 'board' && (locationFilterId || serviceUserFilterId || requiredCarersFilter !== 'all') ? (
+      {layout === 'board' &&
+      (locationFilterIds.length > 0 ||
+        serviceUserFilterIds.length > 0 ||
+        requiredCarersFilters.length > 0) ? (
         <p className="mb-2 shrink-0 text-xs text-muted-foreground">
-          {locationFilterId ? (
+          {locationFilterIds.length > 0 ? (
             <>
-              Showing carers at this location (primary or base) and jobs for service users assigned to{' '}
+              Showing carers at selected branches (primary or base) and jobs for service users assigned to{' '}
               <span className="font-medium text-foreground">
-                {locations.find((l) => l.id === locationFilterId)?.name ?? 'selected location'}
+                {branchFilterOptions
+                  .filter((option) => locationFilterIds.includes(option.id))
+                  .map((option) => option.displayLabel)
+                  .join(' · ') || 'selected branches'}
               </span>
-              {serviceUserFilterId || requiredCarersFilter !== 'all' ? '. ' : '.'}
+              {serviceUserFilterIds.length > 0 || requiredCarersFilters.length > 0 ? '. ' : '.'}
             </>
           ) : null}
-          {serviceUserFilterId ? (
+          {serviceUserFilterIds.length > 0 ? (
             <>
               Showing visits for{' '}
               <span className="font-medium text-foreground">
-                {serviceUserLabel(
-                  findScheduleJobsServiceUserBrief(board.allJobs, serviceUserFilterId) ?? {
-                    id: serviceUserFilterId,
-                    firstName: 'Service',
-                    lastName: 'user',
-                  },
-                )}
+                {serviceUserFilterIds
+                  .map((id) => {
+                    const su =
+                      findScheduleJobsServiceUserBrief(board.allJobs, id) ?? {
+                        id,
+                        firstName: 'Service',
+                        lastName: 'user',
+                      }
+                    return serviceUserLabel(su)
+                  })
+                  .join(' · ')}
               </span>
-              {requiredCarersFilter !== 'all' ? '. ' : '.'}
+              {requiredCarersFilters.length > 0 ? '. ' : '.'}
             </>
           ) : null}
-          {requiredCarersFilter !== 'all' ? (
+          {requiredCarersFilters.length > 0 ? (
             <>
               Showing{' '}
               <span className="font-medium text-foreground">
-                {scheduleJobsRequiredCarersFilterLabel(requiredCarersFilter).toLowerCase()}
+                {scheduleJobsRequiredCarersFiltersLabel(requiredCarersFilters).toLowerCase()}
               </span>{' '}
               visits only.
             </>
@@ -927,7 +1144,11 @@ export default function ScheduleJobsPage() {
       {layout === 'board' ? (
         <p className="mb-3 shrink-0 text-xs text-muted-foreground">
           Jobs come from generated rota. After changing call pattern on a visit plan, save the plan and use{' '}
-          <strong className="font-medium text-foreground">Generate rota</strong> — then refresh this board.
+          <Link to="/scheduling/bulk-generate-rota" className="font-medium text-foreground underline-offset-2 hover:underline">
+            Bulk generate rota
+          </Link>{' '}
+          or <strong className="font-medium text-foreground">Generate rota</strong> on each visit plan — then refresh
+          this board.
         </p>
       ) : null}
 
@@ -948,13 +1169,18 @@ export default function ScheduleJobsPage() {
         ) : (
         <ScheduleJobsGantt
           date={date}
+          rowAxis={rowAxis}
           employeeRows={employeeRows}
+          serviceUserRows={serviceUserRows}
           unassignedJobs={unassignedJobs}
+          cancelledJobs={cancelledJobs}
           runs={dayRunsQuery.data?.runs ?? []}
+          showRunsOnBoard={boardPreferences.showRunsOnBoard}
           employeeCatalogById={employeeCatalogById}
           locationNames={locationNameMap}
           savingJobId={savingJobId}
           excessContractedJobIds={excessContractedJobIds}
+          outsidePatternJobIds={outsidePatternJobIds}
           overAllocatedJobIds={overAllocatedJobIds}
           visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
           acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
@@ -962,6 +1188,7 @@ export default function ScheduleJobsPage() {
           onJobClick={openAllocate}
           onJobAction={handleJobAction}
           onOpenRun={runEdit.openEditRunById}
+          onReassignRun={runReassign.openForRunId}
           onJobDrop={handleJobDrop}
           onJobsSelectedForRun={(jobs) => {
             setCreateRunJobs(jobs)
@@ -1081,6 +1308,7 @@ export default function ScheduleJobsPage() {
       />
 
       <ScheduleRunEditDialog {...runEdit.dialogProps} />
+      <ScheduleRunReassignDialog {...runReassign.dialogProps} />
     </div>
   )
 }

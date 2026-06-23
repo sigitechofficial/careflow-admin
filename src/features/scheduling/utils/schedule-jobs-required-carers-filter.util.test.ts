@@ -48,6 +48,7 @@ function board(overrides: Partial<ScheduleJobsBoard> = {}): ScheduleJobsBoard {
     employeeRows: [carerA, carerB],
     carers: [carerA],
     unassignedJobs: [single],
+    cancelledJobs: [],
     allJobs: [single, double],
     ...overrides,
   }
@@ -55,7 +56,7 @@ function board(overrides: Partial<ScheduleJobsBoard> = {}): ScheduleJobsBoard {
 
 describe('applyScheduleJobsRequiredCarersFilter', () => {
   it('keeps all carers visible when filtering single-carer visits with no matching allocations', () => {
-    const result = applyScheduleJobsRequiredCarersFilter(board(), '1')
+    const result = applyScheduleJobsRequiredCarersFilter(board(), ['1'])
 
     expect(result.employeeRows).toHaveLength(2)
     expect(result.employeeRows.map((row) => row.employee.id)).toEqual(['carer-a', 'carer-b'])
@@ -67,7 +68,7 @@ describe('applyScheduleJobsRequiredCarersFilter', () => {
   })
 
   it('filters assigned jobs on carer rows without removing carers', () => {
-    const result = applyScheduleJobsRequiredCarersFilter(board(), '2')
+    const result = applyScheduleJobsRequiredCarersFilter(board(), ['2'])
 
     expect(result.employeeRows).toHaveLength(2)
     expect(result.employeeRows.find((row) => row.employee.id === 'carer-a')?.allocations).toHaveLength(1)

@@ -17,7 +17,11 @@ export function scheduleRunDragConflictMessage(
   }
 
   const runCarerId = job.scheduleRun.employeeId
-  if (runCarerId && payload.targetRow.kind === 'carer' && payload.targetRow.employeeId !== runCarerId) {
+  if (
+    runCarerId &&
+    payload.targetRow.kind === 'carer' &&
+    payload.targetRow.employeeId !== runCarerId
+  ) {
     return 'This visit belongs to a run. Moving it may conflict with the run schedule (carer).'
   }
 

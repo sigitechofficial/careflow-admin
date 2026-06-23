@@ -22,7 +22,7 @@ export function ScheduleJobsDragOverlay() {
   return createPortal(
     <div
       className={cn(
-        'pointer-events-none fixed z-[200] flex items-center gap-0.5 rounded border-2 border-dashed px-1.5 text-[11px] font-semibold leading-tight shadow-lg ring-2 ring-primary/40',
+        'pointer-events-none fixed z-[200] flex items-center overflow-hidden rounded-md border-2 border-dashed px-2 text-xs font-semibold leading-snug antialiased shadow-xl ring-2 ring-primary/50',
         JOB_BLOCK_TONE_CLASSES[preview.tone],
       )}
       style={{
@@ -31,10 +31,10 @@ export function ScheduleJobsDragOverlay() {
         width: preview.widthPx,
         height: preview.heightPx,
         transform: 'translate3d(0, 0, 0)',
-        willChange: 'left, top, width',
+        willChange: 'left, top',
       }}
     >
-      <span className="whitespace-nowrap">{preview.label}</span>
+      <span className="min-w-0 flex-1 truncate">{preview.label}</span>
     </div>,
     document.body,
   )

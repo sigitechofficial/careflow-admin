@@ -1,4 +1,5 @@
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import type { ScheduleJobsTimelineViewport } from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import {
   jobDurationMinutes,
   minutesFromDayStart,
@@ -9,15 +10,24 @@ import {
 
 export type ScheduleJobsRowRef =
   | { kind: 'unassigned' }
+  | { kind: 'cancelled' }
   | { kind: 'carer'; employeeId: string }
+  | { kind: 'service-user'; serviceUserId: string }
 
 export function scheduleJobsRowKey(row: ScheduleJobsRowRef): string {
-  return row.kind === 'unassigned' ? 'unassigned' : `carer:${row.employeeId}`
+  if (row.kind === 'unassigned') return 'unassigned'
+  if (row.kind === 'cancelled') return 'cancelled'
+  if (row.kind === 'service-user') return `service-user:${row.serviceUserId}`
+  return `carer:${row.employeeId}`
 }
 
 export function parseScheduleJobsRowKey(key: string | null): ScheduleJobsRowRef | null {
   if (!key) return null
   if (key === 'unassigned') return { kind: 'unassigned' }
+  if (key === 'cancelled') return { kind: 'cancelled' }
+  if (key.startsWith('service-user:')) {
+    return { kind: 'service-user', serviceUserId: key.slice('service-user:'.length) }
+  }
   if (key.startsWith('carer:')) return { kind: 'carer', employeeId: key.slice(6) }
   return null
 }
@@ -114,6 +124,26 @@ export function shiftJobScheduleTimesFromDeltaPx(
   return shiftJobScheduleTimes(job, date, deltaMinutes)
 }
 
+export function shiftJobScheduleTimesFromViewportDeltaPx(
+  job: TimelineJob,
+  date: string,
+  deltaPx: number,
+  viewport: ScheduleJobsTimelineViewport,
+): { scheduledStartDateTime: string; scheduledEndDateTime: string } {
+  const deltaMinutes = (deltaPx / viewport.gridWidth) * viewport.spanMinutes
+  const duration = jobDurationMinutes(job)
+  const currentStart = minutesFromDayStart(job.scheduledStartDateTime)
+  const minStart = viewport.startMinute
+  const maxStart = Math.max(minStart, viewport.endMinute - duration)
+  const nextStart = snapTimelineMinutes(Math.min(maxStart, Math.max(minStart, currentStart + deltaMinutes)))
+  const nextEnd = nextStart + duration
+
+  return {
+    scheduledStartDateTime: dateTimeFromScheduleMinutes(date, nextStart),
+    scheduledEndDateTime: dateTimeFromScheduleMinutes(date, nextEnd),
+  }
+}
+
 export type JobDropPayload = {
   job: TimelineJob
   sourceRow: ScheduleJobsRowRef
@@ -136,7 +166,13 @@ export function rowsEqual(a: ScheduleJobsRowRef, b: ScheduleJobsRowRef): boolean
   return scheduleJobsRowKey(a) === scheduleJobsRowKey(b)
 }
 
-/** Pick the row whose vertical centre is closest to the pointer. */
+/**
+ * Resolve the drop row for a pointer position.
+ * Prefer the row whose vertical bounds actually contain the pointer; only fall
+ * back to the nearest centre when the pointer is outside every row (e.g. gaps
+ * between rows or above/below the board). Using containment first prevents a
+ * drop near a row edge from snapping to an adjacent carer.
+ */
 export function pickClosestScheduleJobsRowKey(
   clientY: number,
   rows: Array<{ key: string; top: number; height: number }>,
@@ -148,6 +184,10 @@ export function pickClosestScheduleJobsRowKey(
 
   for (const row of rows) {
     if (row.height <= 0) continue
+    const bottom = row.top + row.height
+    if (clientY >= row.top && clientY < bottom) {
+      return row.key
+    }
     const centerY = row.top + row.height / 2
     const distance = Math.abs(clientY - centerY)
     if (distance < bestDistance) {

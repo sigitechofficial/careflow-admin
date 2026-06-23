@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Route,
   Settings,
+  UserRound,
+  Users,
 } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
@@ -18,9 +20,13 @@ import {
   SCHEDULE_JOBS_LAYOUT_META,
   type ScheduleJobsLayout,
 } from '@/features/scheduling/utils/schedule-jobs-layout.util'
+import {
+  SCHEDULE_JOBS_BOARD_ROW_AXIS_META,
+  type ScheduleJobsBoardRowAxis,
+} from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/date-picker'
-import { Combobox } from '@/shared/ui/combobox'
+import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   formatHoursMinutes,
   formatScheduleJobsDayMonth,
@@ -29,10 +35,23 @@ import {
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 import type { ScheduleJobOutcomeFilter } from '@/features/scheduling/utils/schedule-job-board-filter.util'
 import {
-  parseScheduleJobsRequiredCarersFilter,
-  scheduleJobsRequiredCarersFilterLabel,
-  type ScheduleJobsRequiredCarersFilter,
+  SCHEDULE_CARER_OPERATIONAL_FILTERS,
+  SCHEDULE_JOB_OPERATIONAL_FILTERS,
+  scheduleCarerOperationalFilterLabel,
+  scheduleJobOperationalFilterLabel,
+  type ScheduleCarerOperationalFilter,
+  type ScheduleJobOperationalFilter,
+} from '@/features/scheduling/utils/schedule-job-board-filter.util'
+import {
+  scheduleJobsRequiredCarersFiltersLabel,
+  type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
+import {
+  isScheduleJobsFilterAllOptionSelected,
+  normalizeScheduleJobsFilterChange,
+  SCHEDULE_JOBS_FILTER_ALL_VALUE,
+  withScheduleJobsFilterAllOption,
+} from '@/features/scheduling/utils/schedule-jobs-multi-filter.util'
 import { jobBlockCompletedSurfaceStyle } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 
 type StatChipProps = {
@@ -63,15 +82,18 @@ function StatChip({ label, value, accent = 'default', title }: StatChipProps) {
 
 type Props = {
   date: string
-  locationId: string | null
-  locations: Array<{ id: string; name: string }>
-  onLocationChange: (locationId: string | null) => void
-  serviceUserId: string | null
+  locationIds: string[]
+  branchFilterOptions: Array<{ id: string; label: string; displayLabel: string }>
+  allBranchesLabel: string
+  onLocationChange: (locationIds: string[]) => void
+  serviceUserIds: string[]
   serviceUsers: Array<{ id: string; label: string }>
-  onServiceUserChange: (serviceUserId: string | null) => void
-  requiredCarersFilter: ScheduleJobsRequiredCarersFilter
+  allServiceUsersLabel: string
+  onServiceUserChange: (serviceUserIds: string[]) => void
+  requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
   requiredCarersOptions: Array<{ value: string; label: string; description?: string }>
-  onRequiredCarersFilterChange: (filter: ScheduleJobsRequiredCarersFilter) => void
+  onRequiredCarersFiltersChange: (filters: ScheduleJobsRequiredCarersFilterValue[]) => void
+  allVisitsLabel: string
   onPrevDay: () => void
   onNextDay: () => void
   onToday: () => void
@@ -92,11 +114,19 @@ type Props = {
   jobOutcomeFilters: ReadonlySet<ScheduleJobOutcomeFilter>
   jobOutcomeCounts: Record<ScheduleJobOutcomeFilter, number>
   onToggleJobOutcomeFilter: (filter: ScheduleJobOutcomeFilter) => void
-  operationalIssuesOnly?: boolean
+  jobOperationalFilters?: ScheduleJobOperationalFilter[]
+  jobOperationalCounts?: Record<ScheduleJobOperationalFilter, number>
+  onToggleJobOperationalFilter?: (filter: ScheduleJobOperationalFilter) => void
+  carerOperationalFilters?: ScheduleCarerOperationalFilter[]
+  carerOnLeaveTodayCount?: number
+  onToggleCarerOperationalFilter?: (filter: ScheduleCarerOperationalFilter) => void
   operationalIssuesCount?: number
-  onToggleOperationalIssuesOnly?: () => void
   layout: ScheduleJobsLayout
   onLayoutChange: (layout: ScheduleJobsLayout) => void
+  rowAxis: ScheduleJobsBoardRowAxis
+  onRowAxisChange: (rowAxis: ScheduleJobsBoardRowAxis) => void
+  showRunsOnBoard?: boolean
+  onShowRunsOnBoardChange?: (show: boolean) => void
 }
 
 const OUTCOME_FILTER_META: Array<{
@@ -175,15 +205,18 @@ function localDateToIsoDate(date: Date): string {
 
 export function ScheduleJobsToolbar({
   date,
-  locationId,
-  locations,
+  locationIds,
+  branchFilterOptions,
+  allBranchesLabel,
   onLocationChange,
-  serviceUserId,
+  serviceUserIds,
   serviceUsers,
+  allServiceUsersLabel,
   onServiceUserChange,
-  requiredCarersFilter,
+  requiredCarersFilters,
   requiredCarersOptions,
-  onRequiredCarersFilterChange,
+  onRequiredCarersFiltersChange,
+  allVisitsLabel,
   onPrevDay,
   onNextDay,
   onToday,
@@ -204,43 +237,103 @@ export function ScheduleJobsToolbar({
   jobOutcomeFilters,
   jobOutcomeCounts,
   onToggleJobOutcomeFilter,
-  operationalIssuesOnly = false,
+  jobOperationalFilters = [],
+  jobOperationalCounts,
+  onToggleJobOperationalFilter,
+  carerOperationalFilters = [],
+  carerOnLeaveTodayCount = 0,
+  onToggleCarerOperationalFilter,
   operationalIssuesCount = 0,
-  onToggleOperationalIssuesOnly,
   layout,
   onLayoutChange,
+  rowAxis,
+  onRowAxisChange,
+  showRunsOnBoard = false,
+  onShowRunsOnBoardChange,
 }: Props) {
   const isToday = date === todayIso()
   const layoutMeta = SCHEDULE_JOBS_LAYOUT_META[layout]
+  const rowAxisMeta = SCHEDULE_JOBS_BOARD_ROW_AXIS_META[rowAxis]
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const selectedDate = React.useMemo(() => isoDateToLocalDate(date), [date])
-  const locationComboboxOptions = React.useMemo(
-    () => [
-      { value: '', label: 'All locations' },
-      ...locations.map((loc) => ({ value: loc.id, label: loc.name })),
-    ],
-    [locations],
+  const branchComboboxOptions = React.useMemo(
+    () =>
+      withScheduleJobsFilterAllOption(
+        allBranchesLabel,
+        branchFilterOptions.map((option) => ({ value: option.id, label: option.label })),
+      ),
+    [allBranchesLabel, branchFilterOptions],
   )
-  const serviceUserComboboxOptions = React.useMemo(
-    () => [
-      { value: '', label: 'All service users' },
-      ...serviceUsers.map((su) => ({ value: su.id, label: su.label })),
-    ],
-    [serviceUsers],
+  const formatBranchTriggerOptions = React.useCallback(
+    (selected: Array<{ value: string; label: string }>) => {
+      if (selected.length <= 1) return selected
+      return [{ value: '__branch_summary__', label: `${selected.length} branches` }]
+    },
+    [],
   )
+  const onRemoveBranchOption = React.useCallback(
+    (option: { value: string; label: string }, current: string[]) => {
+      if (option.value === '__branch_summary__' || option.value === SCHEDULE_JOBS_FILTER_ALL_VALUE) {
+        return []
+      }
+      return current.filter((id) => id !== option.value)
+    },
+    [],
+  )
+  const formatMultiTriggerSummary = React.useCallback(
+    (selected: Array<{ value: string; label: string }>, summaryLabel: string) => {
+      if (selected.length <= 1) return selected
+      return [{ value: '__summary__', label: `${selected.length} ${summaryLabel}` }]
+    },
+    [],
+  )
+  const onRemoveMultiSummary = React.useCallback(
+    (option: { value: string }, current: string[]) => {
+      if (option.value === '__summary__' || option.value === SCHEDULE_JOBS_FILTER_ALL_VALUE) return []
+      return current.filter((id) => id !== option.value)
+    },
+    [],
+  )
+  const serviceUserMultiOptions = React.useMemo(
+    () =>
+      withScheduleJobsFilterAllOption(
+        allServiceUsersLabel,
+        serviceUsers.map((su) => ({ value: su.id, label: su.label })),
+      ),
+    [allServiceUsersLabel, serviceUsers],
+  )
+  const requiredCarersMultiOptions = React.useMemo(
+    () =>
+      withScheduleJobsFilterAllOption(
+        allVisitsLabel,
+        requiredCarersOptions.map((option) => ({
+          value: option.value,
+          label: option.description ? `${option.label} (${option.description})` : option.label,
+        })),
+      ),
+    [allVisitsLabel, requiredCarersOptions],
+  )
+  const filterFieldClassName =
+    'flex min-h-11 items-center gap-3 rounded-lg border border-border bg-background px-3 py-2'
+  const filterLabelClassName =
+    'text-xs font-semibold uppercase tracking-wide text-muted-foreground shrink-0'
   const filterComboboxClassName =
-    'h-7 w-[min(14rem,42vw)] border-0 bg-transparent px-1 text-xs shadow-none'
+    'h-10 min-w-[min(18rem,52vw)] border-0 bg-transparent px-1 text-sm shadow-none'
 
-  const activeLocationName = locationId
-    ? locations.find((loc) => loc.id === locationId)?.name
-    : null
-  const activeServiceUserLabel = serviceUserId
-    ? serviceUsers.find((su) => su.id === serviceUserId)?.label
-    : null
+  const activeBranchLabels =
+    locationIds.length > 0
+      ? branchFilterOptions
+          .filter((option) => locationIds.includes(option.id))
+          .map((option) => option.displayLabel)
+      : []
+  const activeServiceUserLabels =
+    serviceUserIds.length > 0
+      ? serviceUsers.filter((su) => serviceUserIds.includes(su.id)).map((su) => su.label)
+      : []
   const hasActiveFilters =
-    Boolean(activeLocationName) ||
-    Boolean(activeServiceUserLabel) ||
-    (layout === 'board' && requiredCarersFilter !== 'all')
+    activeBranchLabels.length > 0 ||
+    activeServiceUserLabels.length > 0 ||
+    (layout === 'board' && requiredCarersFilters.length > 0)
 
   const accordionSummaryParts = [
     hasActiveFilters ? 'Filters active' : null,
@@ -323,7 +416,9 @@ export function ScheduleJobsToolbar({
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">{formatScheduleJobsDayMonth(date)}</p>
-              <p className="text-xs text-muted-foreground">{layoutMeta.description}</p>
+              <p className="text-xs text-muted-foreground">
+                {layout === 'board' ? rowAxisMeta.description : layoutMeta.description}
+              </p>
             </div>
           </div>
 
@@ -351,6 +446,52 @@ export function ScheduleJobsToolbar({
               Runs
             </Button>
           </div>
+
+          {layout === 'board' ? (
+            <div
+              className="flex items-center rounded-lg border border-border bg-background p-0.5 shadow-sm"
+              data-testid="schedule-jobs-row-axis-toggle"
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={rowAxis === 'carers' ? 'secondary' : 'ghost'}
+                className="h-8 gap-1.5 px-3 text-xs font-semibold"
+                onClick={() => onRowAxisChange('carers')}
+                aria-pressed={rowAxis === 'carers'}
+              >
+                <Users className="h-3.5 w-3.5" />
+                By carer
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={rowAxis === 'service-users' ? 'secondary' : 'ghost'}
+                className="h-8 gap-1.5 px-3 text-xs font-semibold"
+                onClick={() => onRowAxisChange('service-users')}
+                aria-pressed={rowAxis === 'service-users'}
+              >
+                <UserRound className="h-3.5 w-3.5" />
+                By service user
+              </Button>
+            </div>
+          ) : null}
+
+          {layout === 'board' && onShowRunsOnBoardChange ? (
+            <Button
+              type="button"
+              size="sm"
+              variant={showRunsOnBoard ? 'secondary' : 'outline'}
+              className="h-8 gap-1.5 px-3 text-xs font-semibold shadow-sm"
+              onClick={() => onShowRunsOnBoardChange(!showRunsOnBoard)}
+              aria-pressed={showRunsOnBoard}
+              data-testid="schedule-jobs-show-runs-on-board"
+              title="Show run colours, legend, and labels on visit blocks"
+            >
+              <Route className="h-3.5 w-3.5" />
+              Runs on board
+            </Button>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -404,56 +545,70 @@ export function ScheduleJobsToolbar({
         </summary>
 
         <div className="space-y-3 border-t border-border/60 bg-muted/10 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Location</span>
-              <div data-testid="schedule-jobs-location-filter">
-                <Combobox
-                  options={locationComboboxOptions}
-                  value={locationId ?? ''}
-                  onChange={(value) => onLocationChange(value || null)}
-                  placeholder="All locations"
-                  searchPlaceholder="Search locations…"
-                  emptyText="No locations found."
-                  disabled={locations.length === 0}
+          <div className="flex flex-wrap items-stretch gap-3">
+            <div className={filterFieldClassName}>
+              <span className={filterLabelClassName}>Branch</span>
+              <div data-testid="schedule-jobs-location-filter" className="min-w-0 flex-1">
+                <MultiSelect
+                  options={branchComboboxOptions}
+                  value={locationIds}
+                  onChange={(next) => onLocationChange(normalizeScheduleJobsFilterChange(next))}
+                  placeholder={allBranchesLabel}
+                  searchPlaceholder="Search branches…"
+                  disabled={branchFilterOptions.length === 0}
+                  checkPosition="right"
+                  isOptionSelected={isScheduleJobsFilterAllOptionSelected}
+                  formatSelectedOptions={formatBranchTriggerOptions}
+                  onRemoveOption={onRemoveBranchOption}
                   className={filterComboboxClassName}
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Service user
-              </span>
-              <div data-testid="schedule-jobs-service-user-filter">
-                <Combobox
-                  options={serviceUserComboboxOptions}
-                  value={serviceUserId ?? ''}
-                  onChange={(value) => onServiceUserChange(value || null)}
-                  placeholder="All service users"
+            <div className={filterFieldClassName}>
+              <span className={filterLabelClassName}>Service user</span>
+              <div data-testid="schedule-jobs-service-user-filter" className="min-w-0 flex-1">
+                <MultiSelect
+                  options={serviceUserMultiOptions}
+                  value={serviceUserIds}
+                  onChange={(next) => onServiceUserChange(normalizeScheduleJobsFilterChange(next))}
+                  placeholder={allServiceUsersLabel}
                   searchPlaceholder="Search service users…"
-                  emptyText="No service users on this day."
                   disabled={serviceUsers.length === 0}
+                  checkPosition="right"
+                  isOptionSelected={isScheduleJobsFilterAllOptionSelected}
+                  formatSelectedOptions={(selected) =>
+                    formatMultiTriggerSummary(selected, 'service users')
+                  }
+                  onRemoveOption={onRemoveMultiSummary}
                   className={filterComboboxClassName}
                 />
               </div>
             </div>
 
             {layout === 'board' ? (
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Carers required
-                </span>
-                <div data-testid="schedule-jobs-required-carers-filter">
-                  <Combobox
-                    options={requiredCarersOptions}
-                    value={requiredCarersFilter === 'all' ? '' : requiredCarersFilter}
-                    onChange={(value) =>
-                      onRequiredCarersFilterChange(parseScheduleJobsRequiredCarersFilter(value || undefined))
+              <div className={filterFieldClassName}>
+                <span className={filterLabelClassName}>Carers required</span>
+                <div data-testid="schedule-jobs-required-carers-filter" className="min-w-0 flex-1">
+                  <MultiSelect
+                    options={requiredCarersMultiOptions}
+                    value={requiredCarersFilters}
+                    onChange={(next) =>
+                      onRequiredCarersFiltersChange(
+                        normalizeScheduleJobsFilterChange(next).filter(
+                          (value): value is ScheduleJobsRequiredCarersFilterValue =>
+                            value === '1' || value === '2' || value === '3plus',
+                        ),
+                      )
                     }
-                    placeholder="All visits"
+                    placeholder={allVisitsLabel}
                     searchPlaceholder="Filter by carers required…"
-                    emptyText="No matching options."
+                    checkPosition="right"
+                    isOptionSelected={isScheduleJobsFilterAllOptionSelected}
+                    formatSelectedOptions={(selected) =>
+                      formatMultiTriggerSummary(selected, 'carer types')
+                    }
+                    onRemoveOption={onRemoveMultiSummary}
                     className={filterComboboxClassName}
                   />
                 </div>
@@ -539,21 +694,52 @@ export function ScheduleJobsToolbar({
                       onToggle={onToggleJobOutcomeFilter}
                     />
                   ))}
-                  {onToggleOperationalIssuesOnly ? (
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 border-l border-border/80 pl-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Show issues
+                  </span>
+                  {SCHEDULE_JOB_OPERATIONAL_FILTERS.map((filter) => (
                     <button
+                      key={filter}
                       type="button"
-                      aria-pressed={operationalIssuesOnly}
-                      onClick={onToggleOperationalIssuesOnly}
+                      aria-pressed={jobOperationalFilters.includes(filter)}
+                      onClick={() => onToggleJobOperationalFilter?.(filter)}
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                        operationalIssuesOnly
+                        jobOperationalFilters.includes(filter)
                           ? 'border-amber-500/50 bg-amber-50 text-amber-900 shadow-sm dark:bg-amber-950/40 dark:text-amber-100'
                           : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50',
                       )}
                     >
-                      Issues only
-                      <span className="tabular-nums opacity-80">({operationalIssuesCount})</span>
+                      {scheduleJobOperationalFilterLabel(filter)}
+                      <span className="tabular-nums opacity-80">
+                        ({jobOperationalCounts?.[filter] ?? 0})
+                      </span>
                     </button>
+                  ))}
+                  {SCHEDULE_CARER_OPERATIONAL_FILTERS.map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      aria-pressed={carerOperationalFilters.includes(filter)}
+                      onClick={() => onToggleCarerOperationalFilter?.(filter)}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                        carerOperationalFilters.includes(filter)
+                          ? 'border-amber-500/50 bg-amber-50 text-amber-900 shadow-sm dark:bg-amber-950/40 dark:text-amber-100'
+                          : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50',
+                      )}
+                    >
+                      {scheduleCarerOperationalFilterLabel(filter)}
+                      <span className="tabular-nums opacity-80">({carerOnLeaveTodayCount})</span>
+                    </button>
+                  ))}
+                  {operationalIssuesCount > 0 ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      {operationalIssuesCount} visit{operationalIssuesCount === 1 ? '' : 's'} with issues
+                    </span>
                   ) : null}
                 </div>
               </div>
@@ -566,23 +752,33 @@ export function ScheduleJobsToolbar({
 
           {hasActiveFilters ? (
             <p className="text-xs text-muted-foreground">
-              {activeLocationName ? (
+              {activeBranchLabels.length > 0 ? (
                 <>
-                  Location: <span className="font-medium text-foreground">{activeLocationName}</span>
-                  {activeServiceUserLabel || (layout === 'board' && requiredCarersFilter !== 'all') ? ' · ' : ''}
+                  Branch{activeBranchLabels.length > 1 ? 'es' : ''}:{' '}
+                  <span className="font-medium text-foreground">
+                    {activeBranchLabels.join(' · ')}
+                  </span>
+                  {activeServiceUserLabels.length > 0 || (layout === 'board' && requiredCarersFilters.length > 0)
+                    ? ' · '
+                    : ''}
                 </>
               ) : null}
-              {activeServiceUserLabel ? (
+              {activeServiceUserLabels.length > 0 ? (
                 <>
-                  Service user: <span className="font-medium text-foreground">{activeServiceUserLabel}</span>
-                  {layout === 'board' && requiredCarersFilter !== 'all' ? ' · ' : ''}
+                  Service user{activeServiceUserLabels.length > 1 ? 's' : ''}:{' '}
+                  <span className="font-medium text-foreground">
+                    {activeServiceUserLabels.join(' · ')}
+                  </span>
+                  {layout === 'board' && requiredCarersFilters.length > 0 ? ' · ' : ''}
                 </>
               ) : null}
-              {layout === 'board' && requiredCarersFilter !== 'all' ? (
+              {layout === 'board' && requiredCarersFilters.length > 0 ? (
                 <>
                   Carers required:{' '}
                   <span className="font-medium text-foreground">
-                    {scheduleJobsRequiredCarersFilterLabel(requiredCarersFilter)}
+                    {scheduleJobsRequiredCarersFiltersLabel(
+                      requiredCarersFilters as ScheduleJobsRequiredCarersFilterValue[],
+                    )}
                   </span>
                 </>
               ) : null}

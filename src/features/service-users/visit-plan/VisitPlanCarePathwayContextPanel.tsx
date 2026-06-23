@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, Circle, FileText, Loader2 } from 'lucide-react'
+import { CheckCircle2, Circle, ChevronDown, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import {
@@ -34,6 +34,8 @@ type Props = {
   slots: VisitPlanSlot[]
   onApplySuggestedLinks?: () => void
   applyingSuggestedLinks?: boolean
+  /** Setup tab: full pathway + care-plan matrix. Review tab should not use this panel. */
+  variant?: 'setup' | 'compact'
 }
 
 export function VisitPlanCarePathwayContextPanel({
@@ -44,23 +46,39 @@ export function VisitPlanCarePathwayContextPanel({
   slots,
   onApplySuggestedLinks,
   applyingSuggestedLinks,
+  variant = 'setup',
 }: Props) {
   const enabledSlots = slots.filter((s) => s.isEnabled)
   const needsSuggestedLinks =
     acceptedCarePlans.length > 0 &&
     enabledSlots.length > 0 &&
     enabledSlots.every((slot) => !hasExplicitCarePlanLinks(slot))
+  const pathwayBlocked = pathwaySteps.some((step) => step.status === 'current' || step.status === 'blocked')
+  const pathwayComplete = pathwaySteps.every((step) => step.status === 'complete')
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">Care pathway → visit plan</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          After initial assessment, manager review, and accepted care plans, configure visits to deliver the
-          right clinical care on each call.
-        </p>
-      </div>
+    <details
+      className="group rounded-xl border border-border bg-card shadow-sm [&_summary::-webkit-details-marker]:hidden"
+      data-testid="visit-plan-care-pathway-panel"
+    >
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-6">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">Care pathway prerequisites</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {pathwayComplete
+              ? 'Assessment and care plans are in place.'
+              : 'Complete assessment and care plans before visits deliver clinical care.'}
+            {' '}
+            Expand for details.
+          </p>
+        </div>
+        <ChevronDown
+          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
 
+      <div className="space-y-6 border-t border-border px-6 pb-6 pt-4">
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -68,30 +86,32 @@ export function VisitPlanCarePathwayContextPanel({
         </div>
       ) : (
         <>
-          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {pathwaySteps.map((step, index) => (
-              <li
-                key={step.id}
-                className={cn(
-                  'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
-                  step.status === 'complete' && 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20',
-                  step.status === 'current' && 'border-sky-200 bg-sky-50/50 dark:border-sky-900 dark:bg-sky-950/20',
-                  step.status === 'blocked' && 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20',
-                  step.status === 'pending' && 'border-border bg-muted/20',
-                )}
-              >
-                <StepIcon status={step.status} />
-                <div className="min-w-0">
-                  <p className="font-medium leading-tight">
-                    {index + 1}. {step.label}
-                  </p>
-                  {step.detail ? (
-                    <p className="mt-0.5 text-xs text-muted-foreground">{step.detail}</p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
+          {pathwayBlocked ? (
+            <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {pathwaySteps.map((step, index) => (
+                <li
+                  key={step.id}
+                  className={cn(
+                    'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                    step.status === 'complete' && 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20',
+                    step.status === 'current' && 'border-sky-200 bg-sky-50/50 dark:border-sky-900 dark:bg-sky-950/20',
+                    step.status === 'blocked' && 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20',
+                    step.status === 'pending' && 'border-border bg-muted/20',
+                  )}
+                >
+                  <StepIcon status={step.status} />
+                  <div className="min-w-0">
+                    <p className="font-medium leading-tight">
+                      {index + 1}. {step.label}
+                    </p>
+                    {step.detail ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{step.detail}</p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : null}
 
           <div className="flex flex-wrap gap-2 text-xs">
             <Link
@@ -121,7 +141,7 @@ export function VisitPlanCarePathwayContextPanel({
             <p className="text-sm text-muted-foreground">
               Enable at least one call slot below to see which care plans each visit will deliver.
             </p>
-          ) : (
+          ) : variant === 'setup' ? (
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -193,9 +213,14 @@ export function VisitPlanCarePathwayContextPanel({
                 </table>
               </div>
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Link care plans to each call slot in the table below, or open each slot&apos;s scheduling options.
+            </p>
           )}
         </>
       )}
-    </section>
+      </div>
+    </details>
   )
 }

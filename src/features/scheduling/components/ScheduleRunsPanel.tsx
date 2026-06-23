@@ -203,7 +203,10 @@ export function ScheduleRunsPanel({
 
   const handleSyncCarer = async (run: ScheduleRunRow) => {
     try {
-      await mutations.syncCarer.mutateAsync(run.id)
+      await mutations.syncCarer.mutateAsync({
+        id: run.id,
+        payload: { force: true },
+      })
       toastSuccess('Run carer assigned to visits')
       onChanged?.()
     } catch (error) {
@@ -250,7 +253,13 @@ export function ScheduleRunsPanel({
         },
       })
       if (editEmployeeId) {
-        await mutations.syncCarer.mutateAsync(editRun.id)
+        await mutations.syncCarer.mutateAsync({
+          id: editRun.id,
+          payload: {
+            force: true,
+            unallocateEmployeeId: editRun.employeeId ?? undefined,
+          },
+        })
       }
       if (editRun.status === 'DRAFT') {
         await mutations.update.mutateAsync({ id: editRun.id, payload: { status: 'PUBLISHED' } })

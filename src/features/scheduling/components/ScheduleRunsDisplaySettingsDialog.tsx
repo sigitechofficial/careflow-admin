@@ -158,9 +158,9 @@ export function ScheduleRunsDisplaySettingsDialog({
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="font-medium">Show double up icon</span>
+                  <span className="font-medium">Show multi-carer icons</span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Show an icon on visits that need more than one carer.
+                    Show icons for double-up (2 carers) and triple-up (3+ carers) visits.
                   </span>
                 </span>
               </label>

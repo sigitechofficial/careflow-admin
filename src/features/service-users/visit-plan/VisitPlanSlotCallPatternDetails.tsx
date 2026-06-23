@@ -16,6 +16,8 @@ import {
   formatYesNo,
 } from '@/features/service-users/visit-plan/visit-plan-format'
 import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
+import { VisitPlanSlotCarerByDayDetails } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDayDetails'
+import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 
 function DetailSection({
   title,
@@ -68,6 +70,7 @@ export function VisitPlanSlotCallPatternDetails({
 }: Props) {
   const linkedPlans = resolveCarePlansForSlot(slot, acceptedCarePlans)
   const assignedIds = slot.assignedEmployeeIds ?? []
+  const hasCarerByDay = slotHasCarerByDayAssignments(slot)
   const start = normalizeTimeForInput(slot.plannedStartTime)
   const end = normalizeTimeForInput(slot.plannedEndTime)
 
@@ -193,8 +196,19 @@ export function VisitPlanSlotCallPatternDetails({
         )}
       </DetailSection>
 
-      <DetailSection title="Assigned carers">
-        {assignedIds.length === 0 ? (
+      <DetailSection title={hasCarerByDay ? 'Carers by day' : 'Assigned carers'}>
+        {hasCarerByDay ? (
+          <>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Day-specific carer rules from advanced visit plan settings.
+            </p>
+            <VisitPlanSlotCarerByDayDetails
+              slot={slot}
+              employeeNameById={employeeNameById}
+              onClose={onClose}
+            />
+          </>
+        ) : assignedIds.length === 0 ? (
           <p className="text-sm text-muted-foreground">No carers assigned to this call yet.</p>
         ) : (
           <ul className="space-y-2">

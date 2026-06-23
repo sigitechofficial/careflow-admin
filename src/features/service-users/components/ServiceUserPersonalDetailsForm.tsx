@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { AddressPlacesField } from '@/shared/ui/address-places-field'
 import {
   Select,
   SelectContent,
@@ -31,7 +32,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
-import { AddressPlacesField } from '@/shared/ui/address-places-field'
+import { ServiceUserZoneBranchSelect } from '@/features/service-users/components/ServiceUserZoneBranchSelect'
 import { cn } from '@/shared/lib/utils'
 import {
   profileLookupSelectRows,
@@ -94,7 +95,7 @@ const FIELD_HELP = {
   emailType: 'Classifies the email (for example personal, work, shared) if your organisation tracks it.',
   otherContactMethod: 'Any other agreed channel (for example WhatsApp, relay service, or “via family member”).',
   serviceUserNumber: 'Your organisation’s own reference or case number for this person.',
-  location: 'Primary site, hub, or location this service user is linked to for rosters and reporting.',
+  location: 'Zone and branch (e.g. Croydon) for rosters, location tree, and bulk scheduling.',
   serviceStartDate: 'Date the person became eligible for or started receiving this service.',
   serviceEndDate: 'Last day of service if known; leave blank while still active.',
   dateOfDeath: 'If applicable, date of death for record closure and statutory reporting. Only record when verified.',
@@ -751,7 +752,7 @@ export function ServiceUserPersonalDetailsForm({
             latitude: form.latitude,
             longitude: form.longitude,
           }}
-          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+          onChange={(patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch }))}
           disabled={!canAddress}
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -796,15 +797,14 @@ export function ServiceUserPersonalDetailsForm({
             value={form.serviceUserNumber}
             onChange={set('serviceUserNumber')}
           />
-          <LookupSelect
-            label="Location"
-            tooltip={FIELD_HELP.location}
-            value={form.locationId}
-            onChange={set('locationId')}
-            rows={locations}
-            required
-            placeholder="Select location"
-          />
+          <div className="sm:col-span-2 space-y-1.5">
+            <LabelWithTooltip label="Zone & branch" required tooltip={FIELD_HELP.location} />
+            <ServiceUserZoneBranchSelect
+              value={form.locationId}
+              onChange={set('locationId')}
+              required
+            />
+          </div>
           <FieldEditable
             label="Service Start Date"
             tooltip={FIELD_HELP.serviceStartDate}

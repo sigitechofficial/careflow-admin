@@ -75,9 +75,12 @@ import {
 import { serviceUserKeys } from '@/features/service-users/keys'
 import {
   fetchDefaultInitialAssessmentTemplate,
+  fetchInitialAssessmentAnswers,
+  fetchInitialAssessmentTemplate,
   listInitialAssessmentSubmissions,
 } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
+import { resolveInitialAssessmentSubmissionId } from '@/features/service-users/initial-assessment/utils/resolve-initial-assessment-submission-id.util'
 import {
   fetchBodyMapSummary,
   fetchServiceUserBodyMap,
@@ -172,7 +175,7 @@ export function prefetchServiceUserCalendar(qc: QueryClient) {
   })
 }
 
-export function prefetchInitialAssessmentEnterprise(
+export async function prefetchInitialAssessmentEnterprise(
   qc: QueryClient,
   serviceUserId?: string,
 ) {
@@ -187,19 +190,47 @@ export function prefetchInitialAssessmentEnterprise(
       listServiceUsers({ limit: 100, sortBy: 'lastName', sortOrder: 'asc' }),
     staleTime: ROUTE_STALE_MS,
   })
-  if (serviceUserId) {
-    void qc.prefetchQuery({
-      queryKey: initialAssessmentKeys.submissions(serviceUserId),
-      queryFn: ({ signal }) => listInitialAssessmentSubmissions(serviceUserId, { signal }),
+  void qc.prefetchQuery({
+    queryKey: serviceUserKeys.lookups(),
+    queryFn: () => fetchServiceUserLookups(),
+    staleTime: LOOKUP_STALE_MS,
+  })
+
+  if (!serviceUserId) return
+
+  void prefetchServiceUserProfile(qc, serviceUserId)
+  void qc.prefetchQuery({
+    queryKey: serviceUserKeys.domCare(serviceUserId),
+    queryFn: () => fetchServiceUserDomCare(serviceUserId),
+    staleTime: ROUTE_STALE_MS,
+  })
+
+  const submissions = await qc.fetchQuery({
+    queryKey: initialAssessmentKeys.submissions(serviceUserId),
+    queryFn: ({ signal }) => listInitialAssessmentSubmissions(serviceUserId, { signal }),
+    staleTime: ROUTE_STALE_MS,
+  })
+
+  const submissionId = resolveInitialAssessmentSubmissionId(submissions)
+  if (!submissionId) return
+
+  const submission = submissions.find((row) => row.id === submissionId)
+  await Promise.all([
+    qc.prefetchQuery({
+      queryKey: initialAssessmentKeys.answers(serviceUserId, submissionId),
+      queryFn: ({ signal }) =>
+        fetchInitialAssessmentAnswers(serviceUserId, submissionId, { signal }),
       staleTime: ROUTE_STALE_MS,
-    })
-    prefetchServiceUserProfile(qc, serviceUserId)
-    void qc.prefetchQuery({
-      queryKey: serviceUserKeys.domCare(serviceUserId),
-      queryFn: () => fetchServiceUserDomCare(serviceUserId),
-      staleTime: ROUTE_STALE_MS,
-    })
-  }
+    }),
+    submission?.templateId
+      ? qc.prefetchQuery({
+          queryKey: initialAssessmentKeys.template(submission.templateId),
+          queryFn: ({ signal }) =>
+            fetchInitialAssessmentTemplate(submission.templateId, { signal }),
+          staleTime: ROUTE_STALE_MS,
+        })
+      : Promise.resolve(),
+  ])
 }
 
 export function prefetchInitialAssessmentChecklist(
@@ -479,7 +510,7 @@ export function prefetchSchedulingList(qc: QueryClient, date = todayIso()) {
 export function prefetchEmployeeTab(qc: QueryClient, tab: EmployeeRouteTabId) {
   void qc.prefetchQuery({
     queryKey: employeeKeys.chartSummary(),
-    queryFn: ({ signal }) => fetchEmployeeChartSummary({ signal }),
+    queryFn: ({ signal }) => fetchEmployeeChartSummary(undefined, { signal }),
     staleTime: ROUTE_STALE_MS,
   })
 

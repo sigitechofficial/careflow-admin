@@ -24,6 +24,7 @@ export type ServiceUserLookupsBundle = {
   relationshipTypes: SuLookupRow[]
   allergies: SuLookupRow[]
   absenceReasons: SuLookupRow[]
+  visitPlanPauseReasons: Array<SuLookupRow & { suggestsUseAbsence?: boolean }>
 }
 
 export async function fetchServiceUserLookups(init?: RequestInit): Promise<ServiceUserLookupsBundle> {
@@ -56,7 +57,14 @@ export type ServiceUserListRow = {
   careType: { id: string; name: string; code: string } | null
   fundingType: { id: string; name: string; code: string } | null
   riskLevel: { id: string; name: string; code: string; color: string | null } | null
-  location: { id: string; name: string } | null
+  location: {
+    id: string
+    name: string
+    zoneName?: string | null
+    branchName?: string | null
+    branchLayers?: string[]
+    displayLabel?: string
+  } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
   /** True when an absence spans today (start ≤ today ≤ end or open-ended). */
@@ -117,7 +125,14 @@ export type ServiceUserDetailAssignment = {
   notes: string | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
-  location: { id: string; name: string } | null
+  location: {
+    id: string
+    name: string
+    zoneName?: string | null
+    branchName?: string | null
+    branchLayers?: string[]
+    displayLabel?: string
+  } | null
 } | null
 
 export type ServiceUserDetailAddress = {
@@ -175,7 +190,14 @@ export type ServiceUserDetail = {
   careType: { id: string; name: string; code: string } | null
   fundingType: { id: string; name: string; code: string } | null
   riskLevel: { id: string; name: string; code: string; color: string | null } | null
-  location: { id: string; name: string } | null
+  location: {
+    id: string
+    name: string
+    zoneName?: string | null
+    branchName?: string | null
+    branchLayers?: string[]
+    displayLabel?: string
+  } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
   address: ServiceUserDetailAddress
@@ -1437,6 +1459,7 @@ export type ServiceUserAbsenceRow = {
   reason: { id: string; name: string; code: string }
   notes: string
   contactInformation: string
+  retrospectiveReason: string
   createdAt: string
   updatedAt: string
 }
@@ -1458,6 +1481,7 @@ export type CreateServiceUserAbsencePayload = {
   notes?: string
   contactInformation?: string
   applyToSchedule?: boolean
+  retrospectiveReason?: string
 }
 
 export type UpdateServiceUserAbsencePayload = Partial<CreateServiceUserAbsencePayload>

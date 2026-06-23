@@ -1,10 +1,17 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
 import { History, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { formatDate } from '@/shared/lib/utils'
 import { useServiceUserVisitPlans } from '@/features/service-users/visit-plan/hooks'
 import type { ServiceUserVisitPlan, VisitPlanStatus } from '@/features/service-users/visit-plan/types'
+import {
+  formatVisitPlanEffectiveRange,
+  formatVisitPlanStatusLabel,
+  sortVisitPlanVersions,
+  summarizeVisitPlanDailyCalls,
+  visitPlanEnabledSlots,
+  visitPlanEndedCount,
+} from '@/features/service-users/visit-plan/visit-plan-version.util'
 
 function statusClass(status: VisitPlanStatus): string {
   const styles: Record<VisitPlanStatus, string> = {
@@ -19,16 +26,14 @@ function statusClass(status: VisitPlanStatus): string {
 type Props = {
   serviceUserId: string
   selectedPlanId?: string | null
+  onSelectPlan?: (planId: string) => void
 }
 
-export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId }: Props) {
+export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectPlan }: Props) {
   const { data: plans, isLoading, error } = useServiceUserVisitPlans(serviceUserId)
 
-  const sortedPlans = React.useMemo(() => {
-    return [...(plans ?? [])].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    )
-  }, [plans])
+  const sortedPlans = React.useMemo(() => sortVisitPlanVersions(plans ?? []), [plans])
+  const endedCount = visitPlanEndedCount(sortedPlans)
 
   const timeline = React.useMemo(() => {
     const rows: Array<{
@@ -37,7 +42,7 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId }: Props) 
       planStatus: VisitPlanStatus
       label: string
       at: string
-      kind: 'created' | 'updated' | 'amendment' | 'activated'
+      kind: 'created' | 'updated' | 'amendment' | 'activated' | 'status'
     }> = []
 
     for (const plan of sortedPlans) {
@@ -67,6 +72,25 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId }: Props) 
           label: amendment.reason,
           at: amendment.amendedAt,
           kind: 'amendment',
+        })
+      }
+      for (const event of plan.statusEvents ?? []) {
+        const prefix =
+          event.eventType === 'SUSPENDED'
+            ? 'Suspended'
+            : event.eventType === 'REACTIVATED'
+              ? 'Re-activated'
+              : event.eventType === 'SCHEDULED_END'
+                ? 'Scheduled end'
+                : 'Ended'
+        const catalog = event.pauseReasonCatalog?.name
+        rows.push({
+          id: event.id,
+          planId: plan.id,
+          planStatus: plan.status,
+          label: catalog ? `${prefix} (${catalog}): ${event.reason}` : `${prefix}: ${event.reason}`,
+          at: event.createdAt,
+          kind: 'status',
         })
       }
       rows.push({
@@ -110,19 +134,34 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId }: Props) 
 
   return (
     <div className="space-y-6" data-testid="visit-plan-history-panel">
+      <p className="text-sm text-muted-foreground">
+        Each time you activate a new plan, the previous active plan is kept as{' '}
+        <strong className="font-medium text-foreground">ENDED</strong>. Amendments on the same plan are listed in the
+        audit timeline (reason only — not a full before/after diff).
+        {endedCount >= 2 ? (
+          <>
+            {' '}
+            You have {endedCount} ended plans — each is a separate past package. Compare them using{' '}
+            <strong className="font-medium text-foreground">Effective period</strong> and{' '}
+            <strong className="font-medium text-foreground">Calls (typical)</strong>; the most recently ended plan is
+            labelled &quot;ENDED (most recent)&quot;.
+          </>
+        ) : null}
+      </p>
+
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
           <History className="h-4 w-4" aria-hidden />
-          Visit plan versions ({sortedPlans.length})
+          All plan versions ({sortedPlans.length})
         </h3>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
                 <th className="px-2 py-2 font-medium">Status</th>
-                <th className="px-2 py-2 font-medium">Effective from</th>
-                <th className="px-2 py-2 font-medium">Last updated</th>
-                <th className="px-2 py-2 font-medium">Slots</th>
+                <th className="px-2 py-2 font-medium">Calls (typical)</th>
+                <th className="px-2 py-2 font-medium">Effective period</th>
+                <th className="px-2 py-2 font-medium">Active slots</th>
                 <th className="px-2 py-2 font-medium">Amendments</th>
                 <th className="px-2 py-2 font-medium" />
               </tr>
@@ -134,26 +173,32 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId }: Props) 
                   className={cn(
                     'border-b border-border/60',
                     selectedPlanId === plan.id && 'bg-sky-50/60 dark:bg-sky-950/20',
+                    onSelectPlan && 'cursor-pointer hover:bg-muted/30',
                   )}
+                  onClick={() => onSelectPlan?.(plan.id)}
                 >
                   <td className="px-2 py-2">
                     <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', statusClass(plan.status))}>
-                      {plan.status}
+                      {formatVisitPlanStatusLabel(plan, sortedPlans)}
                     </span>
                   </td>
-                  <td className="px-2 py-2 text-muted-foreground">{formatDate(plan.effectiveFrom)}</td>
-                  <td className="px-2 py-2 text-muted-foreground">{formatDate(plan.updatedAt)}</td>
-                  <td className="px-2 py-2">{plan.slots?.length ?? 0}</td>
+                  <td className="px-2 py-2 text-muted-foreground">{summarizeVisitPlanDailyCalls(plan)}</td>
+                  <td className="px-2 py-2 text-muted-foreground">{formatVisitPlanEffectiveRange(plan)}</td>
+                  <td className="px-2 py-2">{visitPlanEnabledSlots(plan.slots).length}</td>
                   <td className="px-2 py-2">{plan.amendments?.length ?? 0}</td>
                   <td className="px-2 py-2 text-right">
-                    <Link
-                      to="/service-users/$serviceUserId/visit-plan"
-                      params={{ serviceUserId }}
-                      search={{ planId: plan.id, view: 'details' }}
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
-                      Open
-                    </Link>
+                    {onSelectPlan ? (
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-primary hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSelectPlan(plan.id)
+                        }}
+                      >
+                        View call pattern
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -168,9 +213,7 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId }: Props) 
           <ul className="space-y-3">
             {timeline.slice(0, 30).map((row) => (
               <li key={row.id} className="flex gap-3 text-sm">
-                <div className="w-28 shrink-0 text-xs text-muted-foreground">
-                  {formatDate(row.at)}
-                </div>
+                <div className="w-28 shrink-0 text-xs text-muted-foreground">{formatDate(row.at)}</div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">{row.label}</p>
                   <p className="text-xs text-muted-foreground">

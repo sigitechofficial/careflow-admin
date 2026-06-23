@@ -94,8 +94,8 @@ export function LocationServiceUserLocationsPanel() {
       <div>
         <h3 className="text-sm font-semibold text-primary">Service User Location Management</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assign each service user to a zone and room (branch). They appear under the matching
-          branch in the location tree.
+          Assign each service user to a zone and branch (e.g. Croydon). They appear under the
+          matching branch in the location tree.
         </p>
       </div>
       {error && (
@@ -105,7 +105,7 @@ export function LocationServiceUserLocationsPanel() {
       )}
       <input
         type="search"
-        placeholder="Filter by name, zone or room…"
+        placeholder="Filter by name, zone or branch…"
         value={filter}
         onChange={e => setFilter(e.target.value)}
         className="h-9 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
@@ -114,7 +114,7 @@ export function LocationServiceUserLocationsPanel() {
         <div className="grid grid-cols-[1fr_10rem_10rem_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Service User Name</span>
           <span>Zone Name</span>
-          <span>Room Name</span>
+          <span>Branch</span>
           <span className="sr-only">Edit</span>
         </div>
         <ul className="divide-y divide-border">
@@ -181,7 +181,7 @@ export function LocationServiceUserLocationsPanel() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Room Name</label>
+                <label className="text-sm font-medium">Branch</label>
                 <Select
                   value={draftLocationId ?? '__none__'}
                   onValueChange={v => setDraftLocationId(v === '__none__' ? null : v)}

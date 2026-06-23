@@ -5,9 +5,10 @@ import { Route } from 'lucide-react'
 
 type Props = {
   runs: JobsDayRunsResponse['runs']
+  onReassignRun?: (runId: string) => void
 }
 
-export function ScheduleJobsRunLegend({ runs }: Props) {
+export function ScheduleJobsRunLegend({ runs, onReassignRun }: Props) {
   const activeRuns = runs.filter((entry) => entry.jobs.length > 0)
   if (activeRuns.length === 0) return null
 
@@ -31,25 +32,32 @@ export function ScheduleJobsRunLegend({ runs }: Props) {
         const carerLabel =
           carerNames.size > 0 ? [...carerNames].slice(0, 2).join(', ') : 'Unallocated'
         return (
-          <span
+          <button
             key={run.id}
+            type="button"
             className={cn(
-              'inline-flex max-w-[min(100%,14rem)] items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+              'inline-flex max-w-[min(100%,14rem)] items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-opacity hover:opacity-90',
+              onReassignRun ? 'cursor-pointer' : 'cursor-default',
             )}
             style={{
               borderColor: accent.border,
               backgroundColor: accent.bg,
               color: accent.text,
             }}
-            title={`${jobs.length} visit(s) · ${carerLabel}${run.status ? ` · ${run.status}` : ''}`}
+            title={
+              onReassignRun
+                ? `Click to reassign run carer · ${jobs.length} visit(s) · ${carerLabel}${run.status ? ` · ${run.status}` : ''}`
+                : `${jobs.length} visit(s) · ${carerLabel}${run.status ? ` · ${run.status}` : ''}`
+            }
+            onClick={onReassignRun ? () => onReassignRun(run.id) : undefined}
           >
             <span className="truncate font-semibold">{run.name}</span>
             <span className="shrink-0 opacity-80">({jobs.length})</span>
-          </span>
+          </button>
         )
       })}
       <span className="text-[10px] text-muted-foreground">
-        Visits in a run show the run name and stop number along the bottom of the job card.
+        Click a run chip to reassign its carer. Visit blocks show icons, name, and run name when in a run.
       </span>
     </div>
   )

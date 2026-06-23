@@ -34,4 +34,7 @@ export const schedulingKeys = {
   runDetail: (id: string) => [...schedulingKeys.all(), 'run', id] as const,
 
   job: (id: string) => [...schedulingKeys.all(), 'job', id] as const,
+
+  bulkCandidates: (params: { locationId?: string; readyOnly?: boolean }) =>
+    [...schedulingKeys.all(), 'bulk-candidates', params] as const,
 } as const

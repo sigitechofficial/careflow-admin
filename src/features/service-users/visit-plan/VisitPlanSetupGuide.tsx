@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle } from 'lucide-react'
+import { CheckCircle2, Circle, ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
@@ -50,7 +50,7 @@ function buildSteps(slots: VisitPlanSlot[], planStatus: ServiceUserVisitPlan['st
     {
       id: 'save',
       title: 'Save the plan',
-      detail: 'Scroll down, add a reason, click Save changes. Activate when ready.',
+      detail: 'Scroll down — Save draft to keep work on file, or Activate authorised package to go live.',
       done: hasPlan && (planStatus === 'ACTIVE' || planStatus === 'DRAFT' || planStatus === 'SUSPENDED'),
     },
     {
@@ -67,21 +67,30 @@ export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
   const doneCount = steps.filter((s) => s.done).length
 
   return (
-    <section className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 dark:border-teal-900 dark:bg-teal-950/20 sm:p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div>
+    <details
+      className="group rounded-xl border border-teal-200 bg-teal-50/50 dark:border-teal-900 dark:bg-teal-950/20 sm:p-5 [&_summary::-webkit-details-marker]:hidden"
+      data-testid="visit-plan-setup-guide"
+    >
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 sm:p-0 sm:pb-0">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-teal-900 dark:text-teal-100">How to set up visits</h3>
           <p className="mt-0.5 text-xs text-teal-800/80 dark:text-teal-200/80">
-            Work top to bottom on this page — {doneCount} of {steps.length} steps complete.
+            {doneCount} of {steps.length} steps complete — expand for the checklist
           </p>
         </div>
-        {planStatus ? (
-          <span className="rounded-full bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            Plan: {planStatus}
-          </span>
-        ) : null}
-      </div>
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="flex shrink-0 items-center gap-2">
+          {planStatus ? (
+            <span className="rounded-full bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              Plan: {planStatus}
+            </span>
+          ) : null}
+          <ChevronDown
+            className="h-4 w-4 text-teal-800/70 transition-transform group-open:rotate-180 dark:text-teal-200/70"
+            aria-hidden
+          />
+        </div>
+      </summary>
+      <ol className="grid gap-3 px-4 pb-4 pt-4 sm:grid-cols-2 sm:px-0 lg:grid-cols-5">
         {steps.map((step, index) => (
           <li
             key={step.id}
@@ -108,6 +117,6 @@ export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
           </li>
         ))}
       </ol>
-    </section>
+    </details>
   )
 }

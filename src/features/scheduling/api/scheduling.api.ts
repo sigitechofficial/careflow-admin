@@ -219,9 +219,16 @@ export async function getScheduleStatus(date: string, init?: RequestInit) {
   )
   const payload = res.data as ScheduleStatusResponse | { data: ScheduleStatusResponse }
   if (payload && typeof payload === 'object' && 'data' in payload && payload.data) {
-    return payload.data as ScheduleStatusResponse
+    return normalizeScheduleStatusResponse(payload.data as ScheduleStatusResponse)
   }
-  return payload as ScheduleStatusResponse
+  return normalizeScheduleStatusResponse(payload as ScheduleStatusResponse)
+}
+
+function normalizeScheduleStatusResponse(payload: ScheduleStatusResponse): ScheduleStatusResponse {
+  return {
+    ...payload,
+    areas: payload.areas ?? [],
+  }
 }
 
 export async function buildSchedule(payload: {

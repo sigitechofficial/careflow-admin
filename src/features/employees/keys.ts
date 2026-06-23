@@ -1,4 +1,4 @@
-import type { ListEmployeesParams } from '@/features/employees/api'
+import type { ListEmployeesParams, EmployeeChartCohortParams } from '@/features/employees/api'
 
 /**
  * Typed query key factory for all employee queries.
@@ -19,8 +19,12 @@ export const employeeKeys = {
   /** Lookups bundle (titles, statuses, roles, etc.). */
   lookups: () => [...employeeKeys.all(), 'lookups'] as const,
 
-  /** Chart summary (staff-count by status for dashboard). */
-  chartSummary: () => [...employeeKeys.all(), 'chart-summary'] as const,
+  /** Chart summary — optional cohort matches staff list filters on that tab. */
+  chartSummary: (params?: EmployeeChartCohortParams) =>
+    [...employeeKeys.all(), 'chart-summary', params ?? null] as const,
+
+  listFacets: (params?: EmployeeChartCohortParams) =>
+    [...employeeKeys.all(), 'list-facets', params ?? null] as const,
 
   /** Invalidates all queries for a single employee. */
   detail: (id: string) => [...employeeKeys.all(), 'detail', id] as const,

@@ -36,6 +36,7 @@ import {
   Building2,
   MapPin,
   Route,
+  CalendarClock,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -185,6 +186,16 @@ const navItems: NavItem[] = [
     children: [
       { label: 'View Schedule',          icon: <Eye className="h-4 w-4" />,        href: '/scheduling/view' },
       { label: 'Schedule Jobs',          icon: <Calendar className="h-4 w-4" />,   href: '/scheduling/schedule-jobs' },
+      {
+        label: 'Bulk generate rota',
+        icon: <CalendarClock className="h-4 w-4" />,
+        href: '/scheduling/bulk-generate-rota',
+        anyPermission: [
+          'scheduling.generate_from_visit_plan',
+          'schedules.build',
+          'scheduled_visits.create',
+        ],
+      },
       { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-4 w-4" />, href: '/in-progress', ready: false },
       { label: 'Schedule Templates',     icon: <LayoutGrid className="h-4 w-4" />, href: '/scheduling/templates' },
       { label: 'Report',                 icon: <FileText className="h-4 w-4" />,   href: '/scheduling/report' },

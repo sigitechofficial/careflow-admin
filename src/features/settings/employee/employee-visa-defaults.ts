@@ -1,6 +1,5 @@
 import type { EmployeeVisaType } from '@/features/settings/types'
 
-/** Keep in sync with careflow-api prisma/seed-data/employee-visa-catalog.ts */
 export const DEFAULT_EMPLOYEE_VISA_TYPES: EmployeeVisaType[] = [
   { id: 'british_citizen', label: 'British citizen', maxWeeklyHours: 40, defaultContractedHours: null },
   { id: 'irish_citizen', label: 'Irish citizen', maxWeeklyHours: 40, defaultContractedHours: null },
@@ -21,8 +20,21 @@ export const DEFAULT_EMPLOYEE_VISA_TYPES: EmployeeVisaType[] = [
   { id: 'not_applicable', label: 'Not applicable', maxWeeklyHours: 40, defaultContractedHours: null },
 ]
 
+const REMOVED_LEGACY_VISA_TYPE_IDS = new Set(['full_time', 'student'])
+
+const LEGACY_VISA_TYPE_ID_MAP: Record<string, string> = {
+  full_time: 'skilled_worker',
+  student: 'student_visa',
+}
+
 export function resolveEmployeeVisaTypes(types: EmployeeVisaType[] | undefined): EmployeeVisaType[] {
-  return types?.length ? types : DEFAULT_EMPLOYEE_VISA_TYPES
+  const byId = new Map(DEFAULT_EMPLOYEE_VISA_TYPES.map((row) => [row.id, row]))
+  for (const row of types ?? []) {
+    if (REMOVED_LEGACY_VISA_TYPE_IDS.has(row.id)) continue
+    if (byId.has(row.id)) continue
+    byId.set(row.id, normalizeVisaTypeRow(row))
+  }
+  return [...byId.values()]
 }
 
 export function maxWeeklyHoursForVisaType(
@@ -57,7 +69,8 @@ export function labelForVisaType(
   visaTypeId: string | undefined,
 ): string | undefined {
   if (!visaTypeId) return undefined
-  return types.find(t => t.id === visaTypeId)?.label
+  const resolvedId = LEGACY_VISA_TYPE_ID_MAP[visaTypeId] ?? visaTypeId
+  return types.find((t) => t.id === resolvedId)?.label
 }
 
 export function visaTypeAutoFillsContractedHours(

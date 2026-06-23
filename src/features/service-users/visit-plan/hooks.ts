@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { schedulingKeys } from '@/features/scheduling/keys'
+import type { SuspendVisitPlanPayload, EndVisitPlanPayload } from '@/features/service-users/visit-plan/api'
 import {
   activateServiceUserVisitPlan,
   createServiceUserVisitPlan,
@@ -47,9 +48,16 @@ export function useServiceUserVisitPlans(serviceUserId: string) {
 }
 
 export function useActiveServiceUserVisitPlan(serviceUserId: string) {
+  const qc = useQueryClient()
   return useQuery({
     queryKey: serviceUserKeys.visitPlanActive(serviceUserId),
-    queryFn: () => fetchActiveServiceUserVisitPlan(serviceUserId),
+    queryFn: async () => {
+      const active = await fetchActiveServiceUserVisitPlan(serviceUserId)
+      const cachedPlans = qc.getQueryData<ServiceUserVisitPlan[]>(serviceUserKeys.visitPlans(serviceUserId))
+      if (cachedPlans && cachedPlans.length === 0) return null
+      if (active?.id && cachedPlans && !cachedPlans.some((p) => p.id === active.id)) return null
+      return active
+    },
     enabled: Boolean(serviceUserId),
   })
 }
@@ -136,7 +144,8 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
   const update = useMutation({
     mutationFn: ({ planId, ...body }: Parameters<typeof updateServiceUserVisitPlan>[2] & { planId: string }) =>
       updateServiceUserVisitPlan(serviceUserId, planId, body),
-    onSuccess: (plan: ServiceUserVisitPlan) => {
+    onSuccess: (result) => {
+      const plan = result.plan
       qc.setQueryData(serviceUserKeys.visitPlans(serviceUserId), (old: ServiceUserVisitPlan[] | undefined) =>
         mergePlanIntoList(old, plan),
       )
@@ -149,20 +158,30 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
   })
 
   const activate = useMutation({
-    mutationFn: (planId: string) => activateServiceUserVisitPlan(serviceUserId, planId),
+    mutationFn: ({
+      planId,
+      reactivationReason,
+      cancelEndedPlanJobs,
+    }: {
+      planId: string
+      reactivationReason?: string
+      cancelEndedPlanJobs?: boolean
+    }) =>
+      activateServiceUserVisitPlan(serviceUserId, planId, {
+        reactivationReason,
+        cancelEndedPlanJobs,
+      }),
     onSuccess: invalidate,
   })
 
   const suspend = useMutation({
     mutationFn: ({
       planId,
-      reason,
-      cancelFutureVisits,
+      ...body
     }: {
       planId: string
-      reason: string
-      cancelFutureVisits?: boolean
-    }) => suspendServiceUserVisitPlan(serviceUserId, planId, reason, cancelFutureVisits),
+    } & SuspendVisitPlanPayload) =>
+      suspendServiceUserVisitPlan(serviceUserId, planId, body),
     onSuccess: () => {
       invalidate()
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
@@ -172,13 +191,10 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
   const end = useMutation({
     mutationFn: ({
       planId,
-      reason,
-      cancelFutureVisits,
+      ...body
     }: {
       planId: string
-      reason: string
-      cancelFutureVisits?: boolean
-    }) => endServiceUserVisitPlan(serviceUserId, planId, reason, cancelFutureVisits),
+    } & EndVisitPlanPayload) => endServiceUserVisitPlan(serviceUserId, planId, body),
     onSuccess: () => {
       invalidate()
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
@@ -194,7 +210,14 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
     mutationFn: ({
       planId,
       ...body
-    }: { planId: string; fromDate: string; toDate: string; scheduleAreaId?: string | null; backfillDays?: number }) =>
+    }: {
+      planId: string
+      fromDate: string
+      toDate: string
+      scheduleAreaId?: string | null
+      backfillDays?: number
+      respectWorkingPatternOnSync?: boolean
+    }) =>
       generateScheduleFromVisitPlan(serviceUserId, planId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.all() })

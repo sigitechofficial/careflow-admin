@@ -2,10 +2,30 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   jobBlockPosition,
   SCHEDULE_JOBS_JOB_LANE_HEIGHT,
+  SCHEDULE_JOBS_JOB_LANE_HEIGHT_RUNS_BOARD,
   SCHEDULE_JOBS_ROW_HEIGHT,
   SCHEDULE_JOBS_ROW_LANE_GAP,
   SCHEDULE_JOBS_ROW_VERTICAL_PAD,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+
+export type ScheduleJobOverlapLayoutOptions = {
+  jobLaneHeight?: number
+}
+
+export function resolveScheduleJobsJobLaneHeight(options?: {
+  showRunsOnBoard?: boolean
+  overlapLaneCount?: number
+  stackedLabelLayout?: boolean
+}): number {
+  if (
+    options?.showRunsOnBoard ||
+    options?.stackedLabelLayout ||
+    (options?.overlapLaneCount ?? 1) > 1
+  ) {
+    return SCHEDULE_JOBS_JOB_LANE_HEIGHT_RUNS_BOARD
+  }
+  return SCHEDULE_JOBS_JOB_LANE_HEIGHT
+}
 
 export type JobOverlapLayout = {
   lane: number
@@ -24,13 +44,18 @@ export function jobsTimeOverlap(a: JobTiming, b: JobTiming): boolean {
   return pa.startMin < pb.endMin && pb.startMin < pa.endMin
 }
 
-/** Stack overlapping jobs into lanes so each visit slot stays visible on the timeline row. */
-export function computeScheduleJobOverlapLayout(jobs: JobTiming[]): {
+/** Stack overlapping jobs into lanes so each visit card stays visible on the timeline row. */
+export function computeScheduleJobOverlapLayout(
+  jobs: JobTiming[],
+  options?: ScheduleJobOverlapLayoutOptions,
+): {
   byJobId: Map<string, JobOverlapLayout>
   rowHeightPx: number
+  jobLaneHeight: number
 } {
   if (jobs.length === 0) {
-    return { byJobId: new Map(), rowHeightPx: SCHEDULE_JOBS_ROW_HEIGHT }
+    const jobLaneHeight = options?.jobLaneHeight ?? SCHEDULE_JOBS_JOB_LANE_HEIGHT
+    return { byJobId: new Map(), rowHeightPx: SCHEDULE_JOBS_ROW_HEIGHT, jobLaneHeight }
   }
 
   const sorted = [...jobs].sort((a, b) => {
@@ -49,13 +74,15 @@ export function computeScheduleJobOverlapLayout(jobs: JobTiming[]): {
       lane = laneEnds.length
       laneEnds.push(endMin)
     } else {
-      const previousLaneEnd = laneEnds[lane] ?? startMin
-      laneEnds[lane] = Math.max(previousLaneEnd, endMin)
+      laneEnds[lane] = Math.max(laneEnds[lane] ?? startMin, endMin)
     }
     laneByJobId.set(job.id, lane)
   }
 
   const laneCount = Math.max(1, laneEnds.length)
+  const jobLaneHeight =
+    options?.jobLaneHeight ??
+    (laneCount > 1 ? SCHEDULE_JOBS_JOB_LANE_HEIGHT_RUNS_BOARD : SCHEDULE_JOBS_JOB_LANE_HEIGHT)
   const byJobId = new Map<string, JobOverlapLayout>()
 
   for (const job of jobs) {
@@ -73,13 +100,13 @@ export function computeScheduleJobOverlapLayout(jobs: JobTiming[]): {
       : Math.max(
           SCHEDULE_JOBS_ROW_HEIGHT,
           SCHEDULE_JOBS_ROW_VERTICAL_PAD * 2 +
-            laneCount * SCHEDULE_JOBS_JOB_LANE_HEIGHT +
+            laneCount * jobLaneHeight +
             (laneCount - 1) * SCHEDULE_JOBS_ROW_LANE_GAP,
         )
 
-  return { byJobId, rowHeightPx }
+  return { byJobId, rowHeightPx, jobLaneHeight }
 }
 
-export function scheduleJobLaneTopPx(lane: number): number {
-  return SCHEDULE_JOBS_ROW_VERTICAL_PAD + lane * (SCHEDULE_JOBS_JOB_LANE_HEIGHT + SCHEDULE_JOBS_ROW_LANE_GAP)
+export function scheduleJobLaneTopPx(lane: number, jobLaneHeight = SCHEDULE_JOBS_JOB_LANE_HEIGHT): number {
+  return SCHEDULE_JOBS_ROW_VERTICAL_PAD + lane * (jobLaneHeight + SCHEDULE_JOBS_ROW_LANE_GAP)
 }

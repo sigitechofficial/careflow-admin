@@ -5,22 +5,32 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDate(date: Date | string): string {
+function toValidDate(date: Date | string | null | undefined): Date | null {
+  if (date == null) return null
+  const parsed = date instanceof Date ? date : new Date(date)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+export function formatDate(date: Date | string | null | undefined): string {
+  const parsed = toValidDate(date)
+  if (!parsed) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(parsed)
 }
 
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string | null | undefined): string {
+  const parsed = toValidDate(date)
+  if (!parsed) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date))
+  }).format(parsed)
 }
 
 export function formatTime(date: Date | string): string {

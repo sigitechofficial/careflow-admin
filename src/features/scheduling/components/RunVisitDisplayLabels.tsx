@@ -1,4 +1,5 @@
-import { Car, Users } from 'lucide-react'
+import { Car } from 'lucide-react'
+import { ScheduleJobRequiredCarersIcon } from '@/features/scheduling/components/ScheduleJobRequiredCarersIcon'
 import { cn } from '@/shared/lib/utils'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
@@ -33,10 +34,10 @@ export function RunVisitDisplayLabels({
     visitPlanSlotsByServiceUser,
     acceptedCarePlansByServiceUser,
   })
-  const showDoubleUp = preferences.showDoubleUpIcon && job.requiredCarers > 1
+  const showRequiredCarersIcon = preferences.showDoubleUpIcon && job.requiredCarers > 1
   const showTravel = preferences.showTravelMethodIcons && Boolean(job.scheduleRunId)
   const timeCritical = resolveJobTimeCritical(job, visitPlanSlotsByServiceUser)
-  const showLeadingIcons = timeCritical || showDoubleUp || showTravel
+  const showLeadingIcons = timeCritical || showRequiredCarersIcon || showTravel
 
   return (
     <div className={cn('flex min-w-0 items-start gap-1.5', className)}>
@@ -45,8 +46,8 @@ export function RunVisitDisplayLabels({
           {timeCritical ? (
             <TimeCriticalDot toleranceMinutes={timeCritical.timeToleranceMinutes} size="xs" />
           ) : null}
-          {showDoubleUp ? (
-            <Users className="h-3 w-3 opacity-80" aria-label="Double up visit" />
+          {showRequiredCarersIcon ? (
+            <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3" />
           ) : null}
           {showTravel ? (
             <Car className="h-3 w-3 opacity-70" aria-label="Run visit" />

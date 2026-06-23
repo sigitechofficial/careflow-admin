@@ -1,16 +1,24 @@
-import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+﻿import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type { MedicationRoundRow } from '@/features/settings/api/medication-settings.api'
 import {
   defaultEditableVisitPlanSlots,
 } from '@/features/service-users/visit-plan/visit-plan-time-slots.util'
 import type {
+  ActivateImpactPreview,
+  AmendmentImpactPreview,
+  GenerateSchedulePreview,
+  ReturnImpactPreview,
+  ScheduleImpactSummary,
   ServiceUserVisitPlan,
+  SuspensionReviewOverdueRow,
   VisitPlanCarerSuggestions,
+  VisitPlanCarerSyncPatternPreview,
   VisitPlanSlot,
   VisitPlanSlotCode,
   VisitPlanSlotCarerAssignment,
   VisitPlanSlotException,
 } from '@/features/service-users/visit-plan/types'
+import { resolveEditableVisitPlan } from '@/features/service-users/visit-plan/visit-plan-version.util'
 
 function isVisitPlan(value: unknown): value is ServiceUserVisitPlan {
   return (
@@ -83,8 +91,10 @@ function normalizeSlot(slot: VisitPlanSlot): VisitPlanSlot {
 function normalizeVisitPlan(plan: ServiceUserVisitPlan): ServiceUserVisitPlan {
   return {
     ...plan,
+    suspensionContingencyNotes: plan.suspensionContingencyNotes ?? '',
     slots: Array.isArray(plan.slots) ? plan.slots.map(normalizeSlot) : [],
     amendments: Array.isArray(plan.amendments) ? plan.amendments : [],
+    statusEvents: Array.isArray(plan.statusEvents) ? plan.statusEvents : [],
   }
 }
 
@@ -149,6 +159,7 @@ export async function suggestVisitPlanCarers(
     linkedCarePlanFormIds?: string[]
     scheduledDate?: string
     excludeScheduledJobId?: string
+    includeEmployeeIds?: string[]
   },
 ) {
   const res = await apiJson<ApiEnvelope<VisitPlanCarerSuggestions>>(
@@ -172,19 +183,17 @@ export async function fetchActiveServiceUserVisitPlan(serviceUserId: string) {
   return unwrapVisitPlan(res.data)
 }
 
-/** Active plan first; otherwise latest draft / most recent plan (for contracted-hours checks). */
+/** Active plan first; otherwise suspended or draft (for contracted-hours checks). */
 export async function fetchWorkingServiceUserVisitPlan(serviceUserId: string) {
   const active = await fetchActiveServiceUserVisitPlan(serviceUserId)
-  if (active) return active
   const plans = await fetchServiceUserVisitPlans(serviceUserId)
-  const draft = plans.find((p) => p.status === 'DRAFT')
-  return draft ?? plans[0] ?? null
+  return resolveEditableVisitPlan(plans, active)
 }
 
 export async function createServiceUserVisitPlan(
   serviceUserId: string,
   body: {
-    weeklyContractedHours?: string | null
+    weeklyContractedHours: string
     numberOfCarers?: number
     notes?: string
     slots?: VisitPlanSlotInput[]
@@ -208,55 +217,201 @@ export async function updateServiceUserVisitPlan(
     numberOfCarers?: number
     notes?: string
     slots?: VisitPlanSlotInput[]
+    applyScheduleImpact?: boolean
+    respectWorkingPatternOnSync?: boolean
   },
 ) {
-  const res = await apiJson<ApiEnvelope<ServiceUserVisitPlan>>(
-    `/service-users/${serviceUserId}/visit-plans/${planId}`,
-    { method: 'PATCH', body: JSON.stringify(body) },
-  )
-  const plan = unwrapVisitPlan(res.data)
-  if (!plan) throw new Error('Invalid visit plan response from API')
-  return plan
-}
-
-export async function activateServiceUserVisitPlan(serviceUserId: string, planId: string) {
-  const res = await apiJson<ApiEnvelope<ServiceUserVisitPlan>>(
-    `/service-users/${serviceUserId}/visit-plans/${planId}/activate`,
-    { method: 'POST', body: JSON.stringify({}) },
-  )
-  const plan = unwrapVisitPlan(res.data)
-  if (!plan) throw new Error('Invalid visit plan response from API')
-  return plan
-}
-
-export async function suspendServiceUserVisitPlan(
-  serviceUserId: string,
-  planId: string,
-  reason: string,
-  cancelFutureVisits = true,
-) {
   const res = await apiJson<
-    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
-  >(`/service-users/${serviceUserId}/visit-plans/${planId}/suspend`, {
-    method: 'POST',
-    body: JSON.stringify({ reason, cancelFutureVisits }),
+    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: ScheduleImpactSummary }
+  >(`/service-users/${serviceUserId}/visit-plans/${planId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
   return { plan, scheduleImpact: res.scheduleImpact }
 }
 
+export async function previewVisitPlanAmendmentImpact(
+  serviceUserId: string,
+  planId: string,
+  body: {
+    amendmentReason: string
+    weeklyContractedHours?: string | null
+    numberOfCarers?: number
+    notes?: string
+    slots?: VisitPlanSlotInput[]
+  },
+) {
+  const res = await apiJson<ApiEnvelope<AmendmentImpactPreview>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/amendment-impact-preview`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function previewVisitPlanCarerSyncPattern(
+  serviceUserId: string,
+  planId: string,
+  body: { slots?: VisitPlanSlotInput[] },
+) {
+  const res = await apiJson<ApiEnvelope<VisitPlanCarerSyncPatternPreview>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/carer-sync-pattern-preview`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function previewVisitPlanActivateImpact(serviceUserId: string, planId: string) {
+  const res = await apiJson<ApiEnvelope<ActivateImpactPreview>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/activate-impact-preview`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function previewVisitPlanGenerateSchedule(
+  serviceUserId: string,
+  planId: string,
+  params: { fromDate: string; toDate: string; backfillDays?: number },
+) {
+  const qs = new URLSearchParams({
+    fromDate: params.fromDate,
+    toDate: params.toDate,
+  })
+  if (params.backfillDays != null) qs.set('backfillDays', String(params.backfillDays))
+  const res = await apiJson<ApiEnvelope<GenerateSchedulePreview>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/generate-schedule-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function previewVisitPlanSkipImpact(
+  serviceUserId: string,
+  planId: string,
+  slotId: string,
+  date: string,
+) {
+  const qs = new URLSearchParams({ date })
+  const res = await apiJson<
+    ApiEnvelope<{ scheduleImpact: ScheduleImpactSummary; slotLabel: string }>
+  >(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/slots/${slotId}/skip-impact-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function previewAbsenceReturnImpact(
+  serviceUserId: string,
+  absenceId: string,
+  params: { returnDate: string; daysAhead?: number },
+) {
+  const qs = new URLSearchParams({ returnDate: params.returnDate })
+  if (params.daysAhead != null) qs.set('daysAhead', String(params.daysAhead))
+  const res = await apiJson<ApiEnvelope<ReturnImpactPreview>>(
+    `/service-users/${serviceUserId}/absences/${absenceId}/return-impact-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function fetchSuspensionReviewsOverdue() {
+  const res = await apiJson<ApiEnvelope<SuspensionReviewOverdueRow[]>>('/visit-plans/suspension-reviews-overdue', {
+    method: 'GET',
+  })
+  return Array.isArray(res.data) ? res.data : []
+}
+
+export async function activateServiceUserVisitPlan(
+  serviceUserId: string,
+  planId: string,
+  body?: { reactivationReason?: string; cancelEndedPlanJobs?: boolean },
+) {
+  const res = await apiJson<
+    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: ScheduleImpactSummary }
+  >(`/service-users/${serviceUserId}/visit-plans/${planId}/activate`, {
+    method: 'POST',
+    body: JSON.stringify(body ?? {}),
+  })
+  const plan = unwrapVisitPlan(res.data)
+  if (!plan) throw new Error('Invalid visit plan response from API')
+  return { plan, scheduleImpact: res.scheduleImpact }
+}
+
+export type EndVisitPlanPayload = {
+  reason: string
+  effectiveTo?: string
+  retrospectiveReason?: string
+  cancelFutureVisits?: boolean
+}
+
+export type SuspendVisitPlanPayload = {
+  pauseReasonCatalogId: string
+  reason: string
+  expectedResumeAt?: string | null
+  reviewDueAt?: string | null
+  contingencyNotes?: string
+  effectiveFrom?: string
+  retrospectiveReason?: string
+  cancelFutureVisits?: boolean
+}
+
+export async function suspendServiceUserVisitPlan(
+  serviceUserId: string,
+  planId: string,
+  body: SuspendVisitPlanPayload,
+) {
+  const res = await apiJson<
+    ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
+  >(`/service-users/${serviceUserId}/visit-plans/${planId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  const plan = unwrapVisitPlan(res.data)
+  if (!plan) throw new Error('Invalid visit plan response from API')
+  return { plan, scheduleImpact: res.scheduleImpact }
+}
+
+export async function previewVisitPlanEndScheduleImpact(
+  serviceUserId: string,
+  planId: string,
+  params: { fromDate: string; toDate?: string },
+) {
+  const qs = new URLSearchParams({ fromDate: params.fromDate })
+  if (params.toDate?.trim()) qs.set('toDate', params.toDate.trim())
+  const res = await apiJson<ApiEnvelope<{ jobsCancelled: number; jobsUnallocated: number; jobIds: string[] }>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/end-impact-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function previewVisitPlanSuspendScheduleImpact(
+  serviceUserId: string,
+  planId: string,
+  params: { fromDate: string; toDate?: string },
+) {
+  const qs = new URLSearchParams({ fromDate: params.fromDate })
+  if (params.toDate?.trim()) qs.set('toDate', params.toDate.trim())
+  const res = await apiJson<ApiEnvelope<{ jobsCancelled: number; jobsUnallocated: number; jobIds: string[] }>>(
+    `/service-users/${serviceUserId}/visit-plans/${planId}/suspend-impact-preview?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
 export async function endServiceUserVisitPlan(
   serviceUserId: string,
   planId: string,
-  reason: string,
-  cancelFutureVisits = true,
+  body: EndVisitPlanPayload,
 ) {
   const res = await apiJson<
     ApiEnvelope<ServiceUserVisitPlan> & { scheduleImpact?: { jobsCancelled: number; jobsUnallocated: number } }
   >(`/service-users/${serviceUserId}/visit-plans/${planId}/end`, {
     method: 'POST',
-    body: JSON.stringify({ reason, cancelFutureVisits }),
+    body: JSON.stringify(body),
   })
   const plan = unwrapVisitPlan(res.data)
   if (!plan) throw new Error('Invalid visit plan response from API')
@@ -276,7 +431,13 @@ export async function prefillVisitPlanFromDomCare(serviceUserId: string, planId:
 export async function generateScheduleFromVisitPlan(
   serviceUserId: string,
   planId: string,
-  body: { fromDate: string; toDate: string; scheduleAreaId?: string | null; backfillDays?: number },
+  body: {
+    fromDate: string
+    toDate: string
+    scheduleAreaId?: string | null
+    backfillDays?: number
+    respectWorkingPatternOnSync?: boolean
+  },
 ) {
   const res = await apiJson<
     ApiEnvelope<{

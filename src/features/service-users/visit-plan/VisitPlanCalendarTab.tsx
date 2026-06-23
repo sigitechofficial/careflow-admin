@@ -39,6 +39,10 @@ import {
   visitPlanCalendarOutcomeMeta,
 } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 import { visitPlanCalendarSlotPresentation } from '@/features/service-users/visit-plan/visit-plan-calendar-overdue.util'
+import {
+  resolveVisitPlanCalendarCarerAllocation,
+  visitPlanCalendarEffectiveOutcomeStatus,
+} from '@/features/service-users/visit-plan/visit-plan-calendar-carer-allocation.util'
 import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
@@ -199,8 +203,9 @@ function VisitCalendarCellTooltip({
   outcomeStatus,
   isOverdue,
   outcomeNotes,
-  allocatedCount,
-  requiredCarers,
+  carersRequired,
+  carersAllocated,
+  understaffed,
 }: {
   slot: VisitPlanSlot
   month: string
@@ -211,13 +216,11 @@ function VisitCalendarCellTooltip({
   outcomeStatus: string
   isOverdue?: boolean
   outcomeNotes?: string | null
-  allocatedCount?: number
-  requiredCarers?: number
+  carersRequired: number
+  carersAllocated: number
+  understaffed: boolean
 }) {
   const outcome = visitPlanCalendarOutcomeMeta(outcomeStatus)
-  const carersRequired = requiredCarers ?? slot.requiredCarers
-  const carersAllocated = allocatedCount ?? carerNames.length
-  const understaffed = outcomeStatus === 'NEEDS_ATTENTION' || carersAllocated < carersRequired
   return (
     <div className="space-y-2.5 text-left">
       <div className="border-b border-border/60 pb-2">
@@ -249,11 +252,23 @@ function VisitCalendarCellTooltip({
           <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
           <div>
             <dt className="font-medium text-foreground">
-              {slot.requiredCarers} carer{slot.requiredCarers === 1 ? '' : 's'} required
+              {carerNames.length > 0
+                ? `Carer Assigned : ${carerNames.length}`
+                : `${carersRequired} carer${carersRequired === 1 ? '' : 's'} required`}
             </dt>
             <dd className="mt-1 text-muted-foreground">
               {outcomeStatus === 'NOT_GENERATED' ? (
-                'Generate rota from Configure to create this visit on the schedule'
+                carerNames.length > 0 ? (
+                  <ul className="space-y-0.5">
+                    {carerNames.map((name) => (
+                      <li key={name} className="font-medium text-foreground">
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  'Generate rota from Configure to create this visit on the schedule'
+                )
               ) : carerNames.length === 0 ? (
                 'No carers assigned on rota'
               ) : (
@@ -608,13 +623,23 @@ export function VisitPlanCalendarTab({
                       {dayEntries.map((entry) => {
                         const key = outcomeKey(entry.slot.id, entry.iso)
                         const outcome = key ? outcomeByKey.get(key) : null
+                        const cellCarerNames = carerNamesForCell(entry.slot, outcome ?? undefined, combinedEmployeeNameById)
+                        const allocation = resolveVisitPlanCalendarCarerAllocation({
+                          outcome,
+                          slot: entry.slot,
+                          carerNames: cellCarerNames,
+                        })
+                        const effectiveStatus = visitPlanCalendarEffectiveOutcomeStatus({
+                          outcome,
+                          slot: entry.slot,
+                          carerNames: cellCarerNames,
+                        })
                         const presentation = visitPlanCalendarSlotPresentation({
                           occurrenceIso: entry.iso,
                           plannedEndTime: entry.end,
-                          outcome,
+                          outcome: outcome ? { ...outcome, displayStatus: effectiveStatus } : outcome,
                         })
                         const outcomeMeta = visitPlanCalendarOutcomeMeta(presentation.outcomeStatus)
-                        const cellCarerNames = carerNamesForCell(entry.slot, outcome ?? undefined, combinedEmployeeNameById)
                         return (
                           <li key={`${entry.iso}-${entry.slot.slotCode}`}>
                             <button
@@ -748,13 +773,23 @@ export function VisitPlanCalendarTab({
                           const today = cell.iso === todayIso
                           const key = outcomeKey(slot.id, cell.iso)
                           const outcome = key ? outcomeByKey.get(key) : null
+                          const cellCarerNames = carerNamesForCell(slot, outcome ?? undefined, combinedEmployeeNameById)
+                          const allocation = resolveVisitPlanCalendarCarerAllocation({
+                            outcome,
+                            slot,
+                            carerNames: cellCarerNames,
+                          })
+                          const effectiveStatus = visitPlanCalendarEffectiveOutcomeStatus({
+                            outcome,
+                            slot,
+                            carerNames: cellCarerNames,
+                          })
                           const presentation = visitPlanCalendarSlotPresentation({
                             occurrenceIso: cell.iso,
                             plannedEndTime: end,
-                            outcome,
+                            outcome: outcome ? { ...outcome, displayStatus: effectiveStatus } : outcome,
                           })
                           const outcomeMeta = visitPlanCalendarOutcomeMeta(presentation.outcomeStatus)
-                          const cellCarerNames = carerNamesForCell(slot, outcome ?? undefined, combinedEmployeeNameById)
                           return (
                             <td
                               key={`${slot.slotCode}-${cell.iso}`}
@@ -815,8 +850,9 @@ export function VisitPlanCalendarTab({
                                       outcomeStatus={presentation.outcomeStatus}
                                       isOverdue={presentation.isOverdue}
                                       outcomeNotes={outcome?.notes}
-                                      allocatedCount={outcome?.allocatedCount}
-                                      requiredCarers={outcome?.requiredCarers}
+                                      carersRequired={allocation.carersRequired}
+                                      carersAllocated={allocation.carersAllocated}
+                                      understaffed={allocation.understaffed}
                                     />
                                   </TooltipContent>
                                 </Tooltip>

@@ -1,11 +1,13 @@
-﻿import { useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   fetchEmployeeLookups,
   fetchEmployeeChartSummary,
+  fetchEmployeeListFacets,
   listEmployees,
   fetchEmployee,
   fetchEmployeeDocumentsRegistry,
   type ListEmployeesParams,
+  type EmployeeChartCohortParams,
 } from '@/features/employees/api'
 import { employeeKeys } from '../keys'
 
@@ -18,10 +20,19 @@ export function useEmployeeLookups(enabled = true) {
   })
 }
 
-export function useEmployeeChartSummary() {
+export function useEmployeeChartSummary(params?: EmployeeChartCohortParams) {
   return useQuery({
-    queryKey: employeeKeys.chartSummary(),
-    queryFn: ({ signal }) => fetchEmployeeChartSummary({ signal }),
+    queryKey: employeeKeys.chartSummary(params),
+    queryFn: ({ signal }) => fetchEmployeeChartSummary(params, { signal }),
+  })
+}
+
+export function useEmployeeListFacets(params?: EmployeeChartCohortParams, enabled = true) {
+  return useQuery({
+    queryKey: employeeKeys.listFacets(params),
+    queryFn: ({ signal }) => fetchEmployeeListFacets(params, { signal }),
+    enabled,
+    placeholderData: (prev) => prev,
   })
 }
 

@@ -12,6 +12,7 @@ import {
   updateScheduleRun,
   type CreateScheduleRunPayload,
   type ListScheduleRunsParams,
+  type SyncScheduleRunCarerPayload,
   type UpdateScheduleRunPayload,
 } from '@/features/scheduling/api/schedule-runs.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
@@ -84,7 +85,8 @@ export function useScheduleRunMutations(date: string) {
   })
 
   const syncCarer = useMutation({
-    mutationFn: (id: string) => syncScheduleRunCarer(id),
+    mutationFn: ({ id, payload }: { id: string; payload?: SyncScheduleRunCarerPayload }) =>
+      syncScheduleRunCarer(id, payload),
     onSuccess: invalidate,
   })
 

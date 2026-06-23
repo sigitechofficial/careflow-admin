@@ -58,6 +58,11 @@ export type EmployeeListRow = {
   locationId?: string | null
   location?: { id: string; name: string } | null
   baseLocationIds?: string[]
+  accessAllZones?: boolean
+  employmentEndDate?: string | Date | null
+  leavingReason?: { id: string; name: string } | null
+  onHolidayToday?: boolean
+  holidayEndDate?: string | null
 }
 
 export type EmployeeListMeta = {
@@ -74,6 +79,16 @@ export type ListEmployeesParams = {
   limit?: number
   search?: string
   statusId?: string
+  statusIds?: string[]
+  roleIds?: string[]
+  jobTitleIds?: string[]
+  gradeIds?: string[]
+  contractTypeIds?: string[]
+  locationIds?: string[]
+  visaTypeIds?: string[]
+  isInCountry?: boolean
+  branchScopeKinds?: Array<'all-zones' | 'single' | 'multiple' | 'none'>
+  complianceFilter?: 'needs_attention' | 'up_to_date'
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
@@ -130,6 +145,8 @@ export type EmployeeDetail = {
     location?: { id: string; name: string } | null
     startDate?: string | null
     endDate?: string | null
+    workingPatternCycleWeeks?: number | null
+    workingPatternCycleAnchorDate?: string | null
     nationalInsuranceNo?: string | null
     nmcPinNumber?: string | null
     employeeNumber?: string | null
@@ -165,10 +182,71 @@ export type EmployeeChartSummary = {
   compliance: { upToDate: number; needsAttention: number }
   skills: { name: string; value: number; color: string }[]
   reviews: { reviewed: number; outstanding: number }
+  meta?: {
+    cohortTotal: number
+    scope: 'filtered' | 'organisation'
+  }
 }
 
-export async function fetchEmployeeChartSummary(init?: RequestInit): Promise<EmployeeChartSummary> {
-  const res = await apiJson<ApiEnvelope<EmployeeChartSummary>>('/employees/chart-summary', { method: 'GET', ...init })
+export type EmployeeChartCohortParams = Omit<
+  ListEmployeesParams,
+  'page' | 'limit' | 'sortBy' | 'sortOrder'
+>
+
+function appendEmployeeListFilterParams(qs: URLSearchParams, params: ListEmployeesParams) {
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.statusId) qs.set('statusId', params.statusId)
+  if (params.statusIds?.length) qs.set('statusIds', params.statusIds.join(','))
+  if (params.roleIds?.length) qs.set('roleIds', params.roleIds.join(','))
+  if (params.jobTitleIds?.length) qs.set('jobTitleIds', params.jobTitleIds.join(','))
+  if (params.gradeIds?.length) qs.set('gradeIds', params.gradeIds.join(','))
+  if (params.contractTypeIds?.length) qs.set('contractTypeIds', params.contractTypeIds.join(','))
+  if (params.locationIds?.length) qs.set('locationIds', params.locationIds.join(','))
+  if (params.visaTypeIds?.length) qs.set('visaTypeIds', params.visaTypeIds.join(','))
+  if (params.isInCountry !== undefined) qs.set('isInCountry', String(params.isInCountry))
+  if (params.branchScopeKinds?.length) qs.set('branchScopeKinds', params.branchScopeKinds.join(','))
+  if (params.complianceFilter) qs.set('complianceFilter', params.complianceFilter)
+}
+
+export async function fetchEmployeeChartSummary(
+  params?: EmployeeChartCohortParams,
+  init?: RequestInit,
+): Promise<EmployeeChartSummary> {
+  const qs = new URLSearchParams()
+  if (params) appendEmployeeListFilterParams(qs, params)
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<EmployeeChartSummary>>(
+    `/employees/chart-summary${q ? `?${q}` : ''}`,
+    { method: 'GET', ...init },
+  )
+  return res.data
+}
+
+export type EmployeeListFacetCount = { id: string; count: number }
+
+export type EmployeeListFacets = {
+  branches: EmployeeListFacetCount[]
+  roles: EmployeeListFacetCount[]
+  jobTitles: EmployeeListFacetCount[]
+  grades: EmployeeListFacetCount[]
+  contractTypes: EmployeeListFacetCount[]
+  visaTypes: EmployeeListFacetCount[]
+  statuses: EmployeeListFacetCount[]
+  cohortTotal: number
+  branchCohortTotal: number
+}
+
+export async function fetchEmployeeListFacets(
+  params?: EmployeeChartCohortParams,
+  init?: RequestInit,
+): Promise<EmployeeListFacets> {
+  const qs = new URLSearchParams()
+  if (params) appendEmployeeListFilterParams(qs, params)
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<EmployeeListFacets>>(
+    `/employees/list-facets${q ? `?${q}` : ''}`,
+    { method: 'GET', ...init },
+  )
   return res.data
 }
 
@@ -179,8 +257,7 @@ export async function listEmployees(params: ListEmployeesParams = {}, init?: Req
   const qs = new URLSearchParams()
   if (params.page != null) qs.set('page', String(params.page))
   if (params.limit != null) qs.set('limit', String(params.limit))
-  if (params.search?.trim()) qs.set('search', params.search.trim())
-  if (params.statusId) qs.set('statusId', params.statusId)
+  appendEmployeeListFilterParams(qs, params)
   if (params.sortBy) qs.set('sortBy', params.sortBy)
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
   const q = qs.toString()
@@ -714,6 +791,7 @@ export type WorkingPatternDay = (typeof WORKING_PATTERN_DAY_ORDER)[number]
 export type WorkingPatternRow = {
   id: string
   employeeId: string
+  weekInCycle: number
   dayOfWeek: string
   startTime: string | null
   endTime: string | null
@@ -721,7 +799,13 @@ export type WorkingPatternRow = {
   notes: string | null
 }
 
+export type WorkingPatternListMeta = {
+  cycleWeeks: number
+  cycleAnchorDate: string | null
+}
+
 export type WorkingPatternUpsertPayload = {
+  weekInCycle?: number
   dayOfWeek: WorkingPatternDay
   startTime?: string
   endTime?: string
@@ -729,11 +813,60 @@ export type WorkingPatternUpsertPayload = {
   notes?: string
 }
 
-export async function listWorkingPatterns(employeeId: string): Promise<WorkingPatternRow[]> {
-  const res = await apiJson<ApiEnvelope<WorkingPatternRow[]>>(`/employees/${employeeId}/working-patterns`, {
-    method: 'GET',
-  })
+export type BulkWorkingPatternWeekPayload = {
+  weekInCycle: number
+  dayOfWeek: WorkingPatternDay
+  startTime?: string
+  endTime?: string
+  isAvailable?: boolean
+  notes?: string
+}
+
+export type BulkReplaceWorkingPatternsPayload = {
+  cycleWeeks?: number
+  cycleAnchorDate?: string
+  weeks: BulkWorkingPatternWeekPayload[]
+  syncAssignments?: boolean
+  respectWorkingPatternOnSync?: boolean
+}
+
+export type EmployeeWorkingPatternVisitSlotImpact = {
+  serviceUserId: string
+  serviceUserName: string
+  slotCode: string
+  slotLabel: string
+  unavailableDayLabels: string[]
+  timeOutsidePattern: boolean
+  summary: string
+}
+
+export type EmployeeWorkingPatternImpactPreview = {
+  visitSlots: EmployeeWorkingPatternVisitSlotImpact[]
+  scheduledVisitsUnassigned?: number
+}
+
+export async function previewEmployeeWorkingPatternImpact(
+  employeeId: string,
+  body: BulkReplaceWorkingPatternsPayload,
+): Promise<EmployeeWorkingPatternImpactPreview> {
+  const res = await apiJson<ApiEnvelope<EmployeeWorkingPatternImpactPreview>>(
+    `/employees/${employeeId}/working-patterns/impact-preview`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
   return res.data
+}
+
+export async function listWorkingPatterns(
+  employeeId: string,
+): Promise<{ rows: WorkingPatternRow[]; meta: WorkingPatternListMeta }> {
+  const res = await apiJson<ApiEnvelope<WorkingPatternRow[]> & { meta?: WorkingPatternListMeta }>(
+    `/employees/${employeeId}/working-patterns`,
+    { method: 'GET' },
+  )
+  return {
+    rows: res.data,
+    meta: res.meta ?? { cycleWeeks: 1, cycleAnchorDate: null },
+  }
 }
 
 export async function createWorkingPattern(
@@ -761,4 +894,15 @@ export async function updateWorkingPattern(
 
 export async function deleteWorkingPattern(employeeId: string, patternId: string): Promise<void> {
   await apiJson(`/employees/${employeeId}/working-patterns/${patternId}`, { method: 'DELETE' })
+}
+
+export async function replaceWorkingPatternsBulk(
+  employeeId: string,
+  body: BulkReplaceWorkingPatternsPayload,
+): Promise<WorkingPatternRow[]> {
+  const res = await apiJson<ApiEnvelope<WorkingPatternRow[]>>(
+    `/employees/${employeeId}/working-patterns/bulk`,
+    { method: 'PUT', body: JSON.stringify(body) },
+  )
+  return res.data
 }

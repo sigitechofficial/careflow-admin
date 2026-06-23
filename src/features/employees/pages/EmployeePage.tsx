@@ -1,8 +1,9 @@
 import * as React from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Users, ShieldCheck, Star, Award, Activity, TrendingUp,
-  PenLine, Plus, X, Filter, FileText, Globe,
+  PenLine, Plus, X, Filter, FileText, Globe, Clock,
+  ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
@@ -18,19 +19,46 @@ import {
   useEmployeeChartSummary,
   useEmployees,
   useEmployeeLookups,
+  useEmployeeListFacets,
 } from '@/features/employees/hooks/useEmployees'
 import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmployeeMutations'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import {
+  labelForVisaType,
+  resolveEmployeeVisaTypes,
+} from '@/features/settings/employee/employee-visa-defaults'
 import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
 import { EmployeeSkillsTab } from '@/features/employees/components/EmployeeSkillsTab'
+import { StaffListBranchesCell } from '@/features/employees/components/StaffListBranchesCell'
+import { StaffListFilters } from '@/features/employees/components/StaffListFilters'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
 import { Badge } from '@/shared/ui/badge'
+import { Button } from '@/shared/ui/button'
 import {
   Tooltip as UiTooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/shared/ui/tooltip'
-import { Button } from '@/shared/ui/button'
+import {
+  describeEmployeeBranchScope,
+  staffListBranchScopeLabel,
+} from '@/features/scheduling/utils/employee-branch-scope.util'
+import {
+  type StaffListSearch,
+  type StaffListSortKey,
+  staffListFiltersToListParams,
+  staffListFiltersToSearch,
+  staffListFiltersToCohortParams,
+  staffListSearchToFilters,
+  staffListSearchToSort,
+  hasStaffListFilters,
+} from '@/features/employees/utils/staff-list-filter.util'
+import { pruneStaffListFiltersToFacets } from '@/features/employees/utils/staff-list-facet.util'
+import {
+  formatStaffListHolidayEnd,
+  isEmployeeEmploymentEnded,
+} from '@/features/employees/utils/employee-availability.util'
 import { Switch } from '@/shared/ui/toggle-controls'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -72,7 +100,6 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
 /* --- Main Component ------------------------------------------- */
 export default function EmployeePage({ activeTab: initialTab = 'staff-list', onTabChange }: EmployeePageProps) {
   const [activeTab, setActiveTab] = React.useState<TabId>(initialTab)
-  const [statusFilter, setStatusFilter] = React.useState('Active')
   const [allEmployee, setAllEmployee] = React.useState(false)
   const [hideNoLonger, setHideNoLonger] = React.useState(true)
   const [complianceSelect, setComplianceSelect] = React.useState('Expired')
@@ -81,7 +108,17 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
     setActiveTab(initialTab)
   }, [initialTab])
 
-  const { data: chartSummary = null, isLoading: chartLoading, error: chartErrorObj } = useEmployeeChartSummary()
+  const routeSearch = useSearch({ strict: false }) as StaffListSearch
+  const { data: lookups = null } = useEmployeeLookups(activeTab === 'staff-list')
+
+  const chartCohortParams = React.useMemo(() => {
+    if (activeTab !== 'staff-list') return undefined
+    const filters = staffListSearchToFilters(routeSearch ?? {})
+    return staffListFiltersToCohortParams(filters, lookups)
+  }, [activeTab, routeSearch, lookups])
+
+  const { data: chartSummary = null, isLoading: chartLoading, error: chartErrorObj } =
+    useEmployeeChartSummary(chartCohortParams)
   const chartError = chartErrorObj
     ? (chartErrorObj instanceof ApiError ? chartErrorObj.message : 'Could not load chart summary.')
     : null
@@ -106,6 +143,14 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
       </div>
 
       {/* -- Top Charts ------------------------------------------- */}
+      {chartSummary?.meta?.scope === 'filtered' ? (
+        <p className="text-xs text-muted-foreground">
+          Charts reflect the same employees as the staff list
+          ({chartSummary.meta.cohortTotal} in cohort).
+        </p>
+      ) : activeTab !== 'staff-list' ? (
+        <p className="text-xs text-muted-foreground">Organisation-wide summary.</p>
+      ) : null}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StaffStatusCard loading={chartLoading} error={chartError} staff={chartSummary?.staff ?? null} />
         <ComplianceCard loading={chartLoading} error={chartError} compliance={chartSummary?.compliance ?? null} />
@@ -148,9 +193,7 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
 
         {/* Content area */}
         <div className="p-5" role="tabpanel" aria-labelledby={`employee-tab-${activeTab}`}>
-          {activeTab === 'staff-list' && (
-            <StaffListTab statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
-          )}
+          {activeTab === 'staff-list' && <StaffListTab />}
           {activeTab === 'compliance' && (
             <ComplianceTab
               allEmployee={allEmployee}
@@ -427,12 +470,6 @@ function staffAvatarColor(id: string) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
 }
 
-function statusIdForFilter(lookups: EmployeeLookupsBundle | null, filter: string): string | undefined {
-  if (filter === 'All' || !lookups) return undefined
-  const want = filter.toLowerCase()
-  return lookups.employeeStatuses.find(s => s.name.toLowerCase() === want)?.id
-}
-
 function activeInactiveLookups(L: EmployeeLookupsBundle | null) {
   if (!L) return { active: undefined, inactive: undefined } as const
   const active = L.employeeStatuses.find(s => s.name.toLowerCase() === 'active')
@@ -455,27 +492,102 @@ function staffStatusToggleable(emp: EmployeeListRow): boolean {
 }
 
 /* --- Staff List Tab ------------------------------------------- */
-function StaffListTab({ statusFilter, setStatusFilter }: {
-  statusFilter: string
-  setStatusFilter: (v: string) => void
-}) {
+const STAFF_LIST_SORTABLE_COLUMNS: Array<{
+  label: string
+  sortKey?: StaffListSortKey
+}> = [
+  { label: 'Picture' },
+  { label: 'Employee Name', sortKey: 'name' },
+  { label: 'Status', sortKey: 'status' },
+  { label: 'Availability' },
+  { label: 'Immigration', sortKey: 'immigration' },
+  { label: 'Branch scope' },
+  { label: 'Branches' },
+  { label: 'Job Title', sortKey: 'jobTitle' },
+  { label: 'Role', sortKey: 'role' },
+  { label: 'Grade', sortKey: 'grade' },
+  { label: 'Employment Type', sortKey: 'contractType' },
+  { label: 'Action' },
+]
+
+function StaffListTab() {
   const navigate = useNavigate()
+  const urlSearch = useSearch({ strict: false }) as StaffListSearch
   const canCreateEmployee = useAuthStore(s => s.can('employees.create'))
   const canUpdateEmployee = useAuthStore(s => s.can('employees.update'))
   const canUpdateEmployeeStatus = useAuthStore(s => s.can('employees.status.update'))
   const patchStatus = usePatchAnyEmployeeStatus()
 
+  const filters = React.useMemo(() => staffListSearchToFilters(urlSearch), [urlSearch])
+  const sort = React.useMemo(() => staffListSearchToSort(urlSearch), [urlSearch])
+  const [searchInput, setSearchInput] = React.useState(filters.search)
+
+  React.useEffect(() => {
+    setSearchInput(filters.search)
+  }, [filters.search])
+
+  const applyFilters = React.useCallback(
+    (next: typeof filters) => {
+      void navigate({
+        to: '/employee/staff-list',
+        search: staffListFiltersToSearch(next),
+        replace: true,
+      })
+    },
+    [navigate],
+  )
+
+  React.useEffect(() => {
+    if (searchInput === filters.search) return
+    const timer = window.setTimeout(() => {
+      applyFilters({ ...filters, search: searchInput })
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, filters.search, filters, applyFilters])
+
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null)
   const [statusUpdateError, setStatusUpdateError] = React.useState<string | null>(null)
 
   const { data: lookups = null, isLoading: lookupsLoading, error: lookupsError } = useEmployeeLookups()
-  const statusId = statusIdForFilter(lookups, statusFilter)
-  const { data: listData, isLoading: listLoading, error: listError } = useEmployees({
-    page: 1,
-    limit: 100,
-    statusId,
-    sortOrder: 'desc',
-  })
+  const { data: generalSettings } = useGeneralSettings()
+  const visaTypes = React.useMemo(
+    () => resolveEmployeeVisaTypes(generalSettings?.employeeVisaTypes),
+    [generalSettings?.employeeVisaTypes],
+  )
+  const resolveImmigrationLabel = React.useCallback(
+    (emp: EmployeeListRow) => {
+      const fromApi = emp.visaTypeLabel?.trim()
+      if (fromApi) return fromApi
+      const label = labelForVisaType(visaTypes, emp.visaTypeId ?? undefined)
+      return label ?? '—'
+    },
+    [visaTypes],
+  )
+  const listParams = React.useMemo(
+    () => staffListFiltersToListParams(filters, lookups, sort),
+    [filters, lookups, sort],
+  )
+  const facetParams = React.useMemo(
+    () => staffListFiltersToCohortParams(filters, lookups),
+    [filters, lookups],
+  )
+  const { data: facets = null } = useEmployeeListFacets(facetParams, Boolean(lookups))
+  const { data: listData, isLoading: listLoading, error: listError } = useEmployees(listParams)
+
+  const locationFilterKey = filters.locationIds.join(',')
+  React.useEffect(() => {
+    if (!facets) return
+    const pruned = pruneStaffListFiltersToFacets(filters, facets)
+    const changed =
+      pruned.roleIds.join(',') !== filters.roleIds.join(',') ||
+      pruned.jobTitleIds.join(',') !== filters.jobTitleIds.join(',') ||
+      pruned.gradeIds.join(',') !== filters.gradeIds.join(',') ||
+      pruned.contractTypeIds.join(',') !== filters.contractTypeIds.join(',') ||
+      pruned.visaTypeIds.join(',') !== filters.visaTypeIds.join(',') ||
+      pruned.statusIds.join(',') !== filters.statusIds.join(',')
+    if (!changed) return
+    applyFilters({ ...filters, ...pruned })
+  }, [facets, locationFilterKey, filters, applyFilters])
 
   const rows: EmployeeListRow[] = listData?.rows ?? []
   const meta = { total: listData?.meta.total ?? 0 }
@@ -485,6 +597,24 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
     : listError
       ? (listError instanceof ApiError ? listError.message : 'Could not load employees.')
       : null
+  const filtersActive = hasStaffListFilters(filters)
+
+  const handleSort = React.useCallback(
+    (sortKey: StaffListSortKey) => {
+      const nextOrder =
+        sort.sortBy === sortKey && sort.sortOrder === 'asc' ? 'desc' : 'asc'
+      void navigate({
+        to: '/employee/staff-list',
+        search: {
+          ...staffListFiltersToSearch(filters),
+          sortBy: sortKey,
+          sortOrder: nextOrder,
+        },
+        replace: true,
+      })
+    },
+    [navigate, filters, sort.sortBy, sort.sortOrder],
+  )
 
   const handleStatusToggle = React.useCallback(
     async (emp: EmployeeListRow, checked: boolean) => {
@@ -509,10 +639,19 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
 
   const { active: activeStatusLookup, inactive: inactiveStatusLookup } = activeInactiveLookups(lookups)
   const showStatusSwitch = Boolean(canUpdateEmployeeStatus && activeStatusLookup && inactiveStatusLookup)
+  const locationNames = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const location of lookups?.locations ?? []) {
+      map.set(location.id, location.name)
+    }
+    return map
+  }, [lookups?.locations])
+
+  const tableColumnCount = 12
 
   return (
     <div data-testid="employee-staff-list-panel">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-sm">Employee Management</span>
           {canCreateEmployee ? (
@@ -528,21 +667,18 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
             </button>
           ) : null}
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor="employee-status-filter" className="text-sm text-muted-foreground">
-            Status
-          </label>
-          <select
-            id="employee-status-filter"
-            data-testid="employee-status-filter"
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="border border-border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {['Active', 'Inactive', 'All'].map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
       </div>
+
+      <StaffListFilters
+        lookups={lookups}
+        visaTypes={visaTypes}
+        facets={facets}
+        filters={filters}
+        onFiltersChange={applyFilters}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        disabled={loading}
+      />
 
       {error ? (
         <p className="mb-3 text-sm text-amber-800 dark:text-amber-200">{error}</p>
@@ -553,6 +689,7 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
       {!loading && !error ? (
         <p className="mb-3 text-xs text-muted-foreground">
           Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
+          {filtersActive ? ' Filters applied.' : ''}
         </p>
       ) : null}
 
@@ -560,22 +697,32 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
         <table className="w-full text-sm" data-testid="employee-staff-table">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              {[
-                { label: 'Picture',         filter: false },
-                { label: 'Employee Name',   filter: true },
-                { label: 'Status',          filter: false },
-                { label: 'Immigration',     filter: false },
-                { label: 'Job Title',       filter: true },
-                { label: 'Role',            filter: false },
-                { label: 'Grade',           filter: false },
-                { label: 'Employment Type', filter: true },
-                { label: 'Action',          filter: false },
-              ].map(col => (
-                <th key={col.label} className="text-left px-3 py-2.5 font-medium text-muted-foreground whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    {col.filter && <Filter className="h-3 w-3 opacity-60" />}
-                  </div>
+              {STAFF_LIST_SORTABLE_COLUMNS.map((col) => (
+                <th
+                  key={col.label}
+                  className="text-left px-3 py-2.5 font-medium text-muted-foreground whitespace-nowrap"
+                >
+                  {col.sortKey ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col.sortKey!)}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                      aria-label={`Sort by ${col.label}`}
+                    >
+                      <span>{col.label}</span>
+                      {sort.sortBy === col.sortKey ? (
+                        sort.sortOrder === 'asc' ? (
+                          <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        )
+                      ) : (
+                        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                      )}
+                    </button>
+                  ) : (
+                    col.label
+                  )}
                 </th>
               ))}
             </tr>
@@ -583,14 +730,18 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
           <tbody>
             {loading ? (
               <tr data-testid="employee-staff-loading">
-                <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
+                <td colSpan={tableColumnCount} className="px-3 py-10 text-center text-muted-foreground">
                   Loading?
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr data-testid="employee-staff-empty">
-                <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
-                  {error ? 'Could not load employees.' : 'No employees match this filter.'}
+                <td colSpan={tableColumnCount} className="px-3 py-10 text-center text-muted-foreground">
+                  {error
+                    ? 'Could not load employees.'
+                    : filtersActive
+                      ? 'No employees match these filters.'
+                      : 'No employees match this filter.'}
                 </td>
               </tr>
             ) : (
@@ -609,6 +760,9 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                       onCheckedChange={checked => void handleStatusToggle(emp, checked)}
                     />
                   ) : null
+                const branchScope = describeEmployeeBranchScope(emp, locationNames)
+                const employmentEnded = isEmployeeEmploymentEnded(emp)
+                const holidayEndLabel = formatStaffListHolidayEnd(emp.holidayEndDate)
                 return (
                   <tr
                     key={emp.id}
@@ -663,8 +817,33 @@ function StaffListTab({ statusFilter, setStatusFilter }: {
                         {rowStatusSwitch}
                       </div>
                     </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-col gap-1">
+                        {emp.onHolidayToday ? (
+                          <Badge variant="warning" size="sm" className="gap-1">
+                            <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                            On leave
+                            {holidayEndLabel ? ` until ${holidayEndLabel}` : ''}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Available</span>
+                        )}
+                        {employmentEnded ? (
+                          <Badge variant="secondary" size="sm" title={emp.leavingReason?.name ?? undefined}>
+                            Left
+                            {emp.leavingReason?.name ? ` · ${emp.leavingReason.name}` : ''}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                      {emp.visaTypeLabel ?? '?'}
+                      {resolveImmigrationLabel(emp)}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
+                      {staffListBranchScopeLabel(branchScope)}
+                    </td>
+                    <td className="px-3 py-3 align-top text-muted-foreground">
+                      <StaffListBranchesCell scope={branchScope} />
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? '?'}</td>
                     <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? '?'}</td>

@@ -17,6 +17,84 @@ export type VisitPlanSlotCarerRole = 'LEAD' | 'SECONDARY'
 
 export type VisitPlanSlotExceptionType = 'SKIP' | 'EXTRA'
 
+export type ScheduleImpactSummary = {
+  jobsCancelled?: number
+  jobsUnallocated?: number
+  jobsRescheduled?: number
+  jobIds?: string[]
+  truncated?: boolean
+}
+
+export type AmendmentImpactAction = {
+  type: string
+  visitPlanSlotId: string
+  slotLabel: string
+  removedWeekdays?: number[]
+  newStartTime?: string
+  newEndTime?: string
+  exceptionDate?: string
+  jobCount?: number
+}
+
+export type AmendmentImpactPreview = {
+  actions: AmendmentImpactAction[]
+  scheduleImpact: ScheduleImpactSummary
+  truncated: boolean
+}
+
+export type VisitPlanCarerPatternConflict = {
+  employeeId: string
+  employeeName: string
+  slotCode: string
+  slotLabel: string
+  unavailableDayLabels: string[]
+  timeOutsidePattern: boolean
+  summary: string
+}
+
+export type VisitPlanCarerSyncPatternPreview = {
+  conflicts: VisitPlanCarerPatternConflict[]
+  visitsSkippedIfRespecting: number
+}
+
+export type GenerateSchedulePreview = {
+  visitsToCreate: number
+  visitsSkippedAbsent: number
+  visitsSkippedSkip: number
+  visitsSkippedBankHoliday: number
+  visitsAlreadyExist: number
+  backfillDays: number
+  truncated: boolean
+}
+
+export type ActivateImpactPreview = {
+  otherActivePlans: Array<{
+    id: string
+    effectiveFrom: string
+    effectiveTo: string | null
+    enabledSlotCount: number
+  }>
+  scheduleImpact: ScheduleImpactSummary
+}
+
+export type ReturnImpactPreview = {
+  planSuspended: boolean
+  planId?: string
+  noActivePlan?: boolean
+  returnDate?: string
+  generatePreview: GenerateSchedulePreview | null
+}
+
+export type SuspensionReviewOverdueRow = {
+  planId: string
+  serviceUserId: string
+  serviceUserName: string
+  suspendedAt: string | null
+  suspensionReviewDueAt: string | null
+  expectedResumeAt: string | null
+  pauseReason: { id: string; name: string; code: string } | null
+}
+
 export type VisitPlanSlotCarerAssignment = {
   id?: string
   dayOfWeek: number | null
@@ -91,6 +169,8 @@ export type VisitPlanCarerCandidate = {
   availability: {
     availableDays: number[]
     unavailableDays: number[]
+    timeMismatchDays?: number[]
+    timeMismatchMessages?: string[]
     timeWindowOk: boolean
     summary: string
   }
@@ -117,6 +197,30 @@ export type VisitPlanAmendment = {
   amendedById: string | null
 }
 
+export type VisitPlanPauseReason = {
+  id: string
+  name: string
+  code: string
+  suggestsUseAbsence?: boolean
+}
+
+export type VisitPlanStatusEvent = {
+  id: string
+  eventType: 'SUSPENDED' | 'REACTIVATED' | 'ENDED' | 'SCHEDULED_END'
+  reason: string
+  pauseReasonCatalogId: string | null
+  pauseReasonCatalog: { id: string; name: string; code: string } | null
+  expectedResumeAt: string | null
+  reviewDueAt: string | null
+  contingencyNotes: string
+  cancelFutureVisits: boolean | null
+  effectiveFrom: string | null
+  effectiveTo: string | null
+  retrospectiveReason: string
+  createdAt: string
+  createdById: string | null
+}
+
 export type ServiceUserVisitPlan = {
   id: string
   serviceUserId: string
@@ -130,10 +234,19 @@ export type ServiceUserVisitPlan = {
   notes: string
   approvedAt: string | null
   approvedById: string | null
+  suspendedAt: string | null
+  suspendedById: string | null
+  pauseReasonCatalogId: string | null
+  pauseReasonCatalog: VisitPlanPauseReason | null
+  expectedResumeAt: string | null
+  suspensionReviewDueAt: string | null
+  suspensionContingencyNotes: string
+  respectWorkingPatternOnSync: boolean
   createdAt: string
   updatedAt: string
   slots: VisitPlanSlot[]
   amendments: VisitPlanAmendment[]
+  statusEvents: VisitPlanStatusEvent[]
 }
 
 export const VISIT_PLAN_DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const

@@ -1,4 +1,4 @@
-﻿import * as React from "react"
+import * as React from "react"
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { cn } from "@/shared/lib/utils"
@@ -121,18 +121,18 @@ export function Combobox({
                     setSearch("")
                   }}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
+                    "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors",
                     "hover:bg-accent hover:text-accent-foreground",
                     "disabled:cursor-not-allowed disabled:opacity-50",
                     opt.value === value && "bg-accent/50"
                   )}
                 >
-                  <Check className={cn("h-4 w-4 shrink-0", opt.value === value ? "opacity-100 text-primary" : "opacity-0")} />
                   {opt.icon && <span className="shrink-0 text-muted-foreground">{opt.icon}</span>}
-                  <span className="flex flex-col items-start">
+                  <span className="flex min-w-0 flex-1 flex-col items-start text-left">
                     <span>{opt.label}</span>
                     {opt.description && <span className="text-xs text-muted-foreground">{opt.description}</span>}
                   </span>
+                  <Check className={cn("h-4 w-4 shrink-0 text-primary", opt.value === value ? "opacity-100" : "opacity-0")} />
                 </button>
               ))
             )}

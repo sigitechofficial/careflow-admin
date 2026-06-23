@@ -1,8 +1,7 @@
 import type { EmployeeListRow } from '@/features/employees/api/employees.api'
 import type { EmployeeBrief, EmployeeDayRow, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 
-function employeeBriefFromListRow(row: EmployeeListRow): EmployeeBrief {
-  return {
+function employeeBriefFromListRow(row: EmployeeListRow): EmployeeBrief {  return {
     id: row.id,
     firstName: row.firstName ?? undefined,
     lastName: row.lastName ?? undefined,
@@ -41,13 +40,27 @@ export function mergeScheduleJobsEmployeeRoster(
   for (const job of jobs) {
     for (const allocation of job.allocations ?? []) {
       const employee = allocation.employee
-      if (!employee?.id || byId.has(employee.id)) continue
-      byId.set(employee.id, {
-        employee: employeeBriefFromAllocation(employee),
-        allocations: [],
-        totalMinutes: 0,
-        dayPattern: null,
-      })
+      if (!employee?.id) continue
+
+      let row = byId.get(employee.id)
+      if (!row) {
+        row = {
+          employee: employeeBriefFromAllocation(employee),
+          allocations: [],
+          totalMinutes: 0,
+          dayPattern: null,
+        }
+        byId.set(employee.id, row)
+      }
+
+      if (!row.allocations.some((entry) => entry.job.id === job.id)) {
+        row.allocations.push({
+          id: allocation.id,
+          status: allocation.status,
+          job,
+        })
+        row.totalMinutes += job.durationMinutes ?? 0
+      }
     }
   }
 

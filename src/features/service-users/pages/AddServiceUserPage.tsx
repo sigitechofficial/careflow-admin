@@ -28,6 +28,7 @@ import { useEmployeeLookups, useEmployees } from '@/features/employees/hooks/use
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useCreateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import { patchServiceUserDomCare } from '@/features/service-users/api/service-users.api'
+import { ServiceUserZoneBranchSelect } from '@/features/service-users/components/ServiceUserZoneBranchSelect'
 import {
   emptyCarerPreferences,
   ServiceUserCarerPreferencesSection,
@@ -193,7 +194,6 @@ export default function AddServiceUserPage() {
   const suLookupsQuery = useServiceUserLookups()
   const empLookupsQuery = useEmployeeLookups()
   const lookups: ServiceUserLookupsBundle | null = suLookupsQuery.data ?? null
-  const locations: LookupRow[] = empLookupsQuery.data?.locations ?? []
   const loadError =
     suLookupsQuery.error instanceof ApiError
       ? suLookupsQuery.error.message
@@ -452,24 +452,13 @@ export default function AddServiceUserPage() {
             <FieldLabel>Service user number</FieldLabel>
             <Input value={form.serviceUserNumber} onChange={(e) => set('serviceUserNumber')(e.target.value)} />
           </div>
-          <div>
-            <FieldLabel>Location</FieldLabel>
-            <Select
-              value={form.locationId ? form.locationId : '__none__'}
-              onValueChange={(v) => set('locationId')(v === '__none__' ? '' : v)}
-            >
-              <SelectTrigger data-testid="service-user-locationId-select">
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— None —</SelectItem>
-                {locations.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="md:col-span-2">
+            <FieldLabel>Zone & branch</FieldLabel>
+            <ServiceUserZoneBranchSelect
+              value={form.locationId}
+              onChange={set('locationId')}
+              className="mt-1.5"
+            />
           </div>
           <div>
             <FieldLabel>Service start</FieldLabel>

@@ -4,11 +4,25 @@ import type { ScheduleJobsBoard } from '@/features/scheduling/utils/schedule-job
 /** URL / filter value for required carers on the rota board. */
 export type ScheduleJobsRequiredCarersFilter = 'all' | '1' | '2' | '3plus'
 
+export type ScheduleJobsRequiredCarersFilterValue = '1' | '2' | '3plus'
+
 export function parseScheduleJobsRequiredCarersFilter(
   value: string | undefined,
 ): ScheduleJobsRequiredCarersFilter {
   if (value === '1' || value === '2' || value === '3plus') return value
   return 'all'
+}
+
+export function parseScheduleJobsRequiredCarersFilters(
+  value: string | undefined,
+): ScheduleJobsRequiredCarersFilterValue[] {
+  if (!value?.trim()) return []
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part): part is ScheduleJobsRequiredCarersFilterValue =>
+      part === '1' || part === '2' || part === '3plus',
+    )
 }
 
 export function scheduleJobsRequiredCarersFilterLabel(
@@ -26,6 +40,13 @@ export function scheduleJobsRequiredCarersFilterLabel(
   }
 }
 
+export function scheduleJobsRequiredCarersFiltersLabel(
+  filters: ScheduleJobsRequiredCarersFilterValue[],
+): string {
+  if (!filters.length) return 'All visits'
+  return filters.map((filter) => scheduleJobsRequiredCarersFilterLabel(filter)).join(', ')
+}
+
 export function timelineJobMatchesRequiredCarersFilter(
   job: TimelineJob,
   filter: ScheduleJobsRequiredCarersFilter,
@@ -34,6 +55,14 @@ export function timelineJobMatchesRequiredCarersFilter(
   if (filter === '1') return job.requiredCarers === 1
   if (filter === '2') return job.requiredCarers === 2
   return job.requiredCarers >= 3
+}
+
+export function timelineJobMatchesRequiredCarersFilters(
+  job: TimelineJob,
+  filters: ScheduleJobsRequiredCarersFilterValue[],
+): boolean {
+  if (!filters.length) return true
+  return filters.some((filter) => timelineJobMatchesRequiredCarersFilter(job, filter))
 }
 
 export function countScheduleJobsByRequiredCarers(jobs: TimelineJob[]) {
@@ -57,8 +86,11 @@ export function buildScheduleJobsRequiredCarersOptions(
   counts: ReturnType<typeof countScheduleJobsByRequiredCarers>,
 ) {
   return [
-    { value: '', label: 'All visits', description: `${counts.all} on board` },
-    { value: '1', label: 'Single carer', description: `${counts['1']} visit${counts['1'] === 1 ? '' : 's'}` },
+    {
+      value: '1',
+      label: 'Single carer',
+      description: `${counts['1']} visit${counts['1'] === 1 ? '' : 's'}`,
+    },
     {
       value: '2',
       label: 'Double up (2 carers)',
@@ -74,11 +106,11 @@ export function buildScheduleJobsRequiredCarersOptions(
 
 export function applyScheduleJobsRequiredCarersFilter(
   board: ScheduleJobsBoard,
-  filter: ScheduleJobsRequiredCarersFilter,
+  filters: ScheduleJobsRequiredCarersFilterValue[],
 ): ScheduleJobsBoard {
-  if (filter === 'all') return board
+  if (!filters.length) return board
 
-  const visible = (job: TimelineJob) => timelineJobMatchesRequiredCarersFilter(job, filter)
+  const visible = (job: TimelineJob) => timelineJobMatchesRequiredCarersFilters(job, filters)
 
   const employeeRows = board.employeeRows.map((row) => ({
     ...row,
@@ -86,8 +118,9 @@ export function applyScheduleJobsRequiredCarersFilter(
   }))
 
   const unassignedJobs = board.unassignedJobs.filter(visible)
+  const cancelledJobs = board.cancelledJobs.filter(visible)
   const allJobs = board.allJobs.filter(visible)
   const carers = employeeRows.filter((row) => row.allocations.length > 0)
 
-  return { employeeRows, carers, unassignedJobs, allJobs }
+  return { employeeRows, carers, unassignedJobs, cancelledJobs, allJobs }
 }

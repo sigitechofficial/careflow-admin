@@ -3,6 +3,7 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 export type ScheduleJobContextAction =
   | 'open-visit-workspace'
   | 'open-run'
+  | 'reassign-run'
   | 'unallocate-job'
   | 'complete-job'
   | 'cancel-job'
@@ -26,6 +27,10 @@ export function isScheduleJobCompleted(job: Pick<TimelineJob, 'status'>): boolea
 
 export function isScheduleJobReinstatable(job: Pick<TimelineJob, 'status'>): boolean {
   return job.status === 'CANCELLED' || job.status === 'CALLED_OFF'
+}
+
+export function isScheduleJobCancelled(job: Pick<TimelineJob, 'status'>): boolean {
+  return isScheduleJobReinstatable(job)
 }
 
 /** Completed, cancelled, and called-off jobs cannot be edited on the rota board (until reinstated). */

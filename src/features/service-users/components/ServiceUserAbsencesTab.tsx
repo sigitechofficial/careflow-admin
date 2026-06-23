@@ -3,6 +3,11 @@ import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import { previewServiceUserAbsenceScheduleImpact } from '@/features/service-users/api/service-users.api'
+import { VisitPlanConfirmGate } from '@/features/service-users/visit-plan/components/VisitPlanConfirmGate'
+import { visitPlanTodayUtc } from '@/features/service-users/visit-plan/visit-plan-version.util'
+import { previewAbsenceReturnImpact, generateScheduleFromVisitPlan } from '@/features/service-users/visit-plan/api'
+import { resolveGenerateRotaToDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import type { ReturnImpactPreview } from '@/features/service-users/visit-plan/types'
 import type {
   ServiceUserAbsenceRow,
   ServiceUserAbsenceType,
@@ -66,6 +71,11 @@ type FormState = {
   notes: string
   contactInformation: string
   applyToSchedule: boolean
+  retrospectiveReason: string
+}
+
+function todayIso(): string {
+  return visitPlanTodayUtc().toISOString().slice(0, 10)
 }
 
 function emptyForm(): FormState {
@@ -79,6 +89,7 @@ function emptyForm(): FormState {
     notes: '',
     contactInformation: '',
     applyToSchedule: true,
+    retrospectiveReason: '',
   }
 }
 
@@ -93,6 +104,7 @@ function rowToForm(row: ServiceUserAbsenceRow): FormState {
     notes: row.notes ?? '',
     contactInformation: row.contactInformation ?? '',
     applyToSchedule: true,
+    retrospectiveReason: row.retrospectiveReason ?? '',
   }
 }
 
@@ -131,6 +143,11 @@ export function ServiceUserAbsencesTab({
   const [deleteId, setDeleteId] = React.useState<string | null>(null)
   const [impactPreview, setImpactPreview] = React.useState<number | null>(null)
   const [impactPreviewLoading, setImpactPreviewLoading] = React.useState(false)
+  const [confirmRecordOnlyOpen, setConfirmRecordOnlyOpen] = React.useState(false)
+  const [returnGenerateOpen, setReturnGenerateOpen] = React.useState(false)
+  const [returnPreview, setReturnPreview] = React.useState<ReturnImpactPreview | null>(null)
+  const [pendingReturnDate, setPendingReturnDate] = React.useState('')
+  const [returnGeneratePending, setReturnGeneratePending] = React.useState(false)
 
   React.useEffect(() => {
     if (!dialogOpen || !form.applyToSchedule || !form.startDate.trim()) {
@@ -173,18 +190,8 @@ export function ServiceUserAbsencesTab({
     setDialogOpen(true)
   }
 
-  async function saveForm() {
-    if (!form.startDate.trim()) {
-      setFormError('Absence start date is required.')
-      toastError('Cannot save absence', 'Absence start date is required.')
-      return
-    }
-    if (!form.absenceReasonCatalogId) {
-      setFormError('Please select a reason for absence.')
-      toastError('Cannot save absence', 'Please select a reason for absence.')
-      return
-    }
-    setFormError(null)
+  async function commitSave() {
+    const backdated = form.startDate.trim() < todayIso()
     try {
       const body = {
         startDate: form.startDate.trim(),
@@ -196,6 +203,7 @@ export function ServiceUserAbsencesTab({
         notes: form.notes.trim(),
         contactInformation: form.contactInformation.trim(),
         applyToSchedule: form.applyToSchedule,
+        ...(backdated ? { retrospectiveReason: form.retrospectiveReason.trim() } : {}),
       }
       if (editingId) {
         const result = await updateMutation.mutateAsync({ absenceId: editingId, body })
@@ -209,6 +217,22 @@ export function ServiceUserAbsencesTab({
           'Absence updated',
           parts.length ? parts.join('; ') + '.' : 'Absences have been saved.',
         )
+        if (form.endDate.trim()) {
+          try {
+            const preview = await previewAbsenceReturnImpact(serviceUserId, editingId, {
+              returnDate: form.endDate.trim(),
+            })
+            if (preview.planSuspended) {
+              toastSuccess('Package still suspended', 'Re-activate the visit plan before generating rota.')
+            } else if (preview.generatePreview) {
+              setReturnPreview(preview)
+              setPendingReturnDate(form.endDate.trim())
+              setReturnGenerateOpen(true)
+            }
+          } catch {
+            /* optional follow-up */
+          }
+        }
       } else {
         const result = await createMutation.mutateAsync(body)
         setDialogOpen(false)
@@ -226,6 +250,31 @@ export function ServiceUserAbsencesTab({
       setFormError(e instanceof ApiError ? e.message : 'Save failed')
       toastApiError(e, 'Save failed')
     }
+  }
+
+  async function saveForm() {
+    if (!form.startDate.trim()) {
+      setFormError('Absence start date is required.')
+      toastError('Cannot save absence', 'Absence start date is required.')
+      return
+    }
+    if (!form.absenceReasonCatalogId) {
+      setFormError('Please select a reason for absence.')
+      toastError('Cannot save absence', 'Please select a reason for absence.')
+      return
+    }
+    const backdated = form.startDate.trim() < todayIso()
+    if (backdated && !form.retrospectiveReason.trim()) {
+      setFormError('Retrospective reason is required when the start date is in the past.')
+      toastError('Cannot save absence', 'Explain why this absence is being recorded retrospectively.')
+      return
+    }
+    setFormError(null)
+    if (!form.applyToSchedule) {
+      setConfirmRecordOnlyOpen(true)
+      return
+    }
+    await commitSave()
   }
 
   async function confirmDelete() {
@@ -342,6 +391,19 @@ export function ServiceUserAbsencesTab({
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Absence End Date</label>
                   <Input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
                 </div>
+                {form.startDate.trim() && form.startDate.trim() < todayIso() ? (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Retrospective correction <span className="text-destructive">*</span>
+                    </label>
+                    <textarea
+                      className="min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={form.retrospectiveReason}
+                      onChange={(e) => setForm((f) => ({ ...f, retrospectiveReason: e.target.value }))}
+                      placeholder="Why is this being recorded now? Welfare checks for the gap period…"
+                    />
+                  </div>
+                ) : null}
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">
                     Absence Type <span className="text-destructive">*</span>
@@ -481,6 +543,55 @@ export function ServiceUserAbsencesTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <VisitPlanConfirmGate
+        open={confirmRecordOnlyOpen}
+        onOpenChange={setConfirmRecordOnlyOpen}
+        title="Record absence only?"
+        description="The rota will not change — visits may still show as due on the scheduling board."
+        requireAcknowledge
+        acknowledgeLabel="I understand visits may still show as due on the rota"
+        confirmLabel="Record absence only"
+        isPending={formSaving}
+        onConfirm={async () => {
+          setConfirmRecordOnlyOpen(false)
+          await commitSave()
+        }}
+      />
+
+      <VisitPlanConfirmGate
+        open={returnGenerateOpen}
+        onOpenChange={setReturnGenerateOpen}
+        title="Generate rota from return date?"
+        description={
+          returnPreview?.generatePreview
+            ? `Would create ${returnPreview.generatePreview.visitsToCreate} visit(s) from ${pendingReturnDate}.`
+            : `Generate visits from ${pendingReturnDate}?`
+        }
+        confirmLabel="Generate 14 days"
+        cancelLabel="Later"
+        isPending={returnGeneratePending}
+        onConfirm={async () => {
+          if (!returnPreview?.planId || !pendingReturnDate) return
+          setReturnGeneratePending(true)
+          try {
+            const toDate = resolveGenerateRotaToDate(pendingReturnDate, '')
+            const result = await generateScheduleFromVisitPlan(serviceUserId, returnPreview.planId, {
+              fromDate: pendingReturnDate,
+              toDate,
+            })
+            setReturnGenerateOpen(false)
+            toastSuccess(
+              'Rota generated',
+              `${result.visitsCreated} visit${result.visitsCreated === 1 ? '' : 's'} created.`,
+            )
+          } catch (e) {
+            toastApiError(e, 'Could not generate rota')
+          } finally {
+            setReturnGeneratePending(false)
+          }
+        }}
+      />
     </section>
   )
 }

@@ -21,6 +21,7 @@ import {
   formatScheduleJobsDateLabel,
   jobBlockTone,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { formatServiceUserBranchLabel } from '@/features/settings/location-management/format-service-user-branch-label'
 import {
   activeJobAllocationCount,
   employeesLabel,
@@ -49,6 +50,7 @@ const HOVER_COLLISION_PADDING = { top: 64, bottom: 48, left: 24, right: 24 } as 
 
 const TONE_HEADER: Record<ReturnType<typeof jobBlockTone>, string> = {
   completed: 'Visit completed',
+  cancelled: 'Visit cancelled',
   green: 'Appointment',
   orange: 'Possibly Available',
   red: 'Not Available',
@@ -57,6 +59,7 @@ const TONE_HEADER: Record<ReturnType<typeof jobBlockTone>, string> = {
 
 const TONE_HEADER_CLASS: Record<ReturnType<typeof jobBlockTone>, string> = {
   completed: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800',
+  cancelled: 'bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-900/50 dark:text-slate-100 dark:border-slate-700',
   green: 'text-[#2d7a32]',
   orange: 'text-[#c47a1a]',
   red: 'text-red-600',
@@ -178,7 +181,7 @@ export function JobHoverPanel({
     ? [leadAllocation.employee.firstName, leadAllocation.employee.lastName].filter(Boolean).join(' ')
     : null
   const region = job.scheduleArea?.name
-  const serviceUserLocation = job.serviceUser.location?.name
+  const serviceUserBranch = formatServiceUserBranchLabel(job.serviceUser)
   const runName = job.scheduleRun?.name
   const startDateLabel =
     formatScheduleJobsDateLabel(date).split(',').slice(1).join(',').trim() || date
@@ -241,7 +244,9 @@ export function JobHoverPanel({
     },
     { label: 'Duration', value: formatDurationLabel(rota.durationMinutes) },
     { label: 'Date', value: startDateLabel },
-    ...(serviceUserLocation ? [{ label: 'Location', value: serviceUserLocation }] : []),
+    ...(serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned'
+      ? [{ label: 'Branch', value: serviceUserBranch }]
+      : []),
     {
       label: 'Allocated',
       value: `${allocated} / ${job.requiredCarers}`,
@@ -301,8 +306,8 @@ export function JobHoverPanel({
           <p className="text-base font-semibold leading-snug text-foreground">
             {serviceUserLabel(job.serviceUser)}
           </p>
-          {serviceUserLocation ? (
-            <p className="text-sm text-muted-foreground">{serviceUserLocation}</p>
+          {serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned' ? (
+            <p className="text-sm text-muted-foreground">{serviceUserBranch}</p>
           ) : null}
           <div className="grid gap-x-6 sm:grid-cols-2">
             <DetailRow label="Job" value={job.jobName} compact />

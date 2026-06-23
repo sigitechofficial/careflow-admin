@@ -1,12 +1,24 @@
-import { User } from 'lucide-react'
+import { User, AlertTriangle } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
-import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import type {
+  ServiceUserVisitPlan,
+  VisitPlanCarerCandidate,
+  VisitPlanSlot,
+} from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
+import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
+import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
+import {
+  carerAssignmentCoversSlotDays,
+  formatCarerAvailabilityWarning,
+} from '@/features/service-users/visit-plan/visit-plan-carer-availability-warning.util'
+import { useVisitPlanSlotCarerSuggestions } from '@/features/service-users/visit-plan/useVisitPlanSlotCarerSuggestions'
 import {
   formatAnalysisArea,
   formatMonthlyDays,
@@ -20,26 +32,88 @@ function AssignedCarerBadges({
   employeeIds,
   employeeNameById,
   emptyLabel = 'No carers assigned',
+  slot,
+  carerCandidatesByEmployeeId,
 }: {
   employeeIds: string[]
   employeeNameById: Map<string, string>
   emptyLabel?: string
+  slot?: VisitPlanSlot
+  carerCandidatesByEmployeeId?: Map<string, VisitPlanCarerCandidate>
 }) {
   if (employeeIds.length === 0) {
     return <span className="text-xs text-muted-foreground">{emptyLabel}</span>
   }
+
+  const coveredDays = slot ? carerAssignmentCoversSlotDays(null, slot.daysOfWeek) : []
+
   return (
-    <ul className="flex flex-wrap gap-1.5">
-      {employeeIds.map((id) => (
-        <li
-          key={id}
-          className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
-        >
-          <User className="h-3 w-3 shrink-0" aria-hidden />
-          {resolveEmployeeDisplayName(employeeNameById, id)}
-        </li>
-      ))}
+    <ul className="space-y-2">
+      {employeeIds.map((id) => {
+        const availabilityWarning =
+          slot && carerCandidatesByEmployeeId
+            ? formatCarerAvailabilityWarning(carerCandidatesByEmployeeId.get(id), coveredDays)
+            : null
+
+        return (
+          <li key={id}>
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+            >
+              <User className="h-3 w-3 shrink-0" aria-hidden />
+              {resolveEmployeeDisplayName(employeeNameById, id)}
+            </span>
+            {availabilityWarning ? (
+              <p
+                className="mt-1 flex items-start gap-1 text-[10px] font-medium text-amber-800 dark:text-amber-200 sm:text-[11px]"
+                role="status"
+              >
+                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                <span>{availabilityWarning}</span>
+              </p>
+            ) : null}
+          </li>
+        )
+      })}
     </ul>
+  )
+}
+
+function SlotAssignedCarersDisplay({
+  slot,
+  employeeNameById,
+  dense = false,
+  emptyLabel = 'No carers assigned',
+  carerCandidatesByEmployeeId,
+}: {
+  slot: VisitPlanSlot
+  employeeNameById: Map<string, string>
+  dense?: boolean
+  emptyLabel?: string
+  carerCandidatesByEmployeeId?: Map<string, VisitPlanCarerCandidate>
+}) {
+  const hasCarerByDay = slotHasCarerByDayAssignments(slot)
+
+  if (hasCarerByDay) {
+    return (
+      <VisitPlanSlotCarerByDaySummaryList
+        slot={slot}
+        employeeNameById={employeeNameById}
+        variant="sky"
+        dense={dense}
+        carerCandidatesByEmployeeId={carerCandidatesByEmployeeId}
+      />
+    )
+  }
+
+  return (
+    <AssignedCarerBadges
+      employeeIds={slotAssignedEmployeeIds(slot)}
+      employeeNameById={employeeNameById}
+      emptyLabel={emptyLabel}
+      slot={slot}
+      carerCandidatesByEmployeeId={carerCandidatesByEmployeeId}
+    />
   )
 }
 
@@ -47,10 +121,12 @@ function CallPatternOverviewCard({
   slot,
   acceptedCarePlans,
   employeeNameById,
+  carerCandidatesByEmployeeId,
 }: {
   slot: VisitPlanSlot
   acceptedCarePlans: AcceptedCarePlanItem[]
   employeeNameById: Map<string, string>
+  carerCandidatesByEmployeeId?: Map<string, VisitPlanCarerCandidate>
 }) {
   const linkedCarePlans = resolveCarePlansForSlot(slot, acceptedCarePlans)
   const start = normalizeTimeForInput(slot.plannedStartTime)
@@ -89,7 +165,11 @@ function CallPatternOverviewCard({
 
       {slot.isEnabled ? (
         <>
-          <div className="mt-3 flex flex-wrap gap-1">
+          <div className="mt-3">
+            <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Visit runs on
+            </p>
+            <div className="flex flex-wrap gap-1">
             {VISIT_PLAN_DAY_LABELS.map((day, dayIndex) => (
               <span
                 key={day}
@@ -106,13 +186,18 @@ function CallPatternOverviewCard({
                 {day.slice(0, 3)}
               </span>
             ))}
+            </div>
           </div>
 
           <div className="mt-4">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Assigned carers</p>
-            <AssignedCarerBadges
-              employeeIds={slot.assignedEmployeeIds ?? []}
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+              {slotHasCarerByDayAssignments(slot) ? 'Carers by day' : 'Assigned carers'}
+            </p>
+            <SlotAssignedCarersDisplay
+              slot={slot}
               employeeNameById={employeeNameById}
+              dense
+              carerCandidatesByEmployeeId={carerCandidatesByEmployeeId}
             />
           </div>
 
@@ -131,6 +216,55 @@ function CallPatternOverviewCard({
                 ))}
               </ul>
             </div>
+          ) : null}
+
+          <dl className="mt-4 grid gap-2 border-t border-border/60 pt-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-muted-foreground">Frequency</dt>
+              <dd>{formatVisitPlanFrequency(slot)}</dd>
+            </div>
+            {slot.scheduleFrequency === 'MONTHLY' ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">Days of month</dt>
+                <dd>{formatMonthlyDays(slot)}</dd>
+              </div>
+            ) : slot.scheduleFrequency !== 'DAILY' ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">Weekdays</dt>
+                <dd>{formatWeekdays(slot)}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt className="text-xs text-muted-foreground">Time critical</dt>
+              <dd>
+                {formatYesNo(slot.timeCritical)}
+                {slot.timeCritical ? ` (${slot.timeToleranceMinutes} min tolerance)` : ''}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Duration</dt>
+              <dd>{slot.durationMinutes ? `${slot.durationMinutes} min` : '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Notes mandatory</dt>
+              <dd>{formatYesNo(slot.notesRequired)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Photos allowed</dt>
+              <dd>{formatYesNo(slot.photoAllowed)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Share with family</dt>
+              <dd>{formatYesNo(slot.shareOutcomeWithFamily)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Analysis area</dt>
+              <dd>{formatAnalysisArea(slot.analysisArea)}</dd>
+            </div>
+          </dl>
+
+          {slot.notes?.trim() ? (
+            <p className="mt-3 rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{slot.notes}</p>
           ) : null}
         </>
       ) : (
@@ -154,109 +288,6 @@ function statusBadge(status: ServiceUserVisitPlan['status']) {
   )
 }
 
-function SlotDetailCard({
-  slot,
-  acceptedCarePlans,
-  employeeNameById,
-}: {
-  slot: VisitPlanSlot
-  acceptedCarePlans: AcceptedCarePlanItem[]
-  employeeNameById: Map<string, string>
-}) {
-  const linkedCarePlans = resolveCarePlansForSlot(slot, acceptedCarePlans)
-  return (
-    <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            {slot.timeCritical ? (
-              <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
-            ) : null}
-            {slot.label}
-          </h4>
-          <span className="text-xs text-muted-foreground">
-            {normalizeTimeForInput(slot.plannedStartTime)} – {normalizeTimeForInput(slot.plannedEndTime)} ·{' '}
-            {slot.requiredCarers} carer{slot.requiredCarers === 1 ? '' : 's'} required
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-3 rounded-md border border-sky-100 bg-sky-50/50 px-3 py-2.5 dark:border-sky-900 dark:bg-sky-950/20">
-        <p className="text-xs font-medium text-sky-900 dark:text-sky-100">Assigned carers</p>
-        <div className="mt-1.5">
-          <AssignedCarerBadges
-            employeeIds={slot.assignedEmployeeIds ?? []}
-            employeeNameById={employeeNameById}
-          />
-        </div>
-      </div>
-
-      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-xs text-muted-foreground">Frequency</dt>
-          <dd>{formatVisitPlanFrequency(slot)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">
-            {slot.scheduleFrequency === 'MONTHLY' ? 'Days of month' : 'Weekdays'}
-          </dt>
-          <dd>{slot.scheduleFrequency === 'MONTHLY' ? formatMonthlyDays(slot) : formatWeekdays(slot)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Time critical</dt>
-          <dd>
-            {formatYesNo(slot.timeCritical)}
-            {slot.timeCritical ? ` (${slot.timeToleranceMinutes} min tolerance)` : ''}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Duration</dt>
-          <dd>{slot.durationMinutes ? `${slot.durationMinutes} min` : '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Notes mandatory</dt>
-          <dd>{formatYesNo(slot.notesRequired)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Photos allowed</dt>
-          <dd>{formatYesNo(slot.photoAllowed)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Share with family</dt>
-          <dd>{formatYesNo(slot.shareOutcomeWithFamily)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Analysis area</dt>
-          <dd>{formatAnalysisArea(slot.analysisArea)}</dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="text-xs text-muted-foreground">Care plans on this visit</dt>
-          <dd>
-            {linkedCarePlans.length === 0 ? (
-              '—'
-            ) : (
-              <ul className="mt-1 flex flex-wrap gap-1.5">
-                {linkedCarePlans.map((cp) => (
-                  <li
-                    key={cp.formId}
-                    className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-100"
-                  >
-                    {cp.formName}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </dd>
-        </div>
-      </dl>
-
-      {slot.notes?.trim() ? (
-        <p className="mt-3 rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{slot.notes}</p>
-      ) : null}
-    </article>
-  )
-}
-
 type Props = {
   plan: ServiceUserVisitPlan
   acceptedCarePlans?: AcceptedCarePlanItem[]
@@ -270,8 +301,8 @@ export function VisitPlanDetailsView({
   employeeNameById = new Map(),
   className,
 }: Props) {
-  const enabledSlots = (plan.slots ?? []).filter((s) => s.isEnabled)
   const disabledSlots = (plan.slots ?? []).filter((s) => !s.isEnabled)
+  const { candidatesForSlot } = useVisitPlanSlotCarerSuggestions(plan.serviceUserId, plan.slots ?? [])
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -302,6 +333,16 @@ export function VisitPlanDetailsView({
             </dd>
           </div>
           <div>
+            <dt className="text-xs text-muted-foreground">Effective to</dt>
+            <dd className="text-sm font-medium">
+              {plan.effectiveTo
+                ? new Date(plan.effectiveTo).toLocaleDateString('en-GB')
+                : plan.status === 'ACTIVE'
+                  ? 'Ongoing'
+                  : '—'}
+            </dd>
+          </div>
+          <div>
             <dt className="text-xs text-muted-foreground">Review due</dt>
             <dd className="text-sm font-medium">
               {plan.reviewDueAt ? new Date(plan.reviewDueAt).toLocaleDateString('en-GB') : '—'}
@@ -327,7 +368,7 @@ export function VisitPlanDetailsView({
       <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h3 className="mb-1 text-sm font-semibold text-foreground">Call pattern</h3>
         <p className="mb-4 text-xs text-muted-foreground">
-          Each visit slot with assigned carers and linked care plans.
+          One card per call slot — schedule, assigned carers, care plans, and documentation rules.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {(plan.slots ?? []).map((slot) => (
@@ -336,29 +377,11 @@ export function VisitPlanDetailsView({
               slot={slot}
               acceptedCarePlans={acceptedCarePlans}
               employeeNameById={employeeNameById}
+              carerCandidatesByEmployeeId={candidatesForSlot(slot.slotCode)}
             />
           ))}
         </div>
-        {(plan.slots ?? []).some((s) => s.scheduleFrequency === 'MONTHLY') ? (
-          <p className="mt-4 text-xs text-muted-foreground">
-            Monthly slots use calendar days — see scheduling details below.
-          </p>
-        ) : null}
       </section>
-
-      {enabledSlots.length > 0 ? (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Scheduling details</h3>
-          {enabledSlots.map((slot) => (
-            <SlotDetailCard
-              key={slot.slotCode}
-              slot={slot}
-              acceptedCarePlans={acceptedCarePlans}
-              employeeNameById={employeeNameById}
-            />
-          ))}
-        </section>
-      ) : null}
 
       {disabledSlots.length > 0 ? (
         <section className="rounded-xl border border-dashed border-border bg-muted/10 p-4">

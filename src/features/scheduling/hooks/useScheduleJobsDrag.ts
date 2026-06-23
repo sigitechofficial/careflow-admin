@@ -1,7 +1,6 @@
 import * as React from 'react'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
-import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import {
   type JobDropPayload,
   jobBlockLayoutPxWithDragOffset,
@@ -9,12 +8,19 @@ import {
   resolveScheduleJobsRowKeyAtPoint,
   type ScheduleJobsRowRef,
   scheduleJobsRowKey,
-  shiftJobScheduleTimesFromDeltaPx,
+  shiftJobScheduleTimesFromViewportDeltaPx,
 } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import {
+  scheduleJobBlockDisplayLabel,
+  type ScheduleJobsBoardRowAxis,
+} from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
+import {
+  jobBlockLayoutPxInViewport,
+  type ScheduleJobsTimelineViewport,
+} from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import {
   jobBlockLayoutPx,
   jobBlockTone,
-  SCHEDULE_JOBS_TIMELINE_GRID_WIDTH,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { setScheduleJobsDragPreview } from '@/features/scheduling/utils/schedule-jobs-drag-preview.store'
 
@@ -40,7 +46,8 @@ type DragSession = {
 
 type Options = {
   date: string
-  trackWidthPx: number
+  viewport: ScheduleJobsTimelineViewport
+  rowAxis: ScheduleJobsBoardRowAxis
   onJobDrop: (payload: JobDropPayload) => void | Promise<void>
 }
 
@@ -49,7 +56,11 @@ function timelineTrackElement(rowKey: string): HTMLElement | null {
   return row?.querySelector<HTMLElement>('[data-schedule-timeline-track]') ?? null
 }
 
-function publishDragPreview(session: DragSession): void {
+/** Comfortable, consistent preview height so the dragged card is always readable. */
+const DRAG_PREVIEW_MIN_HEIGHT = 26
+const DRAG_PREVIEW_MAX_HEIGHT = 36
+
+function publishDragPreview(session: DragSession, viewport: ScheduleJobsTimelineViewport): void {
   const track = timelineTrackElement(session.hoverRowKey)
   if (!track) {
     setScheduleJobsDragPreview(null)
@@ -57,12 +68,23 @@ function publishDragPreview(session: DragSession): void {
   }
 
   const trackRect = track.getBoundingClientRect()
+  const baseLayout =
+    jobBlockLayoutPxInViewport(session.job, viewport) ?? jobBlockLayoutPx(session.job)
   const { leftPx, widthPx } = jobBlockLayoutPxWithDragOffset(
-    session.baseLeftPx,
-    session.baseWidthPx,
+    baseLayout.leftPx,
+    baseLayout.widthPx,
     session.deltaPx,
-    SCHEDULE_JOBS_TIMELINE_GRID_WIDTH,
+    viewport.gridWidth,
   )
+
+  // Center a fixed-height card in the hovered row instead of reusing the source
+  // block's offset — this keeps the preview clearly inside the target carer row
+  // (varying row heights / stacked lanes would otherwise push it onto the edge).
+  const heightPx = Math.min(
+    DRAG_PREVIEW_MAX_HEIGHT,
+    Math.max(DRAG_PREVIEW_MIN_HEIGHT, Math.min(session.blockHeight, trackRect.height - 4)),
+  )
+  const topPx = trackRect.top + Math.max(0, (trackRect.height - heightPx) / 2)
 
   setScheduleJobsDragPreview({
     jobId: session.job.id,
@@ -72,12 +94,12 @@ function publishDragPreview(session: DragSession): void {
     widthPx,
     rowKey: session.hoverRowKey,
     compact: session.compact,
-    topPx: trackRect.top + session.blockTopOffset,
-    heightPx: session.blockHeight,
+    topPx,
+    heightPx,
   })
 }
 
-export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) {
+export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Options) {
   const [hoverRowKey, setHoverRowKey] = React.useState<string | null>(null)
   const [draggingJobId, setDraggingJobId] = React.useState<string | null>(null)
   const [listenPointerId, setListenPointerId] = React.useState<number | null>(null)
@@ -94,7 +116,7 @@ export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) 
         resolveScheduleJobsRowKeyAtPoint(clientY) ??
         active.hoverRowKey
       const targetRow = parseScheduleJobsRowKey(hoverKey) ?? active.sourceRow
-      const times = shiftJobScheduleTimesFromDeltaPx(active.job, date, active.deltaPx, trackWidthPx)
+      const times = shiftJobScheduleTimesFromViewportDeltaPx(active.job, date, active.deltaPx, viewport)
 
       await onJobDrop({
         job: active.job,
@@ -104,15 +126,15 @@ export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) 
         scheduledEndDateTime: times.scheduledEndDateTime,
       })
     },
-    [date, onJobDrop, trackWidthPx],
+    [date, onJobDrop, viewport],
   )
 
   const flushPreview = React.useCallback(() => {
     rafRef.current = null
     const active = sessionRef.current
     if (!active || !isDraggingRef.current) return
-    publishDragPreview(active)
-  }, [])
+    publishDragPreview(active, viewport)
+  }, [viewport])
 
   const schedulePreview = React.useCallback(() => {
     if (rafRef.current != null) return
@@ -205,7 +227,7 @@ export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) 
       window.removeEventListener('pointercancel', handleUp)
       scrollEl?.removeEventListener('scroll', onScroll)
     }
-  }, [endDrag, listenPointerId, schedulePreview])
+  }, [endDrag, listenPointerId, schedulePreview, viewport])
 
   const startDrag = React.useCallback(
     (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => {
@@ -214,8 +236,11 @@ export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) 
       const target = event.currentTarget
       if (!(target instanceof HTMLElement)) return
 
-      const label = serviceUserLabel(job.serviceUser)
-      const { leftPx, widthPx } = jobBlockLayoutPx(job, label)
+      const baseLayout =
+        jobBlockLayoutPxInViewport(job, viewport) ?? jobBlockLayoutPx(job)
+      const { leftPx, widthPx } = baseLayout
+      const labelMode = rowAxis === 'service-users' ? 'service-user-row' : 'carer-row'
+      const label = scheduleJobBlockDisplayLabel(job, labelMode)
       const rowKey = scheduleJobsRowKey(sourceRow)
       const targetRect = target.getBoundingClientRect()
       const trackRect = timelineTrackElement(rowKey)?.getBoundingClientRect()
@@ -246,7 +271,7 @@ export function useScheduleJobsDrag({ date, trackWidthPx, onJobDrop }: Options) 
       setListenPointerId(event.pointerId)
       target.setPointerCapture(event.pointerId)
     },
-    [],
+    [viewport, rowAxis],
   )
 
   return {
