@@ -49,7 +49,8 @@ export function computeScheduleJobOverlapLayout(jobs: JobTiming[]): {
       lane = laneEnds.length
       laneEnds.push(endMin)
     } else {
-      laneEnds[lane] = Math.max(laneEnds[lane], endMin)
+      const previousLaneEnd = laneEnds[lane] ?? startMin
+      laneEnds[lane] = Math.max(previousLaneEnd, endMin)
     }
     laneByJobId.set(job.id, lane)
   }
