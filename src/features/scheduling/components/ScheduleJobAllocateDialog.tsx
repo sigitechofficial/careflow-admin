@@ -65,6 +65,7 @@ import {
   type AllocationWarning,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
 import { scheduleJobCarerRotaConflictMessage } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
+import { buildRotaBookedEmployeeIds } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 import type { ScheduleJobAllocateDialogPanel } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
@@ -183,10 +184,7 @@ export function ScheduleJobAllocateDialog({
     : null
 
   const rotaBookedEmployeeIds = React.useMemo(
-    () =>
-      new Set(
-        suggestCandidates.filter((c) => c.hasRotaConflict).map((candidate) => candidate.employeeId),
-      ),
+    () => buildRotaBookedEmployeeIds(suggestCandidates),
     [suggestCandidates],
   )
 

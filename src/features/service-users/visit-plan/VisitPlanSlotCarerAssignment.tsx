@@ -6,9 +6,9 @@ import { Input } from '@/shared/ui/input'
 import { Checkbox, RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
-import { toastWarning } from '@/shared/lib/toast'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
-import { CARER_ROTA_CONFLICT_MESSAGE } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
+import { showCarerNotAssignedRotaConflictToast } from '@/features/scheduling/utils/schedule-carer-rota-toast.util'
+import { visitPlanCarerCandidateCardClass } from '@/features/service-users/visit-plan/visit-plan-carer-candidate-card.util'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type { VisitPlanCarerCandidate, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
@@ -41,15 +41,7 @@ function candidateCardClass(options: {
   rotaConflict: boolean
   atLimit?: boolean
 }) {
-  return cn(
-    'rounded-lg border px-3 py-3 transition-colors',
-    options.selected
-      ? 'border-sky-400 bg-sky-50/50 ring-1 ring-sky-200 dark:border-sky-700 dark:bg-sky-950/30 dark:ring-sky-900'
-      : 'border-border bg-card hover:border-border/80',
-    options.rotaConflict && 'border-red-200 dark:border-red-900',
-    options.blocked && 'border-red-100 dark:border-red-950',
-    options.atLimit && !options.selected && 'opacity-75',
-  )
+  return visitPlanCarerCandidateCardClass(options)
 }
 
 export function VisitPlanSlotCarerAssignment({
@@ -90,7 +82,7 @@ export function VisitPlanSlotCarerAssignment({
   }
 
   const notifyRotaConflict = React.useCallback(() => {
-    toastWarning('Carer not assigned', CARER_ROTA_CONFLICT_MESSAGE)
+    showCarerNotAssignedRotaConflictToast()
   }, [])
 
   const loadSuggestions = React.useCallback(async () => {

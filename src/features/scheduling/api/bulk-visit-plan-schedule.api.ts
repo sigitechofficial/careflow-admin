@@ -1,4 +1,7 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import { CARER_ROTA_CONFLICT_MESSAGE } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
+
+export { CARER_ROTA_CONFLICT_MESSAGE }
 
 export type BulkVisitPlanScheduleCandidate = {
   serviceUserId: string
@@ -55,9 +58,6 @@ export type BulkGenerateVisitPlanScheduleResponse = {
   }
   results: BulkVisitPlanScheduleResultItem[]
 }
-
-export const CARER_ROTA_CONFLICT_MESSAGE =
-  'Carer has already a visit, please use another slot'
 
 export async function fetchBulkVisitPlanScheduleCandidates(params?: {
   locationId?: string

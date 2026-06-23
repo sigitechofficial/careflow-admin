@@ -4,25 +4,15 @@ import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
-import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
+import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 import { buildScheduleJobSuggestCarersRequest } from '@/features/scheduling/utils/schedule-job-recommend-carers.util'
+import {
+  filterScheduleJobRecommendCarers,
+  scheduleRecommendCarersEmptyMessage,
+  visitPlanCarerFitLabel,
+  visitPlanCarerFitStyles,
+} from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
-
-function fitStyles(fit: VisitPlanCarerFit) {
-  if (fit === 'good') {
-    return 'border-emerald-300 bg-emerald-50/60 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100'
-  }
-  if (fit === 'partial') {
-    return 'border-amber-300 bg-amber-50/60 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100'
-  }
-  return 'border-red-300 bg-red-50/60 text-red-900 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100'
-}
-
-function fitLabel(fit: VisitPlanCarerFit) {
-  if (fit === 'good') return 'Good match'
-  if (fit === 'partial') return 'Partial match'
-  return 'Poor match'
-}
 
 type Props = {
   job: TimelineJob
@@ -72,19 +62,11 @@ export function ScheduleJobRecommendedCarers({
 
   const recommendations = React.useMemo(
     () =>
-      candidates
-        .filter((c) => {
-          if (c.isBlocked && !showBlockedCarers) return false
-          if (c.hasRotaConflict) return false
-          if (replacingEmployeeId) return c.employeeId !== replacingEmployeeId
-          return !allocatedEmployeeIds.has(c.employeeId)
-        })
-        .sort((a, b) => {
-          if (a.isPreferred !== b.isPreferred) return a.isPreferred ? -1 : 1
-          if (a.isBlocked !== b.isBlocked) return a.isBlocked ? 1 : -1
-          return 0
-        })
-        .slice(0, 8),
+      filterScheduleJobRecommendCarers(candidates, {
+        showBlockedCarers,
+        allocatedEmployeeIds,
+        replacingEmployeeId,
+      }),
     [allocatedEmployeeIds, candidates, replacingEmployeeId, showBlockedCarers],
   )
 
@@ -128,9 +110,10 @@ export function ScheduleJobRecommendedCarers({
 
       {!loading && recommendations.length === 0 && !error ? (
         <p className="text-sm text-muted-foreground">
-          {candidates.some((c) => c.hasRotaConflict)
-            ? 'No available carers — others are already booked at this time.'
-            : 'No recommendations available for this job.'}
+          {scheduleRecommendCarersEmptyMessage(
+            candidates,
+            'No recommendations available for this job.',
+          )}
         </p>
       ) : null}
 
@@ -152,10 +135,10 @@ export function ScheduleJobRecommendedCarers({
                   <span
                     className={cn(
                       'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase',
-                      fitStyles(candidate.fit),
+                      visitPlanCarerFitStyles(candidate.fit),
                     )}
                   >
-                    {fitLabel(candidate.fit)}
+                    {visitPlanCarerFitLabel(candidate.fit)}
                   </span>
                   {candidate.isPreferred ? (
                     <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">

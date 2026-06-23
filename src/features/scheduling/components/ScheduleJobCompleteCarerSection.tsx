@@ -23,6 +23,7 @@ import {
   warningsFromAllocateError,
   type AllocationWarning,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
+import { buildRotaBookedEmployeeIds } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 
 type Props = {
@@ -56,10 +57,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
   const allocatedEmployeeIds = new Set((job.allocations ?? []).map((a) => a.employeeId))
 
   const rotaBookedEmployeeIds = React.useMemo(
-    () =>
-      new Set(
-        suggestCandidates.filter((candidate) => candidate.hasRotaConflict).map((candidate) => candidate.employeeId),
-      ),
+    () => buildRotaBookedEmployeeIds(suggestCandidates),
     [suggestCandidates],
   )
 

@@ -34,6 +34,7 @@ import {
 import type { ScheduleJobsBoardRowAxis } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import type { UseQueryResult } from '@tanstack/react-query'
+import type { ScheduleJobsUrlUpdatePartial } from '@/features/scheduling/hooks/useScheduleJobsBoardData'
 
 type DayBoardQueries = {
   employeesQuery: Pick<UseQueryResult, 'refetch'>
@@ -48,7 +49,7 @@ type Params = {
   employeeLocationCatalog: Map<string, EmployeeLocationCatalogRow>
   locationNameMap: Map<string, string>
   dialogs: ScheduleJobsPageDialogs
-  updateScheduleJobsUrl: () => void
+  updateScheduleJobsUrl: (partial?: ScheduleJobsUrlUpdatePartial) => void
   refreshBoard: () => Promise<void>
   dayBoardQueries: DayBoardQueries
   runEdit: { openEditRunById: (runId: string) => void }
