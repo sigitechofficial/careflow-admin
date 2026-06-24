@@ -1,5 +1,5 @@
 import { User, AlertTriangle } from 'lucide-react'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type {
   ServiceUserVisitPlan,
@@ -329,14 +329,14 @@ export function VisitPlanDetailsView({
           <div>
             <dt className="text-xs text-muted-foreground">Effective from</dt>
             <dd className="text-sm font-medium">
-              {plan.effectiveFrom ? new Date(plan.effectiveFrom).toLocaleDateString('en-GB') : '—'}
+              {formatDate(plan.effectiveFrom)}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Effective to</dt>
             <dd className="text-sm font-medium">
               {plan.effectiveTo
-                ? new Date(plan.effectiveTo).toLocaleDateString('en-GB')
+                ? formatDate(plan.effectiveTo)
                 : plan.status === 'ACTIVE'
                   ? 'Ongoing'
                   : '—'}
@@ -345,7 +345,7 @@ export function VisitPlanDetailsView({
           <div>
             <dt className="text-xs text-muted-foreground">Review due</dt>
             <dd className="text-sm font-medium">
-              {plan.reviewDueAt ? new Date(plan.reviewDueAt).toLocaleDateString('en-GB') : '—'}
+              {formatDate(plan.reviewDueAt)}
             </dd>
           </div>
         </dl>
@@ -399,7 +399,7 @@ export function VisitPlanDetailsView({
             {(plan.amendments ?? []).map((a) => (
               <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
                 <span className="text-xs text-muted-foreground">
-                  {new Date(a.amendedAt).toLocaleString('en-GB')}
+                  {formatDateTime(a.amendedAt)}
                 </span>
                 <p className="mt-0.5">{a.reason}</p>
               </li>

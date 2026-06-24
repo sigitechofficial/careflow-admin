@@ -35,8 +35,8 @@ export function VisitPlanSlotCarersDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        size="lg"
-        className="flex w-[calc(100%-2rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full"
+        size="xl"
+        className="flex w-[calc(100%-2rem)] flex-col overflow-hidden p-0 sm:w-full"
       >
         <DialogHeader className="shrink-0 px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
           <DialogTitle>{dialogTitle ?? defaultTitle}</DialogTitle>

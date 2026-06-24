@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
+import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import type {
   CalendarEventStatus,
   CalendarViewMode,
@@ -174,7 +175,7 @@ export function ServiceUserCalendarPage({
       ? `${MONTH_NAMES[month]} ${year}`
       : view === 'WEEK'
         ? `Week of ${toDateStr(weekStartFrom(cursor))}`
-        : cursor.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : formatOrganisationIsoDateLong(toDateStr(cursor))
 
   const dayViewDateStr = view === 'DAY' ? toDateStr(cursor) : dateStr
   const selectedEvents = groupedByDate[dateStr] ?? []

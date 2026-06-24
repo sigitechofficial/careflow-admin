@@ -20,11 +20,10 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 
+import { formatDate } from '@/shared/lib/utils'
+
 function formatSkillExpiry(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString(undefined, { dateStyle: 'medium' })
+  return formatDate(iso)
 }
 
 export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) {

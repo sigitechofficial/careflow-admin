@@ -34,25 +34,31 @@ export function snapshotDiffersFromCurrent(
   return Boolean(snapshotName && snapshotName !== currentName)
 }
 
+import {
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+  formatOrganisationTime,
+} from '@/shared/lib/organisation-display-format.store'
+
 export function formatGbDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+  return formatOrganisationDateTime(d)
 }
 
 export function formatGbDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatOrganisationDate(d)
 }
 
 export function formatGbTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return formatOrganisationTime(d)
 }
 
 type EventTimeSource = {

@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import type { RotaHorizonMode } from '@/features/settings/types'
 import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
 
 export const BULK_GENERATE_ROTA_SCHEDULE_AREA_NONE = '__none__'
@@ -14,6 +15,11 @@ export const BULK_GENERATE_ROTA_SCHEDULE_AREA_NONE = '__none__'
 type Props = {
   generateFrom: string
   generateTo: string
+  generateToPlaceholder?: string
+  defaultRotaHorizonDays: number
+  defaultRotaHorizonMode: RotaHorizonMode
+  defaultRotaToDateLabel: string
+  showDefaultRotaRange: boolean
   backfillDays: number
   scheduleAreaId: string
   generateReadyOnly: boolean
@@ -28,6 +34,11 @@ type Props = {
 export function BulkGenerateRotaParametersSection({
   generateFrom,
   generateTo,
+  generateToPlaceholder = 'Next 28 days',
+  defaultRotaHorizonDays,
+  defaultRotaHorizonMode,
+  defaultRotaToDateLabel,
+  showDefaultRotaRange,
   backfillDays,
   scheduleAreaId,
   generateReadyOnly,
@@ -40,7 +51,25 @@ export function BulkGenerateRotaParametersSection({
 }: Props) {
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
-      <h2 className="text-sm font-semibold">Generation parameters</h2>
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold">Generation parameters</h2>
+        {showDefaultRotaRange ? (
+          <p className="text-sm text-muted-foreground">
+            {defaultRotaHorizonMode === 'CALENDAR_MONTH' ? (
+              <>
+                Default rota: through end of month ({defaultRotaToDateLabel}). Change in{' '}
+                <span className="font-medium text-foreground">Settings → Dom Care</span>.
+              </>
+            ) : (
+              <>
+                Default rota: <span className="font-medium text-foreground">{defaultRotaHorizonDays} days</span>{' '}
+                ahead (To date empty → {defaultRotaToDateLabel}). Change in{' '}
+                <span className="font-medium text-foreground">Settings → Dom Care</span>.
+              </>
+            )}
+          </p>
+        ) : null}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">From date</Label>
@@ -55,7 +84,7 @@ export function BulkGenerateRotaParametersSection({
           <Input
             type="date"
             value={generateTo}
-            placeholder="Next 14 days"
+            placeholder={generateToPlaceholder}
             onChange={(e) => onGenerateToChange(e.target.value)}
           />
         </div>

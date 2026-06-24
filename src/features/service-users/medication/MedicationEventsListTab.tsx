@@ -16,11 +16,10 @@ import { RecordDetailDrawer } from '@/features/service-users/medication/RecordDe
 import { eventCarerDisplay } from '@/features/service-users/medication/medication-event-display'
 import type { MedicationStatusCodeLookupRow } from '@/features/service-users/types'
 
+import { formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
+
 function formatWhen(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+  return formatGbDateTime(iso)
 }
 
 export function MedicationEventsListTab({ serviceUserId }: { serviceUserId: string }) {

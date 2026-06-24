@@ -1,6 +1,7 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 
 export type TimeDisplayFormat = 'HH_XX' | 'HH_MM'
+export type DateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_MM_DD'
 export type DefaultCarerStatus = 'ACTIVE' | 'INACTIVE'
 export type HolidayUnit = 'HOURS' | 'DAYS'
 export type ComplianceRequiredBy = 'ROLE_WORK_AREA' | 'CITIZENSHIP'
@@ -131,6 +132,8 @@ export type DomCareAllocationRule = {
   minutes: number | null
 }
 
+export type RotaHorizonMode = 'FIXED_DAYS' | 'CALENDAR_MONTH'
+
 export type DomLateVisitZoneAlert = {
   zoneKey: string
   label: string
@@ -145,6 +148,7 @@ export type OrganisationGeneralSettings = {
   handoverReportLastHours: number
   archiveServiceUserAfterMonths: number
   timeDisplayFormat: TimeDisplayFormat
+  dateDisplayFormat: DateDisplayFormat
   defaultCarerStatus: DefaultCarerStatus
   sendEmailWhenEmployeeActive: boolean
   allowMultipleRoles: boolean
@@ -182,6 +186,10 @@ export type OrganisationGeneralSettings = {
   domGeofenceToleranceMeters: number
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number
+  domAutoExtendRotaEnabled: boolean
+  domRotaHorizonDays: number
+  domRotaHorizonMode: RotaHorizonMode
+  domAutoExtendRotaRunHour: number
   domShowWeeklyHours: boolean
   domShowServiceUserName: boolean
   domShowBlockedCarersInSchedule: boolean

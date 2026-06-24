@@ -9,6 +9,7 @@ import {
   useInitialAssessmentSubmissions,
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import type { InitialAssessmentStatus } from '@/features/service-users/initial-assessment/types'
+import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
 const LEGACY_PATH = '/service-users/initial-assessment-checklist'
@@ -114,7 +115,7 @@ export function ServiceUserInitialAssessmentEnterpriseTab({ serviceUserId, displ
                     {s.status.replace('_', ' ')}
                   </span>
                   <span className="text-muted-foreground">
-                    {s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '—'}
+                    {s.updatedAt ? formatInitialAssessmentDateTime(s.updatedAt) : '—'}
                   </span>
                 </div>
                 <Button type="button" size="sm" variant="ghost" asChild>

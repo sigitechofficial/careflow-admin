@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import { Calendar, LayoutDashboard, Loader2, Pencil, User, Zap } from 'lucide-react'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import type { ServiceUserDolsRow } from '@/features/service-users/types'
@@ -11,13 +11,7 @@ import { useServiceUserDetail } from '@/features/service-users/hooks/useServiceU
 const CARD_HEADER = 'bg-teal-800 px-3 py-2 text-sm font-semibold text-white dark:bg-teal-900'
 
 function formatDob(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const dd = String(d.getUTCDate()).padStart(2, '0')
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const yyyy = d.getUTCFullYear()
-  return `${dd}-${mm}-${yyyy}`
+  return formatDate(iso, { utc: true })
 }
 
 function DashCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -55,15 +49,13 @@ function DocumentOpenLink({ storedUrl, label = 'Open' }: { storedUrl: string | n
 
 function formatShortDate(iso: string | null | undefined): string {
   if (!iso) return 'record'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+  const formatted = formatDate(iso)
+  return formatted === '—' ? iso : formatted
 }
 
 function formatFlashDisplayUntil(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+  const formatted = formatDate(iso)
+  return formatted === '—' ? iso : formatted
 }
 
 function CheckOrDash(ok: boolean) {

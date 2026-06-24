@@ -1,4 +1,8 @@
-import { formatChartMonthLabel } from '@/features/service-users/hooks/useMedicationMarChart'
+import {
+  formatOrganisationDate,
+  formatOrganisationIsoDateLong,
+  formatOrganisationMonthYear,
+} from '@/shared/lib/organisation-display-format.store'
 import {
   visitPlanDayDate,
   visitPlanDayOfWeekLetter,
@@ -85,40 +89,21 @@ export function visitPlanCalendarPeriodLabel(
 ): string {
   const { month, day } = parseVisitPlanIsoDate(focusIso)
   if (viewMode === 'daily') {
-    const date = visitPlanDayDate(month, day)
-    const weekday = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' })
-    const rest = date.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    })
-    return `${weekday} ${rest}`
+    return formatOrganisationIsoDateLong(focusIso)
   }
   if (viewMode === 'weekly') {
     const cells = visitPlanWeekDayCells(focusIso)
     const first = cells[0]!
     const last = cells[cells.length - 1]!
-    const firstDate = visitPlanDayDate(first.month, first.day)
-    const lastDate = visitPlanDayDate(last.month, last.day)
     const sameMonth = first.month === last.month
-    const start = firstDate.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'UTC',
-    })
-    const end = lastDate.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    })
-    if (sameMonth && firstDate.getUTCFullYear() === lastDate.getUTCFullYear()) {
-      return `${start} – ${last.day} ${formatChartMonthLabel(last.month)}`
+    const start = formatOrganisationDate(`${first.iso}T12:00:00Z`, { utc: true })
+    const end = formatOrganisationDate(`${last.iso}T12:00:00Z`, { utc: true })
+    if (sameMonth) {
+      return `${start} – ${end}`
     }
     return `${start} – ${end}`
   }
-  return formatChartMonthLabel(month)
+  return formatOrganisationMonthYear(month)
 }
 
 export function visitPlanCalendarNavStep(viewMode: VisitPlanCalendarViewMode): number {
@@ -132,10 +117,7 @@ export function visitPlanDayHeaderLabel(cell: VisitPlanCalendarDayCell): {
   dow: string
 } {
   if (cell.day === 1 || cell.day === 15) {
-    const shortMonth = visitPlanDayDate(cell.month, cell.day).toLocaleDateString('en-GB', {
-      month: 'short',
-      timeZone: 'UTC',
-    })
+    const shortMonth = formatOrganisationMonthYear(cell.month)
     return { num: `${cell.day} ${shortMonth}`, dow: visitPlanDayOfWeekLetter(cell.month, cell.day) }
   }
   return { num: String(cell.day), dow: visitPlanDayOfWeekLetter(cell.month, cell.day) }

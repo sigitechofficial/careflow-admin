@@ -11,6 +11,7 @@ import {
   useEmployeeReviews,
 } from '@/features/employees/hooks/useEmployeeReviews'
 import { Button } from '@/shared/ui/button'
+import { formatDate } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
 import {
   Select,
@@ -24,13 +25,6 @@ type ReviewTypeOption = {
   id: string
   name: string
   defaultIntervalDays?: number | null
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString(undefined, { dateStyle: 'medium' })
 }
 
 function isOverdue(nextDue: string | null | undefined): boolean {

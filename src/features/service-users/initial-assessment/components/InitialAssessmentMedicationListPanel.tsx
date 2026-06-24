@@ -1,7 +1,7 @@
 import { ExternalLink, Loader2, Pill, RefreshCw } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
 import { findQuestionBySpecRef, isYesAnswer } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import {
@@ -27,10 +27,7 @@ type Props = {
 }
 
 function formatShortDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatDate(iso)
 }
 
 export function InitialAssessmentMedicationListPanel({

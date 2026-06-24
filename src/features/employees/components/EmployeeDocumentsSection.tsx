@@ -10,7 +10,7 @@ import {
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 
 const ACCEPT =
   'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -201,9 +201,7 @@ export function EmployeeDocumentsSection({
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatBytes(d.fileSize)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
-                      {new Date(d.uploadedDate).toLocaleDateString(undefined, {
-                        dateStyle: 'medium',
-                      })}
+                      {formatDate(d.uploadedDate)}
                     </td>
                     <td className="px-3 py-2 text-right">
                       {canDelete ? (

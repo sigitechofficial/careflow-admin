@@ -50,11 +50,10 @@ import {
 } from '@/features/scheduling/utils/visit-mar-daily.util'
 import '@/features/service-users/medication/mar-calendar.css'
 import '@/features/service-users/medication/mar-record.css'
+import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 
 function formatVisitDateLabel(iso: string): string {
-  const d = new Date(`${normalizeVisitDate(iso)}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  return formatOrganisationIsoDateLong(normalizeVisitDate(iso))
 }
 
 function MarStatusChip({

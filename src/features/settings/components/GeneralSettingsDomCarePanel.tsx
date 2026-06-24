@@ -5,6 +5,7 @@ import {
   type DomJobCancellationRule,
   type DomLateVisitZoneAlert,
   type OrganisationGeneralSettings,
+  type RotaHorizonMode,
 } from '@/features/settings/types'
 import { type EmployeeListRow } from '@/features/employees/types'
 import { useAllEmployees } from '@/features/employees/hooks/useEmployeeTabs'
@@ -52,6 +53,13 @@ const TOOLTIPS = {
   lateVisitRequired: 'Enable alerts when a carer is late checking in to a scheduled visit.',
   lateVisitMinutes: 'Number of minutes after the scheduled start time before a late visit alert is raised.',
   lateVisitNotification: 'Send late visit alerts as in-app notifications to selected staff per zone.',
+  autoExtendRota:
+    'Each day at the configured hour, generate rota for the day that keeps the rolling horizon full for all ready active visit plans.',
+  rotaHorizonDays:
+    'How many days ahead rota is maintained. For example, 30 means today plus the next 30 days are always scheduled.',
+  rotaHorizonMode:
+    'Fixed days uses the horizon below. Calendar month generates through the end of the month when To date is left blank.',
+  autoExtendRotaRunHour: 'Hour (UK time) when the daily rolling rota extension runs. Default is 12 (noon).',
 } as const
 
 type DomCareDraft = {
@@ -66,6 +74,10 @@ type DomCareDraft = {
   domGeofenceToleranceMeters: number
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number
+  domAutoExtendRotaEnabled: boolean
+  domRotaHorizonDays: number
+  domRotaHorizonMode: RotaHorizonMode
+  domAutoExtendRotaRunHour: number
   domShowWeeklyHours: boolean
   domShowServiceUserName: boolean
   domShowBlockedCarersInSchedule: boolean
@@ -91,6 +103,10 @@ const DEFAULTS: DomCareDraft = {
   domGeofenceToleranceMeters: 150,
   domDownloadAllServiceUsers: false,
   domFutureVisitsDays: 14,
+  domAutoExtendRotaEnabled: true,
+  domRotaHorizonDays: 28,
+  domRotaHorizonMode: 'FIXED_DAYS',
+  domAutoExtendRotaRunHour: 12,
   domShowWeeklyHours: true,
   domShowServiceUserName: true,
   domShowBlockedCarersInSchedule: false,
@@ -149,6 +165,10 @@ function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[
     domGeofenceToleranceMeters: s.domGeofenceToleranceMeters,
     domDownloadAllServiceUsers: s.domDownloadAllServiceUsers,
     domFutureVisitsDays: s.domFutureVisitsDays,
+    domAutoExtendRotaEnabled: s.domAutoExtendRotaEnabled ?? true,
+    domRotaHorizonDays: s.domRotaHorizonDays ?? 28,
+    domRotaHorizonMode: s.domRotaHorizonMode ?? 'FIXED_DAYS',
+    domAutoExtendRotaRunHour: s.domAutoExtendRotaRunHour ?? 12,
     domShowWeeklyHours: s.domShowWeeklyHours,
     domShowServiceUserName: s.domShowServiceUserName,
     domShowBlockedCarersInSchedule: s.domShowBlockedCarersInSchedule ?? false,
@@ -328,6 +348,8 @@ export function GeneralSettingsDomCarePanel() {
         domAppShowHoursBefore: clampInt(draft.domAppShowHoursBefore, 0, 168),
         domGeofenceToleranceMeters: clampInt(draft.domGeofenceToleranceMeters, 0, 50000),
         domFutureVisitsDays: clampInt(draft.domFutureVisitsDays, 0, 365),
+        domRotaHorizonDays: clampInt(draft.domRotaHorizonDays, 1, 90),
+        domAutoExtendRotaRunHour: clampInt(draft.domAutoExtendRotaRunHour, 0, 23),
         domLateVisitAlertMinutes: clampInt(draft.domLateVisitAlertMinutes, 1, 240),
         domJobCancellationRules: draft.domJobCancellationRules.map(r => ({
           ...r,
@@ -447,6 +469,77 @@ export function GeneralSettingsDomCarePanel() {
               Add rule
             </Button>
           ) : null}
+        </div>
+      </GeneralSettingsCard>
+
+      <GeneralSettingsCard title="Automatic rota extension">
+        <SettingsRow label="Extend rota automatically" hint={TOOLTIPS.autoExtendRota}>
+          <SettingsNoYesToggle
+            value={draft.domAutoExtendRotaEnabled}
+            onChange={v => setDraft(d => ({ ...d, domAutoExtendRotaEnabled: v }))}
+            disabled={!canUpdate}
+          />
+        </SettingsRow>
+        <SettingsRow label="Default horizon mode" hint={TOOLTIPS.rotaHorizonMode}>
+          <Select
+            value={draft.domRotaHorizonMode}
+            onValueChange={v =>
+              setDraft(d => ({ ...d, domRotaHorizonMode: v as RotaHorizonMode }))
+            }
+            disabled={!canUpdate}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="FIXED_DAYS">Fixed days ahead</SelectItem>
+              <SelectItem value="CALENDAR_MONTH">Through calendar month</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingsRow>
+        {draft.domRotaHorizonMode === 'CALENDAR_MONTH' ? (
+          <p className="text-sm text-muted-foreground">
+            When To date is left blank on generate rota, visits are created through the end of the
+            selected month.
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+          <span>Maintain rolling rota</span>
+          <Input
+            type="number"
+            min={1}
+            max={90}
+            className="h-9 w-16 text-center tabular-nums"
+            value={draft.domRotaHorizonDays}
+            disabled={!canUpdate}
+            onChange={e =>
+              setDraft(d => ({
+                ...d,
+                domRotaHorizonDays: Number.parseInt(e.target.value, 10) || 1,
+              }))
+            }
+          />
+          <span>days ahead</span>
+          <SettingsHint text={TOOLTIPS.rotaHorizonDays} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+          <span>Run daily extension at</span>
+          <Input
+            type="number"
+            min={0}
+            max={23}
+            className="h-9 w-16 text-center tabular-nums"
+            value={draft.domAutoExtendRotaRunHour}
+            disabled={!canUpdate || !draft.domAutoExtendRotaEnabled}
+            onChange={e =>
+              setDraft(d => ({
+                ...d,
+                domAutoExtendRotaRunHour: Number.parseInt(e.target.value, 10) || 0,
+              }))
+            }
+          />
+          <span>:00 UK time</span>
+          <SettingsHint text={TOOLTIPS.autoExtendRotaRunHour} />
         </div>
       </GeneralSettingsCard>
 

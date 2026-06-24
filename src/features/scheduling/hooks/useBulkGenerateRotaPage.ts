@@ -12,9 +12,15 @@ import {
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
 import {
+  buildGenerateRotaHorizonOptions,
+  DEFAULT_GENERATE_ROTA_DAYS,
+  defaultGenerateRotaToDatePlaceholder,
   resolveGenerateRotaToDate,
   todayIsoDate,
 } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import { formatDisplayDate } from '@/shared/lib/display-format.util'
+import type { RotaHorizonMode } from '@/features/settings/types'
 import {
   allReadyBulkGenerateRotaCandidatesSelected,
   buildReadyPlanIdSet,
@@ -46,6 +52,32 @@ export function useBulkGenerateRotaPage() {
   const [resultDialogOpen, setResultDialogOpen] = React.useState(false)
 
   const locationsQuery = useServiceUserLocations(hasApi)
+  const generalSettingsQuery = useGeneralSettings(hasApi)
+  const rotaHorizonOptions = React.useMemo(
+    () => buildGenerateRotaHorizonOptions(generalSettingsQuery.data),
+    [generalSettingsQuery.data],
+  )
+  const generateToPlaceholder = React.useMemo(() => {
+    const mode = generalSettingsQuery.data?.domRotaHorizonMode ?? 'FIXED_DAYS'
+    if (mode === 'CALENDAR_MONTH') return 'End of month'
+    return defaultGenerateRotaToDatePlaceholder(generalSettingsQuery.data?.domRotaHorizonDays)
+  }, [generalSettingsQuery.data?.domRotaHorizonDays, generalSettingsQuery.data?.domRotaHorizonMode])
+  const defaultRotaHorizonDays =
+    generalSettingsQuery.data?.domRotaHorizonDays ?? DEFAULT_GENERATE_ROTA_DAYS
+  const defaultRotaHorizonMode: RotaHorizonMode =
+    generalSettingsQuery.data?.domRotaHorizonMode ?? 'FIXED_DAYS'
+  const defaultRotaToDate = React.useMemo(
+    () => resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions),
+    [generateFrom, generateTo, rotaHorizonOptions],
+  )
+  const defaultRotaToDateLabel = React.useMemo(
+    () =>
+      formatDisplayDate(
+        defaultRotaToDate,
+        generalSettingsQuery.data?.dateDisplayFormat ?? 'DD_MM_YYYY',
+      ),
+    [defaultRotaToDate, generalSettingsQuery.data?.dateDisplayFormat],
+  )
   const scheduleAreasQuery = useScheduleAreas()
   const candidatesQuery = useBulkVisitPlanScheduleCandidates({
     locationId: locationId || undefined,
@@ -92,7 +124,7 @@ export function useBulkGenerateRotaPage() {
       return
     }
 
-    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo)
+    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
     const ok = window.confirm(
       buildBulkGenerateRotaConfirmMessage(planIds.length, generateFrom, toDate),
     )
@@ -128,6 +160,7 @@ export function useBulkGenerateRotaPage() {
     locationId,
     scheduleAreaId,
     selectedPlanIds,
+    rotaHorizonOptions,
   ])
 
   const resetPage = React.useCallback(() => {
@@ -147,6 +180,11 @@ export function useBulkGenerateRotaPage() {
     setGenerateFrom,
     generateTo,
     setGenerateTo,
+    generateToPlaceholder,
+    defaultRotaHorizonDays,
+    defaultRotaHorizonMode,
+    defaultRotaToDateLabel,
+    showDefaultRotaRange: !generateTo.trim(),
     backfillDays,
     setBackfillDays,
     scheduleAreaId,

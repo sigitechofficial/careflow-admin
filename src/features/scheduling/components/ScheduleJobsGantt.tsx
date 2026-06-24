@@ -19,6 +19,7 @@ import { ScheduleJobContextMenu } from '@/features/scheduling/components/Schedul
 import { ScheduleCarerHoverCard } from '@/features/scheduling/components/ScheduleCarerHoverCard'
 import { ScheduleServiceUserHoverCard } from '@/features/scheduling/components/ScheduleServiceUserHoverCard'
 import { ScheduleJobHoverTooltip } from '@/features/scheduling/components/ScheduleJobHoverCard'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { ScheduleJobsDragOverlay } from '@/features/scheduling/components/ScheduleJobsDragOverlay'
 import { ScheduleJobsMarqueeOverlay } from '@/features/scheduling/components/ScheduleJobsMarqueeOverlay'
 import { useScheduleJobsMarqueeSelect } from '@/features/scheduling/hooks/useScheduleJobsMarqueeSelect'
@@ -54,11 +55,6 @@ import {
   employeeBriefFullName,
   employeeBriefInitials,
   employeeBriefRowLabel,
-  formatScheduleJobsHourLabel,
-  formatScheduleJobsDateLabel,
-  formatScheduleJobsDayMonth,
-  formatScheduleJobsPeriodRange,
-  formatTimeHm,
   JOB_BLOCK_TONE_CLASSES,
   jobBlockCancelledSurfaceStyle,
   jobBlockCompletedSurfaceStyle,
@@ -268,8 +264,11 @@ function ScheduleJobBlock({
   onOpenRun?: (runId: string) => void
   shouldIgnoreClick?: () => boolean
 }) {
+  const displayFormat = useScheduleJobsDisplayFormat()
+  const formatJobTimeRange = (target: TimelineJob) =>
+    `${displayFormat.formatTime(target.scheduledStartDateTime)}–${displayFormat.formatTime(target.scheduledEndDateTime ?? target.scheduledStartDateTime)}`
   const tone = jobBlockTone(job, { outsideWorkingPattern: outsidePattern })
-  const labelLines = scheduleJobBlockLabelLines(job, jobLabelMode)
+  const labelLines = scheduleJobBlockLabelLines(job, jobLabelMode, displayFormat.timeDisplayFormat)
   const blockLabel = scheduleJobBlockDisplayLabel(job, jobLabelMode)
   const readOnly = isScheduleJobReadOnly(job)
   const completed = isScheduleJobCompleted(job)
@@ -386,24 +385,24 @@ function ScheduleJobBlock({
       }}
       title={
         stackedLanes && overlapLayout
-          ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time — ${labelLines.join(' · ')}`
+          ? `${formatJobTimeRange(job)} · Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time — ${labelLines.join(' · ')}`
           : showRunUi && runLabel
-          ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · ${runLabel} — ${labelLines.join(' · ')}`
+          ? `${formatJobTimeRange(job)} · ${runLabel} — ${labelLines.join(' · ')}`
           : completed
-          ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · Visit completed — click to view details`
+          ? `${formatJobTimeRange(job)} · Visit completed — click to view details`
           : cancelled
-            ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · Visit cancelled — right-click to reinstate or view details`
+            ? `${formatJobTimeRange(job)} · Visit cancelled — right-click to reinstate or view details`
           : readOnly
-          ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · This job cannot be edited — click to view details`
+          ? `${formatJobTimeRange(job)} · This job cannot be edited — click to view details`
           : travelConflictToNext
-            ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · Not enough travel time to reach the next visit — hover for details · click to manage`
+            ? `${formatJobTimeRange(job)} · Not enough travel time to reach the next visit — hover for details · click to manage`
           : excessContracted
-          ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · Exceeds weekly contracted hours from visit plan — click to manage carers · drag to move`
+          ? `${formatJobTimeRange(job)} · Exceeds weekly contracted hours from visit plan — click to manage carers · drag to move`
           : outsidePattern
-            ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · Outside carer working pattern — click to manage carers · drag to move`
+            ? `${formatJobTimeRange(job)} · Outside carer working pattern — click to manage carers · drag to move`
           : overAllocated
-            ? `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · More carers assigned than required — over booked · click to manage`
-            : `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)} · ${labelLines.join(' · ')} · click to manage carers · drag to move`
+            ? `${formatJobTimeRange(job)} · More carers assigned than required — over booked · click to manage`
+            : `${formatJobTimeRange(job)} · ${labelLines.join(' · ')} · click to manage carers · drag to move`
       }
       onPointerDown={readOnly ? undefined : (event) => onPointerDown(job, sourceRow, event)}
       onClick={(event) => {
@@ -623,8 +622,9 @@ function CarerLabel({
   dayPattern?: EmployeeDayPattern | null
   hoverCard?: React.ReactNode
 }) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const leaveUntilLabel =
-    leaveEndDate ? formatScheduleJobsDayMonth(leaveEndDate.slice(0, 10)) : null
+    leaveEndDate ? displayFormat.formatDate(leaveEndDate.slice(0, 10)) : null
   const availabilityBadge = resolveCarerDayAvailabilityBadge(dayPattern, onLeave)
 
   const avatarVariant = cancelled
@@ -679,7 +679,7 @@ function CarerLabel({
             className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-md border border-orange-200/90 bg-orange-100/90 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-orange-900 dark:border-orange-800 dark:bg-orange-950/70 dark:text-orange-100"
             title={
               leaveUntilLabel
-                ? `On leave until ${formatScheduleJobsDateLabel(leaveEndDate!.slice(0, 10))}`
+                ? `On leave until ${displayFormat.formatDateLong(leaveEndDate!.slice(0, 10))}`
                 : 'On leave today'
             }
           >
@@ -1138,6 +1138,7 @@ function ScheduleJobsTimelineHeader({
   onClearPeriodFocus: () => void
   boardMinWidth: number
 }) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const hours = viewport.hours
   const hasSearch = normalizeScheduleJobsRowSearchQuery(rowSearch).length > 0
   const isFocused = viewport.mode === 'focused-period'
@@ -1198,8 +1199,8 @@ function ScheduleJobsTimelineHeader({
                 style={{ width: isFocused ? viewport.gridWidth : (band.endHour - band.startHour) * viewport.hourWidth }}
                 title={
                   isFocused && focusedPeriodBandId === band.id
-                    ? `${band.label} (${formatScheduleJobsPeriodRange(band)}) — double-click or Esc for full day`
-                    : `${band.label} (${formatScheduleJobsPeriodRange(band)}) — double-click to zoom`
+                    ? `${band.label} (${displayFormat.formatPeriodRange(band)}) — double-click or Esc for full day`
+                    : `${band.label} (${displayFormat.formatPeriodRange(band)}) — double-click to zoom`
                 }
                 onDoubleClick={(event) => {
                   event.preventDefault()
@@ -1231,7 +1232,7 @@ function ScheduleJobsTimelineHeader({
                   ) : null}
                 </span>
                 <span className="mt-0.5 text-[9px] font-medium tabular-nums opacity-80">
-                  {formatScheduleJobsPeriodRange(band)}
+                  {displayFormat.formatPeriodRange(band)}
                 </span>
               </div>
             ))}
@@ -1259,7 +1260,7 @@ function ScheduleJobsTimelineHeader({
                       isPeriodStart ? 'font-bold text-foreground' : 'font-medium text-muted-foreground',
                     )}
                   >
-                    {formatScheduleJobsHourLabel(hour)}
+                    {displayFormat.formatHourLabel(hour)}
                   </span>
                   {isPeriodStart ? (
                     <span className="mt-0.5 block truncate text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/90">
@@ -1293,6 +1294,7 @@ function ScheduleJobsLegend({
   focusedPeriodBandId?: string | null
   onClearPeriodFocus?: () => void
 }) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border/80 bg-gradient-to-r from-muted/40 via-muted/20 to-transparent px-4 py-2.5">
       <LegendPill swatch="bg-emerald-500" label="Available" />
@@ -1315,8 +1317,8 @@ function ScheduleJobsLegend({
           )}
           title={
             focusedPeriodBandId === band.id
-              ? `${formatScheduleJobsPeriodRange(band)} — double-click for full day`
-              : `${formatScheduleJobsPeriodRange(band)} — double-click to zoom`
+              ? `${displayFormat.formatPeriodRange(band)} — double-click for full day`
+              : `${displayFormat.formatPeriodRange(band)} — double-click to zoom`
           }
           onDoubleClick={(event) => {
             event.preventDefault()

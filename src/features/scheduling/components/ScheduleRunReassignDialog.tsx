@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { ScheduleRunRecommendCarers } from '@/features/scheduling/components/ScheduleRunRecommendCarers'
-import { formatScheduleJobsDateLabel } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -74,6 +74,7 @@ export function ScheduleRunReassignDialog({
   onOpenFullEditor,
   saving,
 }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const [recommendOpen, setRecommendOpen] = React.useState(false)
   const proxyJob = jobs[0] ?? null
 
@@ -84,7 +85,7 @@ export function ScheduleRunReassignDialog({
           <DialogTitle>Reassign run</DialogTitle>
           <DialogDescription>
             Move all visits in <span className="font-medium text-foreground">{runName}</span> to another
-            carer on {formatScheduleJobsDateLabel(date)}.
+            carer on {displayFormat.formatDateLong(date)}.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">

@@ -3,6 +3,7 @@ import type { ServiceUserDetail } from '@/features/service-users/api'
 import type { ServiceUserDomCareData } from '@/features/service-users/api/service-users.api'
 import { InitialAssessmentStatusBadge } from '@/features/service-users/initial-assessment/components/InitialAssessmentStatusBadge'
 import type { InitialAssessmentStatus } from '@/features/service-users/initial-assessment/types'
+import { formatInitialAssessmentDate } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   detail: ServiceUserDetail
@@ -80,7 +81,7 @@ export function InitialAssessmentProfileCard({
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date of birth</dt>
           <dd className="mt-0.5 font-medium">
-            {detail.dateOfBirth ? new Date(detail.dateOfBirth).toLocaleDateString() : '—'}
+            {detail.dateOfBirth ? formatInitialAssessmentDate(detail.dateOfBirth) : '—'}
           </dd>
         </div>
         <div>

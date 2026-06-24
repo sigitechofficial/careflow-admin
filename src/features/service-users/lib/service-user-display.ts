@@ -12,6 +12,14 @@ export function formatServiceUserDob(iso: string | null | undefined): string {
 
 export function serviceUserDisplayName(d: ServiceUserDetail | null | undefined): string {
   if (!d) return 'Service user'
+  return serviceUserLegalDisplayName(d)
+}
+
+export function serviceUserLegalDisplayName(d: {
+  firstName?: string | null
+  lastName?: string | null
+  preferredName?: string | null
+}): string {
   const legal = [d.firstName, d.lastName].filter(Boolean).join(' ').trim()
   if (d.preferredName?.trim()) {
     return legal ? `${legal} (${d.preferredName.trim()})` : d.preferredName.trim()

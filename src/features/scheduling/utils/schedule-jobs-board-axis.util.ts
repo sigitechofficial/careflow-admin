@@ -1,6 +1,7 @@
 import type { ServiceUserBrief, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { employeesLabel, employeesShortLabel, serviceUserLabel, serviceUserNameOnly } from '@/features/scheduling/utils/scheduling-format'
 import { formatTimeHm } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import type { TimeDisplayFormat } from '@/shared/lib/display-format.util'
 
 export type ScheduleJobsBoardRowAxis = 'carers' | 'service-users'
 
@@ -86,8 +87,9 @@ export function scheduleJobBlockLabelForServiceUserRow(job: TimelineJob): string
 export function scheduleJobBlockLabelLines(
   job: TimelineJob,
   mode: 'carer-row' | 'service-user-row',
+  timeFormat: TimeDisplayFormat = 'HH_MM',
 ): string[] {
-  const time = jobTimeRangeLabel(job)
+  const time = jobTimeRangeLabel(job, timeFormat)
   const slot = job.visitPlan?.label?.trim()
 
   if (mode === 'service-user-row') {
@@ -102,8 +104,8 @@ export function scheduleJobBlockLabelLines(
   return [client, time]
 }
 
-function jobTimeRangeLabel(job: TimelineJob): string {
-  return `${formatTimeHm(job.scheduledStartDateTime)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime)}`
+function jobTimeRangeLabel(job: TimelineJob, timeFormat: TimeDisplayFormat = 'HH_MM'): string {
+  return `${formatTimeHm(job.scheduledStartDateTime, timeFormat)}–${formatTimeHm(job.scheduledEndDateTime ?? job.scheduledStartDateTime, timeFormat)}`
 }
 
 /** On-block label — opposite party only (time comes from the timeline header / block position). */

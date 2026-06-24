@@ -19,18 +19,24 @@ export function statusCodeHeaderClass(code: string | null | undefined): string {
   }
 }
 
+import {
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+  formatOrganisationTime,
+} from '@/shared/lib/organisation-display-format.store'
+
 export function formatGbDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+  return formatOrganisationDateTime(d)
 }
 
 export function formatGbDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatOrganisationDate(d)
 }
 
 export type StatusPickRow = Pick<

@@ -3,6 +3,7 @@ import { Loader2, MapPin } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchMedicationBodyMapSite } from '@/features/service-users/body-map/api'
 import { bodyMapKeys } from '@/features/service-users/body-map/keys'
+import { formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
 
 type Props = {
   serviceUserId: string
@@ -46,7 +47,7 @@ export function MedicationBodyMapSitePanel({
         <p className="mt-1">
           {marker?.bodyPart ?? 'Location recorded'}
           {data.medicationSite.nextChangeDue
-            ? ` · next change ${new Date(data.medicationSite.nextChangeDue).toLocaleString('en-GB')}`
+            ? ` · next change ${formatGbDateTime(data.medicationSite.nextChangeDue)}`
             : ''}
         </p>
         <Link

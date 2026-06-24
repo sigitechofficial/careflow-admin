@@ -26,17 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 
 function employeeDisplayName(emp: EmployeeListRow): string {
   return emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ').trim() || '—'
 }
 
 function formatSkillExpiry(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString(undefined, { dateStyle: 'medium' })
+  return formatDate(iso)
 }
 
 export function EmployeeSkillsTab() {

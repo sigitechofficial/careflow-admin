@@ -12,10 +12,10 @@ export function normalizeTime(value: string | null | undefined): string {
   return `${m[1].padStart(2, '0')}:${m[2]}`
 }
 
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
+
 export function formatDisplayDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatOrganisationDate(`${iso}T12:00:00`)
 }
 
 export function addDays(iso: string, days: number): string {

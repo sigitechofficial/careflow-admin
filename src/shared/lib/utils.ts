@@ -1,43 +1,32 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { DisplayDateOptions } from '@/shared/lib/display-format.util'
+import {
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+  formatOrganisationTime,
+} from '@/shared/lib/organisation-display-format.store'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-function toValidDate(date: Date | string | null | undefined): Date | null {
-  if (date == null) return null
-  const parsed = date instanceof Date ? date : new Date(date)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
+export function formatDate(
+  date: Date | string | null | undefined,
+  options?: DisplayDateOptions,
+): string {
+  return formatOrganisationDate(date, options)
 }
 
-export function formatDate(date: Date | string | null | undefined): string {
-  const parsed = toValidDate(date)
-  if (!parsed) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(parsed)
+export function formatDateTime(
+  date: Date | string | null | undefined,
+  options?: DisplayDateOptions,
+): string {
+  return formatOrganisationDateTime(date, options)
 }
 
-export function formatDateTime(date: Date | string | null | undefined): string {
-  const parsed = toValidDate(date)
-  if (!parsed) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(parsed)
-}
-
-export function formatTime(date: Date | string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date))
+export function formatTime(date: Date | string, options?: DisplayDateOptions): string {
+  return formatOrganisationTime(date, options)
 }
 
 export function formatCurrency(amount: number, currency = 'GBP'): string {

@@ -29,9 +29,9 @@ import { Calendar } from '@/shared/ui/date-picker'
 import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   formatHoursMinutes,
-  formatScheduleJobsDayMonth,
   formatScheduleJobsWeekday,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 import type { ScheduleJobOutcomeFilter } from '@/features/scheduling/utils/schedule-job-board-filter.util'
 import {
@@ -251,6 +251,7 @@ export function ScheduleJobsToolbar({
   showRunsOnBoard = false,
   onShowRunsOnBoardChange,
 }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const isToday = date === todayIso()
   const layoutMeta = SCHEDULE_JOBS_LAYOUT_META[layout]
   const rowAxisMeta = SCHEDULE_JOBS_BOARD_ROW_AXIS_META[rowAxis]
@@ -415,7 +416,7 @@ export function ScheduleJobsToolbar({
               </span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">{formatScheduleJobsDayMonth(date)}</p>
+              <p className="text-sm font-semibold text-foreground">{displayFormat.formatDate(date)}</p>
               <p className="text-xs text-muted-foreground">
                 {layout === 'board' ? rowAxisMeta.description : layoutMeta.description}
               </p>
@@ -746,7 +747,7 @@ export function ScheduleJobsToolbar({
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Create runs, add visits, and set visit order for {formatScheduleJobsDayMonth(date)}.
+              Create runs, add visits, and set visit order for {displayFormat.formatDate(date)}.
             </p>
           )}
 

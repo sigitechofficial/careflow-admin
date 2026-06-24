@@ -163,9 +163,7 @@ export function MarPackCalendarSection({
         isCompartmentPartialRound(counts) ||
         (counts.due > 0 && counts.recorded > 0)
       ) {
-        const dateLabel = todayDate
-          ? new Date(todayDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-          : `Day ${todayDay}`
+        const dateLabel = todayDate ? formatShortDate(todayDate) ?? `Day ${todayDay}` : `Day ${todayDay}`
         const partial = isCompartmentPartialRound(counts)
         return {
           text: `${dateLabel} ${comp.roundName.toLowerCase()}: ${partial ? 'partial' : 'open'} — ${headline.text}`,

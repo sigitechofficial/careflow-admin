@@ -1,4 +1,5 @@
 import type { MedicationSupplyCard } from '@/features/service-users/api/medication-mar.api'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 const DEFAULT_CYCLE_DAYS = 28
 
@@ -28,15 +29,7 @@ export function cycleEndDateFromQuantity(
 }
 
 export function formatSupplyCycleRange(deliveredAt: string, endDate: string): string {
-  const fmt = (iso: string) => {
-    const d = new Date(`${iso.slice(0, 10)}T12:00:00.000Z`)
-    return d.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    })
-  }
+  const fmt = (iso: string) => formatOrganisationDate(`${iso.slice(0, 10)}T12:00:00.000Z`, { utc: true })
   return `${fmt(deliveredAt)} → ${fmt(endDate)}`
 }
 

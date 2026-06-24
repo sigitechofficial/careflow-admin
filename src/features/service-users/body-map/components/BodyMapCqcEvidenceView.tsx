@@ -6,7 +6,7 @@ import type { BodyMapRecordRow, BodyMapSummary } from '@/features/service-users/
 import { recordTypeLabel } from '@/features/service-users/body-map/catalog/record-types'
 import { Button } from '@/shared/ui/button'
 import { toastApiError } from '@/shared/lib/toast'
-import { formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
+import { formatGbDateTime, formatGbDate } from '@/features/service-users/medication/medication-event-display'
 
 type ExportPayload = {
   exportedAt: string
@@ -151,7 +151,7 @@ export function BodyMapCqcEvidenceView({ serviceUserId }: Props) {
           {su?.dateOfBirth ? (
             <div>
               <dt className="text-muted-foreground">Date of birth</dt>
-              <dd>{new Date(su.dateOfBirth).toLocaleDateString('en-GB')}</dd>
+              <dd>{formatGbDate(su.dateOfBirth)}</dd>
             </div>
           ) : null}
         </dl>

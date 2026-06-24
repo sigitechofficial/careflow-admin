@@ -1,6 +1,6 @@
 ﻿import * as React from "react"
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
+import { cn, formatDate } from "@/shared/lib/utils"
 import { Button } from "./button"
 import { Badge } from "./badge"
 
@@ -54,7 +54,7 @@ export function WeekScheduler({ events = [], onEventClick, onSlotClick, classNam
   const next = () => setWeekStart(d => addDays(d, 7))
   const goToday = () => setWeekStart(startOfWeek(new Date()))
 
-  const weekLabel = `${weekStart.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} â€“ ${addDays(weekStart, 6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+  const weekLabel = `${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}`
 
   const getEventsForSlot = (day: Date, hour: number) =>
     events.filter(ev => sameDay(ev.start, day) && ev.start.getHours() <= hour && ev.end.getHours() > hour)

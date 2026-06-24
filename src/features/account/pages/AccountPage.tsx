@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { format } from 'date-fns'
+import { formatDateTime } from '@/shared/lib/utils'
 import { Loader2, Trash2, User } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
@@ -408,7 +408,7 @@ export default function AccountPage() {
                       activityRows.map(a => (
                         <tr key={a.id} className="border-b border-border">
                           <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                            {format(a.at, 'dd/MM/yyyy HH:mm')}
+                            {formatDateTime(a.at)}
                           </td>
                           <td className="px-3 py-2 font-mono text-xs">{a.action}</td>
                           {hasApi ? (

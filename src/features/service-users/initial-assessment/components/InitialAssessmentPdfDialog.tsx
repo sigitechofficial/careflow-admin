@@ -16,6 +16,7 @@ import {
 } from '@/features/service-users/initial-assessment/api'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import type { InitialAssessmentSection, InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
+import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   open: boolean
@@ -85,7 +86,7 @@ export function InitialAssessmentPdfDialog({
             <h4 className="font-semibold">Initial Assessment — {submission?.status ?? '—'}</h4>
             <p className="mt-1 text-xs text-muted-foreground">
               Template v{submission?.template?.version ?? '—'} · Updated{' '}
-              {submission ? new Date(submission.updatedAt).toLocaleString() : '—'}
+              {submission ? formatInitialAssessmentDateTime(submission.updatedAt) : '—'}
             </p>
             <ol className="mt-3 list-decimal space-y-1 pl-5">
               {sections.map((s) => (

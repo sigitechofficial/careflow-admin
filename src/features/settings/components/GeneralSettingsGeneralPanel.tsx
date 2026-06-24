@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import {
   type OrganisationGeneralSettings,
+  type DateDisplayFormat,
   type TimeDisplayFormat,
 } from '@/features/settings/types'
 import {
@@ -15,6 +16,7 @@ import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard'
+import { dateDisplayFormatLabel } from '@/shared/lib/display-format.util'
 import { useAuthStore } from '@/features/auth/store'
 
 const DEFAULTS = {
@@ -22,6 +24,7 @@ const DEFAULTS = {
   handoverReportLastHours: 12,
   archiveServiceUserAfterMonths: 3,
   timeDisplayFormat: 'HH_MM' as TimeDisplayFormat,
+  dateDisplayFormat: 'DD_MM_YYYY' as DateDisplayFormat,
 }
 
 function NumericField({
@@ -69,6 +72,7 @@ function settingsToDraft(s: OrganisationGeneralSettings) {
     handoverReportLastHours: s.handoverReportLastHours,
     archiveServiceUserAfterMonths: s.archiveServiceUserAfterMonths,
     timeDisplayFormat: s.timeDisplayFormat,
+    dateDisplayFormat: s.dateDisplayFormat ?? 'DD_MM_YYYY',
   }
 }
 
@@ -149,7 +153,9 @@ export function GeneralSettingsGeneralPanel() {
           />
         </GeneralSettingsCard>
 
-        <GeneralSettingsCard title="Time Display">
+        <GeneralSettingsCard title="Time & date format">
+          <p className="text-sm font-medium text-foreground">Time format</p>
+          <p className="text-xs text-muted-foreground">Default is 24-hour clock.</p>
           <RadioGroup
             value={draft.timeDisplayFormat}
             disabled={!canUpdate}
@@ -166,6 +172,34 @@ export function GeneralSettingsGeneralPanel() {
               <RadioGroupItem value="HH_XX" id="time-hh-xx" />
               <Label htmlFor="time-hh-xx" className="font-normal">
                 24-hour without minutes (14)
+              </Label>
+            </div>
+          </RadioGroup>
+
+          <p className="pt-2 text-sm font-medium text-foreground">Date format</p>
+          <p className="text-xs text-muted-foreground">Default is DD/MM/YYYY.</p>
+          <RadioGroup
+            value={draft.dateDisplayFormat}
+            disabled={!canUpdate}
+            onValueChange={v => setDraft(d => ({ ...d, dateDisplayFormat: v as DateDisplayFormat }))}
+            className="space-y-3"
+          >
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="DD_MM_YYYY" id="date-dd-mm-yyyy" />
+              <Label htmlFor="date-dd-mm-yyyy" className="font-normal">
+                {dateDisplayFormatLabel('DD_MM_YYYY')} (15/06/2026)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="MM_DD_YYYY" id="date-mm-dd-yyyy" />
+              <Label htmlFor="date-mm-dd-yyyy" className="font-normal">
+                {dateDisplayFormatLabel('MM_DD_YYYY')} (06/15/2026)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="YYYY_MM_DD" id="date-yyyy-mm-dd" />
+              <Label htmlFor="date-yyyy-mm-dd" className="font-normal">
+                {dateDisplayFormatLabel('YYYY_MM_DD')} (2026-06-15)
               </Label>
             </div>
           </RadioGroup>

@@ -74,9 +74,11 @@ import type {
   VisitPlanCarerSyncPatternPreview,
 } from '@/features/service-users/visit-plan/types'
 import {
+  buildGenerateRotaHorizonOptions,
   resolveGenerateRotaToDate,
   todayIsoDate,
 } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import {
   visitPlanRespectWorkingPatternOnSync,
 } from '@/features/service-users/visit-plan/visit-plan-pattern-sync-preference.util'
@@ -160,6 +162,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
   const { data: medicationRounds = [], isLoading: medicationRoundsLoading } = useMedicationRounds()
   const scheduleAreasQuery = useScheduleAreas()
   const domCareQuery = useServiceUserDomCare(serviceUserId)
+  const generalSettingsQuery = useGeneralSettings()
+  const rotaHorizonOptions = React.useMemo(
+    () => buildGenerateRotaHorizonOptions(generalSettingsQuery.data),
+    [generalSettingsQuery.data],
+  )
   const lookupsQuery = useServiceUserLookups()
   const pauseReasons = lookupsQuery.data?.visitPlanPauseReasons ?? []
 
@@ -604,7 +611,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       toastApiError(new Error('From date required'), 'Select a from date')
       return
     }
-    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo)
+    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
     setGeneratePreviewLoading(true)
     setGeneratePreviewOpen(true)
     try {
@@ -624,7 +631,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   const runGenerateSchedule = async () => {
     if (!workingPlan?.id || !generateFrom) return
-    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo)
+    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
     const respect = visitPlanRespectWorkingPatternOnSync(workingPlan)
     try {
       const result = await generateSchedule.mutateAsync({
@@ -1504,7 +1511,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         preview={generatePreview}
         loading={generatePreviewLoading}
         fromDate={generateFrom}
-        toDate={resolveGenerateRotaToDate(generateFrom, generateTo)}
+        toDate={resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)}
         isPending={generateSchedule.isPending}
         onConfirm={runGenerateSchedule}
       />
@@ -1561,7 +1568,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
           setGenerateFrom(from)
           setGenerateTo('')
           setPostReactivateGenerateOpen(false)
-          const toDate = resolveGenerateRotaToDate(from, '')
+          const toDate = resolveGenerateRotaToDate(from, '', rotaHorizonOptions)
           setGeneratePreviewLoading(true)
           setGeneratePreviewOpen(true)
           try {

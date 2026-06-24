@@ -6,7 +6,10 @@ import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/
 import { cn } from '@/shared/lib/utils'
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
 import { parseSubmissionMetadata } from '@/features/service-users/initial-assessment/utils/submission-metadata'
-import { formatRichTextForDisplay } from '@/features/service-users/initial-assessment/utils/submission-display'
+import {
+  formatInitialAssessmentDateTime,
+  formatRichTextForDisplay,
+} from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   serviceUserId?: string
@@ -78,7 +81,7 @@ export function InitialAssessmentManagerReviewPanel({
         <p className="mt-1 text-xs text-muted-foreground">
           Status: <strong>{status.replace('_', ' ')}</strong>
           {submission.submittedAt ? (
-            <> · Submitted {new Date(submission.submittedAt).toLocaleString()}</>
+            <> · Submitted {formatInitialAssessmentDateTime(submission.submittedAt)}</>
           ) : null}
         </p>
 
@@ -158,7 +161,7 @@ export function InitialAssessmentManagerReviewPanel({
             ) : null}
             {submission.reviewedAt ? (
               <p className="text-muted-foreground">
-                Reviewed {new Date(submission.reviewedAt).toLocaleString()}
+                Reviewed {formatInitialAssessmentDateTime(submission.reviewedAt)}
               </p>
             ) : null}
             {savedApproval && serviceUserId ? (

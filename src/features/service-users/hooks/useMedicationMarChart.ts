@@ -178,10 +178,10 @@ export function shiftMedicationChartMonth(month: string, delta: number): string 
   return `${y}-${m}`
 }
 
+import { formatOrganisationMonthYear } from '@/shared/lib/organisation-display-format.store'
+
 export function formatChartMonthLabel(month: string): string {
-  const [yStr, mStr] = month.split('-')
-  const d = new Date(Date.UTC(Number(yStr), Number(mStr) - 1, 1))
-  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  return formatOrganisationMonthYear(month)
 }
 
 /** Inclusive month list from `from` through `to` (max 6). */

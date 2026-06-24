@@ -9,7 +9,6 @@ import { timeCriticalLabel } from '@/features/service-users/visit-plan/TimeCriti
 import {
   callPatternTimeRange,
   carePlansForJobHover,
-  formatJobTimeRangeLabel,
   jobRotaTimeRange,
   resolveVisitPlanSlotForJob,
   rotaTimingDiffersFromCallPattern,
@@ -18,14 +17,13 @@ import {
 import { buildNextVisitTravelDetail } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import {
   formatDurationLabel,
-  formatScheduleJobsDateLabel,
   jobBlockTone,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { formatServiceUserBranchLabel } from '@/features/settings/location-management/format-service-user-branch-label'
 import {
   activeJobAllocationCount,
   employeesLabel,
-  jobStatusLabel,
   leadCarerAllocation,
   serviceUserLabel,
 } from '@/features/scheduling/utils/scheduling-format'
@@ -156,6 +154,7 @@ export function JobHoverPanel({
   rowJobs,
   travelBufferMinutes = 0,
 }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const tone = jobBlockTone(job)
   const completed = isScheduleJobCompleted(job)
   const header = completed
@@ -183,8 +182,7 @@ export function JobHoverPanel({
   const region = job.scheduleArea?.name
   const serviceUserBranch = formatServiceUserBranchLabel(job.serviceUser)
   const runName = job.scheduleRun?.name
-  const startDateLabel =
-    formatScheduleJobsDateLabel(date).split(',').slice(1).join(',').trim() || date
+  const startDateLabel = displayFormat.formatDate(date)
   const nextVisitTravel = completed
     ? null
     : buildNextVisitTravelDetail(job, rowJobs, {
@@ -200,7 +198,6 @@ export function JobHoverPanel({
   const callPatternFields: DetailField[] = visitSlot
     ? [
         { label: 'Slot', value: `${visitSlot.label} (${visitSlot.slotCode})` },
-        { label: 'Planned', value: formatJobTimeRangeLabel(callPattern!) },
         ...(visitSlot.medicationRoundCode
           ? [{ label: 'Round', value: visitSlot.medicationRoundCode }]
           : []),
@@ -216,37 +213,31 @@ export function JobHoverPanel({
   const actualEnd = job.actualEndDateTime
   const actualTimeLabel =
     actualStart && actualEnd
-      ? `${isoToLocalTimeInput(actualStart)} – ${isoToLocalTimeInput(actualEnd)}`
+      ? displayFormat.formatTimeRangeHm(isoToLocalTimeInput(actualStart), isoToLocalTimeInput(actualEnd))
       : actualStart
-        ? isoToLocalTimeInput(actualStart)
+        ? displayFormat.formatTimeHm(isoToLocalTimeInput(actualStart))
         : actualEnd
-          ? isoToLocalTimeInput(actualEnd)
+          ? displayFormat.formatTimeHm(isoToLocalTimeInput(actualEnd))
           : null
 
+  const formatRangeLabel = (range: { start: string; end: string }) =>
+    displayFormat.formatTimeRangeHm(range.start, range.end)
+
   const visitFields: DetailField[] = [
-    ...(completed
+    ...(completed && actualTimeLabel
+      ? [{ label: 'Actual time', value: actualTimeLabel, emphasis: true }]
+      : []),
+    ...(!timingChanged
       ? [
           {
-            label: 'Status',
-            value: 'Completed',
-            valueClassName: 'text-emerald-800 dark:text-emerald-200 font-semibold',
+            label: 'Time',
+            value: formatRangeLabel(rota),
             emphasis: true,
           },
-          ...(actualTimeLabel
-            ? [{ label: 'Actual time', value: actualTimeLabel, emphasis: true }]
-            : []),
         ]
       : []),
-    {
-      label: timingChanged ? 'Rota time' : 'Time',
-      value: formatJobTimeRangeLabel(rota),
-      emphasis: true,
-    },
     { label: 'Duration', value: formatDurationLabel(rota.durationMinutes) },
     { label: 'Date', value: startDateLabel },
-    ...(serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned'
-      ? [{ label: 'Branch', value: serviceUserBranch }]
-      : []),
     {
       label: 'Allocated',
       value: `${allocated} / ${job.requiredCarers}`,
@@ -309,10 +300,7 @@ export function JobHoverPanel({
           {serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned' ? (
             <p className="text-sm text-muted-foreground">{serviceUserBranch}</p>
           ) : null}
-          <div className="grid gap-x-6 sm:grid-cols-2">
-            <DetailRow label="Job" value={job.jobName} compact />
-            <DetailRow label="Status" value={jobStatusLabel(job.status)} compact />
-          </div>
+          <DetailRow label="Job" value={job.jobName} compact />
         </div>
 
         {timingChanged && callPattern ? (
@@ -322,12 +310,12 @@ export function JobHoverPanel({
                 <div>
                   <p className="text-xs text-amber-800/80 dark:text-amber-300">Call pattern</p>
                   <p className="mt-0.5 text-base font-semibold">
-                    {formatJobTimeRangeLabel(callPattern)}
+                    {formatRangeLabel(callPattern)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-amber-800/80 dark:text-amber-300">Rota now</p>
-                  <p className="mt-0.5 text-base font-semibold">{formatJobTimeRangeLabel(rota)}</p>
+                  <p className="mt-0.5 text-base font-semibold">{formatRangeLabel(rota)}</p>
                 </div>
               </div>
             </AlertBox>

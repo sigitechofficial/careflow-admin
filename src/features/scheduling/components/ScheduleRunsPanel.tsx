@@ -18,8 +18,8 @@ import { useScheduleRunsDisplayPreferences } from '@/features/scheduling/hooks/u
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { formatJobTimeRange, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
-import { formatScheduleJobsDateLabel } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -65,6 +65,12 @@ export function ScheduleRunsPanel({
   acceptedCarePlansByServiceUser,
   embedded,
 }: ScheduleRunsPanelProps) {
+  const displayFormat = useScheduleJobsDisplayFormat()
+  const formatJobTimeDisplay = React.useCallback(
+    (job: TimelineJob) =>
+      `${displayFormat.formatTime(job.scheduledStartDateTime)}–${displayFormat.formatTime(job.scheduledEndDateTime ?? job.scheduledStartDateTime)}`,
+    [displayFormat],
+  )
   const runsQuery = useScheduleRunsList({ runDate: date }, Boolean(date))
   const mutations = useScheduleRunMutations(date)
   const { preferences: runDisplayPreferences, updatePreferences, resetPreferences } =
@@ -460,7 +466,7 @@ export function ScheduleRunsPanel({
                     >
                       <span className="font-bold text-muted-foreground w-4">{idx + 1}</span>
                       <span className="flex-1 truncate">
-                        {serviceUserLabel(job.serviceUser)} · {formatJobTimeRange(job)}
+                        {serviceUserLabel(job.serviceUser)} · {formatJobTimeDisplay(job)}
                       </span>
                       {run.status !== 'CANCELLED' && run.status !== 'COMPLETED' ? (
                         <div className="flex items-center gap-0.5 shrink-0">
@@ -559,7 +565,7 @@ export function ScheduleRunsPanel({
           <DialogHeader>
             <DialogTitle>Create run</DialogTitle>
             <DialogDescription>
-              Group visits for {formatScheduleJobsDateLabel(date)} into a single carer route.
+              Group visits for {displayFormat.formatDateLong(date)} into a single carer route.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-4">
@@ -631,7 +637,7 @@ export function ScheduleRunsPanel({
             <DialogTitle>Add visits to run</DialogTitle>
             <DialogDescription>
               Select unassigned visits for {addJobsRun?.name ?? 'this run'} on{' '}
-              {formatScheduleJobsDateLabel(date)}.
+              {displayFormat.formatDateLong(date)}.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-2 p-0 px-5 pb-5">
@@ -656,7 +662,7 @@ export function ScheduleRunsPanel({
                       }}
                     />
                     <span className="flex-1 truncate">
-                      {serviceUserLabel(job.serviceUser)} · {formatJobTimeRange(job)}
+                      {serviceUserLabel(job.serviceUser)} · {formatJobTimeDisplay(job)}
                     </span>
                   </label>
                 )

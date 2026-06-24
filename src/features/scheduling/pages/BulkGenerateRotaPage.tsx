@@ -33,6 +33,11 @@ function BulkGenerateRotaPageContent() {
       <BulkGenerateRotaParametersSection
         generateFrom={page.generateFrom}
         generateTo={page.generateTo}
+        generateToPlaceholder={page.generateToPlaceholder}
+        defaultRotaHorizonDays={page.defaultRotaHorizonDays}
+        defaultRotaHorizonMode={page.defaultRotaHorizonMode}
+        defaultRotaToDateLabel={page.defaultRotaToDateLabel}
+        showDefaultRotaRange={page.showDefaultRotaRange}
         backfillDays={page.backfillDays}
         scheduleAreaId={page.scheduleAreaId}
         generateReadyOnly={page.generateReadyOnly}

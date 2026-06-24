@@ -1,6 +1,16 @@
 import type { EmployeeBrief, EmployeeDayRow, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { isScheduleJobCancelled } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { activeJobAllocationCount } from '@/features/scheduling/utils/scheduling-format'
+import {
+  formatDisplayDateLong,
+  formatDisplayDateShort,
+  formatDisplayHourLabel,
+  formatDisplayPeriodRange,
+  formatDisplayTimeFromIso,
+  formatDisplayWeekdayShort,
+  type DateDisplayFormat,
+  type TimeDisplayFormat,
+} from '@/shared/lib/display-format.util'
 
 export const SCHEDULE_JOBS_DAY_START_HOUR = 0
 export const SCHEDULE_JOBS_DAY_END_HOUR = 24
@@ -137,27 +147,22 @@ export function buildScheduleJobsBoard(
   return { employeeRows, carers, unassignedJobs, cancelledJobs, allJobs }
 }
 
-export function formatScheduleJobsDateLabel(isoDate: string): string {
-  const d = new Date(`${isoDate}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return isoDate
-  return d.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+export function formatScheduleJobsDateLabel(
+  isoDate: string,
+  dateFormat: DateDisplayFormat = 'DD_MM_YYYY',
+): string {
+  return formatDisplayDateLong(isoDate, dateFormat)
 }
 
 export function formatScheduleJobsWeekday(isoDate: string): string {
-  const d = new Date(`${isoDate}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB', { weekday: 'short' })
+  return formatDisplayWeekdayShort(isoDate)
 }
 
-export function formatScheduleJobsDayMonth(isoDate: string): string {
-  const d = new Date(`${isoDate}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return isoDate
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+export function formatScheduleJobsDayMonth(
+  isoDate: string,
+  dateFormat: DateDisplayFormat = 'DD_MM_YYYY',
+): string {
+  return formatDisplayDateShort(isoDate, dateFormat)
 }
 
 export function employeeBriefInitials(employee: EmployeeBrief): string {
@@ -240,11 +245,8 @@ export function jobBlockPosition(
   return { leftPct, widthPct, startMin, endMin }
 }
 
-export function formatTimeHm(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+export function formatTimeHm(iso: string, timeFormat: TimeDisplayFormat = 'HH_MM'): string {
+  return formatDisplayTimeFromIso(iso, timeFormat)
 }
 
 export function formatDurationLabel(minutes: number): string {
@@ -351,16 +353,18 @@ export function scheduleJobsPeriodBandForHour(hour: number): ScheduleJobsDayPeri
   return band ?? SCHEDULE_JOBS_DAY_PERIOD_BANDS[0]!
 }
 
-export function formatScheduleJobsPeriodRange(band: ScheduleJobsDayPeriodBand): string {
-  const endLabel =
-    band.endHour >= 24
-      ? '24:00'
-      : `${String(band.endHour).padStart(2, '0')}:00`
-  return `${String(band.startHour).padStart(2, '0')}:00 – ${endLabel}`
+export function formatScheduleJobsPeriodRange(
+  band: ScheduleJobsDayPeriodBand,
+  timeFormat: TimeDisplayFormat = 'HH_MM',
+): string {
+  return formatDisplayPeriodRange(band.startHour, band.endHour, timeFormat)
 }
 
-export function formatScheduleJobsHourLabel(hour: number): string {
-  return `${String(hour).padStart(2, '0')}:00`
+export function formatScheduleJobsHourLabel(
+  hour: number,
+  timeFormat: TimeDisplayFormat = 'HH_MM',
+): string {
+  return formatDisplayHourLabel(hour, timeFormat)
 }
 
 export function scheduleJobsPeriodHourCellClass(period: ScheduleJobsDayPeriod): string {

@@ -1,14 +1,13 @@
 import type { CarePlanReviewState } from '@/features/service-users/care-plans/types'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 export function carePlanReviewLabel(review?: CarePlanReviewState | null): string | null {
   if (!review || review.status === 'none') return null
   if (review.status === 'overdue') return 'Review overdue'
   if (review.status === 'due_soon') return 'Review due soon'
   if (review.nextReviewDueAt) {
-    const d = new Date(review.nextReviewDueAt)
-    if (!Number.isNaN(d.getTime())) {
-      return `Review ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-    }
+    const label = formatOrganisationDate(review.nextReviewDueAt)
+    if (label !== '—') return `Review ${label}`
   }
   return 'Review OK'
 }

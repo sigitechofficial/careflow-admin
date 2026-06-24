@@ -6,8 +6,8 @@ import { ScheduleRunRouteMap } from '@/features/scheduling/components/ScheduleRu
 import type { ScheduleRunRow, ScheduleRunStatus } from '@/features/scheduling/types/scheduling.types'
 import type { ScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
-import { formatJobTimeRange, activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
-import { formatScheduleJobsDateLabel } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { activeJobAllocationCount, serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -99,6 +99,7 @@ export function ScheduleRunEditDialog({
   deleting,
   initialTab = 'run',
 }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const [activeTab, setActiveTab] = React.useState<RunTab>(initialTab)
   const [recommendOpen, setRecommendOpen] = React.useState(false)
 
@@ -155,7 +156,7 @@ export function ScheduleRunEditDialog({
             <div>
               <h2 className="text-lg font-bold text-primary">{editName || run?.name || 'Run'}</h2>
               <p className="text-xs text-muted-foreground">
-                {formatScheduleJobsDateLabel(date)}
+                {displayFormat.formatDateLong(date)}
                 {run ? ` · ${RUN_STATUS_LABELS[run.status]}` : ''}
               </p>
             </div>
@@ -273,7 +274,10 @@ export function ScheduleRunEditDialog({
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium">{serviceUserLabel(job.serviceUser)}</p>
-                          <p className="text-xs text-muted-foreground">{formatJobTimeRange(job)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {displayFormat.formatTime(job.scheduledStartDateTime)}–
+                            {displayFormat.formatTime(job.scheduledEndDateTime ?? job.scheduledStartDateTime)}
+                          </p>
                         </div>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                           {activeJobAllocationCount(job)}/{job.requiredCarers} carer

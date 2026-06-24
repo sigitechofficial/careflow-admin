@@ -46,9 +46,9 @@ import {
 } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import {
   callPatternTimeRange,
-  formatJobTimeRangeLabel,
   resolveVisitPlanSlotForJob,
   rotaTimingDiffersFromCallPattern,
 } from '@/features/scheduling/utils/schedule-job-hover-details.util'
@@ -97,6 +97,7 @@ export function ScheduleJobAllocateDialog({
   boardJobs,
   onAllocated,
 }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const timePanelRef = React.useRef<HTMLElement>(null)
   const assignedPanelRef = React.useRef<HTMLElement>(null)
   const [search, setSearch] = React.useState('')
@@ -383,7 +384,9 @@ export function ScheduleJobAllocateDialog({
 
   const visitSlot = job ? resolveVisitPlanSlotForJob(job, visitPlanSlotsByServiceUser) : null
   const callPattern = visitSlot ? callPatternTimeRange(visitSlot) : null
-  const callPatternLabel = callPattern ? formatJobTimeRangeLabel(callPattern) : null
+  const callPatternLabel = callPattern
+    ? displayFormat.formatTimeRangeHm(callPattern.start, callPattern.end)
+    : null
   const rotaDiffersFromCallPattern =
     job && visitSlot ? rotaTimingDiffersFromCallPattern(job, visitSlot) : false
 

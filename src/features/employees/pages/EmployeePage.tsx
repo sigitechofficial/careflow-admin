@@ -5,7 +5,7 @@ import {
   PenLine, Plus, X, Filter, FileText, Globe, Clock,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { ApiError } from '@/shared/api/api-client'
@@ -973,11 +973,10 @@ function ReviewStatusTab() {
   const overviewQuery = useEmployeeReviewsOverview(apiConfigured && jwtPresent && canRead)
   const rows = overviewQuery.data ?? []
 
-  const formatDate = (iso: string | null | undefined) => {
+  const formatReviewDate = (iso: string | null | undefined) => {
     if (!iso) return '?'
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return '?'
-    return d.toLocaleDateString('en-GB')
+    const formatted = formatDate(iso)
+    return formatted === '—' ? '?' : formatted
   }
 
   const employeeName = (row: (typeof rows)[number]) => {
@@ -1045,9 +1044,9 @@ function ReviewStatusTab() {
                       {row.status ?? (overdue ? 'Overdue' : 'Scheduled')}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{formatDate(row.lastDone)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{formatReviewDate(row.lastDone)}</td>
                   <td className={cn('px-3 py-2.5 font-medium', overdue ? 'text-destructive' : 'text-muted-foreground')}>
-                    {formatDate(row.nextDue)}
+                    {formatReviewDate(row.nextDue)}
                   </td>
                 </tr>
               )

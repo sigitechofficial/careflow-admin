@@ -20,6 +20,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { SessionRefresh } from '@/features/auth/components/SessionRefresh'
 import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBootstrap'
+import { OrganisationDisplayFormatProvider } from '@/shared/context/organisation-display-format.context'
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { useUIStore } from '@/store/ui.store'
@@ -284,11 +285,13 @@ function AppRootShell() {
     <>
       <SessionRefresh />
       <CompanyBrandingBootstrap />
-      <AppToaster />
-      <DevUiTraceChip />
-      <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
-        <Outlet />
-      </AppLayout>
+      <OrganisationDisplayFormatProvider>
+        <AppToaster />
+        <DevUiTraceChip />
+        <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
+          <Outlet />
+        </AppLayout>
+      </OrganisationDisplayFormatProvider>
     </>
   )
 }

@@ -51,7 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/dialog'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 
 const STATUS_OPTIONS: EnterpriseFundingStatus[] = [
   'PENDING',
@@ -64,10 +64,7 @@ const STATUS_OPTIONS: EnterpriseFundingStatus[] = [
 ]
 
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString()
+  return formatDate(iso)
 }
 
 function fmtMoney(v: string | null | undefined): string {

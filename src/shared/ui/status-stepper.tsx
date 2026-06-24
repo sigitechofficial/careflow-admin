@@ -1,6 +1,6 @@
 ﻿import * as React from "react"
 import { Check, Circle, AlertCircle } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
+import { cn, formatDate } from "@/shared/lib/utils"
 import { Badge } from "./badge"
 
 export interface StatusStep {
@@ -25,10 +25,6 @@ const stepTypeConfig = {
   error:    { circle: "bg-destructive border-destructive", icon: <AlertCircle className="h-3 w-3 text-white" />, label: "text-destructive", connector: "bg-border" },
 }
 
-function formatDate(d: string | Date) {
-  const date = typeof d === "string" ? new Date(d) : d
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-}
 
 export function StatusStepper({ steps, orientation = "horizontal", size = "md", className }: StatusStepperProps) {
   const circleSize = size === "sm" ? "h-6 w-6" : "h-8 w-8"

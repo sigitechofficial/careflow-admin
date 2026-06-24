@@ -1,5 +1,6 @@
 import { plainTextFromHtml } from '@/features/service-users/initial-assessment/components/InitialAssessmentTextarea'
 import type { InitialAssessmentSubmissionUserRef } from '@/features/service-users/initial-assessment/types'
+import { formatDate, formatDateTime } from '@/shared/lib/utils'
 
 export function formatInitialAssessmentUser(
   user?: InitialAssessmentSubmissionUserRef | null,
@@ -10,9 +11,11 @@ export function formatInitialAssessmentUser(
 }
 
 export function formatInitialAssessmentDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString()
+  return formatDateTime(iso)
+}
+
+export function formatInitialAssessmentDate(iso: string | null | undefined): string {
+  return formatDate(iso)
 }
 
 /** Read-only display for Summernote / HTML note fields — never show raw markup. */

@@ -15,7 +15,6 @@ export function filterBulkGenerateRotaCandidates(
     return haystack.includes(q)
   })
 }
-
 export function readyBulkGenerateRotaCandidates(
   rows: BulkVisitPlanScheduleCandidate[],
 ): BulkVisitPlanScheduleCandidate[] {

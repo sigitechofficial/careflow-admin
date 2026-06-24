@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
 import { BodyMapMarAdministrationLink } from '@/features/service-users/body-map/components/BodyMapMarAdministrationLink'
 import { isPatchSubType } from '@/features/service-users/body-map/utils/body-map-medication-subtype'
+import { formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
 
 type Props = {
   record: BodyMapRecordRow
@@ -33,7 +34,7 @@ export function BodyMapMedicationSiteDetail({ record, serviceUserId }: Props) {
         {site.appliedAt ? (
           <li>
             <span className="font-medium">Applied: </span>
-            {new Date(site.appliedAt).toLocaleString('en-GB')}
+            {formatGbDateTime(site.appliedAt)}
             {site.appliedByName ? ` · ${site.appliedByName}` : ''}
           </li>
         ) : null}
@@ -56,7 +57,7 @@ export function BodyMapMedicationSiteDetail({ record, serviceUserId }: Props) {
               <li>Disposal recorded: {site.disposalRecorded ? 'Yes' : 'No'}</li>
             ) : null}
             {site.nextChangeDue ? (
-              <li>Next change due: {new Date(site.nextChangeDue).toLocaleString('en-GB')}</li>
+              <li>Next change due: {formatGbDateTime(site.nextChangeDue)}</li>
             ) : null}
             {site.siteRotationChecked ? <li>Site rotation checked</li> : null}
           </>

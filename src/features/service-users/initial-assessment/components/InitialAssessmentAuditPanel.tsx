@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { useAuditLogs } from '@/features/audit/hooks/useAuditLogs'
+import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   serviceUserId: string
@@ -38,7 +39,7 @@ export function InitialAssessmentAuditPanel({ serviceUserId, submissionId, enabl
         <ul className="divide-y px-4 py-2">
           {rows.map((row) => (
             <li key={row.id} className="relative border-l-2 border-teal-300 py-3 pl-4">
-              <p className="text-xs text-muted-foreground">{new Date(row.createdAt).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{formatInitialAssessmentDateTime(row.createdAt)}</p>
               <p className="text-sm font-medium">{row.context?.eventLabel ?? row.action}</p>
               <p className="text-sm text-muted-foreground">
                 {row.context?.summary ?? row.description ?? `${row.module} · ${row.action}`}

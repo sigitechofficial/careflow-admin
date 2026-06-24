@@ -14,7 +14,7 @@ import {
 } from '@/features/service-users/medication/mar-supply-display'
 import { Button } from '@/shared/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate, formatTime } from '@/shared/lib/utils'
 
 const REVIEWABLE_STATUSES = new Set(['REFUSED', 'MISSED', 'NOT_GIVEN', 'HELD'])
 
@@ -32,10 +32,8 @@ function deliveryTabLabel(model: MedicationSupplyCard['supplyModel']): string {
 function formatDueTime(value: string | null | undefined): string {
   if (!value) return '—'
   const match = value.match(/T(\d{2}:\d{2})/)
-  if (match?.[1]) return match[1]
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  if (match?.[1]) return formatTime(`${value.slice(0, 10)}T${match[1]}:00`)
+  return formatTime(value)
 }
 
 function eventDateLabel(ev: MedicationEventListRow): string {

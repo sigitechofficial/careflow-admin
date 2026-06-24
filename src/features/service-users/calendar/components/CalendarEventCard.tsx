@@ -1,11 +1,10 @@
-﻿import { cn } from '@/shared/lib/utils'
+﻿import { cn, formatTime as formatOrgTime } from '@/shared/lib/utils'
 import type { ServiceUserCalendarEvent } from '../types/service-user-calendar.types'
 import { CalendarEventTypeBadge } from './CalendarEventTypeBadge'
 
 function formatTime(iso: string, allDay: boolean) {
   if (allDay) return 'All day'
-  const d = new Date(iso)
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatOrgTime(iso)
 }
 
 function serviceUserLabel(ev: ServiceUserCalendarEvent) {

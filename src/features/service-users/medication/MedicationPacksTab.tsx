@@ -36,6 +36,7 @@ import type {
 } from '@/features/service-users/types'
 import { useMedicationPacks } from '@/features/service-users/hooks/useServiceUserMedicationMutations'
 import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
+import { formatGbDate } from '@/features/service-users/medication/medication-event-display'
 import {
   useMedicationPackMembers,
   useAddMedicationPackMember,
@@ -686,11 +687,7 @@ function PackDeliveries({ serviceUserId, packId }: { serviceUserId: string; pack
             >
               <span className="font-medium">Cycle {d.cycleNumber}</span>
               <span className="text-muted-foreground">
-                {new Date(d.receivedAt).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
+                {formatGbDate(d.receivedAt)}
               </span>
               {d.deliveredBy && <span className="text-muted-foreground">· {d.deliveredBy}</span>}
               {d.condition === 'DAMAGED' && (

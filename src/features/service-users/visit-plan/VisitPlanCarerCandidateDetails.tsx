@@ -1,6 +1,5 @@
-import { AlertTriangle, Clock, ShieldAlert, Star, UserX } from 'lucide-react'
+import { Clock, ShieldAlert, Star, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
-import { CARER_ROTA_CONFLICT_MESSAGE } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
 import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
@@ -93,24 +92,6 @@ export function VisitPlanCarerCandidateDetails({
           <p className="text-xs text-muted-foreground">
             {[c.role, c.jobTitle].filter(Boolean).join(' · ') || 'Employee'}
           </p>
-        </div>
-      ) : null}
-
-      {c.hasRotaConflict ? (
-        <div
-          className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-950 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100"
-          role="alert"
-        >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <div className="space-y-1">
-            <p className="font-semibold">Carer not available — already booked</p>
-            <p className="leading-relaxed">{CARER_ROTA_CONFLICT_MESSAGE}</p>
-            {c.rotaConflictJobs?.length ? (
-              <p className="text-[11px] text-red-900/80 dark:text-red-100/80">
-                Conflicts: {c.rotaConflictJobs.join(', ')}
-              </p>
-            ) : null}
-          </div>
         </div>
       ) : null}
 

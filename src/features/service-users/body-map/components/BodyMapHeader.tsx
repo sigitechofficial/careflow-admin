@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 import type { BodyMapSummary } from '@/features/service-users/body-map/types'
 
@@ -27,7 +27,7 @@ function formatDob(iso: string | null | undefined): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
   const age = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} (${age})`
+  return `${formatDate(iso)} (${age})`
 }
 
 const FLAG_STYLES: Record<string, string> = {
@@ -84,7 +84,7 @@ export function BodyMapHeader({ serviceUserId, profile, summary, allergies }: Pr
             <span>DOB {formatDob(profile?.dateOfBirth)}</span>
             {profile?.careType?.name ? <span>{profile.careType.name}</span> : null}
             {summary?.lastReviewAt ? (
-              <span>Last review: {new Date(summary.lastReviewAt).toLocaleDateString('en-GB')}</span>
+              <span>Last review: {formatDate(summary.lastReviewAt)}</span>
             ) : null}
             {allergies.length > 0 ? (
               <span>Allergies: {allergies.map(a => a.name).join(', ')}</span>

@@ -8,6 +8,7 @@ import {
   type MarMedicationGroup,
 } from '@/features/service-users/medication/mar-calendar-layout'
 import { normalizeDueTimeHm } from '@/features/service-users/medication/medication-time-slots'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 export type MarCalendarPackBundle = {
   packName: string
@@ -414,9 +415,8 @@ export function packCompartmentMetaLine(compartments: MarPackCompartmentSlice[])
 
 export function formatShortDate(iso: string | null | undefined): string | null {
   if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const formatted = formatOrganisationDate(iso)
+  return formatted === '—' ? null : formatted
 }
 
 export function daysUntil(iso: string | null | undefined): number | null {

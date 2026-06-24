@@ -16,10 +16,10 @@ const PACK_TYPE_LABEL: Record<string, string> = {
   OTHER: 'Other',
 }
 
+import { formatDate as formatOrgDate } from '@/shared/lib/utils'
+
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatOrgDate(value)
 }
 
 export function PackManifestDialog({

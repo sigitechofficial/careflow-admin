@@ -1,4 +1,4 @@
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate as formatOrgDate } from '@/shared/lib/utils'
 import {
   recordTypeLabel,
   type BodyMapRecordTypeCode,
@@ -12,10 +12,7 @@ type Props = {
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB')
+  return formatOrgDate(iso)
 }
 
 function riskBadgeClass(risk: string): string {

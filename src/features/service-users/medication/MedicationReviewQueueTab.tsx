@@ -5,11 +5,10 @@ import { useReviewMedicationEvent } from '@/features/service-users/hooks/useMedi
 import { MarEventStatusBadge } from '@/features/service-users/medication/MarEventStatusBadge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
+import { formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
+
 function formatWhen(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+  return formatGbDateTime(iso)
 }
 
 export function MedicationReviewQueueTab({

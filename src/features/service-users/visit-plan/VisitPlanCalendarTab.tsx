@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, LayoutList, Table2, User, Users } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { shiftMedicationChartMonth } from '@/features/service-users/hooks/useMedicationMarChart'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
@@ -183,14 +184,10 @@ function carerLabels(slot: VisitPlanSlot, employeeNameById: Map<string, string>)
 }
 
 function formatCalendarDateLabel(month: string, day: number): string {
-  const date = visitPlanDayDate(month, day)
-  const weekday = VISIT_PLAN_DAY_LABELS[date.getUTCDay()] ?? ''
-  return `${weekday} ${date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })}`
+  const y = month.slice(0, 4)
+  const m = month.slice(5, 7)
+  const iso = `${y}-${m}-${String(day).padStart(2, '0')}`
+  return formatOrganisationIsoDateLong(iso)
 }
 
 function VisitCalendarCellTooltip({

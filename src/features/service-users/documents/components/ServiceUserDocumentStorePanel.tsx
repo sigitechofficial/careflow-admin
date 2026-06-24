@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { ChevronLeft, FileText, Folder, FolderOpen, Loader2, Upload, X } from 'lucide-react'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate as formatOrgDate } from '@/shared/lib/utils'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
@@ -39,9 +39,8 @@ import {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
-  const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const normalized = iso.includes('T') ? iso : `${iso}T12:00:00`
+  return formatOrgDate(normalized)
 }
 
 function todayIso(): string {

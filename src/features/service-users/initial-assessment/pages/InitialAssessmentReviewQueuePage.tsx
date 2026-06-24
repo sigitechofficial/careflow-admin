@@ -6,6 +6,7 @@ import { fetchInitialAssessmentReviewQueue } from '@/features/service-users/init
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { InitialAssessmentStatusBadge } from '@/features/service-users/initial-assessment/components/InitialAssessmentStatusBadge'
 import { Button } from '@/shared/ui/button'
+import { formatInitialAssessmentDate } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 export default function InitialAssessmentReviewQueuePage() {
   const [overdueActionsOnly, setOverdueActionsOnly] = React.useState(false)
@@ -74,9 +75,7 @@ export default function InitialAssessmentReviewQueuePage() {
                     />
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {row.submittedAt
-                      ? new Date(row.submittedAt).toLocaleDateString('en-GB')
-                      : '—'}
+                    {row.submittedAt ? formatInitialAssessmentDate(row.submittedAt) : '—'}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {row.openActionsCount} action{row.openActionsCount === 1 ? '' : 's'}

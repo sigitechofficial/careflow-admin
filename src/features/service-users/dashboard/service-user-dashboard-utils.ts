@@ -1,4 +1,5 @@
 import type { ServiceUserDetail } from '@/features/service-users/types'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 export function employeeDisplayName(
   e: { firstName?: string | null; lastName?: string | null } | null | undefined,
@@ -17,9 +18,7 @@ export function initialsFromName(first?: string | null, last?: string | null, fa
 
 export function formatDobLong(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  return formatOrganisationDate(iso, { utc: true })
 }
 
 export function ageFromDob(iso: string | null | undefined): number | null {
@@ -35,15 +34,12 @@ export function ageFromDob(iso: string | null | undefined): number | null {
 
 export function formatShortUk(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatOrganisationDate(iso)
 }
 
 export function formatFlashUntil(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const formatted = formatOrganisationDate(iso)
+  return formatted === '—' ? iso : formatted
 }
 
 export function isHighRisk(detail: ServiceUserDetail | null): boolean {

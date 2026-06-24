@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/form-field'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { formatDate, formatDateTime } from '@/shared/lib/utils'
 import {
   recordTypeLabel,
   type BodyMapRecordTypeCode,
@@ -220,7 +221,7 @@ export function RecordDetailDrawer({
         {record.nextReviewAt ? (
           <p>
             <span className="font-medium text-muted-foreground">Review due: </span>
-            {new Date(record.nextReviewAt).toLocaleString('en-GB')}
+            {formatDateTime(record.nextReviewAt)}
           </p>
         ) : null}
 
@@ -240,7 +241,7 @@ export function RecordDetailDrawer({
               {wound.nextDressingChange ? (
                 <li>
                   Next change:{' '}
-                  {new Date(wound.nextDressingChange).toLocaleDateString('en-GB')}
+                  {formatDate(wound.nextDressingChange)}
                 </li>
               ) : null}
             </ul>
@@ -283,7 +284,7 @@ export function RecordDetailDrawer({
               {sg.managerNotes ? <li className="mt-1 whitespace-pre-wrap">{sg.managerNotes}</li> : null}
             </ul>
             <p className="mt-2 text-muted-foreground">
-              Completed {new Date(sg.completedAt).toLocaleString('en-GB')}
+              Completed {formatDateTime(sg.completedAt)}
             </p>
           </div>
         ) : null}
@@ -459,7 +460,7 @@ export function RecordDetailDrawer({
                 } | null
                 return (
                   <li key={r.id} className="rounded-md bg-muted/50 px-2 py-1.5 text-xs">
-                    {r.conditionStatus} — {new Date(r.reviewedAt).toLocaleString('en-GB')}
+                    {r.conditionStatus} — {formatDateTime(r.reviewedAt)}
                     {wr?.progressionComparison ? (
                       <span className="mt-1 block">
                         Progression: {wr.progressionComparison.toLowerCase()}
@@ -481,7 +482,7 @@ export function RecordDetailDrawer({
               {auditQuery.data.entries.map(e => (
                 <li key={e.id} className="text-muted-foreground">
                   {e.action} · {e.actorName ?? 'System'} ·{' '}
-                  {new Date(e.createdAt).toLocaleString('en-GB')}
+                  {formatDateTime(e.createdAt)}
                 </li>
               ))}
             </ul>

@@ -1,6 +1,7 @@
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { InitialAssessmentSubmission, InitialAssessmentStatus } from '@/features/service-users/initial-assessment/types'
+import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 const STATUS_CLASS: Record<InitialAssessmentStatus, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
@@ -51,7 +52,7 @@ export function InitialAssessmentHubListPanel({
                 <span className="text-muted-foreground">
                   {s.template?.name ?? 'Template'} v{s.template?.version ?? '—'}
                 </span>
-                <span className="text-muted-foreground">Updated {new Date(s.updatedAt).toLocaleString()}</span>
+                <span className="text-muted-foreground">Updated {formatInitialAssessmentDateTime(s.updatedAt)}</span>
               </button>
             </li>
           ))}

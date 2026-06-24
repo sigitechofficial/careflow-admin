@@ -37,6 +37,7 @@ import {
   visitDurationMinutes,
 } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { cn } from '@/shared/lib/utils'
+import { formatOrganisationIsoDateLong, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 
 export type VisitPlanCalendarSelection = {
   iso: string
@@ -62,21 +63,12 @@ type Props = {
 
 function formatIsoTime(iso: string | null | undefined): string | null {
   if (!iso) return null
-  return new Date(iso).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+  const formatted = formatOrganisationTime(iso)
+  return formatted === '—' ? null : formatted
 }
 
 function formatVisitDate(iso: string): string {
-  return new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+  return formatOrganisationIsoDateLong(iso)
 }
 
 function DetailRow({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {

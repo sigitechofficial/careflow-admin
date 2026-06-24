@@ -1,5 +1,5 @@
 ﻿import * as React from "react"
-import { cn } from "@/shared/lib/utils"
+import { cn, formatDate, formatTime as formatOrgTime } from "@/shared/lib/utils"
 import { Badge } from "./badge"
 
 export interface TimelineEvent {
@@ -32,20 +32,18 @@ const typeBadge: Record<string, "default" | "success" | "warning" | "destructive
   default: "default", success: "success", warning: "warning", destructive: "destructive", info: "info",
 }
 
-function formatDate(d: string | Date) {
-  const date = typeof d === "string" ? new Date(d) : d
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+function formatEventDate(d: string | Date) {
+  return formatDate(d)
 }
 
-function formatTime(d: string | Date) {
-  const date = typeof d === "string" ? new Date(d) : d
-  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+function formatEventTime(d: string | Date) {
+  return formatOrgTime(d)
 }
 
 function groupEvents(events: TimelineEvent[]) {
   const groups: Record<string, TimelineEvent[]> = {}
   for (const ev of events) {
-    const key = formatDate(ev.date)
+    const key = formatEventDate(ev.date)
     if (!groups[key]) groups[key] = []
     groups[key].push(ev)
   }
@@ -96,7 +94,7 @@ function TimelineList({ events, className }: { events: TimelineEvent[]; classNam
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {ev.category && <Badge variant={typeBadge[ev.type ?? "default"]} size="sm">{ev.category}</Badge>}
-                <time className="text-xs text-muted-foreground whitespace-nowrap">{formatTime(ev.date)}</time>
+                <time className="text-xs text-muted-foreground whitespace-nowrap">{formatEventTime(ev.date)}</time>
               </div>
             </div>
             {ev.description && <p className="text-sm text-muted-foreground mt-1">{ev.description}</p>}

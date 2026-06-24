@@ -1,20 +1,21 @@
 import type { MedicationSupplySummary } from '@/features/service-users/api/medication-mar.api'
 import { supplyModelLabel } from '@/features/service-users/medication/mar-status-utils'
+import {
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+} from '@/shared/lib/organisation-display-format.store'
 
 export type MarSupplyContextItem = { label: string; value: string }
 
 export function formatMarSupplyDate(iso: string | null | undefined): string | null {
   if (!iso) return null
-  const d = new Date(`${iso.slice(0, 10)}T12:00:00.000Z`)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  const formatted = formatOrganisationDate(`${iso.slice(0, 10)}T12:00:00.000Z`, { utc: true })
+  return formatted === '—' ? null : formatted
 }
 
 export function formatMarSupplyDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+  return formatOrganisationDateTime(iso)
 }
 
 export function marSupplyContextItems(summary: MedicationSupplySummary): MarSupplyContextItem[] {

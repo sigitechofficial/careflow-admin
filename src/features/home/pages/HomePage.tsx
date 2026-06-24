@@ -74,6 +74,11 @@ export default function HomePage() {
   const [page, setPage] = React.useState(1)
   const [dismissed, setDismissed] = React.useState(false)
 
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDismissed(true), 3000)
+    return () => window.clearTimeout(timer)
+  }, [])
+
   const PAGE_SIZE = 2
   const totalPages = Math.ceil(handoverEntries.length / PAGE_SIZE)
 

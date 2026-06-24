@@ -1,4 +1,5 @@
 import type { EmployeeListRow } from '@/features/employees/api'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 export function isEmployeeEmploymentEnded(emp: Pick<EmployeeListRow, 'employmentEndDate'>): boolean {
   const raw = emp.employmentEndDate
@@ -10,7 +11,6 @@ export function isEmployeeEmploymentEnded(emp: Pick<EmployeeListRow, 'employment
 
 export function formatStaffListHolidayEnd(iso: string | null | undefined): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const formatted = formatOrganisationDate(iso)
+  return formatted === '—' ? '' : formatted
 }

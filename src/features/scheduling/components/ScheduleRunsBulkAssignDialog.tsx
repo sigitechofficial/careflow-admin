@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import type { ScheduleRunBulkAssignBundle } from '@/features/scheduling/hooks/useScheduleRunsBulkAssignDialog'
 import { scheduleRunAccentColor } from '@/features/scheduling/utils/schedule-run-board.util'
-import { formatScheduleJobsDateLabel } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
@@ -47,6 +47,7 @@ export function ScheduleRunsBulkAssignDialog({
   onAssign,
   saving,
 }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const visitCount = bundles.reduce((sum, entry) => sum + entry.jobs.length, 0)
 
   return (
@@ -56,7 +57,7 @@ export function ScheduleRunsBulkAssignDialog({
           <DialogTitle>Assign carer to runs</DialogTitle>
           <DialogDescription>
             Assign one carer to {bundles.length} selected run{bundles.length === 1 ? '' : 's'} on{' '}
-            {formatScheduleJobsDateLabel(date)}.
+            {displayFormat.formatDateLong(date)}.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">

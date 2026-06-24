@@ -1,5 +1,6 @@
 import type { CarePlanDraftValues } from './care-plan-draft-storage'
 import { metaString, setMetaValue } from './care-plan-form-meta'
+import { formatOrganisationDate, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 
 export const CARE_PLAN_CONSENT_META = {
   records: '__meta.consentRecords',
@@ -63,12 +64,8 @@ export function setConsentShowClosed(
 }
 
 export function formatConsentDateTime(date = new Date()): { date: string; time: string } {
-  const d = new Date(date)
-  const dateStr = d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-  const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
-  return { date: dateStr, time: timeStr }
+  return {
+    date: formatOrganisationDate(date),
+    time: formatOrganisationTime(date),
+  }
 }

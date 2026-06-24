@@ -8,17 +8,11 @@ import {
 } from '@/features/audit/audit-log-display'
 import { auditEventTypeLabel } from '@/features/audit/audit-event-types'
 import { Button } from '@/shared/ui/button'
+import { formatDateTime } from '@/shared/lib/utils'
 
 function formatWhen(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const formatted = formatDateTime(iso)
+  return formatted === '—' ? iso : formatted
 }
 
 export function MedicationActivityTab({ serviceUserId }: { serviceUserId: string }) {

@@ -12,6 +12,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { fetchInitialAssessmentAnswers } from '@/features/service-users/initial-assessment/api'
 import { buildCompareRows } from '@/features/service-users/initial-assessment/utils/compare-answers'
+import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 import { InitialAssessmentSubmissionDetailSheet } from '@/features/service-users/initial-assessment/components/InitialAssessmentSubmissionDetailSheet'
 import type {
   InitialAssessmentSection,
@@ -147,10 +148,10 @@ export function InitialAssessmentVersionsPanel({
                     {s.template?.name ?? '—'} v{s.template?.version ?? '—'}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '—'}
+                    {formatInitialAssessmentDateTime(s.submittedAt)}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {s.reviewedAt ? new Date(s.reviewedAt).toLocaleString() : '—'}
+                    {formatInitialAssessmentDateTime(s.reviewedAt)}
                   </td>
                   <td className="px-3 py-2">
                     <Button

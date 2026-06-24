@@ -5,7 +5,7 @@ import { Textarea } from '@/shared/ui/form-field'
 import { useReviewMedicationEvent } from '@/features/service-users/hooks/useMedicationMarChart'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import type { MedicationEventDetail } from '@/features/service-users/api/medication-mar.api'
-import { userDisplayName } from '@/features/service-users/medication/medication-event-display'
+import { userDisplayName, formatGbDateTime } from '@/features/service-users/medication/medication-event-display'
 
 const REVIEWABLE = new Set(['REFUSED', 'MISSED', 'NOT_GIVEN', 'HELD'])
 
@@ -40,7 +40,7 @@ export function RecordReviewPanel({
       <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm dark:border-emerald-900 dark:bg-emerald-950">
         <p className="font-medium text-emerald-900 dark:text-emerald-100">Manager reviewed</p>
         <p className="text-xs text-emerald-800 dark:text-emerald-200">
-          {new Date(event.managerReviewedAt).toLocaleString('en-GB')} ·{' '}
+          {formatGbDateTime(event.managerReviewedAt)} ·{' '}
           {userDisplayName(event.managerReviewedBy)}
         </p>
         {event.managerReviewNotes && (

@@ -46,6 +46,7 @@ import { useMedicationBodyMapSiteIndex } from '@/features/service-users/body-map
 import { chartRowMissingBodyMapSite } from '@/features/service-users/medication/mar-body-map-site-hint'
 import type { MarChartCell, MarChartMedicationRow } from '@/features/service-users/api/medication-mar.api'
 import type { MedicationPackRow } from '@/features/service-users/types'
+import { formatDate } from '@/shared/lib/utils'
 import './mar-calendar.css'
 
 export function MarCalendarTab({ serviceUserId }: { serviceUserId: string }) {
@@ -397,10 +398,7 @@ export function MarCalendarTab({ serviceUserId }: { serviceUserId: string }) {
           >
             Period statistics (to{' '}
             {chart.monthStats.completionThroughDate
-              ? new Date(`${chart.monthStats.completionThroughDate}T12:00:00Z`).toLocaleDateString(
-                  'en-GB',
-                  { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' },
-                )
+              ? formatDate(`${chart.monthStats.completionThroughDate}T12:00:00Z`, { utc: true })
               : 'date'}
             )
             <span>{statsOpen ? '▲' : '▼'}</span>

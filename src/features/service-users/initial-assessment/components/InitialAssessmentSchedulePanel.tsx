@@ -5,6 +5,7 @@ import type {
   InitialAssessmentSection,
   InitialAssessmentSubmission,
 } from '@/features/service-users/initial-assessment/types'
+import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 type Props = {
   submission: InitialAssessmentSubmission | null | undefined
@@ -55,7 +56,7 @@ export function InitialAssessmentSchedulePanel({ submission, sections, draftAnsw
       {submission ? (
         <p className="text-xs text-muted-foreground">
           Submission status: {submission.status.replace('_', ' ')} · Updated{' '}
-          {new Date(submission.updatedAt).toLocaleString()}
+          {formatInitialAssessmentDateTime(submission.updatedAt)}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">No active submission.</p>
