@@ -19,6 +19,7 @@ import { ScheduleJobContextMenu } from '@/features/scheduling/components/Schedul
 import { ScheduleCarerHoverCard } from '@/features/scheduling/components/ScheduleCarerHoverCard'
 import { ScheduleServiceUserHoverCard } from '@/features/scheduling/components/ScheduleServiceUserHoverCard'
 import { ScheduleJobHoverTooltip } from '@/features/scheduling/components/ScheduleJobHoverCard'
+import { ScheduleJobTravelConnectors } from '@/features/scheduling/components/ScheduleJobTravelConnectors'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { ScheduleJobsDragOverlay } from '@/features/scheduling/components/ScheduleJobsDragOverlay'
 import { ScheduleJobsMarqueeOverlay } from '@/features/scheduling/components/ScheduleJobsMarqueeOverlay'
@@ -44,6 +45,7 @@ import {
   serviceUserRowSubtitle,
 } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { travelConflictJobIds } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import { buildScheduleJobTravelConnectors } from '@/features/scheduling/utils/schedule-job-travel-connector.util'
 import { buildCarerAvailabilitySegments, resolveCarerDayAvailabilityBadge } from '@/features/scheduling/utils/schedule-jobs-availability.util'
 import type { EmployeeDayPattern } from '@/features/scheduling/types/scheduling.types'
 import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
@@ -130,6 +132,10 @@ function scheduleJobsBoardMinWidth(
     return scrollClientWidth
   }
   return SCHEDULE_JOBS_CARER_COL_WIDTH + viewport.trackWidth
+}
+
+function scheduleJobsRowShowsTravelConnectors(sourceRow: ScheduleJobsRowRef): boolean {
+  return sourceRow.kind === 'carer' || sourceRow.kind === 'unassigned'
 }
 
 function scheduleJobBlockHasVisibleIcons(
@@ -774,6 +780,8 @@ function TimelineTrack({
   previewJobIds,
   runDisplayPreferences,
   overlapByJobId,
+  jobLaneHeight,
+  rowHeightPx,
   jobLabelMode,
   showRunsOnBoard = false,
   viewport,
@@ -803,6 +811,8 @@ function TimelineTrack({
   previewJobIds?: Set<string>
   runDisplayPreferences?: ScheduleRunsDisplayPreferences
   overlapByJobId?: Map<string, JobOverlapLayout>
+  jobLaneHeight: number
+  rowHeightPx: number
   jobLabelMode?: 'carer-row' | 'service-user-row'
   showRunsOnBoard?: boolean
   viewport: ScheduleJobsTimelineViewport
@@ -831,6 +841,18 @@ function TimelineTrack({
         ? travelConflictJobIds(jobs, travelBufferMinutes ?? 0)
         : new Set<string>(),
     [jobs, travelBufferMinutes, showCarerAvailability],
+  )
+  const travelConnectors = React.useMemo(
+    () =>
+      scheduleJobsRowShowsTravelConnectors(sourceRow)
+        ? buildScheduleJobTravelConnectors(jobs, viewport, {
+            overlapByJobId,
+            jobLaneHeight,
+            rowHeightPx,
+            travelBufferMinutes,
+          })
+        : [],
+    [jobs, viewport, overlapByJobId, jobLaneHeight, rowHeightPx, travelBufferMinutes, sourceRow],
   )
 
   return (
@@ -888,6 +910,11 @@ function TimelineTrack({
           <ScheduleCarerAvailabilityOverlay segments={availabilitySegments} viewport={viewport} />
         ) : null}
       </div>
+      <ScheduleJobTravelConnectors
+        connectors={travelConnectors}
+        gridWidth={viewport.gridWidth}
+        rowHeightPx={rowHeightPx}
+      />
       {visibleJobs.map((job) => (
         <ScheduleJobBlock
           key={job.id}
@@ -1076,6 +1103,8 @@ const GanttRow = React.memo(function GanttRow({
         previewJobIds={previewJobIds}
         runDisplayPreferences={runDisplayPreferences}
         overlapByJobId={overlapLayout.byJobId}
+        jobLaneHeight={overlapLayout.jobLaneHeight}
+        rowHeightPx={overlapLayout.rowHeightPx}
         jobLabelMode={jobLabelMode}
         showRunsOnBoard={showRunsOnBoard}
         viewport={viewport}

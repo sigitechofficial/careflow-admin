@@ -14,7 +14,11 @@ import {
   rotaTimingDiffersFromCallPattern,
   visitPlanScheduleSummary,
 } from '@/features/scheduling/utils/schedule-job-hover-details.util'
-import { buildNextVisitTravelDetail } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import {
+  buildNextVisitTravelDetail,
+  computeRowTravelDistanceKm,
+  formatTravelDistanceKm,
+} from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import {
   formatDurationLabel,
   jobBlockTone,
@@ -69,6 +73,7 @@ type DetailField = {
   value: string
   valueClassName?: string
   emphasis?: boolean
+  span?: 1 | 2
 }
 
 function DetailRow({ label, value, valueClassName, emphasis, compact }: DetailField & { compact?: boolean }) {
@@ -99,6 +104,31 @@ function DetailGrid({ fields, compact }: { fields: DetailField[]; compact?: bool
     <div className="divide-y divide-border/50">
       {fields.map((field, index) => (
         <DetailRow key={`${field.label}-${index}`} {...field} compact={compact} />
+      ))}
+    </div>
+  )
+}
+
+function DetailGridTwoColumn({ fields }: { fields: DetailField[] }) {
+  if (fields.length === 0) return null
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+      {fields.map((field, index) => (
+        <div
+          key={`${field.label}-${index}`}
+          className={cn('min-w-0', field.span === 2 && 'col-span-2')}
+        >
+          <p className="text-xs text-muted-foreground">{field.label}</p>
+          <p
+            className={cn(
+              'mt-0.5 text-sm leading-snug text-foreground break-words',
+              field.emphasis ? 'font-semibold' : 'font-medium',
+              field.valueClassName,
+            )}
+          >
+            {field.value}
+          </p>
+        </div>
       ))}
     </div>
   )
@@ -188,6 +218,11 @@ export function JobHoverPanel({
     : buildNextVisitTravelDetail(job, rowJobs, {
         bufferMinutes: travelBufferMinutes,
       })
+  const rowTravelDistanceKm =
+    completed || !rowJobs?.length ? 0 : computeRowTravelDistanceKm(rowJobs)
+  const rowTravelDistanceLabel =
+    rowTravelDistanceKm > 0 ? formatTravelDistanceKm(rowTravelDistanceKm) : null
+  const showTravelSection = Boolean(nextVisitTravel || rowTravelDistanceLabel)
   const acceptedCarePlans = acceptedCarePlansByServiceUser?.get(job.serviceUserId) ?? []
   const { plans: carePlans, source: carePlanSource } = carePlansForJobHover(
     job,
@@ -202,7 +237,7 @@ export function JobHoverPanel({
           ? [{ label: 'Round', value: visitSlot.medicationRoundCode }]
           : []),
         { label: 'Carers', value: `${visitSlot.requiredCarers} required` },
-        { label: 'Schedule', value: visitPlanScheduleSummary(visitSlot) },
+        { label: 'Schedule', value: visitPlanScheduleSummary(visitSlot), span: 2 },
         ...(visitSlot.timeCritical
           ? [{ label: 'Time critical', value: timeCriticalLabel(visitSlot.timeToleranceMinutes) }]
           : []),
@@ -237,7 +272,7 @@ export function JobHoverPanel({
         ]
       : []),
     { label: 'Duration', value: formatDurationLabel(rota.durationMinutes) },
-    { label: 'Date', value: startDateLabel },
+    ...(carers !== '—' ? [{ label: 'Carer(s)', value: carers }] : []),
     {
       label: 'Allocated',
       value: `${allocated} / ${job.requiredCarers}`,
@@ -245,7 +280,6 @@ export function JobHoverPanel({
         allocated < job.requiredCarers ? 'text-amber-700 dark:text-amber-300' : undefined,
       emphasis: allocated < job.requiredCarers,
     },
-    ...(carers !== '—' ? [{ label: 'Carer(s)', value: carers }] : []),
     ...(runName
       ? [
           {
@@ -263,16 +297,21 @@ export function JobHoverPanel({
         {
           label: 'Next client',
           value: `${nextVisitTravel.nextClientLabel} · ${nextVisitTravel.nextVisitTimeLabel}`,
+          span: 2,
+        },
+        { label: 'To next visit', value: nextVisitTravel.distanceLabel },
+        {
+          label: 'Total distance',
+          value: rowTravelDistanceLabel ?? nextVisitTravel.distanceLabel,
         },
         { label: 'Gap', value: `${nextVisitTravel.gapMinutes} min` },
         { label: 'Travel', value: nextVisitTravel.travelLabel },
         { label: 'Arrival', value: nextVisitTravel.estimatedArrivalLabel },
-        ...(nextVisitTravel.bufferMinutes > 0
-          ? [{ label: 'Buffer', value: `${nextVisitTravel.bufferMinutes} min` }]
-          : []),
-        { label: 'Distance', value: nextVisitTravel.distanceLabel },
+        { label: 'Buffer', value: `${nextVisitTravel.bufferMinutes} min` },
       ]
-    : []
+    : rowTravelDistanceLabel
+      ? [{ label: 'Total distance', value: rowTravelDistanceLabel, span: 2 }]
+      : []
 
   return (
     <div className="flex w-[min(48rem,calc(var(--radix-tooltip-content-available-width,100vw)-1rem))] max-h-[var(--radix-tooltip-content-available-height,calc(100vh-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
@@ -293,14 +332,17 @@ export function JobHoverPanel({
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 [scrollbar-width:thin]"
         onWheel={handleScheduleJobHoverWheel}
       >
-        <div className="mb-3 space-y-1 border-b border-border/60 pb-3">
-          <p className="text-base font-semibold leading-snug text-foreground">
-            {serviceUserLabel(job.serviceUser)}
-          </p>
-          {serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned' ? (
-            <p className="text-sm text-muted-foreground">{serviceUserBranch}</p>
-          ) : null}
+        <div className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1 border-b border-border/60 pb-3">
+          <div className="col-span-2 space-y-1">
+            <p className="text-base font-semibold leading-snug text-foreground">
+              {serviceUserLabel(job.serviceUser)}
+            </p>
+            {serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned' ? (
+              <p className="text-sm text-muted-foreground">{serviceUserBranch}</p>
+            ) : null}
+          </div>
           <DetailRow label="Job" value={job.jobName} compact />
+          <DetailRow label="Date" value={startDateLabel} compact />
         </div>
 
         {timingChanged && callPattern ? (
@@ -322,11 +364,11 @@ export function JobHoverPanel({
           </div>
         ) : null}
 
-        <div className="grid items-start gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 items-start gap-3">
           <div className="space-y-3">
             {visitSlot ? (
               <SectionCard title="Call pattern">
-                <DetailGrid fields={callPatternFields} compact />
+                <DetailGridTwoColumn fields={callPatternFields} />
               </SectionCard>
             ) : null}
 
@@ -357,28 +399,28 @@ export function JobHoverPanel({
 
           <div className="space-y-3">
             <SectionCard title={visitSlot ? 'Visit on rota' : 'Visit'}>
-              <DetailGrid fields={visitFields} compact />
+              <DetailGridTwoColumn fields={visitFields} />
             </SectionCard>
-
-            {nextVisitTravel ? (
-              <SectionCard title="Next visit travel">
-                {nextVisitTravel.hasTravelConflict ? (
-                  <AlertBox tone="orange" title="Not enough time to reach next visit">
-                    <p>
-                      Needs ~{nextVisitTravel.requiredGapMinutes} min, only{' '}
-                      {nextVisitTravel.gapMinutes} min gap — carer may arrive ~
-                      {nextVisitTravel.lateByMinutes} min late (
-                      {nextVisitTravel.estimatedArrivalLabel} vs{' '}
-                      {nextVisitTravel.nextVisitTimeLabel} start).
-                    </p>
-                  </AlertBox>
-                ) : null}
-                <div className={nextVisitTravel.hasTravelConflict ? 'mt-3' : undefined}>
-                  <DetailGrid fields={travelFields} compact />
-                </div>
-              </SectionCard>
-            ) : null}
           </div>
+
+          {showTravelSection ? (
+            <SectionCard title="Next visit travel" className="col-span-2">
+              {nextVisitTravel?.hasTravelConflict ? (
+                <AlertBox tone="orange" title="Not enough time to reach next visit">
+                  <p>
+                    Needs ~{nextVisitTravel.requiredGapMinutes} min, only{' '}
+                    {nextVisitTravel.gapMinutes} min gap — carer may arrive ~
+                    {nextVisitTravel.lateByMinutes} min late (
+                    {nextVisitTravel.estimatedArrivalLabel} vs{' '}
+                    {nextVisitTravel.nextVisitTimeLabel} start).
+                  </p>
+                </AlertBox>
+              ) : null}
+              <div className={nextVisitTravel?.hasTravelConflict ? 'mt-3' : undefined}>
+                <DetailGridTwoColumn fields={travelFields} />
+              </div>
+            </SectionCard>
+          ) : null}
         </div>
       </div>
     </div>

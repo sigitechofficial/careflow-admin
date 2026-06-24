@@ -35,8 +35,8 @@ const ROAD_DISTANCE_FACTOR = 1.35
 const AVERAGE_DRIVING_SPEED_KMH = 28
 
 export function jobGeoCoordinates(job: TimelineJob): GeoCoordinates | null {
-  const lat = job.serviceUser.latitude
-  const lng = job.serviceUser.longitude
+  const lat = job.serviceUser.latitude ?? job.latitude
+  const lng = job.serviceUser.longitude ?? job.longitude
   if (lat == null || lng == null) return null
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
   return { lat, lng }
@@ -172,4 +172,16 @@ export function buildNextVisitTravelDetail(
     lateByMinutes,
     estimatedArrivalLabel,
   }
+}
+
+/** Sum straight-line leg distances between consecutive jobs on a carer row. */
+export function computeRowTravelDistanceKm(rowJobs: TimelineJob[] | undefined): number {
+  if (!rowJobs?.length) return 0
+  const ordered = sortJobsByStartTime(rowJobs)
+  let totalKm = 0
+  for (let index = 0; index < ordered.length - 1; index += 1) {
+    const detail = buildNextVisitTravelDetail(ordered[index], ordered)
+    if (detail) totalKm += detail.distanceKm
+  }
+  return totalKm
 }

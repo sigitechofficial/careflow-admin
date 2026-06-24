@@ -3,11 +3,13 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   addMinutesToHm,
   buildNextVisitTravelDetail,
+  computeRowTravelDistanceKm,
   estimateTravelMinutesFromStraightLineKm,
   formatTravelDistanceKm,
   gapMinutesBetweenJobs,
   haversineDistanceKm,
   hasTravelGapConflict,
+  jobGeoCoordinates,
   travelConflictJobIds,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 
@@ -119,5 +121,35 @@ describe('schedule-job-travel-distance', () => {
       job('a', '2026-06-15T10:00:00.000Z', null, null, { firstName: 'A', lastName: 'A' }, '2026-06-15T11:00:00.000Z'),
       job('b', '2026-06-15T11:30:00.000Z', null, null, { firstName: 'B', lastName: 'B' }),
     )).toBe(30)
+  })
+
+  it('falls back to job coordinates when service user coords are missing', () => {
+    const withJobCoords = job('su-1', '2026-06-15T09:00:00.000Z', null, null, {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+    })
+    withJobCoords.latitude = 51.5074
+    withJobCoords.longitude = -0.1278
+    expect(jobGeoCoordinates(withJobCoords)).toEqual({ lat: 51.5074, lng: -0.1278 })
+  })
+
+  it('sums row travel distance across consecutive visits', () => {
+    const first = job('su-1', new Date('2026-06-15T09:00:00').toISOString(), 51.5074, -0.1278, {
+      firstName: 'Danish',
+      lastName: 'Ali',
+    })
+    const second = job('su-2', new Date('2026-06-15T11:00:00').toISOString(), 51.5074, -0.06333, {
+      firstName: 'Margaret',
+      lastName: 'Hughes',
+    })
+    const third = job('su-3', new Date('2026-06-15T13:00:00').toISOString(), 51.52, -0.1, {
+      firstName: 'George',
+      lastName: 'Morrison',
+    })
+    const totalKm = computeRowTravelDistanceKm([first, second, third])
+    const legOne = buildNextVisitTravelDetail(first, [first, second, third])?.distanceKm ?? 0
+    const legTwo = buildNextVisitTravelDetail(second, [first, second, third])?.distanceKm ?? 0
+    expect(totalKm).toBeCloseTo(legOne + legTwo, 5)
+    expect(formatTravelDistanceKm(totalKm)).toMatch(/km$/)
   })
 })

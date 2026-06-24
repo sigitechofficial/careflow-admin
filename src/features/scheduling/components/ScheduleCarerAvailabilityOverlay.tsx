@@ -21,10 +21,7 @@ function resolveSegmentPositionPx(
   segment: CarerAvailabilitySegment,
   viewport?: ScheduleJobsTimelineViewport,
 ): { leftPx: number; widthPx: number } | null {
-  if (viewport) {
-    return segmentPositionPxInViewport(segment, viewport)
-  }
-  return segmentPositionPx(segment)
+  return viewport ? segmentPositionPxInViewport(segment, viewport) : segmentPositionPx(segment)
 }
 
 function AvailabilityTooltipCard({
@@ -90,7 +87,7 @@ function SegmentLine({
     <Tooltip key={key}>
       <TooltipTrigger asChild>
         <div
-          className="absolute bottom-0 top-0 z-[1] cursor-default"
+          className="absolute bottom-0 z-[1] h-4 cursor-default"
           style={{ left: leftPx, width: widthPx }}
           aria-label={timeRange}
         >

@@ -123,6 +123,8 @@ export type TimelineJob = {
     } | null
   }>
   notes?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export type JobsDayRunsResponse = {
