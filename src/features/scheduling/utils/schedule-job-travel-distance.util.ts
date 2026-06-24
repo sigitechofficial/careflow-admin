@@ -180,7 +180,9 @@ export function computeRowTravelDistanceKm(rowJobs: TimelineJob[] | undefined): 
   const ordered = sortJobsByStartTime(rowJobs)
   let totalKm = 0
   for (let index = 0; index < ordered.length - 1; index += 1) {
-    const detail = buildNextVisitTravelDetail(ordered[index], ordered)
+    const job = ordered[index]
+    if (!job) continue
+    const detail = buildNextVisitTravelDetail(job, ordered)
     if (detail) totalKm += detail.distanceKm
   }
   return totalKm
