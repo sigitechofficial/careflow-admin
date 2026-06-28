@@ -1,4 +1,5 @@
 ﻿import * as React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
 import {
   flexRender,
   getCoreRowModel,
@@ -15,7 +16,41 @@ import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronLeft, ChevronRight } fro
 import { cn } from '@/shared/lib/utils'
 import { Button } from './button'
 
-/* â”€â”€â”€ Table Primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const tableHeadVariants = cva(
+  'align-middle text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
+  {
+    variants: {
+      variant: {
+        /** Default data-table: compact uppercase headers. */
+        default: 'h-10 px-4 text-left text-xs font-semibold uppercase tracking-wider',
+        /** Dense editable grids (visit plan, staff list): sentence case, text-sm. */
+        data: 'px-3 py-2.5 text-sm font-medium whitespace-nowrap',
+      },
+      align: {
+        left: 'text-left',
+        center: 'text-center',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      align: 'left',
+    },
+  },
+)
+
+const tableCellVariants = cva('align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', {
+  variants: {
+    variant: {
+      default: 'px-4 py-3',
+      data: 'px-3 py-2.5',
+    },
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+})
+
+/* ─── Table Primitives ─── */
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full overflow-auto">
@@ -79,33 +114,17 @@ TableRow.displayName = 'TableRow'
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      'h-10 px-4 text-left align-middle text-xs font-semibold text-muted-foreground uppercase tracking-wider',
-      '[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
-      className
-    )}
-    {...props}
-  />
+  React.ThHTMLAttributes<HTMLTableCellElement> & VariantProps<typeof tableHeadVariants>
+>(({ className, variant, align, ...props }, ref) => (
+  <th ref={ref} className={cn(tableHeadVariants({ variant, align }), className)} {...props} />
 ))
 TableHead.displayName = 'TableHead'
 
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
-  React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <td
-    ref={ref}
-    className={cn(
-      'px-4 py-3 align-middle',
-      '[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
-      className
-    )}
-    {...props}
-  />
+  React.TdHTMLAttributes<HTMLTableCellElement> & VariantProps<typeof tableCellVariants>
+>(({ className, variant, ...props }, ref) => (
+  <td ref={ref} className={cn(tableCellVariants({ variant }), className)} {...props} />
 ))
 TableCell.displayName = 'TableCell'
 

@@ -33,6 +33,24 @@ import { Alert } from '@/shared/ui/feedback'
 import { toastError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { PageHeader, EmptyState, LoadingSpinner, Section, StatusIndicator } from '@/shared/ui/page-elements'
 import {
+  ContentCard,
+  ContentSectionHeader,
+  contentAlertClass,
+  contentAlertHeadingClass,
+  contentBadgeClass,
+  contentBodyClass,
+  contentEmphasisClass,
+  contentHelperClass,
+  contentHelperErrorClass,
+  contentKickerClass,
+  contentOverlineClass,
+  contentSummaryClass,
+  contentTableRowLabelClass,
+  contentTagClass,
+  contentTitleClass,
+  contentTitleDisplayClass,
+} from '@/shared/ui/content-section'
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/shared/ui/data-table'
 import { cn } from '@/shared/lib/utils'
@@ -97,6 +115,73 @@ function ShowSection({
 function Row({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
     <div className={cn('flex flex-wrap items-center gap-3', className)}>{children}</div>
+  )
+}
+
+function TokenRow({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-border/60 py-3 last:border-0 sm:flex-row sm:items-center sm:gap-4">
+      <code className="shrink-0 text-xs font-mono text-muted-foreground sm:w-56">{name}</code>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
+}
+
+function ContentTypographyShowcase() {
+  return (
+    <div className="divide-y divide-border/60 rounded-lg border border-border bg-muted/10 px-4">
+      <TokenRow name="contentTitleClass">
+        <p className={contentTitleClass}>Visit schedule — section title (DM Sans)</p>
+      </TokenRow>
+      <TokenRow name="contentTitleDisplayClass">
+        <p className={contentTitleDisplayClass}>Empty state title (Outfit display)</p>
+      </TokenRow>
+      <TokenRow name="contentKickerClass">
+        <p className={contentKickerClass}>Step 3</p>
+      </TokenRow>
+      <TokenRow name="contentBodyClass">
+        <p className={contentBodyClass}>Body copy for descriptions and helper paragraphs.</p>
+      </TokenRow>
+      <TokenRow name="contentHelperClass">
+        <p className={contentHelperClass}>Field hint · last updated 2 hours ago</p>
+      </TokenRow>
+      <TokenRow name="contentHelperErrorClass">
+        <p className={contentHelperErrorClass}>End time must be after start time</p>
+      </TokenRow>
+      <TokenRow name="contentOverlineClass">
+        <p className={contentOverlineClass}>Visit runs on</p>
+      </TokenRow>
+      <TokenRow name="contentBadgeClass">
+        <span className={cn('rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200', contentBadgeClass)}>
+          Active
+        </span>
+      </TokenRow>
+      <TokenRow name="contentTagClass">
+        <span className={cn('rounded bg-teal-100 px-1.5 py-0.5 text-teal-900 dark:bg-teal-950 dark:text-teal-100', contentTagClass)}>
+          Mon
+        </span>
+      </TokenRow>
+      <TokenRow name="contentAlertClass">
+        <p className={contentAlertClass}>Carer not available on Wednesday</p>
+      </TokenRow>
+      <TokenRow name="contentAlertHeadingClass">
+        <p className={contentAlertHeadingClass}>Visit vs working hours</p>
+      </TokenRow>
+      <TokenRow name="contentSummaryClass">
+        <details className="group">
+          <summary className={contentSummaryClass}>Advanced scheduling options</summary>
+          <p className={cn('mt-2', contentHelperClass)}>Expandable panel summary line.</p>
+        </details>
+      </TokenRow>
+      <TokenRow name="contentTableRowLabelClass">
+        <p className={contentTableRowLabelClass}>Morning visit</p>
+      </TokenRow>
+      <TokenRow name="contentEmphasisClass">
+        <p className={contentBodyClass}>
+          Save the plan, then open <span className={contentEmphasisClass}>Call pattern</span>.
+        </p>
+      </TokenRow>
+    </div>
   )
 }
 
@@ -861,53 +946,95 @@ export default function ComponentShowcase() {
         </ShowSection>
 
         {/* â”€â”€ Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <ShowSection title="Data Table" description="Sortable, paginated table for structured data.">
-          <div className="rounded-lg border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Next Shift</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[
-                  { name: 'Margaret Thompson', role: 'Service User', loc: 'Meadow House', status: 'active', shift: 'â€”' },
-                  { name: 'James Carter', role: 'Care Worker', loc: 'Community', status: 'active', shift: 'Mon 07:00' },
-                  { name: 'Priya Patel', role: 'Nurse', loc: 'Meadow House', status: 'pending', shift: 'Tue 08:00' },
-                  { name: 'Luke O\'Brien', role: 'Care Worker', loc: 'Brookfield', status: 'inactive', shift: 'â€”' },
-                  { name: 'Helen Marsh', role: 'Coordinator', loc: 'HQ', status: 'active', shift: 'Mon 09:00' },
-                ].map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <UserAvatar name={row.name} size="sm" />
-                        <span className="font-medium text-sm">{row.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{row.role}</TableCell>
-                    <TableCell className="text-sm">{row.loc}</TableCell>
-                    <TableCell>
-                      <StatusIndicator status={row.status as 'active' | 'inactive' | 'pending'} />
-                    </TableCell>
-                    <TableCell className="text-sm font-mono">{row.shift}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="icon-sm" variant="ghost"><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon-sm" variant="ghost"><Edit className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon-sm" variant="ghost" className="text-destructive hover:text-destructive">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <ShowSection
+          title="Data Table"
+          description="Default headers (uppercase, compact) for list pages; data variant (sentence case) for dense editable grids such as visit plan."
+        >
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <p className={contentOverlineClass}>variant=&quot;default&quot;</p>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Next Shift</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[
+                      { name: 'Margaret Thompson', role: 'Service User', loc: 'Meadow House', status: 'active', shift: '—' },
+                      { name: 'James Carter', role: 'Care Worker', loc: 'Community', status: 'active', shift: 'Mon 07:00' },
+                      { name: 'Priya Patel', role: 'Nurse', loc: 'Meadow House', status: 'pending', shift: 'Tue 08:00' },
+                    ].map((row, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="flex items-center gap-2.5">
+                            <UserAvatar name={row.name} size="sm" />
+                            <span className="font-medium text-sm">{row.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{row.role}</TableCell>
+                        <TableCell className="text-sm">{row.loc}</TableCell>
+                        <TableCell>
+                          <StatusIndicator status={row.status as 'active' | 'inactive' | 'pending'} />
+                        </TableCell>
+                        <TableCell className="text-sm font-mono">{row.shift}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="icon-sm" variant="ghost"><Eye className="h-3.5 w-3.5" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className={contentOverlineClass}>variant=&quot;data&quot;</p>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead variant="data">Visit</TableHead>
+                      <TableHead variant="data">Start</TableHead>
+                      <TableHead variant="data">Duration</TableHead>
+                      <TableHead variant="data">End</TableHead>
+                      <TableHead variant="data">Carers</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[
+                      { label: 'Morning', start: '07:30', duration: '45', end: '08:15' },
+                      { label: 'Lunch', start: '12:00', duration: '30', end: '12:30' },
+                      { label: 'Evening', start: '18:00', duration: '60', end: '19:00' },
+                    ].map((row) => (
+                      <TableRow key={row.label}>
+                        <TableCell variant="data">
+                          <span className={contentTableRowLabelClass}>{row.label}</span>
+                        </TableCell>
+                        <TableCell variant="data">
+                          <Input className="h-8 w-24" defaultValue={row.start} aria-label={`${row.label} start`} />
+                        </TableCell>
+                        <TableCell variant="data">
+                          <Input className="h-8 w-16" defaultValue={row.duration} aria-label={`${row.label} duration`} />
+                        </TableCell>
+                        <TableCell variant="data">
+                          <Input className="h-8 w-24" defaultValue={row.end} aria-label={`${row.label} end`} />
+                        </TableCell>
+                        <TableCell variant="data">
+                          <Button size="sm" variant="outline">Assign</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </div>
         </ShowSection>
 
@@ -943,20 +1070,64 @@ export default function ComponentShowcase() {
         </ShowSection>
 
         {/* â”€â”€ Typography â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <ShowSection title="Typography" description="Font scale and text styles used across the application.">
+        <ShowSection title="Typography" description="Font families and raw scale. Module pages should use content typography tokens (below) for consistency.">
           <div className="space-y-2">
-            <h1 className="text-3xl font-display font-bold">Display Heading â€” Outfit Bold</h1>
-            <h2 className="text-2xl font-display font-semibold">Section Heading â€” Outfit Semibold</h2>
-            <h3 className="text-xl font-display font-semibold">Card Title â€” Outfit Semibold</h3>
-            <h4 className="text-base font-display font-medium">Sub-heading â€” Outfit Medium</h4>
-            <p className="text-base text-foreground">Body text â€” DM Sans Regular. Used for paragraphs, descriptions, and general content throughout the application.</p>
-            <p className="text-sm text-muted-foreground">Small text â€” DM Sans used for labels, helper text, and secondary information in compact spaces.</p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Caption / Overline â€” Used for section labels and metadata</p>
-            <p className="font-mono text-sm bg-muted px-2 py-1 rounded inline-block">Monospace â€” JetBrains Mono for code and IDs</p>
+            <h1 className="text-3xl font-display font-bold">Display Heading — Outfit Bold</h1>
+            <h2 className="text-2xl font-display font-semibold">Section Heading — Outfit Semibold</h2>
+            <h3 className="text-xl font-display font-semibold">Card Title — Outfit Semibold</h3>
+            <h4 className="text-base font-display font-medium">Sub-heading — Outfit Medium</h4>
+            <p className="text-base text-foreground">Body text — DM Sans Regular. Used for paragraphs, descriptions, and general content throughout the application.</p>
+            <p className="text-sm text-muted-foreground">Small text — DM Sans used for labels, helper text, and secondary information in compact spaces.</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Caption / Overline — Used for section labels and metadata</p>
+            <p className="font-mono text-sm bg-muted px-2 py-1 rounded inline-block">Monospace — JetBrains Mono for code and IDs</p>
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Multi Select â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <ShowSection
+          title="Content Typography"
+          description="Canonical copy styles from @/shared/ui/content-typography — import via content-section. Do not duplicate these class strings in features."
+        >
+          <ContentTypographyShowcase />
+        </ShowSection>
+
+        <ShowSection
+          title="Content Layout"
+          description="ContentCard and ContentSectionHeader — standard module page shell (visit plan, employee panels, etc.)."
+        >
+          <ContentCard className="space-y-4">
+            <ContentSectionHeader
+              kicker="Step 2"
+              title="Visit schedule"
+              titleAs="h3"
+              description="Turn visits on, set times, and assign carers. Matches Employee Management density (DM Sans titles)."
+              action={
+                <Button size="sm" variant="outline" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                  Add slot
+                </Button>
+              }
+            />
+            <p className={contentBodyClass}>
+              Card body uses <code className="text-xs font-mono">contentBodyClass</code> for descriptions.
+              Section titles use semantic headings with <code className="text-xs font-mono">font-sans</code> so they
+              stay on DM Sans inside admin UI.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {['Mon', 'Wed', 'Fri'].map((day) => (
+                <span
+                  key={day}
+                  className={cn(
+                    'rounded bg-teal-100 px-2 py-0.5 text-teal-900 dark:bg-teal-950 dark:text-teal-100',
+                    contentTagClass,
+                  )}
+                >
+                  {day}
+                </span>
+              ))}
+            </div>
+          </ContentCard>
+        </ShowSection>
+
+        {/* ── Multi Select ── */}
         <ShowSection title="Multi Select" description="Dropdown with multiple selection, search, and chips.">
           <MultiSelectDemo />
         </ShowSection>

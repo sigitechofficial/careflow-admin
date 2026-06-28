@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, LayoutList, Table2, User, Users } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { contentBodyClass, contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { shiftMedicationChartMonth } from '@/features/service-users/hooks/useMedicationMarChart'
@@ -225,7 +226,7 @@ function VisitCalendarCellTooltip({
         <p className="mt-1 text-xs font-medium">
           {isOverdue ? 'Overdue — no action recorded' : outcome.label}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{formatCalendarDateLabel(month, day)}</p>
+        <p className={cn('mt-1', contentHelperClass)}>{formatCalendarDateLabel(month, day)}</p>
       </div>
       <dl className="space-y-2 text-xs">
         <div className="flex items-start gap-2.5">
@@ -286,7 +287,7 @@ function VisitCalendarCellTooltip({
           </div>
         </div>
         {outcomeNotes?.trim() ? (
-          <div className="rounded-md bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">
+          <div className={cn('rounded-md bg-muted/40 px-2.5 py-2', contentHelperClass)}>
             <p className="font-medium text-foreground">Notes</p>
             <p className="mt-1 whitespace-pre-wrap">{outcomeNotes.trim()}</p>
           </div>
@@ -453,8 +454,8 @@ export function VisitPlanCalendarTab({
       <section className={cn('visit-plan-cal-root mar-cal-root', className)}>
         <div className="vp-cal-empty">
           <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground/50" aria-hidden />
-          <h3 className="mt-3 text-sm font-semibold text-foreground">Visit calendar</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          <h3 className={cn('mt-3', contentTitleClass)}>Visit calendar</h3>
+          <p className={cn('mx-auto mt-2 max-w-md', contentBodyClass)}>
             Enable at least one call slot on the visit plan to preview scheduled visits on the calendar.
           </p>
         </div>

@@ -2,6 +2,10 @@
 import * as LabelPrimitive from '@radix-ui/react-label'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/shared/lib/utils'
+import {
+  contentHelperClass,
+  contentHelperErrorClass,
+} from '@/shared/ui/content-typography'
 
 /* â”€â”€â”€ Label â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const labelVariants = cva(
@@ -80,10 +84,10 @@ function FormField({
       )}
       {children}
       {hint && !error && (
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className={contentHelperClass}>{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-destructive font-medium">{error}</p>
+        <p className={contentHelperErrorClass}>{error}</p>
       )}
     </div>
   )

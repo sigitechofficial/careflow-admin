@@ -1,3 +1,4 @@
+import { contentOverlineClass } from '@/shared/ui/content-section'
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
@@ -47,7 +48,7 @@ export function VisitPlanReactivateDialog({
         </DialogHeader>
 
         <div className="px-6 py-4">
-          <Label className="text-xs text-muted-foreground">Re-activation note (optional)</Label>
+          <Label className={contentOverlineClass}>Re-activation note (optional)</Label>
           <Input
             className="mt-1"
             value={reactivationReason}

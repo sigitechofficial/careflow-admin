@@ -28,11 +28,22 @@ export function useScheduleJobsBoardPreferences() {
     [userId],
   )
 
+  const setRotaGapDisplay = React.useCallback(
+    (rotaGapDisplay: ScheduleJobsBoardPreferences['rotaGapDisplay']) => {
+      setPreferences((prev) => {
+        const next = { ...prev, rotaGapDisplay }
+        saveScheduleJobsBoardPreferences(next, userId)
+        return next
+      })
+    },
+    [userId],
+  )
+
   const resetPreferences = React.useCallback(() => {
     const defaults = { ...DEFAULT_SCHEDULE_JOBS_BOARD_PREFERENCES }
     setPreferences(defaults)
     saveScheduleJobsBoardPreferences(defaults, userId)
   }, [userId])
 
-  return { preferences, setShowRunsOnBoard, resetPreferences }
+  return { preferences, setShowRunsOnBoard, setRotaGapDisplay, resetPreferences }
 }

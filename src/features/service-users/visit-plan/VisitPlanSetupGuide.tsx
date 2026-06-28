@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 
@@ -73,8 +74,8 @@ export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
     >
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 sm:p-0 sm:pb-0">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-teal-900 dark:text-teal-100">How to set up visits</h3>
-          <p className="mt-0.5 text-xs text-teal-800/80 dark:text-teal-200/80">
+          <h3 className={contentTitleClass}>How to set up visits</h3>
+          <p className={cn('mt-0.5', contentHelperClass)}>
             {doneCount} of {steps.length} steps complete — expand for the checklist
           </p>
         </div>
@@ -108,10 +109,10 @@ export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
                 <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               )}
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-foreground">
+                <p className={cn('text-xs font-semibold text-foreground')}>
                   {index + 1}. {step.title}
                 </p>
-                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{step.detail}</p>
+                <p className={cn('mt-0.5 leading-snug', contentHelperClass)}>{step.detail}</p>
               </div>
             </div>
           </li>

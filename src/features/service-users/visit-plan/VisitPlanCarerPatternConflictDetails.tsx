@@ -1,5 +1,6 @@
 import { AlertTriangle, ChevronRight, XCircle } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { contentAlertHeadingClass, contentHelperClass } from '@/shared/ui/content-section'
 import type { VisitPlanCarerPatternConflict } from '@/features/service-users/visit-plan/types'
 import { VisitPlanCarerAvailabilityRow } from '@/features/service-users/visit-plan/VisitPlanCarerAvailabilityBreakdown'
 import { getVisitPlanCarerPatternConflictTimeMessages } from '@/features/service-users/visit-plan/visit-plan-carer-pattern-conflict-display.util'
@@ -30,7 +31,7 @@ export function VisitPlanCarerPatternConflictDetails({ conflict }: Props) {
 
   if (!hasUnavailable && !hasTimeMismatch) {
     return conflict.summary ? (
-      <p className="mt-2 text-left text-xs leading-relaxed text-muted-foreground">{conflict.summary}</p>
+      <p className={cn('mt-2 text-left leading-relaxed', contentHelperClass)}>{conflict.summary}</p>
     ) : null
   }
 
@@ -59,7 +60,7 @@ export function VisitPlanCarerPatternConflictDetails({ conflict }: Props) {
 
         {hasTimeMismatch ? (
           <div className="space-y-1.5 border-t border-border/60 pt-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+            <p className={contentAlertHeadingClass}>
               Visit vs working hours
             </p>
             <ul className="space-y-1.5">

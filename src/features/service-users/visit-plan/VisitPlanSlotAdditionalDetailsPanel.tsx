@@ -1,3 +1,4 @@
+import { contentOverlineClass } from '@/shared/ui/content-section'
 import { Info } from 'lucide-react'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import { Label } from '@/shared/ui/form-field'
@@ -93,7 +94,7 @@ export function VisitPlanSlotAdditionalDetailsPanel({ slot, disabled, onChange }
 
       <div className="pt-3">
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground">
+          <Label className={contentOverlineClass}>
             Do you want this as part of an analysis area report?
           </Label>
           <FieldHelp text="Groups visit outcomes into the selected analysis report category." />

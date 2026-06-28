@@ -2,6 +2,10 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
 import { FigmaActionIcon } from '@/features/service-users/components/FigmaActionIcon'
 import {
+  serviceUserModuleShellClass,
+  type ServiceUserModuleShellLayout,
+} from '@/features/service-users/components/ServiceUserModuleHeader'
+import {
   figmaModuleTabIcon,
   type ServiceUserModuleTabIconId,
 } from '@/features/service-users/figma-action-icons'
@@ -111,12 +115,23 @@ function TabContent({ tab, active }: { tab: ModuleTab; active: boolean }) {
   )
 }
 
-export function ServiceUserModuleTabs({ serviceUserId }: { serviceUserId: string }) {
+export function ServiceUserModuleTabs({
+  serviceUserId,
+  shellLayout = 'default',
+}: {
+  serviceUserId: string
+  shellLayout?: ServiceUserModuleShellLayout
+}) {
   const pathname = useRouterState({ select: s => s.location.pathname })
 
   return (
     <div className="border-b border-border bg-card">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-center gap-4 px-4 py-3 sm:gap-6">
+      <div
+        className={cn(
+          'flex flex-wrap items-end justify-center gap-4 py-3 sm:gap-6',
+          serviceUserModuleShellClass(shellLayout),
+        )}
+      >
         {MODULE_TABS.map(tab => {
           const active = isTabActive(tab, pathname)
           const content = <TabContent tab={tab} active={active} />

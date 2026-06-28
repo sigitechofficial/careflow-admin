@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Loader2, Pencil } from 'lucide-react'
 import {
+  SERVICE_USER_MODULE_CONTENT_WIDE_CLASS,
   SERVICE_USER_MODULE_PAGE_CLASS,
   ServiceUserModuleHeader,
 } from '@/features/service-users/components/ServiceUserModuleHeader'
@@ -19,6 +20,11 @@ import { VisitPlanVersionPicker } from '@/features/service-users/visit-plan/Visi
 import { VisitPlanContextBanner } from '@/features/service-users/visit-plan/VisitPlanContextBanner'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import { sortVisitPlanVersions, resolveEditableVisitPlan } from '@/features/service-users/visit-plan/visit-plan-version.util'
+import {
+  contentBodyClass,
+  contentTitleClass,
+  ContentCard,
+} from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
@@ -158,6 +164,7 @@ export default function ServiceUserVisitPlanPage() {
       <ServiceUserModuleHeader
         serviceUserId={serviceUserId}
         detail={profileQuery.data ?? null}
+        shellLayout="wide"
         actions={
           <Button variant="outline" size="sm" asChild className="shrink-0 gap-1.5">
             <Link to="/service-users/$serviceUserId/view" params={{ serviceUserId }}>
@@ -168,9 +175,9 @@ export default function ServiceUserVisitPlanPage() {
         }
       />
 
-      <ServiceUserModuleTabs serviceUserId={serviceUserId} />
+      <ServiceUserModuleTabs serviceUserId={serviceUserId} shellLayout="wide" />
 
-      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+      <div className={SERVICE_USER_MODULE_CONTENT_WIDE_CLASS}>
         <div className="mb-4 flex flex-wrap gap-2 border-b border-border">
           {PAGE_TABS.map((tab) => (
             <button
@@ -206,15 +213,15 @@ export default function ServiceUserVisitPlanPage() {
             onSelectPlan={selectPlanForConfigure}
           />
         ) : !selectedPlan ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">No visit plan to show yet</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          <ContentCard className="text-center">
+            <h2 className={contentTitleClass}>No visit plan to show yet</h2>
+            <p className={cn('mx-auto mt-2 max-w-md', contentBodyClass)}>
               Configure and save a draft visit plan first, then use Call pattern to review the summary.
             </p>
             <Button type="button" className="mt-6" onClick={() => setPageTab('setup')}>
               Set up visits
             </Button>
-          </div>
+          </ContentCard>
         ) : (
           <div className="space-y-6">
             <VisitPlanVersionPicker

@@ -1,7 +1,5 @@
 import * as React from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { listAllEmployees } from '@/features/employees/api'
-import { employeeKeys } from '@/features/employees/keys'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import {
   useScheduleDayRuns,
@@ -9,6 +7,7 @@ import {
   useScheduleServiceUsersWeek,
   useScheduleAreas,
 } from '@/features/scheduling/hooks/useScheduling'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
 import {
   buildBranchSummariesFromTimelineJobs,
@@ -109,12 +108,7 @@ export function useScheduleJobsBoardData({
   const dayRunsQuery = useScheduleDayRuns(date, hasApi, { limit: 300 })
   const weekStart = scheduleWeekStartIso(date)
   const weekTimelineQuery = useScheduleServiceUsersWeek(weekStart, hasApi)
-  const employeeCatalogQuery = useQuery({
-    queryKey: employeeKeys.allList({}),
-    queryFn: () => listAllEmployees({}),
-    enabled: hasApi,
-    staleTime: 60_000,
-  })
+  const employeeCatalogQuery = useScheduleEmployeesCatalog({ enabled: hasApi })
 
   const isLoading =
     employeesQuery.isLoading ||
@@ -149,14 +143,11 @@ export function useScheduleJobsBoardData({
     return map
   }, [branchFilterOptions, locations])
 
-  const employeeCatalogById = React.useMemo(
-    () => new Map((employeeCatalogQuery.data ?? []).map((row) => [row.id, row])),
-    [employeeCatalogQuery.data],
-  )
+  const employeeCatalogById = employeeCatalogQuery.catalogById
 
   const employeeLocationCatalog = React.useMemo(
-    () => buildEmployeeLocationCatalogMap(employeeCatalogQuery.data ?? []),
-    [employeeCatalogQuery.data],
+    () => buildEmployeeLocationCatalogMap(employeeCatalogQuery.employees),
+    [employeeCatalogQuery.employees],
   )
 
   const filteredRunJobs = React.useMemo(
@@ -173,7 +164,7 @@ export function useScheduleJobsBoardData({
       filterEmployeeDayRowsByLocation(
         mergeScheduleJobsEmployeeRoster(
           employeesQuery.data?.employees ?? [],
-          employeeCatalogQuery.data ?? [],
+          employeeCatalogQuery.employees,
           [...filteredRunJobs, ...filteredRunlessJobs],
         ),
         locationFilterIds,
@@ -181,7 +172,7 @@ export function useScheduleJobsBoardData({
       ),
     [
       employeesQuery.data?.employees,
-      employeeCatalogQuery.data,
+      employeeCatalogQuery.employees,
       filteredRunJobs,
       filteredRunlessJobs,
       locationFilterIds,

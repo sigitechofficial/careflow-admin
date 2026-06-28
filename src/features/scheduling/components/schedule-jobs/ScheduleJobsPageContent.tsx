@@ -1,5 +1,4 @@
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { PageHeader } from '@/shared/ui/page-elements'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
 import { ScheduleJobNotesDialog } from '@/features/scheduling/components/ScheduleJobNotesDialog'
 import { ScheduleJobCompleteDialog } from '@/features/scheduling/components/ScheduleJobCompleteDialog'
@@ -15,6 +14,7 @@ import { ScheduleRunReassignDialog } from '@/features/scheduling/components/Sche
 import { ScheduleJobsActiveFiltersBanner } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsActiveFiltersBanner'
 import { ScheduleJobsBulkRotaHint } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsBulkRotaHint'
 import { ScheduleJobsCallPatternContractBanner } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsCallPatternContractBanner'
+import { ScheduleJobsPageHeaderCard } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsPageHeaderCard'
 import { useScheduleRunEditDialog } from '@/features/scheduling/hooks/useScheduleRunEditDialog'
 import { useScheduleRunReassignDialog } from '@/features/scheduling/hooks/useScheduleRunReassignDialog'
 import { useScheduleJobsBoardPreferences } from '@/features/scheduling/hooks/useScheduleJobsBoardPreferences'
@@ -29,7 +29,7 @@ export function ScheduleJobsPageContent() {
   const hasApi = !!getApiBaseUrl()
   const url = useScheduleJobsUrlState()
   const dialogs = useScheduleJobsPageDialogs()
-  const { preferences: boardPreferences, setShowRunsOnBoard } = useScheduleJobsBoardPreferences()
+  const { preferences: boardPreferences, setShowRunsOnBoard, setRotaGapDisplay } = useScheduleJobsBoardPreferences()
 
   const board = useScheduleJobsBoardData({
     hasApi,
@@ -84,19 +84,13 @@ export function ScheduleJobsPageContent() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 md:p-5">
-      <PageHeader
-        title="Schedule Jobs"
-        description={
-          url.layout === 'runs'
-            ? 'Group and order visits into carer runs for the day — table view with route stats.'
-            : 'Daily rota board — drag jobs to reschedule, drag on the timeline to group visits into a run.'
-        }
-        breadcrumb={[
-          { label: 'Home', href: '/' },
-          { label: 'Scheduling', href: '/scheduling/view' },
-          { label: 'Schedule Jobs' },
-        ]}
-        className="shrink-0"
+      <ScheduleJobsPageHeaderCard
+        layout={url.layout}
+        date={url.date}
+        onPrevDay={() => url.setScheduleDate(shiftIsoDate(url.date, -1))}
+        onNextDay={() => url.setScheduleDate(shiftIsoDate(url.date, 1))}
+        onToday={() => url.setScheduleDate(todayIso())}
+        onDateChange={url.setScheduleDate}
       />
 
       <ScheduleJobsToolbar
@@ -113,10 +107,6 @@ export function ScheduleJobsPageContent() {
         requiredCarersOptions={board.requiredCarersOptions}
         onRequiredCarersFiltersChange={url.setScheduleRequiredCarersFilters}
         allVisitsLabel={`All visits (${board.boardAfterServiceUser.allJobs.length})`}
-        onPrevDay={() => url.setScheduleDate(shiftIsoDate(url.date, -1))}
-        onNextDay={() => url.setScheduleDate(shiftIsoDate(url.date, 1))}
-        onToday={() => url.setScheduleDate(todayIso())}
-        onDateChange={url.setScheduleDate}
         onRefresh={board.handleRefresh}
         isLoading={board.isLoading}
         hasError={board.employeesError || board.dayRunsError}
@@ -146,6 +136,8 @@ export function ScheduleJobsPageContent() {
         onRowAxisChange={url.setScheduleRowAxis}
         showRunsOnBoard={boardPreferences.showRunsOnBoard}
         onShowRunsOnBoardChange={setShowRunsOnBoard}
+        rotaGapDisplay={boardPreferences.rotaGapDisplay}
+        onRotaGapDisplayChange={setRotaGapDisplay}
       />
 
       {url.layout === 'board' ? (
@@ -190,6 +182,7 @@ export function ScheduleJobsPageContent() {
             cancelledJobs={board.cancelledJobs}
             runs={board.dayRunsQuery.data?.runs ?? []}
             showRunsOnBoard={boardPreferences.showRunsOnBoard}
+            rotaGapDisplay={boardPreferences.rotaGapDisplay}
             employeeCatalogById={board.employeeCatalogById}
             locationNames={board.locationNameMap}
             savingJobId={dialogs.savingJobId}

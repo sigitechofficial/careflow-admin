@@ -1,7 +1,6 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { listAllEmployees } from '@/features/employees/api'
 import { useScheduleRunMutations } from '@/features/scheduling/hooks/useScheduleRuns'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 
@@ -31,20 +30,9 @@ export function useScheduleRunsBulkAssignDialog({ date, runs, onChanged }: HookO
   const [selectedRunIds, setSelectedRunIds] = React.useState<Set<string>>(new Set())
   const [employeeId, setEmployeeId] = React.useState('')
 
-  const employeesQuery = useQuery({
-    queryKey: ['employees', 'runs-bulk-assign-picker'],
-    queryFn: () => listAllEmployees({}),
-    enabled: open,
-  })
+  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
 
-  const carerOptions = React.useMemo(
-    () =>
-      (employeesQuery.data ?? []).map((emp) => ({
-        value: emp.id,
-        label: emp.fullName ?? [emp.firstName, emp.lastName].filter(Boolean).join(' ') ?? 'Unknown',
-      })),
-    [employeesQuery.data],
-  )
+  const carerOptions = employeesQuery.comboboxOptions
 
   const selectedBundles = React.useMemo(
     () => runs.filter((entry) => selectedRunIds.has(entry.run.id)),

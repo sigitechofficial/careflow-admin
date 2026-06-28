@@ -1,4 +1,11 @@
 import { cn } from '@/shared/lib/utils'
+import {
+  contentBadgeClass,
+  contentHelperClass,
+  contentTitleClass,
+  ContentCard,
+  ContentSectionHeader,
+} from '@/shared/ui/content-section'
 import type { ServiceUserVisitPlan } from '@/features/service-users/visit-plan/types'
 import {
   formatVisitPlanEffectiveRange,
@@ -27,17 +34,12 @@ export function VisitPlanVersionPicker({ plans, selectedPlanId, onSelectPlan }: 
   if (plans.length === 0) return null
 
   return (
-    <section
-      className="rounded-xl border border-border bg-card p-4 shadow-sm"
-      data-testid="visit-plan-version-picker"
-    >
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-foreground">Which plan version?</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Each activated plan is kept when you replace it. Pick a version to see its call pattern and the visits
-          generated from that version&apos;s slots.
-        </p>
-      </div>
+    <ContentCard className="p-4" data-testid="visit-plan-version-picker">
+      <ContentSectionHeader
+        title="Which plan version?"
+        description="Each activated plan is kept when you replace it. Pick a version to see its call pattern and the visits generated from that version's slots."
+        className="mb-3"
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {plans.map((plan) => {
@@ -60,24 +62,24 @@ export function VisitPlanVersionPicker({ plans, selectedPlanId, onSelectPlan }: 
               )}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase', statusClass(plan.status))}>
+                <span className={cn('rounded-full px-2 py-0.5', contentBadgeClass, statusClass(plan.status))}>
                   {formatVisitPlanStatusLabel(plan, plans)}
                 </span>
-                <span className="text-xs text-muted-foreground">{summarizeVisitPlanDailyCalls(plan)}</span>
+                <span className={contentHelperClass}>{summarizeVisitPlanDailyCalls(plan)}</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{formatVisitPlanEffectiveRange(plan)}</p>
+              <p className={cn('mt-1', contentHelperClass)}>{formatVisitPlanEffectiveRange(plan)}</p>
               {enabledLabels.length > 0 ? (
                 <p className="mt-1.5 text-xs text-foreground/80">
                   {enabledLabels.join(', ')}
                   {moreEnabled > 0 ? ` +${moreEnabled} more` : ''}
                 </p>
               ) : (
-                <p className="mt-1.5 text-xs text-muted-foreground">No active call slots</p>
+                <p className={cn('mt-1.5', contentHelperClass)}>No active call slots</p>
               )}
             </button>
           )
         })}
       </div>
-    </section>
+    </ContentCard>
   )
 }

@@ -1,3 +1,5 @@
+import { cn } from '@/shared/lib/utils'
+import { contentHelperClass, contentOverlineClass } from '@/shared/ui/content-section'
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
@@ -173,7 +175,7 @@ export function VisitPlanSuspendDialog({
           ) : null}
 
           <div>
-            <Label className="text-xs text-muted-foreground">Pause reason (catalogued)</Label>
+            <Label className={contentOverlineClass}>Pause reason (catalogued)</Label>
             <Select value={pauseReasonCatalogId || undefined} onValueChange={setPauseReasonCatalogId}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select a reason…" />
@@ -187,7 +189,7 @@ export function VisitPlanSuspendDialog({
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">Visits should stop from</Label>
+            <Label className={contentOverlineClass}>Visits should stop from</Label>
             <Input
               type="date"
               className="mt-1"
@@ -195,14 +197,14 @@ export function VisitPlanSuspendDialog({
               max={todayIso()}
               onChange={(e) => setEffectiveFrom(e.target.value)}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className={cn('mt-1', contentHelperClass)}>
               Today or a past date. For future-dated pauses, use Record Absences.
             </p>
           </div>
 
           {backdated ? (
             <div>
-              <Label className="text-xs text-muted-foreground">Retrospective correction (required)</Label>
+              <Label className={contentOverlineClass}>Retrospective correction (required)</Label>
               <textarea
                 className="mt-1 min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={retrospectiveReason}
@@ -213,7 +215,7 @@ export function VisitPlanSuspendDialog({
           ) : null}
 
           <div>
-            <Label className="text-xs text-muted-foreground">Detail & contingency (required)</Label>
+            <Label className={contentOverlineClass}>Detail & contingency (required)</Label>
             <textarea
               className="mt-1 min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={reason}
@@ -223,7 +225,7 @@ export function VisitPlanSuspendDialog({
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">Welfare / contingency notes (optional)</Label>
+            <Label className={contentOverlineClass}>Welfare / contingency notes (optional)</Label>
             <textarea
               className="mt-1 min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={contingencyNotes}
@@ -234,7 +236,7 @@ export function VisitPlanSuspendDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label className="text-xs text-muted-foreground">Expected resume date</Label>
+              <Label className={contentOverlineClass}>Expected resume date</Label>
               <div className="mt-2 flex items-center gap-2">
                 <Checkbox
                   id="suspend-indefinite"
@@ -255,14 +257,14 @@ export function VisitPlanSuspendDialog({
               ) : null}
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Review suspension by</Label>
+              <Label className={contentOverlineClass}>Review suspension by</Label>
               <Input
                 type="date"
                 className="mt-1"
                 value={reviewDueAt}
                 onChange={(e) => setReviewDueAt(e.target.value)}
               />
-              <p className="mt-1 text-xs text-muted-foreground">Defaults to 7 days — re-check decision & welfare.</p>
+              <p className={cn('mt-1', contentHelperClass)}>Defaults to 7 days — re-check decision & welfare.</p>
             </div>
           </div>
 

@@ -27,6 +27,17 @@ import {
   formatYesNo,
 } from '@/features/service-users/visit-plan/visit-plan-format'
 import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
+import {
+  contentAlertClass,
+  contentBadgeClass,
+  contentBodyClass,
+  contentHelperClass,
+  contentOverlineClass,
+  contentTagClass,
+  contentTitleClass,
+  ContentCard,
+  ContentSectionHeader,
+} from '@/shared/ui/content-section'
 
 function AssignedCarerBadges({
   employeeIds,
@@ -42,7 +53,7 @@ function AssignedCarerBadges({
   carerCandidatesByEmployeeId?: Map<string, VisitPlanCarerCandidate>
 }) {
   if (employeeIds.length === 0) {
-    return <span className="text-xs text-muted-foreground">{emptyLabel}</span>
+    return <span className={contentHelperClass}>{emptyLabel}</span>
   }
 
   const coveredDays = slot ? carerAssignmentCoversSlotDays(null, slot.daysOfWeek) : []
@@ -65,7 +76,7 @@ function AssignedCarerBadges({
             </span>
             {availabilityWarning ? (
               <p
-                className="mt-1 flex items-start gap-1 text-[10px] font-medium text-amber-800 dark:text-amber-200 sm:text-[11px]"
+                className={cn('mt-1 flex items-start gap-1', contentAlertClass)}
                 role="status"
               >
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
@@ -141,19 +152,20 @@ function CallPatternOverviewCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <h4 className={cn('flex items-center gap-1.5', contentTitleClass)}>
             {slot.timeCritical ? (
               <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
             ) : null}
             {slot.label}
           </h4>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className={cn('mt-0.5', contentHelperClass)}>
             {start} – {end} · {slot.requiredCarers} required
           </p>
         </div>
         <span
           className={cn(
-            'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+            'rounded-full px-2 py-0.5',
+            contentBadgeClass,
             slot.isEnabled
               ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
               : 'bg-muted text-muted-foreground',
@@ -166,7 +178,7 @@ function CallPatternOverviewCard({
       {slot.isEnabled ? (
         <>
           <div className="mt-3">
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <p className={cn('mb-1', contentOverlineClass)}>
               Visit runs on
             </p>
             <div className="flex flex-wrap gap-1">
@@ -174,7 +186,8 @@ function CallPatternOverviewCard({
               <span
                 key={day}
                 className={cn(
-                  'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                  'rounded px-1.5 py-0.5',
+                  contentTagClass,
                   slot.scheduleFrequency === 'MONTHLY'
                     ? 'bg-muted/40 text-muted-foreground'
                     : slot.daysOfWeek.includes(dayIndex)
@@ -190,7 +203,7 @@ function CallPatternOverviewCard({
           </div>
 
           <div className="mt-4">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+            <p className={cn('mb-1.5', contentOverlineClass)}>
               {slotHasCarerByDayAssignments(slot) ? 'Carers by day' : 'Assigned carers'}
             </p>
             <SlotAssignedCarersDisplay
@@ -203,12 +216,15 @@ function CallPatternOverviewCard({
 
           {linkedCarePlans.length > 0 ? (
             <div className="mt-3">
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Care plans</p>
+              <p className={cn('mb-1.5', contentOverlineClass)}>Care plans</p>
               <ul className="flex flex-wrap gap-1.5">
                 {linkedCarePlans.map((cp) => (
                   <li
                     key={cp.formId}
-                    className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-100"
+                    className={cn(
+                      'rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-100',
+                      contentTagClass,
+                    )}
                     title={cp.carePlanArea}
                   >
                     {cp.formName}
@@ -220,45 +236,45 @@ function CallPatternOverviewCard({
 
           <dl className="mt-4 grid gap-2 border-t border-border/60 pt-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-muted-foreground">Frequency</dt>
+              <dt className={contentHelperClass}>Frequency</dt>
               <dd>{formatVisitPlanFrequency(slot)}</dd>
             </div>
             {slot.scheduleFrequency === 'MONTHLY' ? (
               <div>
-                <dt className="text-xs text-muted-foreground">Days of month</dt>
+                <dt className={contentHelperClass}>Days of month</dt>
                 <dd>{formatMonthlyDays(slot)}</dd>
               </div>
             ) : slot.scheduleFrequency !== 'DAILY' ? (
               <div>
-                <dt className="text-xs text-muted-foreground">Weekdays</dt>
+                <dt className={contentHelperClass}>Weekdays</dt>
                 <dd>{formatWeekdays(slot)}</dd>
               </div>
             ) : null}
             <div>
-              <dt className="text-xs text-muted-foreground">Time critical</dt>
+              <dt className={contentHelperClass}>Time critical</dt>
               <dd>
                 {formatYesNo(slot.timeCritical)}
                 {slot.timeCritical ? ` (${slot.timeToleranceMinutes} min tolerance)` : ''}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Duration</dt>
+              <dt className={contentHelperClass}>Duration</dt>
               <dd>{slot.durationMinutes ? `${slot.durationMinutes} min` : '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Notes mandatory</dt>
+              <dt className={contentHelperClass}>Notes mandatory</dt>
               <dd>{formatYesNo(slot.notesRequired)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Photos allowed</dt>
+              <dt className={contentHelperClass}>Photos allowed</dt>
               <dd>{formatYesNo(slot.photoAllowed)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Share with family</dt>
+              <dt className={contentHelperClass}>Share with family</dt>
               <dd>{formatYesNo(slot.shareOutcomeWithFamily)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Analysis area</dt>
+              <dt className={contentHelperClass}>Analysis area</dt>
               <dd>{formatAnalysisArea(slot.analysisArea)}</dd>
             </div>
           </dl>
@@ -268,7 +284,7 @@ function CallPatternOverviewCard({
           ) : null}
         </>
       ) : (
-        <p className="mt-3 text-xs text-muted-foreground">This call slot is not enabled.</p>
+        <p className={contentHelperClass}>This call slot is not enabled.</p>
       )}
     </article>
   )
@@ -282,7 +298,7 @@ function statusBadge(status: ServiceUserVisitPlan['status']) {
     ENDED: 'bg-muted text-muted-foreground',
   }
   return (
-    <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide', styles[status])}>
+    <span className={cn('rounded-full px-2.5 py-0.5', contentBadgeClass, styles[status])}>
       {status}
     </span>
   )
@@ -306,34 +322,30 @@ export function VisitPlanDetailsView({
 
   return (
     <div className={cn('space-y-6', className)}>
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Visit plan summary</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Authorised care package — call pattern and scheduling rules.
-            </p>
-          </div>
-          {statusBadge(plan.status)}
-        </div>
+      <ContentCard>
+        <ContentSectionHeader
+          title="Visit plan summary"
+          description="Authorised care package — call pattern and scheduling rules."
+          action={statusBadge(plan.status)}
+        />
 
         <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-xs text-muted-foreground">Weekly contracted hours</dt>
+            <dt className={contentHelperClass}>Weekly contracted hours</dt>
             <dd className="text-sm font-medium">{plan.weeklyContractedHours ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Default carers per visit</dt>
+            <dt className={contentHelperClass}>Default carers per visit</dt>
             <dd className="text-sm font-medium">{plan.numberOfCarers}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Effective from</dt>
+            <dt className={contentHelperClass}>Effective from</dt>
             <dd className="text-sm font-medium">
               {formatDate(plan.effectiveFrom)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Effective to</dt>
+            <dt className={contentHelperClass}>Effective to</dt>
             <dd className="text-sm font-medium">
               {plan.effectiveTo
                 ? formatDate(plan.effectiveTo)
@@ -343,7 +355,7 @@ export function VisitPlanDetailsView({
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Review due</dt>
+            <dt className={contentHelperClass}>Review due</dt>
             <dd className="text-sm font-medium">
               {formatDate(plan.reviewDueAt)}
             </dd>
@@ -359,17 +371,18 @@ export function VisitPlanDetailsView({
 
         {plan.notes?.trim() ? (
           <div className="mt-4 rounded-md border border-border/60 bg-muted/20 px-4 py-3">
-            <p className="text-xs font-medium text-muted-foreground">Plan notes</p>
+            <p className={contentOverlineClass}>Plan notes</p>
             <p className="mt-1 text-sm">{plan.notes}</p>
           </div>
         ) : null}
-      </section>
+      </ContentCard>
 
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h3 className="mb-1 text-sm font-semibold text-foreground">Call pattern</h3>
-        <p className="mb-4 text-xs text-muted-foreground">
-          One card per call slot — schedule, assigned carers, care plans, and documentation rules.
-        </p>
+      <ContentCard>
+        <ContentSectionHeader
+          title="Call pattern"
+          description="One card per call slot — schedule, assigned carers, care plans, and documentation rules."
+          className="mb-4"
+        />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {(plan.slots ?? []).map((slot) => (
             <CallPatternOverviewCard
@@ -381,31 +394,31 @@ export function VisitPlanDetailsView({
             />
           ))}
         </div>
-      </section>
+      </ContentCard>
 
       {disabledSlots.length > 0 ? (
-        <section className="rounded-xl border border-dashed border-border bg-muted/10 p-4">
-          <h3 className="text-sm font-semibold text-muted-foreground">Disabled slots</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <ContentCard className="border-dashed bg-muted/10 p-4">
+          <h3 className={cn(contentTitleClass, 'text-muted-foreground')}>Disabled slots</h3>
+          <p className={cn('mt-1', contentBodyClass)}>
             {disabledSlots.map((s) => s.label).join(', ')}
           </p>
-        </section>
+        </ContentCard>
       ) : null}
 
       {(plan.amendments ?? []).length > 0 ? (
-        <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Amendment history</h3>
+        <ContentCard>
+          <ContentSectionHeader title="Amendment history" className="mb-3" />
           <ul className="space-y-2 text-sm">
             {(plan.amendments ?? []).map((a) => (
               <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
-                <span className="text-xs text-muted-foreground">
+                <span className={contentHelperClass}>
                   {formatDateTime(a.amendedAt)}
                 </span>
                 <p className="mt-0.5">{a.reason}</p>
               </li>
             ))}
           </ul>
-        </section>
+        </ContentCard>
       ) : null}
     </div>
   )

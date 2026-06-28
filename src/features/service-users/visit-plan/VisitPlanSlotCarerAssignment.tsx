@@ -2,6 +2,12 @@ import * as React from 'react'
 import { Clock, Loader2, Users, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import {
+  contentBodyClass,
+  contentHelperClass,
+  contentOverlineClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
 import { Input } from '@/shared/ui/input'
 import { Checkbox, RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
@@ -203,8 +209,8 @@ export function VisitPlanSlotCarerAssignment({
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">Visit slot</p>
-            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <p className={contentTitleClass}>Visit slot</p>
+            <div className={cn('flex flex-wrap gap-3', contentHelperClass)}>
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" aria-hidden />
                 {slot.plannedStartTime}–{slot.plannedEndTime}
@@ -216,7 +222,7 @@ export function VisitPlanSlotCarerAssignment({
             </div>
             {slot.daysOfWeek.length > 0 ? (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className={contentOverlineClass}>
                   Days:
                 </span>
                 {slot.daysOfWeek.map((day) => (
@@ -229,12 +235,12 @@ export function VisitPlanSlotCarerAssignment({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-amber-700 dark:text-amber-300">
+              <p className={contentHelperClass}>
                 Select weekdays for this visit before assigning carers.
               </p>
             )}
             {requiredSkills.length > 0 ? (
-              <p className="text-xs text-muted-foreground">
+            <p className={contentHelperClass}>
                 Skills from care plans: {requiredSkills.join(', ')}
               </p>
             ) : null}
@@ -255,7 +261,7 @@ export function VisitPlanSlotCarerAssignment({
       {assignedIds.length > 0 || (hasCarerByDay && groupCarerAssignments(slot.carerAssignments).length > 0) ? (
         <section className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-foreground">
+            <h3 className={contentTitleClass}>
               {hasCarerByDay ? 'Assigned carers by day' : 'Currently assigned'}
             </h3>
             {!disabled && assignedIds.length > 0 ? (
@@ -307,7 +313,7 @@ export function VisitPlanSlotCarerAssignment({
                 })}
               </ul>
             )}
-            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            <p className={cn('mt-3 leading-relaxed', contentHelperClass)}>
               {hasCarerByDay
                 ? 'Day-specific rules from advanced settings. Availability reflects working pattern and existing rota bookings.'
                 : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then generate rota to apply.`}
@@ -325,8 +331,8 @@ export function VisitPlanSlotCarerAssignment({
       <section className="flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Suggested carers</h3>
-            <p className="text-xs text-muted-foreground">
+            <h3 className={contentTitleClass}>Suggested carers</h3>
+            <p className={contentHelperClass}>
               Working pattern, rota bookings, skills, and preferences are shown for each carer.
             </p>
           </div>
@@ -442,7 +448,7 @@ export function VisitPlanSlotCarerAssignment({
         </ul>
       </section>
 
-      <footer className="border-t border-border pt-3 text-xs text-muted-foreground">
+      <footer className={cn('border-t border-border pt-3', contentHelperClass)}>
         {selected.size > 0 ? (
           <p>
             <span className="font-medium text-foreground">{selected.size}</span> of {maxCarers} carer

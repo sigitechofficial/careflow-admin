@@ -2,14 +2,25 @@ import * as React from 'react'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
+  confirmJobDropTravelConflict,
+  evaluateJobDropTravelPreview,
+} from '@/features/scheduling/utils/schedule-job-drag-travel.util'
+import {
   type JobDropPayload,
-  jobBlockLayoutPxWithDragOffset,
   parseScheduleJobsRowKey,
   resolveScheduleJobsRowKeyAtPoint,
   type ScheduleJobsRowRef,
   scheduleJobsRowKey,
   shiftJobScheduleTimesFromViewportDeltaPx,
 } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import {
+  highlightScheduleJobsDropTargetRow,
+  markScheduleJobDragSource,
+  mountScheduleJobsDragPreview,
+  unmountScheduleJobsDragPreview,
+  updateScheduleJobsDragPreviewPosition,
+  updateScheduleJobsDragPreviewTravel,
+} from '@/features/scheduling/utils/schedule-jobs-drag-preview.dom'
 import {
   scheduleJobBlockDisplayLabel,
   type ScheduleJobsBoardRowAxis,
@@ -22,7 +33,6 @@ import {
   jobBlockLayoutPx,
   jobBlockTone,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
-import { setScheduleJobsDragPreview } from '@/features/scheduling/utils/schedule-jobs-drag-preview.store'
 
 const DRAG_THRESHOLD_PX = 6
 
@@ -32,82 +42,101 @@ type DragSession = {
   pointerId: number
   originClientX: number
   originClientY: number
+  grabOffsetX: number
+  grabOffsetY: number
   deltaPx: number
   hoverRowKey: string
-  captureTarget: Element | null
-  baseLeftPx: number
-  baseWidthPx: number
+  captureTarget: HTMLElement | null
+  previewWidthPx: number
+  previewHeightPx: number
   label: string
   tone: ReturnType<typeof jobBlockTone>
-  compact: boolean
-  blockTopOffset: number
-  blockHeight: number
+  lastTravelKey: string | null
+  lastClientX: number
+  lastClientY: number
 }
 
 type Options = {
   date: string
   viewport: ScheduleJobsTimelineViewport
   rowAxis: ScheduleJobsBoardRowAxis
+  travelBufferMinutes?: number
+  getRowJobsForKey?: (rowKey: string) => TimelineJob[]
   onJobDrop: (payload: JobDropPayload) => void | Promise<void>
 }
 
-function timelineTrackElement(rowKey: string): HTMLElement | null {
-  const row = document.querySelector<HTMLElement>(`[data-schedule-row-id="${rowKey}"]`)
-  return row?.querySelector<HTMLElement>('[data-schedule-timeline-track]') ?? null
-}
-
-/** Comfortable, consistent preview height so the dragged card is always readable. */
-const DRAG_PREVIEW_MIN_HEIGHT = 26
-const DRAG_PREVIEW_MAX_HEIGHT = 36
-
-function publishDragPreview(session: DragSession, viewport: ScheduleJobsTimelineViewport): void {
-  const track = timelineTrackElement(session.hoverRowKey)
-  if (!track) {
-    setScheduleJobsDragPreview(null)
-    return
-  }
-
-  const trackRect = track.getBoundingClientRect()
-  const baseLayout =
-    jobBlockLayoutPxInViewport(session.job, viewport) ?? jobBlockLayoutPx(session.job)
-  const { leftPx, widthPx } = jobBlockLayoutPxWithDragOffset(
-    baseLayout.leftPx,
-    baseLayout.widthPx,
+function travelPreviewKey(session: DragSession, date: string, viewport: ScheduleJobsTimelineViewport): string {
+  const times = shiftJobScheduleTimesFromViewportDeltaPx(
+    session.job,
+    date,
     session.deltaPx,
-    viewport.gridWidth,
+    viewport,
   )
-
-  // Center a fixed-height card in the hovered row instead of reusing the source
-  // block's offset — this keeps the preview clearly inside the target carer row
-  // (varying row heights / stacked lanes would otherwise push it onto the edge).
-  const heightPx = Math.min(
-    DRAG_PREVIEW_MAX_HEIGHT,
-    Math.max(DRAG_PREVIEW_MIN_HEIGHT, Math.min(session.blockHeight, trackRect.height - 4)),
-  )
-  const topPx = trackRect.top + Math.max(0, (trackRect.height - heightPx) / 2)
-
-  setScheduleJobsDragPreview({
-    jobId: session.job.id,
-    label: session.label,
-    tone: session.tone,
-    leftPx: trackRect.left + leftPx,
-    widthPx,
-    rowKey: session.hoverRowKey,
-    compact: session.compact,
-    topPx,
-    heightPx,
-  })
+  return `${session.hoverRowKey}:${times.scheduledStartDateTime}:${times.scheduledEndDateTime}`
 }
 
-export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Options) {
-  const [hoverRowKey, setHoverRowKey] = React.useState<string | null>(null)
+function publishTravelPreview(
+  session: DragSession,
+  options: Pick<Options, 'date' | 'travelBufferMinutes' | 'getRowJobsForKey' | 'viewport'>,
+): void {
+  const travelKey = travelPreviewKey(session, options.date, options.viewport)
+  if (travelKey === session.lastTravelKey) return
+  session.lastTravelKey = travelKey
+
+  const targetRow = parseScheduleJobsRowKey(session.hoverRowKey)
+  const times = shiftJobScheduleTimesFromViewportDeltaPx(
+    session.job,
+    options.date,
+    session.deltaPx,
+    options.viewport,
+  )
+  const travelPreview =
+    targetRow?.kind === 'carer' && options.getRowJobsForKey
+      ? evaluateJobDropTravelPreview({
+          job: session.job,
+          targetRow,
+          rowJobs: options.getRowJobsForKey(session.hoverRowKey),
+          scheduledStartDateTime: times.scheduledStartDateTime,
+          scheduledEndDateTime: times.scheduledEndDateTime,
+          bufferMinutes: options.travelBufferMinutes,
+        })
+      : null
+
+  const status =
+    travelPreview && travelPreview.status !== 'ok' ? travelPreview.status : null
+  updateScheduleJobsDragPreviewTravel(status)
+}
+
+export function useScheduleJobsDrag({
+  date,
+  viewport,
+  rowAxis,
+  travelBufferMinutes = 0,
+  getRowJobsForKey,
+  onJobDrop,
+}: Options) {
   const [draggingJobId, setDraggingJobId] = React.useState<string | null>(null)
   const [listenPointerId, setListenPointerId] = React.useState<number | null>(null)
 
   const isDraggingRef = React.useRef(false)
   const dragMovedRef = React.useRef(false)
   const sessionRef = React.useRef<DragSession | null>(null)
-  const rafRef = React.useRef<number | null>(null)
+  const travelRafRef = React.useRef<number | null>(null)
+
+  const previewOptions = React.useMemo(
+    () => ({ date, travelBufferMinutes, getRowJobsForKey, viewport }),
+    [date, getRowJobsForKey, travelBufferMinutes, viewport],
+  )
+
+  const scheduleTravelPreview = React.useCallback(() => {
+    if (travelRafRef.current != null) return
+    travelRafRef.current = window.requestAnimationFrame(() => {
+      travelRafRef.current = null
+      const active = sessionRef.current
+      if (!active || !isDraggingRef.current) return
+      publishTravelPreview(active, previewOptions)
+    })
+  }, [previewOptions])
 
   const endDrag = React.useCallback(
     async (active: DragSession, clientY: number) => {
@@ -118,6 +147,22 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
       const targetRow = parseScheduleJobsRowKey(hoverKey) ?? active.sourceRow
       const times = shiftJobScheduleTimesFromViewportDeltaPx(active.job, date, active.deltaPx, viewport)
 
+      if (targetRow.kind === 'carer' && getRowJobsForKey) {
+        const travelPreview = evaluateJobDropTravelPreview({
+          job: active.job,
+          targetRow,
+          rowJobs: getRowJobsForKey(hoverKey),
+          scheduledStartDateTime: times.scheduledStartDateTime,
+          scheduledEndDateTime: times.scheduledEndDateTime,
+          bufferMinutes: travelBufferMinutes,
+        })
+        if (travelPreview.status === 'conflict' && travelPreview.message) {
+          if (!confirmJobDropTravelConflict(travelPreview.message)) {
+            return
+          }
+        }
+      }
+
       await onJobDrop({
         job: active.job,
         sourceRow: active.sourceRow,
@@ -126,20 +171,8 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
         scheduledEndDateTime: times.scheduledEndDateTime,
       })
     },
-    [date, onJobDrop, viewport],
+    [date, getRowJobsForKey, onJobDrop, travelBufferMinutes, viewport],
   )
-
-  const flushPreview = React.useCallback(() => {
-    rafRef.current = null
-    const active = sessionRef.current
-    if (!active || !isDraggingRef.current) return
-    publishDragPreview(active, viewport)
-  }, [viewport])
-
-  const schedulePreview = React.useCallback(() => {
-    if (rafRef.current != null) return
-    rafRef.current = window.requestAnimationFrame(flushPreview)
-  }, [flushPreview])
 
   React.useEffect(() => {
     if (listenPointerId == null) return
@@ -157,18 +190,37 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
       if (!isDraggingRef.current) {
         isDraggingRef.current = true
         setDraggingJobId(active.job.id)
+        markScheduleJobDragSource(active.captureTarget, true)
+        mountScheduleJobsDragPreview({
+          label: active.label,
+          tone: active.tone,
+          widthPx: active.previewWidthPx,
+          heightPx: active.previewHeightPx,
+        })
+        highlightScheduleJobsDropTargetRow(active.hoverRowKey)
+        document.body.classList.add('cursor-grabbing')
+        document.body.style.userSelect = 'none'
       }
       dragMovedRef.current = true
 
       const nextRowKey = resolveScheduleJobsRowKeyAtPoint(event.clientY) ?? active.hoverRowKey
-      const next: DragSession = { ...active, deltaPx, hoverRowKey: nextRowKey }
-      sessionRef.current = next
-
-      if (nextRowKey !== active.hoverRowKey) {
-        setHoverRowKey(nextRowKey)
+      const rowChanged = nextRowKey !== active.hoverRowKey
+      active.deltaPx = deltaPx
+      active.hoverRowKey = nextRowKey
+      active.lastClientX = event.clientX
+      active.lastClientY = event.clientY
+      if (rowChanged) {
+        active.lastTravelKey = null
+        highlightScheduleJobsDropTargetRow(nextRowKey)
       }
 
-      schedulePreview()
+      updateScheduleJobsDragPreviewPosition(
+        event.clientX,
+        event.clientY,
+        active.grabOffsetX,
+        active.grabOffsetY,
+      )
+      scheduleTravelPreview()
     }
 
     const handleUp = (event: PointerEvent) => {
@@ -190,16 +242,18 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
         // Pointer capture may already be released.
       }
 
-      if (rafRef.current != null) {
-        window.cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
+      if (travelRafRef.current != null) {
+        window.cancelAnimationFrame(travelRafRef.current)
+        travelRafRef.current = null
       }
 
+      markScheduleJobDragSource(active.captureTarget, false)
+      unmountScheduleJobsDragPreview()
+      document.body.classList.remove('cursor-grabbing')
+      document.body.style.removeProperty('user-select')
       sessionRef.current = null
       setListenPointerId(null)
-      setHoverRowKey(null)
       setDraggingJobId(null)
-      setScheduleJobsDragPreview(null)
       isDraggingRef.current = false
       if (moved) {
         window.setTimeout(() => {
@@ -216,8 +270,14 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
 
     const scrollEl = document.querySelector('[data-schedule-jobs-scroll]')
     const onScroll = () => {
-      if (!isDraggingRef.current) return
-      schedulePreview()
+      const active = sessionRef.current
+      if (!active || !isDraggingRef.current) return
+      updateScheduleJobsDragPreviewPosition(
+        active.lastClientX,
+        active.lastClientY,
+        active.grabOffsetX,
+        active.grabOffsetY,
+      )
     }
     scrollEl?.addEventListener('scroll', onScroll, { passive: true })
 
@@ -227,7 +287,7 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
       window.removeEventListener('pointercancel', handleUp)
       scrollEl?.removeEventListener('scroll', onScroll)
     }
-  }, [endDrag, listenPointerId, schedulePreview, viewport])
+  }, [endDrag, listenPointerId, scheduleTravelPreview])
 
   const startDrag = React.useCallback(
     (job: TimelineJob, sourceRow: ScheduleJobsRowRef, event: React.PointerEvent) => {
@@ -236,47 +296,40 @@ export function useScheduleJobsDrag({ date, viewport, rowAxis, onJobDrop }: Opti
       const target = event.currentTarget
       if (!(target instanceof HTMLElement)) return
 
-      const baseLayout =
-        jobBlockLayoutPxInViewport(job, viewport) ?? jobBlockLayoutPx(job)
-      const { leftPx, widthPx } = baseLayout
+      const targetRect = target.getBoundingClientRect()
       const labelMode = rowAxis === 'service-users' ? 'service-user-row' : 'carer-row'
       const label = scheduleJobBlockDisplayLabel(job, labelMode)
       const rowKey = scheduleJobsRowKey(sourceRow)
-      const targetRect = target.getBoundingClientRect()
-      const trackRect = timelineTrackElement(rowKey)?.getBoundingClientRect()
-      const blockTopOffset = trackRect ? targetRect.top - trackRect.top : 0
-      const blockHeight = targetRect.height
 
-      const next: DragSession = {
+      sessionRef.current = {
         job,
         sourceRow,
         pointerId: event.pointerId,
         originClientX: event.clientX,
         originClientY: event.clientY,
+        grabOffsetX: event.clientX - targetRect.left,
+        grabOffsetY: event.clientY - targetRect.top,
         deltaPx: 0,
         hoverRowKey: rowKey,
         captureTarget: target,
-        baseLeftPx: leftPx,
-        baseWidthPx: widthPx,
+        previewWidthPx: targetRect.width,
+        previewHeightPx: targetRect.height,
         label,
         tone: jobBlockTone(job),
-        compact: blockHeight <= 30,
-        blockTopOffset,
-        blockHeight,
+        lastTravelKey: null,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
       }
-      sessionRef.current = next
       isDraggingRef.current = false
       dragMovedRef.current = false
-      setHoverRowKey(rowKey)
       setListenPointerId(event.pointerId)
       target.setPointerCapture(event.pointerId)
     },
-    [viewport, rowAxis],
+    [rowAxis],
   )
 
   return {
     startDrag,
-    hoverRowKey,
     draggingJobId,
     shouldIgnoreClick: () => dragMovedRef.current,
   }

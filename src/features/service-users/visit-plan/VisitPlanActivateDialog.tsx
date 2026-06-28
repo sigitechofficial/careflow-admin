@@ -1,3 +1,4 @@
+import { contentHelperClass, contentOverlineClass } from '@/shared/ui/content-section'
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import {
@@ -206,7 +207,7 @@ export function VisitPlanActivateDialog({
 
           {isReactivation ? (
             <div>
-              <Label className="text-xs text-muted-foreground">Re-activation note (optional)</Label>
+              <Label className={contentOverlineClass}>Re-activation note (optional)</Label>
               <textarea
                 className="mt-1 min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={reactivationReason}
@@ -217,7 +218,7 @@ export function VisitPlanActivateDialog({
           ) : null}
 
           {hasOtherActive && cancelEndedPlanJobs && impactCount > 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className={contentHelperClass}>
               {impactCount} cancellable visit{impactCount === 1 ? '' : 's'} will be cancelled from today.
             </p>
           ) : null}

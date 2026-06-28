@@ -1,7 +1,6 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { listAllEmployees } from '@/features/employees/api'
 import { useScheduleRunMutations } from '@/features/scheduling/hooks/useScheduleRuns'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { JobsDayRunsResponse } from '@/features/scheduling/types/scheduling.types'
 import { scheduleRunCarerLabelFromJobs } from '@/features/scheduling/components/ScheduleRunReassignDialog'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
@@ -29,20 +28,9 @@ export function useScheduleRunReassignDialog({
     [runId, runs],
   )
 
-  const employeesQuery = useQuery({
-    queryKey: ['employees', 'run-reassign-picker'],
-    queryFn: () => listAllEmployees({}),
-    enabled: Boolean(runId),
-  })
+  const employeesQuery = useScheduleEmployeesCatalog({ enabled: Boolean(runId) })
 
-  const carerOptions = React.useMemo(
-    () =>
-      (employeesQuery.data ?? []).map((emp) => ({
-        value: emp.id,
-        label: emp.fullName ?? [emp.firstName, emp.lastName].filter(Boolean).join(' ') ?? 'Unknown',
-      })),
-    [employeesQuery.data],
-  )
+  const carerOptions = employeesQuery.comboboxOptions
 
   const openForRunId = React.useCallback(
     (targetRunId: string) => {

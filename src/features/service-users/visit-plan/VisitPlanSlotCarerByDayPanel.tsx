@@ -11,6 +11,7 @@ import { MultiSelect } from '@/shared/ui/multi-select'
 import { Button } from '@/shared/ui/button'
 import { UserPlus } from 'lucide-react'
 import * as React from 'react'
+import { contentBodyClass, contentHelperClass, contentOverlineClass, contentTitleClass } from '@/shared/ui/content-section'
 import type { VisitPlanSlot, VisitPlanSlotCarerAssignment } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
@@ -73,8 +74,8 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
     <section className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h4 className="text-sm font-semibold">Carers by day</h4>
-          <p className="text-xs text-muted-foreground">
+          <h4 className={contentTitleClass}>Carers by day</h4>
+          <p className={contentBodyClass}>
             Pick one or more weekdays per carer (e.g. Mon + Wed + Fri). Duration defaults to the visit time for
             this slot{slotDefaultDuration > 0 ? ` (${slotDefaultDuration} min)` : ''} — change it for split visits
             (e.g. 60 + 30 min double-up).
@@ -91,7 +92,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className={contentHelperClass}>
           No day-specific assignments — uses the carers assigned on the main row when generating rota.
         </p>
       ) : (
@@ -99,7 +100,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
           {groups.map((group) => (
             <li key={group.groupId} className="grid gap-2 rounded border border-border bg-card p-2 sm:grid-cols-6">
               <div>
-                <Label className="text-[10px] text-muted-foreground">Days</Label>
+                <Label className={contentOverlineClass}>Days</Label>
                 <MultiSelect
                   options={DAY_OPTIONS}
                   value={selectedDayValuesForGroup(group.days)}
@@ -128,7 +129,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                 />
               </div>
               <div className="sm:col-span-2">
-                <Label className="text-[10px] text-muted-foreground">Employee</Label>
+                <Label className={contentOverlineClass}>Employee</Label>
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <p className="truncate text-sm">
                     {nameById.get(group.template.employeeId) ??
@@ -148,7 +149,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                 </div>
               </div>
               <div>
-                <Label className="text-[10px] text-muted-foreground">Role</Label>
+                <Label className={contentOverlineClass}>Role</Label>
                 <Select
                   value={group.template.role}
                   disabled={disabled}
@@ -170,7 +171,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                 </Select>
               </div>
               <div>
-                <Label className="text-[10px] text-muted-foreground">
+                <Label className={contentOverlineClass}>
                   Duration (min)
                   {group.template.durationMinutes == null && slotDefaultDuration > 0 ? (
                     <span className="font-normal text-muted-foreground/80"> · visit default</span>

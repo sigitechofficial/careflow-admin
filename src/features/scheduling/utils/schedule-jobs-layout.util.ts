@@ -10,10 +10,11 @@ export const SCHEDULE_JOBS_LAYOUT_META: Record<
 > = {
   board: {
     label: 'Rota board',
-    description: 'Daily rota · drag to reschedule or reassign',
+    description:
+      'Daily rota board — drag jobs to reschedule, drag on the timeline to group visits into a run.',
   },
   runs: {
     label: 'Runs',
-    description: 'Group and order visits into carer runs',
+    description: 'Group and order visits into carer runs for the day — table view with route stats.',
   },
 }

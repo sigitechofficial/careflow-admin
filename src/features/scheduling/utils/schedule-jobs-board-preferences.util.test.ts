@@ -15,7 +15,12 @@ describe('schedule-jobs-board-preferences.util', () => {
   })
 
   it('persists showRunsOnBoard', () => {
-    saveScheduleJobsBoardPreferences({ showRunsOnBoard: true })
+    saveScheduleJobsBoardPreferences({ showRunsOnBoard: true, rotaGapDisplay: 'both' })
     expect(loadScheduleJobsBoardPreferences().showRunsOnBoard).toBe(true)
+  })
+
+  it('persists rotaGapDisplay', () => {
+    saveScheduleJobsBoardPreferences({ showRunsOnBoard: false, rotaGapDisplay: 'idle' })
+    expect(loadScheduleJobsBoardPreferences().rotaGapDisplay).toBe('idle')
   })
 })

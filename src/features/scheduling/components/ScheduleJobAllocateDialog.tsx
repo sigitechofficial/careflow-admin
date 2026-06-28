@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ArrowLeftRight, CheckCircle2, Clock, Crown, Loader2, UserMinus, UserPlus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useAuthStore } from '@/features/auth/store'
@@ -17,9 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { listAllEmployees } from '@/features/employees/api'
-import { employeeKeys } from '@/features/employees/keys'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import {
   useAllocateJob,
   useConfirmJobAllocation,
@@ -121,12 +119,7 @@ export function ScheduleJobAllocateDialog({
   const unallocate = useUnallocateJob()
   const updateJob = useUpdateScheduledJob()
 
-  const employeesQuery = useQuery({
-    queryKey: employeeKeys.allList({}),
-    queryFn: () => listAllEmployees({}),
-    enabled: open,
-    staleTime: 60_000,
-  })
+  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
 
   React.useEffect(() => {
     if (!open) {
@@ -204,7 +197,7 @@ export function ScheduleJobAllocateDialog({
 
   const filteredEmployees = React.useMemo(() => {
     const q = search.trim().toLowerCase()
-    return (employeesQuery.data ?? [])
+    return employeesQuery.employees
       .filter((row) => {
         if (replacingEmployeeId) return row.id !== replacingEmployeeId
         return !allocatedEmployeeIds.has(row.id)
@@ -224,7 +217,7 @@ export function ScheduleJobAllocateDialog({
       })
       .slice(0, 40)
   }, [
-    employeesQuery.data,
+    employeesQuery.employees,
     allocatedEmployeeIds,
     replacingEmployeeId,
     rotaBookedEmployeeIds,

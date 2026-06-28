@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Pill, User } from 'lucide-react'
+import { cn } from '@/shared/lib/utils'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import type { ServiceUserAllergyRow, ServiceUserDetail } from '@/features/service-users/types'
 import {
@@ -10,6 +11,8 @@ import {
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlanExtras } from '@/features/service-users/hooks/useServiceUserCarePlanExtras'
 
+export type ServiceUserModuleShellLayout = 'default' | 'wide'
+
 export type ServiceUserModuleHeaderProps = {
   serviceUserId: string
   /** When omitted, profile is loaded via useServiceUser. */
@@ -18,6 +21,20 @@ export type ServiceUserModuleHeaderProps = {
   actions?: React.ReactNode
   /** Extra badges after DNACPR / diabetes / risk level. */
   badges?: React.ReactNode
+  /** default: max-w-7xl · wide: max-w-screen-2xl (matches Employee Management pages). */
+  shellLayout?: ServiceUserModuleShellLayout
+}
+
+export function serviceUserModuleShellClass(
+  layout: ServiceUserModuleShellLayout = 'default',
+  options?: { horizontalPadding?: boolean },
+): string {
+  const horizontalPadding = options?.horizontalPadding !== false
+  return cn(
+    'mx-auto w-full',
+    layout === 'wide' ? 'max-w-screen-2xl' : 'max-w-7xl',
+    horizontalPadding && (layout === 'wide' ? 'px-3.5 md:px-8' : 'px-4 sm:px-6'),
+  )
 }
 
 export function ServiceUserModuleHeader({
@@ -25,6 +42,7 @@ export function ServiceUserModuleHeader({
   detail: detailProp,
   actions,
   badges,
+  shellLayout = 'default',
 }: ServiceUserModuleHeaderProps) {
   const profileQuery = useServiceUser(serviceUserId, detailProp === undefined)
   const { documents, allergies } = useServiceUserCarePlanExtras(serviceUserId)
@@ -38,8 +56,13 @@ export function ServiceUserModuleHeader({
   )
 
   return (
-    <div className="border-b border-border bg-card px-4 py-4 sm:px-6">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-4">
+    <div className={cn('border-b border-border bg-card py-4', shellLayout === 'default' && 'px-4 sm:px-6')}>
+      <div
+        className={cn(
+          'flex flex-wrap items-start justify-between gap-4',
+          serviceUserModuleShellClass(shellLayout, { horizontalPadding: shellLayout === 'wide' }),
+        )}
+      >
         <div className="flex min-w-0 flex-1 gap-4">
           <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted text-[7px] text-muted-foreground">
             {photoSrc ? (
@@ -110,3 +133,9 @@ export function ServiceUserModuleHeader({
 /** Shared page shell background used by service-user module pages. */
 export const SERVICE_USER_MODULE_PAGE_CLASS =
   'flex min-h-full flex-col bg-[#f4f6f8] pb-12 dark:bg-background'
+
+/** Main content area — wide layout matches AppLayout / Employee Management. */
+export const SERVICE_USER_MODULE_CONTENT_WIDE_CLASS = cn(
+  serviceUserModuleShellClass('wide'),
+  'flex-1 py-4 md:py-4',
+)

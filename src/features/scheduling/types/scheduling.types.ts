@@ -19,6 +19,13 @@ export type ServiceUserBrief = {
   branchName?: string | null
   branchLayers?: string[]
   displayLabel?: string | null
+  address?: {
+    addressLine1?: string | null
+    addressLine2?: string | null
+    town?: string | null
+    county?: string | null
+    postcode?: string | null
+  } | null
   latitude?: number | null
   longitude?: number | null
 }
@@ -123,6 +130,8 @@ export type TimelineJob = {
     } | null
   }>
   notes?: string | null
+  address?: string | null
+  postcode?: string | null
   latitude?: number | null
   longitude?: number | null
 }

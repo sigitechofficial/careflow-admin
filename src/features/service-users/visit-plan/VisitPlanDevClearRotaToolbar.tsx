@@ -19,6 +19,8 @@ import {
   type ClearVisitPlansAndRotaResult,
 } from '@/features/service-users/visit-plan/api'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { cn } from '@/shared/lib/utils'
+import { contentAlertClass, contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 
 function formatCounts(result: ClearVisitPlansAndRotaResult): string {
   const rows = result.deleted ?? result.counts
@@ -88,10 +90,10 @@ export function VisitPlanDevClearRotaToolbar({ serviceUserId }: Props) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+          <p className={cn(contentTitleClass, 'text-amber-950 dark:text-amber-100')}>
             Reset visit plans & rota
           </p>
-          <p className="max-w-3xl text-xs text-amber-900/90 dark:text-amber-100/90">
+          <p className={cn('max-w-3xl', contentAlertClass)}>
             Runs the same cleanup as{' '}
             <code className="rounded bg-amber-100/80 px-1 py-0.5 dark:bg-amber-900/40">
               npx ts-node --transpile-only prisma/scripts/clear-visit-plans-and-rota.ts
@@ -100,7 +102,7 @@ export function VisitPlanDevClearRotaToolbar({ serviceUserId }: Props) {
             Service users, employees, and schedule areas are kept.
           </p>
           {preview ? (
-            <p className="text-xs text-muted-foreground">
+            <p className={contentHelperClass}>
               Last run: {preview.dryRun ? 'dry run' : 'cleared'} — {formatCounts(preview)}
             </p>
           ) : null}

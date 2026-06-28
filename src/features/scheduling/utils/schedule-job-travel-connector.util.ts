@@ -4,6 +4,10 @@ import {
   buildNextVisitTravelDetail,
   sortJobsByStartTime,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
+import {
+  resolveTravelTimingStatus,
+  type TravelTimingStatus,
+} from '@/features/scheduling/utils/schedule-job-travel-timing.util'
 import type { JobOverlapLayout } from '@/features/scheduling/utils/schedule-jobs-overlap-lanes.util'
 import { scheduleJobLaneTopPx } from '@/features/scheduling/utils/schedule-jobs-overlap-lanes.util'
 import {
@@ -42,6 +46,7 @@ export type ScheduleJobTravelConnector = {
   widthPx: number
   label: string
   hasTravelConflict: boolean
+  travelTimingStatus: TravelTimingStatus
 }
 
 type BuildScheduleJobTravelConnectorsOptions = {
@@ -128,6 +133,7 @@ export function buildScheduleJobTravelConnectors(
     })
     const midX = fromX + widthPx / 2
 
+    const bufferMinutes = options.travelBufferMinutes ?? 0
     connectors.push({
       id: `${fromJob.id}->${toJob.id}`,
       fromJobId: fromJob.id,
@@ -140,6 +146,9 @@ export function buildScheduleJobTravelConnectors(
       widthPx,
       label: `${detail.distanceLabel} · ${detail.travelLabel}`,
       hasTravelConflict: detail.hasTravelConflict,
+      travelTimingStatus: detail.hasTravelConflict
+        ? 'conflict'
+        : resolveTravelTimingStatus(detail.gapMinutes, detail.travelMinutes, bufferMinutes),
     })
   }
 

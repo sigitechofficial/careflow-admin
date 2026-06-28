@@ -1,6 +1,13 @@
 ﻿import * as React from 'react'
 import { Filter, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import {
+  contentBodyClass,
+  contentHelperClass,
+  contentKickerClass,
+  contentTitleClass,
+  contentTitleDisplayClass,
+} from '@/shared/ui/content-typography'
 import { Button, type ButtonProps } from './button'
 
 /* â”€â”€â”€ PageHeader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -29,7 +36,7 @@ function PageHeader({ title, description, actions, breadcrumb, icon, children, c
     <div className={cn('rounded-xl border border-border bg-card shadow-sm', className)}>
       <div className="space-y-3 p-5">
         {breadcrumb && breadcrumb.length > 0 && (
-          <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" aria-label="Breadcrumb">
+          <nav className={cn('flex flex-wrap items-center gap-1.5', contentHelperClass)} aria-label="Breadcrumb">
             {breadcrumb.map((item, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <span className="text-muted-foreground/70">/</span>}
@@ -48,12 +55,12 @@ function PageHeader({ title, description, actions, breadcrumb, icon, children, c
         )}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-1.5">
-            <h1 className="flex items-center gap-2 text-sm font-semibold text-foreground tracking-tight">
+            <h1 className={cn('flex items-center gap-2 tracking-tight', contentTitleClass)}>
               <span className="shrink-0 [&_svg]:h-4 [&_svg]:w-4">{leadingIcon}</span>
               <span className="truncate">{title}</span>
             </h1>
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className={contentBodyClass}>{description}</p>
             )}
           </div>
           {(actions || children) && (
@@ -104,9 +111,9 @@ function EmptyState({ icon, title, description, action, className }: EmptyStateP
           {icon}
         </div>
       )}
-      <h3 className="text-sm font-display font-semibold text-foreground">{title}</h3>
+      <h3 className={contentTitleDisplayClass}>{title}</h3>
       {description && (
-        <p className="mt-1.5 text-sm text-muted-foreground max-w-xs">{description}</p>
+        <p className={cn('mt-1.5 max-w-xs', contentBodyClass)}>{description}</p>
       )}
       {action && (
         <Button className="mt-4" size="sm" leftIcon={action.icon} onClick={action.onClick}>
@@ -133,7 +140,7 @@ function LoadingSpinner({ size = 'md', label, className }: LoadingSpinnerProps) 
   return (
     <div className={cn('flex flex-col items-center gap-2', className)}>
       <Loader2 className={cn('animate-spin text-primary', sizeClasses[size])} />
-      {label && <p className="text-sm text-muted-foreground">{label}</p>}
+      {label && <p className={contentBodyClass}>{label}</p>}
     </div>
   )
 }
@@ -154,10 +161,10 @@ function Section({ title, description, action, children, className }: SectionPro
         <div className="flex items-center justify-between">
           <div>
             {title && (
-              <h2 className="text-sm font-display font-semibold text-foreground">{title}</h2>
+              <h2 className={contentTitleDisplayClass}>{title}</h2>
             )}
             {description && (
-              <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+              <p className={cn('mt-0.5', contentHelperClass)}>{description}</p>
             )}
           </div>
           {action}
@@ -190,7 +197,7 @@ function StatusIndicator({ status, label, className }: StatusIndicatorProps) {
   return (
     <div className={cn('flex items-center gap-1.5', className)}>
       <span className={cn('inline-block h-2 w-2 rounded-full shrink-0', config.color)} />
-      <span className="text-xs text-muted-foreground">{label ?? config.label}</span>
+      <span className={contentHelperClass}>{label ?? config.label}</span>
     </div>
   )
 }

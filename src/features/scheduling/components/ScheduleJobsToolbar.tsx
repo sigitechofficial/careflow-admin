@@ -1,38 +1,29 @@
 import { Link } from '@tanstack/react-router'
-import * as PopoverPrimitive from '@radix-ui/react-popover'
-import { format } from 'date-fns'
 import {
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   LayoutList,
   Loader2,
   RefreshCw,
   Route,
-  Settings,
   UserRound,
   Users,
 } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 import {
-  SCHEDULE_JOBS_LAYOUT_META,
   type ScheduleJobsLayout,
 } from '@/features/scheduling/utils/schedule-jobs-layout.util'
 import {
-  SCHEDULE_JOBS_BOARD_ROW_AXIS_META,
   type ScheduleJobsBoardRowAxis,
 } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { Button } from '@/shared/ui/button'
-import { Calendar } from '@/shared/ui/date-picker'
 import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   formatHoursMinutes,
-  formatScheduleJobsWeekday,
+  jobBlockCompletedSurfaceStyle,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
-import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 import type { ScheduleJobOutcomeFilter } from '@/features/scheduling/utils/schedule-job-board-filter.util'
 import {
   SCHEDULE_CARER_OPERATIONAL_FILTERS,
@@ -52,7 +43,18 @@ import {
   SCHEDULE_JOBS_FILTER_ALL_VALUE,
   withScheduleJobsFilterAllOption,
 } from '@/features/scheduling/utils/schedule-jobs-multi-filter.util'
-import { jobBlockCompletedSurfaceStyle } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import {
+  ROTA_GAP_DISPLAY_MODES,
+  rotaGapDisplayModeLabel,
+  type RotaGapDisplayMode,
+} from '@/features/scheduling/utils/schedule-job-rota-gap.util'
+
+const SCHEDULE_JOBS_TOGGLE_SELECTED_CLASS =
+  'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-inset ring-emerald-300/70 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-700'
+
+function scheduleJobsToolbarToggleClass(selected: boolean, className?: string) {
+  return cn(className, selected && SCHEDULE_JOBS_TOGGLE_SELECTED_CLASS)
+}
 
 type StatChipProps = {
   label: string
@@ -94,10 +96,6 @@ type Props = {
   requiredCarersOptions: Array<{ value: string; label: string; description?: string }>
   onRequiredCarersFiltersChange: (filters: ScheduleJobsRequiredCarersFilterValue[]) => void
   allVisitsLabel: string
-  onPrevDay: () => void
-  onNextDay: () => void
-  onToday: () => void
-  onDateChange: (isoDate: string) => void
   onRefresh: () => void
   isLoading?: boolean
   hasError?: boolean
@@ -127,6 +125,8 @@ type Props = {
   onRowAxisChange: (rowAxis: ScheduleJobsBoardRowAxis) => void
   showRunsOnBoard?: boolean
   onShowRunsOnBoardChange?: (show: boolean) => void
+  rotaGapDisplay?: RotaGapDisplayMode
+  onRotaGapDisplayChange?: (mode: RotaGapDisplayMode) => void
 }
 
 const OUTCOME_FILTER_META: Array<{
@@ -195,14 +195,6 @@ function JobOutcomeFilterChip({
   )
 }
 
-function isoDateToLocalDate(isoDate: string): Date {
-  return new Date(`${isoDate}T12:00:00`)
-}
-
-function localDateToIsoDate(date: Date): string {
-  return format(date, 'yyyy-MM-dd')
-}
-
 export function ScheduleJobsToolbar({
   date,
   locationIds,
@@ -217,10 +209,6 @@ export function ScheduleJobsToolbar({
   requiredCarersOptions,
   onRequiredCarersFiltersChange,
   allVisitsLabel,
-  onPrevDay,
-  onNextDay,
-  onToday,
-  onDateChange,
   onRefresh,
   isLoading,
   hasError,
@@ -250,13 +238,10 @@ export function ScheduleJobsToolbar({
   onRowAxisChange,
   showRunsOnBoard = false,
   onShowRunsOnBoardChange,
+  rotaGapDisplay = 'both',
+  onRotaGapDisplayChange,
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
-  const isToday = date === todayIso()
-  const layoutMeta = SCHEDULE_JOBS_LAYOUT_META[layout]
-  const rowAxisMeta = SCHEDULE_JOBS_BOARD_ROW_AXIS_META[rowAxis]
-  const [calendarOpen, setCalendarOpen] = React.useState(false)
-  const selectedDate = React.useMemo(() => isoDateToLocalDate(date), [date])
   const branchComboboxOptions = React.useMemo(
     () =>
       withScheduleJobsFilterAllOption(
@@ -351,84 +336,14 @@ export function ScheduleJobsToolbar({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-gradient-to-r from-card via-card to-muted/20 px-4 py-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center rounded-lg border border-border bg-background p-0.5 shadow-sm">
-            <Button type="button" size="icon-sm" variant="ghost" className="h-8 w-8" onClick={onPrevDay}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
             <Button
               type="button"
               size="sm"
-              variant={isToday ? 'secondary' : 'ghost'}
-              className="h-8 px-3 text-xs font-semibold"
-              onClick={onToday}
-            >
-              Today
-            </Button>
-            <Button type="button" size="icon-sm" variant="ghost" className="h-8 w-8" onClick={onNextDay}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <PopoverPrimitive.Root open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverPrimitive.Trigger asChild>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  className="h-8 w-8 rounded-none border-l border-border"
-                  aria-label="Pick schedule date"
-                >
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </PopoverPrimitive.Trigger>
-              <PopoverPrimitive.Portal>
-                <PopoverPrimitive.Content
-                  className="z-50 rounded-lg border border-border bg-popover shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
-                  align="start"
-                  sideOffset={6}
-                >
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(nextDate) => {
-                      if (!nextDate) return
-                      onDateChange(localDateToIsoDate(nextDate))
-                      setCalendarOpen(false)
-                    }}
-                    autoFocus
-                  />
-                </PopoverPrimitive.Content>
-              </PopoverPrimitive.Portal>
-            </PopoverPrimitive.Root>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <div
-              className={cn(
-                'flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg border text-center shadow-sm',
-                isToday
-                  ? 'border-primary/30 bg-primary/10 text-primary'
-                  : 'border-border bg-muted/40 text-foreground',
+              variant="ghost"
+              className={scheduleJobsToolbarToggleClass(
+                layout === 'board',
+                'h-8 gap-1.5 px-3 text-xs font-semibold',
               )}
-            >
-              <span className="text-[10px] font-bold uppercase leading-none tracking-wide">
-                {formatScheduleJobsWeekday(date)}
-              </span>
-              <span className="mt-0.5 text-lg font-bold leading-none tabular-nums">
-                {new Date(`${date}T12:00:00`).getDate()}
-              </span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">{displayFormat.formatDate(date)}</p>
-              <p className="text-xs text-muted-foreground">
-                {layout === 'board' ? rowAxisMeta.description : layoutMeta.description}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center rounded-lg border border-border bg-background p-0.5 shadow-sm">
-            <Button
-              type="button"
-              size="sm"
-              variant={layout === 'board' ? 'secondary' : 'ghost'}
-              className="h-8 gap-1.5 px-3 text-xs font-semibold"
               onClick={() => onLayoutChange('board')}
               aria-pressed={layout === 'board'}
             >
@@ -438,8 +353,11 @@ export function ScheduleJobsToolbar({
             <Button
               type="button"
               size="sm"
-              variant={layout === 'runs' ? 'secondary' : 'ghost'}
-              className="h-8 gap-1.5 px-3 text-xs font-semibold"
+              variant="ghost"
+              className={scheduleJobsToolbarToggleClass(
+                layout === 'runs',
+                'h-8 gap-1.5 px-3 text-xs font-semibold',
+              )}
               onClick={() => onLayoutChange('runs')}
               aria-pressed={layout === 'runs'}
             >
@@ -456,8 +374,11 @@ export function ScheduleJobsToolbar({
               <Button
                 type="button"
                 size="sm"
-                variant={rowAxis === 'carers' ? 'secondary' : 'ghost'}
-                className="h-8 gap-1.5 px-3 text-xs font-semibold"
+                variant="ghost"
+                className={scheduleJobsToolbarToggleClass(
+                  rowAxis === 'carers',
+                  'h-8 gap-1.5 px-3 text-xs font-semibold',
+                )}
                 onClick={() => onRowAxisChange('carers')}
                 aria-pressed={rowAxis === 'carers'}
               >
@@ -467,8 +388,11 @@ export function ScheduleJobsToolbar({
               <Button
                 type="button"
                 size="sm"
-                variant={rowAxis === 'service-users' ? 'secondary' : 'ghost'}
-                className="h-8 gap-1.5 px-3 text-xs font-semibold"
+                variant="ghost"
+                className={scheduleJobsToolbarToggleClass(
+                  rowAxis === 'service-users',
+                  'h-8 gap-1.5 px-3 text-xs font-semibold',
+                )}
                 onClick={() => onRowAxisChange('service-users')}
                 aria-pressed={rowAxis === 'service-users'}
               >
@@ -482,8 +406,11 @@ export function ScheduleJobsToolbar({
             <Button
               type="button"
               size="sm"
-              variant={showRunsOnBoard ? 'secondary' : 'outline'}
-              className="h-8 gap-1.5 px-3 text-xs font-semibold shadow-sm"
+              variant="ghost"
+              className={scheduleJobsToolbarToggleClass(
+                showRunsOnBoard,
+                'h-8 gap-1.5 px-3 text-xs font-semibold shadow-sm ring-1 ring-border/80',
+              )}
               onClick={() => onShowRunsOnBoardChange(!showRunsOnBoard)}
               aria-pressed={showRunsOnBoard}
               data-testid="schedule-jobs-show-runs-on-board"
@@ -492,6 +419,31 @@ export function ScheduleJobsToolbar({
               <Route className="h-3.5 w-3.5" />
               Runs on board
             </Button>
+          ) : null}
+
+          {layout === 'board' && onRotaGapDisplayChange ? (
+            <div
+              className="flex items-center rounded-lg border border-border bg-background p-0.5 shadow-sm"
+              data-testid="schedule-jobs-rota-gap-display"
+            >
+              {ROTA_GAP_DISPLAY_MODES.map((mode) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className={scheduleJobsToolbarToggleClass(
+                    rotaGapDisplay === mode,
+                    'h-8 px-2.5 text-[11px] font-semibold',
+                  )}
+                  onClick={() => onRotaGapDisplayChange(mode)}
+                  aria-pressed={rotaGapDisplay === mode}
+                  title={`Show ${rotaGapDisplayModeLabel(mode).toLowerCase()} on carer rows`}
+                >
+                  {mode === 'none' ? 'No gaps' : rotaGapDisplayModeLabel(mode)}
+                </Button>
+              ))}
+            </div>
           ) : null}
         </div>
 
@@ -503,12 +455,6 @@ export function ScheduleJobsToolbar({
               <RefreshCw className="h-3.5 w-3.5" />
             )}
             Refresh
-          </Button>
-
-          <Button type="button" size="icon-sm" variant="outline" className="h-8 w-8" asChild>
-            <Link to="/scheduling/build" aria-label="Schedule settings">
-              <Settings className="h-4 w-4" />
-            </Link>
           </Button>
 
           <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs" asChild>

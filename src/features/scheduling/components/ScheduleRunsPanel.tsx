@@ -1,11 +1,10 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Loader2, Map, Pencil, Plus, Route, Table2, X } from 'lucide-react'
-import { listAllEmployees } from '@/features/employees/api'
 import {
   useScheduleRunMutations,
   useScheduleRunsList,
 } from '@/features/scheduling/hooks/useScheduleRuns'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { ScheduleRunRow, ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
 import { ScheduleRunsTable } from '@/features/scheduling/components/ScheduleRunsTable'
@@ -92,20 +91,14 @@ export function ScheduleRunsPanel({
   const [editEmployeeId, setEditEmployeeId] = React.useState('')
   const [editNotes, setEditNotes] = React.useState('')
 
-  const employeesQuery = useQuery({
-    queryKey: ['employees', 'runs-picker'],
-    queryFn: () => listAllEmployees({}),
-  })
+  const employeesQuery = useScheduleEmployeesCatalog()
 
   const carerComboboxOptions = React.useMemo(
     () => [
       { value: '', label: 'Unassigned', description: 'No default carer for this run' },
-      ...(employeesQuery.data ?? []).map((emp) => ({
-        value: emp.id,
-        label: emp.fullName ?? [emp.firstName, emp.lastName].filter(Boolean).join(' ') ?? 'Unknown',
-      })),
+      ...employeesQuery.comboboxOptions,
     ],
-    [employeesQuery.data],
+    [employeesQuery.comboboxOptions],
   )
 
   const runs = runsQuery.data?.rows ?? []

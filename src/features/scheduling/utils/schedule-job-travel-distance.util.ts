@@ -42,6 +42,17 @@ export function jobGeoCoordinates(job: TimelineJob): GeoCoordinates | null {
   return { lat, lng }
 }
 
+export function geoCoordinatesFromLatLng(
+  latitude?: number | string | null,
+  longitude?: number | string | null,
+): GeoCoordinates | null {
+  if (latitude == null || longitude == null) return null
+  const lat = typeof latitude === 'string' ? Number(latitude) : latitude
+  const lng = typeof longitude === 'string' ? Number(longitude) : longitude
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { lat, lng }
+}
+
 export function haversineDistanceKm(from: GeoCoordinates, to: GeoCoordinates): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180
   const dLat = toRad(to.lat - from.lat)
@@ -90,6 +101,13 @@ export function findNextJobInRow(job: TimelineJob, rowJobs: TimelineJob[]): Time
   return ordered[index + 1] ?? null
 }
 
+export function findPreviousJobInRow(job: TimelineJob, rowJobs: TimelineJob[]): TimelineJob | null {
+  const ordered = sortJobsByStartTime(rowJobs)
+  const index = ordered.findIndex((rowJob) => rowJob.id === job.id)
+  if (index <= 0) return null
+  return ordered[index - 1] ?? null
+}
+
 function jobEndTimestampMs(job: TimelineJob): number {
   if (job.scheduledEndDateTime) {
     return new Date(job.scheduledEndDateTime).getTime()
@@ -131,6 +149,32 @@ export function travelConflictJobIds(
     if (detail?.hasTravelConflict) ids.add(job.id)
   }
   return ids
+}
+
+/** Jobs that cannot be reached in time from the previous visit on the same row. */
+export function travelConflictFromPreviousJobIds(
+  rowJobs: TimelineJob[],
+  bufferMinutes = 0,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const job of rowJobs) {
+    const previousJob = findPreviousJobInRow(job, rowJobs)
+    if (!previousJob) continue
+    const detail = buildNextVisitTravelDetail(previousJob, rowJobs, { bufferMinutes })
+    if (detail?.hasTravelConflict) ids.add(job.id)
+  }
+  return ids
+}
+
+export function buildInboundVisitTravelDetail(
+  job: TimelineJob,
+  rowJobs?: TimelineJob[],
+  options?: BuildNextVisitTravelOptions,
+): NextVisitTravelDetail | null {
+  if (!rowJobs?.length) return null
+  const previousJob = findPreviousJobInRow(job, rowJobs)
+  if (!previousJob) return null
+  return buildNextVisitTravelDetail(previousJob, rowJobs, options)
 }
 
 export function buildNextVisitTravelDetail(

@@ -1,4 +1,11 @@
 import { Info } from 'lucide-react'
+import { cn } from '@/shared/lib/utils'
+import {
+  contentHelperClass,
+  contentKickerClass,
+  contentOverlineClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
@@ -99,17 +106,17 @@ export function VisitPlanSlotAdvancedPanel({
   return (
     <div className="space-y-6">
       <div>
-        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Label className={contentKickerClass}>
           Configure: {slotLabel}
         </Label>
       </div>
 
       <section className="rounded-lg border border-border bg-muted/10 p-4 space-y-4">
-        <h4 className="text-sm font-semibold text-foreground">When do you want to schedule the visit?</h4>
+        <h4 className={contentTitleClass}>When do you want to schedule the visit?</h4>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className={contentOverlineClass}>
               How often do you want to schedule the visits? <span className="text-red-600">*</span>
             </Label>
             <Select
@@ -137,7 +144,7 @@ export function VisitPlanSlotAdvancedPanel({
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className={contentOverlineClass}>
               Repeat every <span className="text-red-600">*</span>
             </Label>
             <div className="mt-1 flex items-center gap-2">
@@ -184,7 +191,7 @@ export function VisitPlanSlotAdvancedPanel({
           />
           <div>
             <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground">Time tolerance (minutes)</Label>
+              <Label className={contentOverlineClass}>Time tolerance (minutes)</Label>
               <FieldHelp text="Allowed minutes before/after the planned window before the visit is flagged." />
             </div>
             <Input
@@ -199,7 +206,7 @@ export function VisitPlanSlotAdvancedPanel({
           </div>
         </div>
 
-        <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <p className={cn('rounded-md border border-dashed border-border bg-muted/20 px-3 py-2', contentHelperClass)}>
           Link care plans and assign carers in the <strong className="font-medium">Call pattern</strong> table below.
           Recording options are in <strong className="font-medium">Additional details</strong> after the table.
         </p>

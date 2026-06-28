@@ -1,8 +1,7 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
-import { listAllEmployees } from '@/features/employees/api'
 import { useScheduleRunMutations } from '@/features/scheduling/hooks/useScheduleRuns'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
@@ -66,21 +65,14 @@ export function ScheduleRunCreateDialog({
     [sortedJobs, travelBufferMinutes],
   )
 
-  const employeesQuery = useQuery({
-    queryKey: ['employees', 'run-create-picker'],
-    queryFn: () => listAllEmployees({}),
-    enabled: open,
-  })
+  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
 
   const carerOptions = React.useMemo(
     () => [
       { value: '', label: 'Unassigned', description: 'Assign carer later' },
-      ...(employeesQuery.data ?? []).map((emp) => ({
-        value: emp.id,
-        label: emp.fullName ?? [emp.firstName, emp.lastName].filter(Boolean).join(' ') ?? 'Unknown',
-      })),
+      ...employeesQuery.comboboxOptions,
     ],
-    [employeesQuery.data],
+    [employeesQuery.comboboxOptions],
   )
 
   React.useEffect(() => {

@@ -1,5 +1,15 @@
-import { Clock, ShieldAlert, Star, UserX } from 'lucide-react'
+import * as React from 'react'
+import { Link } from '@tanstack/react-router'
+import { Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import {
+  contentBadgeClass,
+  contentHelperClass,
+  contentKickerClass,
+  contentTagClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
@@ -38,6 +48,69 @@ function dayChipTone(
   return 'border-border bg-muted/40 text-muted-foreground'
 }
 
+function ComplianceIssuesInfo({
+  count,
+  employeeId,
+}: {
+  count: number
+  employeeId: string
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip open={open} onOpenChange={setOpen}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex shrink-0 rounded-sm text-amber-700 hover:bg-amber-100/80 hover:text-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-300 dark:hover:bg-amber-950/50 dark:hover:text-amber-100"
+            aria-label="What do compliance items need attention mean?"
+            onClick={(event) => {
+              event.stopPropagation()
+              setOpen((value) => !value)
+            }}
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start" className="max-w-sm space-y-2 p-3 text-xs leading-relaxed">
+          <p className="font-semibold text-foreground">Compliance items need attention</p>
+          <p className="text-muted-foreground">
+            This count is how many of this employee&apos;s required compliance records are not fully in order
+            (for example DBS, training certificates, or right-to-work checks).
+          </p>
+          <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+            <li>
+              <span className="font-medium text-foreground">Missing</span> — required but not uploaded
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Expired</span> — past expiry date
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Expiring soon</span> — due to expire shortly
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Rejected</span> — submitted but not accepted
+            </li>
+          </ul>
+          <p className="text-muted-foreground">
+            Showing <span className="font-medium text-foreground">{count}</span> item{count === 1 ? '' : 's'} for
+            this carer. You can still assign them, but review compliance before they visit.
+          </p>
+          <Link
+            to="/employee/$employeeId/edit"
+            params={{ employeeId }}
+            className="inline-flex font-medium text-primary hover:underline"
+            onClick={() => setOpen(false)}
+          >
+            Open employee compliance record
+          </Link>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 type Props = {
   candidate: VisitPlanCarerCandidate
   slotDaysOfWeek: number[]
@@ -62,34 +135,35 @@ export function VisitPlanCarerCandidateDetails({
       {!availabilityOnly ? (
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{c.displayName}</span>
+            <span className={contentTitleClass}>{c.displayName}</span>
             <span
               className={cn(
-                'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                'rounded-full border px-2 py-0.5',
+                contentBadgeClass,
                 fitStyles(c.fit),
               )}
             >
               {fitLabel(c.fit)}
             </span>
             {c.isPreferred ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <span className={cn('inline-flex items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200', contentTagClass)}>
                 <Star className="h-3 w-3" fill="currentColor" aria-hidden />
                 Preferred
               </span>
             ) : null}
             {blocked ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+              <span className={cn('inline-flex items-center gap-0.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200', contentTagClass)}>
                 <UserX className="h-3 w-3" aria-hidden />
                 Blocked
               </span>
             ) : null}
             {c.hasRotaConflict ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+              <span className={cn('inline-flex items-center gap-0.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200', contentTagClass)}>
                 Already booked
               </span>
             ) : null}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className={contentHelperClass}>
             {[c.role, c.jobTitle].filter(Boolean).join(' · ') || 'Employee'}
           </p>
         </div>
@@ -97,7 +171,7 @@ export function VisitPlanCarerCandidateDetails({
 
       {slotDays.length > 0 ? (
         <div className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className={cn('flex items-center gap-1.5', contentKickerClass)}>
             <Clock className="h-3.5 w-3.5" aria-hidden />
             Working pattern · this slot
           </div>
@@ -132,8 +206,9 @@ export function VisitPlanCarerCandidateDetails({
           ) : null}
           {c.complianceIssues > 0 ? (
             <p className="inline-flex items-center gap-1 text-amber-800 dark:text-amber-200">
-              <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {c.complianceIssues} compliance item{c.complianceIssues === 1 ? '' : 's'} need attention
+              <ComplianceIssuesInfo count={c.complianceIssues} employeeId={c.employeeId} />
             </p>
           ) : null}
         </div>

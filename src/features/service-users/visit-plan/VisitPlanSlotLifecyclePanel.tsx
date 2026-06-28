@@ -1,4 +1,6 @@
 import { Info } from 'lucide-react'
+import { cn } from '@/shared/lib/utils'
+import { contentHelperClass, contentOverlineClass, contentTitleClass } from '@/shared/ui/content-section'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import {
@@ -42,15 +44,15 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
   return (
     <section className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
       <div>
-        <h4 className="text-sm font-semibold text-foreground">Slot lifecycle & duration</h4>
-        <p className="text-xs text-muted-foreground">
+        <h4 className={contentTitleClass}>Slot lifecycle & duration</h4>
+        <p className={contentHelperClass}>
           When this call is active, how long it lasts, and optional backfill for rota generation.
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             Slot type
             <FieldHelp text="Overnight for waking nights (end time next day). One-off for a single special visit." />
           </Label>
@@ -76,7 +78,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         </div>
 
         <div>
-          <Label className="text-xs text-muted-foreground">Duration (minutes)</Label>
+          <Label className={contentOverlineClass}>Duration (minutes)</Label>
           <Input
             type="number"
             min={1}
@@ -93,7 +95,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         </div>
 
         <div>
-          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             Start date
             <FieldHelp text="First day this slot generates visits. Defaults to today when first saved." />
           </Label>
@@ -106,7 +108,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         </div>
 
         <div>
-          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             End date
             <FieldHelp text="Last day this slot is active. Leave empty for open-ended." />
           </Label>
@@ -120,7 +122,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
 
         {isOneOff ? (
           <div>
-            <Label className="text-xs text-muted-foreground">One-off visit date</Label>
+            <Label className={contentOverlineClass}>One-off visit date</Label>
             <Input
               type="date"
               disabled={disabled}
@@ -131,7 +133,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         ) : null}
 
         <div>
-          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             Max backfill days
             <FieldHelp text="How many days before the generate-from date rota may create visits for this slot (0 = none)." />
           </Label>

@@ -37,6 +37,11 @@ import {
   visitDurationMinutes,
 } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import { cn } from '@/shared/lib/utils'
+import {
+  contentHelperClass,
+  contentOverlineClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
 import { formatOrganisationIsoDateLong, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 
 export type VisitPlanCalendarSelection = {
@@ -74,7 +79,7 @@ function formatVisitDate(iso: string): string {
 function DetailRow({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {
   return (
     <div className={cn('grid gap-1 sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-3', className)}>
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dt className={contentOverlineClass}>{label}</dt>
       <dd className="text-sm text-foreground">{value}</dd>
     </div>
   )
@@ -226,11 +231,11 @@ export function VisitPlanCalendarOutcomeDialog({
                 {outcomeMeta.label}
               </span>
               {!onRota ? (
-                <span className="rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+                <span className={cn('rounded-full border border-dashed border-border px-2.5 py-0.5', contentHelperClass)}>
                   Planned — not yet on rota
                 </span>
               ) : existing?.jobStatus ? (
-                <span className="text-xs text-muted-foreground">Job: {existing.jobStatus.replace(/_/g, ' ')}</span>
+                <span className={contentHelperClass}>Job: {existing.jobStatus.replace(/_/g, ' ')}</span>
               ) : null}
             </div>
             <dl className="mt-4 space-y-2">
@@ -262,8 +267,8 @@ export function VisitPlanCalendarOutcomeDialog({
               <section className="space-y-4 rounded-lg border border-teal-200/80 bg-teal-50/40 px-4 py-4 dark:border-teal-900/50 dark:bg-teal-950/20">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Record visit attendance</h3>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <h3 className={contentTitleClass}>Record visit attendance</h3>
+                    <p className={cn('mt-0.5', contentHelperClass)}>
                       Who attended, and the actual start and end times for this visit.
                     </p>
                   </div>
@@ -275,7 +280,7 @@ export function VisitPlanCalendarOutcomeDialog({
                 </div>
 
                 <div>
-                  <Label className="text-xs text-muted-foreground">Carer who attended</Label>
+                  <Label className={contentOverlineClass}>Carer who attended</Label>
                   {employeeOptions.length > 0 ? (
                     <Select value={employeeId || undefined} onValueChange={setEmployeeId}>
                       <SelectTrigger className="mt-1">
@@ -299,7 +304,7 @@ export function VisitPlanCalendarOutcomeDialog({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="visit-actual-start" className="text-xs text-muted-foreground">
+                    <Label htmlFor="visit-actual-start" className={contentOverlineClass}>
                       Actual start time
                     </Label>
                     <Input
@@ -311,7 +316,7 @@ export function VisitPlanCalendarOutcomeDialog({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="visit-actual-end" className="text-xs text-muted-foreground">
+                    <Label htmlFor="visit-actual-end" className={contentOverlineClass}>
                       Actual end time
                     </Label>
                     <Input
@@ -325,7 +330,7 @@ export function VisitPlanCalendarOutcomeDialog({
                 </div>
 
                 {durationMins != null && actualStartTime && actualEndTime ? (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <p className={cn('flex items-center gap-1.5', contentHelperClass)}>
                     <Clock className="h-3.5 w-3.5" aria-hidden />
                     Duration: {durationMins} min
                     {scheduledStart && scheduledEnd ? (
@@ -337,7 +342,7 @@ export function VisitPlanCalendarOutcomeDialog({
                 ) : null}
 
                 {employeeId ? (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <p className={cn('flex items-center gap-1.5', contentHelperClass)}>
                     <User className="h-3.5 w-3.5" aria-hidden />
                     Attending: {resolveEmployeeDisplayName(employeeNameMap, employeeId)}
                   </p>
@@ -345,7 +350,7 @@ export function VisitPlanCalendarOutcomeDialog({
               </section>
 
               <div>
-                <Label className="text-xs text-muted-foreground">Visit status</Label>
+                <Label className={contentOverlineClass}>Visit status</Label>
                 <Select
                   value={status}
                   onValueChange={(v) => setStatus(v as VisitPlanCalendarOutcomeStatus)}
@@ -363,13 +368,13 @@ export function VisitPlanCalendarOutcomeDialog({
                     )}
                   </SelectContent>
                 </Select>
-                <p className="mt-1.5 text-xs text-muted-foreground">
+                <p className={cn('mt-1.5', contentHelperClass)}>
                   {VISIT_PLAN_CALENDAR_OUTCOME_OPTIONS.find((o) => o.value === status)?.description}
                 </p>
               </div>
 
               <div>
-                <Label htmlFor="visit-outcome-notes" className="text-xs text-muted-foreground">
+                <Label htmlFor="visit-outcome-notes" className={contentOverlineClass}>
                   Visit notes / handover
                 </Label>
                 <Textarea
@@ -382,7 +387,7 @@ export function VisitPlanCalendarOutcomeDialog({
               </div>
 
               {!onRota ? (
-                <p className="text-xs text-muted-foreground">
+                <p className={contentHelperClass}>
                   Saving will add this visit to the rota and record attendance for {formatVisitDate(selection.iso)}.
                 </p>
               ) : null}

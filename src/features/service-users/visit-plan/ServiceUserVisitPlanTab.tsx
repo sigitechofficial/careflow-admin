@@ -1,9 +1,30 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarOff, CalendarClock, Eye, Loader2, PanelRightOpen, Pause, Play, Save, Sparkles, StopCircle, UserPlus, Users } from 'lucide-react'
+import { CalendarOff, CalendarClock, Eye, Loader2, PanelRightOpen, Pause, Play, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/form-field'
+import { FormField, Textarea } from '@/shared/ui/form-field'
+import {
+  ContentCard,
+  ContentSectionHeader,
+  contentBodyClass,
+  contentEmphasisClass,
+  contentHelperClass,
+  contentHelperErrorClass,
+  contentKickerClass,
+  contentSummaryClass,
+  contentBadgeClass,
+  contentTableRowLabelClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/ui/data-table'
 import { Switch, Checkbox } from '@/shared/ui/toggle-controls'
 import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -31,11 +52,14 @@ import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/vi
 import { VisitPlanSlotDetailsSheet } from '@/features/service-users/visit-plan/VisitPlanSlotDetailsSheet'
 import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
 import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarersDialog'
-import { VisitPlanSlotViewCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotViewCarersDialog'
 import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarePlansDialog'
 import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/VisitPlanCarersCountInput'
 import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hooks/useVisitPlanCareContext'
-import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
+import {
+  normalizeTimeForInput,
+  visitDurationMinutes,
+  visitPlanEndTimeFromStartAndDuration,
+} from '@/features/service-users/visit-plan/visit-plan-time.util'
 import {
   assignedEmployeeIdsFromSlots,
   formatSlotAssignedCarersSummary,
@@ -101,7 +125,7 @@ function statusBadge(status: ServiceUserVisitPlan['status']) {
     ENDED: 'bg-muted text-muted-foreground',
   }
   return (
-    <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide', styles[status])}>
+    <span className={cn('rounded-full px-2.5 py-0.5', contentBadgeClass, styles[status])}>
       {status}
     </span>
   )
@@ -115,6 +139,23 @@ type Props = {
 
 const DRAFT_SAVE_DEFAULT_REASON = 'Draft visit plan updated'
 const SUSPENDED_SAVE_DEFAULT_REASON = 'Suspended visit plan updated before re-activation'
+
+function slotStartDateInputValue(
+  slot: VisitPlanSlot,
+  planEffectiveFrom?: string | null,
+): string {
+  if (slot.slotKind === 'ONE_OFF') {
+    return slot.oneOffDate?.slice(0, 10) ?? ''
+  }
+  return slot.slotEffectiveFrom?.slice(0, 10) ?? planEffectiveFrom?.slice(0, 10) ?? todayIsoDate()
+}
+
+function slotStartDatePatch(slot: VisitPlanSlot, value: string): Partial<VisitPlanSlot> {
+  if (slot.slotKind === 'ONE_OFF') {
+    return { oneOffDate: value || null }
+  }
+  return { slotEffectiveFrom: value || null }
+}
 
 function toSlotInput(slots: VisitPlanSlot[]) {
   return slots.map((s) => {
@@ -190,9 +231,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
   const [configSlotCode, setConfigSlotCode] = React.useState<VisitPlanSlot['slotCode']>('')
   const [detailsSlotCode, setDetailsSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(null)
   const [carersModalSlotCode, setCarersModalSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(null)
-  const [viewCarersModalSlotCode, setViewCarersModalSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(
-    null,
-  )
   const [carePlansModalSlotCode, setCarePlansModalSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(
     null,
   )
@@ -245,12 +283,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
     [slots, carersModalSlotCode],
   )
   const carersModalSlot = carersModalIndex >= 0 ? slots[carersModalIndex] : null
-
-  const viewCarersModalIndex = React.useMemo(
-    () => (viewCarersModalSlotCode ? slots.findIndex((s) => s.slotCode === viewCarersModalSlotCode) : -1),
-    [slots, viewCarersModalSlotCode],
-  )
-  const viewCarersModalSlot = viewCarersModalIndex >= 0 ? slots[viewCarersModalIndex] : null
 
   const carePlansModalIndex = React.useMemo(
     () => (carePlansModalSlotCode ? slots.findIndex((s) => s.slotCode === carePlansModalSlotCode) : -1),
@@ -667,8 +699,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
       {editablePlans.length > 1 && workingPlan ? (
         <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-          <p className="text-xs font-medium text-foreground">Which package are you editing?</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className={contentTitleClass}>Which package are you editing?</p>
+          <p className={cn('mt-0.5', contentBodyClass)}>
             Only live, suspended, or draft packages appear here. To compare ended versions or visit outcomes, use{' '}
             <strong className="font-medium text-foreground">Call pattern</strong> or{' '}
             <strong className="font-medium text-foreground">Visit calendar</strong>.
@@ -705,23 +737,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         />
       ) : null}
 
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-semibold text-sky-600 dark:text-sky-400">Visit plan (care package)</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+      <ContentCard>
+        <ContentSectionHeader
+          title="Visit plan (care package)"
+          titleClassName="text-sky-600 dark:text-sky-400"
+          description={
+            <>
               Authorised call pattern — when visits happen, how long, and how many carers. Separate from the clinical
               care plan. Changes are amendment-audited for CQC. Use{' '}
-              <strong className="font-medium text-foreground">Call pattern</strong> or{' '}
-              <strong className="font-medium text-foreground">Visit calendar</strong> at the top of this page to
-              review without editing.
-            </p>
-          </div>
-          {workingPlan ? statusBadge(workingPlan.status) : null}
-        </div>
+              <strong className={contentEmphasisClass}>Call pattern</strong> or{' '}
+              <strong className={contentEmphasisClass}>Visit calendar</strong> at the top of this page to review
+              without editing.
+            </>
+          }
+          action={workingPlan ? statusBadge(workingPlan.status) : null}
+        />
 
         {!workingPlan ? (
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className={cn('mt-4', contentBodyClass)}>
             Enter weekly contracted hours above, configure the call pattern below, then create a draft. You can also
             auto-create a plan when care package activation is approved on initial assessment (hours must be on the DOM
             Care profile).
@@ -729,35 +762,28 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">
-              Weekly contracted hours
-              {!workingPlan ? <span className="text-destructive"> *</span> : null}
-            </Label>
+          <FormField
+            label="Weekly contracted hours"
+            required={!workingPlan}
+            error={
+              !workingPlan && !hasWeeklyContractedHours
+                ? 'Required before you can create a visit plan.'
+                : undefined
+            }
+          >
             <Input
               value={weeklyHours}
               onChange={(e) => setWeeklyHours(e.target.value)}
               placeholder="e.g. 14"
               required={!workingPlan}
             />
-            {!workingPlan && !hasWeeklyContractedHours ? (
-              <p className="mt-1 text-xs text-destructive">Required before you can create a visit plan.</p>
-            ) : null}
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Carers per visit (default)</Label>
-            <VisitPlanCarersCountInput
-              value={numberOfCarers}
-              onCommit={setNumberOfCarers}
-            />
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Review due</Label>
-            <Input
-              readOnly
-              value={formatDate(workingPlan?.reviewDueAt)}
-            />
-          </div>
+          </FormField>
+          <FormField label="Carers per visit (default)">
+            <VisitPlanCarersCountInput value={numberOfCarers} onCommit={setNumberOfCarers} />
+          </FormField>
+          <FormField label="Review due">
+            <Input readOnly value={formatDate(workingPlan?.reviewDueAt)} />
+          </FormField>
         </div>
         {contractProfile ? (
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
@@ -786,11 +812,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                 Use contract values
               </Button>
             ) : (
-              <span className="text-xs text-muted-foreground">Matches this plan</span>
+              <span className={contentHelperClass}>Matches this plan</span>
             )}
           </div>
         ) : domCareQuery.isLoading ? (
-          <p className="mt-3 text-xs text-muted-foreground">Loading contract profile…</p>
+          <p className={cn('mt-3', contentHelperClass)}>Loading contract profile…</p>
         ) : null}
         <VisitPlanWeeklyHoursPanel
           className="mt-4"
@@ -798,54 +824,56 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
           weeklyContractedHours={weeklyHours}
           anchorIso={workingPlan?.effectiveFrom}
         />
-      </section>
+      </ContentCard>
 
-      <section className="rounded-xl border-2 border-teal-200 bg-card p-6 shadow-sm dark:border-teal-900">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
-              Step 1–3
-            </p>
-            <h3 className="text-base font-semibold text-foreground">Visit schedule</h3>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              One row per call type (Morning, Evening, …). Turn visits on, pick days, set times, then{' '}
-              <strong>Assign</strong> carers. Use <strong>Skip date</strong> to miss this visit on one day only.
-            </p>
-          </div>
-        </div>
+      <ContentCard className="border-2 border-teal-200 dark:border-teal-900">
+        <ContentSectionHeader
+          kicker="Step 1–3"
+          kickerClassName="text-teal-700 dark:text-teal-300"
+          title="Visit schedule"
+          titleAs="h3"
+          description={
+            <>
+              One row per call type (Morning, Evening, …). Turn visits on, pick days, set start date, times, and
+              duration, then <strong>Assign</strong> carers. Use <strong>Skip date</strong> to miss this visit on one
+              day only.
+            </>
+          }
+          className="mb-4"
+        />
             {medicationRoundsLoading ? (
-              <p className="mb-3 text-xs text-muted-foreground">Loading time slots…</p>
+              <p className={cn('mb-3', contentHelperClass)}>Loading time slots…</p>
             ) : medicationRounds.length === 0 ? (
-              <p className="mb-3 text-xs text-amber-700 dark:text-amber-300">
+              <p className="mb-3 text-xs font-medium text-amber-700 dark:text-amber-300">
                 No time slots configured. Add them under Settings → Time slots.
               </p>
             ) : null}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="py-2 pr-3">Slot</th>
-                    <th className="py-2 pr-3">On</th>
+            <Table className="min-w-[1080px]">
+                <TableHeader>
+                  <TableRow className="border-b border-border bg-muted/40 hover:bg-transparent">
+                    <TableHead variant="data">Slot</TableHead>
+                    <TableHead variant="data">On</TableHead>
                     {VISIT_PLAN_DAY_LABELS.map((d) => (
-                      <th key={d} className="px-1 py-2 text-center">
+                      <TableHead key={d} variant="data" align="center" className="px-1">
                         {d}
-                      </th>
+                      </TableHead>
                     ))}
-                    <th className="py-2 pl-2">Start</th>
-                    <th className="py-2 pl-2">End</th>
-                    <th className="py-2 pl-2">Required</th>
-                    <th className="py-2 pl-3">Care plans</th>
-                    <th className="py-2 pl-3">Assigned carers</th>
-                    <th className="py-2 pl-3">Exceptions</th>
-                    <th className="py-2 pl-3">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
+                    <TableHead variant="data" className="pl-2">Start</TableHead>
+                    <TableHead variant="data" className="pl-2">Duration</TableHead>
+                    <TableHead variant="data" className="pl-2">End</TableHead>
+                    <TableHead variant="data" className="pl-2">Carers</TableHead>
+                    <TableHead variant="data">Care plans</TableHead>
+                    <TableHead variant="data">Assigned carers</TableHead>
+                    <TableHead variant="data">Exceptions</TableHead>
+                    <TableHead variant="data">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {slots.map((slot, rowIndex) => {
                     const assignedIds = slotAssignedEmployeeIds(slot)
                     const carerSummary = formatSlotAssignedCarersSummary(slot, employeeNameById)
                     return (
-                      <tr
+                      <TableRow
                         key={slot.slotCode}
                         className={cn(
                           'border-b border-border/60',
@@ -856,16 +884,28 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                           if (slot.isEnabled) setConfigSlotCode(slot.slotCode)
                         }}
                       >
-                        <td className="py-2 pr-3 font-medium">{slot.label}</td>
-                        <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pr-0" onClick={(e) => e.stopPropagation()}>
+                          <div className={contentTableRowLabelClass}>{slot.label}</div>
+                          <Input
+                            type="date"
+                            className="mt-1 h-8 w-[9.5rem] text-sm"
+                            value={slotStartDateInputValue(slot, workingPlan?.effectiveFrom)}
+                            disabled={!slot.isEnabled}
+                            aria-label={`${slot.label} start date`}
+                            onChange={(e) =>
+                              updateSlot(rowIndex, slotStartDatePatch(slot, e.target.value))
+                            }
+                          />
+                        </TableCell>
+                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
                           <Switch
                             checked={slot.isEnabled}
                             onCheckedChange={(isEnabled) => updateSlot(rowIndex, { isEnabled })}
                             aria-label={`Enable ${slot.label}`}
                           />
-                        </td>
+                        </TableCell>
                         {VISIT_PLAN_DAY_LABELS.map((_, dayIndex) => (
-                          <td key={dayIndex} className="px-1 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                          <TableCell key={dayIndex} variant="data" className="px-1 text-center" onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={slot.daysOfWeek.includes(dayIndex)}
                               disabled={
@@ -883,32 +923,74 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                                     : undefined
                               }
                             />
-                          </td>
+                          </TableCell>
                         ))}
-                        <td className="py-2 pl-2" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
                           <Input
                             type="time"
-                            className="h-8 w-[7.25rem]"
+                            className="h-8 w-[7.25rem] text-sm"
                             value={normalizeTimeForInput(slot.plannedStartTime)}
                             disabled={!slot.isEnabled}
-                            onChange={(e) => updateSlot(rowIndex, { plannedStartTime: e.target.value })}
+                            onChange={(e) => {
+                              const plannedStartTime = e.target.value
+                              const end = visitPlanEndTimeFromStartAndDuration(
+                                plannedStartTime,
+                                slot.durationMinutes,
+                              )
+                              updateSlot(rowIndex, {
+                                plannedStartTime,
+                                ...(end ? { plannedEndTime: end } : {}),
+                              })
+                            }}
                           />
-                        </td>
-                        <td className="py-2 pl-2" onClick={(e) => e.stopPropagation()}>
+                        </TableCell>
+                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={480}
+                            className="h-8 w-16 text-sm"
+                            value={slot.durationMinutes ?? ''}
+                            placeholder="min"
+                            disabled={!slot.isEnabled}
+                            aria-label={`${slot.label} duration minutes`}
+                            onChange={(e) => {
+                              const durationMinutes = e.target.value ? Number(e.target.value) : null
+                              const end = visitPlanEndTimeFromStartAndDuration(
+                                slot.plannedStartTime,
+                                durationMinutes,
+                              )
+                              updateSlot(rowIndex, {
+                                durationMinutes,
+                                ...(end ? { plannedEndTime: end } : {}),
+                              })
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
                           <Input
                             type="time"
-                            className="h-8 w-[7.25rem]"
+                            className="h-8 w-[7.25rem] text-sm"
                             value={normalizeTimeForInput(slot.plannedEndTime)}
                             disabled={!slot.isEnabled}
-                            onChange={(e) => updateSlot(rowIndex, { plannedEndTime: e.target.value })}
+                            onChange={(e) => {
+                              const plannedEndTime = e.target.value
+                              const start = normalizeTimeForInput(slot.plannedStartTime)
+                              const end = normalizeTimeForInput(plannedEndTime)
+                              const mins = start && end ? visitDurationMinutes(start, end) : null
+                              updateSlot(rowIndex, {
+                                plannedEndTime,
+                                ...(mins != null && mins > 0 ? { durationMinutes: mins } : {}),
+                              })
+                            }}
                           />
-                        </td>
-                        <td className="py-2 pl-2" onClick={(e) => e.stopPropagation()}>
+                        </TableCell>
+                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
                           <VisitPlanCarersCountInput
-                            className="h-8 w-16"
+                            className="h-8 w-16 text-sm"
                             disabled={!slot.isEnabled}
                             value={slot.requiredCarers}
-                            aria-label={`${slot.label} required carers`}
+                            aria-label={`${slot.label} carers per visit`}
                             onCommit={(requiredCarers) => {
                               const assigned = slotAssignedEmployeeIds(slot)
                               const assignedEmployeeIds =
@@ -919,15 +1001,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                               updateSlot(rowIndex, { requiredCarers, assignedEmployeeIds, carerAssignments })
                             }}
                           />
-                        </td>
-                        <td className="py-2 pl-3" onClick={(e) => e.stopPropagation()}>
+                        </TableCell>
+                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
                           {slot.isEnabled ? (
                             <div className="flex min-w-[120px]">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-7 px-2 text-xs"
+                                className="h-8"
                                 onClick={() => setCarePlansModalSlotCode(slot.slotCode)}
                               >
                                 <Eye className="mr-1 h-3.5 w-3.5" />
@@ -935,70 +1017,59 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                               </Button>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
+                            <span className={contentBodyClass}>—</span>
                           )}
-                        </td>
-                        <td className="py-2 pl-3" onClick={(e) => e.stopPropagation()}>
+                        </TableCell>
+                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
                           {slot.isEnabled ? (
-                            <div className="flex min-w-[180px] flex-col gap-1">
+                            <div className="flex min-w-[140px] flex-col gap-1">
                               <p
                                 className={cn(
-                                  'text-xs leading-snug',
-                                  assignedIds.length ? 'text-foreground' : 'text-muted-foreground',
+                                  contentBodyClass,
+                                  'leading-snug',
+                                  assignedIds.length ? 'text-foreground' : undefined,
                                 )}
                                 title={carerSummary}
                               >
                                 {carerSummary}
                               </p>
-                              <div className="flex flex-wrap gap-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => setViewCarersModalSlotCode(slot.slotCode)}
-                                >
-                                  <Users className="mr-1 h-3.5 w-3.5" />
-                                  View
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => setCarersModalSlotCode(slot.slotCode)}
-                                >
-                                  <UserPlus className="mr-1 h-3.5 w-3.5" />
-                                  {assignedIds.length > 0 ? 'Change' : 'Assign'}
-                                </Button>
-                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-fit"
+                                onClick={() => setCarersModalSlotCode(slot.slotCode)}
+                              >
+                                <UserPlus className="mr-1 h-3.5 w-3.5" />
+                                {assignedIds.length > 0 ? 'Change' : 'Assign'}
+                              </Button>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
+                            <span className={contentBodyClass}>—</span>
                           )}
-                        </td>
-                        <td className="py-2 pl-3" onClick={(e) => e.stopPropagation()}>
+                        </TableCell>
+                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
                           {slot.isEnabled ? (
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              className="h-7 px-2 text-xs"
+                              className="h-8"
                               onClick={() => openExceptionsForSlot(slot.slotCode)}
                             >
                               <CalendarOff className="mr-1 h-3.5 w-3.5" />
                               {slot.exceptions.length > 0 ? `${slot.exceptions.length} set` : 'Skip date'}
                             </Button>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
+                            <span className={contentBodyClass}>—</span>
                           )}
-                        </td>
-                        <td className="py-2 pl-3" onClick={(e) => e.stopPropagation()}>
+                        </TableCell>
+                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-xs"
+                            className="h-8"
                             onClick={() => {
                               setConfigSlotCode(slot.slotCode)
                               setDetailsSlotCode(slot.slotCode)
@@ -1007,19 +1078,18 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                             <PanelRightOpen className="mr-1 h-3.5 w-3.5" />
                             Details
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
 
         {configSlot && configSlot.isEnabled ? (
           <div className="mt-6 space-y-3 border-t border-border pt-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-muted-foreground">
-                Optional settings for <strong className="text-foreground">{configSlot.label}</strong> — click a row
+              <p className={contentBodyClass}>
+                Optional settings for <strong className="font-medium text-foreground">{configSlot.label}</strong> — click a row
                 above to switch slot.
               </p>
               <Button
@@ -1037,10 +1107,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               onToggle={(event) => setExceptionsSectionOpen(event.currentTarget.open)}
               className="rounded-lg border border-amber-200 bg-amber-50/40 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/20"
             >
-              <summary className="cursor-pointer text-sm font-medium text-foreground">
+              <summary className={contentSummaryClass}>
                 Skip or extra visit on a specific date
                 {configSlot.exceptions.length > 0 ? (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  <span className={cn('ml-2 font-normal', contentHelperClass)}>
                     ({configSlot.exceptions.length} for {configSlot.label})
                   </span>
                 ) : null}
@@ -1056,7 +1126,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               </div>
             </details>
             <details className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-              <summary className="cursor-pointer text-sm font-medium text-foreground">
+              <summary className={contentSummaryClass}>
                 Frequency &amp; schedule rules
               </summary>
               <div className="mt-4 space-y-4">
@@ -1079,7 +1149,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               </div>
             </details>
             <details className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-              <summary className="cursor-pointer text-sm font-medium text-foreground">
+              <summary className={contentSummaryClass}>
                 Different carers on different days (advanced)
               </summary>
               <div className="mt-4">
@@ -1100,7 +1170,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               </div>
             </details>
             <details className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-              <summary className="cursor-pointer text-sm font-medium text-foreground">
+              <summary className={contentSummaryClass}>
                 Visit recording (notes, photos, family sharing)
               </summary>
               <div className="mt-4">
@@ -1115,11 +1185,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
             </details>
           </div>
         ) : (
-          <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
+          <p className={cn('mt-4 border-t border-border pt-4', contentHelperClass)}>
             Click an enabled visit row above to see optional settings for that slot.
           </p>
         )}
-      </section>
+      </ContentCard>
 
       {detailsSlot ? (
             <VisitPlanSlotDetailsSheet
@@ -1188,30 +1258,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
             />
           ) : null}
 
-          {viewCarersModalSlot ? (
-            <VisitPlanSlotViewCarersDialog
-              open={viewCarersModalSlotCode !== null}
-              onOpenChange={(open) => {
-                if (!open) setViewCarersModalSlotCode(null)
-              }}
-              slot={viewCarersModalSlot}
-              employeeNameById={employeeNameById}
-              onRemoveCarer={(employeeId) => {
-                if (viewCarersModalIndex < 0) return
-                const current = slotAssignedEmployeeIds(viewCarersModalSlot)
-                const assignedEmployeeIds = current.filter((id) => id !== employeeId)
-                const carerAssignments = (viewCarersModalSlot.carerAssignments ?? []).filter(
-                  (a) => a.employeeId !== employeeId,
-                )
-                updateSlot(viewCarersModalIndex, { assignedEmployeeIds, carerAssignments })
-              }}
-              onAssign={() => {
-                setViewCarersModalSlotCode(null)
-                setCarersModalSlotCode(viewCarersModalSlot.slotCode)
-              }}
-            />
-          ) : null}
-
           {carePlansModalSlot ? (
             <VisitPlanSlotCarePlansDialog
               open={carePlansModalSlotCode !== null}
@@ -1228,42 +1274,37 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
             />
           ) : null}
 
-      <section
+      <ContentCard
         className={cn(
-          'rounded-xl bg-card p-6 shadow-sm space-y-4',
+          'space-y-4',
           workingPlan?.status === 'SUSPENDED'
             ? 'border-2 border-orange-300 dark:border-orange-800'
-            : 'border border-border',
+            : undefined,
         )}
       >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 4</p>
-          <h3 className="text-base font-semibold text-foreground">
-            {planIsLive ? 'Amend live package' : 'Save or activate'}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {planIsLive
+        <ContentSectionHeader
+          kicker="Step 4"
+          title={planIsLive ? 'Amend live package' : 'Save or activate'}
+          titleAs="h3"
+          description={
+            planIsLive
               ? 'Changes to an active package need an amendment reason and are recorded for CQC audit.'
               : workingPlan?.status === 'SUSPENDED'
                 ? 'Save updates the suspended plan. Re-activate when visits should resume — your latest schedule is saved first.'
-                : 'Save draft keeps work on file without going live. Activate makes this the authorised care package and enables rota generation (always saves your latest schedule first).'}
-          </p>
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Plan notes (optional)</Label>
-          <textarea
-            className="mt-1 min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
+                : 'Save draft keeps work on file without going live. Activate makes this the authorised care package and enables rota generation (always saves your latest schedule first).'
+          }
+        />
+        <FormField label="Plan notes (optional)">
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </FormField>
         {workingPlan ? (
-          <div>
-            <Label className="text-xs text-muted-foreground">
-              {planIsLive
+          <FormField
+            label={
+              planIsLive
                 ? 'Amendment reason (required to save changes to the live package)'
-                : 'Reason (optional for draft saves)'}
-            </Label>
+                : 'Reason (optional for draft saves)'
+            }
+          >
             <Input
               value={amendmentReason}
               onChange={(e) => setAmendmentReason(e.target.value)}
@@ -1273,7 +1314,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   : 'e.g. Package agreed with family — optional while still in draft'
               }
             />
-          </div>
+          </FormField>
         ) : null}
         <div className="flex flex-wrap gap-2">
           {workingPlan ? (
@@ -1368,38 +1409,39 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                 </Button>
               )}
             </div>
-          </section>
+      </ContentCard>
 
       {workingPlan?.status === 'ACTIVE' ? (
-        <section className="rounded-xl border-2 border-sky-200 bg-card p-6 shadow-sm dark:border-sky-900 space-y-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Step 5</p>
-            <h3 className="text-base font-semibold text-foreground">Generate rota</h3>
-            <p className="text-sm text-muted-foreground">
-              Create scheduled visits from this plan (max 31 days). Leave To empty for the next 14 days. View results
-              in{' '}
-              <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
-                Scheduling
-              </Link>
-              .
-            </p>
-          </div>
+        <ContentCard className="space-y-4 border-2 border-sky-200 dark:border-sky-900">
+          <ContentSectionHeader
+            kicker="Step 5"
+            kickerClassName="text-sky-700 dark:text-sky-300"
+            title="Generate rota"
+            titleAs="h3"
+            description={
+              <>
+                Create scheduled visits from this plan (max 31 days). Leave To empty for the next 14 days. View
+                results in{' '}
+                <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
+                  Scheduling
+                </Link>
+                .
+              </>
+            }
+          />
               <div className="flex flex-wrap items-end gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">From</Label>
+                <FormField label="From" className="min-w-[10rem]">
                   <Input type="date" value={generateFrom} onChange={(e) => setGenerateFrom(e.target.value)} />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">To (optional)</Label>
+                </FormField>
+                <FormField label="To (optional)" className="min-w-[10rem]">
                   <Input
                     type="date"
                     value={generateTo}
                     placeholder="Next 14 days"
                     onChange={(e) => setGenerateTo(e.target.value)}
                   />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Backfill days</Label>
+                </FormField>
+                <FormField label="Backfill days" className="w-28">
                   <Input
                     type="number"
                     min={0}
@@ -1407,9 +1449,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                     value={backfillDays}
                     onChange={(e) => setBackfillDays(Number(e.target.value) || 0)}
                   />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Schedule area</Label>
+                </FormField>
+                <FormField label="Schedule area" className="min-w-[12rem]">
                   <Select
                     value={scheduleAreaId || '__none__'}
                     onValueChange={(v) => setScheduleAreaId(v === '__none__' ? '' : v)}
@@ -1426,7 +1467,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
                 <Button
                   type="button"
                   onClick={() => void handleGenerate()}
@@ -1440,21 +1481,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   Generate visits
                 </Button>
               </div>
-            </section>
+        </ContentCard>
       ) : null}
 
       {workingPlan && (workingPlan.amendments ?? []).length > 0 ? (
-        <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold text-foreground">Amendment history</h3>
-              <ul className="space-y-2 text-sm">
+        <ContentCard>
+              <ContentSectionHeader title="Amendment history" titleAs="h3" className="mb-3" />
+              <ul className={cn('space-y-2', contentBodyClass)}>
                 {(workingPlan.amendments ?? []).map((a: VisitPlanAmendment) => (
                   <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
-                    <span className="text-xs text-muted-foreground">{formatDateTime(a.amendedAt)}</span>
+                    <span className={contentHelperClass}>{formatDateTime(a.amendedAt)}</span>
                     <p className="mt-0.5">{a.reason}</p>
                   </li>
                 ))}
               </ul>
-        </section>
+        </ContentCard>
       ) : null}
 
       <VisitPlanSuspendDialog

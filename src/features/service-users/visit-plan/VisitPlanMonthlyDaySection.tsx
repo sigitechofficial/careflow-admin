@@ -8,6 +8,12 @@ import {
 } from '@/shared/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import { cn } from '@/shared/lib/utils'
+import {
+  contentAlertClass,
+  contentEmphasisClass,
+  contentHelperClass,
+  contentOverlineClass,
+} from '@/shared/ui/content-section'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import {
   VISIT_PLAN_MONTHLY_ORDINALS,
@@ -31,7 +37,7 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
 
   return (
     <div className="space-y-4 rounded-lg border border-dashed border-border bg-background p-4">
-      <p className="text-sm font-medium text-foreground">On which days of the month?</p>
+      <p className={contentEmphasisClass}>On which days of the month?</p>
 
       <RadioGroup
         value={slot.monthlyDayMode}
@@ -51,7 +57,7 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
 
       {slot.monthlyDayMode === 'BY_DATE' ? (
         <div>
-          <Label className="text-xs text-muted-foreground">
+          <Label className={contentOverlineClass}>
             Click dates to include (e.g. 1st and 15th each month)
           </Label>
           <div className="mt-3 grid grid-cols-7 gap-1.5 sm:grid-cols-10">
@@ -78,11 +84,11 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
             })}
           </div>
           {slot.monthlyDaysOfMonth.length === 0 ? (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className={cn('mt-2', contentAlertClass)}>
               Select at least one day of the month before saving or generating rota.
             </p>
           ) : (
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className={cn('mt-2', contentHelperClass)}>
               Selected: {slot.monthlyDaysOfMonth.map((d) => String(d).padStart(2, '0')).join(', ')}
             </p>
           )}
@@ -90,7 +96,7 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
       ) : (
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[140px]">
-            <Label className="text-xs text-muted-foreground">Occurrence</Label>
+            <Label className={contentOverlineClass}>Occurrence</Label>
             <Select
               value={slot.monthlyPatternOrdinal ?? 'FIRST'}
               disabled={disabled}
@@ -111,7 +117,7 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
             </Select>
           </div>
           <div className="min-w-[160px]">
-            <Label className="text-xs text-muted-foreground">Day of week</Label>
+            <Label className={contentOverlineClass}>Day of week</Label>
             <Select
               value={String(slot.monthlyPatternWeekday ?? 1)}
               disabled={disabled}
@@ -129,7 +135,7 @@ export function VisitPlanMonthlyDaySection({ slot, disabled, onChange }: Props) 
               </SelectContent>
             </Select>
           </div>
-          <p className="pb-2 text-xs text-muted-foreground">
+          <p className={cn('pb-2', contentHelperClass)}>
             e.g. First Monday, Last Friday of each repeat month.
           </p>
         </div>

@@ -96,6 +96,30 @@ export function rotaTimingDiffersFromCallPattern(job: TimelineJob, slot: VisitPl
   return rota.start !== pattern.start || rota.end !== pattern.end
 }
 
+function timeHmToMinutes(hm: string): number {
+  const [hoursRaw, minutesRaw] = hm.split(':')
+  const hours = Number(hoursRaw)
+  const minutes = Number(minutesRaw)
+  return hours * 60 + minutes
+}
+
+export function rotaRescheduleShift(
+  rota: JobTimeRange,
+  pattern: JobTimeRange,
+): { label: string; direction: 'earlier' | 'later' } | null {
+  const deltaMinutes = timeHmToMinutes(pattern.start) - timeHmToMinutes(rota.start)
+  if (deltaMinutes === 0 && rota.end === pattern.end) return null
+  const absMinutes = Math.abs(deltaMinutes)
+  const label =
+    absMinutes >= 60
+      ? `${Math.round((absMinutes / 60) * 10) / 10}h`.replace('.0h', 'h')
+      : `${absMinutes} min`
+  return {
+    label,
+    direction: deltaMinutes > 0 ? 'earlier' : 'later',
+  }
+}
+
 export function formatJobTimeRangeLabel(range: JobTimeRange): string {
   return `${range.start} – ${range.end}`
 }
@@ -105,6 +129,34 @@ export function visitPlanScheduleSummary(slot: VisitPlanSlot): string {
   const days =
     slot.scheduleFrequency === 'MONTHLY' ? null : formatWeekdays(slot)
   return [frequency, days].filter(Boolean).join(' · ')
+}
+
+export function formatServiceUserAddressLine(input: {
+  serviceUser?: {
+    address?: {
+      addressLine1?: string | null
+      addressLine2?: string | null
+      town?: string | null
+      county?: string | null
+      postcode?: string | null
+    } | null
+  } | null
+  jobAddress?: string | null
+  jobPostcode?: string | null
+}): string | null {
+  const address = input.serviceUser?.address
+  if (address) {
+    const formatted = [address.addressLine1, address.addressLine2, address.town, address.postcode]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(', ')
+    if (formatted) return formatted
+  }
+  const jobAddress = input.jobAddress?.trim()
+  if (jobAddress) {
+    return [jobAddress, input.jobPostcode?.trim()].filter(Boolean).join(', ')
+  }
+  return null
 }
 
 export type JobHoverCarePlanSource = 'explicit' | 'suggested' | 'none'

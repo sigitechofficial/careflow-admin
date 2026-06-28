@@ -1,3 +1,5 @@
+import { contentHelperClass, contentOverlineClass } from '@/shared/ui/content-section'
+import { cn } from '@/shared/lib/utils'
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import type { EndVisitPlanPayload } from '@/features/service-users/visit-plan/api'
@@ -130,14 +132,14 @@ export function VisitPlanEndDialog({
         ) : (
         <div className="space-y-4 overflow-y-auto px-6 py-4">
           <div>
-            <Label className="text-xs text-muted-foreground">Last day of visits (effective end date)</Label>
+            <Label className={contentOverlineClass}>Last day of visits (effective end date)</Label>
             <Input
               type="date"
               className="mt-1"
               value={effectiveTo}
               onChange={(e) => setEffectiveTo(e.target.value)}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className={cn('mt-1', contentHelperClass)}>
               {scheduled
                 ? 'Future date: package stays active until this day; rota can be cancelled from this date forward.'
                 : backdated
@@ -147,7 +149,7 @@ export function VisitPlanEndDialog({
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">Reason for ending (required)</Label>
+            <Label className={contentOverlineClass}>Reason for ending (required)</Label>
             <textarea
               className="mt-1 min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={reason}
@@ -158,7 +160,7 @@ export function VisitPlanEndDialog({
 
           {backdated ? (
             <div>
-              <Label className="text-xs text-muted-foreground">Retrospective correction (required)</Label>
+              <Label className={contentOverlineClass}>Retrospective correction (required)</Label>
               <textarea
                 className="mt-1 min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={retrospectiveReason}

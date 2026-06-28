@@ -1,5 +1,6 @@
 import { AlertTriangle, CalendarRange, CheckCircle2, ChevronRight, XCircle } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { contentAlertHeadingClass } from '@/shared/ui/content-section'
 import type { CarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 import { formatVisitPlanDayList } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 
@@ -96,7 +97,7 @@ export function VisitPlanCarerAvailabilityBreakdown({ breakdown }: Props) {
 
         {timeMismatchMessages.length > 0 ? (
           <div className="space-y-1.5 border-t border-border/60 pt-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+            <p className={contentAlertHeadingClass}>
               Visit vs working hours
             </p>
             <ul className="space-y-1.5">

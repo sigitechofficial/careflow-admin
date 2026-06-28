@@ -1,11 +1,10 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { listAllEmployees } from '@/features/employees/api'
 import {
   useScheduleRunDetail,
   useScheduleRunMutations,
   useScheduleRunsList,
 } from '@/features/scheduling/hooks/useScheduleRuns'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { ScheduleRunRow } from '@/features/scheduling/types/scheduling.types'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
@@ -35,20 +34,14 @@ export function useScheduleRunEditDialog({
 
   const pendingRunQuery = useScheduleRunDetail(pendingRunId, Boolean(pendingRunId))
 
-  const employeesQuery = useQuery({
-    queryKey: ['employees', 'runs-picker'],
-    queryFn: () => listAllEmployees({}),
-  })
+  const employeesQuery = useScheduleEmployeesCatalog()
 
   const carerComboboxOptions = React.useMemo(
     () => [
       { value: '', label: 'Unassigned', description: 'No default carer for this run' },
-      ...(employeesQuery.data ?? []).map((emp) => ({
-        value: emp.id,
-        label: emp.fullName ?? [emp.firstName, emp.lastName].filter(Boolean).join(' ') ?? 'Unknown',
-      })),
+      ...employeesQuery.comboboxOptions,
     ],
-    [employeesQuery.data],
+    [employeesQuery.comboboxOptions],
   )
 
   const runs = runsQuery.data?.rows ?? []

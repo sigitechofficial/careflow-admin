@@ -10,7 +10,7 @@ import {
   haversineDistanceKm,
   hasTravelGapConflict,
   jobGeoCoordinates,
-  travelConflictJobIds,
+  travelConflictFromPreviousJobIds,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 
 function job(
@@ -106,7 +106,8 @@ describe('schedule-job-travel-distance', () => {
     expect(detail?.gapMinutes).toBe(15)
     expect(detail?.hasTravelConflict).toBe(true)
     expect(detail?.lateByMinutes).toBeGreaterThan(0)
-    expect(travelConflictJobIds([first, second], 15).has(first.id)).toBe(true)
+    expect(travelConflictFromPreviousJobIds([first, second], 15).has(second.id)).toBe(true)
+    expect(travelConflictFromPreviousJobIds([first, second], 15).has(first.id)).toBe(false)
   })
 
   it('detects travel gap conflicts from minutes', () => {

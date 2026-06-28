@@ -5,6 +5,15 @@ import type { AcceptedCarePlanItem } from '@/features/service-users/initial-asse
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { StandardIconImage } from '@/shared/ui/standard-icon-image'
 import { cn } from '@/shared/lib/utils'
+import {
+  ContentCard,
+  contentBadgeClass,
+  contentBodyClass,
+  contentKickerClass,
+  contentHelperClass,
+  contentTagClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
@@ -29,12 +38,12 @@ function DetailSection({
   className?: string
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-xl border border-border bg-card shadow-sm', className)}>
-      <h3 className="border-b border-border bg-muted/30 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <ContentCard className={cn('overflow-hidden p-0', className)}>
+      <h3 className={cn('border-b border-border bg-muted/30 px-4 py-2.5', contentKickerClass)}>
         {title}
       </h3>
       <div className="p-4">{children}</div>
-    </section>
+    </ContentCard>
   )
 }
 
@@ -49,7 +58,7 @@ function DetailField({
 }) {
   return (
     <div className={cn('space-y-1', className)}>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className={contentHelperClass}>{label}</dt>
       <dd className="text-sm text-foreground">{value}</dd>
     </div>
   )
@@ -86,15 +95,16 @@ export function VisitPlanSlotCallPatternDetails({
       <div className="rounded-xl border border-border bg-gradient-to-br from-teal-50/80 via-card to-card p-4 shadow-sm dark:from-teal-950/20">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="text-lg font-semibold text-foreground">{slot.label}</h4>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <h4 className={cn('text-lg', contentTitleClass)}>{slot.label}</h4>
+            <p className={cn('mt-1 flex items-center gap-1.5', contentBodyClass)}>
               <Clock className="h-4 w-4 shrink-0" aria-hidden />
               {start} – {end}
             </p>
           </div>
           <span
             className={cn(
-              'rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide',
+              'rounded-full px-2.5 py-1',
+              contentBadgeClass,
               slot.isEnabled
                 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
                 : 'bg-muted text-muted-foreground',
@@ -150,13 +160,14 @@ export function VisitPlanSlotCallPatternDetails({
 
         {slot.scheduleFrequency !== 'MONTHLY' ? (
           <div className="mt-4 border-t border-border/60 pt-4">
-            <p className="mb-2 text-xs text-muted-foreground">Week overview</p>
+            <p className={cn('mb-2', contentHelperClass)}>Week overview</p>
             <div className="flex flex-wrap gap-1">
               {VISIT_PLAN_DAY_LABELS.map((day, dayIndex) => (
                 <span
                   key={day}
                   className={cn(
-                    'rounded px-2 py-1 text-[11px] font-medium',
+                    'rounded px-2 py-1',
+                    contentTagClass,
                     slot.daysOfWeek.includes(dayIndex)
                       ? 'bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-100'
                       : 'bg-muted/40 text-muted-foreground/70',
@@ -188,7 +199,7 @@ export function VisitPlanSlotCallPatternDetails({
                 />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{cp.formName}</p>
-                  <p className="text-xs text-muted-foreground">{cp.carePlanArea}</p>
+                  <p className={contentHelperClass}>{cp.carePlanArea}</p>
                 </div>
               </li>
             ))}
@@ -199,7 +210,7 @@ export function VisitPlanSlotCallPatternDetails({
       <DetailSection title={hasCarerByDay ? 'Carers by day' : 'Assigned carers'}>
         {hasCarerByDay ? (
           <>
-            <p className="mb-3 text-xs text-muted-foreground">
+            <p className={cn('mb-3', contentHelperClass)}>
               Day-specific carer rules from advanced visit plan settings.
             </p>
             <VisitPlanSlotCarerByDayDetails
@@ -229,7 +240,7 @@ export function VisitPlanSlotCallPatternDetails({
                       <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
                         {name}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className={contentHelperClass}>
                         {assignedIds.length > 1 ? `Carer ${index + 1} · ` : ''}
                         View employee profile
                       </p>

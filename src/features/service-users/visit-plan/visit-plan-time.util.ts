@@ -28,3 +28,25 @@ export function visitDurationMinutes(startHHmm: string, endHHmm: string): number
   if (endMins <= startMins) endMins += 24 * 60
   return endMins - startMins
 }
+
+/** Add minutes to HH:mm; wraps within a 24-hour day. */
+export function addMinutesToTime(startHHmm: string, minutes: number): string | null {
+  const normalized = normalizeTimeForInput(startHHmm)
+  const match = /^(\d{2}):(\d{2})$/.exec(normalized)
+  if (!match || minutes <= 0) return null
+  let totalMins = Number(match[1]) * 60 + Number(match[2]) + minutes
+  totalMins = ((totalMins % (24 * 60)) + 24 * 60) % (24 * 60)
+  const hours = Math.floor(totalMins / 60)
+  const mins = totalMins % 60
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
+export function visitPlanEndTimeFromStartAndDuration(
+  plannedStartTime: string,
+  durationMinutes: number | null | undefined,
+): string | null {
+  if (durationMinutes == null || durationMinutes <= 0) return null
+  const start = normalizeTimeForInput(plannedStartTime)
+  if (!start) return null
+  return addMinutesToTime(start, durationMinutes)
+}

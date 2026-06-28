@@ -1,5 +1,11 @@
 import { Label } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
+import {
+  contentAlertClass,
+  contentEmphasisClass,
+  contentHelperClass,
+  contentOverlineClass,
+} from '@/shared/ui/content-section'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 
@@ -21,8 +27,8 @@ export function VisitPlanWeeklyDaySection({ slot, variant = 'weekly', disabled, 
 
   return (
     <div className="space-y-3 rounded-lg border border-dashed border-border bg-background p-4">
-      <p className="text-sm font-medium text-foreground">On which days of the week?</p>
-      <Label className="text-xs text-muted-foreground">
+      <p className={contentEmphasisClass}>On which days of the week?</p>
+      <Label className={contentOverlineClass}>
         {variant === 'daily'
           ? `Select weekdays for this daily visit. Use "Repeat every" above for every N days (currently every ${slot.repeatEvery} ${slot.repeatEvery === 1 ? 'day' : 'days'}).`
           : `Select the weekdays this visit repeats each week (every ${slot.repeatEvery} ${slot.repeatEvery === 1 ? 'week' : 'weeks'}).`}
@@ -53,11 +59,11 @@ export function VisitPlanWeeklyDaySection({ slot, variant = 'weekly', disabled, 
       </div>
 
       {slot.daysOfWeek.length === 0 ? (
-        <p className="text-xs text-amber-700 dark:text-amber-300">
+        <p className={contentAlertClass}>
           Select at least one weekday before saving or generating rota.
         </p>
       ) : (
-        <p className="text-xs text-muted-foreground">
+        <p className={contentHelperClass}>
           Selected:{' '}
           {slot.daysOfWeek.map((d) => VISIT_PLAN_DAY_LABELS[d]).join(', ')}
         </p>

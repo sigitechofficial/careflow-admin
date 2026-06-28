@@ -9,6 +9,7 @@ import {
 } from '@/shared/ui/select'
 import type { VisitPlanSlot, VisitPlanSlotExceptionType } from '@/features/service-users/visit-plan/types'
 import { Button } from '@/shared/ui/button'
+import { contentHelperClass, contentOverlineClass, contentTitleClass } from '@/shared/ui/content-section'
 
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10)
@@ -25,8 +26,8 @@ export function VisitPlanSlotExceptionsPanel({ slot, disabled, onChange }: Props
     <section className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-sm font-semibold text-foreground">Date exceptions for {slot.label}</h4>
-          <p className="text-xs text-muted-foreground">
+          <h4 className={contentTitleClass}>Date exceptions for {slot.label}</h4>
+          <p className={contentHelperClass}>
             Skip or add this visit on specific dates only — other slots (e.g. Evening) on the same day are not
             affected.
           </p>
@@ -54,7 +55,7 @@ export function VisitPlanSlotExceptionsPanel({ slot, disabled, onChange }: Props
       </div>
 
       {slot.exceptions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className={contentHelperClass}>
           No exceptions — this visit follows the normal day pattern above.
         </p>
       ) : (
@@ -62,7 +63,7 @@ export function VisitPlanSlotExceptionsPanel({ slot, disabled, onChange }: Props
           {slot.exceptions.map((ex, index) => (
             <li key={`${ex.exceptionDate}-${ex.exceptionType}-${index}`} className="flex flex-wrap items-end gap-2">
               <div>
-                <Label className="text-[10px] text-muted-foreground">Date</Label>
+                <Label className={contentOverlineClass}>Date</Label>
                 <Input
                   type="date"
                   className="w-36"
@@ -76,7 +77,7 @@ export function VisitPlanSlotExceptionsPanel({ slot, disabled, onChange }: Props
                 />
               </div>
               <div>
-                <Label className="text-[10px] text-muted-foreground">Type</Label>
+                <Label className={contentOverlineClass}>Type</Label>
                 <Select
                   value={ex.exceptionType}
                   disabled={disabled}

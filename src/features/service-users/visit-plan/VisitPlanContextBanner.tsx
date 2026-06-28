@@ -1,3 +1,4 @@
+import { contentHelperClass } from '@/shared/ui/content-section'
 import { Info } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { formatDate } from '@/shared/lib/utils'
@@ -73,9 +74,9 @@ export function VisitPlanContextBanner({ plan, context, otherPlanCount }: Props)
         <p className="font-medium text-foreground">
           Viewing {plan.status.toLowerCase()} plan · {summarizeVisitPlanDailyCalls(plan)}
         </p>
-        <p className="text-xs text-muted-foreground">{formatVisitPlanEffectiveRange(plan)}</p>
+        <p className={contentHelperClass}>{formatVisitPlanEffectiveRange(plan)}</p>
         {plan.status === 'SUSPENDED' ? (
-          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+          <ul className={cn('mt-1 space-y-0.5', contentHelperClass)}>
             {plan.pauseReasonCatalog ? (
               <li>
                 Pause reason: <span className="font-medium text-foreground">{plan.pauseReasonCatalog.name}</span>
@@ -98,7 +99,7 @@ export function VisitPlanContextBanner({ plan, context, otherPlanCount }: Props)
             ) : null}
           </ul>
         ) : null}
-        {detail ? <p className="text-xs text-muted-foreground">{detail}</p> : null}
+        {detail ? <p className={contentHelperClass}>{detail}</p> : null}
       </div>
     </div>
   )

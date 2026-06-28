@@ -2,6 +2,13 @@ import * as React from 'react'
 import { History, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { formatDate } from '@/shared/lib/utils'
+import {
+  contentBadgeClass,
+  contentBodyClass,
+  contentHelperClass,
+  ContentCard,
+  ContentSectionHeader,
+} from '@/shared/ui/content-section'
 import { useServiceUserVisitPlans } from '@/features/service-users/visit-plan/hooks'
 import type { ServiceUserVisitPlan, VisitPlanStatus } from '@/features/service-users/visit-plan/types'
 import {
@@ -108,10 +115,10 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+      <ContentCard className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading visit plan history…
-      </div>
+      </ContentCard>
     )
   }
 
@@ -127,14 +134,14 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
         <History className="mx-auto h-8 w-8 text-muted-foreground/60" aria-hidden />
-        <p className="mt-3 text-sm text-muted-foreground">No visit plans recorded yet.</p>
+        <p className={cn('mt-3', contentBodyClass)}>No visit plans recorded yet.</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6" data-testid="visit-plan-history-panel">
-      <p className="text-sm text-muted-foreground">
+      <p className={contentBodyClass}>
         Each time you activate a new plan, the previous active plan is kept as{' '}
         <strong className="font-medium text-foreground">ENDED</strong>. Amendments on the same plan are listed in the
         audit timeline (reason only — not a full before/after diff).
@@ -149,11 +156,17 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
         ) : null}
       </p>
 
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <History className="h-4 w-4" aria-hidden />
-          All plan versions ({sortedPlans.length})
-        </h3>
+      <ContentCard className="p-4">
+        <ContentSectionHeader
+          title={
+            <span className="flex items-center gap-2">
+              <History className="h-4 w-4" aria-hidden />
+              All plan versions ({sortedPlans.length})
+            </span>
+          }
+          titleAs="h3"
+          className="mb-3"
+        />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
@@ -178,7 +191,7 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
                   onClick={() => onSelectPlan?.(plan.id)}
                 >
                   <td className="px-2 py-2">
-                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', statusClass(plan.status))}>
+                    <span className={cn('rounded-full px-2 py-0.5', contentBadgeClass, statusClass(plan.status))}>
                       {formatVisitPlanStatusLabel(plan, sortedPlans)}
                     </span>
                   </td>
@@ -205,25 +218,25 @@ export function VisitPlanHistoryPanel({ serviceUserId, selectedPlanId, onSelectP
             </tbody>
           </table>
         </div>
-      </section>
+      </ContentCard>
 
       {timeline.length > 0 ? (
-        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Audit timeline</h3>
+        <ContentCard className="p-4">
+          <ContentSectionHeader title="Audit timeline" titleAs="h3" className="mb-3" />
           <ul className="space-y-3">
             {timeline.slice(0, 30).map((row) => (
               <li key={row.id} className="flex gap-3 text-sm">
-                <div className="w-28 shrink-0 text-xs text-muted-foreground">{formatDate(row.at)}</div>
+                <div className={cn('w-28 shrink-0', contentHelperClass)}>{formatDate(row.at)}</div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">{row.label}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className={contentHelperClass}>
                     {row.kind === 'amendment' ? 'Amendment' : row.label} · plan {row.planStatus.toLowerCase()}
                   </p>
                 </div>
               </li>
             ))}
           </ul>
-        </section>
+        </ContentCard>
       ) : null}
     </div>
   )

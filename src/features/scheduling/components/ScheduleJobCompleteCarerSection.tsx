@@ -1,15 +1,13 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Loader2, UserPlus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
-import { listAllEmployees } from '@/features/employees/api'
-import { employeeKeys } from '@/features/employees/keys'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 import { useAllocateJob } from '@/features/scheduling/hooks/useSchedulingMutations'
+import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
@@ -43,11 +41,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
   const [assignAsLead, setAssignAsLead] = React.useState(false)
 
   const allocate = useAllocateJob()
-  const employeesQuery = useQuery({
-    queryKey: employeeKeys.allList({}),
-    queryFn: () => listAllEmployees({}),
-    staleTime: 60_000,
-  })
+  const employeesQuery = useScheduleEmployeesCatalog()
 
   const allocatedCount = activeJobAllocationCount(job)
   const slotsRemaining = Math.max(0, job.requiredCarers - allocatedCount)
@@ -76,7 +70,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
 
   const filteredEmployees = React.useMemo(() => {
     const q = search.trim().toLowerCase()
-    return (employeesQuery.data ?? [])
+    return employeesQuery.employees
       .filter((row) => !allocatedEmployeeIds.has(row.id))
       .filter((row) => !rotaBookedEmployeeIds.has(row.id))
       .filter((row) => !blockedEmployeeIds.has(row.id))
@@ -95,7 +89,7 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
   }, [
     allocatedEmployeeIds,
     blockedEmployeeIds,
-    employeesQuery.data,
+    employeesQuery.employees,
     preferredEmployeeIds,
     rotaBookedEmployeeIds,
     search,

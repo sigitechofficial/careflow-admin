@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { X } from 'lucide-react'
+import { cn } from '@/shared/lib/utils'
+import { contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import type { VisitPlanSlot, VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 import { VisitPlanCarerCandidateDetails } from '@/features/service-users/visit-plan/VisitPlanCarerCandidateDetails'
@@ -69,16 +71,16 @@ export function VisitPlanSlotCarerByDaySummaryList({
                       to="/employee/$employeeId/edit"
                       params={{ employeeId }}
                       onClick={onNavigate}
-                      className="text-sm font-semibold text-foreground hover:underline"
+                      className={cn(contentTitleClass, 'hover:underline')}
                     >
                       {name}
                     </Link>
                   ) : (
-                    <p className="text-sm font-semibold text-muted-foreground">{name}</p>
+                    <p className={cn(contentTitleClass, 'text-muted-foreground')}>{name}</p>
                   )}
-                  <span className="text-xs text-muted-foreground">· {daysLabel}</span>
+                  <span className={contentHelperClass}>· {daysLabel}</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className={contentHelperClass}>
                   {roleLabel} · {durationLabel} · Visit {visitStart}–{visitEnd}
                 </p>
                 {candidate ? (
@@ -89,7 +91,7 @@ export function VisitPlanSlotCarerByDaySummaryList({
                     availabilityOnly
                   />
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className={contentHelperClass}>
                     Refresh suggestions to load working pattern and rota availability.
                   </p>
                 )}

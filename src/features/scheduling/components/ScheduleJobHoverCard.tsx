@@ -1,5 +1,15 @@
 import type { ReactNode } from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Building2,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Clock,
+  MapPin,
+  Truck,
+} from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { TooltipContent } from '@/shared/ui/tooltip'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
@@ -8,16 +18,23 @@ import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { timeCriticalLabel } from '@/features/service-users/visit-plan/TimeCriticalDot'
 import {
   callPatternTimeRange,
-  carePlansForJobHover,
+  formatServiceUserAddressLine,
   jobRotaTimeRange,
   resolveVisitPlanSlotForJob,
+  rotaRescheduleShift,
   rotaTimingDiffersFromCallPattern,
   visitPlanScheduleSummary,
 } from '@/features/scheduling/utils/schedule-job-hover-details.util'
 import {
+  formatInboundTravelSummary,
+  formatOutboundTravelSummary,
+  resolveTravelTimingBadge,
+} from '@/features/scheduling/utils/schedule-job-hover-travel.util'
+import {
+  buildInboundVisitTravelDetail,
   buildNextVisitTravelDetail,
-  computeRowTravelDistanceKm,
-  formatTravelDistanceKm,
+  findNextJobInRow,
+  findPreviousJobInRow,
 } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
 import {
   formatDurationLabel,
@@ -27,15 +44,15 @@ import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/sche
 import { formatServiceUserBranchLabel } from '@/features/settings/location-management/format-service-user-branch-label'
 import {
   activeJobAllocationCount,
-  employeesLabel,
-  leadCarerAllocation,
-  serviceUserLabel,
+  serviceUserNameOnly,
 } from '@/features/scheduling/utils/scheduling-format'
-import { isScheduleJobCompleted } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import {
+  isScheduleJobCancelled,
+  isScheduleJobCompleted,
+} from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { isoToLocalTimeInput } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import {
   handleScheduleJobHoverWheel,
-  SCHEDULE_JOB_HOVER_SCROLL_ATTR,
 } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
 
 type Props = {
@@ -46,132 +63,242 @@ type Props = {
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   rowJobs?: TimelineJob[]
   travelBufferMinutes?: number
+  showRowTravelDetails?: boolean
+  excessContracted?: boolean
+  outsidePattern?: boolean
+  overAllocated?: boolean
+  isUnassignedRow?: boolean
 }
 
-const HOVER_COLLISION_PADDING = { top: 64, bottom: 48, left: 24, right: 24 } as const
+const HOVER_COLLISION_PADDING = { top: 80, bottom: 80, left: 24, right: 24 } as const
 
-const TONE_HEADER: Record<ReturnType<typeof jobBlockTone>, string> = {
-  completed: 'Visit completed',
-  cancelled: 'Visit cancelled',
-  green: 'Appointment',
-  orange: 'Possibly Available',
-  red: 'Not Available',
-  neutral: 'Scheduled job',
-}
+type CardStatus =
+  | 'booked'
+  | 'possibly-available'
+  | 'not-available'
+  | 'unassigned'
+  | 'cancelled'
+  | 'completed'
 
-const TONE_HEADER_CLASS: Record<ReturnType<typeof jobBlockTone>, string> = {
-  completed: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800',
-  cancelled: 'bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-900/50 dark:text-slate-100 dark:border-slate-700',
-  green: 'text-[#2d7a32]',
-  orange: 'text-[#c47a1a]',
-  red: 'text-red-600',
-  neutral: 'text-slate-700',
-}
-
-type DetailField = {
+type StatusBadgeStyle = {
   label: string
-  value: string
-  valueClassName?: string
-  emphasis?: boolean
-  span?: 1 | 2
+  className: string
 }
 
-function DetailRow({ label, value, valueClassName, emphasis, compact }: DetailField & { compact?: boolean }) {
+type TimeBandTone = 'amber' | 'rose' | 'slate' | 'emerald'
+
+const STATUS_BADGE: Record<CardStatus, StatusBadgeStyle> = {
+  booked: {
+    label: 'Booked',
+    className:
+      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  },
+  'possibly-available': {
+    label: 'Possibly available',
+    className: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  },
+  'not-available': {
+    label: 'Not available',
+    className: 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+  },
+  unassigned: {
+    label: 'Unassigned',
+    className: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    className: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300',
+  },
+  completed: {
+    label: 'Completed',
+    className:
+      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  },
+}
+
+const TIME_BAND_CLASS: Record<TimeBandTone, string> = {
+  amber:
+    'bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900/50 text-amber-800 dark:text-amber-200',
+  rose: 'bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-900/50 text-rose-800 dark:text-rose-200',
+  slate:
+    'bg-slate-50 dark:bg-zinc-800/40 border-slate-100 dark:border-zinc-800 text-slate-500 dark:text-zinc-400',
+  emerald:
+    'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-100',
+}
+
+function resolveCardStatus(
+  job: TimelineJob,
+  tone: ReturnType<typeof jobBlockTone>,
+  variant: Props['variant'],
+  isUnassignedRow?: boolean,
+): CardStatus {
+  if (isScheduleJobCompleted(job)) return 'completed'
+  if (isScheduleJobCancelled(job)) return 'cancelled'
+  if (isUnassignedRow) return 'unassigned'
+  if (variant === 'availability') {
+    if (tone === 'green') return 'booked'
+    if (tone === 'red') return 'not-available'
+    if (tone === 'orange') return 'possibly-available'
+  }
+  if (tone === 'red') return 'not-available'
+  if (tone === 'orange') return 'possibly-available'
+  return 'booked'
+}
+
+function resolveTimeBandTone(
+  status: CardStatus,
+  timingChanged: boolean,
+  underStaffed: boolean,
+): TimeBandTone {
+  if (status === 'cancelled' || status === 'completed') return 'slate'
+  if (status === 'not-available' || status === 'unassigned') return 'rose'
+  if (status === 'possibly-available' || timingChanged || underStaffed) return 'amber'
+  return 'emerald'
+}
+
+function serviceUserInitial(job: TimelineJob): string {
+  const name = serviceUserNameOnly(job.serviceUser)
+  return name.charAt(0).toUpperCase() || '?'
+}
+
+function formatBranchLine(job: TimelineJob): string | null {
+  const label = formatServiceUserBranchLabel(job.serviceUser)
+  if (!label || label === '—' || label === 'Not assigned') return null
+  const lastLayer = label.includes(' · ') ? label.split(' · ').pop()! : label
+  return lastLayer.toLowerCase().includes('branch') ? lastLayer : `${lastLayer} branch`
+}
+
+function carerNames(job: TimelineJob): string[] {
+  return (job.allocations ?? [])
+    .filter((allocation) => allocation.employee)
+    .map((allocation) => {
+      const employee = allocation.employee!
+      return [employee.firstName, employee.lastName].filter(Boolean).join(' ')
+    })
+    .filter(Boolean)
+}
+
+function StaffingBadge({
+  allocated,
+  required,
+}: {
+  allocated: number
+  required: number
+}) {
+  const full = allocated >= required && required > 0
+  const none = allocated === 0
+
+  const className = full
+    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-900/60'
+    : none
+      ? 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-900/60'
+      : 'bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-900/60'
+
+  const label = `${allocated} of ${required} carer${required === 1 ? '' : 's'}`
+
   return (
-    <div
+    <span
       className={cn(
-        'grid items-baseline gap-x-3 gap-y-0.5 py-1',
-        compact ? 'grid-cols-[4.5rem_minmax(0,1fr)]' : 'grid-cols-[5.5rem_minmax(0,1fr)]',
+        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[13px] font-semibold ring-1',
+        className,
       )}
     >
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          'text-sm leading-snug text-foreground break-words',
-          emphasis ? 'font-semibold' : 'font-medium',
-          valueClassName,
-        )}
-      >
-        {value}
-      </span>
-    </div>
+      {full ? <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} /> : null}
+      {!full && !none ? <CircleAlert className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> : null}
+      {none ? <CircleAlert className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> : null}
+      {label}
+    </span>
   )
 }
 
-function DetailGrid({ fields, compact }: { fields: DetailField[]; compact?: boolean }) {
-  if (fields.length === 0) return null
+function TravelTimingBadge({
+  label,
+  tone,
+}: {
+  label: string
+  tone: 'rose' | 'amber' | 'emerald'
+}) {
+  const className =
+    tone === 'rose'
+      ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+      : tone === 'amber'
+        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+
   return (
-    <div className="divide-y divide-border/50">
-      {fields.map((field, index) => (
-        <DetailRow key={`${field.label}-${index}`} {...field} compact={compact} />
-      ))}
-    </div>
+    <span className={cn('rounded-md px-2 py-0.5 text-[13px] font-semibold', className)}>
+      {label}
+    </span>
   )
 }
 
-function DetailGridTwoColumn({ fields }: { fields: DetailField[] }) {
-  if (fields.length === 0) return null
-  return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-      {fields.map((field, index) => (
-        <div
-          key={`${field.label}-${index}`}
-          className={cn('min-w-0', field.span === 2 && 'col-span-2')}
-        >
-          <p className="text-xs text-muted-foreground">{field.label}</p>
-          <p
-            className={cn(
-              'mt-0.5 text-sm leading-snug text-foreground break-words',
-              field.emphasis ? 'font-semibold' : 'font-medium',
-              field.valueClassName,
-            )}
-          >
-            {field.value}
-          </p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function SectionCard({
+function TravelDetailsSection({
   title,
-  children,
-  className,
+  badge,
+  headline,
+  subline,
+  defaultOpen = true,
 }: {
   title: string
-  children: ReactNode
-  className?: string
+  badge: { label: string; tone: 'rose' | 'amber' | 'emerald' } | null
+  headline: string
+  subline: string
+  defaultOpen?: boolean
 }) {
   return (
-    <section className={cn('rounded-lg border border-border/70 bg-muted/20 px-3.5 py-3', className)}>
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h4>
-      {children}
-    </section>
+    <details
+      open={defaultOpen}
+      className="group border-t border-slate-100 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800/40 [&_summary::-webkit-details-marker]:hidden"
+    >
+      <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-2 px-4 py-3 sm:px-5">
+        <span className="text-[13px] font-medium text-slate-600 dark:text-zinc-400 sm:text-sm">
+          {title}
+        </span>
+        <span className="flex items-center gap-2">
+          {badge ? <TravelTimingBadge label={badge.label} tone={badge.tone} /> : null}
+          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+        </span>
+      </summary>
+      <div className="-mt-1 space-y-0.5 px-4 pb-3 text-[13px] leading-relaxed text-slate-600 dark:text-zinc-400 sm:px-5 sm:text-sm">
+        <p className="text-slate-900 dark:text-zinc-100">{headline}</p>
+        <p>{subline}</p>
+      </div>
+    </details>
   )
 }
 
-function AlertBox({
+function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-slate-100 py-2.5 dark:border-zinc-800 sm:py-3">
+      <span className="pt-0.5 text-[13px] font-medium text-slate-600 dark:text-zinc-400 sm:text-sm">
+        {label}
+      </span>
+      <div className="text-right">{children}</div>
+    </div>
+  )
+}
+
+function AlertChip({
   tone,
-  title,
   children,
 }: {
   tone: 'amber' | 'orange'
-  title: string
   children: ReactNode
 }) {
-  const styles =
+  const className =
     tone === 'amber'
-      ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100'
-      : 'border-orange-300 bg-orange-50 text-orange-950 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-100'
+      ? 'bg-amber-50 text-amber-800 ring-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60'
+      : 'bg-orange-50 text-orange-800 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-orange-900/60'
 
   return (
-    <div className={cn('rounded-lg border px-3.5 py-3', styles)}>
-      <p className="text-sm font-semibold">{title}</p>
-      <div className="mt-2 text-sm leading-relaxed">{children}</div>
-    </div>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-2 text-[13px] font-medium ring-1',
+        className,
+      )}
+    >
+      {children}
+    </span>
   )
 }
 
@@ -180,248 +307,340 @@ export function JobHoverPanel({
   date,
   variant = 'tooltip',
   visitPlanSlotsByServiceUser,
-  acceptedCarePlansByServiceUser,
   rowJobs,
   travelBufferMinutes = 0,
+  showRowTravelDetails = true,
+  excessContracted = false,
+  outsidePattern = false,
+  isUnassignedRow = false,
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
   const tone = jobBlockTone(job)
   const completed = isScheduleJobCompleted(job)
-  const header = completed
-    ? 'Visit completed'
-    : variant === 'availability'
-      ? tone === 'green'
-        ? 'Booked'
-        : tone === 'red'
-          ? 'Not Available'
-          : tone === 'orange'
-            ? 'Possibly Available'
-            : 'Available'
-      : TONE_HEADER[tone]
+  const cancelled = isScheduleJobCancelled(job)
+  const status = resolveCardStatus(job, tone, variant, isUnassignedRow)
+  const statusBadge = STATUS_BADGE[status]
 
   const rota = jobRotaTimeRange(job)
   const visitSlot = resolveVisitPlanSlotForJob(job, visitPlanSlotsByServiceUser)
   const callPattern = visitSlot ? callPatternTimeRange(visitSlot) : null
   const timingChanged = visitSlot ? rotaTimingDiffersFromCallPattern(job, visitSlot) : false
-  const carers = employeesLabel(job)
-  const allocated = activeJobAllocationCount(job)
-  const leadAllocation = leadCarerAllocation(job)
-  const leadName = leadAllocation?.employee
-    ? [leadAllocation.employee.firstName, leadAllocation.employee.lastName].filter(Boolean).join(' ')
-    : null
-  const region = job.scheduleArea?.name
-  const serviceUserBranch = formatServiceUserBranchLabel(job.serviceUser)
-  const runName = job.scheduleRun?.name
-  const startDateLabel = displayFormat.formatDate(date)
-  const nextVisitTravel = completed
-    ? null
-    : buildNextVisitTravelDetail(job, rowJobs, {
-        bufferMinutes: travelBufferMinutes,
-      })
-  const rowTravelDistanceKm =
-    completed || !rowJobs?.length ? 0 : computeRowTravelDistanceKm(rowJobs)
-  const rowTravelDistanceLabel =
-    rowTravelDistanceKm > 0 ? formatTravelDistanceKm(rowTravelDistanceKm) : null
-  const showTravelSection = Boolean(nextVisitTravel || rowTravelDistanceLabel)
-  const acceptedCarePlans = acceptedCarePlansByServiceUser?.get(job.serviceUserId) ?? []
-  const { plans: carePlans, source: carePlanSource } = carePlansForJobHover(
-    job,
-    visitSlot,
-    acceptedCarePlans,
-  )
+  const rescheduleShift =
+    timingChanged && callPattern ? rotaRescheduleShift(rota, callPattern) : null
 
-  const callPatternFields: DetailField[] = visitSlot
-    ? [
-        { label: 'Slot', value: `${visitSlot.label} (${visitSlot.slotCode})` },
-        ...(visitSlot.medicationRoundCode
-          ? [{ label: 'Round', value: visitSlot.medicationRoundCode }]
-          : []),
-        { label: 'Carers', value: `${visitSlot.requiredCarers} required` },
-        { label: 'Schedule', value: visitPlanScheduleSummary(visitSlot), span: 2 },
-        ...(visitSlot.timeCritical
-          ? [{ label: 'Time critical', value: timeCriticalLabel(visitSlot.timeToleranceMinutes) }]
-          : []),
-      ]
-    : []
+  const allocated = activeJobAllocationCount(job)
+  const required = job.requiredCarers
+  const underStaffed = !completed && !cancelled && allocated < required
+  const carers = carerNames(job)
+  const timeBandTone = resolveTimeBandTone(status, timingChanged, underStaffed)
+
+  const formatRangeLabel = (range: { start: string; end: string }) =>
+    displayFormat.formatTimeRangeHm(range.start, range.end)
+
+  const timeRangeLabel = formatRangeLabel(rota)
+  const durationLabel = formatDurationLabel(rota.durationMinutes)
+
+  const serviceUserNumber = job.serviceUser.serviceUserNumber?.trim()
+  const metaLine = [serviceUserNumber, displayFormat.formatDate(date)].filter(Boolean).join(' · ')
+  const addressLine = formatServiceUserAddressLine({
+    serviceUser: job.serviceUser,
+    jobAddress: job.address,
+    jobPostcode: job.postcode,
+  })
+  const branchLine = formatBranchLine(job)
+
+  const nextVisitTravel =
+    completed || cancelled || !showRowTravelDetails
+      ? null
+      : buildNextVisitTravelDetail(job, rowJobs, { bufferMinutes: travelBufferMinutes })
+
+  const inboundVisitTravel =
+    completed || cancelled || !showRowTravelDetails
+      ? null
+      : buildInboundVisitTravelDetail(job, rowJobs, { bufferMinutes: travelBufferMinutes })
+
+  const previousJob = rowJobs?.length ? findPreviousJobInRow(job, rowJobs) : null
+  const nextJob = rowJobs?.length ? findNextJobInRow(job, rowJobs) : null
+
+  const inboundSummary =
+    inboundVisitTravel && previousJob
+      ? formatInboundTravelSummary(
+          inboundVisitTravel,
+          previousJob,
+          displayFormat.formatTimeHm(rota.start),
+        )
+      : null
+
+  const outboundSummary = nextVisitTravel
+    ? formatOutboundTravelSummary(nextVisitTravel, job)
+    : null
+
+  const inboundBadge = inboundVisitTravel ? resolveTravelTimingBadge(inboundVisitTravel) : null
+  const outboundBadge = nextVisitTravel ? resolveTravelTimingBadge(nextVisitTravel) : null
+
+  const showTravelSections = showRowTravelDetails && !completed && !cancelled
+
+  const inboundTravelContent = !showTravelSections
+    ? null
+    : inboundSummary
+      ? { headline: inboundSummary.headline, subline: inboundSummary.subline, badge: inboundBadge }
+      : !previousJob
+        ? {
+            headline: 'First visit of the day',
+            subline: 'No inbound travel on this rota',
+            badge: null,
+          }
+        : {
+            headline: `After ${serviceUserNameOnly(previousJob.serviceUser)}`,
+            subline: 'Travel time unavailable — missing address coordinates',
+            badge: null,
+          }
+
+  const outboundTravelContent = !showTravelSections
+    ? null
+    : outboundSummary
+      ? { headline: outboundSummary.headline, subline: outboundSummary.subline, badge: outboundBadge }
+      : !nextJob
+        ? {
+            headline: 'Last visit of the day',
+            subline: 'No outbound travel on this rota',
+            badge: null,
+          }
+        : {
+            headline: `On to ${serviceUserNameOnly(nextJob.serviceUser)}`,
+            subline: 'Travel time unavailable — missing address coordinates',
+            badge: null,
+          }
+
+  const roundLabel =
+    visitSlot?.medicationRoundCode?.trim() || visitSlot?.label?.trim() || null
+  const scheduleLabel = visitSlot ? visitPlanScheduleSummary(visitSlot) : null
 
   const actualStart = job.actualStartDateTime
   const actualEnd = job.actualEndDateTime
   const actualTimeLabel =
     actualStart && actualEnd
-      ? displayFormat.formatTimeRangeHm(isoToLocalTimeInput(actualStart), isoToLocalTimeInput(actualEnd))
+      ? displayFormat.formatTimeRangeHm(
+          isoToLocalTimeInput(actualStart),
+          isoToLocalTimeInput(actualEnd),
+        )
       : actualStart
         ? displayFormat.formatTimeHm(isoToLocalTimeInput(actualStart))
-        : actualEnd
-          ? displayFormat.formatTimeHm(isoToLocalTimeInput(actualEnd))
-          : null
+        : null
 
-  const formatRangeLabel = (range: { start: string; end: string }) =>
-    displayFormat.formatTimeRangeHm(range.start, range.end)
+  const timeCritical = visitSlot?.timeCritical
+  const timeCriticalText = timeCritical
+    ? timeCriticalLabel(visitSlot.timeToleranceMinutes)
+    : null
 
-  const visitFields: DetailField[] = [
-    ...(completed && actualTimeLabel
-      ? [{ label: 'Actual time', value: actualTimeLabel, emphasis: true }]
-      : []),
-    ...(!timingChanged
-      ? [
-          {
-            label: 'Time',
-            value: formatRangeLabel(rota),
-            emphasis: true,
-          },
-        ]
-      : []),
-    { label: 'Duration', value: formatDurationLabel(rota.durationMinutes) },
-    ...(carers !== '—' ? [{ label: 'Carer(s)', value: carers }] : []),
-    {
-      label: 'Allocated',
-      value: `${allocated} / ${job.requiredCarers}`,
-      valueClassName:
-        allocated < job.requiredCarers ? 'text-amber-700 dark:text-amber-300' : undefined,
-      emphasis: allocated < job.requiredCarers,
-    },
-    ...(runName
-      ? [
-          {
-            label: 'Run',
-            value: job.runSequence != null ? `${job.runSequence}. ${runName}` : runName,
-          },
-        ]
-      : []),
-    ...(region ? [{ label: 'Region', value: region }] : []),
-    ...(leadName && !carers.includes(leadName) ? [{ label: 'Lead', value: leadName }] : []),
-  ]
+  const durationPillClass =
+    timeBandTone === 'rose'
+      ? 'bg-white/80 text-rose-900 ring-rose-200 dark:bg-zinc-900/70 dark:text-rose-200 dark:ring-rose-900/60'
+      : timeBandTone === 'slate'
+        ? 'bg-white/80 text-slate-600 ring-slate-200 dark:bg-zinc-900/70 dark:text-zinc-300 dark:ring-zinc-700'
+        : timeBandTone === 'emerald'
+          ? 'bg-white/80 text-emerald-900 ring-emerald-200 dark:bg-zinc-900/70 dark:text-emerald-200 dark:ring-emerald-900/60'
+          : 'bg-white/80 text-amber-900 ring-amber-200 dark:bg-zinc-900/70 dark:text-amber-200 dark:ring-amber-900/60'
 
-  const travelFields: DetailField[] = nextVisitTravel
-    ? [
-        {
-          label: 'Next client',
-          value: `${nextVisitTravel.nextClientLabel} · ${nextVisitTravel.nextVisitTimeLabel}`,
-          span: 2,
-        },
-        { label: 'To next visit', value: nextVisitTravel.distanceLabel },
-        {
-          label: 'Total distance',
-          value: rowTravelDistanceLabel ?? nextVisitTravel.distanceLabel,
-        },
-        { label: 'Gap', value: `${nextVisitTravel.gapMinutes} min` },
-        { label: 'Travel', value: nextVisitTravel.travelLabel },
-        { label: 'Arrival', value: nextVisitTravel.estimatedArrivalLabel },
-        { label: 'Buffer', value: `${nextVisitTravel.bufferMinutes} min` },
-      ]
-    : rowTravelDistanceLabel
-      ? [{ label: 'Total distance', value: rowTravelDistanceLabel, span: 2 }]
-      : []
+  const subtitleClass =
+    timeBandTone === 'rose'
+      ? 'text-rose-700 dark:text-rose-300/90'
+      : timeBandTone === 'slate'
+        ? 'text-slate-500 dark:text-zinc-400'
+        : timeBandTone === 'emerald'
+          ? 'text-emerald-700 dark:text-emerald-300/90'
+          : 'text-amber-700 dark:text-amber-300/90'
 
   return (
-    <div className="flex w-[min(48rem,calc(var(--radix-tooltip-content-available-width,100vw)-1rem))] max-h-[var(--radix-tooltip-content-available-height,calc(100vh-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
-      <div
-        className={cn(
-          'shrink-0 border-b px-4 py-2.5 text-center text-base font-semibold',
-          completed ? TONE_HEADER_CLASS.completed : TONE_HEADER_CLASS[tone],
-        )}
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {completed ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : null}
-          {header}
+    <div
+      className={cn(
+        'w-[min(32rem,calc(var(--radix-tooltip-content-available-width,100vw)-1rem))] overflow-visible rounded-2xl bg-popover shadow-xl ring-1 ring-black/5 dark:ring-white/10',
+        cancelled && 'opacity-90',
+      )}
+    >
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 pb-3 pt-3 dark:border-zinc-800 sm:px-5">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <div
+            className={cn(
+              'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold',
+              cancelled || completed
+                ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
+                : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+            )}
+          >
+            {serviceUserInitial(job)}
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-semibold leading-tight sm:text-lg">
+              {serviceUserNameOnly(job.serviceUser)}
+            </p>
+            {metaLine ? (
+              <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400">{metaLine}</p>
+            ) : null}
+            {addressLine || branchLine ? (
+              <div className="mt-1.5 space-y-1">
+                {addressLine ? (
+                  <p className="flex items-start gap-1.5 text-[13px] font-medium text-slate-600 dark:text-zinc-300">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={1.6} />
+                    <span>{addressLine}</span>
+                  </p>
+                ) : null}
+                {branchLine ? (
+                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-slate-600 dark:text-zinc-300">
+                    <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={1.5} />
+                    <span>{branchLine}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <span
+          className={cn(
+            'shrink-0 rounded-md px-2.5 py-1 text-[13px] font-semibold',
+            statusBadge.className,
+          )}
+        >
+          {statusBadge.label}
         </span>
       </div>
 
-      <div
-        {...{ [SCHEDULE_JOB_HOVER_SCROLL_ATTR]: '' }}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 [scrollbar-width:thin]"
-        onWheel={handleScheduleJobHoverWheel}
-      >
-        <div className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1 border-b border-border/60 pb-3">
-          <div className="col-span-2 space-y-1">
-            <p className="text-base font-semibold leading-snug text-foreground">
-              {serviceUserLabel(job.serviceUser)}
+      <div onWheel={handleScheduleJobHoverWheel}>
+        <div className={cn('border-b px-4 py-3 sm:px-5', TIME_BAND_CLASS[timeBandTone])}>
+          {isUnassignedRow && !cancelled && !completed ? (
+            <p className={cn('text-[13px] font-medium opacity-80', subtitleClass)}>
+              Planned time · not on a rota yet
             </p>
-            {serviceUserBranch && serviceUserBranch !== '—' && serviceUserBranch !== 'Not assigned' ? (
-              <p className="text-sm text-muted-foreground">{serviceUserBranch}</p>
+          ) : null}
+          {completed && actualTimeLabel ? (
+            <p className={cn('text-[13px] font-medium', subtitleClass)}>Actual visit time</p>
+          ) : null}
+          <div className={cn('flex flex-wrap items-center gap-2', isUnassignedRow ? 'mt-0.5' : undefined)}>
+            <span
+              className={cn(
+                'text-lg font-semibold leading-tight sm:text-xl',
+                cancelled && 'line-through decoration-slate-400',
+              )}
+            >
+              {completed && actualTimeLabel ? actualTimeLabel : timeRangeLabel}
+            </span>
+            <span
+              className={cn(
+                'inline-flex items-center rounded-md px-2 py-0.5 text-[13px] font-semibold ring-1',
+                durationPillClass,
+              )}
+            >
+              {durationLabel}
+            </span>
+            {timeCritical && timeCriticalText && !cancelled && !completed ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[13px] font-semibold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-900/60">
+                <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                Time critical · {timeCriticalText}
+              </span>
             ) : null}
           </div>
-          <DetailRow label="Job" value={job.jobName} compact />
-          <DetailRow label="Date" value={startDateLabel} compact />
+          {timingChanged && callPattern && !cancelled && !completed ? (
+            <p className={cn('mt-1 text-[13px] font-medium sm:text-sm', subtitleClass)}>
+              Rescheduled · moved ~{rescheduleShift?.label ?? 'some time'} {rescheduleShift?.direction ?? 'from'}{' '}
+              call pattern{' '}
+              <span className="line-through">{formatRangeLabel(callPattern)}</span>
+            </p>
+          ) : null}
+          {underStaffed && !timingChanged && !cancelled && !completed ? (
+            <p className={cn('mt-1 text-[13px] font-medium sm:text-sm', subtitleClass)}>
+              Needs {required} carer{required === 1 ? '' : 's'} — only {allocated}{' '}
+              {allocated === 1 ? 'is' : 'are'} assigned
+            </p>
+          ) : null}
+          {status === 'possibly-available' && !cancelled && !completed ? (
+            <p className={cn('mt-1 text-[13px] font-medium italic sm:text-sm', subtitleClass)}>
+              Carer availability not yet confirmed
+            </p>
+          ) : null}
+          {cancelled ? (
+            <p className={cn('mt-1 text-[13px] font-medium sm:text-sm', subtitleClass)}>
+              {underStaffed
+                ? `Was unstaffed — needed ${required} carer${required === 1 ? '' : 's'}`
+                : 'Visit cancelled on rota'}
+            </p>
+          ) : null}
         </div>
 
-        {timingChanged && callPattern ? (
-          <div className="mb-3">
-            <AlertBox tone="amber" title="Rescheduled on rota">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs text-amber-800/80 dark:text-amber-300">Call pattern</p>
-                  <p className="mt-0.5 text-base font-semibold">
-                    {formatRangeLabel(callPattern)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-amber-800/80 dark:text-amber-300">Rota now</p>
-                  <p className="mt-0.5 text-base font-semibold">{formatRangeLabel(rota)}</p>
-                </div>
-              </div>
-            </AlertBox>
+        {!cancelled && (excessContracted || outsidePattern) ? (
+          <div className="flex flex-wrap gap-2 px-4 pt-3 sm:px-5">
+            {excessContracted ? (
+              <AlertChip tone="amber">
+                <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.7} />
+                Exceeds contracted hours
+                <span className="text-amber-600/80 dark:text-amber-400/80">· Manage carers</span>
+                <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.7} />
+              </AlertChip>
+            ) : null}
+            {outsidePattern ? (
+              <AlertChip tone="orange">
+                <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.7} />
+                Outside carer working pattern
+              </AlertChip>
+            ) : null}
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 items-start gap-3">
-          <div className="space-y-3">
-            {visitSlot ? (
-              <SectionCard title="Call pattern">
-                <DetailGridTwoColumn fields={callPatternFields} />
-              </SectionCard>
-            ) : null}
-
-            {carePlans.length > 0 ? (
-              <SectionCard title="Care plans">
-                <ul className="space-y-1.5 text-sm leading-snug">
-                  {carePlans.map((plan) => (
-                    <li key={plan.formId} className="text-foreground">
-                      <span className="font-medium">{plan.formName}</span>
-                      {plan.carePlanArea && plan.carePlanArea !== plan.formName ? (
-                        <span className="text-muted-foreground"> · {plan.carePlanArea}</span>
-                      ) : null}
-                    </li>
+        {!cancelled ? (
+          <div className="px-4 sm:px-5">
+            <InfoRow label="Staffing">
+              <StaffingBadge allocated={allocated} required={required} />
+              {carers.length > 0 ? (
+                <div className="mt-1 space-y-0.5">
+                  {carers.map((name) => (
+                    <p key={name} className="text-[15px] font-medium sm:text-base">
+                      {name}
+                    </p>
                   ))}
-                </ul>
-                {carePlanSource === 'suggested' ? (
-                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    Suggested for this call — confirm on the visit plan to save links.
-                  </p>
-                ) : null}
-              </SectionCard>
-            ) : acceptedCarePlans.length > 0 ? (
-              <SectionCard title="Care plans">
-                <p className="text-sm text-muted-foreground">None linked to this call.</p>
-              </SectionCard>
+                </div>
+              ) : (
+                <p className="mt-1 text-[13px] font-medium text-rose-600 dark:text-rose-400">
+                  Not yet assigned
+                </p>
+              )}
+              {underStaffed && allocated > 0 ? (
+                <p className="text-[13px] font-medium text-amber-700 dark:text-amber-400">
+                  + {required - allocated} still needed
+                </p>
+              ) : null}
+            </InfoRow>
+            {roundLabel ? (
+              <InfoRow label="Round">
+                <span className="text-[15px] font-medium sm:text-base">{roundLabel}</span>
+              </InfoRow>
+            ) : null}
+            {scheduleLabel ? (
+              <div className="flex items-baseline justify-between gap-3 py-2.5 sm:py-3">
+                <span className="text-[13px] font-medium text-slate-600 dark:text-zinc-400 sm:text-sm">
+                  Schedule
+                </span>
+                <span className="text-[15px] font-medium sm:text-base">{scheduleLabel}</span>
+              </div>
             ) : null}
           </div>
+        ) : null}
 
-          <div className="space-y-3">
-            <SectionCard title={visitSlot ? 'Visit on rota' : 'Visit'}>
-              <DetailGridTwoColumn fields={visitFields} />
-            </SectionCard>
-          </div>
+        {inboundTravelContent ? (
+          <TravelDetailsSection
+            title="Travel from previous"
+            badge={inboundTravelContent.badge}
+            headline={inboundTravelContent.headline}
+            subline={inboundTravelContent.subline}
+          />
+        ) : null}
 
-          {showTravelSection ? (
-            <SectionCard title="Next visit travel" className="col-span-2">
-              {nextVisitTravel?.hasTravelConflict ? (
-                <AlertBox tone="orange" title="Not enough time to reach next visit">
-                  <p>
-                    Needs ~{nextVisitTravel.requiredGapMinutes} min, only{' '}
-                    {nextVisitTravel.gapMinutes} min gap — carer may arrive ~
-                    {nextVisitTravel.lateByMinutes} min late (
-                    {nextVisitTravel.estimatedArrivalLabel} vs{' '}
-                    {nextVisitTravel.nextVisitTimeLabel} start).
-                  </p>
-                </AlertBox>
-              ) : null}
-              <div className={nextVisitTravel?.hasTravelConflict ? 'mt-3' : undefined}>
-                <DetailGridTwoColumn fields={travelFields} />
-              </div>
-            </SectionCard>
-          ) : null}
-        </div>
+        {outboundTravelContent ? (
+          <TravelDetailsSection
+            title="Travel to next"
+            badge={outboundTravelContent.badge}
+            headline={outboundTravelContent.headline}
+            subline={outboundTravelContent.subline}
+          />
+        ) : null}
       </div>
     </div>
   )
@@ -434,10 +653,36 @@ export function ScheduleJobHoverTooltip(props: Props) {
       align="center"
       sideOffset={10}
       collisionPadding={HOVER_COLLISION_PADDING}
-      className="z-[100] flex max-h-[var(--radix-tooltip-content-available-height)] max-w-[var(--radix-tooltip-content-available-width)] flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none"
+      className="z-[100] max-w-none overflow-visible border-0 bg-transparent p-0 shadow-none"
       onWheel={handleScheduleJobHoverWheel}
     >
       <JobHoverPanel {...props} />
+    </TooltipContent>
+  )
+}
+
+export function ScheduleRotaGapHoverTooltip({
+  timeRangeLabel,
+  durationLabel,
+  title,
+}: {
+  timeRangeLabel: string
+  durationLabel: string
+  title: string
+}) {
+  return (
+    <TooltipContent side="top" className="max-w-xs rounded-xl px-4 py-3 ring-1 ring-black/5 dark:ring-white/10">
+      <div className="flex items-center gap-1.5 text-[13px] font-medium text-slate-500 dark:text-zinc-400">
+        <Truck className="h-4 w-4" strokeWidth={1.5} />
+        Travel time
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <span className="text-base font-semibold leading-tight sm:text-lg">{timeRangeLabel}</span>
+        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[13px] font-semibold text-slate-700 dark:bg-zinc-800 dark:text-zinc-200">
+          {durationLabel}
+        </span>
+      </div>
+      <p className="mt-0.5 text-[13px] font-medium text-slate-600 dark:text-zinc-300 sm:text-sm">{title}</p>
     </TooltipContent>
   )
 }

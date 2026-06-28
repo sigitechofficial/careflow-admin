@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { CheckCircle2, Circle, ChevronDown, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { contentBodyClass, contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import {
   hasExplicitCarePlanLinks,
   resolveCarePlansForSlot,
@@ -63,8 +64,8 @@ export function VisitPlanCarePathwayContextPanel({
     >
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-6">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">Care pathway prerequisites</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h3 className={contentTitleClass}>Care pathway prerequisites</h3>
+          <p className={cn('mt-1', contentHelperClass)}>
             {pathwayComplete
               ? 'Assessment and care plans are in place.'
               : 'Complete assessment and care plans before visits deliver clinical care.'}
@@ -80,7 +81,7 @@ export function VisitPlanCarePathwayContextPanel({
 
       <div className="space-y-6 border-t border-border px-6 pb-6 pt-4">
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className={cn('flex items-center gap-2', contentBodyClass)}>
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading care pathway context…
         </div>
@@ -105,7 +106,7 @@ export function VisitPlanCarePathwayContextPanel({
                       {index + 1}. {step.label}
                     </p>
                     {step.detail ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">{step.detail}</p>
+                      <p className={cn('mt-0.5', contentHelperClass)}>{step.detail}</p>
                     ) : null}
                   </div>
                 </li>
@@ -146,7 +147,7 @@ export function VisitPlanCarePathwayContextPanel({
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" />
-                  <h4 className="text-sm font-semibold">Which visit delivers which care plan?</h4>
+                  <h4 className={contentTitleClass}>Which visit delivers which care plan?</h4>
                 </div>
                 {needsSuggestedLinks && onApplySuggestedLinks ? (
                   <Button
@@ -163,7 +164,7 @@ export function VisitPlanCarePathwayContextPanel({
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <tr className={cn('border-b border-border text-left', contentHelperClass)}>
                       <th className="py-2 pr-4">Visit / call</th>
                       <th className="py-2">Linked care plans</th>
                     </tr>
@@ -182,7 +183,7 @@ export function VisitPlanCarePathwayContextPanel({
                           </td>
                           <td className="py-3">
                             {linked.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">No care plan linked</span>
+                              <span className={contentHelperClass}>No care plan linked</span>
                             ) : (
                               <ul className="flex flex-wrap gap-1.5">
                                 {linked.map((cp) => (
@@ -200,7 +201,7 @@ export function VisitPlanCarePathwayContextPanel({
                               </ul>
                             )}
                             {!isExplicit && linked.length > 0 ? (
-                              <p className="mt-1 text-[11px] text-muted-foreground">
+                              <p className={cn('mt-1', contentHelperClass)}>
                                 Suggested from accepted care plans — tick slots in Scheduling &amp; visit
                                 options to confirm.
                               </p>
