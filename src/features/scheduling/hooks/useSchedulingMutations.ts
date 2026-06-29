@@ -38,6 +38,8 @@ export function useCompleteHousekeepingJob() {
       status,
       notes,
       deliveredCarePlanFormIds,
+      deliveredCarePlanDetails,
+      extraCareNotes,
       actualStartDateTime,
       actualEndDateTime,
     }: {
@@ -45,6 +47,8 @@ export function useCompleteHousekeepingJob() {
       status?: string
       notes?: string
       deliveredCarePlanFormIds?: string[]
+      deliveredCarePlanDetails?: import('@/features/scheduling/types/visit-care-plan-delivery.types').DeliveredCarePlanDetail[]
+      extraCareNotes?: string
       actualStartDateTime?: string
       actualEndDateTime?: string
     }) =>
@@ -52,6 +56,8 @@ export function useCompleteHousekeepingJob() {
         status,
         notes,
         deliveredCarePlanFormIds,
+        deliveredCarePlanDetails,
+        extraCareNotes,
         actualStartDateTime,
         actualEndDateTime,
       }),

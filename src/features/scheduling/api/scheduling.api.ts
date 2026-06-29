@@ -1,6 +1,10 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type { CancelHousekeepingJobPayload } from '@/features/scheduling/utils/visit-cancellation.constants'
 import type {
+  CarePlanDeliveryTasksResponse,
+  DeliveredCarePlanDetail,
+} from '@/features/scheduling/types/visit-care-plan-delivery.types'
+import type {
   CallOffVisitRow,
   DateRangeQuery,
   EmployeesDayTimelineResponse,
@@ -158,12 +162,32 @@ export async function getHousekeepingDayJobs(date: string, params: Record<string
   return { date: res.data?.date ?? date, jobs: res.data?.jobs ?? [], meta: res.meta as PaginationMeta | undefined }
 }
 
+export async function fetchCarePlanDeliveryTasks(
+  jobId: string,
+  formIds: string[],
+  options?: { signal?: AbortSignal },
+): Promise<CarePlanDeliveryTasksResponse> {
+  const query = formIds.length ? buildQuery({ formIds: formIds.join(',') }) : ''
+  const res = await apiJson<ApiEnvelope<CarePlanDeliveryTasksResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/care-plan-delivery-tasks${query}`,
+    { method: 'GET', signal: options?.signal },
+  )
+  return (
+    res.data ?? {
+      linkedCarePlanFormIds: [],
+      plans: [],
+    }
+  )
+}
+
 export async function completeHousekeepingJob(
   id: string,
   payload?: {
     status?: string
     notes?: string
     deliveredCarePlanFormIds?: string[]
+    deliveredCarePlanDetails?: DeliveredCarePlanDetail[]
+    extraCareNotes?: string
     actualStartDateTime?: string
     actualEndDateTime?: string
   },
@@ -174,6 +198,10 @@ export async function completeHousekeepingJob(
   if (payload?.deliveredCarePlanFormIds?.length) {
     body.deliveredCarePlanFormIds = payload.deliveredCarePlanFormIds
   }
+  if (payload?.deliveredCarePlanDetails?.length) {
+    body.deliveredCarePlanDetails = payload.deliveredCarePlanDetails
+  }
+  if (payload?.extraCareNotes?.trim()) body.extraCareNotes = payload.extraCareNotes.trim()
   if (payload?.actualStartDateTime) body.actualStartDateTime = payload.actualStartDateTime
   if (payload?.actualEndDateTime) body.actualEndDateTime = payload.actualEndDateTime
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {

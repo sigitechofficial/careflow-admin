@@ -25,7 +25,8 @@ import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessm
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { useCompleteHousekeepingJob } from '@/features/scheduling/hooks/useSchedulingMutations'
 import { ScheduleJobCompleteCarerSection } from '@/features/scheduling/components/ScheduleJobCompleteCarerSection'
-import { ScheduleJobDeliveredCarePlans } from '@/features/scheduling/components/ScheduleJobDeliveredCarePlans'
+import { ScheduleJobDeliveredCarePlanDetails } from '@/features/scheduling/components/ScheduleJobDeliveredCarePlanDetails'
+import type { DeliveredCarePlanDetail } from '@/features/scheduling/types/visit-care-plan-delivery.types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import {
   carePlanOptionsForScheduleJob,
@@ -70,6 +71,8 @@ export function ScheduleJobCompleteDialog({
   const completeJob = useCompleteHousekeepingJob()
   const [notes, setNotes] = React.useState('')
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
+  const [deliveredDetails, setDeliveredDetails] = React.useState<DeliveredCarePlanDetail[]>([])
+  const [extraCareNotes, setExtraCareNotes] = React.useState('')
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
   const [actualEndTime, setActualEndTime] = React.useState('')
@@ -108,6 +111,8 @@ export function ScheduleJobCompleteDialog({
     if (!open || !job) return
     setNotes(job.notes?.trim() ?? '')
     setDeliveredIds([])
+    setDeliveredDetails([])
+    setExtraCareNotes('')
     setVisitStatus(defaultScheduleJobVisitOutcome(job))
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
@@ -151,10 +156,15 @@ export function ScheduleJobCompleteDialog({
       toastWarning('Enter visit times', 'Actual start and end times are required for this visit status.')
       return
     }
-    if (requiresCarePlans && deliveredIds.length === 0) {
+    if (
+      requiresCarePlans &&
+      deliveredIds.length === 0 &&
+      !notes.trim() &&
+      !extraCareNotes.trim()
+    ) {
       toastWarning(
         'Select care plans',
-        'Tick at least one care plan delivered on this visit, or add a note explaining why none apply.',
+        'Tick at least one care plan delivered on this visit, or add visit or extra care notes explaining why none apply.',
       )
       return
     }
@@ -164,6 +174,8 @@ export function ScheduleJobCompleteDialog({
         status: visitStatus,
         notes: notes.trim() || undefined,
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
+        deliveredCarePlanDetails: requiresCarePlans && deliveredDetails.length ? deliveredDetails : undefined,
+        extraCareNotes: extraCareNotes.trim() || undefined,
         actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
         actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
       })
@@ -284,21 +296,26 @@ export function ScheduleJobCompleteDialog({
             <section className="space-y-2">
               <Label className="text-sm font-semibold text-foreground">Care plans delivered</Label>
               <p className="text-xs text-muted-foreground">
-                Select which accepted care plans were delivered on this visit.
+                Select care plans delivered on this visit, then expand each plan to record what was
+                given, skipped, or provided as extra care.
               </p>
               {acceptedQuery.isLoading ? (
                 <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading care plans…
                 </div>
-              ) : (
-                <ScheduleJobDeliveredCarePlans
+              ) : job ? (
+                <ScheduleJobDeliveredCarePlanDetails
+                  jobId={job.id}
                   options={carePlanOptions}
-                  selectedIds={deliveredIds}
+                  defaultSelectedFormIds={deliveredIds}
                   disabled={busy}
-                  onChange={setDeliveredIds}
+                  extraCareNotes={extraCareNotes}
+                  onExtraCareNotesChange={setExtraCareNotes}
+                  onDeliveredFormIdsChange={setDeliveredIds}
+                  onDetailsChange={setDeliveredDetails}
                 />
-              )}
+              ) : null}
             </section>
           ) : null}
 
