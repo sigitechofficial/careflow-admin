@@ -30,7 +30,7 @@ import type { Permission } from '@/features/auth/types'
 
 // ΓöÇΓöÇ Service-user pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ServiceUsersPage from '@/features/service-users/pages/ServiceUsersPage'
-import InitialAssessmentChecklistPage from '@/features/service-users/pages/InitialAssessmentChecklistPage'
+// import InitialAssessmentChecklistPage from '@/features/service-users/pages/InitialAssessmentChecklistPage'
 import ServiceUserInitialAssessmentEnterprisePage from '@/features/service-users/initial-assessment/pages/ServiceUserInitialAssessmentEnterprisePage'
 import { validateInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
 import AddServiceUserPage from '@/features/service-users/pages/AddServiceUserPage'
@@ -112,8 +112,8 @@ import {
   prefetchEmployeeDocumentsRoute,
   prefetchEmployeeEditRoute,
   prefetchEmployeeTab,
-  prefetchInitialAssessmentChecklist,
   prefetchInitialAssessmentEnterprise,
+  // prefetchInitialAssessmentChecklist,
   prefetchLocationManagement,
   prefetchSchedulingBuild,
   prefetchSchedulingJobs,
@@ -148,7 +148,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/all': 'Service Users',
   '/service-users/calendar': 'Calendar',
   '/service-users/initial-assessment': 'Initial Assessment',
-  '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
+  // '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
   '/service-users/add': 'Add Service User',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
@@ -431,6 +431,7 @@ const serviceUsersInitialAssessmentEnterpriseRoute = createRoute({
   component: ServiceUserInitialAssessmentEnterprisePage,
 })
 
+/*
 const serviceUsersInitialAssessmentRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/initial-assessment-checklist',
@@ -451,6 +452,7 @@ const serviceUsersInitialAssessmentRoute = createRoute({
   },
   component: InitialAssessmentChecklistPage,
 })
+*/
 
 const serviceUsersAddRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -1140,7 +1142,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersAllRoute,
     serviceUsersCalendarRoute,
     serviceUsersInitialAssessmentEnterpriseRoute,
-    serviceUsersInitialAssessmentRoute,
+    // serviceUsersInitialAssessmentRoute,
     serviceUsersAddRoute,
     serviceUsersViewRoute,
     serviceUsersMedicationRoute,

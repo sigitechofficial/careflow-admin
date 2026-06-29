@@ -214,7 +214,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
-const LEGACY_PATH = '/service-users/initial-assessment-checklist'
+// const LEGACY_PATH = '/service-users/initial-assessment-checklist'
 
 const EDITABLE: InitialAssessmentStatus[] = ['DRAFT', 'IN_PROGRESS']
 const AUTOSAVE_MS = 400
@@ -1922,11 +1922,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                   </Button>
                 </>
               ) : null}
+              {/* Legacy checklist — retired in favour of enterprise initial assessment
               <Button type="button" size="sm" variant="outline" asChild>
                 <Link to={LEGACY_PATH} search={{ serviceUserId: selectedId }}>
                   Legacy checklist
                 </Link>
               </Button>
+              */}
             </div>
             {selectedId && canUpdate ? (
               <>

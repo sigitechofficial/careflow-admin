@@ -20,6 +20,8 @@ import {
   filterTimelineJobsByLocation,
 } from '@/features/scheduling/utils/schedule-jobs-location-filter.util'
 import {
+  buildCarersOverContract,
+  buildServiceUsersOverPackage,
   mergedExcessWeeklyContractedJobIds,
   scheduleWeekStartIso,
   summarizeWeeklyContractUsage,
@@ -28,7 +30,7 @@ import { useVisitPlanContractByServiceUser, useAcceptedCarePlansByServiceUser } 
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { resolveTimeBetweenJobsBufferMinutes } from '@/features/scheduling/utils/schedule-job-travel-buffer.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { visitPlanWeeklyPlannedMinutes } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
+import { buildEmployeeNameMap } from '@/features/employees/lib/employee-display-name'
 import {
   buildScheduleJobsBoard,
   jobRequiredCarerMinutes,
@@ -306,6 +308,29 @@ export function useScheduleJobsBoardData({
     () => resolveTimeBetweenJobsBufferMinutes(generalSettingsQuery.data?.domCareAllocationRules),
     [generalSettingsQuery.data?.domCareAllocationRules],
   )
+  const weekJobs = React.useMemo(
+    () => filterTimelineJobsByLocation(
+      weekTimelineQuery.data?.serviceUsers.flatMap((row) => row.jobs) ?? [],
+      locationFilterIds,
+    ),
+    [weekTimelineQuery.data, locationFilterIds],
+  )
+  const contractedWeeklyHoursByEmployee = React.useMemo(() => {
+    const map = new Map<string, number>()
+    const setIfPresent = (employee: { id: string; contractedWeeklyHours?: number | null }) => {
+      const hours = employee.contractedWeeklyHours
+      if (hours != null && hours > 0) map.set(employee.id, Number(hours))
+    }
+    for (const row of employees) {
+      setIfPresent(row.employee)
+    }
+    for (const job of weekJobs) {
+      for (const allocation of job.allocations ?? []) {
+        if (allocation.employee?.id) setIfPresent(allocation.employee)
+      }
+    }
+    return map
+  }, [employees, weekJobs])
   const contractedHoursByServiceUser = React.useMemo(() => {
     const map = new Map<string, number>()
     for (const [serviceUserId, context] of visitPlanContractByServiceUser) {
@@ -313,12 +338,9 @@ export function useScheduleJobsBoardData({
     }
     return map
   }, [visitPlanContractByServiceUser])
-  const weekJobs = React.useMemo(
-    () => filterTimelineJobsByLocation(
-      weekTimelineQuery.data?.serviceUsers.flatMap((row) => row.jobs) ?? [],
-      locationFilterIds,
-    ),
-    [weekTimelineQuery.data, locationFilterIds],
+  const employeeNameById = React.useMemo(
+    () => buildEmployeeNameMap(employeeCatalogQuery.employees),
+    [employeeCatalogQuery.employees],
   )
   const excessContractedJobIds = React.useMemo(
     () =>
@@ -337,23 +359,14 @@ export function useScheduleJobsBoardData({
       date,
     ],
   )
-  const callPatternOverContract = React.useMemo(() => {
-    return [...visitPlanContractByServiceUser.entries()]
-      .map(([serviceUserId, context]) => {
-        const plannedMinutes = visitPlanWeeklyPlannedMinutes(context.slots, { anchorIso: date })
-        const contractedHours = context.contractedHours
-        if (contractedHours == null || contractedHours <= 0) return null
-        const contractedMinutes = Math.round(contractedHours * 60)
-        if (plannedMinutes <= contractedMinutes) return null
-        return {
-          serviceUserId,
-          plannedMinutes,
-          contractedHours,
-          excessMinutes: plannedMinutes - contractedMinutes,
-        }
-      })
-      .filter((row): row is NonNullable<typeof row> => row != null)
-  }, [visitPlanContractByServiceUser, date])
+  const serviceUsersOverPackage = React.useMemo(
+    () => buildServiceUsersOverPackage(weekJobs, contractedHoursByServiceUser),
+    [weekJobs, contractedHoursByServiceUser],
+  )
+  const carersOverContract = React.useMemo(
+    () => buildCarersOverContract(weekJobs, contractedWeeklyHoursByEmployee),
+    [weekJobs, contractedWeeklyHoursByEmployee],
+  )
   const excessContractedOnDay = React.useMemo(
     () => allJobs.filter((job) => excessContractedJobIds.has(job.id)).length,
     [allJobs, excessContractedJobIds],
@@ -435,7 +448,9 @@ export function useScheduleJobsBoardData({
     weekJobs,
     excessContractedJobIds,
     overAllocatedJobIds,
-    callPatternOverContract,
+    serviceUsersOverPackage,
+    carersOverContract,
+    employeeNameById,
     excessContractedOnDay,
     weeklyContractSummary,
     requiredMinutes,

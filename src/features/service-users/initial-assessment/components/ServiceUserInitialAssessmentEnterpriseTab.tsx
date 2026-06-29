@@ -12,7 +12,7 @@ import type { InitialAssessmentStatus } from '@/features/service-users/initial-a
 import { formatInitialAssessmentDateTime } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
-const LEGACY_PATH = '/service-users/initial-assessment-checklist'
+// const LEGACY_PATH = '/service-users/initial-assessment-checklist'
 
 const EDITABLE: InitialAssessmentStatus[] = ['DRAFT', 'IN_PROGRESS']
 
@@ -86,11 +86,13 @@ export function ServiceUserInitialAssessmentEnterpriseTab({ serviceUserId, displ
               Start new draft
             </Button>
           ) : null}
+          {/* Legacy checklist — retired in favour of enterprise initial assessment
           <Button type="button" size="sm" variant="outline" asChild>
             <Link to={LEGACY_PATH} search={{ serviceUserId }}>
               Legacy checklist (migration)
             </Link>
           </Button>
+          */}
         </div>
       </div>
 

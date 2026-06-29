@@ -167,6 +167,7 @@ export type Permission =
   | 'permissions.manage'
   | 'audit.read'
   | 'audit_logs.read'
+  | 'audit_logs.delete'
   | 'incidents.read'
   | 'incidents.write'
   | 'security.admin'

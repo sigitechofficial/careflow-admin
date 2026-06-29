@@ -1,9 +1,20 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Loader2, FileText } from 'lucide-react'
+import { Loader2, FileText, Trash2 } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -11,7 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { useAuditLogs } from '@/features/audit/hooks/useAuditLogs'
+import { useAuditLogs, auditLogKeys } from '@/features/audit/hooks/useAuditLogs'
+import { clearAuditLogs } from '@/features/audit/api/audit-logs.api'
+import { useAuthStore } from '@/features/auth/store'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   auditActorLabel,
   auditItemHref,
@@ -35,6 +49,9 @@ function formatWhen(iso: string): string {
 }
 
 export default function AuditLogPage() {
+  const canClearLog = useAuthStore(s => s.can('audit_logs.delete'))
+  const queryClient = useQueryClient()
+  const [clearOpen, setClearOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [ipFilter, setIpFilter] = React.useState('')
@@ -98,6 +115,24 @@ export default function AuditLogPage() {
   const rows = query.data?.rows ?? []
   const meta = query.data?.meta
 
+  const clearMutation = useMutation({
+    mutationFn: clearAuditLogs,
+    onSuccess: result => {
+      setClearOpen(false)
+      setPage(1)
+      void queryClient.invalidateQueries({ queryKey: auditLogKeys.all })
+      toastSuccess(
+        'Audit log cleared',
+        result.deletedCount > 0
+          ? `${result.deletedCount} entries removed.`
+          : 'The audit log was already empty.',
+      )
+    },
+    onError: e => {
+      toastApiError(e, 'Could not clear audit log')
+    },
+  })
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -109,7 +144,60 @@ export default function AuditLogPage() {
           { label: 'Admin' },
           { label: 'Audit' },
         ]}
-      />
+      >
+        {canClearLog ? (
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={clearMutation.isPending || query.isLoading}
+            onClick={() => setClearOpen(true)}
+          >
+            {clearMutation.isPending ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden />
+            )}
+            Clear log
+          </Button>
+        ) : null}
+      </PageHeader>
+
+      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear audit log?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left text-sm text-muted-foreground">
+                <p>
+                  This permanently deletes every entry in the audit log
+                  {meta?.total != null ? (
+                    <>
+                      {' '}
+                      (<strong className="text-foreground">{meta.total}</strong> matching the current
+                      filters is shown; all entries are removed)
+                    </>
+                  ) : (
+                    ''
+                  )}
+                  .
+                </p>
+                <p>This cannot be undone.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={clearMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void clearMutation.mutate()}
+            >
+              {clearMutation.isPending ? 'Clearing…' : 'Clear log'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
         <div className="flex flex-wrap items-end gap-2">

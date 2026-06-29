@@ -53,3 +53,11 @@ export function handleScheduleJobHoverWheel(event: WheelEvent) {
 
 /** @deprecated Use handleScheduleJobHoverWheel */
 export const handleScheduleJobsOverlayWheel = handleScheduleJobHoverWheel
+
+/** Scroll the schedule jobs board so a gantt row is visible. */
+export function scrollScheduleJobsBoardToRow(rowKey: string): void {
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`[data-schedule-row-id="${rowKey}"]`)
+    row?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  })
+}

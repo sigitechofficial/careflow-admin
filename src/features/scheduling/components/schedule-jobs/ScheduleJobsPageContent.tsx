@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ScheduleJobAllocateDialog } from '@/features/scheduling/components/ScheduleJobAllocateDialog'
 import { ScheduleJobNotesDialog } from '@/features/scheduling/components/ScheduleJobNotesDialog'
@@ -22,6 +23,8 @@ import { useScheduleJobsBoardData } from '@/features/scheduling/hooks/useSchedul
 import { useScheduleJobsPageActions } from '@/features/scheduling/hooks/useScheduleJobsPageActions'
 import { useScheduleJobsPageDialogs } from '@/features/scheduling/hooks/useScheduleJobsPageDialogs'
 import { useScheduleJobsUrlState } from '@/features/scheduling/hooks/useScheduleJobsUrlState'
+import { scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import { scrollScheduleJobsBoardToRow } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
 import { shiftIsoDate } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 
@@ -81,6 +84,29 @@ export function ScheduleJobsPageContent() {
   const completeJob = dialogs.completeJobTarget
     ? board.allJobs.find((job) => job.id === dialogs.completeJobTarget?.id) ?? dialogs.completeJobTarget
     : null
+
+  const handleViewServiceUserOverAllocationVisits = React.useCallback(
+    (serviceUserId: string) => {
+      url.setScheduleServiceUserFilter([serviceUserId])
+      if (url.rowAxis !== 'service-users') {
+        url.setScheduleRowAxis('service-users')
+      }
+      scrollScheduleJobsBoardToRow(
+        scheduleJobsRowKey({ kind: 'service-user', serviceUserId }),
+      )
+    },
+    [url],
+  )
+
+  const handleViewCarerOverAllocationVisits = React.useCallback(
+    (employeeId: string) => {
+      if (url.rowAxis !== 'carers') {
+        url.setScheduleRowAxis('carers')
+      }
+      scrollScheduleJobsBoardToRow(scheduleJobsRowKey({ kind: 'carer', employeeId }))
+    },
+    [url],
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 md:p-5">
@@ -150,9 +176,13 @@ export function ScheduleJobsPageContent() {
             boardJobs={board.board.allJobs}
           />
           <ScheduleJobsCallPatternContractBanner
-            rows={board.callPatternOverContract}
+            serviceUserRows={board.serviceUsersOverPackage}
+            carerRows={board.carersOverContract}
             allJobs={board.allJobs}
             weekJobs={board.weekJobs}
+            employeeNameById={board.employeeNameById}
+            onViewServiceUserVisits={handleViewServiceUserOverAllocationVisits}
+            onViewCarerVisits={handleViewCarerOverAllocationVisits}
           />
           <ScheduleJobsBulkRotaHint />
         </>

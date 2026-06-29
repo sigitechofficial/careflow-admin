@@ -101,6 +101,13 @@ export async function listAuditLogs(
   }
 }
 
+export async function clearAuditLogs(): Promise<{ deletedCount: number }> {
+  const res = await apiJson<ApiEnvelope<{ deletedCount: number }>>('/audit-logs', {
+    method: 'DELETE',
+  })
+  return res.data ?? { deletedCount: 0 }
+}
+
 export async function listServiceUserMedicationActivity(
   serviceUserId: string,
   params: { page?: number; limit?: number } = {},

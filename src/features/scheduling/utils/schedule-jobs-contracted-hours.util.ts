@@ -61,6 +61,81 @@ export function weeklyBookedMinutesByServiceUser(jobs: TimelineJob[]): Map<strin
   return totals
 }
 
+export function weeklyBookedMinutesByEmployee(jobs: TimelineJob[]): Map<string, number> {
+  const totals = new Map<string, number>()
+  for (const job of jobs) {
+    const minutes = jobDurationMinutes(job)
+    for (const allocation of job.allocations ?? []) {
+      const employeeId = allocation.employee?.id
+      if (!employeeId) continue
+      totals.set(employeeId, (totals.get(employeeId) ?? 0) + minutes)
+    }
+  }
+  return totals
+}
+
+export type ServiceUserOverPackageRow = {
+  serviceUserId: string
+  scheduledMinutes: number
+  packageMinutes: number
+  excessMinutes: number
+}
+
+export type CarerOverContractRow = {
+  employeeId: string
+  scheduledMinutes: number
+  contractMinutes: number
+  excessMinutes: number
+}
+
+/** Service users with more visit time booked this week than their funded package hours. */
+export function buildServiceUsersOverPackage(
+  jobs: TimelineJob[],
+  contractedHoursByServiceUserId: Map<string, number>,
+): ServiceUserOverPackageRow[] {
+  const bookedByServiceUser = weeklyBookedMinutesByServiceUser(jobs)
+  const rows: ServiceUserOverPackageRow[] = []
+
+  for (const [serviceUserId, scheduledMinutes] of bookedByServiceUser) {
+    const contractedHours = contractedHoursByServiceUserId.get(serviceUserId)
+    if (contractedHours == null || contractedHours <= 0) continue
+    const packageMinutes = Math.round(contractedHours * 60)
+    if (scheduledMinutes <= packageMinutes) continue
+    rows.push({
+      serviceUserId,
+      scheduledMinutes,
+      packageMinutes,
+      excessMinutes: scheduledMinutes - packageMinutes,
+    })
+  }
+
+  return rows.sort((a, b) => b.excessMinutes - a.excessMinutes)
+}
+
+/** Carers with more visit time booked this week than their contracted weekly hours. */
+export function buildCarersOverContract(
+  jobs: TimelineJob[],
+  contractedWeeklyHoursByEmployeeId: Map<string, number>,
+): CarerOverContractRow[] {
+  const bookedByEmployee = weeklyBookedMinutesByEmployee(jobs)
+  const rows: CarerOverContractRow[] = []
+
+  for (const [employeeId, scheduledMinutes] of bookedByEmployee) {
+    const contractedHours = contractedWeeklyHoursByEmployeeId.get(employeeId)
+    if (contractedHours == null || contractedHours <= 0) continue
+    const contractMinutes = Math.round(contractedHours * 60)
+    if (scheduledMinutes <= contractMinutes) continue
+    rows.push({
+      employeeId,
+      scheduledMinutes,
+      contractMinutes,
+      excessMinutes: scheduledMinutes - contractMinutes,
+    })
+  }
+
+  return rows.sort((a, b) => b.excessMinutes - a.excessMinutes)
+}
+
 export type WeeklyContractSummary = {
   contractedMinutes: number
   bookedVisitMinutes: number
