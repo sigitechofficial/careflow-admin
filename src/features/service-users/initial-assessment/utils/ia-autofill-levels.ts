@@ -47,7 +47,7 @@ export const IA_AUTOFILL_LEVELS: IaAutofillLevelUi[] = [
 ]
 
 export const IA_PLAYWRIGHT_TESTS_BUTTON_TOOLTIP =
-  'Run server-side Playwright autofill for this service user — choose Very critical, Moderate, or Stable to match their condition.'
+  'Run server-side autofill for this service user — choose Very critical, Moderate, or Stable to match their condition.'
 
 export function iaAutofillLevelUi(level: IaAutofillLevel): IaAutofillLevelUi {
   const row = IA_AUTOFILL_LEVELS.find((x) => x.level === level)
