@@ -16,7 +16,10 @@ import {
 } from '@/shared/ui/select'
 import { ServiceUserInitialAssessmentTab } from '@/features/service-users/components/ServiceUserInitialAssessmentTab'
 
-const CHECKLIST_PATH = '/service-users/initial-assessment-checklist'
+import { buildInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
+
+/** Active route (legacy `/service-users/initial-assessment-checklist` is disabled in router). */
+const ASSESSMENT_PATH = '/service-users/initial-assessment' as const
 
 function customerLabel(row: ServiceUserListRow): string {
   const name = row.preferredName?.trim() || [row.firstName, row.lastName].filter(Boolean).join(' ')
@@ -40,7 +43,7 @@ export default function InitialAssessmentChecklistPage() {
   const navigate = useNavigate()
   const selectedId = useRouterState({
     select: s =>
-      s.location.pathname === CHECKLIST_PATH ? serviceUserIdFromSearch(s.location.search) : '',
+      s.location.pathname === ASSESSMENT_PATH ? serviceUserIdFromSearch(s.location.search) : '',
   })
   const can = useAuthStore(s => s.can)
   const canRead = can('service_users.initial_assessment.read') || can('service_users.read')
@@ -63,8 +66,8 @@ export default function InitialAssessmentChecklistPage() {
 
   const onCustomerChange = (id: string) => {
     void navigate({
-      to: CHECKLIST_PATH,
-      search: id ? { serviceUserId: id } : {},
+      to: ASSESSMENT_PATH,
+      search: buildInitialAssessmentEnterpriseSearch(id ? { serviceUserId: id } : {}),
       replace: true,
     })
   }
@@ -93,7 +96,10 @@ export default function InitialAssessmentChecklistPage() {
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
         <strong>Legacy checklist.</strong> Use the{' '}
         <Button variant="link" className="h-auto p-0 text-amber-950 underline dark:text-amber-100" asChild>
-          <Link to="/service-users/initial-assessment" search={selectedId ? { serviceUserId: selectedId } : {}}>
+          <Link
+            to={ASSESSMENT_PATH}
+            search={buildInitialAssessmentEnterpriseSearch(selectedId ? { serviceUserId: selectedId } : {})}
+          >
             enterprise initial assessment
           </Link>
         </Button>{' '}
