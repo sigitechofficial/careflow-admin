@@ -1705,7 +1705,6 @@ export type CreateServiceUserPayload = {
     referenceValue: string
     notes?: string
   }>
-  address?: PatchServiceUserAddressPayload
 }
 
 export async function createServiceUser(body: CreateServiceUserPayload): Promise<{ id: string }> {
@@ -1713,7 +1712,7 @@ export async function createServiceUser(body: CreateServiceUserPayload): Promise
     method: 'POST',
     body: JSON.stringify(body),
   })
-  return res.data
+  return res.data!
 }
 
 export async function patchServiceUserAddress(

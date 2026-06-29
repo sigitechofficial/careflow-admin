@@ -78,13 +78,11 @@ export function useCreateServiceUser() {
       payload: CreateServiceUserPayload
       address?: PatchServiceUserAddressPayload
     }) => {
-      const address = args.address
-        ? await ensureServiceUserAddressCoordinates(args.address)
-        : undefined
-      const { id } = await createServiceUser({
-        ...args.payload,
-        ...(address ? { address } : {}),
-      })
+      const { id } = await createServiceUser(args.payload)
+      if (args.address) {
+        const address = await ensureServiceUserAddressCoordinates(args.address)
+        await patchServiceUserAddress(id, address)
+      }
       return { id }
     },
     onSuccess: () => {
