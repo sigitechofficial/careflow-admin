@@ -31,6 +31,8 @@ export const settingsKeys = {
 
   allergyCatalog: () => [...settingsKeys.all(), 'allergy-catalog'] as const,
 
+  taskCatalogue: () => [...settingsKeys.all(), 'task-catalogue'] as const,
+
   vitalAcceptedRanges: () => [...settingsKeys.all(), 'vital-accepted-ranges'] as const,
 
   locationTree: () => [...settingsKeys.all(), 'location-management', 'tree'] as const,

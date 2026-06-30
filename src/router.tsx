@@ -40,6 +40,7 @@ import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUse
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
+import ServiceUserTasksPlannerPage from '@/features/service-users/pages/ServiceUserTasksPlannerPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
 import ServiceUserDocumentsModulePage from '@/features/service-users/pages/ServiceUserDocumentsModulePage'
@@ -203,6 +204,7 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'funding-types',
   'record-types',
   'allergies',
+  'tasks-planner',
 ]
 
 const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [
@@ -259,6 +261,8 @@ function AppRootShell() {
               ? 'Care Plan'
             : /^\/service-users\/[^/]+\/visit-plan$/.test(pathname)
               ? 'Visit Plan'
+            : /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname)
+              ? 'Tasks Planner'
             : /^\/service-users\/[^/]+$/.test(pathname)
             ? 'Edit Service User'
             : companyDisplayName?.trim() || 'CareAdmin')
@@ -274,6 +278,7 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/documents$/.test(pathname) ||
     /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
     /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
   const employeeManagementWide =
     /^\/employee(?:\/(?:staff-list|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
@@ -568,6 +573,16 @@ const serviceUsersCarePlanFormRoute = createRoute({
     prefetchServiceUserCarePlanFormRoute(qc, serviceUserId, formId)
   },
   component: ServiceUserCarePlanFormPage,
+})
+
+const serviceUsersTasksPlannerRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/tasks-planner',
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserProfile(qc, serviceUserId)
+  },
+  component: ServiceUserTasksPlannerPage,
 })
 
 const serviceUsersVisitPlanRoute = createRoute({
@@ -1148,6 +1163,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersMedicationRoute,
     serviceUsersCarePlanRoute,
     serviceUsersCarePlanFormRoute,
+    serviceUsersTasksPlannerRoute,
     serviceUsersVisitPlanRoute,
     serviceUsersObservationsRoute,
     serviceUsersBodyMapRoute,

@@ -41,6 +41,16 @@ export function scheduleJobVisitOutcomeRequiresCarePlans(
   return status === 'COMPLETED' || status === 'PARTIALLY_COMPLETED'
 }
 
+export function scheduleJobVisitOutcomeShowsVisitTasks(
+  status: VisitPlanCalendarOutcomeStatus,
+): boolean {
+  return (
+    status === 'COMPLETED' ||
+    status === 'PARTIALLY_COMPLETED' ||
+    status === 'STARTED'
+  )
+}
+
 export function scheduleJobVisitOutcomeSaveLabel(status: VisitPlanCalendarOutcomeStatus): string {
   switch (status) {
     case 'COMPLETED':

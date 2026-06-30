@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   CheckCircle2,
+  CheckSquare,
   Clock,
   ExternalLink,
   MapPin,
@@ -16,6 +17,7 @@ import { BodyMapHandoverPreview } from '@/features/service-users/body-map/compon
 import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { VisitBodyMapCapture } from '@/features/scheduling/components/VisitBodyMapCapture'
+import { VisitJobTasksPanel } from '@/features/scheduling/components/VisitJobTasksPanel'
 import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedicationPanel'
 import {
   buildScheduleVisitContext,
@@ -29,7 +31,7 @@ import {
 } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 
-export type ScheduleVisitWorkspaceTab = 'overview' | 'body-map' | 'medication'
+export type ScheduleVisitWorkspaceTab = 'overview' | 'tasks' | 'body-map' | 'medication'
 
 type Props = {
   job: TimelineJob
@@ -76,6 +78,7 @@ export function ScheduleVisitWorkspaceContent({
         {(
           [
             ['overview', 'Overview'],
+            ['tasks', 'Tasks'],
             ['medication', 'Medication'],
             ['body-map', 'Body map'],
           ] as const
@@ -136,6 +139,10 @@ export function ScheduleVisitWorkspaceContent({
                   Open full body map
                 </Link>
               </Button>
+              <Button type="button" variant="outline" className="justify-start" onClick={() => setTab('tasks')}>
+                <CheckSquare className="mr-2 h-4 w-4" aria-hidden />
+                Visit tasks checklist
+              </Button>
               <Button type="button" variant="outline" className="justify-start" onClick={() => setTab('medication')}>
                 <Pill className="mr-2 h-4 w-4" aria-hidden />
                 Medication &amp; blister pack
@@ -181,6 +188,10 @@ export function ScheduleVisitWorkspaceContent({
               </Button>
             </div>
           </section>
+        </div>
+      ) : tab === 'tasks' ? (
+        <div className="min-h-0 overflow-y-auto">
+          <VisitJobTasksPanel jobId={job.id} />
         </div>
       ) : tab === 'medication' ? (
         <div className="min-h-0 overflow-y-auto">

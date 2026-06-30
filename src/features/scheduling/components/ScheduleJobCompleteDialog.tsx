@@ -25,9 +25,15 @@ import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessm
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { useCompleteHousekeepingJob } from '@/features/scheduling/hooks/useSchedulingMutations'
 import { ScheduleJobCompleteCarerSection } from '@/features/scheduling/components/ScheduleJobCompleteCarerSection'
-import { ScheduleJobDeliveredCarePlanDetails } from '@/features/scheduling/components/ScheduleJobDeliveredCarePlanDetails'
-import type { DeliveredCarePlanDetail } from '@/features/scheduling/types/visit-care-plan-delivery.types'
+import { ScheduleJobDeliveredCarePlans } from '@/features/scheduling/components/ScheduleJobDeliveredCarePlans'
+import { VisitJobTasksChecklist } from '@/features/scheduling/components/VisitJobTasksChecklist'
+import { VisitJobExtraTaskPicker } from '@/features/scheduling/components/VisitJobExtraTaskPicker'
+import { fetchVisitJobTasks, saveVisitJobTasks } from '@/features/scheduling/api/scheduling.api'
+import { fetchTaskCatalogue } from '@/features/service-users/visit-tasks/api'
+import type { VisitJobTaskRow } from '@/features/scheduling/types/visit-job-tasks.types'
+import { validateVisitJobTasks } from '@/features/scheduling/types/visit-job-tasks.types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { formatMedicationRoundWindow } from '@/features/service-users/medication/medication-time-slots'
 import {
   carePlanOptionsForScheduleJob,
   defaultDeliveredCarePlanIds,
@@ -50,8 +56,12 @@ import {
   scheduleJobVisitOutcomeRequiresCarePlans,
   scheduleJobVisitOutcomeRequiresTimes,
   scheduleJobVisitOutcomeSaveLabel,
+  scheduleJobVisitOutcomeShowsVisitTasks,
 } from '@/features/scheduling/utils/schedule-job-visit-outcome.util'
 import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
+
+/** Re-enable when care-plan delivery checkboxes return to Record visit. */
+const SHOW_DELIVERED_CARE_PLANS = false
 
 type Props = {
   open: boolean
@@ -71,18 +81,31 @@ export function ScheduleJobCompleteDialog({
   const completeJob = useCompleteHousekeepingJob()
   const [notes, setNotes] = React.useState('')
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
-  const [deliveredDetails, setDeliveredDetails] = React.useState<DeliveredCarePlanDetail[]>([])
-  const [extraCareNotes, setExtraCareNotes] = React.useState('')
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
   const [actualEndTime, setActualEndTime] = React.useState('')
+  const [visitTasks, setVisitTasks] = React.useState<VisitJobTaskRow[]>([])
+
+  const visitTasksQuery = useQuery({
+    queryKey: job ? ['visit-job-tasks', job.id] : ['visit-job-tasks', 'none'],
+    queryFn: () => fetchVisitJobTasks(job!.id),
+    enabled: open && Boolean(job?.id),
+    staleTime: 15_000,
+  })
+
+  const taskCatalogueQuery = useQuery({
+    queryKey: ['task-catalogue'],
+    queryFn: fetchTaskCatalogue,
+    enabled: open,
+    staleTime: 60_000,
+  })
 
   const acceptedQuery = useQuery({
     queryKey: job
       ? initialAssessmentKeys.acceptedCarePlans(job.serviceUserId)
       : ['schedule-job-complete', 'no-su'],
     queryFn: () => fetchAcceptedCarePlans(job!.serviceUserId),
-    enabled: open && Boolean(job?.serviceUserId),
+    enabled: SHOW_DELIVERED_CARE_PLANS && open && Boolean(job?.serviceUserId),
     staleTime: 30_000,
   })
 
@@ -108,11 +131,15 @@ export function ScheduleJobCompleteDialog({
   }, [actualDateTimes])
 
   React.useEffect(() => {
+    if (!visitTasksQuery.data) return
+    setVisitTasks(visitTasksQuery.data.tasks)
+  }, [visitTasksQuery.data])
+
+  React.useEffect(() => {
     if (!open || !job) return
     setNotes(job.notes?.trim() ?? '')
     setDeliveredIds([])
-    setDeliveredDetails([])
-    setExtraCareNotes('')
+    setVisitTasks([])
     setVisitStatus(defaultScheduleJobVisitOutcome(job))
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
@@ -129,13 +156,70 @@ export function ScheduleJobCompleteDialog({
   }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits])
 
   React.useEffect(() => {
-    if (!open || !job || acceptedQuery.isLoading) return
+    if (!SHOW_DELIVERED_CARE_PLANS || !open || !job || acceptedQuery.isLoading) return
     setDeliveredIds(defaultDeliveredCarePlanIds(job, carePlanOptions))
   }, [open, job, acceptedQuery.isLoading, carePlanOptions])
 
   const requiresTimes = scheduleJobVisitOutcomeRequiresTimes(visitStatus)
-  const requiresCarePlans = scheduleJobVisitOutcomeRequiresCarePlans(visitStatus)
+  const requiresCarePlans = SHOW_DELIVERED_CARE_PLANS && scheduleJobVisitOutcomeRequiresCarePlans(visitStatus)
+  const showsVisitTasks = scheduleJobVisitOutcomeShowsVisitTasks(visitStatus)
   const saveLabel = scheduleJobVisitOutcomeSaveLabel(visitStatus)
+
+  const visitTasksRoundLabel = visitTasksQuery.data?.roundLabel
+  const visitTasksRoundWindow =
+    visitTasksQuery.data?.windowStart && visitTasksQuery.data?.windowEnd
+      ? `${visitTasksQuery.data.windowStart} – ${visitTasksQuery.data.windowEnd}`
+      : visitTasksQuery.data?.medicationRoundCode
+        ? formatMedicationRoundWindow({
+            id: visitTasksQuery.data.medicationRoundCode,
+            name: visitTasksRoundLabel ?? visitTasksQuery.data.medicationRoundCode,
+            code: visitTasksQuery.data.medicationRoundCode,
+            windowStart: visitTasksQuery.data.windowStart,
+            windowEnd: visitTasksQuery.data.windowEnd,
+          })
+        : null
+
+  const updateVisitTask = (
+    assignmentId: string,
+    patch: {
+      isCompleted?: boolean
+      recordedValue?: string | null
+      notes?: string | null
+    },
+  ) => {
+    setVisitTasks((prev) =>
+      prev.map((task) => (task.assignmentId === assignmentId ? { ...task, ...patch } : task)),
+    )
+  }
+
+  const removeExtraVisitTask = (assignmentId: string) => {
+    setVisitTasks((prev) => prev.filter((task) => task.assignmentId !== assignmentId))
+  }
+
+  const addExtraVisitTask = (task: VisitJobTaskRow) => {
+    setVisitTasks((prev) => {
+      if (prev.some((row) => row.taskCatalogueTaskId === task.taskCatalogueTaskId)) return prev
+      return [...prev, task]
+    })
+  }
+
+  const mapVisitTasksForSave = (tasks: VisitJobTaskRow[]) =>
+    tasks.map((task) =>
+      task.isExtra
+        ? {
+            taskCatalogueTaskId: task.taskCatalogueTaskId,
+            isExtra: true,
+            isCompleted: task.isCompleted,
+            recordedValue: task.recordedValue ?? undefined,
+            notes: task.notes ?? undefined,
+          }
+        : {
+            assignmentId: task.assignmentId,
+            isCompleted: task.isCompleted,
+            recordedValue: task.recordedValue ?? undefined,
+            notes: task.notes ?? undefined,
+          },
+    )
 
   const actualStartDateTime = React.useMemo(() => {
     if (!scheduleDateIso || !actualStartTime || !/^\d{2}:\d{2}$/.test(actualStartTime)) return undefined
@@ -156,26 +240,28 @@ export function ScheduleJobCompleteDialog({
       toastWarning('Enter visit times', 'Actual start and end times are required for this visit status.')
       return
     }
-    if (
-      requiresCarePlans &&
-      deliveredIds.length === 0 &&
-      !notes.trim() &&
-      !extraCareNotes.trim()
-    ) {
+    if (requiresCarePlans && deliveredIds.length === 0 && !notes.trim()) {
       toastWarning(
         'Select care plans',
-        'Tick at least one care plan delivered on this visit, or add visit or extra care notes explaining why none apply.',
+        'Tick at least one care plan delivered on this visit, or add a note explaining why none apply.',
       )
       return
     }
     try {
+      if (showsVisitTasks && visitTasksQuery.data?.medicationRoundCode && visitTasks.length > 0) {
+        const taskValidationError = validateVisitJobTasks(visitTasks)
+        if (taskValidationError) {
+          toastWarning('Complete task details', taskValidationError)
+          return
+        }
+        await saveVisitJobTasks(job.id, mapVisitTasksForSave(visitTasks))
+      }
+
       await completeJob.mutateAsync({
         jobId: job.id,
         status: visitStatus,
         notes: notes.trim() || undefined,
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
-        deliveredCarePlanDetails: requiresCarePlans && deliveredDetails.length ? deliveredDetails : undefined,
-        extraCareNotes: extraCareNotes.trim() || undefined,
         actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
         actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
       })
@@ -196,7 +282,7 @@ export function ScheduleJobCompleteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
+      <DialogContent size="xl">
         <DialogHeader>
           <DialogTitle>Record visit</DialogTitle>
           <DialogDescription>
@@ -210,7 +296,7 @@ export function ScheduleJobCompleteDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="max-h-[70vh] space-y-5 overflow-y-auto pe-1">
+        <DialogBody className="max-h-[78vh] space-y-5 overflow-y-auto pe-1">
           {job ? (
             <ScheduleJobCompleteCarerSection
               job={job}
@@ -292,30 +378,66 @@ export function ScheduleJobCompleteDialog({
             ) : null}
           </section>
 
+          {showsVisitTasks ? (
+            <section className="space-y-3">
+              <div>
+                <Label className="text-sm font-semibold text-foreground">Visit tasks</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tick each planned task that was completed on this visit. Unticked tasks remain
+                  outstanding. Use &quot;Extra task&quot; for work done that was not on the plan.
+                </p>
+              </div>
+              <VisitJobTasksChecklist
+                idPrefix="schedule-complete-visit-task"
+                tasks={visitTasks}
+                disabled={busy}
+                loading={visitTasksQuery.isLoading}
+                roundLabel={visitTasksRoundLabel}
+                roundWindow={visitTasksRoundWindow}
+                listMaxHeightClass="max-h-[min(32rem,55vh)]"
+                noRoundMessage={
+                  !visitTasksQuery.isLoading && !visitTasksQuery.data?.medicationRoundCode
+                    ? 'This visit is not linked to a visit-plan time slot. Link the job to a visit plan slot to show planned tasks.'
+                    : undefined
+                }
+                emptyMessage={
+                  visitTasksQuery.data?.medicationRoundCode
+                    ? `No tasks planned for ${visitTasksRoundLabel ?? 'this time slot'}. Add tasks in Tasks Planner on the service user profile, or record an extra task below.`
+                    : undefined
+                }
+                onTaskChange={updateVisitTask}
+                onRemoveExtra={removeExtraVisitTask}
+              />
+              {visitTasksQuery.data?.medicationRoundCode && taskCatalogueQuery.data ? (
+                <VisitJobExtraTaskPicker
+                  catalogue={taskCatalogueQuery.data}
+                  existingTasks={visitTasks}
+                  disabled={busy}
+                  onAdd={addExtraVisitTask}
+                />
+              ) : null}
+            </section>
+          ) : null}
+
           {requiresCarePlans ? (
             <section className="space-y-2">
               <Label className="text-sm font-semibold text-foreground">Care plans delivered</Label>
               <p className="text-xs text-muted-foreground">
-                Select care plans delivered on this visit, then expand each plan to record what was
-                given, skipped, or provided as extra care.
+                Select which accepted care plans were delivered on this visit.
               </p>
               {acceptedQuery.isLoading ? (
                 <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading care plans…
                 </div>
-              ) : job ? (
-                <ScheduleJobDeliveredCarePlanDetails
-                  jobId={job.id}
+              ) : (
+                <ScheduleJobDeliveredCarePlans
                   options={carePlanOptions}
-                  defaultSelectedFormIds={deliveredIds}
+                  selectedIds={deliveredIds}
                   disabled={busy}
-                  extraCareNotes={extraCareNotes}
-                  onExtraCareNotesChange={setExtraCareNotes}
-                  onDeliveredFormIdsChange={setDeliveredIds}
-                  onDetailsChange={setDeliveredDetails}
+                  onChange={setDeliveredIds}
                 />
-              ) : null}
+              )}
             </section>
           ) : null}
 

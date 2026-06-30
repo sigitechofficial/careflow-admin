@@ -269,6 +269,14 @@ const navItems: NavItem[] = [
       },
       { label: 'Lookup data', icon: <Settings2 className="h-4 w-4" />, href: '/settings', permission: 'lookups.read', navTestId: 'nav-settings' },
       {
+        label: 'Tasks planner',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/settings',
+        search: { tab: 'tasks-planner' },
+        permission: 'lookups.read',
+        navTestId: 'nav-settings-tasks-planner',
+      },
+      {
         label: 'Location Management',
         icon: <MapPin className="h-4 w-4" />,
         href: '/settings/location-management',

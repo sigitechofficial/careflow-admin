@@ -126,6 +126,8 @@ export type Permission =
   | 'service_users.body_map.export'
   | 'lookups.read'
   | 'lookups.manage'
+  | 'task_catalogue.read'
+  | 'task_catalogue.manage'
   | 'care_pathway.read'
   | 'form_selection.read'
   | 'form_selection.update'

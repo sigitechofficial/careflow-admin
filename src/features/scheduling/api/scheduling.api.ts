@@ -4,6 +4,7 @@ import type {
   CarePlanDeliveryTasksResponse,
   DeliveredCarePlanDetail,
 } from '@/features/scheduling/types/visit-care-plan-delivery.types'
+import type { VisitJobTasksResponse } from '@/features/scheduling/types/visit-job-tasks.types'
 import type {
   CallOffVisitRow,
   DateRangeQuery,
@@ -176,6 +177,54 @@ export async function fetchCarePlanDeliveryTasks(
     res.data ?? {
       linkedCarePlanFormIds: [],
       plans: [],
+    }
+  )
+}
+
+export async function fetchVisitJobTasks(
+  jobId: string,
+  options?: { signal?: AbortSignal },
+): Promise<VisitJobTasksResponse> {
+  const res = await apiJson<ApiEnvelope<VisitJobTasksResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/visit-tasks`,
+    { method: 'GET', signal: options?.signal },
+  )
+  return (
+    res.data ?? {
+      medicationRoundCode: null,
+      roundLabel: null,
+      windowStart: null,
+      windowEnd: null,
+      tasks: [],
+    }
+  )
+}
+
+export async function saveVisitJobTasks(
+  jobId: string,
+  tasks: Array<{
+    assignmentId?: string
+    taskCatalogueTaskId?: string
+    isExtra?: boolean
+    isCompleted: boolean
+    recordedValue?: string
+    notes?: string
+  }>,
+): Promise<VisitJobTasksResponse> {
+  const res = await apiJson<ApiEnvelope<VisitJobTasksResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/visit-tasks`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ tasks }),
+    },
+  )
+  return (
+    res.data ?? {
+      medicationRoundCode: null,
+      roundLabel: null,
+      windowStart: null,
+      windowEnd: null,
+      tasks: [],
     }
   )
 }

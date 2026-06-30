@@ -40,6 +40,35 @@ export function formatRoundLabel(name: string): string {
   return emoji ? `${emoji} ${name}` : name
 }
 
+function hm(value: string | null | undefined): string | undefined {
+  if (!value?.trim()) return undefined
+  const m = /^(\d{1,2}):(\d{2})/.exec(value.trim())
+  if (!m?.[1] || !m[2]) return undefined
+  return `${m[1].padStart(2, '0')}:${m[2]}`
+}
+
+export function medicationRoundWindow(round: MedicationRoundLookup): {
+  from: string | undefined
+  to: string | undefined
+} {
+  const from = hm(round.windowStart)
+  const to = hm(round.windowEnd)
+  if (from && to) return { from, to }
+  const fallback = DEFAULT_ADMINISTRATION_ROUNDS.find(
+    (r) => r.code === round.code || r.name === round.name,
+  )
+  return {
+    from: from ?? hm(fallback?.windowStart),
+    to: to ?? hm(fallback?.windowEnd),
+  }
+}
+
+export function formatMedicationRoundWindow(round: MedicationRoundLookup): string | null {
+  const { from, to } = medicationRoundWindow(round)
+  if (!from || !to) return null
+  return `${from} – ${to}`
+}
+
 export function newTimeSlot(partial?: Partial<MedicationTimeSlot>): MedicationTimeSlot {
   return {
     id: crypto.randomUUID(),

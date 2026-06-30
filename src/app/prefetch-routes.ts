@@ -55,6 +55,7 @@ import { medicationStatusCodesAdminKey } from '@/features/settings/hooks/useMedi
 import { medicationRoundsAdminKey } from '@/features/settings/hooks/useMedicationRoundsAdmin'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 import { settingsKeys } from '@/features/settings/keys'
+import { fetchTaskCatalogueAdmin } from '@/features/settings/api/task-catalogue-admin.api'
 import {
   fetchServiceUser,
   fetchServiceUserDomCare,
@@ -435,6 +436,14 @@ export function prefetchSettingsTab(qc: QueryClient, tab: SettingsTabId = 'job-t
     void qc.prefetchQuery({
       queryKey: medicationRoundsAdminKey,
       queryFn: ({ signal }) => listMedicationRoundsAdmin({ signal }),
+      staleTime: ROUTE_STALE_MS,
+    })
+    return
+  }
+  if (tab === 'tasks-planner') {
+    void qc.prefetchQuery({
+      queryKey: settingsKeys.taskCatalogue(),
+      queryFn: fetchTaskCatalogueAdmin,
       staleTime: ROUTE_STALE_MS,
     })
     return

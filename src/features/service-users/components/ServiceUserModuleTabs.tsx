@@ -14,6 +14,7 @@ type ModuleTab = {
   id: ServiceUserModuleTabIconId
   label: string
   to?:
+    | '/service-users/$serviceUserId/tasks-planner'
     | '/service-users/$serviceUserId/visit-plan'
     | '/service-users/$serviceUserId/care-plan'
     | '/service-users/$serviceUserId/medication'
@@ -26,6 +27,7 @@ type ModuleTab = {
 const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = {
   observations: '#E8F5F2',
   comms: '#F4EDF9',
+  'tasks-planner': '#EEF2FF',
   'visit-plan': null,
   'care-plan': '#E9F7FE',
   meds: null,
@@ -42,6 +44,11 @@ const MODULE_TABS: ModuleTab[] = [
     to: '/service-users/$serviceUserId/observations',
   },
   { id: 'comms', label: 'Comms' },
+  {
+    id: 'tasks-planner',
+    label: 'Tasks Planner',
+    to: '/service-users/$serviceUserId/tasks-planner',
+  },
   {
     id: 'visit-plan',
     label: 'Visit Plan',
@@ -75,6 +82,7 @@ function isTabActive(tab: ModuleTab, pathname: string): boolean {
   if (!tab.to) return false
   if (tab.id === 'meds') return pathname.includes('/medication')
   if (tab.id === 'observations') return pathname.includes('/observations')
+  if (tab.id === 'tasks-planner') return pathname.includes('/tasks-planner')
   if (tab.id === 'visit-plan') return pathname.includes('/visit-plan')
   if (tab.id === 'care-plan') return pathname.includes('/care-plan')
   if (tab.id === 'body-map') return pathname.includes('/body-map')

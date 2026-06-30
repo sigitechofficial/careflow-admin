@@ -13,6 +13,7 @@ import { ServiceUserCareTypesSettingsPanel } from '@/features/settings/component
 import { ServiceUserCodeNameLookupSettingsPanel } from '@/features/settings/components/ServiceUserCodeNameLookupSettingsPanel'
 import { ServiceUserFundingTypesSettingsPanel } from '@/features/settings/components/ServiceUserFundingTypesSettingsPanel'
 import { AllergiesCatalogSettingsPanel } from '@/features/settings/components/AllergiesCatalogSettingsPanel'
+import { TaskCatalogueSettingsPanel } from '@/features/settings/components/TaskCatalogueSettingsPanel'
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
 import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
@@ -40,6 +41,7 @@ export type SettingsTabId =
   | 'languages'
   | 'record-types'
   | 'allergies'
+  | 'tasks-planner'
   | 'vital-ranges'
 
 const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
@@ -59,6 +61,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'travel-payment', label: 'Travel payment' },
   { id: 'medication', label: 'Medication (MAR)' },
   { id: 'time-slots', label: 'Time slots' },
+  { id: 'tasks-planner', label: 'Tasks planner' },
   { id: 'care-types', label: 'Care types' },
   { id: 'funding-types', label: 'Funding types' },
   { id: 'ethnicities', label: 'Ethnicities' },
@@ -101,7 +104,7 @@ export default function SettingsPage() {
           className={cn(
             'flex min-h-0 shrink-0 gap-0.5 overflow-x-auto overflow-y-hidden overscroll-y-contain',
             'border-b border-border bg-muted/30 p-2',
-            'md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-hidden md:hover:overflow-y-auto',
+            'md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto md:p-2',
             'md:border-b-0 md:border-r md:p-2',
           )}
           aria-label="Settings modules"
@@ -227,6 +230,7 @@ export default function SettingsPage() {
           {activeTab === 'languages' && <ServiceUserCodeNameLookupSettingsPanel variant="languages" />}
           {activeTab === 'record-types' && <BodyMapRecordTypesSettingsPanel />}
           {activeTab === 'allergies' && <AllergiesCatalogSettingsPanel />}
+          {activeTab === 'tasks-planner' && <TaskCatalogueSettingsPanel />}
           {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
         </div>
       </div>
