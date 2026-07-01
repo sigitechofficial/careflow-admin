@@ -29,7 +29,11 @@ export async function replaceServiceUserVisitTasks(
   payload: {
     rounds: Array<{
       medicationRoundCode: string
-      tasks: Array<{ taskCatalogueTaskId: string; carerInstructions?: string | null }>
+      tasks: Array<{
+        taskCatalogueTaskId: string
+        carerInstructions?: string | null
+        priority?: string
+      }>
     }>
   },
 ): Promise<ServiceUserVisitTasksResponse> {

@@ -383,8 +383,8 @@ export function ScheduleJobCompleteDialog({
               <div>
                 <Label className="text-sm font-semibold text-foreground">Visit tasks</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Tick each planned task that was completed on this visit. Unticked tasks remain
-                  outstanding. Use &quot;Extra task&quot; for work done that was not on the plan.
+                  Follow the priority and instructions for each task, then tick when complete.
+                  Unticked tasks stay outstanding. Use &quot;Extra task&quot; for work not on the plan.
                 </p>
               </div>
               <VisitJobTasksChecklist

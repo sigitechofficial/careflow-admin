@@ -7,10 +7,24 @@ export function isSecureQuestion(q: InitialAssessmentQuestion): boolean {
 
 export const SECURE_MASK_PLACEHOLDER = '••••••'
 
+export function textAnswerHasVisibleContent(textValue: string | null | undefined): boolean {
+  if (!textValue?.trim()) return false
+  if (/<[a-z][\s\S]*>/i.test(textValue.trim())) {
+    return Boolean(
+      textValue
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\u00a0/g, ' ')
+        .trim(),
+    )
+  }
+  return true
+}
+
 export function hasTextAnswerValue(value: InitialAssessmentAnswerInput | undefined): boolean {
   if (!value) return false
   if (value.hasSecureValue || value.secureMasked) return true
-  return Boolean(value.textValue?.trim())
+  return textAnswerHasVisibleContent(value.textValue)
 }
 
 export function prepareAnswersForSave(

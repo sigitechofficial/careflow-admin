@@ -1,3 +1,5 @@
+import { visitTaskPriorityRank } from '@/features/service-users/visit-tasks/visit-task-priority.util'
+
 export type VisitTaskCompletionInputMode = 'tick' | 'value' | 'note' | 'value_and_note'
 
 export type VisitTaskCompletionInputSpec = {
@@ -18,6 +20,7 @@ export type VisitJobTaskRow = {
   supportLevelApplicable: boolean
   completionInput: VisitTaskCompletionInputSpec
   carerInstructions: string | null
+  priority: string
   isExtra?: boolean
   isCompleted: boolean
   recordedValue: string | null
@@ -103,4 +106,14 @@ export function validateVisitJobTasks(tasks: VisitJobTaskRow[]): string | null {
     if (missing) return `${task.name}: ${missing}`
   }
   return null
+}
+
+export function sortVisitJobTasksForCarer(tasks: VisitJobTaskRow[]): VisitJobTaskRow[] {
+  return [...tasks].sort((a, b) => {
+    if (a.isExtra !== b.isExtra) return a.isExtra ? 1 : -1
+    const rankDiff =
+      visitTaskPriorityRank(b.priority) - visitTaskPriorityRank(a.priority)
+    if (rankDiff !== 0) return rankDiff
+    return a.name.localeCompare(b.name)
+  })
 }

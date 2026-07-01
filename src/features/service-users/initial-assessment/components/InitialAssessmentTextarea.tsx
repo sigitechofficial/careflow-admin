@@ -81,8 +81,8 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
       )
     }
 
-    const handleChange = (html: string) => {
-      if (maxLength != null && plainTextFromHtml(html).length > maxLength) return
+    const handleChange = (html: string): void | false => {
+      if (maxLength != null && plainTextFromHtml(html).length > maxLength) return false
       onChange?.({
         target: { value: html },
       } as React.ChangeEvent<HTMLTextAreaElement>)

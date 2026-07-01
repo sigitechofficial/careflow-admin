@@ -6,7 +6,7 @@ import {
 } from '@/features/service-users/utils/service-user-profile-lookup-rows'
 import { parseAboutMeFromReferences, ROUTINE_DAYS, ROUTINE_SLOTS } from '@/features/service-users/service-user-about-me'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
-import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
+import { hasTextAnswerValue, isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
@@ -244,14 +244,19 @@ export function hasAssessmentAnswer(
   if (value.hasSecureValue || value.secureMasked) return true
   if (value.notes?.trim()) return true
   if (q.questionType === 'YES_NO' || q.questionType === 'CHECKBOX') {
-    return value.checked === true || value.booleanValue === true
+    return (
+      value.checked === true ||
+      value.checked === false ||
+      value.booleanValue === true ||
+      value.booleanValue === false
+    )
   }
   if (q.questionType === 'NUMBER') return value.numberValue != null && !Number.isNaN(value.numberValue)
   if (q.questionType === 'DATE') return Boolean(value.dateValue)
   if (q.questionType === 'SINGLE_SELECT' || q.questionType === 'MULTI_SELECT') {
     return multiSelectHasAnswer(value, q)
   }
-  return Boolean(value.textValue?.trim())
+  return hasTextAnswerValue(value)
 }
 
 /** Keep assessor notes when merging profile prefill (notes-only answers are valid). */

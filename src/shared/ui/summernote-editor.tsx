@@ -50,6 +50,17 @@ if (typeof window !== 'undefined') {
   w.$ = $
 }
 
+/** Treat empty Summernote placeholders as blank so we do not reset the editor while typing. */
+export function normalizeSummernoteHtml(html: string | null | undefined): string {
+  const raw = (html ?? '').trim()
+  if (!raw || raw === '<p><br></p>' || raw === '<p></p>' || raw === '<br>') return ''
+  return raw
+}
+
+function summernoteHtmlEqual(a: string | null | undefined, b: string | null | undefined): boolean {
+  return normalizeSummernoteHtml(a) === normalizeSummernoteHtml(b)
+}
+
 /** Highlight-friendly palette (row 2 = common marker colours). */
 export const SUMMERNOTE_HIGHLIGHT_COLORS: string[][] = [
   ['#000000', '#424242', '#636363', '#9C9C94', '#CEC6CE', '#EFEFEF', '#F7F7F7', '#FFFFFF'],
@@ -94,7 +105,8 @@ export const SUMMERNOTE_DEFAULT_POPOVERS = {
 
 interface SummernoteEditorProps {
   value?: string
-  onChange?: (html: string) => void
+  /** Return `false` to reject the edit (editor keeps previous content). */
+  onChange?: (html: string) => void | false
   onBlur?: (html: string) => void
   placeholder?: string
   disabled?: boolean
@@ -119,12 +131,20 @@ export function SummernoteEditor({
   const onBlurRef = React.useRef(onBlur)
   onBlurRef.current = onBlur
   const mountedRef = React.useRef(false)
+  const isFocusedRef = React.useRef(false)
   const lastEmittedRef = React.useRef(value ?? '')
 
   const emitChange = React.useCallback((html: string) => {
+    const handler = onChangeRef.current
+    if (handler) {
+      const accepted = handler(html)
+      if (accepted === false) return
+    }
     lastEmittedRef.current = html
-    onChangeRef.current?.(html)
   }, [])
+
+  const emitChangeRef = React.useRef(emitChange)
+  emitChangeRef.current = emitChange
 
   React.useEffect(() => {
     const el = hostRef.current
@@ -134,7 +154,14 @@ export function SummernoteEditor({
     const $el = summernoteEl(el)
 
     const syncFromEditor = () => {
-      emitChange($el.summernote('code'))
+      emitChangeRef.current($el.summernote('code'))
+    }
+
+    const onFocus = () => {
+      isFocusedRef.current = true
+    }
+    const onBlurEvent = () => {
+      isFocusedRef.current = false
     }
 
     $el.summernote({
@@ -151,9 +178,10 @@ export function SummernoteEditor({
       },
       callbacks: {
         onChange: (contents: string) => {
-          emitChange(contents)
+          emitChangeRef.current(contents)
         },
         onBlur: () => {
+          isFocusedRef.current = false
           const html = $el.summernote('code')
           lastEmittedRef.current = html
           onChangeRef.current?.(html)
@@ -176,13 +204,8 @@ export function SummernoteEditor({
       },
     })
 
-    $el.on('summernote.change', (_event, contents) => {
-      if (typeof contents === 'string') {
-        emitChange(contents)
-      } else {
-        syncFromEditor()
-      }
-    })
+    $el.on('summernote.focus', onFocus)
+    $el.on('summernote.blur', onBlurEvent)
 
     const initial = value ?? ''
     if (initial) {
@@ -195,24 +218,31 @@ export function SummernoteEditor({
     }
 
     return () => {
-      $el.off('summernote.change')
+      $el.off('summernote.focus', onFocus)
+      $el.off('summernote.blur', onBlurEvent)
       $el.summernote('destroy')
       mountedRef.current = false
+      isFocusedRef.current = false
     }
-  }, [disabled, emitChange, minHeight, placeholder, toolbar])
+  }, [minHeight, placeholder, toolbar])
 
   React.useEffect(() => {
     const el = hostRef.current
     if (!el || !mountedRef.current) return
-    const $el = summernoteEl(el)
+    if (isFocusedRef.current) return
+
     const next = value ?? ''
+    if (summernoteHtmlEqual(next, lastEmittedRef.current)) return
+
+    const $el = summernoteEl(el)
     const current = $el.summernote('code')
-    if (next !== current && next !== lastEmittedRef.current) {
-      // Ignore stale empty controlled values while the editor still has user content.
-      if (!next.trim() && current.trim() && lastEmittedRef.current.trim()) return
-      $el.summernote('code', next)
+    if (summernoteHtmlEqual(next, current)) {
       lastEmittedRef.current = next
+      return
     }
+
+    $el.summernote('code', next)
+    lastEmittedRef.current = next
   }, [value])
 
   React.useEffect(() => {

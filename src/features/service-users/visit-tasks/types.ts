@@ -30,6 +30,7 @@ export type VisitTaskAssignment = {
   medicationRoundCode: string
   sortOrder: number
   carerInstructions: string | null
+  priority: string
   task: {
     id: string
     name: string

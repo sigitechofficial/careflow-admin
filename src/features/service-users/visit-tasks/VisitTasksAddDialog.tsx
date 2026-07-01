@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Check,
   ListChecks,
+  Loader2,
   Plus,
   Search,
   Trash2,
@@ -20,6 +21,16 @@ import {
 } from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 import { formatRoundLabel } from '@/features/service-users/medication/medication-time-slots'
+import {
+  groupVisual,
+  PlannerIconBadge,
+  PLANNER_STAT_VISUALS,
+} from '@/features/service-users/visit-tasks/visit-task-planner-visual.util'
+import { VisitTaskPriorityPicker } from '@/features/service-users/visit-tasks/VisitTaskPriorityPicker'
+import {
+  DEFAULT_VISIT_TASK_PRIORITY,
+  type VisitTaskPriorityCode,
+} from '@/features/service-users/visit-tasks/visit-task-priority.util'
 import type { TaskCatalogueGroup } from '@/features/service-users/visit-tasks/types'
 
 const GROUP_LABELS: Record<string, string> = {
@@ -33,14 +44,17 @@ const GROUP_LABELS: Record<string, string> = {
 export type VisitTaskAddItem = {
   taskId: string
   carerInstructions: string
+  priority: VisitTaskPriorityCode
 }
 
 type ReviewDraft = {
   taskId: string
   name: string
   categoryName: string
+  groupCode: string
   consentRequired: boolean
   carerInstructions: string
+  priority: VisitTaskPriorityCode
 }
 
 type Props = {
@@ -49,13 +63,14 @@ type Props = {
   roundName: string | null
   catalogue: TaskCatalogueGroup[]
   existingTaskIds: Set<string>
-  onAdd: (items: VisitTaskAddItem[]) => void
+  saving?: boolean
+  onAdd: (items: VisitTaskAddItem[]) => void | Promise<void>
 }
 
 function buildTaskLookup(catalogue: TaskCatalogueGroup[]) {
   const map = new Map<
     string,
-    { name: string; categoryName: string; consentRequired: boolean }
+    { name: string; categoryName: string; consentRequired: boolean; groupCode: string }
   >()
   for (const group of catalogue) {
     for (const category of group.categories) {
@@ -64,6 +79,7 @@ function buildTaskLookup(catalogue: TaskCatalogueGroup[]) {
           name: task.name,
           categoryName: category.name,
           consentRequired: task.consentRequired,
+          groupCode: group.code,
         })
       }
     }
@@ -77,12 +93,14 @@ export function VisitTasksAddDialog({
   roundName,
   catalogue,
   existingTaskIds,
+  saving = false,
   onAdd,
 }: Props) {
   const [step, setStep] = React.useState<1 | 2>(1)
   const [search, setSearch] = React.useState('')
   const [pickedIds, setPickedIds] = React.useState<Set<string>>(new Set())
   const [reviewDrafts, setReviewDrafts] = React.useState<ReviewDraft[]>([])
+  const [adding, setAdding] = React.useState(false)
 
   const taskLookup = React.useMemo(() => buildTaskLookup(catalogue), [catalogue])
 
@@ -136,8 +154,10 @@ export function VisitTasksAddDialog({
           taskId,
           name: meta.name,
           categoryName: meta.categoryName,
+          groupCode: meta.groupCode,
           consentRequired: meta.consentRequired,
           carerInstructions: '',
+          priority: DEFAULT_VISIT_TASK_PRIORITY,
         }
       })
       .filter((row): row is ReviewDraft => row != null)
@@ -154,6 +174,12 @@ export function VisitTasksAddDialog({
     )
   }
 
+  const updateReviewPriority = (taskId: string, priority: VisitTaskPriorityCode) => {
+    setReviewDrafts((prev) =>
+      prev.map((draft) => (draft.taskId === taskId ? { ...draft, priority } : draft)),
+    )
+  }
+
   const removeReviewDraft = (taskId: string) => {
     setReviewDrafts((prev) => {
       const next = prev.filter((draft) => draft.taskId !== taskId)
@@ -167,16 +193,23 @@ export function VisitTasksAddDialog({
     })
   }
 
-  const handleAdd = () => {
-    if (reviewDrafts.length === 0) return
-    onAdd(
-      reviewDrafts.map((draft) => ({
-        taskId: draft.taskId,
-        carerInstructions: draft.carerInstructions.trim(),
-      })),
-    )
-    onOpenChange(false)
+  const handleAdd = async () => {
+    if (reviewDrafts.length === 0 || saving || adding) return
+    setAdding(true)
+    try {
+      await onAdd(
+        reviewDrafts.map((draft) => ({
+          taskId: draft.taskId,
+          carerInstructions: draft.carerInstructions.trim(),
+          priority: draft.priority,
+        })),
+      )
+    } finally {
+      setAdding(false)
+    }
   }
+
+  const isBusy = saving || adding
 
   const roundLabel = roundName ? formatRoundLabel(roundName) : 'this slot'
   const selectedCount = step === 1 ? pickedIds.size : reviewDrafts.length
@@ -187,6 +220,13 @@ export function VisitTasksAddDialog({
       <DialogContent size="lg" className="flex max-h-[min(88vh,900px)] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 rounded-t-xl border-b border-border bg-card px-5 py-4">
           <div className="flex items-start gap-3">
+            <PlannerIconBadge
+              visual={{
+                ...PLANNER_STAT_VISUALS.tasks,
+                icon: step === 1 ? PLANNER_STAT_VISUALS.tasks.icon : ListChecks,
+              }}
+              size="md"
+            />
             <div className="min-w-0 flex-1">
               <DialogTitle className="font-display text-lg leading-none">
                 {step === 1 ? 'Add tasks from the library' : 'Review & add guidance'}
@@ -224,11 +264,23 @@ export function VisitTasksAddDialog({
                   : 'No tasks match your search.'}
               </p>
             ) : (
-              filteredCatalogue.map((group) => (
-                <div key={group.id} className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {GROUP_LABELS[group.code] ?? group.code.replace(/_/g, ' ')}
-                  </p>
+            filteredCatalogue.map((group) => {
+              const groupStyle = groupVisual(group.code)
+              const GroupIcon = groupStyle.icon
+              return (
+              <div key={group.id} className="space-y-2">
+                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span
+                    className={cn(
+                      'grid h-6 w-6 place-items-center rounded-md ring-1',
+                      groupStyle.surfaceClass,
+                      groupStyle.ringClass,
+                    )}
+                  >
+                    <GroupIcon className={cn('h-3.5 w-3.5', groupStyle.iconClass)} aria-hidden />
+                  </span>
+                  {GROUP_LABELS[group.code] ?? group.code.replace(/_/g, ' ')}
+                </p>
                   {group.categories.map((category) => (
                     <div
                       key={category.id}
@@ -275,7 +327,8 @@ export function VisitTasksAddDialog({
                     </div>
                   ))}
                 </div>
-              ))
+              )
+            })
             )}
           </DialogBody>
         ) : (
@@ -294,12 +347,14 @@ export function VisitTasksAddDialog({
             ) : (
               reviewDrafts.map((draft) => {
                 const hasInstructions = draft.carerInstructions.trim().length > 0
+                const draftVisual = groupVisual(draft.groupCode)
                 return (
                   <div
                     key={draft.taskId}
                     className="rounded-xl border border-border bg-card p-3 shadow-sm"
                   >
                     <div className="flex items-start gap-2.5">
+                      <PlannerIconBadge visual={draftVisual} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{draft.name}</span>
@@ -332,6 +387,16 @@ export function VisitTasksAddDialog({
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Priority
+                      </div>
+                      <VisitTaskPriorityPicker
+                        value={draft.priority}
+                        onChange={(priority) => updateReviewPriority(draft.taskId, priority)}
+                      />
                     </div>
 
                     <div className="mt-3">
@@ -368,14 +433,20 @@ export function VisitTasksAddDialog({
               Back
             </Button>
           ) : null}
-          <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            disabled={isBusy}
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           {step === 1 ? (
             <Button
               type="button"
               className="rounded-xl"
-              disabled={pickedIds.size === 0}
+              disabled={pickedIds.size === 0 || isBusy}
               onClick={goToReview}
             >
               {pickedIds.size > 0
@@ -385,12 +456,21 @@ export function VisitTasksAddDialog({
           ) : (
             <Button
               type="button"
-              className="rounded-xl"
-              disabled={reviewDrafts.length === 0}
-              onClick={handleAdd}
+              className="gap-1.5 rounded-xl"
+              disabled={reviewDrafts.length === 0 || isBusy}
+              onClick={() => void handleAdd()}
             >
-              Add {reviewDrafts.length} task{reviewDrafts.length === 1 ? '' : 's'}
-              {withInstructions > 0 ? ` (${withInstructions} with guidance)` : ''}
+              {isBusy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  Add {reviewDrafts.length} task{reviewDrafts.length === 1 ? '' : 's'}
+                  {withInstructions > 0 ? ` (${withInstructions} with guidance)` : ''}
+                </>
+              )}
             </Button>
           )}
         </DialogFooter>

@@ -158,6 +158,7 @@ import { syncSkinIntegrityCheckFromBodyMap } from '@/features/service-users/init
 import { skinIntegrityBodyMapGateAnsweredYes } from '@/features/service-users/initial-assessment/utils/skin-integrity-body-map'
 import { applyNoConcernLogic } from '@/features/service-users/initial-assessment/utils/no-concern-logic'
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
+import { mergeLiveRichTextAnswersForQuestions } from '@/features/service-users/initial-assessment/utils/rich-text-save.util'
 import { syncDerivedConcernGates } from '@/features/service-users/initial-assessment/utils/concern-gate-utils'
 import { draftAnswersEqual } from '@/features/service-users/initial-assessment/utils/draft-answers-equality'
 import { getSubmitValidationIssues } from '@/features/service-users/initial-assessment/utils/submit-validation'
@@ -993,8 +994,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     sectionContentRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [activeHolisticTab, hubTab])
   const overallPercent = React.useMemo(
-    () => validateQuery.data?.overallPercent ?? overallAssessmentProgress(sections, draftAnswers, progressContext),
-    [validateQuery.data?.overallPercent, sections, draftAnswers, progressContext],
+    () => overallAssessmentProgress(sections, draftAnswers, progressContext),
+    [sections, draftAnswers, progressContext],
   )
   const sectionCommentCount = React.useMemo(
     () => Object.values(sectionComments).filter((c) => c?.text?.trim()).length,
@@ -1539,9 +1540,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       for (const synced of syncedQuestions) {
         if (!questionsForSave.some((q) => q.id === synced.id)) questionsForSave.push(synced)
       }
+      const draftForSave = mergeLiveRichTextAnswersForQuestions(questionsForSave, draftAnswers)
       const answers = prepareAnswersForSave(
         questionsForSave,
-        collectAnswersForSave(questionsForSave, draftAnswers, extraIds),
+        collectAnswersForSave(questionsForSave, draftForSave, extraIds),
       )
       syncSaveQuestionIdsRef.current.clear()
       const tabLabel = holisticTabTitle(currentHolisticTab.id)
@@ -1558,8 +1560,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         await saveMutation.mutateAsync(answers)
         for (const id of savedQuestionIds) {
           dirtyAnswerQuestionIdsRef.current.delete(id)
-          const saved = draftAnswers[id]
+          const saved = draftForSave[id]
           if (saved) serverBaselineAnswersRef.current[id] = saved
+        }
+        if (draftForSave !== draftAnswers) {
+          setDraftAnswers((prev) => ({ ...prev, ...draftForSave }))
         }
         setSaveIndicator('saved')
         if (!silent) toastSuccess('Saved', `${tabLabel} saved.`)
