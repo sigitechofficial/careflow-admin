@@ -6,6 +6,7 @@ import {
   resolveCompletionInputFromFlags,
   type VisitJobTaskRow,
 } from '@/features/scheduling/types/visit-job-tasks.types'
+import { DEFAULT_VISIT_TASK_PRIORITY } from '@/features/service-users/visit-tasks/visit-task-priority.util'
 
 const VISIT_TASK_GROUP_CODES = new Set([
   'personal_care',
@@ -72,6 +73,8 @@ export function VisitJobExtraTaskPicker({ catalogue, existingTasks, disabled, on
           consentRequired: task.consentRequired,
           supportLevelApplicable: task.supportLevelApplicable,
           completionInput: resolveCompletionInputFromFlags(task.flagsJson),
+          carerInstructions: null,
+          priority: DEFAULT_VISIT_TASK_PRIORITY,
           isExtra: true,
           isCompleted: true,
           recordedValue: null,
