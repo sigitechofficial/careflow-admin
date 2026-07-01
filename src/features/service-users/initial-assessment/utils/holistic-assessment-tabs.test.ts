@@ -52,4 +52,33 @@ describe('questionsForDocumentTab', () => {
     expect(ids.has('lfb')).toBe(true)
     expect(ids.has('manage')).toBe(true)
   })
+
+  it('includes §14.6 / §14.8 sign-off fields on holistic tab 16 save scope', () => {
+    const assessorName: InitialAssessmentQuestion = {
+      id: 'assessor-name',
+      questionText: 'Assessor name',
+      questionType: 'TEXT',
+      isRequired: true,
+      sortOrder: 1,
+      riskFlag: false,
+      carePlanTrigger: false,
+      metadata: { specRef: '14.8', fieldKey: 'assessorName' },
+    }
+    const suAgrees = yesNoQ('su-agrees', 'Service user agrees with assessment?', '14.6', 'suSignatureObtained')
+
+    const section14: InitialAssessmentSection = {
+      id: 's14',
+      sectionNumber: 14,
+      title: 'Section 14',
+      sortOrder: 14,
+      questions: [suAgrees, assessorName],
+    }
+
+    const tab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 16)!
+    const tabQuestions = questionsForDocumentTab(tab, [section14], new Map())
+    const ids = new Set(tabQuestions.map((q) => q.id))
+
+    expect(ids.has('assessor-name')).toBe(true)
+    expect(ids.has('su-agrees')).toBe(true)
+  })
 })

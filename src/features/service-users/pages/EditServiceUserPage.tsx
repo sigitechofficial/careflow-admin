@@ -32,6 +32,8 @@ import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { useQueryClient } from '@tanstack/react-query'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { ServiceUserPersonalDetailsForm } from '@/features/service-users/components/ServiceUserPersonalDetailsForm'
+import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
+import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
 import { ServiceUserContactsTab } from '@/features/service-users/components/ServiceUserContactsTab'
 import { ServiceUserAboutMeForm } from '@/features/service-users/components/ServiceUserAboutMeForm'
 import { ServiceUserInventoryTab } from '@/features/service-users/components/ServiceUserInventoryTab'
@@ -262,15 +264,18 @@ export default function EditServiceUserPage() {
               </TabsList>
             </div>
 
-            <TabsContent value="personal" className="mt-6">
+            <TabsContent value="personal" className="mt-6 space-y-6">
               {lookups ? (
-                <ServiceUserPersonalDetailsForm
-                  detail={detail}
-                  lookups={lookups}
-                  locations={locations}
-                  serviceUserId={serviceUserId}
-                  onSaved={invalidateProfile}
-                />
+                <>
+                  <ServiceUserPersonalDetailsForm
+                    detail={detail}
+                    lookups={lookups}
+                    locations={locations}
+                    serviceUserId={serviceUserId}
+                    onSaved={invalidateProfile}
+                  />
+                  <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               )}
@@ -294,19 +299,7 @@ export default function EditServiceUserPage() {
             </TabsContent>
 
             <TabsContent value="photos" className="mt-6">
-              <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">Photographs</h2>
-                {photoSrc ? (
-                  <div className="flex max-w-md flex-col gap-2">
-                    <img src={photoSrc} alt="" className="rounded-lg border object-contain" />
-                    <p className="text-xs text-muted-foreground">
-                      {detail.profilePhoto?.originalName ?? 'Profile photo'} · Upload management coming soon
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No profile photograph on file.</p>
-                )}
-              </section>
+              <ServiceUserPhotosTab detail={detail} />
             </TabsContent>
 
             <TabsContent value="inventory" className="mt-6">

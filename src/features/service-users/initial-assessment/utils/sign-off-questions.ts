@@ -40,7 +40,10 @@ export function assessorSignOffQuestions(questions: InitialAssessmentQuestion[])
 }
 
 export function signOffQuestionIds(questions: InitialAssessmentQuestion[]): Set<string> {
-  return new Set(
-    [...serviceUserSignOffQuestions(questions), ...assessorSignOffQuestions(questions)].map((q) => q.id),
-  )
+  return new Set(listSignOffQuestions(questions).map((q) => q.id))
+}
+
+/** §14.6 / §14.8 fields shown on holistic tab 16 — must be included in tab save scope. */
+export function listSignOffQuestions(questions: InitialAssessmentQuestion[]): InitialAssessmentQuestion[] {
+  return [...serviceUserSignOffQuestions(questions), ...assessorSignOffQuestions(questions)]
 }

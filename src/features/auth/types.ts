@@ -1,4 +1,4 @@
-export type RoleId = 'super_admin' | 'admin' | 'manager' | 'staff' | 'auditor' | 'temporary_inspector'
+export type RoleId = 'super_admin' | 'admin' | 'manager' | 'staff' | 'auditor' | 'temporary_inspector' | 'service_user'
 
 /** SPA + CareAdmin Nest (`/auth/me` permission keys). Legacy `employee.*` kept for demo-only roles. */
 export type Permission =
@@ -175,6 +175,9 @@ export type Permission =
   | 'security.admin'
   | 'sso.configure'
   | 'temporary_inspector.session'
+  | 'service_user.portal.session'
+  | 'service_users.portal.read'
+  | 'service_users.portal.manage'
   | 'notifications.read'
   | 'notifications.update'
   | 'notifications.dismiss'
@@ -188,8 +191,12 @@ export interface AuthUser {
   displayName: string
   role: RoleId
   permissions: Permission[]
+  accountKind?: 'user' | 'temporary_inspector' | 'service_user'
+  serviceUserId?: string
   firstName?: string
   lastName?: string
+  preferredName?: string | null
+  profilePhotoUrl?: string | null
   jobTitle?: string
   avatarUrl?: string
 }

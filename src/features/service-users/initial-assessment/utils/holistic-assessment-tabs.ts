@@ -10,6 +10,7 @@ import {
 import type { InitialAssessmentAnswerInput } from '@/features/service-users/initial-assessment/types'
 import type { Section12PanelBlock } from '@/features/service-users/initial-assessment/utils/section-12-display-order'
 import { listSection31FireQuestions } from '@/features/service-users/initial-assessment/utils/section-31-fire-safety'
+import { listSignOffQuestions } from '@/features/service-users/initial-assessment/utils/sign-off-questions'
 
 /** Tab content kinds aligned to the paper document Table of Contents (18 items). */
 export type DocumentTabKind =
@@ -386,6 +387,11 @@ export function questionsForDocumentTab(
   sections: InitialAssessmentSection[],
   visibleQuestionsBySection: Map<number, InitialAssessmentQuestion[]>,
 ): InitialAssessmentQuestion[] {
+  if (tab.kind === 'care-plan-objectives') {
+    const sec14 = sections.find((s) => s.sectionNumber === 14)
+    return sec14 ? listSignOffQuestions(sec14.questions) : []
+  }
+
   if (
     tab.kind === 'waterlow' ||
     tab.kind === 'pain-tool' ||
@@ -394,7 +400,6 @@ export function questionsForDocumentTab(
     tab.kind === 'advance-care-planning' ||
     tab.kind === 'end-of-life-assessment' ||
     tab.kind === 'clinical-outcome-summary' ||
-    tab.kind === 'care-plan-objectives' ||
     tab.kind === 'skin-integrity-check' ||
     tab.kind === 'equipment-selection' ||
     tab.kind === 'must-tool' ||

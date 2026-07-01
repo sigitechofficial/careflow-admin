@@ -2,51 +2,20 @@ import * as React from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertCircle,
-  Baby,
   BookOpen,
   BookmarkCheck,
-  Briefcase,
   CalendarClock,
   CalendarDays,
   CheckCircle2,
-  CloudRain,
-  Droplets,
-  Ellipsis,
   Fingerprint,
-  Flower2,
-  Frown,
-  Gift,
-  GraduationCap,
-  Heart,
-  HeartPulse,
-  HelpingHand,
-  Home,
-  LayoutGrid,
   LifeBuoy,
-  Lightbulb,
   Link2,
   Loader2,
-  MapPin,
-  MessageCircle,
-  MessagesSquare,
-  Moon,
-  MoreHorizontal,
   Palette,
-  PartyPopper,
-  PenLine,
   RotateCcw,
   ScanFace,
-  ShoppingCart,
-  Smile,
-  Sparkles,
   Star,
-  Sun,
-  ThumbsDown,
-  ThumbsUp,
-  Tv,
   UserCircle,
-  UserRound,
-  Users,
 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -70,6 +39,12 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { cn } from '@/shared/lib/utils'
+import { AboutMeMainIcon, type AboutMeMainIconId } from '@/features/service-users/components/about-me-field-icons'
+import { InterestsIcon, type InterestsIconId } from '@/features/service-users/components/interests-field-icons'
+import { LifeHistoryIcon, type LifeHistoryIconId } from '@/features/service-users/components/life-history-field-icons'
+import { DailyRoutineIcon } from '@/features/service-users/components/daily-routine-field-icons'
+import { SupportNeedIcon, type SupportNeedIconId } from '@/features/service-users/components/support-need-field-icons'
+import { FavouriteThingsIcon, type FavouriteThingsIconId } from '@/features/service-users/components/favourite-things-field-icons'
 
 const ABOUT_SUBTABS: ReadonlyArray<{ id: string; label: string; Icon: LucideIcon }> = [
   { id: 'about-main', label: 'About Me', Icon: UserCircle },
@@ -97,12 +72,22 @@ function FieldIcon({ icon: Icon }: { icon: LucideIcon }) {
 
 function AboutField({
   icon: Icon,
+  aboutIcon,
+  interestIcon,
+  lifeHistoryIcon,
+  supportNeedIcon,
+  favouriteThingsIcon,
   label,
   value,
   onChange,
   hint,
 }: {
-  icon: LucideIcon
+  icon?: LucideIcon
+  aboutIcon?: AboutMeMainIconId
+  interestIcon?: InterestsIconId
+  lifeHistoryIcon?: LifeHistoryIconId
+  supportNeedIcon?: SupportNeedIconId
+  favouriteThingsIcon?: FavouriteThingsIconId
   label: string
   value: string
   onChange: (v: string) => void
@@ -110,8 +95,20 @@ function AboutField({
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-      <div className="mb-3 flex items-start gap-3">
-        <FieldIcon icon={Icon} />
+      <div className="mb-3 flex items-start gap-3 sm:gap-4">
+        {aboutIcon ? (
+          <AboutMeMainIcon id={aboutIcon} />
+        ) : interestIcon ? (
+          <InterestsIcon id={interestIcon} />
+        ) : lifeHistoryIcon ? (
+          <LifeHistoryIcon id={lifeHistoryIcon} />
+        ) : supportNeedIcon ? (
+          <SupportNeedIcon id={supportNeedIcon} />
+        ) : favouriteThingsIcon ? (
+          <FavouriteThingsIcon id={favouriteThingsIcon} />
+        ) : Icon ? (
+          <FieldIcon icon={Icon} />
+        ) : null}
         <div className="min-w-0 flex-1">
           <label className="block text-sm font-medium text-foreground">{label}</label>
           {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
@@ -231,13 +228,13 @@ export function ServiceUserAboutMeForm({
 
         <TabsContent value="about-main" className="mt-6 space-y-6">
           <AboutField
-            icon={Sparkles}
+            aboutIcon="whatIsMostImportantToMe"
             label="What is most important to me"
             value={about.whatIsMostImportantToMe}
             onChange={(v) => setAbout((p) => ({ ...p, whatIsMostImportantToMe: v }))}
           />
           <AboutField
-            icon={Users}
+            aboutIcon="peopleImportantToMe"
             label="People who are important to me"
             value={about.peopleImportantToMe}
             onChange={(v) => setAbout((p) => ({ ...p, peopleImportantToMe: v }))}
@@ -249,55 +246,55 @@ export function ServiceUserAboutMeForm({
             onChange={(v) => setAbout((p) => ({ ...p, externalAboutMeUrl: v }))}
           />
           <AboutField
-            icon={MessageCircle}
+            aboutIcon="howICommunicate"
             label="How I communicate and how to communicate with me"
             value={about.howICommunicate}
             onChange={(v) => setAbout((p) => ({ ...p, howICommunicate: v }))}
           />
           <AboutField
-            icon={HeartPulse}
+            aboutIcon="myWellness"
             label="My wellness"
             value={about.myWellness}
             onChange={(v) => setAbout((p) => ({ ...p, myWellness: v }))}
           />
           <AboutField
-            icon={Sun}
+            aboutIcon="whatMakesAGoodDay"
             label="What makes a good day"
             value={about.whatMakesAGoodDay}
             onChange={(v) => setAbout((p) => ({ ...p, whatMakesAGoodDay: v }))}
           />
           <AboutField
-            icon={Smile}
+            aboutIcon="whatMakesMeHappy"
             label="What makes me happy (please do!)"
             value={about.whatMakesMeHappy}
             onChange={(v) => setAbout((p) => ({ ...p, whatMakesMeHappy: v }))}
           />
           <AboutField
-            icon={Frown}
+            aboutIcon="whatMakesMeUnhappy"
             label="What makes me unhappy (please don't!)"
             value={about.whatMakesMeUnhappy}
             onChange={(v) => setAbout((p) => ({ ...p, whatMakesMeUnhappy: v }))}
           />
           <AboutField
-            icon={CloudRain}
+            aboutIcon="whatMakesABadDay"
             label="What makes a bad day"
             value={about.whatMakesABadDay}
             onChange={(v) => setAbout((p) => ({ ...p, whatMakesABadDay: v }))}
           />
           <AboutField
-            icon={HelpingHand}
+            aboutIcon="howAndWhenToSupportMe"
             label="How and when to support me"
             value={about.howAndWhenToSupportMe}
             onChange={(v) => setAbout((p) => ({ ...p, howAndWhenToSupportMe: v }))}
           />
           <AboutField
-            icon={Lightbulb}
+            aboutIcon="alsoWorthKnowing"
             label="Also worth knowing about me"
             value={about.alsoWorthKnowing}
             onChange={(v) => setAbout((p) => ({ ...p, alsoWorthKnowing: v }))}
           />
           <AboutField
-            icon={PenLine}
+            aboutIcon="supportedToWriteThisBy"
             label="Supported to write this by"
             value={about.supportedToWriteThisBy}
             onChange={(v) => setAbout((p) => ({ ...p, supportedToWriteThisBy: v }))}
@@ -306,25 +303,25 @@ export function ServiceUserAboutMeForm({
 
         <TabsContent value="interests" className="mt-6 space-y-6">
           <AboutField
-            icon={Palette}
+            interestIcon="hobbiesAndInterests"
             label="Hobbies and interests"
             value={about.hobbiesAndInterests}
             onChange={(v) => setAbout((p) => ({ ...p, hobbiesAndInterests: v }))}
           />
           <AboutField
-            icon={Flower2}
+            interestIcon="religiousSpiritualPreferences"
             label="Religious and/or spiritual preferences"
             value={about.religiousSpiritualPreferences}
             onChange={(v) => setAbout((p) => ({ ...p, religiousSpiritualPreferences: v }))}
           />
           <AboutField
-            icon={MapPin}
+            interestIcon="whereIAmFrom"
             label="Where I am from"
             value={about.whereIAmFrom}
             onChange={(v) => setAbout((p) => ({ ...p, whereIAmFrom: v }))}
           />
           <AboutField
-            icon={MessagesSquare}
+            interestIcon="whatILikeToTalkAbout"
             label="What I like to talk about"
             value={about.whatILikeToTalkAbout}
             onChange={(v) => setAbout((p) => ({ ...p, whatILikeToTalkAbout: v }))}
@@ -333,37 +330,37 @@ export function ServiceUserAboutMeForm({
 
         <TabsContent value="history" className="mt-6 space-y-6">
           <AboutField
-            icon={Users}
+            lifeHistoryIcon="familyAndFriends"
             label="Family and friends"
             value={about.familyAndFriends}
             onChange={(v) => setAbout((p) => ({ ...p, familyAndFriends: v }))}
           />
           <AboutField
-            icon={Baby}
+            lifeHistoryIcon="myChildhood"
             label="My childhood"
             value={about.myChildhood}
             onChange={(v) => setAbout((p) => ({ ...p, myChildhood: v }))}
           />
           <AboutField
-            icon={GraduationCap}
+            lifeHistoryIcon="myEducation"
             label="My education"
             value={about.myEducation}
             onChange={(v) => setAbout((p) => ({ ...p, myEducation: v }))}
           />
           <AboutField
-            icon={Briefcase}
+            lifeHistoryIcon="myOccupation"
             label="My occupation"
             value={about.myOccupation}
             onChange={(v) => setAbout((p) => ({ ...p, myOccupation: v }))}
           />
           <AboutField
-            icon={UserRound}
+            lifeHistoryIcon="myAdulthood"
             label="My adulthood"
             value={about.myAdulthood}
             onChange={(v) => setAbout((p) => ({ ...p, myAdulthood: v }))}
           />
           <AboutField
-            icon={Heart}
+            lifeHistoryIcon="lifeHistoryFavourites"
             label="My favourite things"
             hint="Life history context — distinct from the “My Favourite Things” tab below."
             value={about.lifeHistoryFavourites}
@@ -399,7 +396,10 @@ export function ServiceUserAboutMeForm({
                 {ROUTINE_SLOTS.map((slot) => (
                   <tr key={slot} className="border-b border-border last:border-0">
                     <th className="sticky left-0 z-10 border-r border-border bg-muted/20 px-2 py-2 text-left font-medium text-foreground">
-                      {ROUTINE_SLOT_LABEL[slot]}
+                      <span className="inline-flex items-center gap-2">
+                        <DailyRoutineIcon id={slot} className="h-9 w-9 sm:h-10 sm:w-10" />
+                        <span className="text-sm">{ROUTINE_SLOT_LABEL[slot]}</span>
+                      </span>
                     </th>
                     {ROUTINE_DAYS.map((day) => (
                       <td key={`${day}-${slot}`} className="align-top p-1">
@@ -420,31 +420,31 @@ export function ServiceUserAboutMeForm({
 
         <TabsContent value="support" className="mt-6 space-y-6">
           <AboutField
-            icon={Droplets}
+            supportNeedIcon="personalHygiene"
             label="Personal hygiene"
             value={about.personalHygiene}
             onChange={(v) => setAbout((p) => ({ ...p, personalHygiene: v }))}
           />
           <AboutField
-            icon={Home}
+            supportNeedIcon="domesticSupport"
             label="Domestic support"
             value={about.domesticSupport}
             onChange={(v) => setAbout((p) => ({ ...p, domesticSupport: v }))}
           />
           <AboutField
-            icon={ShoppingCart}
+            supportNeedIcon="shoppingArrangements"
             label="Shopping arrangements"
             value={about.shoppingArrangements}
             onChange={(v) => setAbout((p) => ({ ...p, shoppingArrangements: v }))}
           />
           <AboutField
-            icon={Moon}
+            supportNeedIcon="nightSupport"
             label="Night support"
             value={about.nightSupport}
             onChange={(v) => setAbout((p) => ({ ...p, nightSupport: v }))}
           />
           <AboutField
-            icon={MoreHorizontal}
+            supportNeedIcon="supportOther"
             label="Other"
             value={about.supportOther}
             onChange={(v) => setAbout((p) => ({ ...p, supportOther: v }))}
@@ -453,43 +453,43 @@ export function ServiceUserAboutMeForm({
 
         <TabsContent value="favourites" className="mt-6 space-y-6">
           <AboutField
-            icon={ThumbsUp}
+            favouriteThingsIcon="foodDrinksLike"
             label="Food and drinks — I like"
             value={about.foodDrinksLike}
             onChange={(v) => setAbout((p) => ({ ...p, foodDrinksLike: v }))}
           />
           <AboutField
-            icon={ThumbsDown}
+            favouriteThingsIcon="foodDrinksDontLike"
             label="Food and drinks — I don't like"
             value={about.foodDrinksDontLike}
             onChange={(v) => setAbout((p) => ({ ...p, foodDrinksDontLike: v }))}
           />
           <AboutField
-            icon={Gift}
+            favouriteThingsIcon="favouriteItems"
             label="Favourite items"
             value={about.favouriteItems}
             onChange={(v) => setAbout((p) => ({ ...p, favouriteItems: v }))}
           />
           <AboutField
-            icon={Tv}
+            favouriteThingsIcon="tvProgrammes"
             label="TV programmes"
             value={about.tvProgrammes}
             onChange={(v) => setAbout((p) => ({ ...p, tvProgrammes: v }))}
           />
           <AboutField
-            icon={PartyPopper}
+            favouriteThingsIcon="favouriteActivities"
             label="Activities"
             value={about.favouriteActivities}
             onChange={(v) => setAbout((p) => ({ ...p, favouriteActivities: v }))}
           />
           <AboutField
-            icon={LayoutGrid}
+            favouriteThingsIcon="favouriteRooms"
             label="Rooms"
             value={about.favouriteRooms}
             onChange={(v) => setAbout((p) => ({ ...p, favouriteRooms: v }))}
           />
           <AboutField
-            icon={Ellipsis}
+            favouriteThingsIcon="favouriteOther"
             label="Other"
             value={about.favouriteOther}
             onChange={(v) => setAbout((p) => ({ ...p, favouriteOther: v }))}

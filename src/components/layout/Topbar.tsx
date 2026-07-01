@@ -17,17 +17,23 @@ import {
 } from '@/shared/ui/dropdown-menu'
 import { Badge } from '@/shared/ui/badge'
 
+import type { LayoutVariant } from '@/components/layout/sidebar-types'
+
 interface TopbarProps {
   pageTitle?: string
   className?: string
+  variant?: LayoutVariant
 }
 
-export function Topbar({ pageTitle, className }: TopbarProps) {
+export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps) {
   const navigate = useNavigate()
   const { theme, setTheme, setSidebarMobileOpen } = useUIStore()
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
   const can = useAuthStore(s => s.can)
+  const isPortal = variant === 'portal'
+  const signOutRedirect = isPortal ? '/portal/login' : '/auth/login'
+  const profileHref = isPortal ? '/portal/profile' : '/account'
 
   return (
     <header
@@ -55,6 +61,7 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
       )}
 
       {/* Search */}
+      {!isPortal && (
       <div className="hidden md:flex flex-1 max-w-sm">
         <Input
           placeholder="Search..."
@@ -62,12 +69,16 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
           className="h-8 text-xs bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-input"
         />
       </div>
+      )}
+      {isPortal && <div className="flex-1" />}
 
       <div className="ml-auto flex items-center gap-1.5">
         {/* Mobile search */}
+        {!isPortal && (
         <Button variant="ghost" size="icon" className="md:hidden">
           <Search className="h-4 w-4" />
         </Button>
+        )}
 
         {/* Theme toggle */}
         <DropdownMenu>
@@ -112,7 +123,7 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <NotificationBell />
+        {!isPortal && <NotificationBell />}
 
         {/* User menu */}
         <DropdownMenu>
@@ -121,22 +132,24 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
               <UserAvatar name={user?.displayName ?? 'User'} size="sm" />
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-xs font-medium leading-tight">{user?.displayName ?? 'Account'}</span>
-                <Badge variant="muted" size="sm" className="mt-0.5 capitalize">{user?.role?.replace('_', ' ') ?? '—'}</Badge>
+                <Badge variant="muted" size="sm" className="mt-0.5 capitalize">
+                  {isPortal ? 'Service user' : user?.role?.replace('_', ' ') ?? '—'}
+                </Badge>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>My account</DropdownMenuLabel>
+            <DropdownMenuLabel>{isPortal ? 'My portal' : 'My account'}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate({ to: '/account' })}>
-              Profile & security
+            <DropdownMenuItem onClick={() => navigate({ to: profileHref })}>
+              {isPortal ? 'My profile' : 'Profile & security'}
             </DropdownMenuItem>
-            {can('audit.read') || can('audit_logs.read') ? (
+            {!isPortal && (can('audit.read') || can('audit_logs.read')) ? (
               <DropdownMenuItem onClick={() => navigate({ to: '/admin/audit' })}>
                 Audit log
               </DropdownMenuItem>
             ) : null}
-            {can('security.admin') && (
+            {!isPortal && can('security.admin') && (
               <DropdownMenuItem onClick={() => navigate({ to: '/admin/security' })}>
                 Security admin
               </DropdownMenuItem>
@@ -146,7 +159,7 @@ export function Topbar({ pageTitle, className }: TopbarProps) {
               className="text-destructive focus:text-destructive"
               onClick={() => {
                 logout('topbar')
-                navigate({ to: '/auth/login' })
+                navigate({ to: signOutRedirect })
               }}
             >
               Sign out

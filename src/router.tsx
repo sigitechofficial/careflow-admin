@@ -72,7 +72,17 @@ import ForgotPasswordPage from '@/features/auth/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/pages/ResetPasswordPage'
 import BlockedIpPage from '@/features/auth/pages/BlockedIpPage'
 
-// ΓöÇΓöÇ Account, home, admin, accidents ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+import PortalLoginPage from '@/features/service-user-portal/pages/PortalLoginPage'
+import PortalDashboardPage from '@/features/service-user-portal/pages/PortalDashboardPage'
+import PortalProfilePage from '@/features/service-user-portal/pages/PortalProfilePage'
+import PortalAboutMePage from '@/features/service-user-portal/pages/PortalAboutMePage'
+import PortalContactsPage from '@/features/service-user-portal/pages/PortalContactsPage'
+import PortalAllergiesPage from '@/features/service-user-portal/pages/PortalAllergiesPage'
+import PortalCalendarPage from '@/features/service-user-portal/pages/PortalCalendarPage'
+import PortalPhotosPage from '@/features/service-user-portal/pages/PortalPhotosPage'
+import PortalVisitPlansPage from '@/features/service-user-portal/pages/PortalVisitPlansPage'
+import PortalCompletedVisitsPage from '@/features/service-user-portal/pages/PortalCompletedVisitsPage'
+import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
 import InProgressPage from '@/features/home/pages/InProgressPage'
@@ -366,6 +376,92 @@ const authBlockedRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: 'blocked-ip',
   component: BlockedIpPage,
+})
+
+function PortalRootShell() {
+  const companyDisplayName = useCompanyStore(s => s.branding?.displayName)
+  const pathname = useRouterState({ select: s => s.location.pathname })
+
+  const pageTitle = portalPageTitles[pathname] ?? companyDisplayName?.trim() ?? 'My care portal'
+
+  return (
+    <>
+      <SessionRefresh />
+      <CompanyBrandingBootstrap />
+      <OrganisationDisplayFormatProvider>
+        <AppToaster />
+        <AppLayout pageTitle={pageTitle} variant="portal">
+          <Outlet />
+        </AppLayout>
+      </OrganisationDisplayFormatProvider>
+    </>
+  )
+}
+
+const portalLoginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/portal/login',
+  component: PortalLoginPage,
+})
+
+const portalShellRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'portal',
+  component: PortalRootShell,
+})
+
+const portalIndexRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal',
+  component: PortalDashboardPage,
+})
+
+const portalProfileRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/profile',
+  component: PortalProfilePage,
+})
+
+const portalAboutMeRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/about-me',
+  component: PortalAboutMePage,
+})
+
+const portalContactsRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/contacts',
+  component: PortalContactsPage,
+})
+
+const portalAllergiesRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/allergies',
+  component: PortalAllergiesPage,
+})
+
+const portalCalendarRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/calendar',
+  component: PortalCalendarPage,
+})
+
+const portalPhotosRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/photos',
+  component: PortalPhotosPage,
+})
+
+const portalVisitPlansRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/visit-plans',
+  component: PortalVisitPlansPage,
+})
+
+const portalCompletedVisitsRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/completed-visits',
+  component: PortalCompletedVisitsPage,
 })
 
 const appShellRoute = createRoute({
@@ -1150,6 +1246,18 @@ const routeTree = rootRoute.addChildren([
     authForgotRoute,
     authResetRoute,
     authBlockedRoute,
+  ]),
+  portalLoginRoute,
+  portalShellRoute.addChildren([
+    portalIndexRoute,
+    portalProfileRoute,
+    portalContactsRoute,
+    portalAboutMeRoute,
+    portalAllergiesRoute,
+    portalCalendarRoute,
+    portalVisitPlansRoute,
+    portalCompletedVisitsRoute,
+    portalPhotosRoute,
   ]),
   appShellRoute.addChildren([
     indexRoute,

@@ -22,6 +22,12 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@about_me_svgs': path.resolve(__dirname, './public/about_me_svgs'),
+      '@interests': path.resolve(__dirname, './public/interests'),
+      '@life_history': path.resolve(__dirname, './public/life_history'),
+      '@my_daily_routine': path.resolve(__dirname, './public/my_daily_routine'),
+      '@support_need': path.resolve(__dirname, './public/support_need'),
+      '@favourite_things': path.resolve(__dirname, './public/favourite_things'),
     },
   },
   server: {

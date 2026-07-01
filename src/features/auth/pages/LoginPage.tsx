@@ -186,6 +186,15 @@ export default function LoginPage() {
           </Link>
         </p>
       ) : null}
+
+      <div className="mt-6 border-t border-border pt-4">
+        <Button variant="outline" className="w-full" asChild data-testid="login-service-user">
+          <Link to="/portal/login">Sign in as service user</Link>
+        </Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Access your care portal, visits, and personal records.
+        </p>
+      </div>
     </div>
   )
 }

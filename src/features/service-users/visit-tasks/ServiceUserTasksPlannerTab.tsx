@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Filter,
+  LayoutList,
   ListChecks,
   ListTree,
   Loader2,
@@ -30,6 +31,7 @@ import {
   formatMedicationRoundWindow,
   formatRoundLabel,
   sortMedicationRounds,
+  type MedicationRoundLookup,
 } from '@/features/service-users/medication/medication-time-slots'
 import {
   fetchServiceUserVisitTasks,
@@ -54,6 +56,7 @@ import {
   roundVisual,
   SIDEBAR_ICONS,
   SUMMARY_ROW_ICONS,
+  type PlannerVisual,
 } from '@/features/service-users/visit-tasks/visit-task-planner-visual.util'
 import type {
   TaskCatalogueGroup,
@@ -182,6 +185,8 @@ type Props = {
   serviceUserId: string
 }
 
+type PlannerViewMode = 'timeline' | 'list'
+
 export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
   const queryClient = useQueryClient()
   const lookupsQuery = useMedicationLookups(true)
@@ -214,6 +219,7 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
   const [collapsedRounds, setCollapsedRounds] = React.useState<Set<string>>(new Set())
   const [search, setSearch] = React.useState('')
   const [groupFilter, setGroupFilter] = React.useState<string>('ALL')
+  const [viewMode, setViewMode] = React.useState<PlannerViewMode>('timeline')
   const [addDialogRoundCode, setAddDialogRoundCode] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -479,38 +485,80 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
         </div>
         {filtersActive ? (
           <p className="text-xs text-muted-foreground">
-            Filtering tasks shown in the timeline — your selections are unchanged.
+            Filtering tasks shown in the {viewMode === 'timeline' ? 'timeline' : 'list'} — your
+            selections are unchanged.
           </p>
         ) : null}
       </section>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-1">
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <PlannerIconBadge
                 visual={{
                   ...PLANNER_STAT_VISUALS.slots,
-                  icon: ListTree,
+                  icon: viewMode === 'timeline' ? ListTree : LayoutList,
                 }}
                 size="sm"
               />
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
-                  The day, call by call
+                  {viewMode === 'timeline' ? 'The day, call by call' : 'All tasks by visit slot'}
                 </h2>
-                <p className="text-xs text-muted-foreground">Plan tasks for each visit window</p>
+                <p className="text-xs text-muted-foreground">
+                  {viewMode === 'timeline'
+                    ? 'Plan tasks for each visit window'
+                    : 'Compact list of every planned task'}
+                </p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground shadow-sm">
-              {(() => {
-                const CatalogueIcon = PLANNER_STAT_VISUALS.categories.icon
-                return <CatalogueIcon className="h-3.5 w-3.5 text-violet-600" aria-hidden />
-              })()}
-              {totalCatalogueTasks} in library
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="inline-flex rounded-xl border border-border bg-card p-0.5 shadow-sm"
+                role="group"
+                aria-label="Tasks planner view"
+              >
+                <button
+                  type="button"
+                  aria-pressed={viewMode === 'timeline'}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition',
+                    viewMode === 'timeline'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('timeline')}
+                >
+                  <ListTree className="h-3.5 w-3.5" aria-hidden />
+                  Timeline
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={viewMode === 'list'}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition',
+                    viewMode === 'list'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('list')}
+                >
+                  <LayoutList className="h-3.5 w-3.5" aria-hidden />
+                  List
+                </button>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground shadow-sm">
+                {(() => {
+                  const CatalogueIcon = PLANNER_STAT_VISUALS.categories.icon
+                  return <CatalogueIcon className="h-3.5 w-3.5 text-violet-600" aria-hidden />
+                })()}
+                {totalCatalogueTasks} in library
+              </span>
+            </div>
           </div>
 
+          {viewMode === 'timeline' ? (
           <div className="relative">
             {rounds.map((round, index) => {
               const roundStyle = roundVisual(round.code)
@@ -625,6 +673,35 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
               )
             })}
           </div>
+          ) : (
+            <div className="space-y-4">
+              {rounds.map((round) => {
+                const roundStyle = roundVisual(round.code)
+                const windowLabel = formatMedicationRoundWindow(round)
+                const selectedCount = draftByRound.get(round.code)?.size ?? 0
+                const visibleTasks = getSelectedTasksForRound(round.code)
+
+                return (
+                  <PlannerRoundListSection
+                    key={round.id}
+                    round={round}
+                    roundStyle={roundStyle}
+                    windowLabel={windowLabel}
+                    selectedCount={selectedCount}
+                    visibleTasks={visibleTasks}
+                    onAdd={() => setAddDialogRoundCode(round.code)}
+                    onRemove={(taskId) => removeTaskFromRound(round.code, taskId)}
+                    onInstructionsChange={(taskId, value) =>
+                      updateTaskInstructions(round.code, taskId, value)
+                    }
+                    onPriorityChange={(taskId, value) =>
+                      updateTaskPriority(round.code, taskId, value)
+                    }
+                  />
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-20">
@@ -725,6 +802,188 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           setAddDialogRoundCode(null)
         }}
       />
+    </div>
+  )
+}
+
+type PlannerTaskRow = TaskMeta & {
+  carerInstructions: string
+  priority: VisitTaskPriorityCode
+}
+
+function PlannerRoundListSection({
+  round,
+  roundStyle,
+  windowLabel,
+  selectedCount,
+  visibleTasks,
+  onAdd,
+  onRemove,
+  onInstructionsChange,
+  onPriorityChange,
+}: {
+  round: MedicationRoundLookup
+  roundStyle: PlannerVisual
+  windowLabel: string | null
+  selectedCount: number
+  visibleTasks: PlannerTaskRow[]
+  onAdd: () => void
+  onRemove: (taskId: string) => void
+  onInstructionsChange: (taskId: string, value: string) => void
+  onPriorityChange: (taskId: string, value: VisitTaskPriorityCode) => void
+}) {
+  const RoundIcon = roundStyle.icon
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/30 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className={cn(
+              'grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1',
+              roundStyle.surfaceClass,
+              roundStyle.ringClass,
+            )}
+          >
+            <RoundIcon className={cn('h-4 w-4', roundStyle.iconClass)} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-display text-sm font-semibold text-foreground">
+                {formatRoundLabel(round.name)}
+              </h3>
+              {windowLabel ? (
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  {windowLabel}
+                </span>
+              ) : null}
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                {selectedCount}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {selectedCount > 0
+                ? `${selectedCount} task${selectedCount === 1 ? '' : 's'} planned`
+                : 'No tasks yet'}
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 gap-1 rounded-lg border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+          onClick={onAdd}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
+      </div>
+
+      {selectedCount === 0 ? (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-primary/5"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <PlannerEmptyIcons.addFirst className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            No tasks yet — add the first one for this time slot.
+          </span>
+        </button>
+      ) : visibleTasks.length === 0 ? (
+        <div className="flex items-center gap-3 px-4 py-4 text-xs text-muted-foreground">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted">
+            <PlannerEmptyIcons.noMatch className="h-4 w-4" aria-hidden />
+          </span>
+          No planned tasks match your filter for this slot.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="border-b border-border bg-muted/20 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2.5">Task</th>
+                <th className="px-4 py-2.5">Category</th>
+                <th className="px-4 py-2.5">Priority</th>
+                <th className="min-w-[220px] px-4 py-2.5">Instructions</th>
+                <th className="w-12 px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {visibleTasks.map((meta) => {
+                const taskVisual = groupVisual(meta.groupCode)
+                const TaskIcon = taskVisual.icon
+                const needsInput = taskNeedsRecordedInput(meta.task.flagsJson)
+
+                return (
+                  <tr key={meta.task.id} className="group align-top hover:bg-muted/20">
+                    <td className="px-4 py-3">
+                      <div className="flex items-start gap-2.5">
+                        <span
+                          className={cn(
+                            'mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1',
+                            taskVisual.surfaceClass,
+                            taskVisual.ringClass,
+                          )}
+                        >
+                          <TaskIcon className={cn('h-3.5 w-3.5', taskVisual.iconClass)} aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-medium leading-snug text-foreground">{meta.task.name}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {meta.task.consentRequired ? (
+                              <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                Consent
+                              </span>
+                            ) : null}
+                            {needsInput ? (
+                              <span className="inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                Needs reading / notes
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{meta.categoryName}</td>
+                    <td className="px-4 py-3">
+                      <VisitTaskPriorityPicker
+                        size="sm"
+                        value={meta.priority}
+                        onChange={(value) => onPriorityChange(meta.task.id, value)}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <textarea
+                        rows={2}
+                        value={meta.carerInstructions}
+                        placeholder="Instructions for the carer…"
+                        className="w-full min-w-[200px] resize-y rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        onChange={(event) =>
+                          onInstructionsChange(meta.task.id, event.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        className="grid h-8 w-8 place-items-center rounded-lg text-destructive opacity-60 transition hover:bg-destructive/10 hover:opacity-100"
+                        aria-label={`Remove ${meta.task.name}`}
+                        onClick={() => onRemove(meta.task.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

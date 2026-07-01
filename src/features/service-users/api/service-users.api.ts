@@ -205,6 +205,7 @@ export type ServiceUserDetail = {
   references: ServiceUserDetailReference[]
   assignment: ServiceUserDetailAssignment
   profilePhoto: ServiceUserDetailPhoto
+  photos: Array<NonNullable<ServiceUserDetailPhoto>>
 }
 
 export async function fetchServiceUser(id: string, init?: RequestInit): Promise<ServiceUserDetail> {

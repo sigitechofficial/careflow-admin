@@ -1064,6 +1064,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       sections,
       visibleQuestionsBySection,
     )
+    // Tab 16 renders §14.6 / §14.8 sign-off here; do not strip them from save scope.
+    if (currentHolisticTab.id === 16) return tabQuestions
     if (excludeQuestionIds.size === 0) return tabQuestions
     return tabQuestions.filter((q) => !excludeQuestionIds.has(q.id))
   }, [

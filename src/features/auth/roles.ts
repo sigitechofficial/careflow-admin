@@ -72,6 +72,8 @@ const SERVICE_USER_ALL: Permission[] = [
   'service_users.live_in_profile.documents.delete',
   'service_users.live_in_profile.lookups.read',
   'service_users.lookups.read',
+  'service_users.portal.read',
+  'service_users.portal.manage',
   'service_users.flash_message.read',
   'service_users.flash_message.update',
   'service_users.flash_message.delete',
@@ -341,6 +343,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...NOTIFICATION_INAPP,
   ],
   temporary_inspector: ['temporary_inspector.session'],
+  service_user: ['service_user.portal.session'],
 }
 
 export function permissionsForRole(role: RoleId): Permission[] {

@@ -15,7 +15,10 @@ export type BackendMeUser = {
   email: string
   roles: string[]
   permissions: string[]
-  accountKind?: 'user' | 'temporary_inspector'
+  accountKind?: 'user' | 'temporary_inspector' | 'service_user'
+  serviceUserId?: string
+  preferredName?: string | null
+  profilePhotoUrl?: string | null
   firstName?: string
   lastName?: string
   username?: string
@@ -92,6 +95,34 @@ export async function backendTemporaryInspectorLogin(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ username: username.trim(), password }),
+    },
+    { retry: { maxRetries: 0 } },
+  )
+
+  const body: unknown = await readJsonResponse(res)
+
+  if (!res.ok) {
+    throw new Error(nestErrorMessage(body, res.statusText || 'Login failed'))
+  }
+
+  const env = parseJsonEnvelope<{ accessToken: string; refreshToken: string }>(body)
+  return env.data
+}
+
+/** Public POST /auth/service-user/login — no Bearer. */
+export async function backendServiceUserPortalLogin(
+  email: string,
+  password: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error('VITE_API_BASE_URL is not set')
+
+  const res = await fetchWithResilience(
+    `${base}/auth/service-user/login`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password }),
     },
     { retry: { maxRetries: 0 } },
   )

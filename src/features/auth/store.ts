@@ -9,6 +9,7 @@ import {
   backendLogin,
   backendMe,
   backendRefresh,
+  backendServiceUserPortalLogin,
   backendTemporaryInspectorLogin,
   backendUpdateProfile,
   type BackendMeUser,
@@ -100,10 +101,13 @@ interface AuthState {
   forgotMessage: string | null
 
   isAuthenticated: () => boolean
+  isServiceUser: () => boolean
   can: (p: Permission | Permission[]) => boolean
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   /** API mode only: `POST /auth/login/temporary-inspector` with username + password. */
   loginAsTemporaryInspector: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  /** API mode only: `POST /auth/service-user/login` with email + password. */
+  loginAsServiceUser: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   logout: (reason?: string) => void
   refreshTokens: () => Promise<boolean>
   forgotPassword: (email: string) => void
@@ -138,6 +142,7 @@ function tokenPair() {
 /** Map Nest role names (e.g. "Super Admin") to UI RoleId for default permission merge. */
 function backendRolesToRoleId(roles: string[], accountKind?: string): RoleId {
   if (accountKind === 'temporary_inspector') return 'temporary_inspector'
+  if (accountKind === 'service_user') return 'service_user'
   const lower = roles.map(r => r.toLowerCase())
   if (lower.some(r => r.includes('super') && r.includes('admin'))) return 'super_admin'
   if (lower.some(r => r === 'admin' || r === 'administrator' || r === 'system admin')) return 'admin'
@@ -158,7 +163,12 @@ function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
   const displayName =
     me.accountKind === 'temporary_inspector'
       ? [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Temporary inspector'
-      : [me.firstName, me.lastName].filter(Boolean).join(' ') || me.email.split('@')[0] || me.email
+      : me.accountKind === 'service_user'
+        ? me.preferredName?.trim() ||
+          [me.firstName, me.lastName].filter(Boolean).join(' ') ||
+          me.email.split('@')[0] ||
+          me.email
+        : [me.firstName, me.lastName].filter(Boolean).join(' ') || me.email.split('@')[0] || me.email
   return {
     id: me.id,
     email: me.email,
@@ -167,6 +177,10 @@ function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
     lastName: me.lastName,
     role: mappedRole,
     permissions: mergedPerms,
+    accountKind: me.accountKind,
+    serviceUserId: me.serviceUserId,
+    preferredName: me.preferredName,
+    profilePhotoUrl: me.profilePhotoUrl,
     jobTitle: prev?.jobTitle,
   }
 }
@@ -222,6 +236,8 @@ export const useAuthStore = create<AuthState>()(
         const s = get()
         return !!s.accessToken && Date.now() < s.accessExpiresAt
       },
+
+      isServiceUser: () => get().user?.accountKind === 'service_user' || get().user?.role === 'service_user',
 
       can: (p) => {
         const u = get().user
@@ -485,6 +501,46 @@ export const useAuthStore = create<AuthState>()(
             ip: nowIp(),
             meta: { mode: 'api', temporaryInspector: true },
           })
+          const msg = e instanceof Error ? e.message : 'Sign-in failed.'
+          return { ok: false, error: msg }
+        }
+      },
+
+      loginAsServiceUser: async (email, password) => {
+        const key = email.trim().toLowerCase()
+        if (!getApiBaseUrl()) {
+          return { ok: false, error: 'Service user sign-in requires VITE_API_BASE_URL (API mode).' }
+        }
+        const fails = get().failedByEmail[key] ?? 0
+        if (fails >= 5) {
+          return { ok: false, error: 'Too many failed attempts. Try again later or contact your care team.' }
+        }
+        if (!get().ipAllowedForCurrent()) {
+          return { ok: false, error: 'Sign-in blocked from this IP address (allowlist enabled).' }
+        }
+        try {
+          const { accessToken, refreshToken } = await backendServiceUserPortalLogin(key, password)
+          const me = await backendMe(accessToken)
+          const user = userFromMe(me)
+          const t = Date.now()
+          const accessExpiresAt = accessTokenExpiryMs(accessToken) ?? t + ACCESS_MS
+          const refreshExpiresAt = accessTokenExpiryMs(refreshToken) ?? t + REFRESH_MS
+          set({
+            accessToken,
+            refreshToken,
+            accessExpiresAt,
+            refreshExpiresAt,
+            user,
+            sessions: [],
+            devices: [],
+            failedByEmail: { ...get().failedByEmail, [key]: 0 },
+            forgotMessage: null,
+          })
+          return { ok: true }
+        } catch (e) {
+          set(state => ({
+            failedByEmail: { ...state.failedByEmail, [key]: (state.failedByEmail[key] ?? 0) + 1 },
+          }))
           const msg = e instanceof Error ? e.message : 'Sign-in failed.'
           return { ok: false, error: msg }
         }

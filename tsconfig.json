@@ -19,7 +19,13 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@about_me_svgs/*": ["./public/about_me_svgs/*"],
+      "@interests/*": ["./public/interests/*"],
+      "@life_history/*": ["./public/life_history/*"],
+      "@my_daily_routine/*": ["./public/my_daily_routine/*"],
+      "@support_need/*": ["./public/support_need/*"],
+      "@favourite_things/*": ["./public/favourite_things/*"]
     }
   },
   "include": ["src"],

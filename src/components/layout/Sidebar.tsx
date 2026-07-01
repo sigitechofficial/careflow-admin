@@ -47,35 +47,10 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { Permission } from '@/features/auth/types'
 import { useAuthStore } from '@/features/auth/store'
 import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
+import { portalNavItems } from '@/features/service-user-portal/portal-nav'
+import type { LayoutVariant, NavItem, SubNavItem } from '@/components/layout/sidebar-types'
 
-/* ─── Types ────────────────────────────────────────────────── */
-interface SubNavItem {
-  label: string
-  icon: React.ReactNode
-  /** Real route when `ready` is not false; ignored for navigation when `ready === false`. */
-  href: string
-  /** Optional router search params (e.g. settings tab). */
-  search?: Record<string, string>
-  /** If set, submenu is only shown when the user has this permission. */
-  permission?: Permission
-  /** If set, submenu is shown when the user has any of these permissions (overrides `permission`). */
-  anyPermission?: Permission[]
-  /** When false, opens the in-progress page with this row's label as context. */
-  ready?: boolean
-  /** Stable hook for Playwright / automation (employee module readiness). */
-  navTestId?: string
-}
-
-interface NavItem {
-  label: string
-  icon: React.ReactNode
-  href: string
-  badge?: string | number
-  badgeVariant?: 'default' | 'destructive' | 'warning' | 'success'
-  children?: SubNavItem[]
-  /** When false (no children) or for a parent when collapsed, opens in-progress with `label` as context. */
-  ready?: boolean
-}
+export type { LayoutVariant, NavItem, SubNavItem } from '@/components/layout/sidebar-types'
 
 function getTitleFromSearch(search: unknown): string | undefined {
   if (search && typeof search === 'object' && 'title' in search) {
@@ -487,7 +462,7 @@ function CollapsedSidebarItem({ item, isActive, pathname, search, onNavigate }: 
 }
 
 /* ─── Sidebar ──────────────────────────────────────────────── */
-export function Sidebar() {
+export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
   const { sidebarCollapsed, toggleSidebar, sidebarMobileOpen, setSidebarMobileOpen } = useUIStore()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
@@ -496,8 +471,18 @@ export function Sidebar() {
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
   const can = useAuthStore(s => s.can)
-  const navSource = user?.role === 'temporary_inspector' ? inspectorOnlyNavItems : navItems
-  const navItemsFiltered = React.useMemo(() => filterNavByPermission(navSource, can), [can, navSource])
+  const isPortal = variant === 'portal'
+  const navSource = isPortal
+    ? portalNavItems
+    : user?.role === 'temporary_inspector'
+      ? inspectorOnlyNavItems
+      : navItems
+  const navItemsFiltered = React.useMemo(
+    () => (isPortal ? navSource : filterNavByPermission(navSource, can)),
+    [can, isPortal, navSource],
+  )
+  const signOutRedirect = isPortal ? '/portal/login' : '/auth/login'
+  const accountHref = isPortal ? '/portal/profile' : '/account'
 
   // Track which parent groups are open — open a group when its child route is active
   const [openGroups, setOpenGroups] = React.useState<Set<string>>(() => new Set())
@@ -645,7 +630,7 @@ export function Sidebar() {
           </button>
 
           <Link
-            to="/account"
+            to={accountHref}
             onClick={handleNav}
             className={cn('flex items-center gap-2.5 rounded-lg px-2 py-2', 'hover:bg-sidebar-accent cursor-pointer transition-colors group', sidebarCollapsed && 'justify-center px-1')}
           >
@@ -653,7 +638,9 @@ export function Sidebar() {
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0 animate-fade-in">
                 <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">{user?.displayName ?? 'Sign in'}</p>
-                <p className="text-xs text-sidebar-foreground/75 truncate leading-tight">{user?.jobTitle ?? user?.role ?? ''}</p>
+                <p className="text-xs text-sidebar-foreground/75 truncate leading-tight">
+                  {isPortal ? 'My care portal' : user?.jobTitle ?? user?.role ?? ''}
+                </p>
               </div>
             )}
             {!sidebarCollapsed && <LogOut className="h-4 w-4 text-sidebar-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
@@ -663,7 +650,7 @@ export function Sidebar() {
             data-testid="sidebar-sign-out-button"
             onClick={() => {
               logout('sidebar')
-              navigate({ to: '/auth/login' })
+              navigate({ to: signOutRedirect })
             }}
             className={cn(
               'w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-sidebar-foreground/90',
