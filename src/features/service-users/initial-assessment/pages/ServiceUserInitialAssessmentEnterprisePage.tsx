@@ -1540,6 +1540,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       for (const synced of syncedQuestions) {
         if (!questionsForSave.some((q) => q.id === synced.id)) questionsForSave.push(synced)
       }
+      for (const q of sections.flatMap((s) => s.questions)) {
+        if (!dirtyAnswerQuestionIdsRef.current.has(q.id)) continue
+        if (questionsForSave.some((x) => x.id === q.id)) continue
+        questionsForSave.push(q)
+      }
       const draftForSave = mergeLiveRichTextAnswersForQuestions(questionsForSave, draftAnswers)
       const answers = prepareAnswersForSave(
         questionsForSave,

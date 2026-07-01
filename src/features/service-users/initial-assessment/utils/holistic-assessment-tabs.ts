@@ -9,6 +9,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/section-progress'
 import type { InitialAssessmentAnswerInput } from '@/features/service-users/initial-assessment/types'
 import type { Section12PanelBlock } from '@/features/service-users/initial-assessment/utils/section-12-display-order'
+import { listSection31FireQuestions } from '@/features/service-users/initial-assessment/utils/section-31-fire-safety'
 
 /** Tab content kinds aligned to the paper document Table of Contents (18 items). */
 export type DocumentTabKind =
@@ -436,6 +437,15 @@ export function questionsForDocumentTab(
       }
       const visible = visibleQuestionsBySection.get(slice.sectionNumber) ?? []
       out.push(...filterQuestionsForHolisticTab(visible, slice))
+    }
+    if (tab.id === 1) {
+      const seen = new Set(out.map((q) => q.id))
+      for (const q of listSection31FireQuestions(sections)) {
+        if (!seen.has(q.id)) {
+          out.push(q)
+          seen.add(q.id)
+        }
+      }
     }
     return out
   }

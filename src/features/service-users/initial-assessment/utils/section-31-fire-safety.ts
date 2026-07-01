@@ -65,6 +65,19 @@ export function findSection31FireQuestions(sections: InitialAssessmentSection[])
   }
 }
 
+/** §3.1–3.4 fields rendered inside tab 1 social history — must be included in tab save scope. */
+export function listSection31FireQuestions(sections: InitialAssessmentSection[]): InitialAssessmentQuestion[] {
+  const fire = findSection31FireQuestions(sections)
+  return [
+    fire.fireRisksIdentified,
+    fire.fireRisksDetails,
+    fire.lfbInformed,
+    fire.lfbDetails,
+    fire.manageHomeSafely,
+    fire.safetyMeasures,
+  ].filter((q): q is InitialAssessmentQuestion => Boolean(q))
+}
+
 export function isSection31FireQuestion(q: InitialAssessmentQuestion): boolean {
   const fieldKey = q.metadata?.fieldKey
   if (typeof fieldKey === 'string' && (SECTION_31_FIRE_FIELD_KEYS as readonly string[]).includes(fieldKey)) {
