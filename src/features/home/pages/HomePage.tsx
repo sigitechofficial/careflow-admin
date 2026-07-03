@@ -1,13 +1,15 @@
 ﻿import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 import {
   MessageSquare, ClipboardList, LayoutDashboard,
   AlertTriangle, Calendar, Search, X, ChevronLeft,
   ChevronRight, ChevronsLeft, Dot,
-  Filter,
+  Filter, Globe,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card'
+import { useAuthStore } from '@/features/auth/store'
 
 /* â”€â”€â”€ Sample data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const handoverEntries = [
@@ -67,6 +69,7 @@ type SortBy = 'name' | 'earliest' | 'latest'
 
 /* â”€â”€â”€ Home Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export default function HomePage() {
+  const canManagePortal = useAuthStore(s => s.can('service_users.portal.read'))
   const [showFilter, setShowFilter] = React.useState(false)
   const [sortBy, setSortBy] = React.useState<SortBy>('name')
   const [dateRange, setDateRange] = React.useState('07/05/2026 - 08/05/2026')
@@ -164,6 +167,22 @@ export default function HomePage() {
                 icon={<LayoutDashboard className="h-5 w-5 text-green-500" />}
                 text={<ActionLink>View my Management Dashboard</ActionLink>}
               />
+              {canManagePortal ? (
+                <ActionRow
+                  icon={<Globe className="h-5 w-5 text-sky-500" />}
+                  text={
+                    <>
+                      Manage service user portal access.{' '}
+                      <Link
+                        to="/admin/service-user-portal"
+                        className="font-bold text-foreground hover:text-primary hover:underline transition-colors"
+                      >
+                        Open portal admin
+                      </Link>
+                    </>
+                  }
+                />
+              ) : null}
             </CardContent>
           </Card>
 

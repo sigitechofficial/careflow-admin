@@ -10,6 +10,7 @@ import {
   setServiceUserPortalPassword,
   upsertServiceUserPortalAccount,
 } from '@/features/service-user-portal/api/portal.api'
+import { serviceUserPortalAdminKeys } from '@/features/service-user-portal/hooks/useServiceUserPortalAdmin'
 
 export function ServiceUserPortalAccessSection({
   serviceUserId,
@@ -43,6 +44,7 @@ export function ServiceUserPortalAccessSection({
     onSuccess: () => {
       toastSuccess('Portal access updated')
       void qc.invalidateQueries({ queryKey: ['service-user-portal-account', serviceUserId] })
+      void qc.invalidateQueries({ queryKey: serviceUserPortalAdminKeys.all })
     },
     onError: e => toastApiError(e, 'Update failed'),
   })
@@ -52,6 +54,7 @@ export function ServiceUserPortalAccessSection({
     onSuccess: () => {
       toastSuccess('Portal password set')
       setPassword('')
+      void qc.invalidateQueries({ queryKey: serviceUserPortalAdminKeys.all })
     },
     onError: e => toastApiError(e, 'Password update failed'),
   })

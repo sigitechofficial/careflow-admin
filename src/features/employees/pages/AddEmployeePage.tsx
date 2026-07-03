@@ -61,7 +61,7 @@ import {
 } from '@/features/employees/dial-codes'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { FormField } from '@/shared/ui/form-field'
+import { FormField, Label } from '@/shared/ui/form-field'
 import {
   Dialog,
   DialogBody,
@@ -71,13 +71,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
+import { Combobox } from '@/shared/ui/combobox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import { AddressPlacesField } from '@/shared/ui/address-places-field'
@@ -99,6 +93,7 @@ const defaultValues: FormValues = {
   titleId: '',
   genderId: '',
   nationalityId: '',
+  ethnicityId: '',
   statusId: '',
   dateOfBirth: '',
   addressLine1: '',
@@ -174,6 +169,7 @@ async function personalPayloadFromStep(p: z.infer<typeof personalStepSchema>) {
     email: p.email,
     username: p.username,
     nationalityId: p.nationalityId,
+    ethnicityId: p.ethnicityId,
     statusId: p.statusId,
     dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString() : undefined,
     addressLine1: address.addressLine1,
@@ -205,7 +201,8 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     gradeId: e.gradeId,
     contractTypeId: e.contractTypeId,
     travelPaymentTypeId: e.travelPaymentTypeId,
-    baseLocationIds: e.baseLocationIds?.length ? e.baseLocationIds : undefined,
+    baseLocationIds:
+      e.accessAllZones || !e.baseLocationIds?.length ? undefined : e.baseLocationIds,
     startDate: e.startDate ? new Date(e.startDate).toISOString() : undefined,
     endDate: e.endDate ? new Date(e.endDate).toISOString() : undefined,
     nationalInsuranceNo: e.nationalInsuranceNo,
@@ -396,6 +393,11 @@ function WizardStepTimeline({
   )
 }
 
+function lookupSearchPlaceholder(placeholder: string): string {
+  const noun = placeholder.replace(/^select\s+/i, '').trim().toLowerCase()
+  return noun ? `Search ${noun}…` : 'Search…'
+}
+
 function LookupSelect({
   id,
   value,
@@ -424,26 +426,26 @@ function LookupSelect({
     return [{ id: value, name: label }, ...options]
   }, [options, value, savedOptionName])
 
-  const v = value || '__none__'
+  const comboboxOptions = React.useMemo(
+    () => mergedOptions.map(o => ({ value: o.id, label: o.name })),
+    [mergedOptions],
+  )
+
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Select
+      <Combobox
+        id={id}
+        options={comboboxOptions}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        searchPlaceholder={lookupSearchPlaceholder(placeholder)}
+        emptyText="No matches."
         disabled={disabled}
-        value={v}
-        onValueChange={next => onChange(next === '__none__' ? '' : next)}
-      >
-        <SelectTrigger id={id} className="min-w-0 flex-1" error={!!error}>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none__">— {placeholder} —</SelectItem>
-          {mergedOptions.map(o => (
-            <SelectItem key={o.id} value={o.id}>
-              {o.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        error={!!error}
+        allowDeselect
+        className="min-w-0 flex-1"
+      />
       {tip ? <FieldTip text={tip} /> : null}
     </div>
   )
@@ -677,6 +679,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const overrideActive = isWeeklyHoursCapOverrideActive(hoursCapOverride)
   const contractedWeeklyHours = useWatch({ control, name: 'contractedWeeklyHours' })
   const maximumWeeklyHours = useWatch({ control, name: 'maximumWeeklyHours' })
+  const accessAllZones = useWatch({ control, name: 'accessAllZones' })
+  const baseLocationIds = useWatch({ control, name: 'baseLocationIds' })
   const visaHoursError = React.useMemo(
     () =>
       employmentHoursVisaError(visaTypes, visaTypeId, {
@@ -688,6 +692,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
   const savedPersonal = employeeQuery.data?.personalDetail
   const savedEmployment = employeeQuery.data?.employment
+
+  React.useEffect(() => {
+    if (accessAllZones && (baseLocationIds?.length ?? 0) > 0) {
+      setValue('baseLocationIds', [], { shouldDirty: true })
+    }
+  }, [accessAllZones, baseLocationIds, setValue])
 
   React.useEffect(() => {
     if (!visaTypeId) {
@@ -788,6 +798,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
         titleId: p.titleId,
         genderId: p.genderId,
         nationalityId: p.nationalityId,
+        ethnicityId: p.ethnicityId,
         statusId: p.statusId,
       })
       setCreatedEmployeeId(id)
@@ -1093,6 +1104,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                       Address (optional — includes map coordinates)
                     </h3>
                     <AddressPlacesField
+                      coordinatesReadOnly
                       value={{
                         addressLine1: watch('addressLine1') ?? '',
                         addressLine2: watch('addressLine2') ?? '',
@@ -1131,6 +1143,26 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
+                  <FormField label="Ethnicity" htmlFor="ethnicityId" error={errors.ethnicityId?.message}>
+                    <Controller
+                      name="ethnicityId"
+                      control={control}
+                      render={({ field }) => (
+                        <LookupSelect
+                          id="ethnicityId"
+                          value={field.value}
+                          onChange={field.onChange}
+                          options={L?.ethnicities ?? []}
+                          placeholder="Select ethnicity"
+                          error={errors.ethnicityId?.message}
+                          disabled={!L}
+                          tip="Optional. Uses the same ethnicity list as service users (Settings → Lookup data → Ethnicities)."
+                          savedOptionName={savedPersonal?.ethnicity?.name}
+                        />
+                      )}
+                    />
+                  </FormField>
+
                   <FormField label="Home telephone" htmlFor="homeTelephone" error={errors.homeTelephone?.message}>
                     <Controller
                       name="homeTelephone"
@@ -1162,23 +1194,18 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                         name="mobileDialCode"
                         control={control}
                         render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger
-                              id="mobileDialCode"
-                              className="h-9 w-[11rem] shrink-0"
-                              aria-label="Mobile country code"
-                              error={!!errors.mobileDialCode}
-                            >
-                              <SelectValue placeholder="Code" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                              {DIAL_CODES.map(({ code, label }) => (
-                                <SelectItem key={code} value={code}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            id="mobileDialCode"
+                            aria-label="Mobile country code"
+                            options={DIAL_CODES.map(({ code, label }) => ({ value: code, label }))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Code"
+                            searchPlaceholder="Search country code…"
+                            allowDeselect={false}
+                            error={!!errors.mobileDialCode}
+                            className="h-9 w-[11rem] shrink-0"
+                          />
                         )}
                       />
                       <Controller
@@ -1534,7 +1561,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
-                  <FormField label="Location" htmlFor="locationId" required error={errors.locationId?.message}>
+                  <FormField label="Primary branch" htmlFor="locationId" required error={errors.locationId?.message}>
                     <Controller
                       name="locationId"
                       control={control}
@@ -1544,27 +1571,57 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           value={field.value}
                           onChange={field.onChange}
                           options={L?.locations ?? []}
-                          placeholder="Select location"
+                          placeholder="Select primary branch"
                           error={errors.locationId?.message}
                           disabled={!L}
-                          tip="Primary site or service location."
+                          tip="The carer's main branch for employment and scheduling."
                           savedOptionName={savedEmployment?.location?.name}
                         />
                       )}
                     />
                   </FormField>
 
+                  <div className="flex items-center justify-between border-t border-border pt-4 lg:col-span-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Access all zones</span>
+                      <FieldTip text="When Yes, the carer can work at any branch. Other branch locations are not used." />
+                    </div>
+                    <Controller
+                      name="accessAllZones"
+                      control={control}
+                      render={({ field }) => (
+                        <NoYesToggle
+                          id="accessAllZones"
+                          value={field.value}
+                          onChange={v => {
+                            field.onChange(v)
+                            if (v) {
+                              setValue('baseLocationIds', [], { shouldDirty: true })
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </div>
+
                   <FormField
-                    label="Base locations"
                     htmlFor="baseLocationIds"
-                    hint="Optional home sites for reporting and scheduling."
                     error={errors.baseLocationIds?.message}
+                    hint={
+                      accessAllZones
+                        ? 'Not used while Access all zones is Yes.'
+                        : undefined
+                    }
                   >
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="baseLocationIds">Other branch locations</Label>
+                      <FieldTip text="Select branches where this carer can work in addition to their primary branch." />
+                    </div>
                     <Controller
                       name="baseLocationIds"
                       control={control}
                       render={({ field }) => (
-                        <div id="baseLocationIds" data-testid="baseLocationIds">
+                        <div id="baseLocationIds" data-testid="baseLocationIds" className="mt-1.5">
                           <MultiSelect
                             options={(L?.locations ?? []).map(loc => ({
                               value: loc.id,
@@ -1572,22 +1629,14 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             }))}
                             value={field.value ?? []}
                             onChange={field.onChange}
-                            placeholder="Select one or more base locations"
-                            disabled={!L}
+                            placeholder="Select other branches"
+                            searchPlaceholder="Search branches…"
+                            disabled={!L || Boolean(accessAllZones)}
                           />
                         </div>
                       )}
                     />
                   </FormField>
-
-                  <div className="flex items-center justify-between border-t border-border pt-4 lg:col-span-2">
-                    <span className="text-sm font-medium">Access all zones</span>
-                    <Controller
-                      name="accessAllZones"
-                      control={control}
-                      render={({ field }) => <NoYesToggle value={field.value} onChange={field.onChange} id="accessAllZones" />}
-                    />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-x-10 gap-y-6 pt-2 lg:grid-cols-2">
@@ -1603,25 +1652,18 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                           name="visaTypeId"
                           control={control}
                           render={({ field }) => (
-                            <Select
-                              value={field.value || undefined}
-                              onValueChange={field.onChange}
-                            >
-                              <SelectTrigger
-                                id="visaTypeId"
-                                data-testid="employee-visa-type"
-                                error={!!errors.visaTypeId}
-                              >
-                                <SelectValue placeholder="Select immigration status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {visaTypes.map(vt => (
-                                  <SelectItem key={vt.id} value={vt.id}>
-                                    {vt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Combobox
+                              id="visaTypeId"
+                              data-testid="employee-visa-type"
+                              options={visaTypes.map(vt => ({ value: vt.id, label: vt.label }))}
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Select immigration status"
+                              searchPlaceholder="Search immigration status…"
+                              emptyText="No immigration status match."
+                              error={!!errors.visaTypeId}
+                              allowDeselect
+                            />
                           )}
                         />
                       </FormField>

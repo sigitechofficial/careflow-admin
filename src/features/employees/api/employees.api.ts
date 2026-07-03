@@ -25,6 +25,7 @@ export type EmployeeLookupsBundle = {
   complianceTypes: LookupRow[]
   reviewTypes: LookupRow[]
   nonCoreActivityReasons: LookupRow[]
+  ethnicities: LookupRow[]
 }
 
 export async function fetchEmployeeLookups(init?: RequestInit): Promise<EmployeeLookupsBundle> {
@@ -109,6 +110,8 @@ export type EmployeeDetail = {
     dateOfBirth?: string | null
     nationalityId?: string | null
     nationality?: { id: string; name: string } | null
+    ethnicityId?: string | null
+    ethnicity?: { id: string; name: string } | null
     addressLine1?: string | null
     addressLine2?: string | null
     town?: string | null
@@ -301,6 +304,7 @@ export type CreateEmployeePayload = {
   titleId?: string
   genderId?: string
   nationalityId?: string
+  ethnicityId?: string
   statusId?: string
 }
 
@@ -321,6 +325,7 @@ export type PersonalDetailsPayload = {
   username?: string
   dateOfBirth?: string | null
   nationalityId?: string
+  ethnicityId?: string
   addressLine1?: string
   addressLine2?: string
   town?: string

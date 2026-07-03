@@ -9,6 +9,7 @@ import {
   ClipboardList,
   HeartPulse,
   Phone,
+  Pill,
   UserCircle,
   Users,
 } from 'lucide-react'
@@ -285,11 +286,11 @@ export default function PortalDashboardPage() {
           to="/portal/contacts"
         />
         <StatCard
-          label="About Me"
-          value={data.aboutMeConfigured ? 'Done' : 'Pending'}
-          hint={data.aboutMeConfigured ? 'Profile complete' : 'Tap to complete'}
-          icon={BookOpen}
-          to="/portal/about-me"
+          label="Medications"
+          value={data.activeMedicationsCount ?? 0}
+          hint="Active on your care record"
+          icon={Pill}
+          to="/portal/medications"
         />
       </div>
 

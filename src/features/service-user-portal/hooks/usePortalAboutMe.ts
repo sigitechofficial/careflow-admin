@@ -7,13 +7,16 @@ import {
   fetchPortalContacts,
   fetchPortalDashboard,
   fetchPortalLookups,
+  fetchPortalMedications,
   fetchPortalProfile,
   fetchPortalVisitPlans,
   patchPortalAboutMe,
   patchPortalProfile,
   createPortalContact,
+  createPortalAllergy,
   uploadPortalPhoto,
   type CreatePortalContactPayload,
+  type CreatePortalAllergyPayload,
   type PatchPortalProfilePayload,
 } from '@/features/service-user-portal/api/portal.api'
 
@@ -25,6 +28,7 @@ export const portalKeys = {
   aboutMe: () => [...portalKeys.all, 'about-me'] as const,
   contacts: () => [...portalKeys.all, 'contacts'] as const,
   allergies: () => [...portalKeys.all, 'allergies'] as const,
+  medications: () => [...portalKeys.all, 'medications'] as const,
   calendar: () => [...portalKeys.all, 'calendar'] as const,
   completedVisits: () => [...portalKeys.all, 'completed-visits'] as const,
   visitPlans: () => [...portalKeys.all, 'visit-plans'] as const,
@@ -97,6 +101,21 @@ export function useCreatePortalContact() {
 
 export function usePortalAllergies() {
   return useQuery({ queryKey: portalKeys.allergies(), queryFn: fetchPortalAllergies })
+}
+
+export function useCreatePortalAllergy() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreatePortalAllergyPayload) => createPortalAllergy(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: portalKeys.allergies() })
+      void qc.invalidateQueries({ queryKey: portalKeys.dashboard() })
+    },
+  })
+}
+
+export function usePortalMedications() {
+  return useQuery({ queryKey: portalKeys.medications(), queryFn: fetchPortalMedications })
 }
 
 export function usePortalCalendar() {

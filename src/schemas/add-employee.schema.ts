@@ -177,6 +177,7 @@ export const personalStepSchema = z
     titleId: uuidOpt,
     genderId: uuidOpt,
     nationalityId: uuidOpt,
+    ethnicityId: uuidOpt,
     statusId: uuidOpt,
     dateOfBirth: optionalDateString,
     addressLine1: z

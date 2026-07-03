@@ -21,10 +21,10 @@ export function buildE2eEmployeeDraft(): E2eEmployeeDraft {
   }
 }
 
-/** Radix lookup select: skip the "— placeholder —" row and pick the first real option. */
+/** Lookup combobox: open field and pick the first option. */
 export async function pickFirstLookupOption(page: Page, fieldId: string) {
   await page.locator(`#${fieldId}`).click()
-  const option = page.getByRole('option').filter({ hasNotText: /^—/ }).first()
+  const option = page.getByRole('option').first()
   await expect(option).toBeVisible({ timeout: 10000 })
   await option.click()
 }

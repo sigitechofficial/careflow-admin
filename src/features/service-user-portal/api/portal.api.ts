@@ -164,6 +164,7 @@ export type PortalLookups = {
   genders: Array<{ id: string; name: string }>
   maritalStatuses: Array<{ id: string; name: string }>
   relationshipTypes: Array<{ id: string; name: string }>
+  allergies: Array<{ id: string; name: string; code: string; category: string }>
 }
 
 export type PortalContact = {
@@ -201,6 +202,50 @@ export type PortalAllergy = {
   id: string
   allergyName: string
   comment: string | null
+}
+
+export type CreatePortalAllergyPayload = {
+  allergyCatalogId?: string
+  allergyName?: string
+  comment: string
+}
+
+export type PortalMedicationSchedule = {
+  dueTime: string | null
+  dueVisitName: string | null
+  dose: string | null
+  roundName: string | null
+}
+
+export type PortalActiveMedication = {
+  id: string
+  name: string
+  dose: string | null
+  strength: string | null
+  routeName: string | null
+  status: string
+  statusLabel: string
+  schedules: PortalMedicationSchedule[]
+}
+
+export type PortalMedicationTimelineItem = {
+  id: string
+  medicationName: string
+  status: string
+  statusLabel: string
+  statusCode: string | null
+  scheduledAt: string | null
+  recordedAt: string | null
+  dose: string | null
+  roundLabel: string | null
+  reason: string | null
+  isPrn: boolean
+  carerName: string | null
+}
+
+export type PortalMedications = {
+  activeMedications: PortalActiveMedication[]
+  timeline: PortalMedicationTimelineItem[]
 }
 
 export type PortalCalendarEvent = {
@@ -256,6 +301,7 @@ export type PortalDashboard = {
     careType: PortalLookup
   }
   allergiesCount: number
+  activeMedicationsCount: number
   contacts: Array<{
     id: string
     name: string
@@ -364,6 +410,19 @@ export async function fetchPortalAllergies(): Promise<PortalAllergy[]> {
   return res.data
 }
 
+export async function createPortalAllergy(body: CreatePortalAllergyPayload): Promise<PortalAllergy> {
+  const res = await apiJson<ApiEnvelope<PortalAllergy>>('/portal/allergies', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function fetchPortalMedications(): Promise<PortalMedications> {
+  const res = await apiJson<ApiEnvelope<PortalMedications>>('/portal/medications')
+  return res.data
+}
+
 export async function fetchPortalCalendar(): Promise<PortalCalendarEvent[]> {
   const res = await apiJson<ApiEnvelope<PortalCalendarEvent[]>>('/portal/calendar')
   return res.data
@@ -437,4 +496,64 @@ export async function setServiceUserPortalPassword(serviceUserId: string, passwo
     method: 'POST',
     body: JSON.stringify({ password }),
   })
+}
+
+export type PortalAccountStatusFilter = 'all' | 'configured' | 'not_configured' | 'enabled' | 'disabled'
+
+export type ServiceUserPortalAccountRow = {
+  serviceUserId: string
+  firstName: string
+  lastName: string
+  preferredName: string | null
+  serviceUserEmail: string | null
+  isActive: boolean
+  configured: boolean
+  isEnabled: boolean
+  portalEmail: string | null
+  lastLoginAt: string | null
+}
+
+export type ServiceUserPortalAccountsSummary = {
+  totalActive: number
+  configured: number
+  enabled: number
+  neverLoggedIn: number
+}
+
+export type ListServiceUserPortalAccountsParams = {
+  page?: number
+  limit?: number
+  search?: string
+  portalStatus?: PortalAccountStatusFilter
+}
+
+export type ServiceUserPortalAccountsListResponse = {
+  success?: boolean
+  message?: string
+  data: ServiceUserPortalAccountRow[]
+  meta: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+    summary?: ServiceUserPortalAccountsSummary
+  }
+}
+
+export async function fetchServiceUserPortalAccounts(
+  params: ListServiceUserPortalAccountsParams = {},
+  init?: RequestInit,
+): Promise<ServiceUserPortalAccountsListResponse> {
+  const qs = new URLSearchParams()
+  if (params.page != null) qs.set('page', String(params.page))
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.portalStatus && params.portalStatus !== 'all') qs.set('portalStatus', params.portalStatus)
+  const q = qs.toString()
+  return apiJson<ServiceUserPortalAccountsListResponse>(
+    `/service-users/portal-accounts${q ? `?${q}` : ''}`,
+    { method: 'GET', ...init },
+  )
 }

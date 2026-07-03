@@ -37,6 +37,7 @@ import {
   MapPin,
   Route,
   CalendarClock,
+  Globe,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -150,6 +151,13 @@ const navItems: NavItem[] = [
         navTestId: 'nav-assessments-review-queue',
       },
       { label: 'Add Service User',              icon: <UserRoundPlus className="h-4 w-4" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
+      {
+        label: 'Portal access',
+        icon: <Globe className="h-4 w-4" />,
+        href: '/admin/service-user-portal',
+        permission: 'service_users.portal.read',
+        navTestId: 'nav-service-user-portal-admin',
+      },
     ],
   },
   {
@@ -281,6 +289,13 @@ const navItems: NavItem[] = [
         href: '/admin/audit',
         anyPermission: ['audit.read', 'audit_logs.read'],
         navTestId: 'nav-admin-audit',
+      },
+      {
+        label: 'Service user portal',
+        icon: <Globe className="h-4 w-4" />,
+        href: '/admin/service-user-portal',
+        permission: 'service_users.portal.read',
+        navTestId: 'nav-admin-service-user-portal',
       },
       { label: 'Security', icon: <ShieldCheck className="h-4 w-4" />, href: '/admin/security', permission: 'security.admin' },
     ],

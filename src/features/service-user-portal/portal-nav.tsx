@@ -1,4 +1,4 @@
-import { AlertTriangle, BookOpen, Calendar, CalendarClock, Camera, CheckCircle2, Home, UserCircle, Users } from 'lucide-react'
+import { AlertTriangle, BookOpen, Calendar, CalendarClock, Camera, CheckCircle2, Home, Pill, UserCircle, Users } from 'lucide-react'
 import type { NavItem } from '@/components/layout/sidebar-types'
 
 export const portalNavItems: NavItem[] = [
@@ -9,6 +9,7 @@ export const portalNavItems: NavItem[] = [
   { label: 'Visit plan', icon: <CalendarClock className="h-5 w-5" />, href: '/portal/visit-plans' },
   { label: 'Completed visits', icon: <CheckCircle2 className="h-5 w-5" />, href: '/portal/completed-visits' },
   { label: 'Allergies', icon: <AlertTriangle className="h-5 w-5" />, href: '/portal/allergies' },
+  { label: 'Medications', icon: <Pill className="h-5 w-5" />, href: '/portal/medications' },
   { label: 'Calendar', icon: <Calendar className="h-5 w-5" />, href: '/portal/calendar' },
   { label: 'Photos', icon: <Camera className="h-5 w-5" />, href: '/portal/photos' },
 ]
@@ -21,6 +22,7 @@ export const portalPageTitles: Record<string, string> = {
   '/portal/visit-plans': 'Visit plan',
   '/portal/completed-visits': 'Completed visits',
   '/portal/allergies': 'Allergies',
+  '/portal/medications': 'Medications',
   '/portal/calendar': 'Calendar',
   '/portal/photos': 'Photos',
 }

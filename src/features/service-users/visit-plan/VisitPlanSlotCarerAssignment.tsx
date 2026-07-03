@@ -62,6 +62,7 @@ export function VisitPlanSlotCarerAssignment({
   const [error, setError] = React.useState<string | null>(null)
   const [candidates, setCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
   const [requiredSkills, setRequiredSkills] = React.useState<string[]>([])
+  const [locationFilterApplied, setLocationFilterApplied] = React.useState(false)
   const [carerSearch, setCarerSearch] = React.useState('')
 
   const assignedIds = slotAssignedEmployeeIds(slot)
@@ -107,6 +108,7 @@ export function VisitPlanSlotCarerAssignment({
       })
       setCandidates(data.candidates ?? [])
       setRequiredSkills(data.requiredSkillKeywords ?? [])
+      setLocationFilterApplied(data.locationFilterApplied ?? false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load carer suggestions')
       setCandidates([])
@@ -242,6 +244,11 @@ export function VisitPlanSlotCarerAssignment({
             {requiredSkills.length > 0 ? (
             <p className={contentHelperClass}>
                 Skills from care plans: {requiredSkills.join(', ')}
+              </p>
+            ) : null}
+            {locationFilterApplied ? (
+              <p className={contentHelperClass}>
+                Showing carers assigned to this service user&apos;s location (including all-zone access).
               </p>
             ) : null}
           </div>

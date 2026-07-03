@@ -44,6 +44,7 @@ type Props = {
   defaultSearchRegion?: PhotonSearchRegion
   /** When set, locks search to this country (hides region selector). */
   countryRestriction?: string | string[]
+  coordinatesReadOnly?: boolean
   className?: string
   children?: React.ReactNode
 }
@@ -79,6 +80,7 @@ export function AddressPlacesField({
   disabled,
   defaultSearchRegion,
   countryRestriction: lockedCountryRestriction,
+  coordinatesReadOnly,
   className,
   children,
 }: Props) {
@@ -421,7 +423,8 @@ export function AddressPlacesField({
             placeholder="e.g. 51.454514"
             value={value.latitude}
             onChange={setField('latitude')}
-            disabled={disabled}
+            disabled={disabled || coordinatesReadOnly}
+            readOnly={coordinatesReadOnly}
             autoComplete="off"
           />
         </div>
@@ -433,7 +436,8 @@ export function AddressPlacesField({
             placeholder="e.g. -2.587910"
             value={value.longitude}
             onChange={setField('longitude')}
-            disabled={disabled}
+            disabled={disabled || coordinatesReadOnly}
+            readOnly={coordinatesReadOnly}
             autoComplete="off"
           />
         </div>

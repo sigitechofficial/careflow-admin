@@ -9,6 +9,7 @@ export type EmployeeFormValues = {
   titleId: string
   genderId: string
   nationalityId: string
+  ethnicityId: string
   statusId: string
   dateOfBirth: string
   addressLine1: string
@@ -68,6 +69,7 @@ type EmployeeDetailPersonalApi = NonNullable<EmployeeDetail['personalDetail']> &
   title?: LookupRef
   gender?: LookupRef
   nationality?: LookupRef
+  ethnicity?: LookupRef
   status?: LookupRef
 }
 
@@ -129,6 +131,7 @@ export function mapEmployeeDetailToFormValues(
         titleId: pickLookupId(pd.titleId, pd.title),
         genderId: pickLookupId(pd.genderId, pd.gender),
         nationalityId: pickLookupId(pd.nationalityId, pd.nationality),
+        ethnicityId: pickLookupId(pd.ethnicityId, pd.ethnicity),
         statusId: pickLookupId(pd.statusId, pd.status),
         dateOfBirth: isoToDateInput(pd.dateOfBirth ?? undefined),
         addressLine1: pd.addressLine1 ?? '',

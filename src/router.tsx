@@ -78,6 +78,7 @@ import PortalProfilePage from '@/features/service-user-portal/pages/PortalProfil
 import PortalAboutMePage from '@/features/service-user-portal/pages/PortalAboutMePage'
 import PortalContactsPage from '@/features/service-user-portal/pages/PortalContactsPage'
 import PortalAllergiesPage from '@/features/service-user-portal/pages/PortalAllergiesPage'
+import PortalMedicationsPage from '@/features/service-user-portal/pages/PortalMedicationsPage'
 import PortalCalendarPage from '@/features/service-user-portal/pages/PortalCalendarPage'
 import PortalPhotosPage from '@/features/service-user-portal/pages/PortalPhotosPage'
 import PortalVisitPlansPage from '@/features/service-user-portal/pages/PortalVisitPlansPage'
@@ -89,6 +90,7 @@ import InProgressPage from '@/features/home/pages/InProgressPage'
 import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
+import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 
@@ -438,6 +440,12 @@ const portalAllergiesRoute = createRoute({
   getParentRoute: () => portalShellRoute,
   path: '/portal/allergies',
   component: PortalAllergiesPage,
+})
+
+const portalMedicationsRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/medications',
+  component: PortalMedicationsPage,
 })
 
 const portalCalendarRoute = createRoute({
@@ -1094,6 +1102,13 @@ const adminAuditRoute = createRoute({
   component: AuditLogPage,
 })
 
+const adminServiceUserPortalRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/admin/service-user-portal',
+  beforeLoad: requirePermission('service_users.portal.read'),
+  component: ServiceUserPortalAdminPage,
+})
+
 const inProgressRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/in-progress',
@@ -1254,6 +1269,7 @@ const routeTree = rootRoute.addChildren([
     portalContactsRoute,
     portalAboutMeRoute,
     portalAllergiesRoute,
+    portalMedicationsRoute,
     portalCalendarRoute,
     portalVisitPlansRoute,
     portalCompletedVisitsRoute,
@@ -1305,6 +1321,7 @@ const routeTree = rootRoute.addChildren([
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
+    adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,
     settingsRoute,

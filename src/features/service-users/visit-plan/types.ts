@@ -188,6 +188,8 @@ export type VisitPlanCarerSuggestions = {
   blockedCarerIds: string[]
   requiredSkillKeywords: string[]
   requiredCarers: number
+  locationFilterApplied?: boolean
+  serviceUserLocationIds?: string[]
 }
 
 export type VisitPlanAmendment = {
