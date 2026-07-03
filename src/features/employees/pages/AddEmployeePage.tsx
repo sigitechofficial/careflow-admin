@@ -1581,11 +1581,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
-                  <div className="flex items-center justify-between border-t border-border pt-4 lg:col-span-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Access all zones</span>
-                      <FieldTip text="When Yes, the carer can work at any branch. Other branch locations are not used." />
-                    </div>
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4 lg:col-span-2">
+                    <span className="text-sm font-medium">Access all zones</span>
+                    <FieldTip text="When Yes, the carer can work at any branch. Other branch locations are not used." />
                     <Controller
                       name="accessAllZones"
                       control={control}
