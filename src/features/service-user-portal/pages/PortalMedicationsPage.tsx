@@ -42,7 +42,7 @@ function toTimelineEvent(item: PortalMedicationTimelineItem): TimelineEvent {
     id: item.id,
     title: item.medicationName,
     description: descriptionParts.join(' · ') || undefined,
-    date: item.recordedAt,
+    date: item.recordedAt ?? item.scheduledAt ?? '',
     category: item.statusLabel,
     type: timelineType(item.status),
     author: item.carerName ?? undefined,
