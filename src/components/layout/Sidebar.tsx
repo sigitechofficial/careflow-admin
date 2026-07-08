@@ -38,6 +38,9 @@ import {
   Route,
   CalendarClock,
   Globe,
+  PoundSterling,
+  Receipt,
+  Wallet,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -217,6 +220,43 @@ const navItems: NavItem[] = [
     ready: false,
     children: [
       { label: 'Run Report', icon: <TrendingUp className="h-4 w-4" />, href: '/in-progress', ready: false },
+    ],
+  },
+  {
+    label: 'Billing',
+    icon: <PoundSterling className="h-5 w-5" />,
+    href: '/billing',
+    badge: 18,
+    badgeVariant: 'warning',
+    children: [
+      {
+        label: 'Billing management',
+        icon: <Receipt className="h-4 w-4" />,
+        href: '/billing',
+        search: { tab: 'dashboard' },
+        navTestId: 'nav-billing-management',
+      },
+      {
+        label: 'Visit reconciliation',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/billing',
+        search: { tab: 'visit-reconciliation' },
+        navTestId: 'nav-billing-reconciliation',
+      },
+      {
+        label: 'Payroll runs',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/billing',
+        search: { tab: 'payroll-runs' },
+        navTestId: 'nav-billing-payroll',
+      },
+      {
+        label: 'Invoice runs',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/billing',
+        search: { tab: 'invoice-runs' },
+        navTestId: 'nav-billing-invoices',
+      },
     ],
   },
   {

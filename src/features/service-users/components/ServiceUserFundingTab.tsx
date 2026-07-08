@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2, Pencil, Plus, Star, Trash2, CheckCircle, Ban } from 'lucide-react'
+import { Ban, CheckCircle, Info, Loader2, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import type {
   CreateEnterpriseServiceUserFundingBody,
   EnterpriseFundingStatus,
@@ -21,6 +21,10 @@ import {
   useEnterpriseFundingTypes,
   useServiceUserEnterpriseFundings,
 } from '@/features/service-users/hooks/useServiceUserTabs'
+import { useChargeCards } from '@/features/billing/hooks/useChargeCards'
+import { useInvoiceTemplates } from '@/features/billing/hooks/useInvoiceTemplates'
+import type { ChargeCard } from '@/features/billing/types/billing-cards.types'
+import type { InvoiceTemplate } from '@/features/billing/types/invoice-templates.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
@@ -52,6 +56,82 @@ import {
   AlertDialogTitle,
 } from '@/shared/ui/dialog'
 import { cn, formatDate } from '@/shared/lib/utils'
+import { Combobox } from '@/shared/ui/combobox'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+
+function FundingFieldLabel({
+  label,
+  tooltip,
+  required,
+  className,
+}: {
+  label: string
+  tooltip: string
+  required?: boolean
+  className?: string
+}) {
+  return (
+    <span className={cn('flex items-center gap-1 text-sm font-medium', className)}>
+      {label}
+      {required ? <span className="text-destructive">*</span> : null}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={`About ${label}`}
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-sm text-left text-xs leading-snug">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </span>
+  )
+}
+
+const FUNDING_FIELD_TOOLTIPS = {
+  fundingTypeId:
+    'Classification of who pays (e.g. local authority, NHS, private). Required for each funding line.',
+  funderId: 'The payer organisation invoiced for this share of care. Required for billing readiness.',
+  status: 'Lifecycle of this funding line — e.g. pending approval, active, suspended, or ended.',
+  startDate: 'Date this funding arrangement becomes effective.',
+  endDate: 'Date funding ends. Leave blank if the contract is open-ended.',
+  fundingReference: 'External reference from the funder or council (package ID, client number).',
+  approvalReference: 'Approval or assessment reference from the commissioning body.',
+  packageName: 'Care package or contract name shown on invoices and reports.',
+  weeklyBudget: 'Maximum weekly amount authorised by the funder for this package.',
+  hourlyRate: 'Agreed hourly rate when care is funded by hours rather than a fixed package.',
+  contributionAmount: 'Fixed monetary contribution from this funder (alternative to a percentage split).',
+  splitPercent:
+    'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits for one service user cannot exceed 100%.',
+  splitPriority: 'Billing order when multiple funders apply — 1 is highest priority.',
+  purchaseOrderNumber: 'Purchase order number that must appear on invoices for this funder.',
+  purchaseOrderExpiresAt: 'Date after which the purchase order is no longer valid for billing.',
+  authorisedWeeklyHours: 'Maximum care hours per week authorised under this contract.',
+  defaultChargeCardId:
+    'Invoice rate card for visits billed to this funding line. Overrides the funder default when set.',
+  defaultInvoiceTemplateId:
+    'Funder export profile for this contract. Used when rendering PDF, Excel, CSV, or API invoice files.',
+  billingContactName: 'Person or team named on invoices. Required for billing readiness.',
+  billingContactEmail: 'Email address for sending invoices to this funder or appointee.',
+  billingContactPhone: 'Phone number for billing queries.',
+  invoiceGroupingRule: 'How invoice lines are grouped — e.g. one invoice per service user or per PO.',
+  reviewDate: 'Date when this funding arrangement should be reviewed.',
+  notes: 'Internal notes for staff. Not shown on invoices.',
+  isPrimary:
+    'Primary funding is used first when resolving charge cards and is highlighted on the funding list.',
+} as const
+
+function chargeCardOptionLabel(card: ChargeCard): string {
+  return `${card.name} (${card.code})`
+}
+
+function invoiceTemplateOptionLabel(template: InvoiceTemplate): string {
+  return `${template.name} (${template.templateType})`
+}
 
 const STATUS_OPTIONS: EnterpriseFundingStatus[] = [
   'PENDING',
@@ -86,6 +166,17 @@ type FundingForm = {
   weeklyBudget: string
   hourlyRate: string
   contributionAmount: string
+  splitPercent: string
+  splitPriority: string
+  purchaseOrderNumber: string
+  purchaseOrderExpiresAt: string
+  authorisedWeeklyHours: string
+  billingContactName: string
+  billingContactEmail: string
+  billingContactPhone: string
+  invoiceGroupingRule: string
+  defaultChargeCardId: string
+  defaultInvoiceTemplateId: string
   isPrimary: boolean
   reviewDate: string
   notes: string
@@ -104,6 +195,17 @@ function emptyForm(): FundingForm {
     weeklyBudget: '',
     hourlyRate: '',
     contributionAmount: '',
+    splitPercent: '',
+    splitPriority: '1',
+    purchaseOrderNumber: '',
+    purchaseOrderExpiresAt: '',
+    authorisedWeeklyHours: '',
+    billingContactName: '',
+    billingContactEmail: '',
+    billingContactPhone: '',
+    invoiceGroupingRule: '',
+    defaultChargeCardId: '',
+    defaultInvoiceTemplateId: '',
     isPrimary: false,
     reviewDate: '',
     notes: '',
@@ -123,6 +225,19 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     weeklyBudget: row.weeklyBudget ?? '',
     hourlyRate: row.hourlyRate ?? '',
     contributionAmount: row.contributionAmount ?? '',
+    splitPercent: row.splitPercent ?? '',
+    splitPriority: String(row.splitPriority ?? 1),
+    purchaseOrderNumber: row.purchaseOrderNumber ?? '',
+    purchaseOrderExpiresAt: row.purchaseOrderExpiresAt ? row.purchaseOrderExpiresAt.slice(0, 10) : '',
+    authorisedWeeklyHours:
+      row.authorisedWeeklyHours != null ? String(row.authorisedWeeklyHours) : '',
+    billingContactName: row.billingContactName ?? '',
+    billingContactEmail: row.billingContactEmail ?? '',
+    billingContactPhone: row.billingContactPhone ?? '',
+    invoiceGroupingRule: row.invoiceGroupingRule ?? '',
+    defaultChargeCardId: row.defaultChargeCardId ?? row.defaultChargeCard?.id ?? '',
+    defaultInvoiceTemplateId:
+      row.defaultInvoiceTemplateId ?? row.defaultInvoiceTemplate?.id ?? '',
     isPrimary: row.isPrimary,
     reviewDate: row.reviewDate ? row.reviewDate.slice(0, 10) : '',
     notes: row.notes ?? '',
@@ -142,6 +257,17 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     weeklyBudget: f.weeklyBudget === '' ? null : Number(f.weeklyBudget),
     hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate),
     contributionAmount: f.contributionAmount === '' ? null : Number(f.contributionAmount),
+    splitPercent: f.splitPercent === '' ? null : Number(f.splitPercent),
+    splitPriority: f.splitPriority === '' ? 1 : Number(f.splitPriority),
+    purchaseOrderNumber: f.purchaseOrderNumber || null,
+    purchaseOrderExpiresAt: f.purchaseOrderExpiresAt || null,
+    authorisedWeeklyHours: f.authorisedWeeklyHours === '' ? null : Number(f.authorisedWeeklyHours),
+    billingContactName: f.billingContactName || null,
+    billingContactEmail: f.billingContactEmail || null,
+    billingContactPhone: f.billingContactPhone || null,
+    invoiceGroupingRule: f.invoiceGroupingRule || null,
+    defaultChargeCardId: f.defaultChargeCardId || null,
+    defaultInvoiceTemplateId: f.defaultInvoiceTemplateId || null,
     isPrimary: f.isPrimary,
     reviewDate: f.reviewDate || null,
     notes: f.notes || null,
@@ -175,6 +301,8 @@ export function ServiceUserFundingTab({
   const fundingsQuery = useServiceUserEnterpriseFundings(serviceUserId, canRead)
   const typesQuery = useEnterpriseFundingTypes(canRead)
   const fundersQuery = useEnterpriseFunders(canRead)
+  const chargeCardsQuery = useChargeCards()
+  const invoiceTemplatesQuery = useInvoiceTemplates()
   const createMutation = useCreateServiceUserEnterpriseFunding(serviceUserId)
   const updateMutation = useUpdateServiceUserEnterpriseFunding(serviceUserId)
   const deleteMutation = useDeleteServiceUserEnterpriseFunding(serviceUserId)
@@ -183,10 +311,17 @@ export function ServiceUserFundingTab({
   const approveMutation = useApproveServiceUserEnterpriseFunding(serviceUserId)
   const endMutation = useEndServiceUserEnterpriseFunding(serviceUserId)
 
-  const loading = fundingsQuery.isLoading || typesQuery.isLoading || fundersQuery.isLoading
+  const loading =
+    fundingsQuery.isLoading ||
+    typesQuery.isLoading ||
+    fundersQuery.isLoading ||
+    chargeCardsQuery.isLoading ||
+    invoiceTemplatesQuery.isLoading
   const rows = fundingsQuery.data?.rows ?? []
   const types = typesQuery.data ?? []
   const funders = fundersQuery.data ?? []
+  const chargeCards = chargeCardsQuery.data ?? []
+  const invoiceTemplates = invoiceTemplatesQuery.data ?? []
   const [nhsNumber, setNhsNumber] = React.useState(initialNhsNumber ?? '')
   const [socialRef, setSocialRef] = React.useState(initialSocialServicesRef ?? '')
 
@@ -199,6 +334,38 @@ export function ServiceUserFundingTab({
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<FundingForm>(() => emptyForm())
   const saving = createMutation.isPending || updateMutation.isPending
+
+  const chargeCardOptions = React.useMemo(() => {
+    const options = chargeCards.map(card => ({
+      value: card.id,
+      label: chargeCardOptionLabel(card),
+    }))
+    if (form.defaultChargeCardId && !options.some(o => o.value === form.defaultChargeCardId)) {
+      const saved = rows
+        .map(r => r.defaultChargeCard)
+        .find(c => c?.id === form.defaultChargeCardId)
+      const label = saved ? chargeCardOptionLabel(saved as ChargeCard) : '(saved charge card)'
+      return [{ value: form.defaultChargeCardId, label }, ...options]
+    }
+    return options
+  }, [chargeCards, form.defaultChargeCardId, rows])
+
+  const invoiceTemplateOptions = React.useMemo(() => {
+    const options = invoiceTemplates.map(template => ({
+      value: template.id,
+      label: invoiceTemplateOptionLabel(template),
+    }))
+    if (form.defaultInvoiceTemplateId && !options.some(o => o.value === form.defaultInvoiceTemplateId)) {
+      const saved = rows
+        .map(r => r.defaultInvoiceTemplate)
+        .find(t => t?.id === form.defaultInvoiceTemplateId)
+      const label = saved
+        ? invoiceTemplateOptionLabel(saved as InvoiceTemplate)
+        : '(saved invoice template)'
+      return [{ value: form.defaultInvoiceTemplateId, label }, ...options]
+    }
+    return options
+  }, [invoiceTemplates, form.defaultInvoiceTemplateId, rows])
 
   const [endOpen, setEndOpen] = React.useState(false)
   const [endTarget, setEndTarget] = React.useState<EnterpriseServiceUserFundingRow | null>(null)
@@ -377,6 +544,24 @@ export function ServiceUserFundingTab({
                     </div>
                     {row.funder ? <p className="mt-1 text-sm text-muted-foreground">Funder: {row.funder.name}</p> : null}
                     {row.packageName ? <p className="text-sm text-muted-foreground">Package: {row.packageName}</p> : null}
+                    {row.splitPercent ? (
+                      <p className="text-sm text-muted-foreground">Split: {row.splitPercent}%</p>
+                    ) : null}
+                    {row.defaultChargeCard ? (
+                      <p className="text-sm text-muted-foreground">Charge card: {row.defaultChargeCard.name}</p>
+                    ) : row.funder?.defaultChargeCard ? (
+                      <p className="text-sm text-muted-foreground">
+                        Charge card (funder): {row.funder.defaultChargeCard.name}
+                      </p>
+                    ) : null}
+                    {row.defaultInvoiceTemplate ? (
+                      <p className="text-sm text-muted-foreground">
+                        Invoice template: {row.defaultInvoiceTemplate.name}
+                      </p>
+                    ) : null}
+                    {row.billingContactName ? (
+                      <p className="text-sm text-muted-foreground">Billing: {row.billingContactName}</p>
+                    ) : null}
                     <p className="mt-2 text-xs text-muted-foreground">
                       {fmtDate(row.startDate)} → {fmtDate(row.endDate)} · Weekly {fmtMoney(row.weeklyBudget)} · Hourly {fmtMoney(row.hourlyRate)}
                     </p>
@@ -430,13 +615,21 @@ export function ServiceUserFundingTab({
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit funding' : 'Add funding'}</DialogTitle>
           </DialogHeader>
-          <DialogBody className="space-y-3 max-h-[70vh] overflow-y-auto">
+          <DialogBody className="space-y-4 max-h-[70vh] overflow-y-auto">
+            <TooltipProvider delayDuration={200}>
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Funding details</h4>
             <div>
-              <p className="mb-1 text-sm font-medium">Funding type *</p>
+              <FundingFieldLabel
+                className="mb-1"
+                label="Funding type"
+                tooltip={FUNDING_FIELD_TOOLTIPS.fundingTypeId}
+                required
+              />
               <Select value={form.fundingTypeId} onValueChange={(v) => setForm((f) => ({ ...f, fundingTypeId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
@@ -451,7 +644,7 @@ export function ServiceUserFundingTab({
               </Select>
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">Funder</p>
+              <FundingFieldLabel className="mb-1" label="Funder" tooltip={FUNDING_FIELD_TOOLTIPS.funderId} />
               <Select value={form.funderId || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, funderId: v === '__none__' ? '' : v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Optional" />
@@ -467,7 +660,7 @@ export function ServiceUserFundingTab({
               </Select>
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">Status</p>
+              <FundingFieldLabel className="mb-1" label="Status" tooltip={FUNDING_FIELD_TOOLTIPS.status} />
               <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v as EnterpriseFundingStatus }))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -483,39 +676,39 @@ export function ServiceUserFundingTab({
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <p className="mb-1 text-sm font-medium">Start</p>
+                <FundingFieldLabel className="mb-1" label="Start" tooltip={FUNDING_FIELD_TOOLTIPS.startDate} />
                 <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
               </div>
               <div>
-                <p className="mb-1 text-sm font-medium">End</p>
+                <FundingFieldLabel className="mb-1" label="End" tooltip={FUNDING_FIELD_TOOLTIPS.endDate} />
                 <Input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <p className="mb-1 text-sm font-medium">Funding ref</p>
+                <FundingFieldLabel className="mb-1" label="Funding ref" tooltip={FUNDING_FIELD_TOOLTIPS.fundingReference} />
                 <Input value={form.fundingReference} onChange={(e) => setForm((f) => ({ ...f, fundingReference: e.target.value }))} />
               </div>
               <div>
-                <p className="mb-1 text-sm font-medium">Approval ref</p>
+                <FundingFieldLabel className="mb-1" label="Approval ref" tooltip={FUNDING_FIELD_TOOLTIPS.approvalReference} />
                 <Input value={form.approvalReference} onChange={(e) => setForm((f) => ({ ...f, approvalReference: e.target.value }))} />
               </div>
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">Package name</p>
+              <FundingFieldLabel className="mb-1" label="Package name" tooltip={FUNDING_FIELD_TOOLTIPS.packageName} />
               <Input value={form.packageName} onChange={(e) => setForm((f) => ({ ...f, packageName: e.target.value }))} />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <p className="mb-1 text-sm font-medium">Weekly budget</p>
+                <FundingFieldLabel className="mb-1" label="Weekly budget" tooltip={FUNDING_FIELD_TOOLTIPS.weeklyBudget} />
                 <Input inputMode="decimal" value={form.weeklyBudget} onChange={(e) => setForm((f) => ({ ...f, weeklyBudget: e.target.value }))} />
               </div>
               <div>
-                <p className="mb-1 text-sm font-medium">Hourly rate</p>
+                <FundingFieldLabel className="mb-1" label="Hourly rate" tooltip={FUNDING_FIELD_TOOLTIPS.hourlyRate} />
                 <Input inputMode="decimal" value={form.hourlyRate} onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))} />
               </div>
               <div>
-                <p className="mb-1 text-sm font-medium">Contribution</p>
+                <FundingFieldLabel className="mb-1" label="Contribution" tooltip={FUNDING_FIELD_TOOLTIPS.contributionAmount} />
                 <Input
                   inputMode="decimal"
                   value={form.contributionAmount}
@@ -523,18 +716,152 @@ export function ServiceUserFundingTab({
                 />
               </div>
             </div>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
+              <h4 className="text-sm font-semibold text-foreground">Billing & invoicing</h4>
+              <p className="text-xs text-muted-foreground">
+                Split percentages, purchase orders, and billing contacts are used when generating invoice runs.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FundingFieldLabel className="mb-1" label="Split %" tooltip={FUNDING_FIELD_TOOLTIPS.splitPercent} />
+                  <Input
+                    inputMode="decimal"
+                    placeholder="e.g. 70"
+                    value={form.splitPercent}
+                    onChange={(e) => setForm((f) => ({ ...f, splitPercent: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <FundingFieldLabel className="mb-1" label="Split priority" tooltip={FUNDING_FIELD_TOOLTIPS.splitPriority} />
+                  <Input
+                    inputMode="numeric"
+                    value={form.splitPriority}
+                    onChange={(e) => setForm((f) => ({ ...f, splitPriority: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FundingFieldLabel className="mb-1" label="PO number" tooltip={FUNDING_FIELD_TOOLTIPS.purchaseOrderNumber} />
+                  <Input
+                    value={form.purchaseOrderNumber}
+                    onChange={(e) => setForm((f) => ({ ...f, purchaseOrderNumber: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <FundingFieldLabel className="mb-1" label="PO expires" tooltip={FUNDING_FIELD_TOOLTIPS.purchaseOrderExpiresAt} />
+                  <Input
+                    type="date"
+                    value={form.purchaseOrderExpiresAt}
+                    onChange={(e) => setForm((f) => ({ ...f, purchaseOrderExpiresAt: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <FundingFieldLabel
+                  className="mb-1"
+                  label="Authorised weekly hours"
+                  tooltip={FUNDING_FIELD_TOOLTIPS.authorisedWeeklyHours}
+                />
+                <Input
+                  inputMode="decimal"
+                  placeholder="e.g. 35"
+                  value={form.authorisedWeeklyHours}
+                  onChange={(e) => setForm((f) => ({ ...f, authorisedWeeklyHours: e.target.value }))}
+                />
+              </div>
+              <div>
+                <FundingFieldLabel className="mb-1" label="Charge card" tooltip={FUNDING_FIELD_TOOLTIPS.defaultChargeCardId} />
+                <Combobox
+                  options={chargeCardOptions}
+                  value={form.defaultChargeCardId}
+                  onChange={value => setForm(f => ({ ...f, defaultChargeCardId: value }))}
+                  placeholder="Select charge card for this contract"
+                  allowDeselect
+                />
+              </div>
+              <div>
+                <FundingFieldLabel
+                  className="mb-1"
+                  label="Invoice template"
+                  tooltip={FUNDING_FIELD_TOOLTIPS.defaultInvoiceTemplateId}
+                />
+                <Combobox
+                  options={invoiceTemplateOptions}
+                  value={form.defaultInvoiceTemplateId}
+                  onChange={value => setForm(f => ({ ...f, defaultInvoiceTemplateId: value }))}
+                  placeholder="Select export template for this contract"
+                  allowDeselect
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FundingFieldLabel
+                    className="mb-1"
+                    label="Billing contact name"
+                    tooltip={FUNDING_FIELD_TOOLTIPS.billingContactName}
+                  />
+                  <Input
+                    value={form.billingContactName}
+                    onChange={(e) => setForm((f) => ({ ...f, billingContactName: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <FundingFieldLabel
+                    className="mb-1"
+                    label="Billing contact email"
+                    tooltip={FUNDING_FIELD_TOOLTIPS.billingContactEmail}
+                  />
+                  <Input
+                    type="email"
+                    value={form.billingContactEmail}
+                    onChange={(e) => setForm((f) => ({ ...f, billingContactEmail: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <FundingFieldLabel
+                  className="mb-1"
+                  label="Billing contact phone"
+                  tooltip={FUNDING_FIELD_TOOLTIPS.billingContactPhone}
+                />
+                <Input
+                  value={form.billingContactPhone}
+                  onChange={(e) => setForm((f) => ({ ...f, billingContactPhone: e.target.value }))}
+                />
+              </div>
+              <div>
+                <FundingFieldLabel
+                  className="mb-1"
+                  label="Invoice grouping rule"
+                  tooltip={FUNDING_FIELD_TOOLTIPS.invoiceGroupingRule}
+                />
+                <Input
+                  placeholder="e.g. One invoice per service user"
+                  value={form.invoiceGroupingRule}
+                  onChange={(e) => setForm((f) => ({ ...f, invoiceGroupingRule: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
+              <h4 className="text-sm font-semibold text-foreground">Other</h4>
             <div>
-              <p className="mb-1 text-sm font-medium">Review date</p>
+              <FundingFieldLabel className="mb-1" label="Review date" tooltip={FUNDING_FIELD_TOOLTIPS.reviewDate} />
               <Input type="date" value={form.reviewDate} onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))} />
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">Notes</p>
+              <FundingFieldLabel className="mb-1" label="Notes" tooltip={FUNDING_FIELD_TOOLTIPS.notes} />
               <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.isPrimary} onCheckedChange={(v) => setForm((f) => ({ ...f, isPrimary: v }))} />
-              <span className="text-sm">Primary funding</span>
+              <FundingFieldLabel label="Primary funding" tooltip={FUNDING_FIELD_TOOLTIPS.isPrimary} />
             </div>
+            </div>
+            </TooltipProvider>
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>

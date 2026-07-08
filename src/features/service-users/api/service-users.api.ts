@@ -180,6 +180,8 @@ export type ServiceUserDetail = {
   serviceEndDate: string | null
   profilePhotoUrl: string | null
   notes: string | null
+  defaultChargeCardId?: string | null
+  defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -271,6 +273,17 @@ export type EnterpriseServiceUserFundingRow = {
   weeklyBudget: string | null
   hourlyRate: string | null
   contributionAmount: string | null
+  splitPercent: string | null
+  splitPriority: number
+  purchaseOrderNumber: string | null
+  purchaseOrderExpiresAt: string | null
+  authorisedWeeklyHours: number | null
+  billingContactName: string | null
+  billingContactEmail: string | null
+  billingContactPhone: string | null
+  invoiceGroupingRule: string | null
+  defaultChargeCardId: string | null
+  defaultInvoiceTemplateId: string | null
   isPrimary: boolean
   isActive: boolean
   approvedAt: string | null
@@ -280,7 +293,22 @@ export type EnterpriseServiceUserFundingRow = {
   createdAt: string
   updatedAt: string
   fundingType: { id: string; name: string; code: string }
-  funder: { id: string; name: string; code: string | null } | null
+  funder: {
+    id: string
+    name: string
+    code: string | null
+    defaultChargeCardId?: string | null
+    defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
+  } | null
+  defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
+  defaultInvoiceTemplate?: {
+    id: string
+    name: string
+    code: string
+    status: string
+    templateType: string
+    version?: string
+  } | null
   approvedBy: { id: string; email: string; firstName: string | null; lastName: string | null } | null
 }
 
@@ -356,6 +384,17 @@ export type CreateEnterpriseServiceUserFundingBody = {
   weeklyBudget?: number | null
   hourlyRate?: number | null
   contributionAmount?: number | null
+  splitPercent?: number | null
+  splitPriority?: number
+  purchaseOrderNumber?: string | null
+  purchaseOrderExpiresAt?: string | null
+  authorisedWeeklyHours?: number | null
+  billingContactName?: string | null
+  billingContactEmail?: string | null
+  billingContactPhone?: string | null
+  invoiceGroupingRule?: string | null
+  defaultChargeCardId?: string | null
+  defaultInvoiceTemplateId?: string | null
   isPrimary?: boolean
   reviewDate?: string | null
   notes?: string | null
@@ -1571,6 +1610,7 @@ export type UpdateServiceUserPayload = {
   keyWorkerId?: string | null
   namedNurseId?: string | null
   notes?: string | null
+  defaultChargeCardId?: string | null
   serviceUserNumber?: string | null
   residentId?: string | null
   residentGuid?: string | null

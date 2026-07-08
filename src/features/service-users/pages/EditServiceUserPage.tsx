@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Loader2,
   Package,
+  Receipt,
   Shield,
   Sparkles,
   User,
@@ -42,6 +43,7 @@ import { ServiceUserAbsencesTab } from '@/features/service-users/components/Serv
 import { ServiceUserDomCareTab } from '@/features/service-users/components/ServiceUserDomCareTab'
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
+import { ServiceUserEditChargeCardPanel } from '@/features/service-users/components/ServiceUserEditChargeCardPanel'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
 import { ServiceUserCalendarTab } from '@/features/service-users/calendar/components/ServiceUserCalendarTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
@@ -60,6 +62,7 @@ const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'dom', label: 'DOM Care', Icon: Home },
   { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
   { id: 'funding', label: 'Funding', Icon: Landmark },
+  { id: 'charge-card', label: 'Charge card', Icon: Receipt },
   { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
 ]
 
@@ -108,7 +111,7 @@ export default function EditServiceUserPage() {
     if (tab && MAIN_TABS.some((t) => t.id === tab)) {
       setMainTab(tab)
     }
-  }, [search.tab])
+  }, [search.tab, serviceUserId])
 
   const { data: detail = null, isLoading: profileLoading, error: profileError } = useServiceUser(serviceUserId ?? '')
   const { data: lookups = null, isLoading: lookupsLoading } = useServiceUserLookups()
@@ -338,6 +341,9 @@ export default function EditServiceUserPage() {
                 initialSocialServicesRef={detail.socialServicesRef}
                 onDetailPatch={invalidateProfile}
               />
+            </TabsContent>
+            <TabsContent value="charge-card" className="mt-6">
+              <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />
             </TabsContent>
             <TabsContent value="livein" className="mt-6">
               <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />

@@ -93,6 +93,8 @@ import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
+import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
+import type { BillingTabId } from '@/features/billing/types/billing.types'
 
 // ΓöÇΓöÇ Settings pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import SettingsPage from '@/features/settings/pages/SettingsPage'
@@ -195,6 +197,7 @@ const pageTitles: Record<string, string> = {
   '/settings/general': 'General Settings',
   '/settings/location-management': 'Location Management',
   '/settings/care-pathway': 'Care Pathway',
+  '/billing': 'Billing Management',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -223,6 +226,19 @@ const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [
   'zones',
   'service-users',
   'employees',
+]
+
+const BILLING_TAB_IDS: BillingTabId[] = [
+  'dashboard',
+  'pay-cards',
+  'charge-cards',
+  'funding-contracts',
+  'invoice-templates',
+  'visit-reconciliation',
+  'payroll-runs',
+  'invoice-runs',
+  'payments',
+  'audit-export',
 ]
 
 function RootDocument() {
@@ -1228,6 +1244,19 @@ const locationManagementRoute = createRoute({
   component: LocationManagementPage,
 })
 
+const billingRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing',
+  validateSearch: (raw: Record<string, unknown>): { tab?: BillingTabId } => {
+    const t = raw.tab
+    if (typeof t === 'string' && BILLING_TAB_IDS.includes(t as BillingTabId)) {
+      return { tab: t as BillingTabId }
+    }
+    return { tab: 'dashboard' }
+  },
+  component: BillingManagementPage,
+})
+
 const carePathwayRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings/care-pathway',
@@ -1329,6 +1358,7 @@ const routeTree = rootRoute.addChildren([
     generalSettingsRoute,
     locationManagementRoute,
     carePathwayRoute,
+    billingRoute,
   ]),
 ])
 

@@ -154,6 +154,8 @@ export type EmployeeDetail = {
     nmcPinNumber?: string | null
     employeeNumber?: string | null
     payrollNumber?: string | null
+    defaultPayCardId?: string | null
+    defaultPayCard?: { id: string; name: string; code?: string | null; status?: string | null } | null
     accessAllZones?: boolean | null
     visaTypeId?: string | null
     isInCountry?: boolean | null
@@ -397,6 +399,7 @@ export type EmploymentPayload = {
   employeeNumber?: string
   travelPaymentTypeId?: string
   payrollNumber?: string
+  defaultPayCardId?: string | null
   locationId?: string
   baseLocationId?: string
   baseLocationIds?: string[]
