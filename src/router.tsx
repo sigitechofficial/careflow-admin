@@ -94,6 +94,7 @@ import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/Ser
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
+import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
 import type { BillingTabId } from '@/features/billing/types/billing.types'
 
 // ΓöÇΓöÇ Settings pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
@@ -198,6 +199,7 @@ const pageTitles: Record<string, string> = {
   '/settings/location-management': 'Location Management',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
+  '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -1257,6 +1259,12 @@ const billingRoute = createRoute({
   component: BillingManagementPage,
 })
 
+const billingInvoiceRunDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/invoice-runs/$invoiceRunId',
+  component: InvoiceRunDetailPage,
+})
+
 const carePathwayRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings/care-pathway',
@@ -1359,6 +1367,7 @@ const routeTree = rootRoute.addChildren([
     locationManagementRoute,
     carePathwayRoute,
     billingRoute,
+    billingInvoiceRunDetailRoute,
   ]),
 ])
 

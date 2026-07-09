@@ -1,0 +1,99 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  approveVisitReconciliation,
+  backfillVisitReconciliations,
+  bulkApproveVisitReconciliations,
+  fetchVisitReconciliation,
+  fetchVisitReconciliationExceptionQueue,
+  fetchVisitReconciliations,
+  fetchVisitReconciliationsSummary,
+  rejectVisitReconciliation,
+} from '@/features/billing/api/visit-reconciliations.api'
+import { billingKeys } from '@/features/billing/keys'
+import type { ApproveScope } from '@/features/billing/types/visit-reconciliation.types'
+import type { VisitReconciliationStatus } from '@/features/billing/types/billing.types'
+
+export function useVisitReconciliations(filters?: {
+  search?: string
+  status?: VisitReconciliationStatus
+  hasExceptions?: boolean
+  page?: number
+  limit?: number
+}) {
+  return useQuery({
+    queryKey: billingKeys.visitReconciliations(filters),
+    queryFn: () => fetchVisitReconciliations(filters),
+  })
+}
+
+export function useVisitReconciliation(id: string | undefined) {
+  return useQuery({
+    queryKey: billingKeys.visitReconciliation(id ?? ''),
+    queryFn: () => fetchVisitReconciliation(id!),
+    enabled: Boolean(id),
+  })
+}
+
+export function useVisitReconciliationsSummary() {
+  return useQuery({
+    queryKey: billingKeys.visitReconciliationsSummary(),
+    queryFn: fetchVisitReconciliationsSummary,
+  })
+}
+
+export function useVisitReconciliationExceptionQueue(limit = 10) {
+  return useQuery({
+    queryKey: billingKeys.visitReconciliationExceptionQueue(limit),
+    queryFn: () => fetchVisitReconciliationExceptionQueue(limit),
+  })
+}
+
+export function useApproveVisitReconciliation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      scope,
+      managerOverride,
+    }: {
+      id: string
+      scope: ApproveScope
+      managerOverride?: boolean
+    }) => approveVisitReconciliation(id, { scope, managerOverride }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useRejectVisitReconciliation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, scope }: { id: string; scope: ApproveScope }) =>
+      rejectVisitReconciliation(id, { scope }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useBulkApproveVisitReconciliations() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { ids: string[]; scope: ApproveScope }) =>
+      bulkApproveVisitReconciliations(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useBackfillVisitReconciliations() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body?: { dateFrom?: string; dateTo?: string }) => backfillVisitReconciliations(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}

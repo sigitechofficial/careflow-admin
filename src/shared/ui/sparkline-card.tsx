@@ -1,7 +1,8 @@
 ﻿import * as React from "react"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
-import { TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { Info, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
+import { Tooltip as HelpTooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 
 export interface SparklineCardProps {
   title: string
@@ -13,11 +14,13 @@ export interface SparklineCardProps {
   prefix?: string
   suffix?: string
   className?: string
+  /** Short explanation shown on the info icon beside the title. */
+  tooltip?: string
 }
 
 export function SparklineCard({
   title, value, change, changeLabel = "vs last period",
-  data, color = "var(--color-primary)", prefix, suffix, className,
+  data, color = "var(--color-primary)", prefix, suffix, className, tooltip,
 }: SparklineCardProps) {
   const isPositive = (change ?? 0) > 0
   const isNeutral = change === 0 || change === undefined
@@ -26,7 +29,26 @@ export function SparklineCard({
     <div className={cn("rounded-xl border border-border bg-card p-4 flex flex-col gap-3", className)}>
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1 min-w-0">
-          <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
+          <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground min-w-0">
+            <span className="truncate">{title}</span>
+            {tooltip ? (
+              <HelpTooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex shrink-0 text-muted-foreground/80 transition-colors hover:text-foreground"
+                    aria-label={`About ${title}`}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <Info className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-left text-xs leading-snug">
+                  {tooltip}
+                </TooltipContent>
+              </HelpTooltip>
+            ) : null}
+          </p>
           <p className="text-2xl font-display font-bold text-foreground tabular-nums">
             {prefix}{value}{suffix}
           </p>

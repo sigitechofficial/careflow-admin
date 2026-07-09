@@ -1,0 +1,108 @@
+import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
+
+export type InvoiceRunRow = {
+  id: string
+  period: string
+  periodStart: string
+  periodEnd: string
+  status: InvoiceRunStatus
+  serviceUsers: number
+  funders: number
+  netTotal: string
+  exceptions: number
+  exportStatus: ExportStatus
+}
+
+export type InvoiceRunsSummary = {
+  invoiceDrafts: number
+}
+
+export type InvoiceRunLine = {
+  id: string
+  visitRef: string | null
+  serviceUserId: string
+  serviceUserName: string
+  serviceUserNumber: string | null
+  funderId: string | null
+  funderName: string
+  funderCode: string | null
+  description: string
+  minutes: number | null
+  splitPercent: number | null
+  amount: string
+  amountValue: number
+  exceptionMessage: string | null
+}
+
+export type InvoiceRunFunderSummary = {
+  funderId: string | null
+  funderName: string
+  funderCode: string | null
+  lineCount: number
+  subtotal: string
+  subtotalValue: number
+  lines: InvoiceRunLine[]
+}
+
+export type InvoiceRunDetail = InvoiceRunRow & {
+  notes: string | null
+  lineCount: number
+  approvedAt: string | null
+  lockedAt: string | null
+  sentAt: string | null
+  paidAmount: string
+  outstanding: string
+  paidAmountValue: number
+  outstandingValue: number
+  netTotalValue: number
+  lines: InvoiceRunLine[]
+  funderSummaries: InvoiceRunFunderSummary[]
+}
+
+export async function fetchInvoiceRuns(): Promise<InvoiceRunRow[]> {
+  const res = await apiJson<ApiEnvelope<InvoiceRunRow[]>>('/billing/invoice-runs', { method: 'GET' })
+  return res.data
+}
+
+export async function fetchInvoiceRunsSummary(): Promise<InvoiceRunsSummary> {
+  const res = await apiJson<ApiEnvelope<InvoiceRunsSummary>>('/billing/invoice-runs/summary', {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function fetchInvoiceRun(id: string): Promise<InvoiceRunDetail> {
+  const res = await apiJson<ApiEnvelope<InvoiceRunDetail>>(`/billing/invoice-runs/${id}`, {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createInvoiceRun(body: {
+  periodStart: string
+  periodEnd: string
+  notes?: string
+}): Promise<InvoiceRunRow> {
+  const res = await apiJson<ApiEnvelope<InvoiceRunRow>>('/billing/invoice-runs', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function calculateInvoiceRun(id: string): Promise<void> {
+  await apiJson(`/billing/invoice-runs/${id}/calculate`, { method: 'POST' })
+}
+
+export async function approveInvoiceRun(id: string): Promise<void> {
+  await apiJson(`/billing/invoice-runs/${id}/approve`, { method: 'POST' })
+}
+
+export async function lockInvoiceRun(id: string): Promise<void> {
+  await apiJson(`/billing/invoice-runs/${id}/lock`, { method: 'POST' })
+}
+
+export async function sendInvoiceRun(id: string): Promise<void> {
+  await apiJson(`/billing/invoice-runs/${id}/send`, { method: 'POST' })
+}

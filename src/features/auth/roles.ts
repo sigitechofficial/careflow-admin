@@ -147,6 +147,24 @@ const CARE_PATHWAY_ADMIN: Permission[] = [
   'picture_gallery.delete',
 ]
 
+const BILLING_ALL: Permission[] = [
+  'billing.pay_cards.read',
+  'billing.pay_cards.manage',
+  'billing.charge_cards.read',
+  'billing.charge_cards.manage',
+  'billing.funding_contracts.read',
+  'billing.invoice_templates.read',
+  'billing.invoice_templates.manage',
+  'billing.visit_reconciliations.read',
+  'billing.visit_reconciliations.manage',
+  'billing.payroll_runs.read',
+  'billing.payroll_runs.manage',
+  'billing.invoice_runs.read',
+  'billing.invoice_runs.manage',
+  'billing.payments.read',
+  'billing.payments.manage',
+]
+
 /** Role → default permissions (merged with `/auth/me` keys in API mode). */
 export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   super_admin: [
@@ -184,6 +202,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'notifications.create',
     ...CARE_PATHWAY_ADMIN,
     'job_allocations.confirm',
+    ...BILLING_ALL,
   ],
   admin: [
     'users.read',
@@ -216,6 +235,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'notifications.create',
     ...CARE_PATHWAY_ADMIN,
     'job_allocations.confirm',
+    ...BILLING_ALL,
   ],
   manager: [
     'users.read',

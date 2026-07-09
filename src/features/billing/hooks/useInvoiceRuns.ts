@@ -1,0 +1,74 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  approveInvoiceRun,
+  calculateInvoiceRun,
+  createInvoiceRun,
+  fetchInvoiceRun,
+  fetchInvoiceRuns,
+  fetchInvoiceRunsSummary,
+  lockInvoiceRun,
+  sendInvoiceRun,
+} from '@/features/billing/api/invoice-runs.api'
+import { billingKeys } from '@/features/billing/keys'
+
+export function useInvoiceRuns() {
+  return useQuery({
+    queryKey: billingKeys.invoiceRuns(),
+    queryFn: fetchInvoiceRuns,
+  })
+}
+
+export function useInvoiceRunsSummary() {
+  return useQuery({
+    queryKey: billingKeys.invoiceRunsSummary(),
+    queryFn: fetchInvoiceRunsSummary,
+  })
+}
+
+export function useInvoiceRun(id: string | undefined) {
+  return useQuery({
+    queryKey: billingKeys.invoiceRun(id ?? ''),
+    queryFn: () => fetchInvoiceRun(id!),
+    enabled: Boolean(id),
+  })
+}
+
+export function useCreateInvoiceRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useCalculateInvoiceRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: calculateInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useApproveInvoiceRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: approveInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useLockInvoiceRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: lockInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useSendInvoiceRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: sendInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}

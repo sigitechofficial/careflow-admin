@@ -242,6 +242,7 @@ export const useAuthStore = create<AuthState>()(
       can: (p) => {
         const u = get().user
         if (!u) return false
+        if (u.role === 'super_admin') return true
         return checkPerm(u.permissions, p)
       },
 
