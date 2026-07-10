@@ -238,16 +238,21 @@ export const BILLING_DAY_TYPE_OPTIONS: { value: BillingDayType; label: string }[
   { value: 'SUNDAY', label: 'Sunday' },
 ]
 
-export const BILLING_VISIT_DURATION_OPTIONS: { value: number | ''; label: string }[] = [
-  { value: '', label: 'Any duration' },
+export const BILLING_VISIT_DURATION_OPTIONS: { value: number; label: string }[] = [
   { value: 15, label: '15 minutes' },
   { value: 30, label: '30 minutes' },
   { value: 45, label: '45 minutes' },
   { value: 60, label: '60 minutes (1 hour)' },
 ]
 
+/** Fixed visit slots apply up to this duration; longer visits use hourly rate × hours. */
+export const MAX_FIXED_VISIT_MINUTES = 60
+
+export const DEFAULT_VISIT_DURATION_MINUTES = 30
+
 export const BILLING_CHARGE_METHOD_OPTIONS: { value: BillingChargeMethod; label: string }[] = [
-  { value: 'HOURLY_PRO_RATA', label: 'Hourly pro-rata' },
+  { value: 'FIXED_VISIT', label: 'Fixed visit charge (up to 1 hour)' },
+  { value: 'HOURLY_PRO_RATA', label: 'Hourly (visits over 1 hour)' },
 ]
 
 export function formatVisitDurationLabel(minutes?: number | null): string | null {
@@ -268,16 +273,82 @@ export function formatBillingCurrencyDisplay(currency?: string | null): string {
   return code
 }
 
+export function formatPayCardRuleTimeBand(rule: Pick<PayCardRule, 'startTime' | 'endTime'>): string | null {
+  const start = rule.startTime?.trim()
+  const end = rule.endTime?.trim()
+  if (!start && !end) return null
+  if (start && end) return `${start}–${end}`
+  return start ?? end ?? null
+}
+
 export function formatPayCardRuleAmount(
-  rule: Pick<PayCardRule, 'rateType' | 'amount'>,
+  rule: Pick<PayCardRule, 'rateType' | 'amount' | 'multiplier' | 'minimumMinutes'>,
   currency = 'GBP',
 ): string {
   const amount = Number(rule.amount)
   const symbol = formatBillingCurrencyDisplay(currency)
+  const durationLabel = formatVisitDurationLabel(rule.minimumMinutes)
+  if (
+    (rule.rateType === 'FIXED' || rule.rateType === 'PER_VISIT_FEE')
+    && durationLabel
+  ) {
+    return `${symbol}${amount.toFixed(2)} per ${durationLabel.toLowerCase()} visit`
+  }
   if (rule.rateType === 'MILEAGE') return `${symbol}${amount.toFixed(2)}/mile`
   if (rule.rateType === 'FIXED' || rule.rateType === 'PER_VISIT_FEE') return `${symbol}${amount.toFixed(2)} flat`
+  if (rule.rateType === 'PREMIUM') return `+${symbol}${amount.toFixed(2)}/hr`
+  if (rule.rateType === 'DEDUCTION') return amount > 0 ? `−${symbol}${amount.toFixed(2)}` : 'Deduction (variable)'
+  if (rule.rateType === 'UPLIFT') {
+    const mult = rule.multiplier != null ? Number(rule.multiplier) : amount
+    return `${mult}× multiplier`
+  }
+  if (rule.rateType === 'TRAVEL_TIME' || rule.rateType === 'WAITING_TIME') {
+    return `${symbol}${amount.toFixed(2)}/hr`
+  }
   return `${symbol}${amount.toFixed(2)}/hr`
 }
+
+export type PayCardRuleCategory =
+  | 'Visit pay'
+  | 'Weekend & bank holiday'
+  | 'Time of day & night'
+  | 'Premiums & overtime'
+  | 'Travel & expenses'
+  | 'Fees & adjustments'
+
+export function categorizePayCardRule(
+  rule: Pick<PayCardRule, 'rateType' | 'dayType' | 'startTime' | 'endTime'>,
+): PayCardRuleCategory {
+  switch (rule.rateType) {
+    case 'TRAVEL_TIME':
+    case 'WAITING_TIME':
+    case 'MILEAGE':
+      return 'Travel & expenses'
+    case 'PER_VISIT_FEE':
+    case 'DEDUCTION':
+      return 'Fees & adjustments'
+    case 'PREMIUM':
+    case 'UPLIFT':
+      return 'Premiums & overtime'
+    case 'FIXED':
+      return 'Time of day & night'
+    default:
+      if (rule.startTime?.trim() || rule.endTime?.trim()) return 'Time of day & night'
+      if (rule.dayType === 'BANK_HOLIDAY' || rule.dayType === 'SATURDAY' || rule.dayType === 'SUNDAY') {
+        return 'Weekend & bank holiday'
+      }
+      return 'Visit pay'
+  }
+}
+
+export const PAY_CARD_RULE_CATEGORY_ORDER: PayCardRuleCategory[] = [
+  'Visit pay',
+  'Weekend & bank holiday',
+  'Time of day & night',
+  'Premiums & overtime',
+  'Travel & expenses',
+  'Fees & adjustments',
+]
 
 export function slugBillingCode(name: string): string {
   return name

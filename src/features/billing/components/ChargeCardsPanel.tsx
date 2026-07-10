@@ -193,7 +193,7 @@ export function ChargeCardsPanel() {
         {[
           'Funder-level rates (Access style)',
           'Funding contract overrides',
-          '15-min pro-rata & fixed charges',
+          'Fixed visit charges up to 1 hour; hourly beyond',
           'Missing card → billing exception',
         ].map(item => (
           <div key={item} className="rounded-lg border border-border bg-muted/20 px-3 py-2">

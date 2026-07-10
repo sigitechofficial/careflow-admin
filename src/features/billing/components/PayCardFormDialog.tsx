@@ -23,7 +23,7 @@ import {
   type PayCardRule,
   type PayCardWorkerTypeKey,
 } from '@/features/billing/types/billing-cards.types'
-import { serializePayCardRulesForApi } from '@/features/billing/utils/billing-card-payload.util'
+import { serializePayCardRulesForApi, normalizePayCardRulesForEditor } from '@/features/billing/utils/billing-card-payload.util'
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 
 type PayCardFormDialogProps = {
@@ -45,7 +45,7 @@ function toFormState(card?: PayCard | null): PayCardInput {
     effectiveFrom: card?.effectiveFrom?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
     effectiveTo: card?.effectiveTo?.slice(0, 10) ?? '',
     notes: card?.notes ?? '',
-    rules: card?.rules ?? [],
+    rules: normalizePayCardRulesForEditor(card?.rules ?? []),
   }
 }
 

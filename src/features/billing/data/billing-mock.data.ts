@@ -133,7 +133,7 @@ export const MOCK_CHARGE_CARDS = [
     billingFrequency: 'Weekly',
     currency: 'GBP',
     effectiveFrom: '2026-01-15',
-    rulesSummary: 'Hourly pro-rata, 30-min minimum',
+    rulesSummary: 'Fixed up to 60 min; hourly for longer visits',
   },
   {
     id: 'cc-2',

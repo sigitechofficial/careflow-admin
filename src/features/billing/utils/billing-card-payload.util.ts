@@ -1,4 +1,12 @@
 import type { ChargeCardRule, PayCardRule } from '@/features/billing/types/billing-cards.types'
+import {
+  normalizeChargeCardRulesForEditor,
+  normalizePayCardRulesForEditor,
+  resolveRuleChargeMethod,
+  resolveRuleRateType,
+} from '@/features/billing/utils/billing-card-rule.util'
+
+export { normalizePayCardRulesForEditor, normalizeChargeCardRulesForEditor } from '@/features/billing/utils/billing-card-rule.util'
 
 /** Strip server-only fields before POST/PATCH billing card APIs. */
 export function serializePayCardRulesForApi(rules: PayCardRule[]): PayCardRule[] {
@@ -6,7 +14,7 @@ export function serializePayCardRulesForApi(rules: PayCardRule[]): PayCardRule[]
     label: rule.label?.trim() || undefined,
     serviceType: rule.serviceType?.trim() || undefined,
     dayType: rule.dayType,
-    rateType: 'HOURLY' as const,
+    rateType: resolveRuleRateType(rule),
     amount: rule.amount,
     minimumMinutes: rule.minimumMinutes ?? undefined,
     priority: rule.priority,
@@ -19,11 +27,11 @@ export function serializeChargeCardRulesForApi(rules: ChargeCardRule[]): ChargeC
     label: rule.label?.trim() || undefined,
     serviceType: rule.serviceType?.trim() || undefined,
     dayType: rule.dayType,
-    rateType: 'HOURLY' as const,
+    rateType: resolveRuleRateType(rule),
     amount: rule.amount,
     minimumMinutes: rule.minimumMinutes ?? undefined,
     priority: rule.priority,
-    chargeMethod: 'HOURLY_PRO_RATA' as const,
+    chargeMethod: resolveRuleChargeMethod(rule),
     chargeableFlag: rule.chargeableFlag,
     sortOrder: index,
   }))

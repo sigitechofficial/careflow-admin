@@ -1,15 +1,20 @@
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { RateCardStatusBadge, formatBillingLabel } from '@/features/billing/components/BillingStatusBadge'
+import { getRuleRateTypeLabel, isHourlyLongVisitRule } from '@/features/billing/utils/billing-card-rule.util'
 import {
-  BILLING_RATE_TYPE_OPTIONS,
+  PAY_CARD_RULE_CATEGORY_ORDER,
+  categorizePayCardRule,
   formatBillingDate,
   formatBillingCurrencyDisplay,
   formatPayCardAssignmentDisplay,
   formatPayCardRuleAmount,
   formatPayCardRuleDayType,
+  formatPayCardRuleTimeBand,
   formatVisitDurationLabel,
   type PayCard,
+  type PayCardRule,
+  type PayCardRuleCategory,
 } from '@/features/billing/types/billing-cards.types'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -20,6 +25,7 @@ type PayCardDetailsViewProps = {
   matchedLevelLabel?: string | null
   loading?: boolean
   showManageLink?: boolean
+  groupRules?: boolean
 }
 
 function assignmentSourceLabel(
@@ -36,15 +42,89 @@ function assignmentSourceLabel(
   return null
 }
 
+function groupRulesByCategory(rules: PayCardRule[]): Map<PayCardRuleCategory, PayCardRule[]> {
+  const grouped = new Map<PayCardRuleCategory, PayCardRule[]>()
+  for (const rule of rules) {
+    const category = categorizePayCardRule(rule)
+    const list = grouped.get(category) ?? []
+    list.push(rule)
+    grouped.set(category, list)
+  }
+  return grouped
+}
+
+function RuleTable({
+  rules,
+  currency,
+}: {
+  rules: PayCardRule[]
+  currency: string
+}) {
+  return (
+    <table className="w-full min-w-[720px] text-sm">
+      <thead>
+        <tr className="border-b border-border bg-muted/40">
+          <th className="px-3 py-2 text-left font-medium text-muted-foreground">Rule</th>
+          <th className="px-3 py-2 text-left font-medium text-muted-foreground">Duration</th>
+          <th className="px-3 py-2 text-left font-medium text-muted-foreground">Day</th>
+          <th className="px-3 py-2 text-left font-medium text-muted-foreground">Time band</th>
+          <th className="px-3 py-2 text-left font-medium text-muted-foreground">Rate type</th>
+          <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+            Amount ({formatBillingCurrencyDisplay(currency)})
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {rules.map((rule, index) => {
+          const timeBand = formatPayCardRuleTimeBand(rule)
+          return (
+            <tr key={rule.id ?? `${rule.label}-${index}`} className="border-b border-border last:border-0">
+              <td className="px-3 py-2.5">
+                <span className="font-medium">{rule.label?.trim() || `Rule ${index + 1}`}</span>
+                {rule.serviceType?.trim() ? (
+                  <p className="text-xs text-muted-foreground">{rule.serviceType}</p>
+                ) : null}
+              </td>
+              <td className="px-3 py-2.5 text-muted-foreground">
+                {isHourlyLongVisitRule(rule) ? 'Over 1 hour' : (formatVisitDurationLabel(rule.minimumMinutes) ?? '—')}
+              </td>
+              <td className="px-3 py-2.5 text-muted-foreground">
+                {formatPayCardRuleDayType(rule.dayType)}
+              </td>
+              <td className="px-3 py-2.5 text-muted-foreground">{timeBand ?? '—'}</td>
+              <td className="px-3 py-2.5 text-muted-foreground">
+                {getRuleRateTypeLabel(rule)}
+                {rule.rateType === 'MILEAGE'
+                  || rule.rateType === 'TRAVEL_TIME'
+                  || rule.rateType === 'WAITING_TIME'
+                  || rule.rateType === 'PREMIUM'
+                  || rule.rateType === 'UPLIFT'
+                  || rule.rateType === 'DEDUCTION'
+                  ? ` · ${formatBillingLabel(rule.rateType)}`
+                  : null}
+              </td>
+              <td className="px-3 py-2.5 text-right font-medium tabular-nums">
+                {formatPayCardRuleAmount(rule, currency)}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
 export function PayCardDetailsView({
   card,
   assignmentSource,
   matchedLevelLabel,
   loading,
   showManageLink,
+  groupRules = true,
 }: PayCardDetailsViewProps) {
   const sourceLabel = assignmentSourceLabel(assignmentSource, matchedLevelLabel)
   const rules = [...(card.rules ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  const grouped = groupRules ? groupRulesByCategory(rules) : null
 
   return (
     <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-4" data-testid="pay-card-details">
@@ -101,7 +181,7 @@ export function PayCardDetailsView({
         </div>
       </dl>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-foreground">Rate rules</h3>
           <span className="text-xs text-muted-foreground">{rules.length} rule{rules.length === 1 ? '' : 's'}</span>
@@ -116,46 +196,18 @@ export function PayCardDetailsView({
           <p className="rounded-md border border-dashed border-border bg-background/60 px-3 py-4 text-sm text-muted-foreground">
             No rate rules configured on this pay card.
           </p>
+        ) : groupRules && grouped ? (
+          PAY_CARD_RULE_CATEGORY_ORDER.filter(cat => grouped.has(cat)).map(category => (
+            <div key={category} className="space-y-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{category}</h4>
+              <div className="overflow-x-auto rounded-md border border-border bg-background">
+                <RuleTable rules={grouped.get(category)!} currency={card.currency} />
+              </div>
+            </div>
+          ))
         ) : (
           <div className="overflow-x-auto rounded-md border border-border bg-background">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Rule</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Duration</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Day</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Rate type</th>
-                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">
-                    Amount ({formatBillingCurrencyDisplay(card.currency)})
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rules.map((rule, index) => (
-                  <tr key={rule.id ?? index} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2.5">
-                      <span className="font-medium">{rule.label?.trim() || `Rule ${index + 1}`}</span>
-                      {rule.serviceType?.trim() ? (
-                        <p className="text-xs text-muted-foreground">{rule.serviceType}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {formatVisitDurationLabel(rule.minimumMinutes) ?? 'Any duration'}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {formatPayCardRuleDayType(rule.dayType)}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {BILLING_RATE_TYPE_OPTIONS.find(o => o.value === rule.rateType)?.label
-                        ?? formatBillingLabel(rule.rateType)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-medium tabular-nums">
-                      {formatPayCardRuleAmount(rule, card.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <RuleTable rules={rules} currency={card.currency} />
           </div>
         )}
       </div>

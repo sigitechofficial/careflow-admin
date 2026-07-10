@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
-import { serializeChargeCardRulesForApi } from '@/features/billing/utils/billing-card-payload.util'
+import { serializeChargeCardRulesForApi, normalizeChargeCardRulesForEditor } from '@/features/billing/utils/billing-card-payload.util'
 import { useCreateChargeCard, useUpdateChargeCard } from '@/features/billing/hooks/useChargeCards'
 import {
   BILLING_CARD_STATUS_OPTIONS,
@@ -49,12 +49,12 @@ function toFormState(card?: ChargeCard | null): ChargeCardInput {
     paymentTerms: card?.paymentTerms ?? '',
     taxTreatment: card?.taxTreatment ?? '',
     invoiceGroupingRule: card?.invoiceGroupingRule ?? '',
-    defaultChargeMethod: card?.defaultChargeMethod ?? 'HOURLY_PRO_RATA',
+    defaultChargeMethod: card?.defaultChargeMethod ?? 'FIXED_VISIT',
     status: card?.status ?? 'DRAFT',
     effectiveFrom: card?.effectiveFrom?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
     effectiveTo: card?.effectiveTo?.slice(0, 10) ?? '',
     notes: card?.notes ?? '',
-    rules: card?.rules ?? [],
+    rules: normalizeChargeCardRulesForEditor(card?.rules ?? []),
   }
 }
 
