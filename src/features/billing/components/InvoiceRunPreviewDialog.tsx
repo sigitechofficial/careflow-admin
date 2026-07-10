@@ -56,9 +56,10 @@ function clientSummary(lines: InvoiceRunLine[]): { label: string; detail: string
   const uniqueClients = [...new Set(lines.map(line => line.serviceUserName))]
   if (uniqueClients.length === 1) {
     const line = lines[0]
+    const clientName = uniqueClients[0] ?? line?.serviceUserName ?? 'Unknown client'
     return {
-      label: uniqueClients[0],
-      detail: line.serviceUserNumber ? `Ref ${line.serviceUserNumber}` : '',
+      label: clientName,
+      detail: line?.serviceUserNumber ? `Ref ${line.serviceUserNumber}` : '',
     }
   }
   return {
