@@ -11,6 +11,7 @@ import { useChargeCards, useDeleteChargeCard } from '@/features/billing/hooks/us
 import {
   formatBillingDate,
   formatChargeCardAssignmentDisplay,
+  formatVisitDurationLabel,
   type ChargeCard,
 } from '@/features/billing/types/billing-cards.types'
 import { useAuthStore } from '@/features/auth/store'
@@ -23,7 +24,8 @@ function rulesSummary(card: ChargeCard): string {
     first.label ?? formatBillingLabel(first.chargeMethod),
     `£${Number(first.amount).toFixed(2)}`,
   ]
-  if (first.minimumMinutes) parts.push(`min ${first.minimumMinutes}m`)
+  const durationLabel = formatVisitDurationLabel(first.minimumMinutes)
+  if (durationLabel) parts.push(durationLabel)
   if (card.rules.length > 1) parts.push(`+${card.rules.length - 1} more`)
   return parts.join(' · ')
 }

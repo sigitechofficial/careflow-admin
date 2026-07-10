@@ -5,13 +5,11 @@ import { Input } from '@/shared/ui/input'
 import {
   BILLING_CHARGE_METHOD_OPTIONS,
   BILLING_DAY_TYPE_OPTIONS,
-  BILLING_RATE_TYPE_OPTIONS,
+  BILLING_VISIT_DURATION_OPTIONS,
   type BillingDayType,
-  type BillingRateType,
   type ChargeCardRule,
   type PayCardRule,
 } from '@/features/billing/types/billing-cards.types'
-import { normalizeBillingTimeInput } from '@/features/billing/utils/billing-time.util'
 
 type RuleMode = 'pay' | 'charge'
 
@@ -37,6 +35,14 @@ function emptyChargeRule(): ChargeCardRule {
     chargeMethod: 'HOURLY_PRO_RATA',
     chargeableFlag: true,
   }
+}
+
+function isBankHolidayRule(rule: PayCardRule): boolean {
+  return rule.dayType === 'BANK_HOLIDAY'
+}
+
+function regularDayType(rule: PayCardRule): BillingDayType {
+  return rule.dayType === 'BANK_HOLIDAY' ? 'ANY' : rule.dayType
 }
 
 export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: BillingCardRulesEditorProps) {
@@ -70,168 +76,132 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         </p>
       ) : (
         <div className="space-y-3">
-          {rules.map((rule, index) => (
-            <div key={index} className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rule {index + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-destructive"
-                  onClick={() => removeRule(index)}
-                  disabled={disabled}
-                  title="Remove rule"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+          {rules.map((rule, index) => {
+            const bankHoliday = isBankHolidayRule(rule)
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <label className="space-y-1 text-sm sm:col-span-2 lg:col-span-3">
-                  <span className="text-xs text-muted-foreground">Label</span>
-                  <Input
-                    value={rule.label ?? ''}
-                    onChange={e => updateRule(index, { label: e.target.value })}
-                    placeholder="e.g. Weekday morning"
+            return (
+              <div key={index} className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rule {index + 1}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-destructive"
+                    onClick={() => removeRule(index)}
                     disabled={disabled}
-                  />
-                </label>
+                    title="Remove rule"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
 
-                {mode === 'charge' && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <label className="space-y-1 text-sm sm:col-span-2 lg:col-span-3">
+                    <span className="text-xs text-muted-foreground">Label</span>
+                    <Input
+                      value={rule.label ?? ''}
+                      onChange={e => updateRule(index, { label: e.target.value })}
+                      placeholder="e.g. Weekday 30-minute visit"
+                      disabled={disabled}
+                    />
+                  </label>
+
                   <label className="space-y-1 text-sm">
-                    <span className="text-xs text-muted-foreground">Charge method</span>
+                    <span className="text-xs text-muted-foreground">Visit duration</span>
                     <select
                       className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={(rule as ChargeCardRule).chargeMethod}
-                      onChange={e => updateRule(index, { chargeMethod: e.target.value as ChargeCardRule['chargeMethod'] })}
+                      value={rule.minimumMinutes ?? ''}
+                      onChange={e => {
+                        const raw = e.target.value
+                        updateRule(index, {
+                          minimumMinutes: raw ? Number(raw) : undefined,
+                        })
+                      }}
                       disabled={disabled}
                     >
-                      {BILLING_CHARGE_METHOD_OPTIONS.map(opt => (
+                      {BILLING_VISIT_DURATION_OPTIONS.map(opt => (
+                        <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">Day type</span>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={regularDayType(rule)}
+                      onChange={e =>
+                        updateRule(index, {
+                          dayType: bankHoliday ? 'BANK_HOLIDAY' : (e.target.value as BillingDayType),
+                        })
+                      }
+                      disabled={disabled || bankHoliday}
+                    >
+                      {BILLING_DAY_TYPE_OPTIONS.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
                   </label>
-                )}
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Day type</span>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={rule.dayType}
-                    onChange={e => updateRule(index, { dayType: e.target.value as BillingDayType })}
-                    disabled={disabled}
-                  >
-                    {BILLING_DAY_TYPE_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </label>
+                  <label className="flex items-end gap-2 text-sm pb-1.5">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={bankHoliday}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          updateRule(index, { dayType: 'BANK_HOLIDAY' })
+                        } else {
+                          updateRule(index, { dayType: 'ANY' })
+                        }
+                      }}
+                      disabled={disabled}
+                    />
+                    <span className="text-xs text-muted-foreground">Bank holiday rate</span>
+                  </label>
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Rate type</span>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={rule.rateType}
-                    onChange={e => updateRule(index, { rateType: e.target.value as BillingRateType })}
-                    disabled={disabled}
-                  >
-                    {BILLING_RATE_TYPE_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">Rate type</span>
+                    <div className="flex h-9 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                      Hourly
+                    </div>
+                  </label>
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Amount (£)</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={rule.amount}
-                    onChange={e => updateRule(index, { amount: Number(e.target.value) })}
-                    disabled={disabled}
-                  />
-                </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">Hourly rate (£)</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={rule.amount}
+                      onChange={e => updateRule(index, { amount: Number(e.target.value), rateType: 'HOURLY' })}
+                      disabled={disabled}
+                    />
+                  </label>
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Start time</span>
-                  <Input
-                    type="time"
-                    step={60}
-                    className="h-9 w-full sm:w-[8.5rem]"
-                    value={normalizeBillingTimeInput(rule.startTime)}
-                    onChange={e =>
-                      updateRule(index, {
-                        startTime: e.target.value ? normalizeBillingTimeInput(e.target.value) : undefined,
-                      })
-                    }
-                    disabled={disabled}
-                  />
-                </label>
+                  {mode === 'charge' && (
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">Charge method</span>
+                      <div className="flex h-9 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                        {BILLING_CHARGE_METHOD_OPTIONS[0]?.label ?? 'Hourly pro-rata'}
+                      </div>
+                    </label>
+                  )}
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">End time</span>
-                  <Input
-                    type="time"
-                    step={60}
-                    className="h-9 w-full sm:w-[8.5rem]"
-                    value={normalizeBillingTimeInput(rule.endTime)}
-                    onChange={e =>
-                      updateRule(index, {
-                        endTime: e.target.value ? normalizeBillingTimeInput(e.target.value) : undefined,
-                      })
-                    }
-                    disabled={disabled}
-                  />
-                </label>
-
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Min. minutes</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={15}
-                    value={rule.minimumMinutes ?? ''}
-                    onChange={e =>
-                      updateRule(index, {
-                        minimumMinutes: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                    placeholder="30"
-                    disabled={disabled}
-                  />
-                </label>
-
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Multiplier</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    value={rule.multiplier ?? ''}
-                    onChange={e =>
-                      updateRule(index, {
-                        multiplier: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                    placeholder="2 for bank holiday"
-                    disabled={disabled}
-                  />
-                </label>
-
-                <label className="space-y-1 text-sm sm:col-span-2">
-                  <span className="text-xs text-muted-foreground">Service type</span>
-                  <Input
-                    value={rule.serviceType ?? ''}
-                    onChange={e => updateRule(index, { serviceType: e.target.value })}
-                    placeholder="Personal care, Complex care…"
-                    disabled={disabled}
-                  />
-                </label>
+                  <label className="space-y-1 text-sm sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">Service type</span>
+                    <Input
+                      value={rule.serviceType ?? ''}
+                      onChange={e => updateRule(index, { serviceType: e.target.value })}
+                      placeholder="Personal care, Complex care…"
+                      disabled={disabled}
+                    />
+                  </label>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

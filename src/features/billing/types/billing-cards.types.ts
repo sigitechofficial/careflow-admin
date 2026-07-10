@@ -226,17 +226,9 @@ export const BILLING_FREQUENCY_OPTIONS: { value: BillingFrequency; label: string
   { value: 'CUSTOM', label: 'Custom' },
 ]
 
+/** Hourly-only options shown in the rate rules editor (schema retains other types for legacy data). */
 export const BILLING_RATE_TYPE_OPTIONS: { value: BillingRateType; label: string }[] = [
   { value: 'HOURLY', label: 'Hourly' },
-  { value: 'FIXED', label: 'Fixed' },
-  { value: 'BANDED', label: 'Banded' },
-  { value: 'MILEAGE', label: 'Mileage' },
-  { value: 'TRAVEL_TIME', label: 'Travel time' },
-  { value: 'WAITING_TIME', label: 'Waiting time' },
-  { value: 'PER_VISIT_FEE', label: 'Per-visit fee' },
-  { value: 'UPLIFT', label: 'Uplift / multiplier' },
-  { value: 'PREMIUM', label: 'Premium' },
-  { value: 'DEDUCTION', label: 'Deduction' },
 ]
 
 export const BILLING_DAY_TYPE_OPTIONS: { value: BillingDayType; label: string }[] = [
@@ -244,20 +236,48 @@ export const BILLING_DAY_TYPE_OPTIONS: { value: BillingDayType; label: string }[
   { value: 'WEEKDAY', label: 'Weekday' },
   { value: 'SATURDAY', label: 'Saturday' },
   { value: 'SUNDAY', label: 'Sunday' },
-  { value: 'BANK_HOLIDAY', label: 'Bank holiday' },
+]
+
+export const BILLING_VISIT_DURATION_OPTIONS: { value: number | ''; label: string }[] = [
+  { value: '', label: 'Any duration' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 45, label: '45 minutes' },
+  { value: 60, label: '60 minutes (1 hour)' },
 ]
 
 export const BILLING_CHARGE_METHOD_OPTIONS: { value: BillingChargeMethod; label: string }[] = [
   { value: 'HOURLY_PRO_RATA', label: 'Hourly pro-rata' },
-  { value: 'FIXED_VISIT', label: 'Fixed visit charge' },
-  { value: 'BANDED_DURATION', label: 'Banded duration' },
-  { value: 'DAILY_RATE', label: 'Daily rate' },
-  { value: 'WEEKLY_PACKAGE', label: 'Weekly package' },
-  { value: 'MONTHLY_PACKAGE', label: 'Monthly package' },
-  { value: 'SLEEP_IN', label: 'Sleep-in' },
-  { value: 'WAKING_NIGHT', label: 'Waking night' },
-  { value: 'NON_CHARGEABLE', label: 'Non-chargeable' },
 ]
+
+export function formatVisitDurationLabel(minutes?: number | null): string | null {
+  if (minutes == null || minutes <= 0) return null
+  const match = BILLING_VISIT_DURATION_OPTIONS.find(o => o.value === minutes)
+  return match?.label ?? `${minutes} minutes`
+}
+
+export function formatPayCardRuleDayType(dayType: BillingDayType): string {
+  if (dayType === 'BANK_HOLIDAY') return 'Bank holiday'
+  return BILLING_DAY_TYPE_OPTIONS.find(o => o.value === dayType)?.label ?? dayType
+}
+
+/** Display currency for UI — GBP shows as pound (£). */
+export function formatBillingCurrencyDisplay(currency?: string | null): string {
+  const code = (currency ?? 'GBP').trim().toUpperCase()
+  if (code === 'GBP') return '£'
+  return code
+}
+
+export function formatPayCardRuleAmount(
+  rule: Pick<PayCardRule, 'rateType' | 'amount'>,
+  currency = 'GBP',
+): string {
+  const amount = Number(rule.amount)
+  const symbol = formatBillingCurrencyDisplay(currency)
+  if (rule.rateType === 'MILEAGE') return `${symbol}${amount.toFixed(2)}/mile`
+  if (rule.rateType === 'FIXED' || rule.rateType === 'PER_VISIT_FEE') return `${symbol}${amount.toFixed(2)} flat`
+  return `${symbol}${amount.toFixed(2)}/hr`
+}
 
 export function slugBillingCode(name: string): string {
   return name
