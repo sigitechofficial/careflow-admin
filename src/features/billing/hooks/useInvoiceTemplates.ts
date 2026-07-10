@@ -4,6 +4,7 @@ import {
   deleteInvoiceTemplate,
   fetchInvoiceTemplate,
   fetchInvoiceTemplateSystemFields,
+  fetchInvoiceTemplateLayoutPresets,
   fetchInvoiceTemplates,
   fetchInvoiceTemplatesSummary,
   resolveServiceUserInvoiceTemplate,
@@ -37,6 +38,15 @@ export function useInvoiceTemplateSystemFields(enabled = true) {
   return useQuery({
     queryKey: billingKeys.invoiceTemplateSystemFields(),
     queryFn: fetchInvoiceTemplateSystemFields,
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
+export function useInvoiceTemplateLayoutPresets(enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.invoiceTemplateLayoutPresets(),
+    queryFn: fetchInvoiceTemplateLayoutPresets,
     enabled,
     staleTime: 60_000,
   })

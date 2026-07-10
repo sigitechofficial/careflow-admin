@@ -14,6 +14,7 @@ import {
   ExportStatusBadge,
   InvoiceRunStatusBadge,
 } from '@/features/billing/components/BillingStatusBadge'
+import { InvoiceRunAuthoritySection } from '@/features/billing/components/InvoiceRunAuthoritySection'
 import { InvoiceRunPreviewDialog } from '@/features/billing/components/InvoiceRunPreviewDialog'
 import {
   useApproveInvoiceRun,
@@ -49,6 +50,12 @@ export default function InvoiceRunDetailPage() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const [previewOpen, setPreviewOpen] = React.useState(false)
+  const [previewFunderId, setPreviewFunderId] = React.useState<string | null | undefined>(undefined)
+
+  const openPreview = (funderId?: string | null) => {
+    setPreviewFunderId(funderId)
+    setPreviewOpen(true)
+  }
 
   const query = useInvoiceRun(invoiceRunId)
   const calculateMutation = useCalculateInvoiceRun()
@@ -122,7 +129,7 @@ export default function InvoiceRunDetailPage() {
             variant="outline"
             size="sm"
             leftIcon={<Eye className="h-3.5 w-3.5" />}
-            onClick={() => setPreviewOpen(true)}
+            onClick={() => openPreview()}
             disabled={run.lineCount === 0}
           >
             Preview invoice
@@ -197,8 +204,8 @@ export default function InvoiceRunDetailPage() {
           <p className="text-lg font-semibold tabular-nums">{run.serviceUsers}</p>
         </ContentCard>
         <ContentCard className="p-4 space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Funders</p>
-          <p className="text-lg font-semibold tabular-nums">{run.funders}</p>
+          <p className="text-xs font-medium text-muted-foreground">Authority invoices</p>
+          <p className="text-lg font-semibold tabular-nums">{run.funderSummaries.length}</p>
         </ContentCard>
         <ContentCard className="p-4 space-y-1">
           <p className="text-xs font-medium text-muted-foreground">Exceptions</p>
@@ -253,55 +260,48 @@ export default function InvoiceRunDetailPage() {
       ) : null}
 
       <ContentSectionHeader
-        title="Invoice lines"
-        description="Visit charges with funder splits applied from active funding contracts."
+        title="Authority invoices"
+        description="Each local authority and funder is billed on its own separate invoice with a unique invoice number."
       />
 
-      {run.lines.length === 0 ? (
+      {run.funderSummaries.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No lines calculated yet. Run calculate to pull approved billable visits for this period.
+          No invoices calculated yet. Run calculate to pull approved billable visits for this period.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Visit</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Service user</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Funder</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Description</th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Duration</th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Split</th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Amount</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Exception</th>
-              </tr>
-            </thead>
-            <tbody>
-              {run.lines.map(line => (
-                <tr key={line.id} className="border-b border-border last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2.5 font-mono text-xs">{line.visitRef ?? '—'}</td>
-                  <td className="px-3 py-2.5">
-                    <span className="font-medium">{line.serviceUserName}</span>
-                    {line.serviceUserNumber ? (
-                      <span className="block text-xs text-muted-foreground">{line.serviceUserNumber}</span>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2.5">{line.funderName}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{line.description}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{formatMinutes(line.minutes)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">
-                    {line.splitPercent != null ? `${line.splitPercent}%` : '—'}
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums font-medium">{line.amount}</td>
-                  <td className="px-3 py-2.5 text-xs text-destructive">{line.exceptionMessage ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-4">
+          {run.funderSummaries.map((group, index) => (
+            <div key={group.funderId ?? 'direct'} className="space-y-2">
+              <InvoiceRunAuthoritySection
+                invoiceRun={run}
+                group={group}
+                invoiceIndex={index}
+                formatMinutes={formatMinutes}
+              />
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Eye className="h-3.5 w-3.5" />}
+                  onClick={() => openPreview(group.funderId)}
+                >
+                  Preview this invoice
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <InvoiceRunPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} invoiceRun={run} />
+      <InvoiceRunPreviewDialog
+        open={previewOpen}
+        onOpenChange={open => {
+          setPreviewOpen(open)
+          if (!open) setPreviewFunderId(undefined)
+        }}
+        invoiceRun={run}
+        funderIdFilter={previewFunderId}
+      />
     </div>
   )
 }

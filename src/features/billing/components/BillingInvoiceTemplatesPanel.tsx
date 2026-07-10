@@ -16,6 +16,7 @@ import {
 } from '@/features/billing/hooks/useInvoiceTemplates'
 import {
   formatInvoiceTemplateScope,
+  layoutPresetLabel,
   type InvoiceTemplate,
 } from '@/features/billing/types/invoice-templates.types'
 import { useAuthStore } from '@/features/auth/store'
@@ -120,8 +121,8 @@ export function BillingInvoiceTemplatesPanel() {
       ) : null}
 
       <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-        <strong className="text-foreground">Flow:</strong> visit completed → charge calculated → invoice lines created →
-        funder identified → template selected → fields validated → PDF / Excel / CSV / API export generated.
+        <strong className="text-foreground">Industry layouts:</strong> Standard, Local authority (council Excel),
+        NHS, and Private client templates — matching Birdie, Nourish, and Access Group invoice formats.
       </div>
 
       <div className="relative max-w-sm">
@@ -148,6 +149,9 @@ export function BillingInvoiceTemplatesPanel() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold text-foreground">{tpl.name}</h3>
+                    <Badge variant="outline" size="sm">
+                      {layoutPresetLabel(tpl.layoutPreset ?? 'STANDARD')}
+                    </Badge>
                     <Badge variant="outline" size="sm">
                       {tpl.templateType}
                     </Badge>

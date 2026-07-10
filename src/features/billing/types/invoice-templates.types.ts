@@ -4,6 +4,12 @@ export type InvoiceTemplateType = 'PDF' | 'XLSX' | 'CSV' | 'XML' | 'JSON' | 'API
 
 export type InvoiceTemplateScope = 'ORGANISATION_DEFAULT' | 'FUNDER' | 'FUNDING_CONTRACT'
 
+export type InvoiceTemplateLayoutPreset =
+  | 'STANDARD'
+  | 'LOCAL_AUTHORITY'
+  | 'NHS'
+  | 'PRIVATE_CLIENT'
+
 export type InvoiceTemplateField = {
   id?: string
   label: string
@@ -25,6 +31,8 @@ export type InvoiceTemplate = {
   groupingRule?: string | null
   fileNamePattern?: string | null
   billingFrequency: BillingFrequency
+  layoutPreset: InvoiceTemplateLayoutPreset
+  includeRemittance: boolean
   status: BillingCardStatus
   effectiveFrom: string
   effectiveTo?: string | null
@@ -52,6 +60,8 @@ export type InvoiceTemplateInput = {
   groupingRule?: string | null
   fileNamePattern?: string | null
   billingFrequency: BillingFrequency
+  layoutPreset: InvoiceTemplateLayoutPreset
+  includeRemittance: boolean
   status: BillingCardStatus
   effectiveFrom: string
   effectiveTo?: string | null
@@ -62,6 +72,63 @@ export type InvoiceTemplateInput = {
 export type InvoiceTemplateSystemField = {
   key: string
   label: string
+  group?: string
+}
+
+export type InvoiceTemplateSystemFieldCatalog = {
+  fields: InvoiceTemplateSystemField[]
+  groups: Array<{ id: string; label: string }>
+}
+
+export type InvoiceTemplateLayoutPresetDefinition = {
+  key: InvoiceTemplateLayoutPreset
+  name: string
+  description: string
+  usedBy: string
+  templateType: InvoiceTemplateType
+  billingFrequency: BillingFrequency
+  deliveryMethod: string
+  groupingRule: string
+  fileNamePattern: string
+  includeRemittance: boolean
+  scope: InvoiceTemplateScope
+  status: BillingCardStatus
+  fields: Array<{
+    systemFieldKey: string
+    label: string
+    isRequired: boolean
+  }>
+}
+
+export const INVOICE_LAYOUT_PRESET_OPTIONS: Array<{
+  value: InvoiceTemplateLayoutPreset
+  label: string
+  subtitle: string
+}> = [
+  {
+    value: 'STANDARD',
+    label: 'Standard',
+    subtitle: 'Birdie / Access — weekly PDF for any payer',
+  },
+  {
+    value: 'LOCAL_AUTHORITY',
+    label: 'Local authority',
+    subtitle: 'Council Excel upload — client ref, PO, hours',
+  },
+  {
+    value: 'NHS',
+    label: 'NHS',
+    subtitle: 'CHC / CCG billing with NHS number',
+  },
+  {
+    value: 'PRIVATE_CLIENT',
+    label: 'Private client',
+    subtitle: 'Family invoice with remittance slip',
+  },
+]
+
+export function layoutPresetLabel(preset: InvoiceTemplateLayoutPreset): string {
+  return INVOICE_LAYOUT_PRESET_OPTIONS.find(o => o.value === preset)?.label ?? preset
 }
 
 export type InvoiceTemplateResolveResult = {

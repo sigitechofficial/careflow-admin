@@ -30,10 +30,16 @@ export const useCompanyStore = create<CompanyState>((set) => ({
       set({
         profile,
         branding: {
+          companyName: profile.companyName,
           displayName: profile.displayName,
           groupName: profile.groupName,
           displayLogoUrl: profile.displayLogoUrl,
           companyLogoUrl: profile.companyLogoUrl,
+          companyWebsite: profile.companyWebsite,
+          email: profile.email,
+          phoneNumber: profile.phoneNumber,
+          vatNumber: profile.vatNumber,
+          companyNumber: profile.companyNumber,
           updatedAt: profile.updatedAt,
         },
         loading: false,
@@ -56,10 +62,16 @@ export const useCompanyStore = create<CompanyState>((set) => ({
     set({
       profile,
       branding: {
+        companyName: profile.companyName,
         displayName: profile.displayName,
         groupName: profile.groupName,
         displayLogoUrl: profile.displayLogoUrl,
         companyLogoUrl: profile.companyLogoUrl,
+        companyWebsite: profile.companyWebsite,
+        email: profile.email,
+        phoneNumber: profile.phoneNumber,
+        vatNumber: profile.vatNumber,
+        companyNumber: profile.companyNumber,
         updatedAt: profile.updatedAt,
       },
     }),

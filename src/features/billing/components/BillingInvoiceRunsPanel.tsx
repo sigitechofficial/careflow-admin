@@ -92,7 +92,7 @@ export function BillingInvoiceRunsPanel() {
     <div className="space-y-6">
       <ContentSectionHeader
         title="Invoice runs"
-        description="Batch service user and funder charges with funding splits, expense recharges, and funder-specific export templates."
+        description="Batch visit charges for a billing period. Each local authority and funder receives its own separate invoice."
         action={
           canManage ? (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
@@ -119,7 +119,7 @@ export function BillingInvoiceRunsPanel() {
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Period</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Service users</th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Funders</th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Invoices</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Net total</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Exceptions</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Export</th>

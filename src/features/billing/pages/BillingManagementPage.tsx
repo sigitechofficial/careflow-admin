@@ -1,9 +1,10 @@
 import * as React from 'react'
-import { PoundSterling } from 'lucide-react'
+import { BookOpen, PoundSterling } from 'lucide-react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
 import type { BillingTabId } from '@/features/billing/types/billing.types'
+import { BillingGuidanceDialog } from '@/features/billing/components/BillingGuidanceDialog'
 import { BillingDashboardPanel } from '@/features/billing/components/BillingDashboardPanel'
 import { ChargeCardsPanel } from '@/features/billing/components/ChargeCardsPanel'
 import { PayCardsPanel } from '@/features/billing/components/PayCardsPanel'
@@ -59,6 +60,7 @@ function BillingTabPanel({ tab }: { tab: BillingTabId }) {
 
 export default function BillingManagementPage() {
   const navigate = useNavigate()
+  const [guidanceOpen, setGuidanceOpen] = React.useState(false)
   const search = useRouterState({ select: s => s.location.search as { tab?: string } })
   const activeTab =
     search.tab && BILLING_TABS.some(t => t.id === search.tab)
@@ -85,7 +87,17 @@ export default function BillingManagementPage() {
           { label: 'Home', href: '/' },
           { label: 'Billing' },
         ]}
+        actions={[
+          {
+            label: 'Guidance',
+            icon: <BookOpen className="h-4 w-4" />,
+            variant: 'outline',
+            onClick: () => setGuidanceOpen(true),
+          },
+        ]}
       />
+
+      <BillingGuidanceDialog open={guidanceOpen} onOpenChange={setGuidanceOpen} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav

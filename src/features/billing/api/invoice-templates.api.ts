@@ -2,8 +2,9 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   InvoiceTemplate,
   InvoiceTemplateInput,
+  InvoiceTemplateLayoutPresetDefinition,
   InvoiceTemplateResolveResult,
-  InvoiceTemplateSystemField,
+  InvoiceTemplateSystemFieldCatalog,
   InvoiceTemplateValidationResult,
 } from '@/features/billing/types/invoice-templates.types'
 
@@ -32,9 +33,17 @@ export async function fetchInvoiceTemplate(id: string): Promise<InvoiceTemplate>
   return res.data
 }
 
-export async function fetchInvoiceTemplateSystemFields(): Promise<InvoiceTemplateSystemField[]> {
-  const res = await apiJson<ApiEnvelope<InvoiceTemplateSystemField[]>>(
+export async function fetchInvoiceTemplateSystemFields(): Promise<InvoiceTemplateSystemFieldCatalog> {
+  const res = await apiJson<ApiEnvelope<InvoiceTemplateSystemFieldCatalog>>(
     '/billing/invoice-templates/system-fields',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function fetchInvoiceTemplateLayoutPresets(): Promise<InvoiceTemplateLayoutPresetDefinition[]> {
+  const res = await apiJson<ApiEnvelope<InvoiceTemplateLayoutPresetDefinition[]>>(
+    '/billing/invoice-templates/layout-presets',
     { method: 'GET' },
   )
   return res.data

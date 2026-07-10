@@ -10,10 +10,16 @@ export type CompanyModuleCatalogItem = {
 }
 
 export type CompanyBranding = {
+  companyName: string
   displayName: string
   groupName: string | null
   displayLogoUrl: string | null
   companyLogoUrl: string | null
+  companyWebsite: string | null
+  email: string
+  phoneNumber: string
+  vatNumber: string | null
+  companyNumber: string | null
   updatedAt: string
 }
 

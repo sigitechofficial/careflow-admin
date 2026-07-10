@@ -9,30 +9,211 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import type { InvoiceRunDetail } from '@/features/billing/api/invoice-runs.api'
+import type {
+  InvoiceRunDetail,
+  InvoiceRunFunderSummary,
+  InvoiceRunLine,
+} from '@/features/billing/api/invoice-runs.api'
+import {
+  InvoiceBrandedFooter,
+  InvoiceBrandedHeader,
+} from '@/features/billing/components/InvoiceBrandedDocument'
 import { ExportStatusBadge, InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import {
+  useInvoiceOrganisation,
+  type InvoiceOrganisation,
+} from '@/features/billing/hooks/useInvoiceOrganisation'
+import { formatUkDate, invoiceRunRef } from '@/features/billing/utils/invoice-run-display.util'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   invoiceRun: InvoiceRunDetail | null
+  /** When set, preview only this authority's invoice (match on funder id; null = direct / family). */
+  funderIdFilter?: string | null
 }
 
-function formatMinutes(minutes: number | null): string {
+function formatHours(minutes: number | null): string {
   if (minutes == null || minutes <= 0) return '—'
-  const hrs = minutes / 60
-  return `${hrs.toFixed(2)} hrs`
+  return (minutes / 60).toFixed(2)
 }
 
-function invoiceRef(invoiceRun: InvoiceRunDetail): string {
-  const end = invoiceRun.periodEnd.replace(/-/g, '')
-  return `INV-${end}-${invoiceRun.id.slice(0, 4).toUpperCase()}`
+function lineRate(line: InvoiceRunLine): string {
+  if (!line.minutes || line.minutes <= 0 || line.amountValue <= 0) return '—'
+  const hourly = line.amountValue / (line.minutes / 60)
+  return `£${hourly.toFixed(2)}`
 }
 
-export function InvoiceRunPreviewDialog({ open, onOpenChange, invoiceRun }: Props) {
+function matchesFunderFilter(
+  groupFunderId: string | null,
+  filter: string | null | undefined,
+): boolean {
+  if (filter === undefined) return true
+  return (groupFunderId ?? null) === (filter ?? null)
+}
+
+function clientSummary(lines: InvoiceRunLine[]): { label: string; detail: string } {
+  const uniqueClients = [...new Set(lines.map(line => line.serviceUserName))]
+  if (uniqueClients.length === 1) {
+    const line = lines[0]
+    return {
+      label: uniqueClients[0],
+      detail: line.serviceUserNumber ? `Ref ${line.serviceUserNumber}` : '',
+    }
+  }
+  return {
+    label: 'Multiple clients',
+    detail: `${uniqueClients.length} service users on this invoice`,
+  }
+}
+
+function LiveInvoiceDocument({
+  invoiceRun,
+  group,
+  invoiceIndex,
+  invoiceTotal,
+  org,
+}: {
+  invoiceRun: InvoiceRunDetail
+  group: InvoiceRunFunderSummary
+  invoiceIndex: number
+  invoiceTotal: number
+  org: InvoiceOrganisation
+}) {
+  const client = clientSummary(group.lines)
+  const invoiceNumber = invoiceRunRef(invoiceRun, group.funderCode)
+  const issueDate = formatUkDate(invoiceRun.periodEnd)
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-white text-foreground shadow-sm">
+      <InvoiceBrandedHeader org={org} />
+
+      <div className="grid gap-8 border-b-2 border-primary px-8 py-6 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-foreground">Invoice details</p>
+          <dl className="mt-3 space-y-2 text-sm">
+            <div className="flex gap-3">
+              <dt className="w-28 shrink-0 font-semibold">Invoice #</dt>
+              <dd className="font-mono text-xs">{invoiceNumber}</dd>
+            </div>
+            <div className="flex gap-3">
+              <dt className="w-28 shrink-0 font-semibold">Date of issue</dt>
+              <dd>{issueDate}</dd>
+            </div>
+            <div className="flex gap-3">
+              <dt className="w-28 shrink-0 font-semibold">Period</dt>
+              <dd>
+                {formatUkDate(invoiceRun.periodStart)} – {formatUkDate(invoiceRun.periodEnd)}
+              </dd>
+            </div>
+            {invoiceTotal > 1 ? (
+              <div className="flex gap-3">
+                <dt className="w-28 shrink-0 font-semibold">Invoice</dt>
+                <dd>
+                  {invoiceIndex + 1} of {invoiceTotal}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-foreground">Bill to</p>
+          <div className="mt-3 text-sm leading-relaxed">
+            <p className="font-bold uppercase">{group.funderName}</p>
+            {group.funderCode ? (
+              <p className="text-muted-foreground">Funder ref: {group.funderCode}</p>
+            ) : null}
+          </div>
+          <div className="mt-4 border-t border-border pt-3 text-sm">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</p>
+            <p className="mt-1 font-semibold">{client.label}</p>
+            {client.detail ? <p className="text-muted-foreground">{client.detail}</p> : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-8 py-5">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b-2 border-primary text-left text-xs font-bold uppercase tracking-wide">
+              <th className="pb-3 pr-4">Item / service</th>
+              <th className="pb-3 pr-4">Description</th>
+              <th className="pb-3 pr-4 text-right">Qty / hrs</th>
+              <th className="pb-3 pr-4 text-right">Rate</th>
+              <th className="pb-3 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.lines.map(line => (
+              <tr key={line.id} className="border-b border-border/80">
+                <td className="py-3 pr-4 align-top font-semibold">{line.serviceUserName}</td>
+                <td className="py-3 pr-4 align-top text-muted-foreground">
+                  {line.visitRef ? `${line.visitRef} · ` : ''}
+                  {line.description}
+                  {line.splitPercent != null ? ` (${line.splitPercent}%)` : ''}
+                </td>
+                <td className="py-3 pr-4 align-top text-right tabular-nums">
+                  {formatHours(line.minutes)}
+                </td>
+                <td className="py-3 pr-4 align-top text-right tabular-nums">{lineRate(line)}</td>
+                <td className="py-3 align-top text-right font-medium tabular-nums">{line.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid gap-8 px-8 pb-6 pt-2 sm:grid-cols-2">
+        <div className="space-y-5 text-sm">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider">Terms</p>
+            <p className="mt-2 text-muted-foreground">30 days from invoice date</p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider">Conditions / instructions</p>
+            <p className="mt-2 text-muted-foreground">
+              Care services billed for the period {formatUkDate(invoiceRun.periodStart)} to{' '}
+              {formatUkDate(invoiceRun.periodEnd)}.
+            </p>
+          </div>
+        </div>
+        <div className="sm:justify-self-end">
+          <dl className="min-w-[240px] space-y-2 text-sm">
+            <div className="flex justify-between gap-6">
+              <dt className="font-semibold">Subtotal</dt>
+              <dd className="tabular-nums">{group.subtotal}</dd>
+            </div>
+            <div className="flex justify-between gap-6">
+              <dt className="font-semibold">VAT</dt>
+              <dd className="tabular-nums">£0.00</dd>
+            </div>
+            <div className="flex justify-between gap-6 border-t-2 border-primary pt-3 text-lg font-bold">
+              <dt>Total</dt>
+              <dd className="tabular-nums">{group.subtotal}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <InvoiceBrandedFooter org={org} />
+    </div>
+  )
+}
+
+export function InvoiceRunPreviewDialog({
+  open,
+  onOpenChange,
+  invoiceRun,
+  funderIdFilter,
+}: Props) {
+  const org = useInvoiceOrganisation(open)
+
   if (!invoiceRun) return null
 
-  const hasLines = invoiceRun.funderSummaries.length > 0
+  const authorityInvoices = invoiceRun.funderSummaries.filter(group =>
+    matchesFunderFilter(group.funderId, funderIdFilter),
+  )
+  const hasLines = authorityInvoices.length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,12 +226,19 @@ export function InvoiceRunPreviewDialog({ open, onOpenChange, invoiceRun }: Prop
             <span className="font-medium text-foreground">{invoiceRun.period}</span>
             <InvoiceRunStatusBadge status={invoiceRun.status} />
             <ExportStatusBadge status={invoiceRun.exportStatus} />
-            <span className="font-mono text-xs text-muted-foreground">{invoiceRef(invoiceRun)}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {invoiceRunRef(invoiceRun)}
+            </span>
+            {authorityInvoices.length > 0 ? (
+              <Badge variant="secondary" size="sm">
+                {authorityInvoices.length} authority invoice{authorityInvoices.length === 1 ? '' : 's'}
+              </Badge>
+            ) : null}
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Live invoice layout from calculated lines. Grouped by funder for council and split-billing
-            exports.
+            Each local authority and funder receives its own separate invoice with a unique invoice
+            number. Provider details are loaded from Settings → Company.
           </p>
 
           {!hasLines ? (
@@ -58,93 +246,30 @@ export function InvoiceRunPreviewDialog({ open, onOpenChange, invoiceRun }: Prop
               No invoice lines yet. Calculate the run to generate charges from approved visits.
             </div>
           ) : (
-            invoiceRun.funderSummaries.map(group => (
-              <div
-                key={group.funderId ?? 'direct'}
-                className="rounded-xl border border-border bg-white p-5 shadow-sm dark:bg-card"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Bill to
-                    </p>
-                    <p className="mt-1 text-base font-semibold text-foreground">{group.funderName}</p>
-                    {group.funderCode ? (
-                      <p className="text-sm text-muted-foreground">Funder ref: {group.funderCode}</p>
-                    ) : null}
-                  </div>
-                  <div className="text-right text-sm">
-                    <p className="font-semibold text-foreground">Invoice</p>
-                    <p className="text-muted-foreground">{invoiceRef(invoiceRun)}</p>
-                    <p className="text-muted-foreground">
-                      Period: {invoiceRun.periodStart} – {invoiceRun.periodEnd}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[640px] border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/40">
-                        <th className="px-2.5 py-2 text-left text-xs font-semibold text-muted-foreground">
-                          Visit
-                        </th>
-                        <th className="px-2.5 py-2 text-left text-xs font-semibold text-muted-foreground">
-                          Service user
-                        </th>
-                        <th className="px-2.5 py-2 text-left text-xs font-semibold text-muted-foreground">
-                          Description
-                        </th>
-                        <th className="px-2.5 py-2 text-right text-xs font-semibold text-muted-foreground">
-                          Duration
-                        </th>
-                        <th className="px-2.5 py-2 text-right text-xs font-semibold text-muted-foreground">
-                          Split
-                        </th>
-                        <th className="px-2.5 py-2 text-right text-xs font-semibold text-muted-foreground">
-                          Amount
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.lines.map(line => (
-                        <tr key={line.id} className="border-b border-border last:border-0">
-                          <td className="px-2.5 py-2 font-mono text-xs">{line.visitRef ?? '—'}</td>
-                          <td className="px-2.5 py-2">
-                            <span className="font-medium">{line.serviceUserName}</span>
-                            {line.serviceUserNumber ? (
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                ({line.serviceUserNumber})
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="px-2.5 py-2 text-muted-foreground">{line.description}</td>
-                          <td className="px-2.5 py-2 text-right tabular-nums">
-                            {formatMinutes(line.minutes)}
-                          </td>
-                          <td className="px-2.5 py-2 text-right tabular-nums">
-                            {line.splitPercent != null ? `${line.splitPercent}%` : '—'}
-                          </td>
-                          <td className="px-2.5 py-2 text-right tabular-nums font-medium">
-                            {line.amount}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-                  <Badge variant="secondary" size="sm">
-                    {group.lineCount} line{group.lineCount === 1 ? '' : 's'}
+            authorityInvoices.map(group => {
+              const originalIndex = invoiceRun.funderSummaries.findIndex(
+                row => (row.funderId ?? null) === (group.funderId ?? null),
+              )
+              return (
+              <div key={group.funderId ?? 'direct'} className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" size="sm">
+                    Authority invoice — {group.funderName}
                   </Badge>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Subtotal: </span>
-                    <span className="font-semibold tabular-nums">{group.subtotal}</span>
-                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {group.lineCount} line{group.lineCount === 1 ? '' : 's'} · {group.subtotal}
+                  </span>
                 </div>
+                <LiveInvoiceDocument
+                  invoiceRun={invoiceRun}
+                  group={group}
+                  invoiceIndex={originalIndex}
+                  invoiceTotal={invoiceRun.funderSummaries.length}
+                  org={org}
+                />
               </div>
-            ))
+              )
+            })
           )}
 
           {hasLines ? (

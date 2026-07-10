@@ -21,10 +21,16 @@ const FIELD_EDITOR_TOOLTIPS = {
 type Props = {
   fields: InvoiceTemplateField[]
   systemFields: InvoiceTemplateSystemField[]
+  groups?: Array<{ id: string; label: string }>
   onChange: (fields: InvoiceTemplateField[]) => void
 }
 
-export function InvoiceTemplateFieldsEditor({ fields, systemFields, onChange }: Props) {
+export function InvoiceTemplateFieldsEditor({
+  fields,
+  systemFields,
+  groups = [],
+  onChange,
+}: Props) {
   const selectedByKey = React.useMemo(() => {
     const map = new Map<string, InvoiceTemplateField>()
     for (const field of fields) {
@@ -78,6 +84,94 @@ export function InvoiceTemplateFieldsEditor({ fields, systemFields, onChange }: 
 
   const selectedCount = selectedByKey.size
 
+  const groupedFields = React.useMemo(() => {
+    if (!groups.length) {
+      return [{ id: 'ALL', label: 'All fields', fields: systemFields }]
+    }
+    const byGroup = new Map<string, InvoiceTemplateSystemField[]>()
+    for (const field of systemFields) {
+      const groupId = field.group ?? 'OTHER'
+      const existing = byGroup.get(groupId) ?? []
+      existing.push(field)
+      byGroup.set(groupId, existing)
+    }
+    const ordered = groups
+      .map(group => ({ ...group, fields: byGroup.get(group.id) ?? [] }))
+      .filter(group => group.fields.length > 0)
+    const other = byGroup.get('OTHER')
+    if (other?.length) {
+      ordered.push({ id: 'OTHER', label: 'Other', fields: other })
+    }
+    return ordered
+  }, [groups, systemFields])
+
+  const renderFieldRow = (systemField: InvoiceTemplateSystemField) => {
+    const selected = selectedByKey.get(systemField.key)
+    const included = !!selected
+    const includeId = `invoice-field-include-${systemField.key}`
+    const requiredId = `invoice-field-required-${systemField.key}`
+
+    return (
+      <div
+        key={systemField.key}
+        className={cn(
+          'grid gap-2 px-3 py-2.5 sm:grid-cols-[auto_1fr_minmax(140px,1.2fr)_auto] sm:items-center sm:gap-3',
+          included ? 'bg-background' : 'bg-muted/10',
+        )}
+      >
+        <div className="flex items-center gap-2 sm:justify-center">
+          <Checkbox
+            id={includeId}
+            checked={included}
+            onCheckedChange={checked => toggleInclude(systemField, checked === true)}
+          />
+          <label htmlFor={includeId} className="text-sm font-medium sm:hidden">
+            {systemField.label}
+          </label>
+        </div>
+
+        <div className="hidden sm:block">
+          <p className="text-sm font-medium text-foreground">{systemField.label}</p>
+          <p className="font-mono text-[11px] text-muted-foreground">{systemField.key}</p>
+        </div>
+
+        <div className={cn(!included && 'opacity-50')}>
+          <p className="mb-1 text-xs font-medium text-muted-foreground sm:hidden">
+            Template column label
+          </p>
+          <Input
+            value={selected?.label ?? ''}
+            disabled={!included}
+            onChange={e => updateIncluded(systemField.key, { label: e.target.value })}
+            placeholder={systemField.label}
+            className="h-9"
+          />
+        </div>
+
+        <div className={cn('flex items-center gap-2 sm:justify-end', !included && 'opacity-50')}>
+          <Checkbox
+            id={requiredId}
+            checked={selected?.isRequired ?? false}
+            disabled={!included}
+            onCheckedChange={checked =>
+              updateIncluded(systemField.key, { isRequired: checked === true })
+            }
+          />
+          <label
+            htmlFor={requiredId}
+            className={cn('text-xs', included ? 'cursor-pointer' : 'cursor-not-allowed')}
+          >
+            <BillingFieldLabel
+              label="Required"
+              tooltip={FIELD_EDITOR_TOOLTIPS.required}
+              size="sm"
+            />
+          </label>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -93,92 +187,29 @@ export function InvoiceTemplateFieldsEditor({ fields, systemFields, onChange }: 
       {systemFields.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading available fields…</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <div className="hidden grid-cols-[auto_1fr_minmax(140px,1.2fr)_auto] gap-3 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground sm:grid">
-            <span className="w-8 text-center">Use</span>
-            <span>System field</span>
-            <span>Template column label</span>
-            <span className="pr-1">Required</span>
-          </div>
-          <div className="max-h-[320px] divide-y divide-border overflow-y-auto">
-            {systemFields.map(systemField => {
-              const selected = selectedByKey.get(systemField.key)
-              const included = !!selected
-              const includeId = `invoice-field-include-${systemField.key}`
-              const requiredId = `invoice-field-required-${systemField.key}`
-
-              return (
-                <div
-                  key={systemField.key}
-                  className={cn(
-                    'grid gap-2 px-3 py-2.5 sm:grid-cols-[auto_1fr_minmax(140px,1.2fr)_auto] sm:items-center sm:gap-3',
-                    included ? 'bg-background' : 'bg-muted/10',
-                  )}
-                >
-                  <div className="flex items-center gap-2 sm:justify-center">
-                    <Checkbox
-                      id={includeId}
-                      checked={included}
-                      onCheckedChange={checked => toggleInclude(systemField, checked === true)}
-                    />
-                    <label htmlFor={includeId} className="text-sm font-medium sm:hidden">
-                      {systemField.label}
-                    </label>
-                  </div>
-
-                  <div className="hidden sm:block">
-                    <p className="text-sm font-medium text-foreground">{systemField.label}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground">{systemField.key}</p>
-                  </div>
-
-                  <div className={cn(!included && 'opacity-50')}>
-                    <p className="mb-1 text-xs font-medium text-muted-foreground sm:hidden">
-                      Template column label
-                    </p>
-                    <Input
-                      value={selected?.label ?? ''}
-                      disabled={!included}
-                      onChange={e => updateIncluded(systemField.key, { label: e.target.value })}
-                      placeholder={systemField.label}
-                      className="h-9"
-                    />
-                  </div>
-
-                  <div
-                    className={cn(
-                      'flex items-center gap-2 sm:justify-end',
-                      !included && 'opacity-50',
-                    )}
-                  >
-                    <Checkbox
-                      id={requiredId}
-                      checked={selected?.isRequired ?? false}
-                      disabled={!included}
-                      onCheckedChange={checked =>
-                        updateIncluded(systemField.key, { isRequired: checked === true })
-                      }
-                    />
-                    <label
-                      htmlFor={requiredId}
-                      className={cn('text-xs', included ? 'cursor-pointer' : 'cursor-not-allowed')}
-                    >
-                      <BillingFieldLabel
-                        label="Required"
-                        tooltip={FIELD_EDITOR_TOOLTIPS.required}
-                        size="sm"
-                      />
-                    </label>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        <div className="space-y-4">
+          {groupedFields.map(group => (
+            <div key={group.id} className="overflow-hidden rounded-lg border border-border">
+              <div className="border-b border-border bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </div>
+              <div className="hidden grid-cols-[auto_1fr_minmax(140px,1.2fr)_auto] gap-3 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground sm:grid">
+                <span className="w-8 text-center">Use</span>
+                <span>System field</span>
+                <span>Template column label</span>
+                <span className="pr-1">Required</span>
+              </div>
+              <div className="max-h-[280px] divide-y divide-border overflow-y-auto">
+                {group.fields.map(renderFieldRow)}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Tick <strong className="font-medium text-foreground">Use</strong> to include a column.
-        Optionally rename the export heading and mark it required for validation.
+        Layout matches Birdie, Nourish, and Access Group invoice exports. Tick{' '}
+        <strong className="font-medium text-foreground">Use</strong> to include a column.
       </p>
     </div>
   )

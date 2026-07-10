@@ -2,10 +2,12 @@ import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Combobox } from '@/shared/ui/combobox'
 import { TooltipProvider } from '@/shared/ui/tooltip'
+import { cn } from '@/shared/lib/utils'
 import {
   Dialog,
   DialogBody,
@@ -25,11 +27,13 @@ import { BillingFieldLabel } from '@/features/billing/components/BillingFieldLab
 import { InvoiceTemplateFieldsEditor } from '@/features/billing/components/InvoiceTemplateFieldsEditor'
 import {
   useCreateInvoiceTemplate,
+  useInvoiceTemplateLayoutPresets,
   useInvoiceTemplateSystemFields,
   useUpdateInvoiceTemplate,
 } from '@/features/billing/hooks/useInvoiceTemplates'
 import { BILLING_CARD_STATUS_OPTIONS, BILLING_FREQUENCY_OPTIONS } from '@/features/billing/types/billing-cards.types'
 import {
+  INVOICE_LAYOUT_PRESET_OPTIONS,
   INVOICE_DELIVERY_PRESETS,
   INVOICE_GROUPING_PRESETS,
   INVOICE_TEMPLATE_SCOPE_OPTIONS,
@@ -37,6 +41,7 @@ import {
   slugInvoiceTemplateCode,
   type InvoiceTemplate,
   type InvoiceTemplateInput,
+  type InvoiceTemplateLayoutPreset,
 } from '@/features/billing/types/invoice-templates.types'
 import { useEnterpriseFunders } from '@/features/service-users/hooks/useServiceUserTabs'
 import { fetchFundingContractOptions } from '@/features/billing/api/invoice-templates.api'
@@ -86,8 +91,25 @@ function toFormState(template?: InvoiceTemplate | null): InvoiceTemplateInput {
     status: template?.status ?? 'DRAFT',
     effectiveFrom: template?.effectiveFrom?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
     effectiveTo: template?.effectiveTo?.slice(0, 10) ?? '',
-    notes: template?.notes ?? '',
-    fields: template?.fields ?? [],
+  notes: template?.notes ?? '',
+  layoutPreset: template?.layoutPreset ?? 'STANDARD',
+  includeRemittance: template?.includeRemittance ?? false,
+  fields: template?.fields ?? [],
+  }
+}
+
+function presetCodeForLayout(key: InvoiceTemplateLayoutPreset): string {
+  switch (key) {
+    case 'STANDARD':
+      return 'INV-STD-UK'
+    case 'LOCAL_AUTHORITY':
+      return 'INV-LA-XLSX'
+    case 'NHS':
+      return 'INV-NHS-UK'
+    case 'PRIVATE_CLIENT':
+      return 'INV-PVT-UK'
+    default:
+      return `INV-${key}`
   }
 }
 
@@ -96,6 +118,7 @@ export function InvoiceTemplateFormDialog({ open, onOpenChange, template }: Prop
   const createMutation = useCreateInvoiceTemplate()
   const updateMutation = useUpdateInvoiceTemplate()
   const systemFieldsQuery = useInvoiceTemplateSystemFields(open)
+  const presetsQuery = useInvoiceTemplateLayoutPresets(open)
   const fundersQuery = useEnterpriseFunders(open)
 
   const [form, setForm] = React.useState<InvoiceTemplateInput>(() => toFormState(template))
@@ -125,7 +148,40 @@ export function InvoiceTemplateFormDialog({ open, onOpenChange, template }: Prop
   }, [open, form.scope])
 
   const saving = createMutation.isPending || updateMutation.isPending
-  const systemFields = systemFieldsQuery.data ?? []
+  const systemFields = systemFieldsQuery.data?.fields ?? []
+  const systemFieldGroups = systemFieldsQuery.data?.groups ?? []
+  const layoutPresets = presetsQuery.data ?? []
+
+  const applyLayoutPreset = (key: InvoiceTemplateLayoutPreset) => {
+    const preset = layoutPresets.find(row => row.key === key)
+    if (!preset) {
+      setForm(f => ({ ...f, layoutPreset: key }))
+      return
+    }
+    setForm(f => ({
+      ...f,
+      layoutPreset: preset.key,
+      templateType: preset.templateType,
+      billingFrequency: preset.billingFrequency,
+      deliveryMethod: preset.deliveryMethod,
+      groupingRule: preset.groupingRule,
+      fileNamePattern: preset.fileNamePattern,
+      includeRemittance: preset.includeRemittance,
+      scope: preset.scope,
+      fields: preset.fields.map((field, index) => ({
+        label: field.label,
+        systemFieldKey: field.systemFieldKey,
+        isRequired: field.isRequired,
+        sortOrder: index,
+      })),
+      ...(!isEdit
+        ? {
+            name: preset.name,
+            code: presetCodeForLayout(preset.key),
+          }
+        : {}),
+    }))
+  }
 
   const funderOptions = React.useMemo(
     () => (fundersQuery.data ?? []).map(f => ({ value: f.id, label: f.name })),
@@ -165,6 +221,8 @@ export function InvoiceTemplateFormDialog({ open, onOpenChange, template }: Prop
       fileNamePattern: form.fileNamePattern || null,
       effectiveTo: form.effectiveTo || null,
       notes: form.notes || null,
+      layoutPreset: form.layoutPreset,
+      includeRemittance: form.includeRemittance,
       fields: form.fields.map((f, index) => ({
         label: f.label.trim(),
         systemFieldKey: f.systemFieldKey,
@@ -201,6 +259,31 @@ export function InvoiceTemplateFormDialog({ open, onOpenChange, template }: Prop
         </DialogHeader>
         <DialogBody className="max-h-[70vh] space-y-4 overflow-y-auto">
           <TooltipProvider delayDuration={200}>
+          <div className="space-y-2">
+            <BillingFieldLabel
+              label="Invoice layout"
+              tooltip="Industry-standard layouts used by Birdie, Nourish, and Access Group. Selecting a layout fills format, columns, and delivery settings."
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {INVOICE_LAYOUT_PRESET_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={cn(
+                    'rounded-lg border px-3 py-2.5 text-left transition-colors',
+                    form.layoutPreset === option.value
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:bg-muted/30',
+                  )}
+                  onClick={() => applyLayoutPreset(option.value)}
+                >
+                  <p className="text-sm font-semibold text-foreground">{option.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{option.subtitle}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <BillingFieldLabel
@@ -429,9 +512,23 @@ export function InvoiceTemplateFormDialog({ open, onOpenChange, template }: Prop
             />
           </div>
 
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+            <Checkbox
+              id="include-remittance"
+              checked={form.includeRemittance}
+              onCheckedChange={checked =>
+                setForm(f => ({ ...f, includeRemittance: checked === true }))
+              }
+            />
+            <label htmlFor="include-remittance" className="text-sm text-foreground">
+              Include remittance advice page (Birdie-style payment slip at end of PDF)
+            </label>
+          </div>
+
           <InvoiceTemplateFieldsEditor
             fields={form.fields}
             systemFields={systemFields}
+            groups={systemFieldGroups}
             onChange={fields => setForm(f => ({ ...f, fields }))}
           />
 
