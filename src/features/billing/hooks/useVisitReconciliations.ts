@@ -8,6 +8,7 @@ import {
   fetchVisitReconciliations,
   fetchVisitReconciliationsSummary,
   rejectVisitReconciliation,
+  updateVisitReconciliation,
 } from '@/features/billing/api/visit-reconciliations.api'
 import { billingKeys } from '@/features/billing/keys'
 import type { ApproveScope } from '@/features/billing/types/visit-reconciliation.types'
@@ -45,6 +46,27 @@ export function useVisitReconciliationExceptionQueue(limit = 10) {
   return useQuery({
     queryKey: billingKeys.visitReconciliationExceptionQueue(limit),
     queryFn: () => fetchVisitReconciliationExceptionQueue(limit),
+  })
+}
+
+export function useUpdateVisitReconciliation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        travelMiles?: number | null
+        travelMinutes?: number | null
+        approvalNotes?: string | null
+      }
+    }) => updateVisitReconciliation(id, body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })
+    },
   })
 }
 

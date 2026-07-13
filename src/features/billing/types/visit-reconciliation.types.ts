@@ -30,6 +30,8 @@ export type VisitReconciliationRow = {
   approvedBillable: string
   payableAmount: string | null
   billableAmount: string | null
+  travelMiles: number | null
+  travelMinutes: number | null
   currency: string
   status: VisitReconciliationStatus
   exceptions: FinanceExceptionCode[]

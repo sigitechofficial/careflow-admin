@@ -1,11 +1,50 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
-import type { PayCard, PayCardInput, PayCardRule, PayCardAssignmentPreview, PayCardResolveResult } from '@/features/billing/types/billing-cards.types'
+import type {
+  PayCard,
+  PayCardAssignedCarer,
+  PayCardInput,
+  PayCardRule,
+  PayCardAssignmentPreview,
+  PayCardResolveResult,
+} from '@/features/billing/types/billing-cards.types'
 
-function normalizePayCard(card: PayCard & { _count?: { defaultEmployments?: number } }): PayCard {
-  const { _count, ...rest } = card
+type PayCardApiRow = PayCard & {
+  _count?: { defaultEmployments?: number }
+  defaultEmployments?: Array<{
+    employeeId: string
+    employeeNumber?: string | null
+    employee?: {
+      id: string
+      personalDetail?: { firstName?: string | null; lastName?: string | null } | null
+    } | null
+  }>
+}
+
+function formatCarerName(
+  personalDetail?: { firstName?: string | null; lastName?: string | null } | null,
+  fallbackId?: string,
+): string {
+  const name = [personalDetail?.firstName, personalDetail?.lastName]
+    .map(part => part?.trim())
+    .filter(Boolean)
+    .join(' ')
+  return name || fallbackId || 'Unknown carer'
+}
+
+function mapAssignedCarers(card: PayCardApiRow): PayCardAssignedCarer[] {
+  return (card.defaultEmployments ?? []).map(row => ({
+    employeeId: row.employeeId || row.employee?.id || '',
+    fullName: formatCarerName(row.employee?.personalDetail, row.employeeId),
+    employeeNumber: row.employeeNumber ?? null,
+  })).filter(row => row.employeeId)
+}
+
+function normalizePayCard(card: PayCardApiRow): PayCard {
+  const { _count, defaultEmployments: _defaultEmployments, ...rest } = card
   return {
     ...rest,
     assignedCarerCount: _count?.defaultEmployments,
+    assignedCarers: mapAssignedCarers(card),
     rules: card.rules.map(normalizePayRule),
   }
 }
@@ -72,6 +111,20 @@ export async function assignPayCardToMatching(
     {
       method: 'POST',
       body: JSON.stringify(body ?? { onlyUnassigned: true }),
+    },
+  )
+  return res.data
+}
+
+export async function unassignPayCardEmployee(
+  id: string,
+  employeeId: string,
+): Promise<{ employeeId: string }> {
+  const res = await apiJson<ApiEnvelope<{ employeeId: string }>>(
+    `/billing/pay-cards/${id}/unassign`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ employeeId }),
     },
   )
   return res.data

@@ -1,13 +1,28 @@
 import * as React from 'react'
-import { Pencil, Plus, Search, Trash2, UserPlus } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Eye, Pencil, Plus, Search, Trash2, UserMinus, UserPlus } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { PayCardFormDialog } from '@/features/billing/components/PayCardFormDialog'
 import { PayCardAssignDialog } from '@/features/billing/components/PayCardAssignDialog'
 import { RateCardStatusBadge } from '@/features/billing/components/BillingStatusBadge'
-import { useDeletePayCard, usePayCards } from '@/features/billing/hooks/usePayCards'
+import {
+  useDeletePayCard,
+  usePayCard,
+  usePayCards,
+  useUnassignPayCardEmployee,
+} from '@/features/billing/hooks/usePayCards'
 import {
   formatBillingDate,
   formatPayCardAssignmentDisplay,
@@ -15,13 +30,143 @@ import {
 } from '@/features/billing/types/billing-cards.types'
 import { useAuthStore } from '@/features/auth/store'
 
+type AssignedCarersDialogProps = {
+  cardId: string | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function AssignedCarersDialog({ cardId, open, onOpenChange }: AssignedCarersDialogProps) {
+  const canManage = useAuthStore(s => s.can('billing.pay_cards.manage' as never))
+  const cardQuery = usePayCard(cardId, open && !!cardId)
+  const unassignMutation = useUnassignPayCardEmployee()
+  const card = cardQuery.data ?? null
+  const carers = card?.assignedCarers ?? []
+  const totalCount = card?.assignedCarerCount ?? carers.length
+  const [unassigningId, setUnassigningId] = React.useState<string | null>(null)
+
+  const onUnassign = async (carer: { employeeId: string; fullName: string }) => {
+    if (!cardId) return
+    if (!window.confirm(`Unassign ${carer.fullName} from this pay card?`)) return
+    setUnassigningId(carer.employeeId)
+    try {
+      await unassignMutation.mutateAsync({ id: cardId, employeeId: carer.employeeId })
+      toastSuccess(`${carer.fullName} unassigned from pay card.`)
+    } catch (err) {
+      toastApiError(err, 'Could not unassign carer.')
+    } finally {
+      setUnassigningId(null)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Assigned carers</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          {cardQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading assigned carers…</p>
+          ) : cardQuery.error ? (
+            <p className="text-sm text-destructive">
+              {cardQuery.error instanceof ApiError
+                ? cardQuery.error.message
+                : 'Could not load assigned carers.'}
+            </p>
+          ) : card ? (
+            <>
+              <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                <p className="font-medium text-foreground">{card.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {card.code} · {formatPayCardAssignmentDisplay(card)}
+                </p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                {totalCount} carer{totalCount === 1 ? '' : 's'} assigned to this pay card
+              </p>
+
+              {totalCount <= 0 ? (
+                <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                  No carers assigned yet. Use Assign to attach this card to matching carers.
+                </p>
+              ) : (
+                <div className="max-h-[360px] overflow-y-auto rounded-md border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Carer</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Employee no.</th>
+                        {canManage ? (
+                          <th className="px-3 py-2 text-right font-medium text-muted-foreground">Actions</th>
+                        ) : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {carers.map(carer => (
+                        <tr key={carer.employeeId} className="border-b border-border last:border-0">
+                          <td className="px-3 py-2.5">
+                            <Link
+                              to="/employee/$employeeId/edit"
+                              params={{ employeeId: carer.employeeId }}
+                              className="font-medium text-foreground underline-offset-2 hover:underline"
+                              onClick={() => onOpenChange(false)}
+                            >
+                              {carer.fullName}
+                            </Link>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground">
+                            {carer.employeeNumber?.trim() || '—'}
+                          </td>
+                          {canManage ? (
+                            <td className="px-3 py-2.5 text-right">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1.5 text-destructive hover:text-destructive"
+                                disabled={unassignMutation.isPending}
+                                onClick={() => onUnassign(carer)}
+                              >
+                                <UserMinus className="size-3.5" />
+                                {unassigningId === carer.employeeId ? 'Unassigning…' : 'Unassign'}
+                              </Button>
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {totalCount > carers.length ? (
+                    <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                      Showing {carers.length} of {totalCount} carers
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </>
+          ) : null}
+        </DialogBody>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function PayCardsPanel() {
   const canManage = useAuthStore(s => s.can('billing.pay_cards.manage' as never))
   const [search, setSearch] = React.useState('')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [assignDialogOpen, setAssignDialogOpen] = React.useState(false)
+  const [viewCarersOpen, setViewCarersOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<PayCard | null>(null)
   const [assigning, setAssigning] = React.useState<PayCard | null>(null)
+  const [viewingCarersId, setViewingCarersId] = React.useState<string | null>(null)
 
   const listQuery = usePayCards({ search: search.trim() || undefined })
   const deleteMutation = useDeletePayCard()
@@ -47,6 +192,11 @@ export function PayCardsPanel() {
   const openAssign = (card: PayCard) => {
     setAssigning(card)
     setAssignDialogOpen(true)
+  }
+
+  const openViewCarers = (card: PayCard) => {
+    setViewingCarersId(card.id)
+    setViewCarersOpen(true)
   }
 
   const onDelete = async (card: PayCard) => {
@@ -88,13 +238,13 @@ export function PayCardsPanel() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[960px] text-sm" data-testid="pay-cards-table">
+        <table className="w-full min-w-[1080px] text-sm" data-testid="pay-cards-table">
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Name</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Code</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Applies to</th>
-              <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Carers</th>
+              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Assigned carers</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Effective</th>
               <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Rules</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
@@ -117,54 +267,71 @@ export function PayCardsPanel() {
                 </td>
               </tr>
             ) : (
-              rows.map(row => (
-                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2.5 font-medium">{row.name}</td>
-                  <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{row.code}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">
-                    {formatPayCardAssignmentDisplay(row)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                    {row.assignedCarerCount ?? 0}
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                    {formatBillingDate(row.effectiveFrom)}
-                    {row.effectiveTo ? ` → ${formatBillingDate(row.effectiveTo)}` : ' → open'}
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{row.rules.length}</td>
-                  <td className="px-3 py-2.5">
-                    <RateCardStatusBadge status={row.status} />
-                  </td>
-                  {canManage ? (
+              rows.map(row => {
+                const carerCount = row.assignedCarerCount ?? row.assignedCarers?.length ?? 0
+                return (
+                  <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-3 py-2.5 font-medium">{row.name}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{row.code}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      {formatPayCardAssignmentDisplay(row)}
+                    </td>
                     <td className="px-3 py-2.5">
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="tabular-nums text-muted-foreground">
+                          {carerCount}
+                        </span>
                         <Button
-                          variant="ghost"
+                          type="button"
+                          variant="outline"
                           size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => openAssign(row)}
-                          title="Assign to matching carers"
+                          className="h-8"
+                          leftIcon={<Eye className="h-3.5 w-3.5" />}
+                          onClick={() => openViewCarers(row)}
                         >
-                          <UserPlus className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(row)} title="Edit">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-destructive"
-                          onClick={() => void onDelete(row)}
-                          title="Delete"
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
+                          View
                         </Button>
                       </div>
                     </td>
-                  ) : null}
-                </tr>
-              ))
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                      {formatBillingDate(row.effectiveFrom)}
+                      {row.effectiveTo ? ` → ${formatBillingDate(row.effectiveTo)}` : ' → open'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{row.rules.length}</td>
+                    <td className="px-3 py-2.5">
+                      <RateCardStatusBadge status={row.status} />
+                    </td>
+                    {canManage ? (
+                      <td className="px-3 py-2.5">
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => openAssign(row)}
+                            title="Assign to matching carers"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(row)} title="Edit">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive"
+                            onClick={() => void onDelete(row)}
+                            title="Delete"
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    ) : null}
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
@@ -181,6 +348,14 @@ export function PayCardsPanel() {
         onOpenChange={open => {
           setAssignDialogOpen(open)
           if (!open) setAssigning(null)
+        }}
+      />
+      <AssignedCarersDialog
+        cardId={viewingCarersId}
+        open={viewCarersOpen}
+        onOpenChange={open => {
+          setViewCarersOpen(open)
+          if (!open) setViewingCarersId(null)
         }}
       />
     </div>

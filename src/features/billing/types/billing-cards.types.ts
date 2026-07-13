@@ -71,6 +71,12 @@ export type PayCardRule = {
   sortOrder?: number
 }
 
+export type PayCardAssignedCarer = {
+  employeeId: string
+  fullName: string
+  employeeNumber?: string | null
+}
+
 export type PayCard = {
   id: string
   name: string
@@ -86,6 +92,7 @@ export type PayCard = {
   notes?: string | null
   rules: PayCardRule[]
   assignedCarerCount?: number
+  assignedCarers?: PayCardAssignedCarer[]
   createdAt?: string
   updatedAt?: string
 }

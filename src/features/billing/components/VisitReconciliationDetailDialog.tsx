@@ -9,14 +9,19 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import { ContentCard } from '@/shared/ui/content-section'
 import {
   BillingExceptionBadge,
   VisitReconStatusBadge,
 } from '@/features/billing/components/BillingStatusBadge'
-import { useVisitReconciliation } from '@/features/billing/hooks/useVisitReconciliations'
+import {
+  useUpdateVisitReconciliation,
+  useVisitReconciliation,
+} from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 type Props = {
   open: boolean
@@ -94,8 +99,36 @@ function RateBreakdownCard({
 
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
+  const updateMutation = useUpdateVisitReconciliation()
   const detail = detailQuery.data
   const preview = detail?.calculationPreview
+
+  const [travelMiles, setTravelMiles] = React.useState('')
+  const [travelMinutes, setTravelMinutes] = React.useState('')
+
+  React.useEffect(() => {
+    if (!detail) return
+    setTravelMiles(detail.travelMiles != null ? String(detail.travelMiles) : '')
+    setTravelMinutes(detail.travelMinutes != null ? String(detail.travelMinutes) : '')
+  }, [detail?.id, detail?.travelMiles, detail?.travelMinutes])
+
+  const canEditTravel = detail && detail.status !== 'LOCKED'
+
+  const saveTravel = async () => {
+    if (!detail || !canEditTravel) return
+    try {
+      await updateMutation.mutateAsync({
+        id: detail.id,
+        body: {
+          travelMiles: travelMiles.trim() === '' ? null : Number(travelMiles),
+          travelMinutes: travelMinutes.trim() === '' ? null : Number(travelMinutes),
+        },
+      })
+      toastSuccess('Travel details saved. Payroll will use these with the pay card rates.')
+    } catch (err) {
+      toastApiError(err, 'Could not save travel details.')
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -142,6 +175,55 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     </dd>
                   </div>
                 </dl>
+              </ContentCard>
+
+              <ContentCard className="p-4 space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold">Travel & mileage</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Enter approved journey values. Payroll multiplies these by the carer’s pay card mileage (£/mile) and travel time (£/hr) rates.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">Travel distance (miles)</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={travelMiles}
+                      onChange={e => setTravelMiles(e.target.value)}
+                      disabled={!canEditTravel || updateMutation.isPending}
+                      placeholder="e.g. 6.2"
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">Travel time (minutes)</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={travelMinutes}
+                      onChange={e => setTravelMinutes(e.target.value)}
+                      disabled={!canEditTravel || updateMutation.isPending}
+                      placeholder="e.g. 15"
+                    />
+                  </label>
+                </div>
+                {canEditTravel ? (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void saveTravel()}
+                      disabled={updateMutation.isPending}
+                    >
+                      {updateMutation.isPending ? 'Saving…' : 'Save travel'}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Locked — travel can no longer be edited.</p>
+                )}
               </ContentCard>
 
               <RateBreakdownCard

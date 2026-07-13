@@ -8,6 +8,7 @@ import {
   fetchPayCardAssignmentPreview,
   assignPayCardToMatching,
   resolveEmployeePayCard,
+  unassignPayCardEmployee,
 } from '@/features/billing/api/pay-cards.api'
 import { billingKeys } from '@/features/billing/keys'
 import type { PayCardInput } from '@/features/billing/types/billing-cards.types'
@@ -71,6 +72,18 @@ export function useAssignPayCardToMatching() {
   return useMutation({
     mutationFn: ({ id, onlyUnassigned }: { id: string; onlyUnassigned?: boolean }) =>
       assignPayCardToMatching(id, { onlyUnassigned }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: ['employees'] })
+    },
+  })
+}
+
+export function useUnassignPayCardEmployee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, employeeId }: { id: string; employeeId: string }) =>
+      unassignPayCardEmployee(id, employeeId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
       void qc.invalidateQueries({ queryKey: ['employees'] })

@@ -1,7 +1,7 @@
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { RateCardStatusBadge, formatBillingLabel } from '@/features/billing/components/BillingStatusBadge'
-import { getRuleRateTypeLabel, isHourlyLongVisitRule } from '@/features/billing/utils/billing-card-rule.util'
+import { getRuleRateTypeLabel, isHourlyLongVisitRule, isMileageRule, isTravelTimeRule } from '@/features/billing/utils/billing-card-rule.util'
 import {
   PAY_CARD_RULE_CATEGORY_ORDER,
   categorizePayCardRule,
@@ -86,7 +86,13 @@ function RuleTable({
                 ) : null}
               </td>
               <td className="px-3 py-2.5 text-muted-foreground">
-                {isHourlyLongVisitRule(rule) ? 'Over 1 hour' : (formatVisitDurationLabel(rule.minimumMinutes) ?? '—')}
+                {isMileageRule(rule)
+                  ? 'Per mile'
+                  : isTravelTimeRule(rule)
+                    ? 'Travel hours'
+                    : isHourlyLongVisitRule(rule)
+                      ? 'Over 1 hour'
+                      : (formatVisitDurationLabel(rule.minimumMinutes) ?? '—')}
               </td>
               <td className="px-3 py-2.5 text-muted-foreground">
                 {formatPayCardRuleDayType(rule.dayType)}
@@ -167,10 +173,36 @@ export function PayCardDetailsView({
             {card.effectiveTo ? ` → ${formatBillingDate(card.effectiveTo)}` : ' → open-ended'}
           </dd>
         </div>
-        {card.assignedCarerCount != null ? (
-          <div>
+        {card.assignedCarerCount != null || (card.assignedCarers?.length ?? 0) > 0 ? (
+          <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs text-muted-foreground">Carers on this card</dt>
-            <dd className="mt-0.5 tabular-nums">{card.assignedCarerCount}</dd>
+            <dd className="mt-1 space-y-1">
+              <p className="tabular-nums">
+                {card.assignedCarerCount ?? card.assignedCarers?.length ?? 0} assigned
+              </p>
+              {(card.assignedCarers?.length ?? 0) > 0 ? (
+                <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                  {(card.assignedCarers ?? []).slice(0, 12).map(carer => (
+                    <li key={carer.employeeId}>
+                      <Link
+                        to="/employee/$employeeId/edit"
+                        params={{ employeeId: carer.employeeId }}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {carer.fullName}
+                      </Link>
+                    </li>
+                  ))}
+                  {(card.assignedCarerCount ?? 0) > 12 ? (
+                    <li className="text-muted-foreground">
+                      +{(card.assignedCarerCount ?? 0) - 12} more
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">None assigned yet</p>
+              )}
+            </dd>
           </div>
         ) : null}
         <div className="sm:col-span-2 lg:col-span-3">

@@ -83,6 +83,28 @@ export async function fetchVisitReconciliation(id: string): Promise<VisitReconci
   return res.data
 }
 
+export async function updateVisitReconciliation(
+  id: string,
+  body: {
+    approvedPayStart?: string | null
+    approvedPayEnd?: string | null
+    approvedBillStart?: string | null
+    approvedBillEnd?: string | null
+    approvalNotes?: string | null
+    travelMiles?: number | null
+    travelMinutes?: number | null
+  },
+): Promise<VisitReconciliationDetail> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+    `/billing/visit-reconciliations/${id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    },
+  )
+  return res.data
+}
+
 export async function approveVisitReconciliation(
   id: string,
   body: { scope: ApproveScope; managerOverride?: boolean; approvalNotes?: string },
