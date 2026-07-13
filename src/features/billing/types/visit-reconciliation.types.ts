@@ -14,6 +14,8 @@ export type FinanceExceptionCode =
   | 'PO_EXPIRED'
   | 'PO_MISSING'
 
+export type VisitOverrunDecision = 'PENDING' | 'APPROVED' | 'REJECTED'
+
 export type VisitReconciliationRow = {
   id: string
   visitRef: string
@@ -35,6 +37,10 @@ export type VisitReconciliationRow = {
   currency: string
   status: VisitReconciliationStatus
   exceptions: FinanceExceptionCode[]
+  overrunMinutes: number | null
+  overrunReason: string | null
+  overrunDecision: VisitOverrunDecision | null
+  approvalNotes: string | null
 }
 
 export type VisitReconciliationsSummary = {

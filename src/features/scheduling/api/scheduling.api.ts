@@ -239,6 +239,7 @@ export async function completeHousekeepingJob(
     extraCareNotes?: string
     actualStartDateTime?: string
     actualEndDateTime?: string
+    overrunReason?: string
   },
 ) {
   const body: Record<string, unknown> = {}
@@ -253,6 +254,7 @@ export async function completeHousekeepingJob(
   if (payload?.extraCareNotes?.trim()) body.extraCareNotes = payload.extraCareNotes.trim()
   if (payload?.actualStartDateTime) body.actualStartDateTime = payload.actualStartDateTime
   if (payload?.actualEndDateTime) body.actualEndDateTime = payload.actualEndDateTime
+  if (payload?.overrunReason?.trim()) body.overrunReason = payload.overrunReason.trim()
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {
     method: 'PATCH',
     body: JSON.stringify(body),

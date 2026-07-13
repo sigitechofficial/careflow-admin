@@ -16,12 +16,15 @@ import {
   VisitReconStatusBadge,
 } from '@/features/billing/components/BillingStatusBadge'
 import {
+  useApproveVisitOverrun,
+  useRejectVisitOverrun,
   useUpdateVisitReconciliation,
   useVisitReconciliation,
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useAuthStore } from '@/features/auth/store'
 
 type Props = {
   open: boolean
@@ -98,21 +101,29 @@ function RateBreakdownCard({
 }
 
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
+  const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
   const updateMutation = useUpdateVisitReconciliation()
+  const approveOverrunMutation = useApproveVisitOverrun()
+  const rejectOverrunMutation = useRejectVisitOverrun()
   const detail = detailQuery.data
   const preview = detail?.calculationPreview
 
   const [travelMiles, setTravelMiles] = React.useState('')
-  const [travelMinutes, setTravelMinutes] = React.useState('')
+  const [overrunNotes, setOverrunNotes] = React.useState('')
 
   React.useEffect(() => {
     if (!detail) return
     setTravelMiles(detail.travelMiles != null ? String(detail.travelMiles) : '')
-    setTravelMinutes(detail.travelMinutes != null ? String(detail.travelMinutes) : '')
-  }, [detail?.id, detail?.travelMiles, detail?.travelMinutes])
+    setOverrunNotes('')
+  }, [detail?.id, detail?.travelMiles])
 
   const canEditTravel = detail && detail.status !== 'LOCKED'
+  const pendingOverrun =
+    detail &&
+    (detail.overrunMinutes ?? 0) > 0 &&
+    (detail.overrunDecision === 'PENDING' || detail.overrunDecision == null)
+  const overrunBusy = approveOverrunMutation.isPending || rejectOverrunMutation.isPending
 
   const saveTravel = async () => {
     if (!detail || !canEditTravel) return
@@ -121,12 +132,33 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
         id: detail.id,
         body: {
           travelMiles: travelMiles.trim() === '' ? null : Number(travelMiles),
-          travelMinutes: travelMinutes.trim() === '' ? null : Number(travelMinutes),
+          // Travel time UI is hidden for now — keep existing value unchanged.
         },
       })
-      toastSuccess('Travel details saved. Payroll will use these with the pay card rates.')
+      toastSuccess('Mileage saved. Payroll will use this with the pay card mileage rate.')
     } catch (err) {
-      toastApiError(err, 'Could not save travel details.')
+      toastApiError(err, 'Could not save mileage.')
+    }
+  }
+
+  const decideOverrun = async (decision: 'approve' | 'reject') => {
+    if (!detail) return
+    try {
+      if (decision === 'approve') {
+        await approveOverrunMutation.mutateAsync({
+          id: detail.id,
+          notes: overrunNotes.trim() || undefined,
+        })
+        toastSuccess('Overrun acknowledged. Gross pay remains on planned visit time.')
+      } else {
+        await rejectOverrunMutation.mutateAsync({
+          id: detail.id,
+          notes: overrunNotes.trim() || undefined,
+        })
+        toastSuccess('Overrun rejected. Gross pay remains on planned visit time.')
+      }
+    } catch (err) {
+      toastApiError(err, 'Could not save overrun decision.')
     }
   }
 
@@ -177,39 +209,87 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </dl>
               </ContentCard>
 
+              {(detail.overrunMinutes ?? 0) > 0 ? (
+                <ContentCard className="space-y-3 border-amber-300/50 bg-amber-50/40 p-4 dark:border-amber-700/40 dark:bg-amber-950/20">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">
+                      Duration overrun — {detail.overrunMinutes} min
+                    </h4>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Gross pay and invoice use the planned visit length. The extra{' '}
+                      {detail.overrunMinutes} minutes are flagged for review only.
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background/80 px-3 py-2 text-sm">
+                    <p className="text-xs text-muted-foreground">Carer / recorder reason</p>
+                    <p className="mt-0.5 whitespace-pre-wrap">
+                      {detail.overrunReason?.trim() || 'No reason provided'}
+                    </p>
+                  </div>
+                  {detail.overrunDecision && detail.overrunDecision !== 'PENDING' ? (
+                    <p className="text-sm">
+                      Decision:{' '}
+                      <span className="font-medium">
+                        {detail.overrunDecision === 'APPROVED'
+                          ? 'Acknowledged — pay stays planned'
+                          : 'Rejected — pay stays planned'}
+                      </span>
+                    </p>
+                  ) : null}
+                  {canManage && pendingOverrun ? (
+                    <div className="space-y-2">
+                      <label className="block space-y-1 text-sm">
+                        <span className="text-xs text-muted-foreground">Admin notes (optional)</span>
+                        <Input
+                          value={overrunNotes}
+                          onChange={e => setOverrunNotes(e.target.value)}
+                          disabled={overrunBusy}
+                          placeholder="Optional note for this decision"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={overrunBusy}
+                          onClick={() => void decideOverrun('approve')}
+                        >
+                          Acknowledge overrun
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={overrunBusy}
+                          onClick={() => void decideOverrun('reject')}
+                        >
+                          Reject overrun note
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </ContentCard>
+              ) : null}
+
               <ContentCard className="p-4 space-y-3">
                 <div>
-                  <h4 className="text-sm font-semibold">Travel & mileage</h4>
+                  <h4 className="text-sm font-semibold">Mileage</h4>
                   <p className="text-xs text-muted-foreground">
-                    Enter approved journey values. Payroll multiplies these by the carer’s pay card mileage (£/mile) and travel time (£/hr) rates.
+                    Enter approved journey miles between visits. Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
                   </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1 text-sm">
-                    <span className="text-xs text-muted-foreground">Travel distance (miles)</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      value={travelMiles}
-                      onChange={e => setTravelMiles(e.target.value)}
-                      disabled={!canEditTravel || updateMutation.isPending}
-                      placeholder="e.g. 6.2"
-                    />
-                  </label>
-                  <label className="space-y-1 text-sm">
-                    <span className="text-xs text-muted-foreground">Travel time (minutes)</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="1"
-                      value={travelMinutes}
-                      onChange={e => setTravelMinutes(e.target.value)}
-                      disabled={!canEditTravel || updateMutation.isPending}
-                      placeholder="e.g. 15"
-                    />
-                  </label>
-                </div>
+                <label className="block max-w-xs space-y-1 text-sm">
+                  <span className="text-xs text-muted-foreground">Travel distance (miles)</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={travelMiles}
+                    onChange={e => setTravelMiles(e.target.value)}
+                    disabled={!canEditTravel || updateMutation.isPending}
+                    placeholder="e.g. 6.2"
+                  />
+                </label>
                 {canEditTravel ? (
                   <div className="flex justify-end">
                     <Button
@@ -218,11 +298,11 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                       onClick={() => void saveTravel()}
                       disabled={updateMutation.isPending}
                     >
-                      {updateMutation.isPending ? 'Saving…' : 'Save travel'}
+                      {updateMutation.isPending ? 'Saving…' : 'Save mileage'}
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Locked — travel can no longer be edited.</p>
+                  <p className="text-xs text-muted-foreground">Locked — mileage can no longer be edited.</p>
                 )}
               </ContentCard>
 

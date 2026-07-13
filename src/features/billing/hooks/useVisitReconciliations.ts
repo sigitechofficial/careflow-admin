@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  approveVisitOverrun,
   approveVisitReconciliation,
   backfillVisitReconciliations,
   bulkApproveVisitReconciliations,
@@ -7,6 +8,7 @@ import {
   fetchVisitReconciliationExceptionQueue,
   fetchVisitReconciliations,
   fetchVisitReconciliationsSummary,
+  rejectVisitOverrun,
   rejectVisitReconciliation,
   updateVisitReconciliation,
 } from '@/features/billing/api/visit-reconciliations.api'
@@ -95,6 +97,30 @@ export function useRejectVisitReconciliation() {
       rejectVisitReconciliation(id, { scope }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useApproveVisitOverrun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
+      approveVisitOverrun(id, { notes }),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })
+    },
+  })
+}
+
+export function useRejectVisitOverrun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
+      rejectVisitOverrun(id, { notes }),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })
     },
   })
 }

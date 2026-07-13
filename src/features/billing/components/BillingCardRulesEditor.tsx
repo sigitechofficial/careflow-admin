@@ -86,16 +86,6 @@ function emptyMileageChargeRule(): ChargeCardRule {
   }
 }
 
-function emptyTravelTimePayRule(): PayCardRule {
-  return {
-    label: 'Travel time between visits',
-    dayType: 'ANY',
-    rateType: 'TRAVEL_TIME',
-    amount: 12.21,
-    sortOrder: 0,
-  }
-}
-
 function isBankHolidayRule(rule: PayCardRule): boolean {
   return rule.dayType === 'BANK_HOLIDAY'
 }
@@ -133,11 +123,6 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     onChange(mode === 'charge' ? [...rules, emptyMileageChargeRule()] : [...rules, emptyMileagePayRule()])
   }
 
-  const addTravelTimeRule = () => {
-    if (mode !== 'pay') return
-    onChange([...rules, emptyTravelTimePayRule()])
-  }
-
   const updateRule = (index: number, patch: Partial<PayCardRule & ChargeCardRule>) => {
     onChange(rules.map((rule, i) => (i === index ? { ...rule, ...patch } : rule)))
   }
@@ -164,18 +149,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={addMileageRule} disabled={disabled}>
             {mode === 'pay' ? 'Add mileage' : 'Add mileage recharge'}
           </Button>
-          {mode === 'pay' ? (
-            <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={addTravelTimeRule} disabled={disabled}>
-              Add travel time
-            </Button>
-          ) : null}
         </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
         Fixed rates apply to visits up to 1 hour (exact slot, or nearest slot if none matches). Longer visits use hourly × duration.
         {mode === 'pay'
-          ? ' Mileage is £/mile; travel time is £/hr for approved journey time between visits.'
+          ? ' Mileage is £/mile for approved journey distance between visits.'
           : ' Mileage recharge bills the client/funder per mile when the contract allows it.'}
       </p>
 
@@ -186,6 +166,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       ) : (
         <div className="space-y-3">
           {rules.map((rule, index) => {
+            if (mode === 'pay' && isTravelTimeRule(rule)) return null
             const hourly = isHourlyRule(rule, mode)
             const mileage = isMileageRule(rule)
             const travelTime = isTravelTimeRule(rule)

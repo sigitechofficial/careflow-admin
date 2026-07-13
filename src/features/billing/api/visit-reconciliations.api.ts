@@ -125,6 +125,34 @@ export async function rejectVisitReconciliation(
   })
 }
 
+export async function approveVisitOverrun(
+  id: string,
+  body?: { notes?: string },
+): Promise<VisitReconciliationDetail> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+    `/billing/visit-reconciliations/${id}/overrun/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    },
+  )
+  return res.data
+}
+
+export async function rejectVisitOverrun(
+  id: string,
+  body?: { notes?: string },
+): Promise<VisitReconciliationDetail> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+    `/billing/visit-reconciliations/${id}/overrun/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    },
+  )
+  return res.data
+}
+
 export async function bulkApproveVisitReconciliations(body: {
   ids: string[]
   scope: ApproveScope

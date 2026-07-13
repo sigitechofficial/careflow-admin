@@ -42,6 +42,7 @@ export function useCompleteHousekeepingJob() {
       extraCareNotes,
       actualStartDateTime,
       actualEndDateTime,
+      overrunReason,
     }: {
       jobId: string
       status?: string
@@ -51,6 +52,7 @@ export function useCompleteHousekeepingJob() {
       extraCareNotes?: string
       actualStartDateTime?: string
       actualEndDateTime?: string
+      overrunReason?: string
     }) =>
       completeHousekeepingJob(jobId, {
         status,
@@ -60,6 +62,7 @@ export function useCompleteHousekeepingJob() {
         extraCareNotes,
         actualStartDateTime,
         actualEndDateTime,
+        overrunReason,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })

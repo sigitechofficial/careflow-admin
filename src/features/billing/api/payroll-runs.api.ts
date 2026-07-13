@@ -20,6 +20,7 @@ export type PayrollRunsSummary = {
 
 export type PayrollRunLineDetail = {
   id: string
+  lineType: 'VISIT_PAY' | 'MILEAGE' | 'TRAVEL_TIME' | 'NMW_TOP_UP' | 'ADJUSTMENT'
   visitRef: string | null
   employeeId: string | null
   carerName: string

@@ -46,6 +46,19 @@ export function BillingVisitReconciliationPanel() {
     bulkApproveMutation.isPending ||
     backfillMutation.isPending
 
+  const selectableIds = React.useMemo(() => rows.map(r => r.id), [rows])
+  const allSelected =
+    selectableIds.length > 0 && selectableIds.every(id => selectedIds.has(id))
+  const someSelected = selectableIds.some(id => selectedIds.has(id))
+
+  React.useEffect(() => {
+    setSelectedIds(prev => {
+      const visible = new Set(selectableIds)
+      const next = new Set([...prev].filter(id => visible.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [selectableIds])
+
   const toggleSelected = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -53,6 +66,14 @@ export function BillingVisitReconciliationPanel() {
       else next.add(id)
       return next
     })
+  }
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set())
+      return
+    }
+    setSelectedIds(new Set(selectableIds))
   }
 
   const handleApprove = async (id: string, managerOverride = false) => {
@@ -114,8 +135,14 @@ export function BillingVisitReconciliationPanel() {
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                   Sync completed visits
                 </Button>
-                <Button size="sm" onClick={() => void handleBulkApprove()} disabled={isMutating || !rows.length}>
-                  Bulk approve
+                <Button
+                  size="sm"
+                  onClick={() => void handleBulkApprove()}
+                  disabled={isMutating || !rows.length}
+                >
+                  {selectedIds.size
+                    ? `Bulk approve (${selectedIds.size})`
+                    : 'Bulk approve all'}
                 </Button>
               </>
             ) : null}
@@ -151,8 +178,18 @@ export function BillingVisitReconciliationPanel() {
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {canManage ? (
-                  <th className="px-3 py-2.5 w-8">
-                    <span className="sr-only">Select</span>
+                  <th className="px-3 py-2.5 w-10">
+                    <input
+                      ref={el => {
+                        if (el) el.indeterminate = someSelected && !allSelected
+                      }}
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-border"
+                      aria-label="Select all visits"
+                      title={allSelected ? 'Clear selection' : 'Select all'}
+                    />
                   </th>
                 ) : null}
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Visit</th>
@@ -173,6 +210,9 @@ export function BillingVisitReconciliationPanel() {
             <tbody>
               {rows.map(row => {
                 const needsManager = row.status === 'REQUIRES_MANAGER_APPROVAL'
+                const pendingOverrun =
+                  (row.overrunMinutes ?? 0) > 0 &&
+                  (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
                 const locked = row.status === 'LOCKED' || row.status === 'APPROVED_FOR_BOTH'
                 return (
                   <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
@@ -198,10 +238,20 @@ export function BillingVisitReconciliationPanel() {
                     <td className="px-3 py-2.5 whitespace-nowrap text-primary">{row.approvedPayable}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-primary">{row.approvedBillable}</td>
                     <td className="px-3 py-2.5">
-                      {row.exceptions.length === 0 ? (
+                      {row.exceptions.length === 0 && !pendingOverrun && !(row.overrunMinutes && row.overrunDecision) ? (
                         <span className="text-xs text-muted-foreground">None</span>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
+                          {(row.overrunMinutes ?? 0) > 0 ? (
+                            <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                              +{row.overrunMinutes}m
+                              {row.overrunDecision === 'APPROVED'
+                                ? ' approved'
+                                : row.overrunDecision === 'REJECTED'
+                                  ? ' rejected'
+                                  : ' pending'}
+                            </span>
+                          ) : null}
                           {row.exceptions.map(ex => (
                             <BillingExceptionBadge key={ex} code={ex} />
                           ))}
@@ -228,8 +278,14 @@ export function BillingVisitReconciliationPanel() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            title={needsManager ? 'Manager approve' : 'Approve for pay and invoice'}
-                            disabled={isMutating || locked}
+                            title={
+                              pendingOverrun
+                                ? 'Open Details to approve or reject overrun first'
+                                : needsManager
+                                  ? 'Manager approve'
+                                  : 'Approve for pay and invoice'
+                            }
+                            disabled={isMutating || locked || pendingOverrun}
                             onClick={() => void handleApprove(row.id, needsManager)}
                           >
                             <CheckCircle2 className="h-4 w-4 text-success" />

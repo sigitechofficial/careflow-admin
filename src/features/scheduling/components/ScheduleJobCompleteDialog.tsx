@@ -84,6 +84,7 @@ export function ScheduleJobCompleteDialog({
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
   const [actualEndTime, setActualEndTime] = React.useState('')
+  const [overrunReason, setOverrunReason] = React.useState('')
   const [visitTasks, setVisitTasks] = React.useState<VisitJobTaskRow[]>([])
 
   const visitTasksQuery = useQuery({
@@ -140,6 +141,7 @@ export function ScheduleJobCompleteDialog({
     setNotes(job.notes?.trim() ?? '')
     setDeliveredIds([])
     setVisitTasks([])
+    setOverrunReason('')
     setVisitStatus(defaultScheduleJobVisitOutcome(job))
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
@@ -164,6 +166,15 @@ export function ScheduleJobCompleteDialog({
   const requiresCarePlans = SHOW_DELIVERED_CARE_PLANS && scheduleJobVisitOutcomeRequiresCarePlans(visitStatus)
   const showsVisitTasks = scheduleJobVisitOutcomeShowsVisitTasks(visitStatus)
   const saveLabel = scheduleJobVisitOutcomeSaveLabel(visitStatus)
+
+  const plannedDurationMinutes = job ? jobDurationMinutes(job) : null
+  const overrunMinutes =
+    actualDurationMinutes != null &&
+    plannedDurationMinutes != null &&
+    actualDurationMinutes > plannedDurationMinutes
+      ? actualDurationMinutes - plannedDurationMinutes
+      : 0
+  const hasOverrun = requiresTimes && overrunMinutes > 0
 
   const visitTasksRoundLabel = visitTasksQuery.data?.roundLabel
   const visitTasksRoundWindow =
@@ -240,6 +251,13 @@ export function ScheduleJobCompleteDialog({
       toastWarning('Enter visit times', 'Actual start and end times are required for this visit status.')
       return
     }
+    if (hasOverrun && !overrunReason.trim()) {
+      toastWarning(
+        'Overrun reason required',
+        `Actual time is ${overrunMinutes} min longer than planned. Explain why before saving.`,
+      )
+      return
+    }
     if (requiresCarePlans && deliveredIds.length === 0 && !notes.trim()) {
       toastWarning(
         'Select care plans',
@@ -264,6 +282,7 @@ export function ScheduleJobCompleteDialog({
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
         actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
         actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
+        overrunReason: hasOverrun ? overrunReason.trim() : undefined,
       })
       toastSuccess(
         visitStatus === 'COMPLETED' ? 'Job completed' : 'Visit saved',
@@ -370,11 +389,33 @@ export function ScheduleJobCompleteDialog({
               </div>
             </div>
             {actualDurationMinutes != null ? (
-              <p className="text-xs text-muted-foreground">Duration: {actualDurationMinutes} min</p>
+              <p className="text-xs text-muted-foreground">
+                Duration: {actualDurationMinutes} min
+                {plannedDurationMinutes != null ? ` (planned ${plannedDurationMinutes} min)` : ''}
+              </p>
             ) : requiresTimes ? (
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 Enter a valid start and end time (minimum 5 minutes).
               </p>
+            ) : null}
+            {hasOverrun ? (
+              <div className="space-y-2 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 dark:border-amber-700/50 dark:bg-amber-950/30">
+                <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+                  {overrunMinutes} min overrun — reason required for admin approval
+                </p>
+                <Label htmlFor="schedule-job-overrun-reason" className="text-xs text-muted-foreground">
+                  Why did this visit run longer than planned?
+                </Label>
+                <textarea
+                  id="schedule-job-overrun-reason"
+                  className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={overrunReason}
+                  disabled={busy}
+                  onChange={event => setOverrunReason(event.target.value)}
+                  placeholder="e.g. Service user needed extra support with medication"
+                  maxLength={2000}
+                />
+              </div>
             ) : null}
           </section>
 
