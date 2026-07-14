@@ -72,7 +72,15 @@ function emptyFixedChargeRule(): ChargeCardRule {
 }
 
 function emptyHourlyPayRule(periodCode: PayTimePeriodCode = 'WEEKDAY_DAYTIME'): PayCardRule {
-  const period = getPayTimePeriodByCode(periodCode) ?? PAY_TIME_PERIOD_LOOKUP[0]
+  const period =
+    getPayTimePeriodByCode(periodCode) ??
+    PAY_TIME_PERIOD_LOOKUP[0] ?? {
+      label: 'Weekday daytime',
+      dayType: 'WEEKDAY' as const,
+      startTime: '07:00',
+      endTime: '19:00',
+      priority: 10,
+    }
   return {
     label: period.label,
     dayType: period.dayType,
@@ -137,6 +145,7 @@ function resolveLinkedBaseHourly(rules: PayCardRule[]): {
 
   candidates.sort((a, b) => score(b.rule) - score(a.rule) || Number(b.rule.amount) - Number(a.rule.amount))
   const best = candidates[0]
+  if (!best) return null
   return {
     amount: Number(best.rule.amount),
     label: best.rule.label?.trim() || 'Weekday daytime',

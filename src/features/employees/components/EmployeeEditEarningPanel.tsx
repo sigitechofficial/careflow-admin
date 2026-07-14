@@ -279,7 +279,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                           {row.payrollPeriod ?? '—'}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                          {row.status.replaceAll('_', ' ')}
+                          {row.status.replace(/_/g, ' ')}
                         </td>
                       </tr>
                     ))}
