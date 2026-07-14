@@ -41,6 +41,8 @@ import {
   PoundSterling,
   Receipt,
   Wallet,
+  Banknote,
+  ScrollText,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -98,9 +100,16 @@ function matchNavTarget(
   if (ready === false) {
     return pathname === '/in-progress' && getTitleFromSearch(search) === label
   }
-  if (pathname !== href) return false
+  const isExact = pathname === href
+  const isNested =
+    !isExact &&
+    pathname.startsWith(`${href}/`) &&
+    href.split('/').filter(Boolean).length >= 2
+  if (!isExact && !isNested) return false
+  // Billing management hub: active for any setup tab on `/billing`.
+  if (href === '/billing' && isExact) return true
   if (linkSearch?.tab) {
-    return searchTab(search) === linkSearch.tab
+    return isExact && searchTab(search) === linkSearch.tab
   }
   if (href === '/settings' && searchTab(search)) {
     return false
@@ -239,23 +248,36 @@ const navItems: NavItem[] = [
       {
         label: 'Visit reconciliation',
         icon: <ClipboardList className="h-4 w-4" />,
-        href: '/billing',
-        search: { tab: 'visit-reconciliation' },
+        href: '/billing/visit-reconciliation',
+        permission: 'billing.visit_reconciliations.read',
         navTestId: 'nav-billing-reconciliation',
       },
       {
         label: 'Payroll runs',
         icon: <Wallet className="h-4 w-4" />,
-        href: '/billing',
-        search: { tab: 'payroll-runs' },
+        href: '/billing/payroll-runs',
+        permission: 'billing.payroll_runs.read',
         navTestId: 'nav-billing-payroll',
       },
       {
         label: 'Invoice runs',
         icon: <FileText className="h-4 w-4" />,
-        href: '/billing',
-        search: { tab: 'invoice-runs' },
+        href: '/billing/invoice-runs',
+        permission: 'billing.invoice_runs.read',
         navTestId: 'nav-billing-invoices',
+      },
+      {
+        label: 'Payments',
+        icon: <Banknote className="h-4 w-4" />,
+        href: '/billing/payments',
+        permission: 'billing.payments.read',
+        navTestId: 'nav-billing-payments',
+      },
+      {
+        label: 'Audit & export',
+        icon: <ScrollText className="h-4 w-4" />,
+        href: '/billing/audit-export',
+        navTestId: 'nav-billing-audit-export',
       },
     ],
   },

@@ -92,7 +92,7 @@ export function BillingInvoiceRunsPanel() {
     <div className="space-y-6">
       <ContentSectionHeader
         title="Invoice runs"
-        description="Batch visit charges for a billing period. Each local authority and funder receives its own separate invoice."
+        titleClassName="sr-only"
         action={
           canManage ? (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>

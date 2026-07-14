@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { CheckCircle2, Eye, Loader2, RefreshCw, XCircle } from 'lucide-react'
-import { ContentSectionHeader } from '@/shared/ui/content-section'
+import { useQuery } from '@tanstack/react-query'
+import { CheckCircle2, Eye, Loader2, RefreshCw, Trash2, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
+import { Combobox } from '@/shared/ui/combobox'
 import { Input } from '@/shared/ui/input'
 import { BillingExceptionBadge, VisitReconStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { VisitReconciliationDetailDialog } from '@/features/billing/components/VisitReconciliationDetailDialog'
@@ -9,18 +10,65 @@ import {
   useApproveVisitReconciliation,
   useBackfillVisitReconciliations,
   useBulkApproveVisitReconciliations,
+  useClearAllVisitReconciliations,
   useRejectVisitReconciliation,
   useVisitReconciliations,
 } from '@/features/billing/hooks/useVisitReconciliations'
 import { useAuthStore } from '@/features/auth/store'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { listServiceUsers } from '@/features/service-users/api'
+import { listAllEmployees } from '@/features/employees/api'
 
-export function BillingVisitReconciliationPanel() {
+function serviceUserOptionLabel(row: {
+  preferredName?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  serviceUserNumber?: string | null
+}): string {
+  const name =
+    row.preferredName?.trim() ||
+    `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() ||
+    'Unnamed service user'
+  return row.serviceUserNumber ? `${name} (${row.serviceUserNumber})` : name
+}
+
+function carerOptionLabel(row: {
+  fullName?: string | null
+  firstName?: string | null
+  lastName?: string | null
+}): string {
+  return (
+    row.fullName?.trim() ||
+    `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() ||
+    'Unnamed carer'
+  )
+}
+
+type Props = {
+  initialEmployeeId?: string
+  initialServiceUserId?: string
+}
+
+export function BillingVisitReconciliationPanel({
+  initialEmployeeId,
+  initialServiceUserId,
+}: Props = {}) {
   const canRead = useAuthStore(s => s.can('billing.visit_reconciliations.read' as never))
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
+  const [serviceUserId, setServiceUserId] = React.useState(initialServiceUserId ?? '')
+  const [employeeId, setEmployeeId] = React.useState(initialEmployeeId ?? '')
   const [exceptionsOnly, setExceptionsOnly] = React.useState(false)
+
+  React.useEffect(() => {
+    if (initialEmployeeId) setEmployeeId(initialEmployeeId)
+  }, [initialEmployeeId])
+
+  React.useEffect(() => {
+    if (initialServiceUserId) setServiceUserId(initialServiceUserId)
+  }, [initialServiceUserId])
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [detailRow, setDetailRow] = React.useState<VisitReconciliationRow | null>(null)
 
@@ -29,8 +77,42 @@ export function BillingVisitReconciliationPanel() {
     return () => window.clearTimeout(timer)
   }, [search])
 
+  const serviceUsersQuery = useQuery({
+    queryKey: ['billing', 'visit-reconciliation-service-user-options'],
+    queryFn: () => listServiceUsers({ limit: 100, showInactive: false }),
+    enabled: canRead,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const carersQuery = useQuery({
+    queryKey: ['billing', 'visit-reconciliation-carer-options'],
+    queryFn: () => listAllEmployees({}),
+    enabled: canRead,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const serviceUserOptions = React.useMemo(
+    () =>
+      (serviceUsersQuery.data?.rows ?? []).map(row => ({
+        value: row.id,
+        label: serviceUserOptionLabel(row),
+      })),
+    [serviceUsersQuery.data],
+  )
+
+  const carerOptions = React.useMemo(
+    () =>
+      (carersQuery.data ?? []).map(row => ({
+        value: row.id,
+        label: carerOptionLabel(row),
+      })),
+    [carersQuery.data],
+  )
+
   const query = useVisitReconciliations({
     search: debouncedSearch || undefined,
+    serviceUserId: serviceUserId || undefined,
+    employeeId: employeeId || undefined,
     hasExceptions: exceptionsOnly ? true : undefined,
     limit: 100,
   })
@@ -38,13 +120,15 @@ export function BillingVisitReconciliationPanel() {
   const rejectMutation = useRejectVisitReconciliation()
   const bulkApproveMutation = useBulkApproveVisitReconciliations()
   const backfillMutation = useBackfillVisitReconciliations()
+  const clearAllMutation = useClearAllVisitReconciliations()
 
   const rows = query.data?.rows ?? []
   const isMutating =
     approveMutation.isPending ||
     rejectMutation.isPending ||
     bulkApproveMutation.isPending ||
-    backfillMutation.isPending
+    backfillMutation.isPending ||
+    clearAllMutation.isPending
 
   const selectableIds = React.useMemo(() => rows.map(r => r.id), [rows])
   const allSelected =
@@ -92,7 +176,35 @@ export function BillingVisitReconciliationPanel() {
   }
 
   const handleBackfill = async () => {
-    await backfillMutation.mutateAsync({})
+    try {
+      const data = await backfillMutation.mutateAsync({})
+      toastSuccess(
+        data.count > 0
+          ? `Synced ${data.count} visit reconciliation(s).`
+          : 'No new completed visits to sync.',
+      )
+    } catch (err) {
+      toastApiError(err, 'Could not sync completed visits.')
+    }
+  }
+
+  const handleClearAll = async () => {
+    const confirmed = window.confirm(
+      'Delete ALL visit reconciliations?\n\nThis also removes linked payroll and invoice lines for those visits. You can sync completed visits again afterwards.\n\nThis cannot be undone.',
+    )
+    if (!confirmed) return
+    try {
+      const data = await clearAllMutation.mutateAsync()
+      setSelectedIds(new Set())
+      setDetailRow(null)
+      toastSuccess(
+        data.visitReconciliations > 0
+          ? `Deleted ${data.visitReconciliations} visit reconciliation(s).`
+          : 'No visit reconciliations to delete.',
+      )
+    } catch (err) {
+      toastApiError(err, 'Could not delete visit reconciliations.')
+    }
   }
 
   if (!canRead) {
@@ -106,49 +218,85 @@ export function BillingVisitReconciliationPanel() {
 
   return (
     <div className="space-y-6">
-      <ContentSectionHeader
-        title="Visit reconciliation"
-        description="Review completed visits before payroll and invoice calculation. Approve payable time and billable time separately."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Input
-              placeholder="Search visit or service user…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="h-8 w-48"
-            />
+      <div className="flex flex-col gap-3" data-testid="visit-recon-toolbar">
+        <h2 className="sr-only">Visit reconciliation</h2>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Combobox
+            options={serviceUserOptions}
+            value={serviceUserId}
+            onChange={setServiceUserId}
+            placeholder="All service users"
+            searchPlaceholder="Search service users…"
+            emptyText="No service users found."
+            loading={serviceUsersQuery.isLoading}
+            aria-label="Filter by service user"
+            data-testid="visit-recon-filter-service-user"
+            className="h-8 w-[220px]"
+            allowDeselect
+          />
+          <Combobox
+            options={carerOptions}
+            value={employeeId}
+            onChange={setEmployeeId}
+            placeholder="All carers"
+            searchPlaceholder="Search carers…"
+            emptyText="No carers found."
+            loading={carersQuery.isLoading}
+            aria-label="Filter by carer"
+            data-testid="visit-recon-filter-carer"
+            className="h-8 w-[220px]"
+            allowDeselect
+          />
+          <Input
+            placeholder="Search visit or name…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8 w-48"
+            aria-label="Search visit reconciliations"
+          />
+          <Button
+            variant={exceptionsOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setExceptionsOnly(v => !v)}
+          >
+            {exceptionsOnly ? 'Showing exceptions' : 'Filter exceptions'}
+          </Button>
+        </div>
+
+        {canManage ? (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant={exceptionsOnly ? 'default' : 'outline'}
+              variant="outline"
               size="sm"
-              onClick={() => setExceptionsOnly(v => !v)}
+              onClick={() => void handleBackfill()}
+              disabled={isMutating}
             >
-              {exceptionsOnly ? 'Showing exceptions' : 'Filter exceptions'}
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Sync completed visits
             </Button>
-            {canManage ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleBackfill()}
-                  disabled={isMutating}
-                >
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                  Sync completed visits
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => void handleBulkApprove()}
-                  disabled={isMutating || !rows.length}
-                >
-                  {selectedIds.size
-                    ? `Bulk approve (${selectedIds.size})`
-                    : 'Bulk approve all'}
-                </Button>
-              </>
-            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => void handleClearAll()}
+              disabled={isMutating}
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              {clearAllMutation.isPending ? 'Deleting…' : 'Delete all'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void handleBulkApprove()}
+              disabled={isMutating || !rows.length}
+            >
+              {selectedIds.size
+                ? `Bulk approve (${selectedIds.size})`
+                : 'Bulk approve all'}
+            </Button>
           </div>
-        }
-      />
+        ) : null}
+      </div>
 
       {query.isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -174,7 +322,7 @@ export function BillingVisitReconciliationPanel() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="w-full min-w-[1400px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {canManage ? (
@@ -192,13 +340,42 @@ export function BillingVisitReconciliationPanel() {
                     />
                   </th>
                 ) : null}
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Visit</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Service user</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Carer</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Planned</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Actual</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Approved payable</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Approved billable</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  EMONITORED
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Client ID
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Client First Name
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Client Second Name
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Client Address
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Client Post Code
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Visit Date
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Care Type
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Planned Arrival
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Planned Departure
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Actual Arrival
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Actual Departure
+                </th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Exceptions</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Details</th>
@@ -227,16 +404,40 @@ export function BillingVisitReconciliationPanel() {
                         />
                       </td>
                     ) : null}
-                    <td className="px-3 py-2.5">
-                      <div className="font-mono text-xs">{row.visitRef}</div>
-                      <div className="text-xs text-muted-foreground">{row.date}</div>
+                    <td className="px-3 py-2.5 font-medium whitespace-nowrap">
+                      {row.emonitored ?? '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-medium">{row.serviceUserName}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{row.carerName ?? '—'}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">{row.planned}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">{row.actual}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-primary">{row.approvedPayable}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-primary">{row.approvedBillable}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
+                      {row.clientId || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {row.clientFirstName || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {row.clientSecondName || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 max-w-[180px] truncate" title={row.clientAddress}>
+                      {row.clientAddress || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {row.clientPostCode || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {row.visitDate || row.date}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">{row.careType || '—'}</td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {row.plannedArrival || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {row.plannedDeparture || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {row.actualArrival || '00:00:00'}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
+                      {row.actualDeparture || '00:00:00'}
+                    </td>
                     <td className="px-3 py-2.5">
                       {row.exceptions.length === 0 && !pendingOverrun && !(row.overrunMinutes && row.overrunDecision) ? (
                         <span className="text-xs text-muted-foreground">None</span>

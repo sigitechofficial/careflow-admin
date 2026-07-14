@@ -49,6 +49,26 @@ function toFormState(card?: PayCard | null): PayCardInput {
   }
 }
 
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="space-y-3 rounded-lg border border-border bg-muted/10 p-4">
+      <div className="space-y-0.5">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  )
+}
+
 export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialogProps) {
   const isEdit = !!card
   const createMutation = useCreatePayCard()
@@ -58,11 +78,13 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
 
   const [form, setForm] = React.useState<PayCardInput>(() => toFormState(card))
   const [error, setError] = React.useState<string | null>(null)
+  const [editorKey, setEditorKey] = React.useState(0)
 
   React.useEffect(() => {
     if (open) {
       setForm(toFormState(card))
       setError(null)
+      setEditorKey(k => k + 1)
     }
   }, [open, card])
 
@@ -141,154 +163,172 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-w-3xl">
+      <DialogContent size="lg" className="max-w-4xl">
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{isEdit ? 'Edit pay card' : 'New pay card'}</DialogTitle>
           </DialogHeader>
 
-          <DialogBody className="space-y-5">
+          <DialogBody className="space-y-4">
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <p className="text-sm text-muted-foreground">
-              Reusable pay rate templates like Birdie and Access. Set who the card applies to, then
-              bulk-assign from the pay cards list or override on each employee&apos;s Pay card tab.
+              Build a reusable carer pay template: who it covers, how visit time is paid, then optional time-band and travel rates.
             </p>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className="text-xs text-muted-foreground">Card name</span>
-              <Input
-                value={form.name}
-                onChange={e => {
-                  const name = e.target.value
-                  patch({
-                    name,
-                    code: !isEdit && !form.code ? slugBillingCode(name) : form.code,
-                  })
-                }}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Code</span>
-              <Input
-                value={form.code}
-                onChange={e => patch({ code: e.target.value.toUpperCase() })}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Status</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.status}
-                onChange={e => patch({ status: e.target.value as PayCardInput['status'] })}
-                disabled={saving}
-              >
-                {BILLING_CARD_STATUS_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Applies to</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.assignmentLevel}
-                onChange={e =>
-                  onAssignmentLevelChange(e.target.value as PayCardInput['assignmentLevel'])
-                }
-                disabled={saving}
-              >
-                {PAY_CARD_ASSIGNMENT_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
+            <FormSection
+              title="Card details"
+              description="Name and validity for this rate template."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="text-xs text-muted-foreground">Card name</span>
+                  <Input
+                    value={form.name}
+                    onChange={e => {
+                      const name = e.target.value
+                      patch({
+                        name,
+                        code: !isEdit && !form.code ? slugBillingCode(name) : form.code,
+                      })
+                    }}
+                    disabled={saving}
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="text-xs text-muted-foreground">Code</span>
+                  <Input
+                    value={form.code}
+                    onChange={e => patch({ code: e.target.value.toUpperCase() })}
+                    disabled={saving}
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="text-xs text-muted-foreground">Status</span>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.status}
+                    onChange={e => patch({ status: e.target.value as PayCardInput['status'] })}
+                    disabled={saving}
+                  >
+                    {BILLING_CARD_STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="text-xs text-muted-foreground">Effective from</span>
+                  <Input
+                    type="date"
+                    value={form.effectiveFrom}
+                    onChange={e => patch({ effectiveFrom: e.target.value })}
+                    disabled={saving}
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="text-xs text-muted-foreground">Effective to</span>
+                  <Input
+                    type="date"
+                    value={form.effectiveTo ?? ''}
+                    onChange={e => patch({ effectiveTo: e.target.value })}
+                    disabled={saving}
+                  />
+                </label>
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="text-xs text-muted-foreground">Notes</span>
+                  <Input
+                    value={form.notes ?? ''}
+                    onChange={e => patch({ notes: e.target.value })}
+                    disabled={saving}
+                  />
+                </label>
+              </div>
+            </FormSection>
 
-            {form.assignmentLevel === 'WORKER_TYPE' ? (
-              <label className="space-y-1 text-sm">
-                <span className="text-xs text-muted-foreground">Worker type</span>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={form.assignmentTargetKey ?? 'INTERNAL'}
-                  onChange={e =>
-                    patch({ assignmentTargetKey: e.target.value as PayCardWorkerTypeKey, assignmentLabel: '' })
-                  }
-                  disabled={saving}
-                >
-                  {PAY_CARD_WORKER_TYPE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
+            <FormSection
+              title="Who this card applies to"
+              description="Organisation default, or a branch / role / employment type / worker type. Assign carers from the pay cards list or the employee Pay card tab."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1 text-sm">
+                  <span className="text-xs text-muted-foreground">Applies to</span>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.assignmentLevel}
+                    onChange={e =>
+                      onAssignmentLevelChange(e.target.value as PayCardInput['assignmentLevel'])
+                    }
+                    disabled={saving}
+                  >
+                    {PAY_CARD_ASSIGNMENT_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </label>
 
-            {form.assignmentLevel &&
-            form.assignmentLevel !== 'ORGANISATION_DEFAULT' &&
-            form.assignmentLevel !== 'WORKER_TYPE' ? (
-              <label className="space-y-1 text-sm">
-                <span className="text-xs text-muted-foreground">
-                  {form.assignmentLevel === 'BRANCH'
-                    ? 'Branch'
-                    : form.assignmentLevel === 'ROLE'
-                      ? 'Role'
-                      : 'Employment type'}
-                </span>
-                <Combobox
-                  options={targetOptions}
-                  value={form.assignmentTargetId ?? ''}
-                  onChange={value => patch({ assignmentTargetId: value, assignmentLabel: '' })}
-                  placeholder="Select target"
-                  disabled={saving || lookupsQuery.isLoading}
-                />
-              </label>
-            ) : null}
+                {form.assignmentLevel === 'WORKER_TYPE' ? (
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">Worker type</span>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.assignmentTargetKey ?? 'INTERNAL'}
+                      onChange={e =>
+                        patch({ assignmentTargetKey: e.target.value as PayCardWorkerTypeKey, assignmentLabel: '' })
+                      }
+                      disabled={saving}
+                    >
+                      {PAY_CARD_WORKER_TYPE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
 
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Display label (optional)</span>
-              <Input
-                value={form.assignmentLabel ?? ''}
-                onChange={e => patch({ assignmentLabel: e.target.value })}
-                placeholder="Auto-filled from selection if left blank"
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Effective from</span>
-              <Input
-                type="date"
-                value={form.effectiveFrom}
-                onChange={e => patch({ effectiveFrom: e.target.value })}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Effective to</span>
-              <Input
-                type="date"
-                value={form.effectiveTo ?? ''}
-                onChange={e => patch({ effectiveTo: e.target.value })}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className="text-xs text-muted-foreground">Notes</span>
-              <Input
-                value={form.notes ?? ''}
-                onChange={e => patch({ notes: e.target.value })}
-                disabled={saving}
-              />
-            </label>
-          </div>
+                {form.assignmentLevel &&
+                form.assignmentLevel !== 'ORGANISATION_DEFAULT' &&
+                form.assignmentLevel !== 'WORKER_TYPE' ? (
+                  <label className="space-y-1 text-sm">
+                    <span className="text-xs text-muted-foreground">
+                      {form.assignmentLevel === 'BRANCH'
+                        ? 'Branch'
+                        : form.assignmentLevel === 'ROLE'
+                          ? 'Role'
+                          : 'Employment type'}
+                    </span>
+                    <Combobox
+                      options={targetOptions}
+                      value={form.assignmentTargetId ?? ''}
+                      onChange={value => patch({ assignmentTargetId: value, assignmentLabel: '' })}
+                      placeholder="Select target"
+                      disabled={saving || lookupsQuery.isLoading}
+                    />
+                  </label>
+                ) : null}
 
-          <BillingCardRulesEditor
-            mode="pay"
-            rules={form.rules ?? []}
-            onChange={rules => patch({ rules: rules as PayCardRule[] })}
-            disabled={saving}
-          />
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="text-xs text-muted-foreground">Display label (optional)</span>
+                  <Input
+                    value={form.assignmentLabel ?? ''}
+                    onChange={e => patch({ assignmentLabel: e.target.value })}
+                    placeholder="Auto-filled from selection if left blank"
+                    disabled={saving}
+                  />
+                </label>
+              </div>
+            </FormSection>
+
+            <FormSection
+              title="Visit & time rates"
+              description="Choose how visit time is paid, set the base rate, then optional day/time premiums linked to that base."
+            >
+              <BillingCardRulesEditor
+                key={editorKey}
+                mode="pay"
+                rules={form.rules ?? []}
+                onChange={rules => patch({ rules: rules as PayCardRule[] })}
+                disabled={saving}
+              />
+            </FormSection>
           </DialogBody>
 
           <DialogFooter>

@@ -9,11 +9,21 @@ export type BillingCardStatus =
   | 'REPLACED'
 
 export type PayCardAssignmentLevel =
+  | 'INDIVIDUAL'
+  | 'CLIENT_FUNDER'
   | 'ROLE'
   | 'BRANCH'
   | 'EMPLOYMENT_TYPE'
   | 'WORKER_TYPE'
   | 'ORGANISATION_DEFAULT'
+
+export type PayStackingPolicy = 'PRIORITY' | 'HIGHEST' | 'STACK'
+export type PayEnhancementMethod =
+  | 'ABSOLUTE_HOURLY'
+  | 'ADDITIONAL_PER_HOUR'
+  | 'PERCENTAGE_UPLIFT'
+  | 'MULTIPLIER'
+  | 'FIXED_SHIFT_ALLOWANCE'
 
 export type PayCardWorkerTypeKey = 'AGENCY' | 'BANK' | 'INTERNAL'
 
@@ -40,7 +50,18 @@ export type BillingRateType =
   | 'PREMIUM'
   | 'DEDUCTION'
 
-export type BillingDayType = 'WEEKDAY' | 'SATURDAY' | 'SUNDAY' | 'BANK_HOLIDAY' | 'ANY'
+export type BillingDayType =
+  | 'WEEKDAY'
+  | 'SATURDAY'
+  | 'SUNDAY'
+  | 'BANK_HOLIDAY'
+  | 'CHRISTMAS'
+  | 'BOXING_DAY'
+  | 'NEW_YEAR'
+  | 'EASTER'
+  | 'SPECIAL'
+  | 'ANY'
+
 
 export type BillingFrequency = 'WEEKLY' | 'FOUR_WEEKLY' | 'MONTHLY' | 'CUSTOM'
 
@@ -65,10 +86,17 @@ export type PayCardRule = {
   rateType: BillingRateType
   amount: number
   multiplier?: number | null
+  additionalAmount?: number | null
+  percentageUplift?: number | null
+  enhancementMethod?: PayEnhancementMethod | null
   minimumMinutes?: number | null
   roundingRule?: string | null
   priority?: number
   sortOrder?: number
+  appliesToVisit?: boolean
+  appliesToTravel?: boolean
+  appliesToWaiting?: boolean
+  appliesToTraining?: boolean
 }
 
 export type PayCardAssignedCarer = {
@@ -86,6 +114,14 @@ export type PayCard = {
   assignmentTargetKey?: PayCardWorkerTypeKey | null
   assignmentLabel?: string | null
   currency: string
+  nation?: string | null
+  payFrequency?: BillingFrequency
+  version?: number
+  stackingPolicy?: PayStackingPolicy
+  holidayPayMethod?: string | null
+  travelInheritsTimeBands?: boolean
+  mileageVehicleType?: string
+  useUkMileageRates?: boolean
   status: BillingCardStatus
   effectiveFrom: string
   effectiveTo?: string | null
@@ -134,6 +170,13 @@ export type PayCardInput = {
   assignmentTargetKey?: PayCardWorkerTypeKey | null
   assignmentLabel?: string
   currency?: string
+  stackingPolicy?: PayStackingPolicy
+  nation?: string
+  payFrequency?: BillingFrequency
+  holidayPayMethod?: string | null
+  travelInheritsTimeBands?: boolean
+  useUkMileageRates?: boolean
+  mileageVehicleType?: string
   status?: BillingCardStatus
   effectiveFrom: string
   effectiveTo?: string | null
@@ -179,6 +222,8 @@ export const PAY_CARD_ASSIGNMENT_OPTIONS: { value: PayCardAssignmentLevel; label
   { value: 'ROLE', label: 'Role' },
   { value: 'EMPLOYMENT_TYPE', label: 'Employment type' },
   { value: 'WORKER_TYPE', label: 'Worker type' },
+  { value: 'INDIVIDUAL', label: 'Individual worker' },
+  { value: 'CLIENT_FUNDER', label: 'Client / funder' },
 ]
 
 export const PAY_CARD_WORKER_TYPE_OPTIONS: { value: PayCardWorkerTypeKey; label: string }[] = [
@@ -243,6 +288,46 @@ export const BILLING_DAY_TYPE_OPTIONS: { value: BillingDayType; label: string }[
   { value: 'WEEKDAY', label: 'Weekday' },
   { value: 'SATURDAY', label: 'Saturday' },
   { value: 'SUNDAY', label: 'Sunday' },
+  { value: 'BANK_HOLIDAY', label: 'Bank holiday' },
+  { value: 'CHRISTMAS', label: 'Christmas Day' },
+  { value: 'BOXING_DAY', label: 'Boxing Day' },
+  { value: 'NEW_YEAR', label: 'New Year\'s Day' },
+  { value: 'EASTER', label: 'Easter' },
+  { value: 'SPECIAL', label: 'Organisation special day' },
+]
+
+export const PAY_STACKING_POLICY_OPTIONS: { value: PayStackingPolicy; label: string }[] = [
+  { value: 'PRIORITY', label: 'Highest priority band wins' },
+  { value: 'HIGHEST', label: 'Highest calculated rate wins' },
+  { value: 'STACK', label: 'Stack enhancements (policy approval required)' },
+]
+
+export const PAY_ENHANCEMENT_METHOD_OPTIONS: { value: PayEnhancementMethod; label: string; hint: string }[] = [
+  {
+    value: 'ABSOLUTE_HOURLY',
+    label: 'Fixed alternative hourly rate',
+    hint: 'Replaces the base hourly rate for this period',
+  },
+  {
+    value: 'ADDITIONAL_PER_HOUR',
+    label: 'Additional amount per hour',
+    hint: 'Base hourly + this £/hr while in the period',
+  },
+  {
+    value: 'PERCENTAGE_UPLIFT',
+    label: 'Percentage uplift',
+    hint: 'Base hourly × (1 + % / 100)',
+  },
+  {
+    value: 'MULTIPLIER',
+    label: 'Rate multiplier',
+    hint: 'Base hourly × multiplier (e.g. 1.5)',
+  },
+  {
+    value: 'FIXED_SHIFT_ALLOWANCE',
+    label: 'Fixed shift allowance',
+    hint: 'Base hourly for time in period, plus a flat £ allowance',
+  },
 ]
 
 export const BILLING_VISIT_DURATION_OPTIONS: { value: number; label: string }[] = [
@@ -269,7 +354,6 @@ export function formatVisitDurationLabel(minutes?: number | null): string | null
 }
 
 export function formatPayCardRuleDayType(dayType: BillingDayType): string {
-  if (dayType === 'BANK_HOLIDAY') return 'Bank holiday'
   return BILLING_DAY_TYPE_OPTIONS.find(o => o.value === dayType)?.label ?? dayType
 }
 
@@ -338,7 +422,11 @@ export function categorizePayCardRule(
     case 'UPLIFT':
       return 'Premiums & overtime'
     case 'FIXED':
-      return 'Time of day & night'
+      // Fixed visit slots are visit pay, not time-of-day bands.
+      if (rule.dayType === 'BANK_HOLIDAY' || rule.dayType === 'SATURDAY' || rule.dayType === 'SUNDAY') {
+        return 'Weekend & bank holiday'
+      }
+      return 'Visit pay'
     default:
       if (rule.startTime?.trim() || rule.endTime?.trim()) return 'Time of day & night'
       if (rule.dayType === 'BANK_HOLIDAY' || rule.dayType === 'SATURDAY' || rule.dayType === 'SUNDAY') {

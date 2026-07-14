@@ -179,3 +179,25 @@ export async function backfillVisitReconciliations(body?: {
   )
   return res.data
 }
+
+export async function clearAllVisitReconciliations(): Promise<{
+  before: number
+  visitReconciliations: number
+  payrollRunLines: number
+  invoiceRunLines: number
+  financeExceptions: number
+}> {
+  const res = await apiJson<
+    ApiEnvelope<{
+      before: number
+      visitReconciliations: number
+      payrollRunLines: number
+      invoiceRunLines: number
+      financeExceptions: number
+    }>
+  >('/billing/visit-reconciliations/clear-all', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+  return res.data
+}

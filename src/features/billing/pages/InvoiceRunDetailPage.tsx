@@ -152,7 +152,7 @@ export default function InvoiceRunDetailPage() {
             This run may have been deleted, or the link is no longer valid.
           </p>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/billing" search={{ tab: 'invoice-runs' }}>
+            <Link to="/billing/invoice-runs">
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to invoice runs
             </Link>
@@ -169,8 +169,7 @@ export default function InvoiceRunDetailPage() {
     <div className="mx-auto max-w-6xl space-y-6 pb-10">
       <div className="space-y-4">
         <Link
-          to="/billing"
-          search={{ tab: 'invoice-runs' }}
+          to="/billing/invoice-runs"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

@@ -59,7 +59,7 @@ export function BillingPaymentsPanel() {
     <div className="space-y-6">
       <ContentSectionHeader
         title="Payments"
-        description="Record money received, then link it to sent invoices. Two steps — that's it."
+        titleClassName="sr-only"
         action={
           canManage ? (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => openRecord()}>

@@ -14,11 +14,21 @@ export function serializePayCardRulesForApi(rules: PayCardRule[]): PayCardRule[]
     label: rule.label?.trim() || undefined,
     serviceType: rule.serviceType?.trim() || undefined,
     dayType: rule.dayType,
+    startTime: rule.startTime?.trim() || null,
+    endTime: rule.endTime?.trim() || null,
     rateType: resolveRuleRateType(rule),
     amount: rule.amount,
+    multiplier: rule.multiplier ?? undefined,
+    additionalAmount: rule.additionalAmount ?? undefined,
+    percentageUplift: rule.percentageUplift ?? undefined,
+    enhancementMethod: rule.enhancementMethod ?? undefined,
     minimumMinutes: rule.minimumMinutes ?? undefined,
     priority: rule.priority,
     sortOrder: index,
+    appliesToVisit: rule.appliesToVisit,
+    appliesToTravel: rule.appliesToTravel,
+    appliesToWaiting: rule.appliesToWaiting,
+    appliesToTraining: rule.appliesToTraining,
   }))
 }
 

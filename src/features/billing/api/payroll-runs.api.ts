@@ -153,3 +153,54 @@ export async function downloadPayrollRunCsv(id: string): Promise<void> {
   const { blob, filename } = await downloadPayrollRunCsvFile(id, 'GET')
   triggerCsvDownload(blob, filename)
 }
+
+export type EmployeeEarningVisitRow = {
+  id: string
+  visitRef: string
+  serviceUserName: string
+  plannedStart: string
+  plannedEnd: string | null
+  plannedTime: string | null
+  approvedPayStart: string | null
+  approvedPayEnd: string | null
+  approvedPayTime: string | null
+  payableAmount: string
+  payableMinutes: number | null
+  payableHours: string | null
+  status: string
+  paymentState: 'PAID' | 'REMAINING' | 'PENDING'
+  paid: boolean
+  payrollRunId: string | null
+  payrollPeriod: string | null
+  payrollRunStatus: string | null
+}
+
+export type EmployeeEarningsSummary = {
+  employeeId: string
+  dateFrom: string | null
+  dateTo: string | null
+  currency: string
+  totalEarned: string
+  totalEarnedAmount: number
+  paidVisitCount: number
+  remainingVisitCount: number
+  remainingAmount: string
+  remainingAmountValue: number
+  pendingReviewCount: number
+  visits: EmployeeEarningVisitRow[]
+}
+
+export async function fetchEmployeeEarnings(
+  employeeId: string,
+  params?: { dateFrom?: string; dateTo?: string },
+): Promise<EmployeeEarningsSummary> {
+  const qs = new URLSearchParams()
+  if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) qs.set('dateTo', params.dateTo)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<EmployeeEarningsSummary>>(
+    `/billing/payroll-runs/employee/${employeeId}/earnings${suffix}`,
+    { method: 'GET' },
+  )
+  return res.data
+}

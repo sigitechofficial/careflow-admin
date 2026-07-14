@@ -245,4 +245,27 @@
   .sidebar-transition {
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* Pay/charge card: newly added rule callout */
+  .billing-rule-flash {
+    animation: billing-rule-flash 1.4s ease-out;
+  }
+}
+
+@keyframes billing-rule-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  55% {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.28);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

@@ -95,6 +95,16 @@ import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidents
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
+import VisitReconciliationPage from '@/features/billing/pages/VisitReconciliationPage'
+import PayrollRunsPage from '@/features/billing/pages/PayrollRunsPage'
+import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
+import PaymentsPage from '@/features/billing/pages/PaymentsPage'
+import AuditExportPage from '@/features/billing/pages/AuditExportPage'
+import {
+  BILLING_SECTION_PATHS,
+  BILLING_SETUP_TAB_IDS,
+  isBillingSectionTab,
+} from '@/features/billing/billing-routes'
 import type { BillingTabId } from '@/features/billing/types/billing.types'
 
 // ΓöÇΓöÇ Settings pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
@@ -199,7 +209,12 @@ const pageTitles: Record<string, string> = {
   '/settings/location-management': 'Location Management',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
+  '/billing/visit-reconciliation': 'Visit reconciliation',
+  '/billing/payroll-runs': 'Payroll runs',
+  '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
+  '/billing/payments': 'Payments',
+  '/billing/audit-export': 'Audit & export',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -231,11 +246,7 @@ const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [
 ]
 
 const BILLING_TAB_IDS: BillingTabId[] = [
-  'dashboard',
-  'pay-cards',
-  'charge-cards',
-  'funding-contracts',
-  'invoice-templates',
+  ...BILLING_SETUP_TAB_IDS,
   'visit-reconciliation',
   'payroll-runs',
   'invoice-runs',
@@ -1256,13 +1267,65 @@ const billingRoute = createRoute({
     }
     return { tab: 'dashboard' }
   },
+  beforeLoad: ({ search }) => {
+    const tab = search.tab
+    if (typeof tab === 'string' && isBillingSectionTab(tab)) {
+      throw redirect({ to: BILLING_SECTION_PATHS[tab] })
+    }
+  },
   component: BillingManagementPage,
+})
+
+const billingVisitReconciliationRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/visit-reconciliation',
+  validateSearch: (raw: Record<string, unknown>): { employeeId?: string; serviceUserId?: string } => {
+    const employeeId = typeof raw.employeeId === 'string' && raw.employeeId.trim() ? raw.employeeId.trim() : undefined
+    const serviceUserId =
+      typeof raw.serviceUserId === 'string' && raw.serviceUserId.trim()
+        ? raw.serviceUserId.trim()
+        : undefined
+    return {
+      ...(employeeId ? { employeeId } : {}),
+      ...(serviceUserId ? { serviceUserId } : {}),
+    }
+  },
+  beforeLoad: requirePermission('billing.visit_reconciliations.read'),
+  component: VisitReconciliationPage,
+})
+
+const billingPayrollRunsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/payroll-runs',
+  beforeLoad: requirePermission('billing.payroll_runs.read'),
+  component: PayrollRunsPage,
+})
+
+const billingInvoiceRunsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/invoice-runs',
+  beforeLoad: requirePermission('billing.invoice_runs.read'),
+  component: InvoiceRunsPage,
 })
 
 const billingInvoiceRunDetailRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/invoice-runs/$invoiceRunId',
+  beforeLoad: requirePermission('billing.invoice_runs.read'),
   component: InvoiceRunDetailPage,
+})
+
+const billingPaymentsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/payments',
+  beforeLoad: requirePermission('billing.payments.read'),
+  component: PaymentsPage,
+})
+
+const billingAuditExportRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/audit-export',
+  component: AuditExportPage,
 })
 
 const carePathwayRoute = createRoute({
@@ -1367,7 +1430,12 @@ const routeTree = rootRoute.addChildren([
     locationManagementRoute,
     carePathwayRoute,
     billingRoute,
+    billingVisitReconciliationRoute,
+    billingPayrollRunsRoute,
+    billingInvoiceRunsRoute,
     billingInvoiceRunDetailRoute,
+    billingPaymentsRoute,
+    billingAuditExportRoute,
   ]),
 ])
 

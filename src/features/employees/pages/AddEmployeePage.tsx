@@ -31,6 +31,7 @@ import { EmployeeEditNonCorePanel } from '@/features/employees/components/Employ
 import { EmployeeEditHolidaysPanel } from '@/features/employees/components/EmployeeEditHolidaysPanel'
 import { EmployeeEditCompliancePanel } from '@/features/employees/components/EmployeeEditCompliancePanel'
 import { EmployeeEditPayCardPanel } from '@/features/employees/components/EmployeeEditPayCardPanel'
+import { EmployeeEditEarningPanel } from '@/features/employees/components/EmployeeEditEarningPanel'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
 import {
   personalStepSchema,
@@ -1996,6 +1997,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <EmployeeEditPayCardPanel employeeId={editEmployeeId} />
             ) : null}
 
+            {isEditMode && editTab === 'earning' && editEmployeeId ? (
+              <EmployeeEditEarningPanel employeeId={editEmployeeId} />
+            ) : null}
+
             {isEditMode && editTab === 'skills' && editEmployeeId ? (
               <EmployeeEditSkillsPanel employeeId={editEmployeeId} />
             ) : null}
@@ -2030,6 +2035,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             editTab !== 'personal' &&
             editTab !== 'employment' &&
             editTab !== 'pay-card' &&
+            editTab !== 'earning' &&
             editTab !== 'working-pattern' ? (
               <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
                 <Button

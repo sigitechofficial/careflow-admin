@@ -47,6 +47,8 @@ function RateBreakdownCard({
   breakdown: VisitReconciliationRateBreakdown | null
   fallbackAmount: string | null
 }) {
+  const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
+
   return (
     <ContentCard className="p-4 space-y-3">
       <div>
@@ -64,7 +66,7 @@ function RateBreakdownCard({
         </div>
       </dl>
       {breakdown ? (
-        <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2 text-sm">
+        <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3 text-sm">
           {breakdown.cardName ? (
             <p className="text-xs text-muted-foreground">
               Rate card: <span className="font-medium text-foreground">{breakdown.cardName}</span>
@@ -78,9 +80,40 @@ function RateBreakdownCard({
             <span className="text-muted-foreground">Rate</span>
             <span className="font-medium tabular-nums">{breakdown.unitRate ?? '—'}</span>
           </div>
-          <div className="border-t border-border pt-2">
-            <p className="text-xs text-muted-foreground">Calculation</p>
-            <p className="font-mono text-sm">{breakdown.formula}</p>
+          <div className="border-t border-border pt-3 space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Calculation
+            </p>
+            {segments.length > 0 ? (
+              <ul className="space-y-2">
+                {segments.map((seg, i) => (
+                  <li
+                    key={`${seg.startLabel}-${seg.endLabel}-${i}`}
+                    className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium">
+                        {seg.startLabel}–{seg.endLabel}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {seg.hoursLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {seg.ruleLabel?.trim() || 'Hourly rate'}
+                      {' · '}
+                      <span className="tabular-nums text-foreground">{seg.unitRate}</span>
+                    </p>
+                    <p className="text-sm tabular-nums">{seg.lineFormula}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm tabular-nums">{breakdown.formula}</p>
+            )}
+            {segments.length > 1 ? (
+              <p className="text-xs text-muted-foreground">{breakdown.formula}</p>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-2">
             <span className="font-medium">Total</span>

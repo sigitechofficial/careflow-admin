@@ -57,9 +57,26 @@ export function isTravelTimeRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
   return rule.rateType === 'TRAVEL_TIME'
 }
 
+export function isWaitingTimeRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
+  return rule.rateType === 'WAITING_TIME'
+}
+
+export function isTravelOrWaitingRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
+  return isTravelTimeRule(rule) || isWaitingTimeRule(rule)
+}
+
+/** Hourly/banded rule with an explicit clock window (evening, night, etc.). */
+export function isTimeBandRule(
+  rule: Pick<PayCardRule, 'rateType' | 'startTime' | 'endTime'>,
+): boolean {
+  if (rule.rateType !== 'HOURLY' && rule.rateType !== 'BANDED') return false
+  return Boolean(rule.startTime?.trim() || rule.endTime?.trim())
+}
+
 export function resolveRuleRateType(rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'>): BillingRateType {
   if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return rule.rateType
-  if (rule.rateType === 'HOURLY' || isHourlyLongVisitRule(rule)) return 'HOURLY'
+  if (rule.rateType === 'PREMIUM' || rule.rateType === 'UPLIFT' || rule.rateType === 'BANDED') return rule.rateType
+  if (rule.rateType === 'HOURLY' || isHourlyLongVisitRule(rule) || isTimeBandRule(rule)) return 'HOURLY'
   return 'FIXED'
 }
 
@@ -80,7 +97,9 @@ export function resolveRuleChargeMethod(
 export function getRuleRateTypeLabel(rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'>): string {
   if (isMileageRule(rule)) return 'Mileage (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time (£/hr)'
-  if (isHourlyLongVisitRule(rule)) return 'Hourly (visits over 1 hour)'
+  if (isWaitingTimeRule(rule)) return 'Waiting time (£/hr)'
+  if (isTimeBandRule(rule)) return 'Time band (£/hr)'
+  if (isHourlyLongVisitRule(rule)) return 'Hourly (pro-rata)'
   const duration = formatVisitDurationLabel(rule.minimumMinutes)
   return duration ? `Fixed — ${duration} visit` : 'Fixed visit'
 }
@@ -94,6 +113,7 @@ export function getRuleChargeMethodLabel(rule: Pick<ChargeCardRule, 'minimumMinu
 export function getRuleAmountFieldLabel(rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'>): string {
   if (isMileageRule(rule)) return 'Mileage rate (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time rate (£/hr)'
+  if (isWaitingTimeRule(rule)) return 'Waiting time rate (£/hr)'
   if (isHourlyLongVisitRule(rule)) return 'Hourly rate (£/hr)'
   const duration = formatVisitDurationLabel(rule.minimumMinutes)
   return duration ? `Rate for ${duration.toLowerCase()} visit (£)` : 'Visit rate (£)'

@@ -5,6 +5,7 @@ import {
   createPayrollRun,
   downloadPayrollRunCsv,
   exportPayrollRun,
+  fetchEmployeeEarnings,
   fetchPayrollRun,
   fetchPayrollRuns,
   fetchPayrollRunsSummary,
@@ -31,6 +32,18 @@ export function usePayrollRunsSummary() {
   return useQuery({
     queryKey: billingKeys.payrollRunsSummary(),
     queryFn: fetchPayrollRunsSummary,
+  })
+}
+
+export function useEmployeeEarnings(
+  employeeId: string | undefined,
+  filters?: { dateFrom?: string; dateTo?: string },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: billingKeys.employeeEarnings(employeeId ?? '', filters),
+    queryFn: () => fetchEmployeeEarnings(employeeId!, filters),
+    enabled: enabled && Boolean(employeeId),
   })
 }
 

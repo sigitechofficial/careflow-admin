@@ -4,17 +4,13 @@ import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
 import type { BillingTabId } from '@/features/billing/types/billing.types'
+import { BILLING_SETUP_TAB_IDS } from '@/features/billing/billing-routes'
 import { BillingGuidanceDialog } from '@/features/billing/components/BillingGuidanceDialog'
 import { BillingDashboardPanel } from '@/features/billing/components/BillingDashboardPanel'
 import { ChargeCardsPanel } from '@/features/billing/components/ChargeCardsPanel'
 import { PayCardsPanel } from '@/features/billing/components/PayCardsPanel'
 import { BillingFundingContractsPanel } from '@/features/billing/components/BillingFundingContractsPanel'
 import { BillingInvoiceTemplatesPanel } from '@/features/billing/components/BillingInvoiceTemplatesPanel'
-import { BillingVisitReconciliationPanel } from '@/features/billing/components/BillingVisitReconciliationPanel'
-import { BillingPayrollRunsPanel } from '@/features/billing/components/BillingPayrollRunsPanel'
-import { BillingInvoiceRunsPanel } from '@/features/billing/components/BillingInvoiceRunsPanel'
-import { BillingPaymentsPanel } from '@/features/billing/components/BillingPaymentsPanel'
-import { BillingAuditExportPanel } from '@/features/billing/components/BillingAuditExportPanel'
 
 export type { BillingTabId }
 
@@ -24,11 +20,6 @@ const BILLING_TABS: { id: BillingTabId; label: string; group?: string }[] = [
   { id: 'charge-cards', label: 'Charge cards', group: 'Setup' },
   { id: 'funding-contracts', label: 'Funding contracts', group: 'Setup' },
   { id: 'invoice-templates', label: 'Invoice templates', group: 'Setup' },
-  { id: 'visit-reconciliation', label: 'Visit reconciliation', group: 'Operations' },
-  { id: 'payroll-runs', label: 'Payroll runs', group: 'Finance runs' },
-  { id: 'invoice-runs', label: 'Invoice runs', group: 'Finance runs' },
-  { id: 'payments', label: 'Payments', group: 'Finance runs' },
-  { id: 'audit-export', label: 'Audit & export', group: 'Compliance' },
 ]
 
 function BillingTabPanel({ tab }: { tab: BillingTabId }) {
@@ -43,16 +34,6 @@ function BillingTabPanel({ tab }: { tab: BillingTabId }) {
       return <BillingFundingContractsPanel />
     case 'invoice-templates':
       return <BillingInvoiceTemplatesPanel />
-    case 'visit-reconciliation':
-      return <BillingVisitReconciliationPanel />
-    case 'payroll-runs':
-      return <BillingPayrollRunsPanel />
-    case 'invoice-runs':
-      return <BillingInvoiceRunsPanel />
-    case 'payments':
-      return <BillingPaymentsPanel />
-    case 'audit-export':
-      return <BillingAuditExportPanel />
     default:
       return <BillingDashboardPanel />
   }
@@ -63,7 +44,7 @@ export default function BillingManagementPage() {
   const [guidanceOpen, setGuidanceOpen] = React.useState(false)
   const search = useRouterState({ select: s => s.location.search as { tab?: string } })
   const activeTab =
-    search.tab && BILLING_TABS.some(t => t.id === search.tab)
+    search.tab && BILLING_SETUP_TAB_IDS.includes(search.tab as BillingTabId)
       ? (search.tab as BillingTabId)
       : 'dashboard'
 

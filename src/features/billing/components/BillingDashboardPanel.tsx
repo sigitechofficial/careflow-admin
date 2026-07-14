@@ -119,7 +119,7 @@ export function BillingDashboardPanel() {
                 tooltip="Open finance exceptions from visit reconciliation. Each row is a visit that cannot bill cleanly until the issue is resolved — click Review visits to work through them."
               />
               <Button variant="outline" size="sm" asChild>
-                <Link to="/billing" search={{ tab: 'visit-reconciliation' }}>
+                <Link to="/billing/visit-reconciliation">
                   Review visits
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
@@ -167,8 +167,7 @@ export function BillingDashboardPanel() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  to="/billing"
-                  search={{ tab: 'payroll-runs' }}
+                  to="/billing/payroll-runs"
                   className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-muted/40 transition-colors"
                 >
                   <Users className="h-4 w-4 text-primary shrink-0" />
@@ -188,8 +187,7 @@ export function BillingDashboardPanel() {
               </li>
               <li>
                 <Link
-                  to="/billing"
-                  search={{ tab: 'invoice-runs' }}
+                  to="/billing/invoice-runs"
                   className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-muted/40 transition-colors"
                 >
                   <FileText className="h-4 w-4 text-primary shrink-0" />
@@ -230,8 +228,7 @@ export function BillingDashboardPanel() {
               </li>
               <li>
                 <Link
-                  to="/billing"
-                  search={{ tab: 'payments' }}
+                  to="/billing/payments"
                   className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-muted/40 transition-colors"
                 >
                   <PoundSterling className="h-4 w-4 text-primary shrink-0" />

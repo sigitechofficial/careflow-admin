@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
+import { billingPathForTab, isBillingSectionTab } from '@/features/billing/billing-routes'
 import type { BillingTabId } from '@/features/billing/types/billing.types'
 
 type Props = {
@@ -162,10 +163,17 @@ function FlowStepBlock({ step, onNavigate }: { step: FlowStep; onNavigate: () =>
           </div>
         </div>
         <Button variant="outline" size="sm" asChild onClick={onNavigate}>
-          <Link to="/billing" search={{ tab: step.tab }}>
-            Open tab
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          {isBillingSectionTab(step.tab) ? (
+            <Link to={billingPathForTab(step.tab)}>
+              Open page
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <Link to="/billing" search={{ tab: step.tab }}>
+              Open tab
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
         </Button>
       </div>
       <ul className="mt-3 space-y-1.5 border-t border-border pt-3 pl-10 text-sm text-muted-foreground">

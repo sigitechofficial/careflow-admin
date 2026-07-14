@@ -59,7 +59,7 @@ export function BillingPayrollRunsPanel() {
     <div className="space-y-6">
       <ContentSectionHeader
         title="Payroll runs"
-        description="Batch carer pay from approved visits including travel, mileage, expenses, premiums, and NMW top-up."
+        titleClassName="sr-only"
         action={
           canManage ? (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>

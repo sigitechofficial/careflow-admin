@@ -10,7 +10,7 @@ export function BillingAuditExportPanel() {
     <div className="space-y-6">
       <ContentSectionHeader
         title="Audit & export"
-        description="Finance audit exports, rate change history, payroll and invoice change logs, and visit evidence for inspection."
+        titleClassName="sr-only"
         action={
           <Button size="sm" leftIcon={<FileSearch className="h-4 w-4" />}>
             New export job

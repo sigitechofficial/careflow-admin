@@ -41,6 +41,19 @@ export type VisitReconciliationRow = {
   overrunReason: string | null
   overrunDecision: VisitOverrunDecision | null
   approvalNotes: string | null
+  /** Visit-log columns (client format). */
+  emonitored?: 'LOGGED' | 'NOT LOG'
+  clientId?: string
+  clientFirstName?: string
+  clientSecondName?: string
+  clientAddress?: string
+  clientPostCode?: string
+  visitDate?: string
+  careType?: string
+  plannedArrival?: string
+  plannedDeparture?: string
+  actualArrival?: string
+  actualDeparture?: string
 }
 
 export type VisitReconciliationsSummary = {
@@ -61,6 +74,17 @@ export type ExceptionQueueRow = {
 
 export type ApproveScope = 'PAY' | 'INVOICE' | 'BOTH'
 
+export type VisitReconciliationRateSegment = {
+  startLabel: string
+  endLabel: string
+  hoursLabel: string
+  minutes: number
+  unitRate: string
+  ruleLabel: string | null
+  lineFormula: string
+  amount: string
+}
+
 export type VisitReconciliationRateBreakdown = {
   minutes: number
   hoursLabel: string
@@ -72,6 +96,7 @@ export type VisitReconciliationRateBreakdown = {
   cardCode: string | null
   cardSource: string | null
   ruleLabel: string | null
+  segments?: VisitReconciliationRateSegment[]
 }
 
 export type VisitReconciliationCalculationPreview = {

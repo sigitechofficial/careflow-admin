@@ -4,6 +4,7 @@ import {
   approveVisitReconciliation,
   backfillVisitReconciliations,
   bulkApproveVisitReconciliations,
+  clearAllVisitReconciliations,
   fetchVisitReconciliation,
   fetchVisitReconciliationExceptionQueue,
   fetchVisitReconciliations,
@@ -20,6 +21,8 @@ export function useVisitReconciliations(filters?: {
   search?: string
   status?: VisitReconciliationStatus
   hasExceptions?: boolean
+  serviceUserId?: string
+  employeeId?: string
   page?: number
   limit?: number
 }) {
@@ -140,6 +143,16 @@ export function useBackfillVisitReconciliations() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body?: { dateFrom?: string; dateTo?: string }) => backfillVisitReconciliations(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useClearAllVisitReconciliations() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => clearAllVisitReconciliations(),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },

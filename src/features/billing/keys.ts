@@ -37,6 +37,8 @@ export const billingKeys = {
     search?: string
     status?: string
     hasExceptions?: boolean
+    serviceUserId?: string
+    employeeId?: string
     page?: number
     limit?: number
   }) => [...billingKeys.all, 'visit-reconciliations', filters ?? {}] as const,
@@ -47,6 +49,8 @@ export const billingKeys = {
   payrollRuns: () => [...billingKeys.all, 'payroll-runs'] as const,
   payrollRun: (id: string) => [...billingKeys.all, 'payroll-run', id] as const,
   payrollRunsSummary: () => [...billingKeys.all, 'payroll-runs-summary'] as const,
+  employeeEarnings: (employeeId: string, filters?: { dateFrom?: string; dateTo?: string }) =>
+    [...billingKeys.all, 'employee-earnings', employeeId, filters ?? {}] as const,
   invoiceRuns: () => [...billingKeys.all, 'invoice-runs'] as const,
   invoiceRunsSummary: () => [...billingKeys.all, 'invoice-runs-summary'] as const,
   invoiceRun: (id: string) => [...billingKeys.all, 'invoice-run', id] as const,

@@ -1,7 +1,7 @@
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { RateCardStatusBadge, formatBillingLabel } from '@/features/billing/components/BillingStatusBadge'
-import { getRuleRateTypeLabel, isHourlyLongVisitRule, isMileageRule, isTravelTimeRule } from '@/features/billing/utils/billing-card-rule.util'
+import { getRuleRateTypeLabel, isHourlyLongVisitRule, isMileageRule, isTravelTimeRule, isWaitingTimeRule } from '@/features/billing/utils/billing-card-rule.util'
 import {
   PAY_CARD_RULE_CATEGORY_ORDER,
   categorizePayCardRule,
@@ -90,9 +90,11 @@ function RuleTable({
                   ? 'Per mile'
                   : isTravelTimeRule(rule)
                     ? 'Travel hours'
-                    : isHourlyLongVisitRule(rule)
-                      ? 'Over 1 hour'
-                      : (formatVisitDurationLabel(rule.minimumMinutes) ?? '—')}
+                    : isWaitingTimeRule(rule)
+                      ? 'Waiting hours'
+                      : isHourlyLongVisitRule(rule)
+                        ? 'Over 1 hour'
+                        : (formatVisitDurationLabel(rule.minimumMinutes) ?? '—')}
               </td>
               <td className="px-3 py-2.5 text-muted-foreground">
                 {formatPayCardRuleDayType(rule.dayType)}

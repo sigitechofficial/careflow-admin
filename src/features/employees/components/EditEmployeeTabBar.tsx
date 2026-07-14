@@ -5,6 +5,7 @@ export type EditEmployeeTabId =
   | 'personal'
   | 'employment'
   | 'pay-card'
+  | 'earning'
   | 'skills'
   | 'staff-reviews'
   | 'documents'
@@ -17,6 +18,7 @@ export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
   { id: 'personal', label: 'Personal Details' },
   { id: 'employment', label: 'Employment' },
   { id: 'pay-card', label: 'Pay card' },
+  { id: 'earning', label: 'Earning' },
   { id: 'skills', label: 'Skills' },
   { id: 'staff-reviews', label: 'Staff Reviews' },
   { id: 'documents', label: 'Documents' },
