@@ -17,6 +17,7 @@ import { DevUiTraceChip } from '@/dev/DevUiTraceChip'
 import { traceUi } from '@/dev/ui-trace'
 import { AppToaster } from '@/components/layout/AppToaster'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ScrollToTopOnNavigate } from '@/components/layout/ScrollToTopOnNavigate'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { SessionRefresh } from '@/features/auth/components/SessionRefresh'
 import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBootstrap'
@@ -102,6 +103,7 @@ import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
+import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
 import {
   BILLING_SECTION_PATHS,
@@ -220,6 +222,7 @@ const pageTitles: Record<string, string> = {
   '/billing/payments': 'Payments',
   '/billing/audit-export': 'Audit & export',
   '/ecm/live': 'ECM live monitoring',
+  '/ecm/graph': 'ECM graphs',
   '/ecm/reports': 'ECM reports',
 }
 
@@ -275,7 +278,12 @@ function RootDocument() {
     }
   }, [theme])
 
-  return <Outlet />
+  return (
+    <>
+      <ScrollToTopOnNavigate />
+      <Outlet />
+    </>
+  )
 }
 
 function AppRootShell() {
@@ -1360,6 +1368,17 @@ const ecmLiveRoute = createRoute({
   component: EcmLiveMonitoringPage,
 })
 
+const ecmGraphRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/ecm/graph',
+  validateSearch: (raw: Record<string, unknown>): { date?: string } => {
+    const date = typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : undefined
+    return date ? { date } : {}
+  },
+  beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
+  component: EcmGraphPage,
+})
+
 const ecmReportsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/ecm/reports',
@@ -1477,6 +1496,7 @@ const routeTree = rootRoute.addChildren([
     billingPaymentsRoute,
     billingAuditExportRoute,
     ecmLiveRoute,
+    ecmGraphRoute,
     ecmReportsRoute,
   ]),
 ])

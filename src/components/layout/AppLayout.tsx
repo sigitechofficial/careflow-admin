@@ -36,7 +36,7 @@ export function AppLayout({ children, pageTitle, contentLayout = 'default', vari
         )}
       >
         <Topbar pageTitle={pageTitle} variant={variant} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto" data-app-main-scroll>
           {contentLayout === 'full' ? (
             <div className="flex flex-col min-h-full">
               {children}

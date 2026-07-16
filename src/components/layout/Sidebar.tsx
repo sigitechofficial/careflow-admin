@@ -247,6 +247,13 @@ const navItems: NavItem[] = [
         navTestId: 'nav-ecm-live',
       },
       {
+        label: 'Graph',
+        icon: <BarChart3 className="h-4 w-4" />,
+        href: '/ecm/graph',
+        anyPermission: ['ecm.read', 'ecm.monitor'],
+        navTestId: 'nav-ecm-graph',
+      },
+      {
         label: 'Reports',
         icon: <FileBarChart2 className="h-4 w-4" />,
         href: '/ecm/reports',

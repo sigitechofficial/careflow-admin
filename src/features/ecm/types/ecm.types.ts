@@ -75,19 +75,26 @@ export type EcmLiveVisitRow = {
   scheduledJobId: string
   scheduledVisitId: string | null
   jobName: string
+  slotLabel?: string | null
   serviceUserId: string
   serviceUserName: string
+  address?: string | null
+  postcode?: string | null
   plannedStartDateTime: string
   plannedEndDateTime: string | null
   actualCheckInAt: string | null
   actualCheckOutAt: string | null
+  plannedDurationMinutes?: number | null
+  actualDurationMinutes?: number | null
   lifecycleStatus: EcmLifecycleStatus | string
   arrivalClassification: EcmArrivalClassification | string
+  departureClassification?: EcmDepartureClassification | string
   durationClassification: EcmDurationClassification | string
   missedClassification: EcmMissedClassification | string
   confidence: EcmAttendanceConfidence | string
   criticality: EcmCriticality | string
   startVarianceMinutes: number | null
+  endVarianceMinutes?: number | null
   durationVarianceMinutes: number | null
   appliedSettingsLevel: EcmSettingsLevel | string
   operationalExceptionCodes: string[]
