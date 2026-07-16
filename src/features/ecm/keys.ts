@@ -10,7 +10,13 @@ export const ecmKeys = {
   exceptions: (limit?: number) => [...ecmKeys.all, 'exceptions', limit ?? 50] as const,
   reasonCodes: () => [...ecmKeys.all, 'reason-codes'] as const,
   health: () => [...ecmKeys.all, 'health'] as const,
-  dailyOps: (date?: string) => [...ecmKeys.all, 'daily-ops', date ?? 'today'] as const,
+  dailyOps: (date?: string, scheduleAreaId?: string) =>
+    [...ecmKeys.all, 'daily-ops', date ?? 'today', scheduleAreaId ?? 'all'] as const,
+  graphDashboard: (filters?: {
+    dateFrom?: string
+    dateTo?: string
+    scheduleAreaId?: string
+  }) => [...ecmKeys.all, 'graph-dashboard', filters ?? {}] as const,
   audit: (jobId: string) => [...ecmKeys.all, 'audit', jobId] as const,
   notifications: (jobId: string) => [...ecmKeys.all, 'notifications', jobId] as const,
 }

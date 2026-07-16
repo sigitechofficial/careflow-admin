@@ -184,7 +184,7 @@ export function BillingSalaryOverviewPanel() {
     setPeriod(p => (isWeekly ? shiftWeek(p, delta) : shiftMonth(p, delta)))
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4" data-testid="billing-salary-overview-panel">
+    <div className="flex flex-col gap-4" data-testid="billing-salary-overview-panel">
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
@@ -247,7 +247,7 @@ export function BillingSalaryOverviewPanel() {
         ))}
       </div>
 
-      <ContentCard className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+      <ContentCard className="overflow-hidden p-0">
         {query.isLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden />
@@ -260,7 +260,7 @@ export function BillingSalaryOverviewPanel() {
             No employees with salary activity for {periodLabel}.
           </p>
         ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] text-sm">
               <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                 <tr className="border-b border-border">

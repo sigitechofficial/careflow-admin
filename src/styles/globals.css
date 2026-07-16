@@ -132,6 +132,19 @@
   * {
     @apply border-border;
   }
+
+  /**
+   * Admin shell owns scrolling (sidebar fixed, main scrolls).
+   * Prevent document/body scroll from pulling the sidebar off-screen.
+   */
+  html,
+  body,
+  #root {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";

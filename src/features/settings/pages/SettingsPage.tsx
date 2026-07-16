@@ -84,10 +84,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div
-      className="flex h-[calc(100dvh-3.5rem-2.5rem)] flex-col gap-4 overflow-hidden md:h-[calc(100dvh-3.5rem-3rem)]"
-      data-testid="settings-page"
-    >
+    <div className="flex flex-col gap-4" data-testid="settings-page">
       <PageHeader
         className="shrink-0"
         title="Settings"
@@ -99,13 +96,13 @@ export default function SettingsPage() {
         ]}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
+      <div className="flex flex-col rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav
           className={cn(
-            'flex min-h-0 shrink-0 gap-0.5 overflow-x-auto overflow-y-hidden overscroll-y-contain',
+            'flex shrink-0 gap-0.5 overflow-x-auto',
             'border-b border-border bg-muted/30 p-2',
-            'md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto md:p-2',
-            'md:border-b-0 md:border-r md:p-2',
+            'md:sticky md:top-0 md:h-fit md:max-h-[calc(100dvh-5rem)] md:w-56 md:flex-col md:overflow-y-auto md:overflow-x-visible',
+            'md:border-b-0 md:border-r',
           )}
           aria-label="Settings modules"
           data-testid="settings-tabs"
@@ -133,7 +130,7 @@ export default function SettingsPage() {
           })}
         </nav>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain p-5">
+        <div className="min-w-0 flex-1 p-5">
           {activeTab === 'job-titles' && (
             <LookupNamePanel
               resource="job-titles"

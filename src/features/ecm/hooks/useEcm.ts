@@ -8,6 +8,7 @@ import {
   fetchEcmAuditTrail,
   fetchEcmDailyOpsReport,
   fetchEcmExceptions,
+  fetchEcmGraphDashboard,
   fetchEcmHealth,
   fetchEcmLiveDashboard,
   fetchEcmNotifications,
@@ -81,11 +82,32 @@ export function useEcmHealth(enabled = true) {
   })
 }
 
-export function useEcmDailyOpsReport(date?: string, enabled = true) {
+export function useEcmDailyOpsReport(
+  date?: string,
+  enabled = true,
+  params?: { scheduleAreaId?: string },
+) {
   return useQuery({
-    queryKey: ecmKeys.dailyOps(date),
-    queryFn: () => fetchEcmDailyOpsReport(date),
+    queryKey: ecmKeys.dailyOps(date, params?.scheduleAreaId),
+    queryFn: () => fetchEcmDailyOpsReport(date, params),
     enabled,
+  })
+}
+
+export function useEcmGraphDashboard(
+  filters?: {
+    dateFrom?: string
+    dateTo?: string
+    scheduleAreaId?: string
+    enabled?: boolean
+  },
+) {
+  const { enabled = true, ...params } = filters ?? {}
+  return useQuery({
+    queryKey: ecmKeys.graphDashboard(params),
+    queryFn: () => fetchEcmGraphDashboard(params),
+    enabled,
+    refetchInterval: 60_000,
   })
 }
 

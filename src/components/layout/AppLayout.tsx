@@ -20,32 +20,34 @@ const contentShellClass: Record<'default' | 'wide', string> = {
 }
 
 export function AppLayout({ children, pageTitle, contentLayout = 'default', variant = 'admin' }: AppLayoutProps) {
-  const { sidebarCollapsed } = useUIStore()
   const theme = useUIStore(s => s.theme)
 
   return (
-    <div data-testid="app-layout" data-theme={theme} data-layout-variant={variant} className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
+    <div
+      data-testid="app-layout"
+      data-theme={theme}
+      data-layout-variant={variant}
+      className="flex h-full max-h-full min-h-0 overflow-hidden bg-background"
+    >
+      {/* Sidebar — fixed height column; does not scroll with main */}
       <Sidebar variant={variant} />
 
-      {/* Main content */}
-      <div
-        className={cn(
-          'flex flex-1 flex-col min-w-0 overflow-hidden',
-          'transition-all duration-250'
-        )}
-      >
+      {/* Main column */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar pageTitle={pageTitle} variant={variant} />
-        <main className="flex-1 overflow-y-auto" data-app-main-scroll>
+        {/* Sole vertical scroll surface for page content */}
+        <main
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+          data-app-main-scroll
+        >
           {contentLayout === 'full' ? (
-            <div className="flex flex-col min-h-full">
-              {children}
-            </div>
+            <div className="flex min-h-full min-w-0 flex-col">{children}</div>
           ) : (
             <div
-              className={
-                contentLayout === 'wide' ? contentShellClass.wide : contentShellClass.default
-              }
+              className={cn(
+                'min-w-0',
+                contentLayout === 'wide' ? contentShellClass.wide : contentShellClass.default,
+              )}
             >
               {children}
             </div>

@@ -4,10 +4,7 @@ import { EcmLiveMonitoringPanel } from '@/features/ecm/components/EcmLiveMonitor
 
 export default function EcmLiveMonitoringPage() {
   return (
-    <div
-      className="flex h-[calc(100dvh-3.5rem-2.5rem)] flex-col gap-4 overflow-hidden md:h-[calc(100dvh-3.5rem-3rem)]"
-      data-testid="ecm-live-monitoring-page"
-    >
+    <div className="flex flex-col gap-4" data-testid="ecm-live-monitoring-page">
       <PageHeader
         className="shrink-0"
         title="ECM live monitoring"
@@ -19,7 +16,7 @@ export default function EcmLiveMonitoringPage() {
           { label: 'Live monitoring' },
         ]}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
         <EcmLiveMonitoringPanel />
       </div>
     </div>

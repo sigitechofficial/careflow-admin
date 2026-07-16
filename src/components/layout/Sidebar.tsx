@@ -647,12 +647,12 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
         data-testid="sidebar"
         data-collapsed={sidebarCollapsed ? 'true' : 'false'}
         className={cn(
-          'fixed top-0 left-0 z-50 h-full flex flex-col bg-sidebar border-r border-sidebar-border',
+          'z-50 flex h-full max-h-full min-h-0 shrink-0 flex-col bg-sidebar border-r border-sidebar-border',
           'sidebar-transition',
-          'lg:relative lg:z-auto',
+          /* Mobile: overlay drawer. Desktop: in-flow column that stays put while main scrolls. */
+          'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
           sidebarCollapsed ? 'w-[68px]' : 'w-[260px]',
-          'lg:translate-x-0',
-          sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         {/* Logo / Brand */}

@@ -55,10 +55,7 @@ export default function BillingManagementPage() {
   let lastGroup: string | undefined
 
   return (
-    <div
-      className="flex h-[calc(100dvh-3.5rem-2.5rem)] flex-col gap-4 overflow-hidden md:h-[calc(100dvh-3.5rem-3rem)]"
-      data-testid="billing-management-page"
-    >
+    <div className="flex flex-col gap-4" data-testid="billing-management-page">
       <PageHeader
         className="shrink-0"
         title="Billing management"
@@ -80,12 +77,12 @@ export default function BillingManagementPage() {
 
       <BillingGuidanceDialog open={guidanceOpen} onOpenChange={setGuidanceOpen} />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm md:flex-row">
+      <div className="flex flex-col rounded-xl border border-border bg-card shadow-sm md:flex-row">
         <nav
           className={cn(
-            'flex min-h-0 shrink-0 gap-0.5 overflow-x-auto overflow-y-hidden overscroll-y-contain',
+            'flex shrink-0 gap-0.5 overflow-x-auto',
             'border-b border-border bg-muted/30 p-2',
-            'md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto',
+            'md:sticky md:top-0 md:h-fit md:max-h-[calc(100dvh-5rem)] md:w-56 md:flex-col md:overflow-y-auto md:overflow-x-visible',
             'md:border-b-0 md:border-r',
           )}
           aria-label="Billing modules"
@@ -126,7 +123,7 @@ export default function BillingManagementPage() {
         </nav>
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6"
+          className="min-w-0 flex-1 p-4 md:p-6"
           role="tabpanel"
           data-testid={`billing-panel-${activeTab}`}
         >

@@ -63,6 +63,8 @@ export type EcmDailyOpsReport = {
     potentialMissed: number
     confirmedMissed: number
     manualAttendance: number
+    electronicAttendance?: number
+    geofenceBreaches?: number
     verifiedConfidence: number
     totalVisits: number
   }
@@ -78,6 +80,7 @@ export type EcmDailyOpsReport = {
     criticality: string
     startVarianceMinutes: number | null
     durationVarianceMinutes: number | null
+    operationalExceptionCodes?: string[]
   }>
 }
 
@@ -173,10 +176,95 @@ export async function fetchEcmHealth(): Promise<EcmHealthData> {
   return res.data
 }
 
-export async function fetchEcmDailyOpsReport(date?: string): Promise<EcmDailyOpsReport> {
-  const qs = date ? `?date=${encodeURIComponent(date)}` : ''
+export async function fetchEcmDailyOpsReport(
+  date?: string,
+  params?: { scheduleAreaId?: string },
+): Promise<EcmDailyOpsReport> {
+  const qs = new URLSearchParams()
+  if (date) qs.set('date', date)
+  if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EcmDailyOpsReport>>(
-    `/ecm/reports/daily-operations${qs}`,
+    `/ecm/reports/daily-operations${suffix}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export type EcmGraphDrillVisit = {
+  scheduledJobId: string
+  jobName: string
+  serviceUserName: string
+  plannedStartDateTime: string
+  hourKey: string
+  statusKey: string
+  arrivalBand: string
+  durationBand: string
+  branchName: string | null
+}
+
+export type EcmGraphDashboardData = {
+  dateFrom: string
+  dateTo: string
+  refreshedAt: string
+  visitCount: number
+  visitStatusByHour: {
+    hours: string[]
+    series: Array<{ key: string; label: string; data: number[] }>
+  }
+  exceptionTrend: {
+    dates: string[]
+    series: {
+      late: number[]
+      veryLate: number[]
+      short: number[]
+      missed: number[]
+      missingCheckout: number[]
+      noAccess: number[]
+    }
+  }
+  manualTrend: { dates: string[]; manual: number[] }
+  arrivalPunctuality: Array<{ key: string; count: number }>
+  durationVariance: Array<{ key: string; count: number }>
+  heatmap: {
+    weekdays: string[]
+    bands: Array<{
+      bandKey: string
+      bandLabel: string
+      rates: Array<{
+        day: string
+        total: number
+        exceptions: number
+        rate: number | null
+      }>
+    }>
+  }
+  branchComparison: Array<{
+    name: string
+    total: number
+    onTimePct: number
+    latePct: number
+    missedPct: number
+    shortPct: number
+    verifiedPct: number
+  }>
+  exceptionReasons: Array<{ code: string; label: string; count: number }>
+  verificationMethod: Array<{ code: string; label: string; value: number }>
+  drillVisits: EcmGraphDrillVisit[]
+}
+
+export async function fetchEcmGraphDashboard(params?: {
+  dateFrom?: string
+  dateTo?: string
+  scheduleAreaId?: string
+}): Promise<EcmGraphDashboardData> {
+  const qs = new URLSearchParams()
+  if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) qs.set('dateTo', params.dateTo)
+  if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<EcmGraphDashboardData>>(
+    `/ecm/reports/graph-dashboard${suffix}`,
     { method: 'GET' },
   )
   return res.data

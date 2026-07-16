@@ -234,8 +234,8 @@ export function EcmGraphPanel() {
               {(counts?.total ?? 0) === 0 ? (
                 <ChartEmpty message="No visits for this date." />
               ) : (
-                <div className="h-[320px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[320px] w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={320}>
                     <BarChart
                       data={bucketBarData}
                       layout="vertical"
@@ -277,8 +277,8 @@ export function EcmGraphPanel() {
               {bucketPieData.length === 0 ? (
                 <ChartEmpty message="No bucket activity for this date." />
               ) : (
-                <div className="h-[320px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[320px] w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={320}>
                     <PieChart>
                       <Pie
                         data={bucketPieData}
@@ -324,8 +324,8 @@ export function EcmGraphPanel() {
               {arrivalData.length === 0 ? (
                 <ChartEmpty message="No arrival classifications." />
               ) : (
-                <div className="h-[260px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[260px] w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={260}>
                     <BarChart
                       data={arrivalData}
                       margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
@@ -355,8 +355,8 @@ export function EcmGraphPanel() {
               {missedData.length === 0 ? (
                 <ChartEmpty message="No missed classifications." />
               ) : (
-                <div className="h-[260px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[260px] w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie
                         data={missedData}
@@ -413,8 +413,8 @@ export function EcmGraphPanel() {
               ) : kpiBarData.length === 0 ? (
                 <ChartEmpty message="No KPI figures for this date." />
               ) : (
-                <div className="h-[240px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[240px] w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={240}>
                     <BarChart
                       data={kpiBarData}
                       margin={{ top: 8, right: 12, left: 0, bottom: 8 }}

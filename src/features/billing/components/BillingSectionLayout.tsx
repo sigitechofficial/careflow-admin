@@ -14,10 +14,7 @@ export function BillingSectionLayout({ title, description, testId, children }: P
   const [guidanceOpen, setGuidanceOpen] = React.useState(false)
 
   return (
-    <div
-      className="flex h-[calc(100dvh-3.5rem-2.5rem)] flex-col gap-4 overflow-hidden md:h-[calc(100dvh-3.5rem-3rem)]"
-      data-testid={testId}
-    >
+    <div className="flex flex-col gap-4" data-testid={testId}>
       <PageHeader
         className="shrink-0"
         title={title}
@@ -40,7 +37,7 @@ export function BillingSectionLayout({ title, description, testId, children }: P
 
       <BillingGuidanceDialog open={guidanceOpen} onOpenChange={setGuidanceOpen} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
+      <div className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
         {children}
       </div>
     </div>
