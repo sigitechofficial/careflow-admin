@@ -11,6 +11,7 @@ import {
   fetchVisitReconciliationsSummary,
   rejectVisitOverrun,
   rejectVisitReconciliation,
+  setVisitPayableAmount,
   updateVisitReconciliation,
 } from '@/features/billing/api/visit-reconciliations.api'
 import { billingKeys } from '@/features/billing/keys'
@@ -68,6 +69,27 @@ export function useUpdateVisitReconciliation() {
         approvalNotes?: string | null
       }
     }) => updateVisitReconciliation(id, body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })
+    },
+  })
+}
+
+export function useSetVisitPayableAmount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        payableAmount: number
+        notes?: string
+        approveForPay?: boolean
+      }
+    }) => setVisitPayableAmount(id, body),
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
       void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })

@@ -12,6 +12,9 @@ export const schedulingKeys = {
 
   employeesDay: (date: string) => [...schedulingKeys.all(), 'employees-day', date] as const,
 
+  employeesMonth: (month: string, employeeId?: string) =>
+    [...schedulingKeys.all(), 'employees-month', month, employeeId ?? 'all'] as const,
+
   reportTypes: () => [...schedulingKeys.all(), 'report-types'] as const,
 
   report: (endpoint: string, from: string, to: string, generate: boolean) =>

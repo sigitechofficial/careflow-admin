@@ -105,6 +105,24 @@ export async function updateVisitReconciliation(
   return res.data
 }
 
+export async function setVisitPayableAmount(
+  id: string,
+  body: {
+    payableAmount: number
+    notes?: string
+    approveForPay?: boolean
+  },
+): Promise<VisitReconciliationDetail> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+    `/billing/visit-reconciliations/${id}/payable-amount`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+  return res.data
+}
+
 export async function approveVisitReconciliation(
   id: string,
   body: { scope: ApproveScope; managerOverride?: boolean; approvalNotes?: string },

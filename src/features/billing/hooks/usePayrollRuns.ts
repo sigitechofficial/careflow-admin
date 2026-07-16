@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   approvePayrollRun,
   calculatePayrollRun,
+  createEmployeeSalaryDeduction,
   createPayrollRun,
+  deleteEmployeeSalaryDeduction,
   downloadPayrollRunCsv,
   exportPayrollRun,
   fetchEmployeeEarnings,
+  fetchEmployeeSalaries,
   fetchPayrollRun,
   fetchPayrollRuns,
   fetchPayrollRunsSummary,
@@ -44,6 +47,44 @@ export function useEmployeeEarnings(
     queryKey: billingKeys.employeeEarnings(employeeId ?? '', filters),
     queryFn: () => fetchEmployeeEarnings(employeeId!, filters),
     enabled: enabled && Boolean(employeeId),
+  })
+}
+
+export function useEmployeeSalaries(
+  filters?: { dateFrom?: string; dateTo?: string },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: billingKeys.employeeSalaries(filters),
+    queryFn: () => fetchEmployeeSalaries(filters),
+    enabled,
+  })
+}
+
+export function useCreateEmployeeSalaryDeduction(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (
+      body: Parameters<typeof createEmployeeSalaryDeduction>[1],
+    ) => createEmployeeSalaryDeduction(employeeId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: [...billingKeys.all, 'employee-earnings', employeeId],
+      })
+    },
+  })
+}
+
+export function useDeleteEmployeeSalaryDeduction(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (deductionId: string) =>
+      deleteEmployeeSalaryDeduction(employeeId, deductionId),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: [...billingKeys.all, 'employee-earnings', employeeId],
+      })
+    },
   })
 }
 

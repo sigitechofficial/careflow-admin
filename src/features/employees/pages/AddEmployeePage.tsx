@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useForm, Controller, useWatch, type FieldPath, type UseFormSetError } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,13 +25,20 @@ import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { EmployeeEmergencyContactsEditor } from '@/features/employees/components/EmployeeEmergencyContactsEditor'
 import { EmployeeDocumentsSection } from '@/features/employees/components/EmployeeDocumentsSection'
 import { EmployeeFortnightPatternEditor } from '@/features/employees/components/EmployeeFortnightPatternEditor'
-import { EditEmployeeTabBar, type EditEmployeeTabId } from '@/features/employees/components/EditEmployeeTabBar'
+import {
+  EditEmployeeTabBar,
+  parseEditEmployeeTabId,
+  type EditEmployeeTabId,
+} from '@/features/employees/components/EditEmployeeTabBar'
 import { EmployeeEditSkillsPanel } from '@/features/employees/components/EmployeeEditSkillsPanel'
 import { EmployeeEditNonCorePanel } from '@/features/employees/components/EmployeeEditNonCorePanel'
 import { EmployeeEditHolidaysPanel } from '@/features/employees/components/EmployeeEditHolidaysPanel'
 import { EmployeeEditCompliancePanel } from '@/features/employees/components/EmployeeEditCompliancePanel'
 import { EmployeeEditPayCardPanel } from '@/features/employees/components/EmployeeEditPayCardPanel'
 import { EmployeeEditEarningPanel } from '@/features/employees/components/EmployeeEditEarningPanel'
+import { EmployeeEditVisitsPanel } from '@/features/employees/components/EmployeeEditVisitsPanel'
+import { EmployeeEditSalaryPanel } from '@/features/employees/components/EmployeeEditSalaryPanel'
+import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
 import {
   personalStepSchema,
@@ -455,9 +462,24 @@ function LookupSelect({
 
 export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: string } = {}) {
   const navigate = useNavigate()
+  const search = useSearch({ strict: false }) as { tab?: string }
   const isEditMode = Boolean(editEmployeeId)
   const [tab, setTab] = React.useState<TabId>('personal')
-  const [editTab, setEditTab] = React.useState<EditEmployeeTabId>('personal')
+  const editTab: EditEmployeeTabId = isEditMode
+    ? (parseEditEmployeeTabId(search.tab) ?? 'personal')
+    : 'personal'
+  const setEditTab = React.useCallback(
+    (next: EditEmployeeTabId) => {
+      if (!editEmployeeId) return
+      void navigate({
+        to: '/employee/$employeeId/edit',
+        params: { employeeId: editEmployeeId },
+        search: { tab: next },
+        replace: true,
+      })
+    },
+    [editEmployeeId, navigate],
+  )
   const [editDisplayName, setEditDisplayName] = React.useState('')
   const [editPhotoUrl, setEditPhotoUrl] = React.useState<string | null>(null)
   const [jobTitleDialogOpen, setJobTitleDialogOpen] = React.useState(false)
@@ -973,6 +995,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
 
           <div className="p-5">
             {((isEditMode && editTab === 'personal') || (!isEditMode && tab === 'personal')) && (
+              <div className="space-y-6">
               <form
                 id="employee-personal-form"
                 className="space-y-6"
@@ -1363,6 +1386,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   </Button>
                 </div>
               </form>
+              {isEditMode && editEmployeeId ? (
+                <EmployeeAppAccessSection
+                  employeeId={editEmployeeId}
+                  defaultEmail={watch('email') || savedPersonal?.email}
+                />
+              ) : null}
+              </div>
             )}
 
             {((isEditMode && editTab === 'employment') || (!isEditMode && tab === 'employment')) && (
@@ -2001,6 +2031,14 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <EmployeeEditEarningPanel employeeId={editEmployeeId} />
             ) : null}
 
+            {isEditMode && editTab === 'visits' && editEmployeeId ? (
+              <EmployeeEditVisitsPanel employeeId={editEmployeeId} />
+            ) : null}
+
+            {isEditMode && editTab === 'salary' && editEmployeeId ? (
+              <EmployeeEditSalaryPanel employeeId={editEmployeeId} />
+            ) : null}
+
             {isEditMode && editTab === 'skills' && editEmployeeId ? (
               <EmployeeEditSkillsPanel employeeId={editEmployeeId} />
             ) : null}
@@ -2036,6 +2074,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             editTab !== 'employment' &&
             editTab !== 'pay-card' &&
             editTab !== 'earning' &&
+            editTab !== 'visits' &&
+            editTab !== 'salary' &&
             editTab !== 'working-pattern' ? (
               <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
                 <Button

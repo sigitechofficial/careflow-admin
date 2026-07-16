@@ -106,3 +106,52 @@ export async function lockInvoiceRun(id: string): Promise<void> {
 export async function sendInvoiceRun(id: string): Promise<void> {
   await apiJson(`/billing/invoice-runs/${id}/send`, { method: 'POST' })
 }
+
+export type ServiceUserInvoiceFunderSummary = {
+  funderId: string | null
+  funderName: string
+  funderCode: string | null
+  lineCount: number
+  subtotal: string
+  subtotalValue: number
+}
+
+export type ServiceUserInvoiceRunRow = {
+  id: string
+  period: string
+  periodStart: string
+  periodEnd: string
+  status: InvoiceRunStatus
+  exportStatus: ExportStatus
+  sentAt: string | null
+  lockedAt: string | null
+  lineCount: number
+  subtotal: string
+  subtotalValue: number
+  exceptions: number
+  funders: number
+  funderSummaries: ServiceUserInvoiceFunderSummary[]
+  canSend: boolean
+}
+
+export type ServiceUserInvoicesSummary = {
+  serviceUserId: string
+  serviceUserName: string
+  serviceUserNumber: string | null
+  readyToInvoiceCount: number
+  totalInvoiced: string
+  totalInvoicedValue: number
+  runCount: number
+  runs: ServiceUserInvoiceRunRow[]
+}
+
+export async function fetchServiceUserInvoices(
+  serviceUserId: string,
+): Promise<ServiceUserInvoicesSummary> {
+  const res = await apiJson<ApiEnvelope<ServiceUserInvoicesSummary>>(
+    `/billing/invoice-runs/service-user/${serviceUserId}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+

@@ -199,6 +199,12 @@ export type Permission =
   | 'billing.invoice_runs.manage'
   | 'billing.payments.read'
   | 'billing.payments.manage'
+  | 'ecm.read'
+  | 'ecm.monitor'
+  | 'ecm.exceptions.manage'
+  | 'ecm.attendance.amend'
+  | 'ecm.reports.export'
+  | 'ecm.settings.manage'
 
 export interface AuthUser {
   id: string

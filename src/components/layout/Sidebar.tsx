@@ -43,6 +43,9 @@ import {
   Wallet,
   Banknote,
   ScrollText,
+  CircleDollarSign,
+  Radio,
+  FileBarChart2,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -232,6 +235,27 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'ECM',
+    icon: <Radio className="h-5 w-5" />,
+    href: '/ecm/live',
+    children: [
+      {
+        label: 'Live monitoring',
+        icon: <Activity className="h-4 w-4" />,
+        href: '/ecm/live',
+        anyPermission: ['ecm.read', 'ecm.monitor'],
+        navTestId: 'nav-ecm-live',
+      },
+      {
+        label: 'Reports',
+        icon: <FileBarChart2 className="h-4 w-4" />,
+        href: '/ecm/reports',
+        anyPermission: ['ecm.read', 'ecm.reports.export'],
+        navTestId: 'nav-ecm-reports',
+      },
+    ],
+  },
+  {
     label: 'Billing',
     icon: <PoundSterling className="h-5 w-5" />,
     href: '/billing',
@@ -258,6 +282,13 @@ const navItems: NavItem[] = [
         href: '/billing/payroll-runs',
         permission: 'billing.payroll_runs.read',
         navTestId: 'nav-billing-payroll',
+      },
+      {
+        label: 'Salary',
+        icon: <CircleDollarSign className="h-4 w-4" />,
+        href: '/billing/salary',
+        anyPermission: ['billing.payroll_runs.read', 'employees.read', 'employees.update'],
+        navTestId: 'nav-billing-salary',
       },
       {
         label: 'Invoice runs',

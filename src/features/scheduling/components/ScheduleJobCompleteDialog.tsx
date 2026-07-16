@@ -58,6 +58,11 @@ import {
   scheduleJobVisitOutcomeSaveLabel,
   scheduleJobVisitOutcomeShowsVisitTasks,
 } from '@/features/scheduling/utils/schedule-job-visit-outcome.util'
+import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
+import {
+  VISIT_TIMING_EXCEPTION_REASONS,
+  type VisitTimingExceptionReasonCode,
+} from '@/features/scheduling/utils/visit-timing-exception-reason.util'
 import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
 /** Re-enable when care-plan delivery checkboxes return to Record visit. */
@@ -85,6 +90,10 @@ export function ScheduleJobCompleteDialog({
   const [actualStartTime, setActualStartTime] = React.useState('')
   const [actualEndTime, setActualEndTime] = React.useState('')
   const [overrunReason, setOverrunReason] = React.useState('')
+  const [timingExceptionReasonCode, setTimingExceptionReasonCode] = React.useState<
+    VisitTimingExceptionReasonCode | ''
+  >('')
+  const [timingExceptionNotes, setTimingExceptionNotes] = React.useState('')
   const [visitTasks, setVisitTasks] = React.useState<VisitJobTaskRow[]>([])
 
   const visitTasksQuery = useQuery({
@@ -142,6 +151,8 @@ export function ScheduleJobCompleteDialog({
     setDeliveredIds([])
     setVisitTasks([])
     setOverrunReason('')
+    setTimingExceptionReasonCode('')
+    setTimingExceptionNotes('')
     setVisitStatus(defaultScheduleJobVisitOutcome(job))
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
@@ -175,6 +186,24 @@ export function ScheduleJobCompleteDialog({
       ? actualDurationMinutes - plannedDurationMinutes
       : 0
   const hasOverrun = requiresTimes && overrunMinutes > 0
+
+  const liveDeliveryAssessment = React.useMemo(() => {
+    if (!job || !requiresTimes || !actualDateTimes) return null
+    return assessVisitDeliveryFromJobLike({
+      status: visitStatus,
+      requiredCarers: job.requiredCarers,
+      allocatedCarers: job.allocatedCarers,
+      allocations: job.allocations,
+      scheduledStartDateTime: job.scheduledStartDateTime,
+      scheduledEndDateTime: job.scheduledEndDateTime,
+      actualStartDateTime: actualDateTimes.scheduledStartDateTime,
+      actualEndDateTime: actualDateTimes.scheduledEndDateTime,
+      visitPlan: job.visitPlan,
+      visits: job.visits,
+    })
+  }, [actualDateTimes, job, requiresTimes, visitStatus])
+
+  const requiresTimingExceptionReason = Boolean(liveDeliveryAssessment?.requiresExceptionReason)
 
   const visitTasksRoundLabel = visitTasksQuery.data?.roundLabel
   const visitTasksRoundWindow =
@@ -258,6 +287,20 @@ export function ScheduleJobCompleteDialog({
       )
       return
     }
+    if (requiresTimingExceptionReason && !timingExceptionReasonCode) {
+      toastWarning(
+        'Exception reason required',
+        'Select a structured reason for the late, early, short, or overrun exception.',
+      )
+      return
+    }
+    const selectedReason = VISIT_TIMING_EXCEPTION_REASONS.find(
+      (r) => r.code === timingExceptionReasonCode,
+    )
+    if (selectedReason?.requiresNotes && !timingExceptionNotes.trim() && !overrunReason.trim()) {
+      toastWarning('Notes required', 'Add notes when the exception reason is Other.')
+      return
+    }
     if (requiresCarePlans && deliveredIds.length === 0 && !notes.trim()) {
       toastWarning(
         'Select care plans',
@@ -283,6 +326,12 @@ export function ScheduleJobCompleteDialog({
         actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
         actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
         overrunReason: hasOverrun ? overrunReason.trim() : undefined,
+        timingExceptionReasonCode: requiresTimingExceptionReason
+          ? timingExceptionReasonCode || undefined
+          : undefined,
+        timingExceptionNotes:
+          timingExceptionNotes.trim() ||
+          (requiresTimingExceptionReason && overrunReason.trim() ? overrunReason.trim() : undefined),
       })
       toastSuccess(
         visitStatus === 'COMPLETED' ? 'Job completed' : 'Visit saved',
@@ -413,6 +462,57 @@ export function ScheduleJobCompleteDialog({
                   disabled={busy}
                   onChange={event => setOverrunReason(event.target.value)}
                   placeholder="e.g. Service user needed extra support with medication"
+                  maxLength={2000}
+                />
+              </div>
+            ) : null}
+            {requiresTimingExceptionReason && liveDeliveryAssessment ? (
+              <div className="space-y-2 rounded-md border border-orange-300/60 bg-orange-50/80 px-3 py-2 dark:border-orange-700/50 dark:bg-orange-950/30">
+                <p className="text-xs font-medium text-orange-950 dark:text-orange-100">
+                  Timing / duration exception — structured reason required
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {liveDeliveryAssessment.timingLabel}
+                  {liveDeliveryAssessment.durationExceptions.length
+                    ? ` · ${liveDeliveryAssessment.durationExceptions.join(', ').replace(/_/g, ' ')}`
+                    : ''}
+                </p>
+                <Label className="text-xs text-muted-foreground">Exception reason</Label>
+                <Select
+                  value={timingExceptionReasonCode || undefined}
+                  onValueChange={(value) =>
+                    setTimingExceptionReasonCode(value as VisitTimingExceptionReasonCode)
+                  }
+                  disabled={busy}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select reason…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIT_TIMING_EXCEPTION_REASONS.map((reason) => (
+                      <SelectItem key={reason.code} value={reason.code}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Label
+                  htmlFor="schedule-job-timing-exception-notes"
+                  className="text-xs text-muted-foreground"
+                >
+                  Exception notes
+                  {VISIT_TIMING_EXCEPTION_REASONS.find((r) => r.code === timingExceptionReasonCode)
+                    ?.requiresNotes
+                    ? ' (required)'
+                    : ' (optional)'}
+                </Label>
+                <textarea
+                  id="schedule-job-timing-exception-notes"
+                  className="min-h-[64px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={timingExceptionNotes}
+                  disabled={busy}
+                  onChange={(event) => setTimingExceptionNotes(event.target.value)}
+                  placeholder="Additional context for audit / commissioner evidence"
                   maxLength={2000}
                 />
               </div>

@@ -165,6 +165,23 @@ const BILLING_ALL: Permission[] = [
   'billing.payments.manage',
 ]
 
+const ECM_ALL: Permission[] = [
+  'ecm.read',
+  'ecm.monitor',
+  'ecm.exceptions.manage',
+  'ecm.attendance.amend',
+  'ecm.reports.export',
+  'ecm.settings.manage',
+]
+
+const ECM_COORDINATOR: Permission[] = [
+  'ecm.read',
+  'ecm.monitor',
+  'ecm.exceptions.manage',
+  'ecm.attendance.amend',
+  'ecm.reports.export',
+]
+
 /** Role → default permissions (merged with `/auth/me` keys in API mode). */
 export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   super_admin: [
@@ -203,6 +220,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...CARE_PATHWAY_ADMIN,
     'job_allocations.confirm',
     ...BILLING_ALL,
+    ...ECM_ALL,
   ],
   admin: [
     'users.read',
@@ -236,6 +254,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...CARE_PATHWAY_ADMIN,
     'job_allocations.confirm',
     ...BILLING_ALL,
+    ...ECM_ALL,
   ],
   manager: [
     'users.read',
@@ -335,6 +354,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'service_users.live_in_profile.lookups.read',
     'service_users.lookups.read',
     ...NOTIFICATION_INAPP,
+    ...ECM_ALL,
   ],
   staff: [
     'schedule.read',

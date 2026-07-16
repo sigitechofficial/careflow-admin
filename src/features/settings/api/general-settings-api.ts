@@ -4,6 +4,7 @@ export type TimeDisplayFormat = 'HH_XX' | 'HH_MM'
 export type DateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_MM_DD'
 export type DefaultCarerStatus = 'ACTIVE' | 'INACTIVE'
 export type HolidayUnit = 'HOURS' | 'DAYS'
+export type SalaryCalculationBasis = 'MONTHLY' | 'WEEKLY'
 export type ComplianceRequiredBy = 'ROLE_WORK_AREA' | 'CITIZENSHIP'
 export type ComplianceApprovalType = 'MANAGER_APPROVAL' | 'HR_APPROVAL'
 export type WellbeingRegularity = 'DAILY' | 'WEEKLY' | 'MONTHLY'
@@ -155,6 +156,7 @@ export type OrganisationGeneralSettings = {
   allowWeekendDaysInHoliday: boolean
   mandateComplianceForNewEmployees: boolean
   defaultHolidaysUnit: HolidayUnit
+  salaryCalculationBasis: SalaryCalculationBasis
   recruitmentFunctionalityRequired: boolean
   complianceRequiredBy: ComplianceRequiredBy
   complianceApprovalForNewEmployee: ComplianceApprovalType

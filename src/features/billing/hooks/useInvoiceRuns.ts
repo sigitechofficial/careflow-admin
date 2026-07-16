@@ -6,6 +6,7 @@ import {
   fetchInvoiceRun,
   fetchInvoiceRuns,
   fetchInvoiceRunsSummary,
+  fetchServiceUserInvoices,
   lockInvoiceRun,
   sendInvoiceRun,
 } from '@/features/billing/api/invoice-runs.api'
@@ -30,6 +31,14 @@ export function useInvoiceRun(id: string | undefined) {
     queryKey: billingKeys.invoiceRun(id ?? ''),
     queryFn: () => fetchInvoiceRun(id!),
     enabled: Boolean(id),
+  })
+}
+
+export function useServiceUserInvoices(serviceUserId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.serviceUserInvoices(serviceUserId ?? ''),
+    queryFn: () => fetchServiceUserInvoices(serviceUserId!),
+    enabled: enabled && Boolean(serviceUserId),
   })
 }
 

@@ -17,6 +17,7 @@ import type {
   ScheduleStatusResponse,
   ServiceUsersWeekTimelineResponse,
   TimelineJob,
+  EmployeesMonthTimelineResponse,
 } from '../types/scheduling.types'
 
 function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
@@ -139,6 +140,28 @@ export async function getEmployeesDayTimeline(
   }
 }
 
+export async function getEmployeesMonthTimeline(
+  month: string,
+  params: { employeeIds?: string[]; limit?: number } = {},
+  init?: RequestInit,
+) {
+  const q = new URLSearchParams()
+  q.set('month', month)
+  q.set('limit', String(params.limit ?? 50))
+  for (const id of params.employeeIds ?? []) {
+    q.append('employeeIds', id)
+  }
+  const res = await apiJson<ApiEnvelope<EmployeesMonthTimelineResponse>>(
+    `/schedule-timelines/employees/month?${q.toString()}`,
+    { method: 'GET', ...init },
+  )
+  return {
+    month: res.data?.month ?? month,
+    employees: res.data?.employees ?? [],
+    meta: res.meta as PaginationMeta | undefined,
+  }
+}
+
 export async function getHousekeepingJobsNotStarted(params: Record<string, string | number | undefined>) {
   const res = await apiJson<ApiEnvelope<HousekeepingJob[]>>(
     `/scheduled-jobs-housekeeping/jobs-not-started${buildQuery(params)}`,
@@ -240,6 +263,8 @@ export async function completeHousekeepingJob(
     actualStartDateTime?: string
     actualEndDateTime?: string
     overrunReason?: string
+    timingExceptionReasonCode?: string
+    timingExceptionNotes?: string
   },
 ) {
   const body: Record<string, unknown> = {}
@@ -255,6 +280,12 @@ export async function completeHousekeepingJob(
   if (payload?.actualStartDateTime) body.actualStartDateTime = payload.actualStartDateTime
   if (payload?.actualEndDateTime) body.actualEndDateTime = payload.actualEndDateTime
   if (payload?.overrunReason?.trim()) body.overrunReason = payload.overrunReason.trim()
+  if (payload?.timingExceptionReasonCode?.trim()) {
+    body.timingExceptionReasonCode = payload.timingExceptionReasonCode.trim()
+  }
+  if (payload?.timingExceptionNotes?.trim()) {
+    body.timingExceptionNotes = payload.timingExceptionNotes.trim()
+  }
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {
     method: 'PATCH',
     body: JSON.stringify(body),

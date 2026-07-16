@@ -85,6 +85,8 @@ export type VisitPlanJobContext = {
   daysOfWeek?: number[]
   medicationRoundCode?: string | null
   isEnabled?: boolean
+  timeCritical?: boolean
+  timeToleranceMinutes?: number
 }
 
 export type TimelineJob = {
@@ -108,11 +110,34 @@ export type TimelineJob = {
     visitName: string
     visitPlanSlotId: string | null
     status?: string
+    scheduledStartDateTime?: string
+    scheduledEndDateTime?: string | null
     actualStartDateTime?: string | null
     actualEndDateTime?: string | null
   }>
   actualStartDateTime?: string | null
   actualEndDateTime?: string | null
+  /** Derived lifecycle / timing / duration classification (API or client). */
+  deliveryAssessment?: import('@/features/scheduling/utils/visit-delivery-assessment.util').VisitDeliveryAssessment
+  timingException?: {
+    reasonCode?: string | null
+    reasonLabel?: string | null
+    notes?: string | null
+    overrunReason?: string | null
+  } | null
+  cancellation?: {
+    reasonCode?: string | null
+    reasonNotes?: string | null
+    outcome?: string | null
+  } | null
+  attendanceEvents?: Array<{
+    id: string
+    eventType: string
+    occurredAt: string
+    verificationMethod?: string
+    outsideGeofence?: boolean
+    outsideGeofenceReason?: string | null
+  }>
   scheduleRunId?: string | null
   runSequence?: number | null
   scheduleRun?: ScheduleRunBrief | null
@@ -180,6 +205,11 @@ export type EmployeeDayRow = {
 
 export type EmployeesDayTimelineResponse = {
   date: string
+  employees: EmployeeDayRow[]
+}
+
+export type EmployeesMonthTimelineResponse = {
+  month: string
   employees: EmployeeDayRow[]
 }
 

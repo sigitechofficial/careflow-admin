@@ -97,9 +97,12 @@ import BillingManagementPage from '@/features/billing/pages/BillingManagementPag
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
 import VisitReconciliationPage from '@/features/billing/pages/VisitReconciliationPage'
 import PayrollRunsPage from '@/features/billing/pages/PayrollRunsPage'
+import SalaryOverviewPage from '@/features/billing/pages/SalaryOverviewPage'
 import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
+import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
+import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
 import {
   BILLING_SECTION_PATHS,
   BILLING_SETUP_TAB_IDS,
@@ -211,10 +214,13 @@ const pageTitles: Record<string, string> = {
   '/billing': 'Billing Management',
   '/billing/visit-reconciliation': 'Visit reconciliation',
   '/billing/payroll-runs': 'Payroll runs',
+  '/billing/salary': 'Salary',
   '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
   '/billing/payments': 'Payments',
   '/billing/audit-export': 'Audit & export',
+  '/ecm/live': 'ECM live monitoring',
+  '/ecm/reports': 'ECM reports',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -1083,6 +1089,10 @@ const employeeAddRoute = createRoute({
 const employeeEditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/$employeeId/edit',
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } => {
+    const tab = typeof raw.tab === 'string' && raw.tab.trim() ? raw.tab.trim() : undefined
+    return tab ? { tab } : {}
+  },
   beforeLoad: requirePermission('employees.update'),
   loader: ({ context: { queryClient: qc }, params: { employeeId } }) => {
     prefetchEmployeeEditRoute(qc, employeeId)
@@ -1301,6 +1311,17 @@ const billingPayrollRunsRoute = createRoute({
   component: PayrollRunsPage,
 })
 
+const billingSalaryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/salary',
+  beforeLoad: requireAnyPermission(
+    'billing.payroll_runs.read',
+    'employees.read',
+    'employees.update',
+  ),
+  component: SalaryOverviewPage,
+})
+
 const billingInvoiceRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/invoice-runs',
@@ -1326,6 +1347,24 @@ const billingAuditExportRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/audit-export',
   component: AuditExportPage,
+})
+
+const ecmLiveRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/ecm/live',
+  validateSearch: (raw: Record<string, unknown>): { date?: string } => {
+    const date = typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : undefined
+    return date ? { date } : {}
+  },
+  beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
+  component: EcmLiveMonitoringPage,
+})
+
+const ecmReportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/ecm/reports',
+  beforeLoad: requireAnyPermission('ecm.read', 'ecm.reports.export'),
+  component: EcmReportsPage,
 })
 
 const carePathwayRoute = createRoute({
@@ -1432,10 +1471,13 @@ const routeTree = rootRoute.addChildren([
     billingRoute,
     billingVisitReconciliationRoute,
     billingPayrollRunsRoute,
+    billingSalaryRoute,
     billingInvoiceRunsRoute,
     billingInvoiceRunDetailRoute,
     billingPaymentsRoute,
     billingAuditExportRoute,
+    ecmLiveRoute,
+    ecmReportsRoute,
   ]),
 ])
 

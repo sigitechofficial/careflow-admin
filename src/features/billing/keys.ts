@@ -51,9 +51,13 @@ export const billingKeys = {
   payrollRunsSummary: () => [...billingKeys.all, 'payroll-runs-summary'] as const,
   employeeEarnings: (employeeId: string, filters?: { dateFrom?: string; dateTo?: string }) =>
     [...billingKeys.all, 'employee-earnings', employeeId, filters ?? {}] as const,
+  employeeSalaries: (filters?: { dateFrom?: string; dateTo?: string }) =>
+    [...billingKeys.all, 'employee-salaries', filters ?? {}] as const,
   invoiceRuns: () => [...billingKeys.all, 'invoice-runs'] as const,
   invoiceRunsSummary: () => [...billingKeys.all, 'invoice-runs-summary'] as const,
   invoiceRun: (id: string) => [...billingKeys.all, 'invoice-run', id] as const,
+  serviceUserInvoices: (serviceUserId: string) =>
+    [...billingKeys.all, 'service-user-invoices', serviceUserId] as const,
   payments: () => [...billingKeys.all, 'payments'] as const,
   payment: (id: string) => [...billingKeys.all, 'payment', id] as const,
   paymentsSummary: () => [...billingKeys.all, 'payments-summary'] as const,

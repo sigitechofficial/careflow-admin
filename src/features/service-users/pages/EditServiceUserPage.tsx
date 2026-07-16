@@ -7,6 +7,7 @@ import {
   Calendar,
   CalendarOff,
   ClipboardList,
+  FileText,
   Heart,
   HelpCircle,
   Home,
@@ -44,6 +45,7 @@ import { ServiceUserDomCareTab } from '@/features/service-users/components/Servi
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
 import { ServiceUserEditChargeCardPanel } from '@/features/service-users/components/ServiceUserEditChargeCardPanel'
+import { ServiceUserEditInvoicesPanel } from '@/features/service-users/components/ServiceUserEditInvoicesPanel'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
 import { ServiceUserCalendarTab } from '@/features/service-users/calendar/components/ServiceUserCalendarTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
@@ -63,6 +65,7 @@ const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
   { id: 'funding', label: 'Funding', Icon: Landmark },
   { id: 'charge-card', label: 'Charge card', Icon: Receipt },
+  { id: 'invoices', label: 'Invoices', Icon: FileText },
   { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
 ]
 
@@ -344,6 +347,9 @@ export default function EditServiceUserPage() {
             </TabsContent>
             <TabsContent value="charge-card" className="mt-6">
               <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />
+            </TabsContent>
+            <TabsContent value="invoices" className="mt-6">
+              <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />
             </TabsContent>
             <TabsContent value="livein" className="mt-6">
               <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />

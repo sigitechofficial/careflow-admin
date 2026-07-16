@@ -9,6 +9,8 @@ import {
   ScheduleVisitWorkspaceContent,
   type ScheduleVisitWorkspaceTab,
 } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
+import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
+import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { jobScheduleDateIso } from '@/features/scheduling/utils/schedule-jobs-drag.util'
@@ -84,16 +86,42 @@ export default function CarerVisitHubPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-4">
+        {!checkedIn && (job.deliveryAssessment || job.actualStartDateTime || job.visits?.length) ? (
+          <div className="mb-4">
+            <VisitDeliveryStatusPanel
+              assessment={
+                job.deliveryAssessment ??
+                assessVisitDeliveryFromJobLike({
+                  status: job.status,
+                  requiredCarers: job.requiredCarers,
+                  allocatedCarers: job.allocatedCarers,
+                  allocations: job.allocations,
+                  scheduledStartDateTime: job.scheduledStartDateTime,
+                  scheduledEndDateTime: job.scheduledEndDateTime,
+                  actualStartDateTime: job.actualStartDateTime,
+                  actualEndDateTime: job.actualEndDateTime,
+                  visitPlan: job.visitPlan,
+                  visits: job.visits,
+                  latestAttendanceEventType: job.attendanceEvents?.[0]?.eventType,
+                })
+              }
+              timingException={job.timingException}
+              cancellation={job.cancellation}
+            />
+          </div>
+        ) : null}
+
         {!checkedIn ? (
-          <section className="mb-4 rounded-xl border border-teal-200 bg-teal-50/80 px-4 py-4 dark:border-teal-900 dark:bg-teal-950/30">
-            <h2 className="text-sm font-semibold text-teal-950 dark:text-teal-100">Start visit</h2>
-            <p className="mt-1 text-xs text-teal-900/80 dark:text-teal-200/90">
-              Check in when you arrive to record observations, body map entries, and visit outcomes for
-              this call.
+          <section className="mb-4 rounded-xl border border-border bg-muted/40 px-4 py-4">
+            <h2 className="text-sm font-semibold text-foreground">Office visit workspace</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This admin hub does <span className="font-medium text-foreground">not</span> record
+              Electronic Call Monitoring (GPS check-in). Field ECM comes from the carer mobile app.
+              Use office complete/allocate actions below for manual outcomes and times.
             </p>
-            <Button type="button" className="mt-3 w-full" onClick={() => setCheckedIn(true)}>
+            <Button type="button" className="mt-3 w-full" variant="outline" onClick={() => setCheckedIn(true)}>
               <Play className="mr-2 h-4 w-4" aria-hidden />
-              Check in to visit
+              Open visit workspace
             </Button>
           </section>
         ) : null}
@@ -126,7 +154,7 @@ export default function CarerVisitHubPage() {
           />
         ) : (
           <p className="text-center text-sm text-muted-foreground">
-            Check in to access handover, body map, and visit actions.
+            Open the workspace to access handover, body map, and office visit actions.
           </p>
         )}
       </main>

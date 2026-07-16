@@ -6,6 +6,8 @@ export type EditEmployeeTabId =
   | 'employment'
   | 'pay-card'
   | 'earning'
+  | 'visits'
+  | 'salary'
   | 'skills'
   | 'staff-reviews'
   | 'documents'
@@ -19,6 +21,8 @@ export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
   { id: 'employment', label: 'Employment' },
   { id: 'pay-card', label: 'Pay card' },
   { id: 'earning', label: 'Earning' },
+  { id: 'visits', label: 'Visits' },
+  { id: 'salary', label: 'Salary' },
   { id: 'skills', label: 'Skills' },
   { id: 'staff-reviews', label: 'Staff Reviews' },
   { id: 'documents', label: 'Documents' },
@@ -27,6 +31,14 @@ export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
   { id: 'working-pattern', label: 'Working Pattern' },
   { id: 'employment-compliance', label: 'Employment Compliance' },
 ]
+
+const EDIT_EMPLOYEE_TAB_IDS = new Set(EDIT_EMPLOYEE_TABS.map(t => t.id))
+
+export function parseEditEmployeeTabId(raw: unknown): EditEmployeeTabId | undefined {
+  return typeof raw === 'string' && EDIT_EMPLOYEE_TAB_IDS.has(raw as EditEmployeeTabId)
+    ? (raw as EditEmployeeTabId)
+    : undefined
+}
 
 export function EditEmployeeTabBar({
   activeTab,

@@ -43,6 +43,8 @@ export function useCompleteHousekeepingJob() {
       actualStartDateTime,
       actualEndDateTime,
       overrunReason,
+      timingExceptionReasonCode,
+      timingExceptionNotes,
     }: {
       jobId: string
       status?: string
@@ -53,6 +55,8 @@ export function useCompleteHousekeepingJob() {
       actualStartDateTime?: string
       actualEndDateTime?: string
       overrunReason?: string
+      timingExceptionReasonCode?: string
+      timingExceptionNotes?: string
     }) =>
       completeHousekeepingJob(jobId, {
         status,
@@ -63,6 +67,8 @@ export function useCompleteHousekeepingJob() {
         actualStartDateTime,
         actualEndDateTime,
         overrunReason,
+        timingExceptionReasonCode,
+        timingExceptionNotes,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })

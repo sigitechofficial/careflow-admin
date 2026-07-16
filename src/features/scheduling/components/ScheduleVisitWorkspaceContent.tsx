@@ -30,6 +30,8 @@ import {
   serviceUserLabel,
 } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
+import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
+import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 
 export type ScheduleVisitWorkspaceTab = 'overview' | 'tasks' | 'body-map' | 'medication'
 
@@ -71,6 +73,24 @@ export function ScheduleVisitWorkspaceContent({
   })
 
   const visitSlot = timelineJobVisitPlanSlot(job)
+  const deliveryAssessment = React.useMemo(
+    () =>
+      job.deliveryAssessment ??
+      assessVisitDeliveryFromJobLike({
+        status: job.status,
+        requiredCarers: job.requiredCarers,
+        allocatedCarers: job.allocatedCarers,
+        allocations: job.allocations,
+        scheduledStartDateTime: job.scheduledStartDateTime,
+        scheduledEndDateTime: job.scheduledEndDateTime,
+        actualStartDateTime: job.actualStartDateTime,
+        actualEndDateTime: job.actualEndDateTime,
+        visitPlan: job.visitPlan,
+        visits: job.visits,
+        latestAttendanceEventType: job.attendanceEvents?.[0]?.eventType,
+      }),
+    [job],
+  )
 
   return (
     <div className={cn('flex min-h-0 flex-col', layout === 'hub' && 'gap-4')}>
@@ -116,6 +136,12 @@ export function ScheduleVisitWorkspaceContent({
               </div>
             </dl>
           </section>
+
+          <VisitDeliveryStatusPanel
+            assessment={deliveryAssessment}
+            timingException={job.timingException}
+            cancellation={job.cancellation}
+          />
 
           <section>
             <h3 className="mb-2 text-sm font-semibold text-foreground">Handover — body map</h3>

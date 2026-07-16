@@ -165,14 +165,27 @@ export type EmployeeEarningVisitRow = {
   approvedPayEnd: string | null
   approvedPayTime: string | null
   payableAmount: string
+  payableAmountValue?: number
   payableMinutes: number | null
   payableHours: string | null
   status: string
-  paymentState: 'PAID' | 'REMAINING' | 'PENDING'
+  paymentState: 'PAID' | 'REMAINING' | 'PENDING' | 'REJECTED'
   paid: boolean
+  countsTowardSalary?: boolean
   payrollRunId: string | null
   payrollPeriod: string | null
   payrollRunStatus: string | null
+}
+
+export type EmployeeSalaryDeductionRow = {
+  id: string
+  type: 'FINE' | 'PENALTY'
+  amount: string
+  amountValue: number
+  reason: string
+  notes: string | null
+  salaryMonth: string
+  createdAt: string
 }
 
 export type EmployeeEarningsSummary = {
@@ -180,6 +193,19 @@ export type EmployeeEarningsSummary = {
   dateFrom: string | null
   dateTo: string | null
   currency: string
+  /** Gross from accepted visits before fines/penalties. */
+  salaryAmount?: string
+  salaryAmountValue?: number
+  salaryVisitCount?: number
+  netSalaryAmount?: string
+  netSalaryAmountValue?: number
+  fineTotal?: string
+  fineTotalValue?: number
+  penaltyTotal?: string
+  penaltyTotalValue?: number
+  deductionsTotal?: string
+  deductionsTotalValue?: number
+  deductions?: EmployeeSalaryDeductionRow[]
   totalEarned: string
   totalEarnedAmount: number
   paidVisitCount: number
@@ -203,4 +229,80 @@ export async function fetchEmployeeEarnings(
     { method: 'GET' },
   )
   return res.data
+}
+
+export type EmployeeSalaryOverviewRow = {
+  employeeId: string
+  employeeName: string
+  employeeNumber: string | null
+  isActive: boolean
+  salaryAmount: string
+  salaryAmountValue: number
+  salaryVisitCount: number
+  paidAmount: string
+  paidAmountValue: number
+  paidLineCount: number
+  remainingAmount: string
+  remainingAmountValue: number
+  remainingVisitCount: number
+  rejectedAmount: string
+  rejectedAmountValue: number
+  rejectedVisitCount: number
+  pendingReviewCount: number
+  fineTotal: string
+  fineTotalValue: number
+  penaltyTotal: string
+  penaltyTotalValue: number
+  deductionsTotal: string
+  deductionsTotalValue: number
+  netSalaryAmount: string
+  netSalaryAmountValue: number
+}
+
+export type EmployeeSalariesOverview = {
+  dateFrom: string | null
+  dateTo: string | null
+  currency: string
+  employeeCount: number
+  rows: EmployeeSalaryOverviewRow[]
+}
+
+export async function fetchEmployeeSalaries(
+  params?: { dateFrom?: string; dateTo?: string },
+): Promise<EmployeeSalariesOverview> {
+  const qs = new URLSearchParams()
+  if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) qs.set('dateTo', params.dateTo)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<EmployeeSalariesOverview>>(
+    `/billing/payroll-runs/employee-salaries${suffix}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createEmployeeSalaryDeduction(
+  employeeId: string,
+  body: {
+    type: 'FINE' | 'PENALTY'
+    amount: number
+    reason: string
+    notes?: string
+    salaryMonth: string
+  },
+): Promise<EmployeeSalaryDeductionRow> {
+  const res = await apiJson<ApiEnvelope<EmployeeSalaryDeductionRow>>(
+    `/billing/payroll-runs/employee/${employeeId}/salary-deductions`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteEmployeeSalaryDeduction(
+  employeeId: string,
+  deductionId: string,
+): Promise<void> {
+  await apiJson(`/billing/payroll-runs/employee/${employeeId}/salary-deductions/${deductionId}`, {
+    method: 'DELETE',
+  })
 }

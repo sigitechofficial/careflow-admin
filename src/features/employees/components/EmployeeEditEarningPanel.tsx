@@ -28,6 +28,7 @@ function formatVisitDate(iso: string): string {
 function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
   if (state === 'PAID') return 'Paid'
   if (state === 'REMAINING') return 'Remaining'
+  if (state === 'REJECTED') return 'Rejected'
   return 'Pending'
 }
 

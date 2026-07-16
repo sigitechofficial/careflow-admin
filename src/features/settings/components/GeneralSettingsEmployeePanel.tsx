@@ -7,6 +7,7 @@ import {
   type DefaultCarerStatus,
   type HolidayUnit,
   type OrganisationGeneralSettings,
+  type SalaryCalculationBasis,
   type WellbeingRegularity,
 } from '@/features/settings/types'
 import {
@@ -40,6 +41,7 @@ type EmployeeDraft = {
   allowWeekendDaysInHoliday: boolean
   mandateComplianceForNewEmployees: boolean
   defaultHolidaysUnit: HolidayUnit
+  salaryCalculationBasis: SalaryCalculationBasis
   recruitmentFunctionalityRequired: boolean
   complianceRequiredBy: ComplianceRequiredBy
   complianceApprovalForNewEmployee: ComplianceApprovalType
@@ -57,6 +59,7 @@ const EMPLOYEE_DEFAULTS: EmployeeDraft = {
   allowWeekendDaysInHoliday: true,
   mandateComplianceForNewEmployees: false,
   defaultHolidaysUnit: 'DAYS',
+  salaryCalculationBasis: 'MONTHLY',
   recruitmentFunctionalityRequired: true,
   complianceRequiredBy: 'ROLE_WORK_AREA',
   complianceApprovalForNewEmployee: 'MANAGER_APPROVAL',
@@ -75,6 +78,7 @@ function toEmployeeDraft(s: OrganisationGeneralSettings): EmployeeDraft {
     allowWeekendDaysInHoliday: s.allowWeekendDaysInHoliday,
     mandateComplianceForNewEmployees: s.mandateComplianceForNewEmployees,
     defaultHolidaysUnit: s.defaultHolidaysUnit,
+    salaryCalculationBasis: s.salaryCalculationBasis ?? 'MONTHLY',
     recruitmentFunctionalityRequired: s.recruitmentFunctionalityRequired,
     complianceRequiredBy: s.complianceRequiredBy,
     complianceApprovalForNewEmployee: s.complianceApprovalForNewEmployee,
@@ -205,6 +209,33 @@ export function GeneralSettingsEmployeePanel() {
                 disabled={!canUpdate}
               />
             </SettingsRow>
+            <div className="space-y-2">
+              <p className="text-sm text-foreground">Salary calculation basis</p>
+              <p className="text-xs text-muted-foreground">
+                Controls how employee salary periods are shown (visit pay, fines, and penalties).
+                Default is monthly.
+              </p>
+              <RadioGroup
+                value={draft.salaryCalculationBasis}
+                onValueChange={v =>
+                  setDraft(d => ({
+                    ...d,
+                    salaryCalculationBasis: v as SalaryCalculationBasis,
+                  }))
+                }
+                disabled={!canUpdate}
+                className="space-y-2"
+              >
+                <label className="flex cursor-pointer items-center gap-2">
+                  <RadioGroupItem value="MONTHLY" />
+                  <span className="text-sm">Monthly</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <RadioGroupItem value="WEEKLY" />
+                  <span className="text-sm">Weekly</span>
+                </label>
+              </RadioGroup>
+            </div>
           </GeneralSettingsCard>
 
           <GeneralSettingsCard title="Recruitment and Compliance Settings">
