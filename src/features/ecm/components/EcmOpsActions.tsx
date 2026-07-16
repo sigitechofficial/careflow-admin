@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { Textarea } from '@/shared/ui/textarea'
+import { Textarea } from '@/shared/ui/form-field'
 import {
   Select,
   SelectContent,
@@ -132,7 +132,7 @@ export function EcmManualAttendanceDialog({
           </label>
           <Textarea
             value={note}
-            onChange={e => setNote(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNote(e.target.value)}
             placeholder="Supporting note"
             className="min-h-[70px]"
           />
@@ -270,7 +270,7 @@ export function EcmNotificationEvidenceForm({ jobId }: { jobId: string }) {
           />
           <Textarea
             value={notes}
-            onChange={e => setNotes(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
             placeholder="Notes / proof reference"
             className="min-h-[60px]"
           />

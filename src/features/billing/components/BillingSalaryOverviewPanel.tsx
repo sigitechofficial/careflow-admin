@@ -33,7 +33,10 @@ function currentUtcWeek(): string {
 }
 
 function shiftMonth(month: string, delta: number): string {
-  const [y, m] = month.split('-').map(Number)
+  const [yRaw, mRaw] = month.split('-')
+  const y = Number(yRaw)
+  const m = Number(mRaw)
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return month
   const d = new Date(Date.UTC(y, m - 1 + delta, 1))
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
 }
@@ -59,8 +62,10 @@ function shiftWeek(period: string, delta: number): string {
 }
 
 function utcMonthLabel(month: string): string {
-  const [y, m] = month.split('-').map(Number)
-  if (!y || !m) return month
+  const [yRaw, mRaw] = month.split('-')
+  const y = Number(yRaw)
+  const m = Number(mRaw)
+  if (!Number.isFinite(y) || !Number.isFinite(m) || y < 1 || m < 1) return month
   return new Intl.DateTimeFormat('en-GB', {
     month: 'long',
     year: 'numeric',
@@ -82,7 +87,12 @@ function utcWeekLabel(period: string): string {
 }
 
 function monthDateRange(month: string): { dateFrom: string; dateTo: string } {
-  const [y, m] = month.split('-').map(Number)
+  const [yRaw, mRaw] = month.split('-')
+  const y = Number(yRaw)
+  const m = Number(mRaw)
+  if (!Number.isFinite(y) || !Number.isFinite(m)) {
+    return { dateFrom: month, dateTo: month }
+  }
   const from = new Date(Date.UTC(y, m - 1, 1))
   const to = new Date(Date.UTC(y, m, 0))
   return {

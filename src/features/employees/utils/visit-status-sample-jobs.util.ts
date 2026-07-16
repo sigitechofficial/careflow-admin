@@ -346,7 +346,7 @@ export function buildVisitStatusSampleJobs(month: string, employeeId: string): T
             label: round.name,
             linkedCarePlanFormIds: [] as string[],
             timeCritical: def.timeCritical ?? false,
-            timeToleranceMinutes: def.timeCritical ? 5 : null,
+            timeToleranceMinutes: def.timeCritical ? 5 : undefined,
           }
 
     const job: TimelineJob = {

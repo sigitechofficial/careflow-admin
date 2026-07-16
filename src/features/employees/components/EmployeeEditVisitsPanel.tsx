@@ -50,8 +50,10 @@ type CodeFilter =
   | { kind: 'duration'; code: string }
 
 function utcMonthLabel(month: string): string {
-  const [y, m] = month.split('-').map(Number)
-  if (!y || !m) return month
+  const [yRaw, mRaw] = month.split('-')
+  const y = Number(yRaw)
+  const m = Number(mRaw)
+  if (!Number.isFinite(y) || !Number.isFinite(m) || y < 1 || m < 1) return month
   return new Intl.DateTimeFormat('en-GB', {
     month: 'long',
     year: 'numeric',
@@ -60,7 +62,10 @@ function utcMonthLabel(month: string): string {
 }
 
 function shiftMonth(month: string, delta: number): string {
-  const [y, m] = month.split('-').map(Number)
+  const [yRaw, mRaw] = month.split('-')
+  const y = Number(yRaw)
+  const m = Number(mRaw)
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return month
   const d = new Date(Date.UTC(y, m - 1 + delta, 1))
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
