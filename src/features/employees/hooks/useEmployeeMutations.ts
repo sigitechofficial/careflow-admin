@@ -258,6 +258,8 @@ export function useCreateEmployeeHoliday(employeeId: string) {
     mutationFn: (body: CreateEmployeeHolidayPayload) => createEmployeeHoliday(employeeId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.holidays(employeeId) })
+      // Holiday bookings sync a linked record into the UKVI absence tracker.
+      void qc.invalidateQueries({ queryKey: [...employeeKeys.all(), 'absences'] })
     },
   })
 }
@@ -274,6 +276,7 @@ export function useUpdateEmployeeHoliday(employeeId: string) {
     }) => updateEmployeeHoliday(employeeId, holidayId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.holidays(employeeId) })
+      void qc.invalidateQueries({ queryKey: [...employeeKeys.all(), 'absences'] })
     },
   })
 }
@@ -284,6 +287,7 @@ export function useDeleteEmployeeHoliday(employeeId: string) {
     mutationFn: (holidayId: string) => deleteEmployeeHoliday(employeeId, holidayId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.holidays(employeeId) })
+      void qc.invalidateQueries({ queryKey: [...employeeKeys.all(), 'absences'] })
     },
   })
 }

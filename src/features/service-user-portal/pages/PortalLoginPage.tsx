@@ -36,7 +36,7 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
+    <div className="flex h-full min-h-0 items-center justify-center overflow-y-auto bg-muted/30 px-4">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
         <h1 className="text-lg font-semibold text-foreground">Service user sign in</h1>
         <p className="mt-1 text-sm text-muted-foreground">

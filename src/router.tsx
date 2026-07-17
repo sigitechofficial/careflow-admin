@@ -124,6 +124,8 @@ import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 // ΓöÇΓöÇ Calendar + employee misc ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import CalendarPage from '@/features/service-users/calendar/pages/CalendarPage'
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
+import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
+import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
 import {
   CARE_PATHWAY_TAB_IDS,
@@ -193,6 +195,8 @@ const pageTitles: Record<string, string> = {
   '/scheduling/bulk-generate-rota': 'Bulk Generate Rota',
   '/employee': 'Employee',
   '/employee/staff-list': 'Employee',
+  '/employee/hours': 'Employee hours',
+  '/employee/absences': 'Absence tracker',
   '/employee/compliance': 'Employee',
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
@@ -336,7 +340,7 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
   const employeeManagementWide =
-    /^\/employee(?:\/(?:staff-list|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
+    /^\/employee(?:\/(?:staff-list|hours|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
       pathname,
     )
   const contentLayout = fullBleed ? 'full' : employeeManagementWide ? 'wide' : 'default'
@@ -1010,6 +1014,20 @@ const employeeStaffListRoute = createRoute({
   component: () => <EmployeeRouteWrapper tab="staff-list" />,
 })
 
+const employeeHoursRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/hours',
+  beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
+  component: EmployeeHoursPage,
+})
+
+const employeeAbsencesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/employee/absences',
+  beforeLoad: requireAnyPermission('employees.read', 'employees.reports.read'),
+  component: EmployeeAbsencesPage,
+})
+
 const employeeComplianceRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/compliance',
@@ -1465,6 +1483,8 @@ const routeTree = rootRoute.addChildren([
     schedulingTemplatesRoute,
     employeeRoute,
     employeeStaffListRoute,
+    employeeHoursRoute,
+    employeeAbsencesRoute,
     employeeComplianceRoute,
     employeeReviewStatusRoute,
     employeeSkillsRoute,

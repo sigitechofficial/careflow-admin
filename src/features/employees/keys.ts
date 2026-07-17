@@ -65,6 +65,18 @@ export const employeeKeys = {
   /** Weekly working patterns for one employee. */
   workingPatterns: (id: string) => [...employeeKeys.detail(id), 'working-patterns'] as const,
 
+  /** Organisation weekly hours overview. */
+  hoursWeekly: (params?: Record<string, string | boolean | undefined>) =>
+    [...employeeKeys.all(), 'hours-weekly', params ?? {}] as const,
+
+  /** Organisation monthly sponsor-compliance hours report. */
+  hoursMonthly: (params?: Record<string, string | boolean | undefined>) =>
+    [...employeeKeys.all(), 'hours-monthly', params ?? {}] as const,
+
+  /** UKVI-aware absence tracker records. */
+  absences: (params?: Record<string, string | boolean | undefined>) =>
+    [...employeeKeys.all(), 'absences', params ?? {}] as const,
+
   /** Compliance checklist for one employee. */
   complianceChecklist: (id: string, ensure: boolean) =>
     [...employeeKeys.detail(id), 'compliance-checklist', { ensure }] as const,

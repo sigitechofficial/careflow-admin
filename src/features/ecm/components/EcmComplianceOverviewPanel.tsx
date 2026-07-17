@@ -523,7 +523,7 @@ export function EcmComplianceOverviewPanel({
                       <LabelList
                         dataKey="rate"
                         position="top"
-                        formatter={(v: number | string) => {
+                        formatter={(v: unknown) => {
                           const n = typeof v === 'number' ? v : Number(v)
                           return Number.isFinite(n) ? `${n.toFixed(1)}%` : ''
                         }}

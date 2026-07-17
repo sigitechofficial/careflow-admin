@@ -168,7 +168,7 @@ export function countGeofenceBreaches(report: EcmDailyOpsReport): number {
 }
 
 export function shiftIsoDate(iso: string, deltaDays: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
+  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number)
   const dt = new Date(Date.UTC(y, m - 1, d + deltaDays))
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
 }
@@ -180,7 +180,7 @@ export function lastNDatesInclusive(endIso: string, n: number): string[] {
 }
 
 export function formatTrendDayLabel(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
+  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number)
   const dt = new Date(Date.UTC(y, m - 1, d))
   return new Intl.DateTimeFormat('en-GB', {
     weekday: 'short',

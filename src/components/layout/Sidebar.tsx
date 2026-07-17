@@ -37,6 +37,7 @@ import {
   MapPin,
   Route,
   CalendarClock,
+  Clock,
   Globe,
   PoundSterling,
   Receipt,
@@ -46,6 +47,7 @@ import {
   CircleDollarSign,
   Radio,
   FileBarChart2,
+  CalendarOff,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -218,6 +220,20 @@ const navItems: NavItem[] = [
     href: '/employee',
     children: [
       { label: 'All Employee', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
+      {
+        label: 'Employee hours',
+        icon: <Clock className="h-4 w-4" />,
+        href: '/employee/hours',
+        anyPermission: ['employees.read', 'employees.reports.read'],
+        navTestId: 'nav-employee-hours',
+      },
+      {
+        label: 'Absence tracker',
+        icon: <CalendarOff className="h-4 w-4" />,
+        href: '/employee/absences',
+        anyPermission: ['employees.read', 'employees.reports.read'],
+        navTestId: 'nav-employee-absences',
+      },
       { label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read' },
       { label: 'General Employee Documents', icon: <FileText className="h-4 w-4" />, href: '/employee/documents', permission: 'employees.documents.read', navTestId: 'nav-employee-documents' },
       { label: 'Send Message', icon: <PlusCircle className="h-4 w-4" />, href: '/in-progress', ready: false },

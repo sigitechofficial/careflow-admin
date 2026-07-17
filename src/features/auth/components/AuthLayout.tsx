@@ -4,7 +4,7 @@ import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
 
 export function AuthLayout() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 md:p-8">
+    <div className="flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto bg-muted/40 p-4 md:p-8">
       <CompanyBrandingPublicBootstrap />
       <div className="mb-8">
         <CompanyBrandMark />
