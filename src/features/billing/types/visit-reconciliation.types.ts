@@ -14,6 +14,25 @@ export type FinanceExceptionCode =
   | 'PO_EXPIRED'
   | 'PO_MISSING'
 
+/** Must match backend `BLOCKING_EXCEPTION_CODES` — blocks approve unless managerOverride. */
+export const BLOCKING_EXCEPTION_CODES = new Set<FinanceExceptionCode>([
+  'MISSING_CHECK_IN',
+  'MISSING_CHECK_OUT',
+  'PAY_CARD_MISSING',
+  'CHARGE_CARD_MISSING',
+  'RATE_MISSING',
+  'FUNDING_SETUP_INCOMPLETE',
+  'PO_EXPIRED',
+  'PO_MISSING',
+  'TASKS_INCOMPLETE',
+])
+
+export function listBlockingExceptionCodes(
+  codes: FinanceExceptionCode[],
+): FinanceExceptionCode[] {
+  return [...new Set(codes.filter(c => BLOCKING_EXCEPTION_CODES.has(c)))]
+}
+
 export type VisitOverrunDecision = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export type VisitReconciliationRow = {

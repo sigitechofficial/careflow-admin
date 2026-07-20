@@ -15,7 +15,10 @@ import {
   useVisitReconciliations,
 } from '@/features/billing/hooks/useVisitReconciliations'
 import { useAuthStore } from '@/features/auth/store'
-import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
+import {
+  listBlockingExceptionCodes,
+  type VisitReconciliationRow,
+} from '@/features/billing/types/visit-reconciliation.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { listServiceUsers } from '@/features/service-users/api'
 import { listAllEmployees } from '@/features/employees/api'
@@ -387,6 +390,8 @@ export function BillingVisitReconciliationPanel({
             <tbody>
               {rows.map(row => {
                 const needsManager = row.status === 'REQUIRES_MANAGER_APPROVAL'
+                const blockingCodes = listBlockingExceptionCodes(row.exceptions)
+                const hasBlocking = blockingCodes.length > 0
                 const pendingOverrun =
                   (row.overrunMinutes ?? 0) > 0 &&
                   (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
@@ -480,13 +485,15 @@ export function BillingVisitReconciliationPanel({
                             size="sm"
                             className="h-8 w-8 p-0"
                             title={
-                              pendingOverrun
-                                ? 'Open Details to approve or reject overrun first'
-                                : needsManager
-                                  ? 'Manager approve'
-                                  : 'Approve for pay and invoice'
+                              hasBlocking
+                                ? `Blocking exceptions must be fixed first: ${blockingCodes.join(', ')}`
+                                : pendingOverrun
+                                  ? 'Open Details to approve or reject overrun first'
+                                  : needsManager
+                                    ? 'Manager approve'
+                                    : 'Approve for pay and invoice'
                             }
-                            disabled={isMutating || locked || pendingOverrun}
+                            disabled={isMutating || locked || pendingOverrun || hasBlocking}
                             onClick={() => void handleApprove(row.id, needsManager)}
                           >
                             <CheckCircle2 className="h-4 w-4 text-success" />
