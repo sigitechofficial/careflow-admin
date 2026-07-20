@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { getEmployeesMonthTimeline } from '@/features/scheduling/api/scheduling.api'
-import { schedulingKeys } from '@/features/scheduling/keys'
+import {
+  getEmployeeVisits,
+  type EmployeeVisitBucket,
+} from '@/features/employees/api/employee-visits.api'
+import { employeeKeys } from '@/features/employees/keys'
 import { jobStatusLabel } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 
-export type EmployeeVisitBucket = 'completed' | 'ongoing' | 'upcoming' | 'other'
+export type { EmployeeVisitBucket }
 
 export function classifyEmployeeVisit(
   job: TimelineJob,
@@ -253,21 +256,25 @@ export function visitDurationVarianceBadgeClass(variance: VisitDurationVariance)
 
 export function useEmployeeVisits(employeeId: string, month: string, enabled = true) {
   return useQuery({
-    queryKey: schedulingKeys.employeesMonth(month, employeeId),
-    queryFn: ({ signal }) =>
-      getEmployeesMonthTimeline(month, { employeeIds: [employeeId], limit: 1 }, { signal }),
+    queryKey: employeeKeys.visits(employeeId, month),
+    queryFn: ({ signal }) => getEmployeeVisits(employeeId, month, { signal }),
     enabled: Boolean(enabled && employeeId && /^\d{4}-\d{2}$/.test(month)),
-    select: data => {
-      const row = data.employees.find(e => e.employee.id === employeeId) ?? data.employees[0]
-      const jobs = (row?.allocations ?? [])
-        .map(a => a.job)
+    select: (data) => {
+      const jobs = data.visits
+        .map((row) => row.job)
         .slice()
         .sort(
           (a, b) =>
             new Date(a.scheduledStartDateTime).getTime() -
             new Date(b.scheduledStartDateTime).getTime(),
         )
-      return { month: data.month, jobs, totalMinutes: row?.totalMinutes ?? 0 }
+      return {
+        month: data.month,
+        jobs,
+        totalMinutes: data.summary.totalPlannedMinutes,
+        summary: data.summary,
+        visits: data.visits,
+      }
     },
   })
 }

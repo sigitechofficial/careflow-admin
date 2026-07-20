@@ -77,6 +77,10 @@ export const employeeKeys = {
   absences: (params?: Record<string, string | boolean | undefined>) =>
     [...employeeKeys.all(), 'absences', params ?? {}] as const,
 
+  /** Monthly allocated visits for the employee edit Visits tab. */
+  visits: (id: string, month: string) =>
+    [...employeeKeys.detail(id), 'visits', month] as const,
+
   /** Compliance checklist for one employee. */
   complianceChecklist: (id: string, ensure: boolean) =>
     [...employeeKeys.detail(id), 'compliance-checklist', { ensure }] as const,

@@ -145,6 +145,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   const settingsQuery = useGeneralSettings(canRead)
   const query = useEmployeeVisits(employeeId, month, canRead)
   const liveJobs = query.data?.jobs ?? []
+  const serverSummary = query.data?.summary
 
   const orgToleranceSettings = React.useMemo(
     () => ({
@@ -187,10 +188,19 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   }, [jobs, orgToleranceSettings])
 
   const counts = React.useMemo(() => {
+    // Prefer server summary for live jobs; recompute when sample visits are mixed in.
+    if (!showStatusSamples && serverSummary) {
+      return {
+        completed: serverSummary.completed,
+        ongoing: serverSummary.ongoing,
+        upcoming: serverSummary.upcoming,
+        other: serverSummary.other,
+      }
+    }
     const next = { completed: 0, ongoing: 0, upcoming: 0, other: 0 }
     for (const row of classified) next[row.bucket] += 1
     return next
-  }, [classified])
+  }, [classified, serverSummary, showStatusSamples])
 
   const visible = React.useMemo(() => {
     return classified.filter((row) => {
@@ -426,7 +436,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
         </div>
       ) : query.isError ? (
         <p className="text-sm text-destructive">
-          Could not load visits for this employee. Check schedule timeline access.
+          Could not load visits for this employee. Check employees or schedule access.
         </p>
       ) : (
         <>

@@ -296,6 +296,37 @@ function deriveVisitPayMethod(rules: PayCardRule[]): VisitPayMethod {
   return 'PRO_RATA_HOURLY'
 }
 
+/**
+ * Visit pay method is inferred from rules on load. Changing the radio must reshape
+ * rules (not only local UI state), or reopen always falls back to pro-rata hourly.
+ */
+function applyVisitPayMethod(rules: PayCardRule[], method: VisitPayMethod): PayCardRule[] {
+  const supplements = rules.filter(isSupplementRule)
+  const fixed = rules.filter(isFixedVisitRule)
+  const hourly = rules.filter(isHourlyPeriodRule)
+  const other = rules.filter(
+    r => !isSupplementRule(r) && !isFixedVisitRule(r) && !isHourlyPeriodRule(r),
+  )
+
+  const ensureFixed = (): PayCardRule[] => {
+    if (fixed.length > 0) return fixed
+    return BILLING_VISIT_DURATION_OPTIONS.map(opt => emptyFixedPayRule(opt.value))
+  }
+
+  const ensureHourly = (): PayCardRule[] => {
+    if (hourly.length > 0) return hourly
+    return [emptyHourlyPayRule('WEEKDAY_DAYTIME')]
+  }
+
+  if (method === 'FIXED_BY_DURATION') {
+    return [...ensureFixed(), ...supplements, ...other]
+  }
+  if (method === 'BOTH') {
+    return [...ensureHourly(), ...ensureFixed(), ...supplements, ...other]
+  }
+  return [...ensureHourly(), ...supplements, ...other]
+}
+
 function ruleTitle(rule: PayCardRule, index: number): string {
   if (rule.label?.trim()) return rule.label.trim()
   const day = formatPayCardRuleDayType(rule.dayType)
@@ -311,7 +342,7 @@ const METHOD_HELP: Record<VisitPayMethod, string> = {
   PRO_RATA_HOURLY:
     'Add an hourly rate for each day/time you need (e.g. Weekday daytime 07:00–19:00). Visits in that window use that £/hr.',
   FIXED_BY_DURATION:
-    'Separate flat amounts for 15 / 30 / 45 / 60-minute visits. You can still add hourly period rates alongside if needed.',
+    'Flat amounts for 15 / 30 / 45 / 60-minute visits. Hourly day/time rates are removed while this method is selected.',
   BOTH:
     'Fixed amounts for visits up to 1 hour, plus hourly rates by day and time for longer visits or banded pay.',
 }
@@ -378,6 +409,22 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       setTravelOpen(true)
     }
   }, [mode, rules])
+
+  // Keep radio in sync when rules are loaded/remounted (source of truth is the rule set).
+  React.useEffect(() => {
+    if (mode !== 'pay') return
+    setVisitPayMethod(deriveVisitPayMethod(rules as PayCardRule[]))
+  }, [mode, rules])
+
+  const onVisitPayMethodChange = (method: VisitPayMethod) => {
+    if (mode !== 'pay' || method === visitPayMethod) return
+    setVisitPayMethod(method)
+    onChange(applyVisitPayMethod(payRules, method))
+    if (method === 'FIXED_BY_DURATION' || method === 'BOTH') {
+      const hadFixed = payRules.some(isFixedVisitRule)
+      if (!hadFixed) flashNewRules(BILLING_VISIT_DURATION_OPTIONS.length)
+    }
+  }
 
   const ruleShellClass = (index: number) =>
     cn(
@@ -1085,7 +1132,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 className="mt-1"
                 name="visitPayMethod"
                 checked={visitPayMethod === opt.value}
-                onChange={() => setVisitPayMethod(opt.value)}
+                onChange={() => onVisitPayMethodChange(opt.value)}
                 disabled={disabled}
               />
               <span className="font-medium">{opt.label}</span>
@@ -1100,8 +1147,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           title="2. Visit & time rates"
           description={
             visitPayMethod === 'FIXED_BY_DURATION'
-              ? 'Add fixed visit amounts and optional hourly rates by day and time.'
-              : 'Each hourly rate is for a specific day and time (e.g. Weekday daytime 07:00–19:00). Add another rate for evening, night, weekend, etc.'
+              ? 'Set a flat £ amount for each visit length. These rates are saved with the card.'
+              : visitPayMethod === 'BOTH'
+                ? 'Fixed rates for short visits, plus hourly rates by day and time for longer or banded pay.'
+                : 'Each hourly rate is for a specific day and time (e.g. Weekday daytime 07:00–19:00). Add another rate for evening, night, weekend, etc.'
           }
           actions={(
             <>
