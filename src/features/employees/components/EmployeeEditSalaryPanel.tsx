@@ -337,7 +337,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
     <div className="space-y-6" data-testid="employee-edit-salary-panel">
       <ContentSectionHeader
         title="Salary"
-        description={`Net ${isWeekly ? 'weekly' : 'monthly'} salary = accepted visit pay − fines − penalties. Edit visit amounts below to adjust salary. Clean visits are accepted by default.`}
+        description={`Net ${isWeekly ? 'weekly' : 'monthly'} salary = completed visit pay − fines − penalties. Visit pay is added when the visit is completed (pay card required). Edit amounts below to adjust.`}
         action={
           <div className="flex flex-wrap gap-2">
             {canManage ? (

@@ -87,7 +87,10 @@ export type ExceptionQueueRow = {
   code: FinanceExceptionCode
   visitRef: string
   reconciliationId: string
+  serviceUserId: string
   serviceUser: string
+  employeeId: string | null
+  scheduledJobId: string | null
   message: string
 }
 

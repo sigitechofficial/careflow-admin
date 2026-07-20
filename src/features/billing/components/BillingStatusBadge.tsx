@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Badge, type BadgeProps } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import type {
@@ -7,6 +8,10 @@ import type {
   RateCardStatus,
   VisitReconciliationStatus,
 } from '@/features/billing/types/billing.types'
+import {
+  resolveFinanceExceptionFix,
+  type FinanceExceptionFixTarget,
+} from '@/features/billing/utils/finance-exception-fix.util'
 
 /** Human-readable label from enum/code or sentence-case text. */
 export function formatBillingLabel(value: string): string {
@@ -136,15 +141,63 @@ export function BillingStatusBadge({ status, className, size = 'md' }: BillingBa
   )
 }
 
-export function BillingExceptionBadge({ code, className }: { code: string; className?: string }) {
-  return (
+export function BillingExceptionBadge({
+  code,
+  className,
+  message,
+  serviceUserId,
+  employeeId,
+  scheduledJobId,
+  fixTarget,
+}: {
+  code: string
+  className?: string
+  /** Optional exception message — improves RATE_MISSING routing. */
+  message?: string | null
+  serviceUserId?: string | null
+  employeeId?: string | null
+  scheduledJobId?: string | null
+  /** Pre-resolved target; wins over code/context resolution. */
+  fixTarget?: FinanceExceptionFixTarget | null
+}) {
+  const resolved =
+    fixTarget === undefined
+      ? resolveFinanceExceptionFix({
+          code,
+          message,
+          serviceUserId,
+          employeeId,
+          scheduledJobId,
+        })
+      : fixTarget
+
+  const badge = (
     <Badge
       variant={variantForStatus(code)}
       size="md"
-      className={cn('whitespace-nowrap font-medium normal-case', className)}
+      className={cn(
+        'whitespace-nowrap font-medium normal-case',
+        resolved ? 'cursor-pointer hover:underline underline-offset-2' : null,
+        className,
+      )}
     >
       {formatBillingLabel(code)}
     </Badge>
+  )
+
+  if (!resolved) return badge
+
+  return (
+    <Link
+      to={resolved.to}
+      params={resolved.params}
+      search={resolved.search}
+      title={resolved.label}
+      className="inline-flex"
+      onClick={e => e.stopPropagation()}
+    >
+      {badge}
+    </Link>
   )
 }
 

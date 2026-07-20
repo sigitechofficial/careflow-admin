@@ -366,7 +366,13 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                         key={`${ex.code}-${ex.message}`}
                         className="flex flex-wrap items-start gap-2 text-sm"
                       >
-                        <BillingExceptionBadge code={ex.code} />
+                        <BillingExceptionBadge
+                          code={ex.code}
+                          message={ex.message}
+                          serviceUserId={row.serviceUserId}
+                          employeeId={row.employeeId}
+                          scheduledJobId={row.scheduledJobId}
+                        />
                         <span className="text-muted-foreground">{ex.message}</span>
                       </li>
                     ))}

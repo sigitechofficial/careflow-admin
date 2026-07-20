@@ -146,7 +146,13 @@ export function BillingDashboardPanel() {
                     exceptionQueue.map(row => (
                       <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                         <td className="px-3 py-2.5">
-                          <BillingExceptionBadge code={row.code} />
+                          <BillingExceptionBadge
+                            code={row.code}
+                            message={row.message}
+                            serviceUserId={row.serviceUserId}
+                            employeeId={row.employeeId}
+                            scheduledJobId={row.scheduledJobId}
+                          />
                         </td>
                         <td className="px-3 py-2.5 font-mono text-xs">{row.visitRef}</td>
                         <td className="px-3 py-2.5">{row.serviceUser}</td>

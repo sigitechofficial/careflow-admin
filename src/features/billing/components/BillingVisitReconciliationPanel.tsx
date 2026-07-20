@@ -459,7 +459,13 @@ export function BillingVisitReconciliationPanel({
                             </span>
                           ) : null}
                           {row.exceptions.map(ex => (
-                            <BillingExceptionBadge key={ex} code={ex} />
+                            <BillingExceptionBadge
+                              key={ex}
+                              code={ex}
+                              serviceUserId={row.serviceUserId}
+                              employeeId={row.employeeId}
+                              scheduledJobId={row.scheduledJobId}
+                            />
                           ))}
                         </div>
                       )}
