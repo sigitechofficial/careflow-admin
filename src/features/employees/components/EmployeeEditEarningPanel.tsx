@@ -94,7 +94,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
     <div className="space-y-6" data-testid="employee-edit-earnings-panel">
       <ContentSectionHeader
         title="Earnings"
-        description="Payroll totals for this carer — paid visits from locked payroll runs, and approved visits still waiting to be paid."
+        description="Payroll totals for this carer — paid visits from locked payroll runs, and visit pay accepted automatically when a visit is completed (while a pay card can price it)."
         action={
           canViewVisits ? (
             <Button variant="outline" size="sm" asChild>
@@ -190,12 +190,12 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
             <StatCard
               title="Remaining"
               value={data.remainingAmount}
-              hint={`${data.remainingVisitCount} approved visit${data.remainingVisitCount === 1 ? '' : 's'} not yet paid`}
+              hint={`${data.remainingVisitCount} completed visit${data.remainingVisitCount === 1 ? '' : 's'} ready for payroll`}
             />
             <StatCard
               title="Pending review"
               value={data.pendingReviewCount}
-              hint="Visits still awaiting pay approval"
+              hint="Visits missing a pay card or pay rates"
             />
           </div>
 
