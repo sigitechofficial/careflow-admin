@@ -235,29 +235,26 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
   const summaryCards = [
     { title: 'Employees', value: String(data?.employeeCount ?? 0), hint: 'Matching current filters' },
     {
-      title: 'Total monthly hours',
-      value: formatHours(data?.totals.totalMonthlyHours),
+      title: 'Hours assigned',
+      value: formatHours(data?.totals.assignedHours ?? 0),
+      hint: 'Scheduled visits this month',
+    },
+    {
+      title: 'Hours worked',
+      value: formatHours(data?.totals.totalMonthlyHours ?? 0),
       hint: `${data?.monthName ?? ''} ${data?.year ?? ''}`,
     },
     {
-      title: 'Sponsored workers',
-      value: String(data?.totals.sponsoredCount ?? 0),
-      hint: 'Skilled / Health and Care visas',
+      title: 'Over assigned',
+      value: formatHours(data?.totals.overAssignedHours ?? 0),
+      hint: `${data?.totals.overAssignedCount ?? 0} employee${
+        (data?.totals.overAssignedCount ?? 0) === 1 ? '' : 's'
+      } above contract/cap for the month`,
     },
     {
-      title: 'SMS reporting required',
-      value: String(data?.totals.smsRequiredCount ?? 0),
-      hint: 'Report via UKVI Sponsor Management System',
-    },
-    {
-      title: 'Reviews completed',
-      value: `${data?.totals.reviewsCompletedCount ?? 0} / ${data?.employeeCount ?? 0}`,
-      hint: `${data?.totals.reviewsPendingCount ?? 0} pending`,
-    },
-    {
-      title: 'Compliance',
+      title: 'Compliance breaches',
       value: String(data?.totals.statusCounts.breach ?? 0),
-      hint: `breaches · ${data?.totals.statusCounts.action_required ?? 0} action required`,
+      hint: `${data?.totals.statusCounts.action_required ?? 0} action required`,
     },
   ]
 
@@ -410,7 +407,7 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {summaryCards.map(card => (
           <ContentCard key={card.title} className="space-y-1 p-4">
             <p className="text-xs font-medium text-muted-foreground">{card.title}</p>

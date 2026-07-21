@@ -125,7 +125,17 @@ export function BillingVisitReconciliationPanel({
   const backfillMutation = useBackfillVisitReconciliations()
   const clearAllMutation = useClearAllVisitReconciliations()
 
-  const rows = query.data?.rows ?? []
+  // Newest entries on top (createdAt), then latest visit date/time.
+  const rows = React.useMemo(() => {
+    const list = query.data?.rows ?? []
+    return [...list].sort((a, b) => {
+      const byCreated = (b.createdAt || '').localeCompare(a.createdAt || '')
+      if (byCreated !== 0) return byCreated
+      const byDate = (b.date || '').localeCompare(a.date || '')
+      if (byDate !== 0) return byDate
+      return (b.plannedArrival || '').localeCompare(a.plannedArrival || '')
+    })
+  }, [query.data?.rows])
   const isMutating =
     approveMutation.isPending ||
     rejectMutation.isPending ||

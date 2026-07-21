@@ -73,6 +73,8 @@ export type VisitReconciliationRow = {
   plannedDeparture?: string
   actualArrival?: string
   actualDeparture?: string
+  /** ISO timestamp — used to keep newest list entries on top. */
+  createdAt?: string
 }
 
 export type VisitReconciliationsSummary = {

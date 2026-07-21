@@ -114,6 +114,8 @@ export type EmployeeHoursMonthlyRow = {
   /** Worked hours per week-of-month block (W1 = days 1–7 … W5 = days 29–end). */
   weekHours: number[]
   totalMonthlyHours: number
+  assignedHours: number
+  overAssignedHours: number
   smsReportingRequired: boolean
   smsOverridden: boolean
   reviewCompleted: boolean
@@ -132,6 +134,9 @@ export type EmployeeHoursMonthlySummary = {
   employeeCount: number
   totals: {
     totalMonthlyHours: number
+    assignedHours: number
+    overAssignedHours: number
+    overAssignedCount: number
     smsRequiredCount: number
     reviewsCompletedCount: number
     reviewsPendingCount: number
