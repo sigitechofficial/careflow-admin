@@ -59,7 +59,7 @@ type SortKey =
   | 'assignedHours'
   | 'hoursWorked'
   | 'utilisationPct'
-  | 'hoursOver40'
+  | 'visaType'
   | 'hoursOverCap'
   | 'workedVisits'
 
@@ -103,6 +103,12 @@ function formatHours(n: number | null | undefined): string {
 function formatPct(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '—'
   return `${Math.round(n)}%`
+}
+
+/** Assigned hours beyond contracted weekly hours (0 when within contract or unknown). */
+function hoursOverAssigned(row: EmployeeHoursRow): number {
+  if (row.weeklyHours == null || !Number.isFinite(row.weeklyHours)) return 0
+  return Math.max(0, Math.round((row.assignedHours - row.weeklyHours) * 100) / 100)
 }
 
 function FacetSelect({
@@ -160,7 +166,7 @@ function exportCsv(rows: EmployeeHoursRow[], weekStart: string) {
     'Assigned hours',
     'Hours worked',
     'Utilisation %',
-    'Hours over 40',
+    'Hours over assigned',
     'Hours over cap',
     'Remaining vs contract',
     'Remaining to cap',
@@ -187,7 +193,7 @@ function exportCsv(rows: EmployeeHoursRow[], weekStart: string) {
       r.assignedHours,
       r.hoursWorked,
       r.utilisationPct,
-      r.hoursOver40,
+      hoursOverAssigned(r),
       r.hoursOverCap,
       r.remainingContractHours,
       r.remainingCapHours,
@@ -221,8 +227,8 @@ function sortValue(row: EmployeeHoursRow, key: SortKey): number | string {
       return row.hoursWorked
     case 'utilisationPct':
       return row.utilisationPct ?? -1
-    case 'hoursOver40':
-      return row.hoursOver40
+    case 'visaType':
+      return (row.immigration?.label ?? '').toLowerCase()
     case 'hoursOverCap':
       return row.hoursOverCap
     case 'workedVisits':
@@ -292,7 +298,6 @@ export default function EmployeeHoursPage() {
   const [staffKind, setStaffKind] = React.useState<EmployeeStaffKind>('all')
   const [overContractOnly, setOverContractOnly] = React.useState(false)
   const [overCapOnly, setOverCapOnly] = React.useState(false)
-  const [over40Only, setOver40Only] = React.useState(false)
   const [includeInactive, setIncludeInactive] = React.useState(false)
   const [sortKey, setSortKey] = React.useState<SortKey>('name')
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc')
@@ -312,7 +317,6 @@ export default function EmployeeHoursPage() {
       staffKind: staffKind === 'all' ? undefined : staffKind,
       overContractOnly: overContractOnly || undefined,
       overCapOnly: overCapOnly || undefined,
-      over40Only: over40Only || undefined,
       includeInactive: includeInactive || undefined,
     },
     canRead && view === 'weekly',
@@ -340,8 +344,7 @@ export default function EmployeeHoursPage() {
     Boolean(roleId || jobTitleId || contractTypeId || locationId || visaTypeId) ||
     staffKind !== 'all' ||
     overContractOnly ||
-    overCapOnly ||
-    over40Only
+    overCapOnly
 
   const clearFilters = () => {
     setHourBand('all')
@@ -354,7 +357,6 @@ export default function EmployeeHoursPage() {
     setStaffKind('all')
     setOverContractOnly(false)
     setOverCapOnly(false)
-    setOver40Only(false)
   }
 
   const handleSort = (key: SortKey) => {
@@ -365,6 +367,33 @@ export default function EmployeeHoursPage() {
       setSortDir(key === 'name' ? 'asc' : 'desc')
     }
   }
+
+  const overAssignedEmployees = React.useMemo(
+    () =>
+      rows
+        .map(r => {
+          const overHours = hoursOverAssigned(r)
+          if (overHours <= 0 || r.weeklyHours == null) return null
+          return {
+            employeeId: r.employeeId,
+            employeeName: r.employeeName,
+            contractedHours: r.weeklyHours,
+            assignedHours: r.assignedHours,
+            overHours,
+          }
+        })
+        .filter((r): r is NonNullable<typeof r> => r != null),
+    [rows],
+  )
+
+  const overAssignedCount = overAssignedEmployees.length
+  const overAssignedHoursTotal = React.useMemo(
+    () =>
+      Math.round(
+        overAssignedEmployees.reduce((sum, r) => sum + r.overHours, 0) * 100,
+      ) / 100,
+    [overAssignedEmployees],
+  )
 
   if (!canRead) {
     return (
@@ -397,9 +426,9 @@ export default function EmployeeHoursPage() {
       hint: 'Worked vs contracted hours',
     },
     {
-      title: 'Hours over 40',
-      value: formatHours(data?.totals.hoursOver40),
-      hint: `${data?.totals.over40Count ?? 0} employees above 40h`,
+      title: 'Over assigned',
+      value: formatHours(overAssignedHoursTotal),
+      hint: `${overAssignedCount} employee${overAssignedCount === 1 ? '' : 's'} assigned above contract`,
     },
     {
       title: 'Hours over cap',
@@ -648,14 +677,6 @@ export default function EmployeeHoursPage() {
           <label className="flex items-center gap-1.5">
             <input
               type="checkbox"
-              checked={over40Only}
-              onChange={e => setOver40Only(e.target.checked)}
-            />
-            40h+ only
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
               checked={includeInactive}
               onChange={e => setIncludeInactive(e.target.checked)}
             />
@@ -675,7 +696,11 @@ export default function EmployeeHoursPage() {
         ))}
       </div>
 
-      <EmployeeHoursGuideAccordion view="weekly" />
+      <EmployeeHoursGuideAccordion
+        view="weekly"
+        overHoursEmployees={overAssignedEmployees}
+        employeeCount={data?.employeeCount ?? rows.length}
+      />
 
       <ContentCard className="overflow-hidden p-0">
         {query.isLoading ? (
@@ -738,11 +763,12 @@ export default function EmployeeHoursPage() {
                     onSort={handleSort}
                   />
                   <SortableTh
-                    label="Over 40"
-                    sortKey="hoursOver40"
+                    label="Visa type"
+                    sortKey="visaType"
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    align="left"
                   />
                   <SortableTh
                     label="Over cap"
@@ -767,10 +793,14 @@ export default function EmployeeHoursPage() {
               <tbody>
                 {rows.map(row => {
                   const expanded = expandedId === row.employeeId
+                  const overAssigned = hoursOverAssigned(row)
                   return (
                     <React.Fragment key={row.employeeId}>
                       <tr
-                        className="border-b border-border last:border-0 hover:bg-muted/20"
+                        className={cn(
+                          'border-b border-border last:border-0 hover:bg-muted/20',
+                          overAssigned > 0 && 'bg-warning/5',
+                        )}
                         data-testid={`employee-hours-row-${row.employeeId}`}
                       >
                         <td className="px-2 py-2.5 align-top">
@@ -834,13 +864,27 @@ export default function EmployeeHoursPage() {
                                 </Badge>
                               ) : null}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              {row.immigration?.label ?? ''}
-                            </span>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">
-                          {formatHours(row.assignedHours)}
+                        <td
+                          className={cn(
+                            'px-3 py-2.5 text-right tabular-nums',
+                            overAssigned > 0 && 'font-semibold text-amber-800 dark:text-amber-300',
+                          )}
+                        >
+                          <div className="inline-flex flex-col items-end gap-1">
+                            <span>{formatHours(row.assignedHours)}</span>
+                            {overAssigned > 0 ? (
+                              <Badge
+                                variant="solid-warning"
+                                size="sm"
+                                className="whitespace-nowrap"
+                                title={`Assigned ${formatHours(row.assignedHours)} vs contracted ${formatHours(row.weeklyHours)}`}
+                              >
+                                +{formatHours(overAssigned)} over
+                              </Badge>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums font-medium">
                           {formatHours(row.hoursWorked)}
@@ -863,13 +907,15 @@ export default function EmployeeHoursPage() {
                             </span>
                           </div>
                         </td>
-                        <td
-                          className={cn(
-                            'px-3 py-2.5 text-right tabular-nums',
-                            row.hoursOver40 > 0 && 'font-semibold text-warning',
-                          )}
-                        >
-                          {row.hoursOver40 > 0 ? formatHours(row.hoursOver40) : '—'}
+                        <td className="px-3 py-2.5 text-left">
+                          <span className="text-sm text-foreground">
+                            {row.immigration?.label ?? '—'}
+                          </span>
+                          {row.immigration?.capHours != null ? (
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              Cap {formatHours(row.immigration.capHours)}
+                            </span>
+                          ) : null}
                         </td>
                         <td
                           className={cn(
@@ -939,6 +985,10 @@ export default function EmployeeHoursPage() {
                                       : '—',
                                   ],
                                   ['Remaining vs contract', formatHours(row.remainingContractHours)],
+                                  [
+                                    'Over assigned vs contract',
+                                    overAssigned > 0 ? `+${formatHours(overAssigned)}` : '—',
+                                  ],
                                   ['Remaining to cap', formatHours(row.remainingCapHours)],
                                   ['Start date', row.startDate ?? '—'],
                                   [

@@ -291,8 +291,9 @@ function isSupplementRule(rule: PayCardRule): boolean {
 function deriveVisitPayMethod(rules: PayCardRule[]): VisitPayMethod {
   const hasFixed = rules.some(isFixedVisitRule)
   const hasHourly = rules.some(isHourlyPeriodRule)
-  if (hasFixed && hasHourly) return 'BOTH'
-  if (hasFixed) return 'FIXED_BY_DURATION'
+  // Fixed-only cards open as Both so fixed slots stay editable (Fixed-only radio is hidden).
+  if (hasFixed) return 'BOTH'
+  if (hasHourly) return 'PRO_RATA_HOURLY'
   return 'PRO_RATA_HOURLY'
 }
 
@@ -1111,11 +1112,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     <div className="space-y-6">
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-foreground">1. Visit pay method</h4>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2">
           {(
             [
               { value: 'PRO_RATA_HOURLY' as const, label: 'Pro-rata hourly' },
-              { value: 'FIXED_BY_DURATION' as const, label: 'Fixed by visit length' },
               { value: 'BOTH' as const, label: 'Both (fixed + hourly)' },
             ]
           ).map(opt => (

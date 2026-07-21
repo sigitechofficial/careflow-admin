@@ -77,6 +77,26 @@ function formatHours(n: number | null | undefined): string {
   return n.toFixed(n % 1 === 0 ? 0 : 2)
 }
 
+/** Excess hours across week blocks vs CoS / effective weekly cap. */
+function monthlyOverHours(row: EmployeeHoursMonthlyRow): {
+  capHours: number
+  peakWeekHours: number
+  overHours: number
+} | null {
+  const cap = row.effectiveCapHours ?? row.cosWeeklyHours
+  if (cap == null || !Number.isFinite(cap) || cap <= 0) return null
+  let overHours = 0
+  let peakWeekHours = 0
+  for (const week of row.weekHours) {
+    const h = Number(week) || 0
+    peakWeekHours = Math.max(peakWeekHours, h)
+    overHours += Math.max(0, h - cap)
+  }
+  overHours = Math.round(overHours * 100) / 100
+  if (overHours <= 0) return null
+  return { capHours: cap, peakWeekHours, overHours }
+}
+
 function csvEscape(value: string | number | boolean | null | undefined): string {
   const s = value == null ? '' : String(value)
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
@@ -166,6 +186,24 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
 
   const data = query.data
   const rows = data?.rows ?? []
+
+  const overHoursEmployees = React.useMemo(
+    () =>
+      rows
+        .map(row => {
+          const over = monthlyOverHours(row)
+          if (!over) return null
+          return {
+            employeeId: row.employeeId,
+            employeeName: row.fullName,
+            contractedHours: over.capHours,
+            assignedHours: over.peakWeekHours,
+            overHours: over.overHours,
+          }
+        })
+        .filter((r): r is NonNullable<typeof r> => r != null),
+    [rows],
+  )
 
   const openEdit = (row: EmployeeHoursMonthlyRow) => {
     setEditing(row)
@@ -382,7 +420,11 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
         ))}
       </div>
 
-      <EmployeeHoursGuideAccordion view="monthly" />
+      <EmployeeHoursGuideAccordion
+        view="monthly"
+        overHoursEmployees={overHoursEmployees}
+        employeeCount={data?.employeeCount ?? rows.length}
+      />
 
       <ContentCard className="overflow-hidden p-0">
         {query.isLoading ? (
