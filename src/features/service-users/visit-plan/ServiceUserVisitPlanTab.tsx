@@ -859,7 +859,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                       </TableHead>
                     ))}
                     <TableHead variant="data" className="pl-2">Start</TableHead>
-                    <TableHead variant="data" className="pl-2">Duration</TableHead>
+                    <TableHead variant="data" className="pl-2">Duration (mins)</TableHead>
                     <TableHead variant="data" className="pl-2">End</TableHead>
                     <TableHead variant="data" className="pl-2">Carers</TableHead>
                     <TableHead variant="data">Care plans</TableHead>

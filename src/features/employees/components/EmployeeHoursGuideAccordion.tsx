@@ -36,12 +36,12 @@ function OverHoursProgressPanel({
   const sharePct = Math.min(100, Math.round((overCount / denom) * 100))
   const sorted = [...employees].sort((a, b) => b.overHours - a.overHours)
 
-  const baselineLabel = view === 'monthly' ? 'Weekly cap' : 'Contracted'
+  const baselineLabel = view === 'monthly' ? 'Weekly cap' : 'Baseline'
   const loadLabel = view === 'monthly' ? 'Peak week' : 'Assigned'
   const emptyMessage =
     view === 'monthly'
       ? 'No employees exceeded their weekly cap this month.'
-      : 'No employees are over assigned this week.'
+      : 'No employees are assigned above contract or weekly cap this week.'
 
   return (
     <div className="space-y-3 px-4 py-3" data-testid="employee-hours-guide-over-hours">
@@ -118,7 +118,7 @@ export function EmployeeHoursGuideAccordion({
   const description =
     view === 'monthly'
       ? 'Employees whose week-block hours exceeded their CoS / effective weekly cap this month.'
-      : 'Employees whose assigned hours exceed contracted weekly hours this week.'
+      : 'Employees whose assigned hours exceed contracted weekly hours or the effective weekly cap.'
 
   return (
     <ContentCard className="p-0" data-testid="employee-hours-guide">

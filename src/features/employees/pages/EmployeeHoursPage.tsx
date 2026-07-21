@@ -111,6 +111,12 @@ function hoursOverAssigned(row: EmployeeHoursRow): number {
   return Math.max(0, Math.round((row.assignedHours - row.weeklyHours) * 100) / 100)
 }
 
+/** Assigned hours beyond the effective weekly cap (0 when within cap or unknown). */
+function hoursOverAssignedCap(row: EmployeeHoursRow): number {
+  if (row.effectiveCapHours == null || !Number.isFinite(row.effectiveCapHours)) return 0
+  return Math.max(0, Math.round((row.assignedHours - row.effectiveCapHours) * 100) / 100)
+}
+
 function FacetSelect({
   label,
   value,
@@ -167,6 +173,7 @@ function exportCsv(rows: EmployeeHoursRow[], weekStart: string) {
     'Hours worked',
     'Utilisation %',
     'Hours over assigned',
+    'Hours over assigned cap',
     'Hours over cap',
     'Remaining vs contract',
     'Remaining to cap',
@@ -194,6 +201,7 @@ function exportCsv(rows: EmployeeHoursRow[], weekStart: string) {
       r.hoursWorked,
       r.utilisationPct,
       hoursOverAssigned(r),
+      hoursOverAssignedCap(r),
       r.hoursOverCap,
       r.remainingContractHours,
       r.remainingCapHours,
@@ -372,12 +380,18 @@ export default function EmployeeHoursPage() {
     () =>
       rows
         .map(r => {
-          const overHours = hoursOverAssigned(r)
-          if (overHours <= 0 || r.weeklyHours == null) return null
+          const overContract = hoursOverAssigned(r)
+          const overCap = hoursOverAssignedCap(r)
+          const overHours = Math.max(overContract, overCap)
+          if (overHours <= 0) return null
+          const baseline =
+            overCap > 0 && (overContract <= 0 || overCap >= overContract)
+              ? (r.effectiveCapHours as number)
+              : (r.weeklyHours as number)
           return {
             employeeId: r.employeeId,
             employeeName: r.employeeName,
-            contractedHours: r.weeklyHours,
+            contractedHours: baseline,
             assignedHours: r.assignedHours,
             overHours,
           }
@@ -428,7 +442,7 @@ export default function EmployeeHoursPage() {
     {
       title: 'Over assigned',
       value: formatHours(overAssignedHoursTotal),
-      hint: `${overAssignedCount} employee${overAssignedCount === 1 ? '' : 's'} assigned above contract`,
+      hint: `${overAssignedCount} employee${overAssignedCount === 1 ? '' : 's'} assigned above contract or weekly cap`,
     },
     {
       title: 'Hours over cap',
@@ -794,12 +808,14 @@ export default function EmployeeHoursPage() {
                 {rows.map(row => {
                   const expanded = expandedId === row.employeeId
                   const overAssigned = hoursOverAssigned(row)
+                  const overAssignedCap = hoursOverAssignedCap(row)
+                  const hasOverAssigned = overAssigned > 0 || overAssignedCap > 0
                   return (
                     <React.Fragment key={row.employeeId}>
                       <tr
                         className={cn(
                           'border-b border-border last:border-0 hover:bg-muted/20',
-                          overAssigned > 0 && 'bg-warning/5',
+                          hasOverAssigned && 'bg-warning/5',
                         )}
                         data-testid={`employee-hours-row-${row.employeeId}`}
                       >
@@ -869,7 +885,7 @@ export default function EmployeeHoursPage() {
                         <td
                           className={cn(
                             'px-3 py-2.5 text-right tabular-nums',
-                            overAssigned > 0 && 'font-semibold text-amber-800 dark:text-amber-300',
+                            hasOverAssigned && 'font-semibold text-amber-800 dark:text-amber-300',
                           )}
                         >
                           <div className="inline-flex flex-col items-end gap-1">
@@ -881,7 +897,17 @@ export default function EmployeeHoursPage() {
                                 className="whitespace-nowrap"
                                 title={`Assigned ${formatHours(row.assignedHours)} vs contracted ${formatHours(row.weeklyHours)}`}
                               >
-                                +{formatHours(overAssigned)} over
+                                +{formatHours(overAssigned)} over contract
+                              </Badge>
+                            ) : null}
+                            {overAssignedCap > 0 ? (
+                              <Badge
+                                variant="solid-destructive"
+                                size="sm"
+                                className="whitespace-nowrap"
+                                title={`Assigned ${formatHours(row.assignedHours)} vs weekly cap ${formatHours(row.effectiveCapHours)}`}
+                              >
+                                +{formatHours(overAssignedCap)} over cap
                               </Badge>
                             ) : null}
                           </div>
@@ -988,6 +1014,10 @@ export default function EmployeeHoursPage() {
                                   [
                                     'Over assigned vs contract',
                                     overAssigned > 0 ? `+${formatHours(overAssigned)}` : '—',
+                                  ],
+                                  [
+                                    'Over assigned vs weekly cap',
+                                    overAssignedCap > 0 ? `+${formatHours(overAssignedCap)}` : '—',
                                   ],
                                   ['Remaining to cap', formatHours(row.remainingCapHours)],
                                   ['Start date', row.startDate ?? '—'],
