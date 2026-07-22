@@ -105,6 +105,12 @@ import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
+import PayrollOverviewPage from '@/features/payroll/pages/PayrollOverviewPage'
+import PayrollTaxYearsPage from '@/features/payroll/pages/PayrollTaxYearsPage'
+import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
+import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
+import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
+import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
 import {
   BILLING_SECTION_PATHS,
   BILLING_SETUP_TAB_IDS,
@@ -219,7 +225,7 @@ const pageTitles: Record<string, string> = {
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/visit-reconciliation': 'Visit reconciliation',
-  '/billing/payroll-runs': 'Payroll runs',
+  '/billing/payroll-runs': 'Visit pay runs',
   '/billing/salary': 'Salary',
   '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
@@ -228,6 +234,12 @@ const pageTitles: Record<string, string> = {
   '/ecm/live': 'ECM live monitoring',
   '/ecm/graph': 'ECM graphs',
   '/ecm/reports': 'ECM reports',
+  '/payroll': 'UK Payroll',
+  '/payroll/tax-years': 'Tax years',
+  '/payroll/schedules': 'Schedules & periods',
+  '/payroll/employees': 'Employee payroll setup',
+  '/payroll/runs': 'UK payroll runs',
+  '/payroll/runs/$runId': 'UK payroll run',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -1404,6 +1416,52 @@ const ecmReportsRoute = createRoute({
   component: EcmReportsPage,
 })
 
+const payrollOverviewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll',
+  beforeLoad: requireAnyPermission(
+    'payroll.settings.read',
+    'payroll.runs.read',
+    'payroll.employees.read',
+  ),
+  component: PayrollOverviewPage,
+})
+
+const payrollTaxYearsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/tax-years',
+  beforeLoad: requirePermission('payroll.settings.read'),
+  component: PayrollTaxYearsPage,
+})
+
+const payrollSchedulesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/schedules',
+  beforeLoad: requireAnyPermission('payroll.settings.read', 'payroll.periods.read'),
+  component: PayrollSchedulesPage,
+})
+
+const payrollEmployeesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/employees',
+  beforeLoad: requirePermission('payroll.employees.read'),
+  component: PayrollEmployeesPage,
+})
+
+const payrollRunsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/runs',
+  beforeLoad: requirePermission('payroll.runs.read'),
+  component: UkPayrollRunsPage,
+})
+
+const payrollRunDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/runs/$runId',
+  beforeLoad: requirePermission('payroll.runs.read'),
+  component: UkPayrollRunDetailPage,
+})
+
 const carePathwayRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings/care-pathway',
@@ -1518,6 +1576,12 @@ const routeTree = rootRoute.addChildren([
     ecmLiveRoute,
     ecmGraphRoute,
     ecmReportsRoute,
+    payrollOverviewRoute,
+    payrollTaxYearsRoute,
+    payrollSchedulesRoute,
+    payrollEmployeesRoute,
+    payrollRunsRoute,
+    payrollRunDetailRoute,
   ]),
 ])
 

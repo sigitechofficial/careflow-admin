@@ -174,6 +174,17 @@ const ECM_ALL: Permission[] = [
   'ecm.settings.manage',
 ]
 
+const PAYROLL_ALL: Permission[] = [
+  'payroll.settings.read',
+  'payroll.settings.manage',
+  'payroll.employees.read',
+  'payroll.employees.manage',
+  'payroll.periods.read',
+  'payroll.periods.manage',
+  'payroll.runs.read',
+  'payroll.runs.manage',
+]
+
 const ECM_COORDINATOR: Permission[] = [
   'ecm.read',
   'ecm.monitor',
@@ -221,6 +232,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'job_allocations.confirm',
     ...BILLING_ALL,
     ...ECM_ALL,
+    ...PAYROLL_ALL,
   ],
   admin: [
     'users.read',
@@ -255,6 +267,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'job_allocations.confirm',
     ...BILLING_ALL,
     ...ECM_ALL,
+    ...PAYROLL_ALL,
   ],
   manager: [
     'users.read',
@@ -355,6 +368,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'service_users.lookups.read',
     ...NOTIFICATION_INAPP,
     ...ECM_ALL,
+    ...PAYROLL_ALL,
   ],
   staff: [
     'schedule.read',

@@ -205,6 +205,14 @@ export type Permission =
   | 'ecm.attendance.amend'
   | 'ecm.reports.export'
   | 'ecm.settings.manage'
+  | 'payroll.settings.read'
+  | 'payroll.settings.manage'
+  | 'payroll.employees.read'
+  | 'payroll.employees.manage'
+  | 'payroll.periods.read'
+  | 'payroll.periods.manage'
+  | 'payroll.runs.read'
+  | 'payroll.runs.manage'
 
 export interface AuthUser {
   id: string

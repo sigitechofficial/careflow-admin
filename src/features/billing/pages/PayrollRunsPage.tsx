@@ -4,8 +4,8 @@ import { BillingPayrollRunsPanel } from '@/features/billing/components/BillingPa
 export default function PayrollRunsPage() {
   return (
     <BillingSectionLayout
-      title="Payroll runs"
-      description="Create and process carer payroll for a billing period — calculate, review, approve, lock, and export."
+      title="Visit pay runs"
+      description="Create and process carer visit pay for a billing period — calculate, review, approve, lock, and export. Separate from UK Payroll (PAYE)."
       testId="billing-payroll-runs-page"
     >
       <BillingPayrollRunsPanel />

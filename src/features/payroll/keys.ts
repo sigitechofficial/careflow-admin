@@ -1,0 +1,13 @@
+export const payrollKeys = {
+  all: ['payroll'] as const,
+  overview: () => [...payrollKeys.all, 'overview'] as const,
+  taxYears: () => [...payrollKeys.all, 'tax-years'] as const,
+  schedules: () => [...payrollKeys.all, 'schedules'] as const,
+  periods: (params?: { scheduleId?: string; taxYearId?: string }) =>
+    [...payrollKeys.all, 'periods', params ?? {}] as const,
+  employees: () => [...payrollKeys.all, 'employees'] as const,
+  profile: (employeeId: string) => [...payrollKeys.all, 'profile', employeeId] as const,
+  agreements: (employeeId: string) => [...payrollKeys.all, 'agreements', employeeId] as const,
+  runs: () => [...payrollKeys.all, 'runs'] as const,
+  run: (id: string) => [...payrollKeys.all, 'run', id] as const,
+}

@@ -48,6 +48,7 @@ import {
   Radio,
   FileBarChart2,
   CalendarOff,
+  Landmark,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -300,7 +301,7 @@ const navItems: NavItem[] = [
         navTestId: 'nav-billing-reconciliation',
       },
       {
-        label: 'Payroll runs',
+        label: 'Visit pay runs',
         icon: <Wallet className="h-4 w-4" />,
         href: '/billing/payroll-runs',
         permission: 'billing.payroll_runs.read',
@@ -332,6 +333,52 @@ const navItems: NavItem[] = [
         icon: <ScrollText className="h-4 w-4" />,
         href: '/billing/audit-export',
         navTestId: 'nav-billing-audit-export',
+      },
+    ],
+  },
+  {
+    label: 'UK Payroll',
+    icon: <Landmark className="h-5 w-5" />,
+    href: '/payroll',
+    children: [
+      {
+        label: 'Overview',
+        icon: <LayoutGrid className="h-4 w-4" />,
+        href: '/payroll',
+        anyPermission: [
+          'payroll.settings.read',
+          'payroll.runs.read',
+          'payroll.employees.read',
+        ],
+        navTestId: 'nav-payroll-overview',
+      },
+      {
+        label: 'Tax years',
+        icon: <CalendarDays className="h-4 w-4" />,
+        href: '/payroll/tax-years',
+        permission: 'payroll.settings.read',
+        navTestId: 'nav-payroll-tax-years',
+      },
+      {
+        label: 'Schedules & periods',
+        icon: <CalendarClock className="h-4 w-4" />,
+        href: '/payroll/schedules',
+        anyPermission: ['payroll.settings.read', 'payroll.periods.read'],
+        navTestId: 'nav-payroll-schedules',
+      },
+      {
+        label: 'Employee setup',
+        icon: <Users className="h-4 w-4" />,
+        href: '/payroll/employees',
+        permission: 'payroll.employees.read',
+        navTestId: 'nav-payroll-employees',
+      },
+      {
+        label: 'UK payroll runs',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/payroll/runs',
+        permission: 'payroll.runs.read',
+        navTestId: 'nav-payroll-runs',
       },
     ],
   },
