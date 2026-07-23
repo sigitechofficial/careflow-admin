@@ -14,6 +14,7 @@ import {
   ExternalLink,
   FileWarning,
   Gauge,
+  Info,
   Loader2,
   Package,
   Search,
@@ -37,7 +38,51 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
+
+const HOURS_METRIC_TOOLTIPS = {
+  serviceUsers: 'Service users matching the current filters for the selected Mon–Sun week.',
+  package:
+    'Weekly funded / planned care allowance. Taken in order from: active visit plan → DOM care contracted hours → funding authorised hours.',
+  assigned:
+    'Hours already on the rota this week — sum of scheduled job durations (excludes cancelled / called-off). This is booked time, not necessarily delivered.',
+  worked:
+    'Hours actually delivered / billable this week from visit reconciliations. Multi-carer visits are counted once.',
+  utilisation:
+    'Assigned hours ÷ package hours for the week. Over 100% means more rota time than the package allows.',
+  overPackage:
+    'Assigned hours minus package hours when assigned is higher — how far over the weekly package the rota is.',
+  overWorked: 'Service users whose worked (billable) hours exceed their weekly package.',
+  missingPackage:
+    'Service users with no visit plan, DOM care, or funding authorised hours set for package calculation.',
+  visits:
+    'Worked (billable) visits / assigned (scheduled) visits for the selected Mon–Sun week.',
+  band: 'Bucket of assigned hours used for filtering (for example 10–20h).',
+} as const
+
+function HoursMetricInfoIcon({ label, tooltip }: { label: string; tooltip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={`About ${label}`}
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-sm text-left text-xs leading-snug">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 const BANDS: { id: ServiceUserHourBand | 'all'; label: string }[] = [
   { id: 'all', label: 'All hours' },
@@ -248,6 +293,7 @@ function SortableTh({
   dir,
   onSort,
   align = 'right',
+  tooltip,
 }: {
   label: string
   sortKey: SortKey
@@ -255,6 +301,7 @@ function SortableTh({
   dir: 'asc' | 'desc'
   onSort: (key: SortKey) => void
   align?: 'left' | 'right'
+  tooltip?: string
 }) {
   const active = activeKey === sortKey
   return (
@@ -264,19 +311,27 @@ function SortableTh({
         align === 'right' ? 'text-right' : 'text-left',
       )}
     >
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
+      <span
         className={cn(
-          'inline-flex items-center gap-1 hover:text-foreground',
-          active && 'text-foreground',
+          'inline-flex items-center gap-1',
+          align === 'right' && 'justify-end',
         )}
       >
-        {label}
-        <span className="text-[10px] leading-none">
-          {active ? (dir === 'asc' ? '▲' : '▼') : ''}
-        </span>
-      </button>
+        <button
+          type="button"
+          onClick={() => onSort(sortKey)}
+          className={cn(
+            'inline-flex items-center gap-1 hover:text-foreground',
+            active && 'text-foreground',
+          )}
+        >
+          {label}
+          <span className="text-[10px] leading-none">
+            {active ? (dir === 'asc' ? '▲' : '▼') : ''}
+          </span>
+        </button>
+        {tooltip ? <HoursMetricInfoIcon label={label} tooltip={tooltip} /> : null}
+      </span>
     </th>
   )
 }
@@ -399,6 +454,7 @@ export default function ServiceUserHoursPage() {
     hint: string
     tone: SummaryTone
     icon: React.ReactNode
+    tooltip?: string
   }> = [
     {
       title: 'Service users',
@@ -406,6 +462,7 @@ export default function ServiceUserHoursPage() {
       hint: 'Matching current filters',
       tone: 'primary',
       icon: <Users className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.serviceUsers,
     },
     {
       title: 'Package hours',
@@ -413,6 +470,7 @@ export default function ServiceUserHoursPage() {
       hint: `Avg ${formatHours(data?.totals.averagePackageHours)} per service user`,
       tone: 'sky',
       icon: <Package className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.package,
     },
     {
       title: 'Assigned hours',
@@ -420,6 +478,7 @@ export default function ServiceUserHoursPage() {
       hint: `${data?.totals.assignedVisits ?? 0} scheduled visits`,
       tone: 'sky',
       icon: <CalendarClock className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.assigned,
     },
     {
       title: 'Hours worked',
@@ -427,6 +486,7 @@ export default function ServiceUserHoursPage() {
       hint: `${data?.totals.workedVisits ?? 0} billable visits`,
       tone: 'emerald',
       icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.worked,
     },
     {
       title: 'Avg assigned utilisation',
@@ -434,6 +494,7 @@ export default function ServiceUserHoursPage() {
       hint: 'Assigned vs package hours',
       tone: 'primary',
       icon: <Gauge className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.utilisation,
     },
     {
       title: 'Over package',
@@ -443,6 +504,7 @@ export default function ServiceUserHoursPage() {
       } assigned above package`,
       tone: 'amber',
       icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.overPackage,
     },
     {
       title: 'Over worked',
@@ -450,6 +512,7 @@ export default function ServiceUserHoursPage() {
       hint: 'Worked above weekly package hours',
       tone: 'rose',
       icon: <Clock className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.overWorked,
     },
     {
       title: 'Missing package',
@@ -457,11 +520,13 @@ export default function ServiceUserHoursPage() {
       hint: 'No visit plan / DOM care / funding hours set',
       tone: 'slate',
       icon: <FileWarning className="h-4 w-4" aria-hidden />,
+      tooltip: HOURS_METRIC_TOOLTIPS.missingPackage,
     },
   ]
 
   return (
-    <div className="flex flex-col gap-4 p-5" data-testid="service-user-hours-page">
+    <TooltipProvider delayDuration={200}>
+      <div className="flex flex-col gap-4 p-5" data-testid="service-user-hours-page">
       <PageHeader
         title="Service User hours"
         description="Weekly package (contracted) hours, assigned scheduled hours, billable hours worked, and over-package alerts."
@@ -669,7 +734,12 @@ export default function ServiceUserHoursPage() {
         {summaryCards.map(card => (
           <ContentCard key={card.title} className="space-y-2 p-4">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
+              <p className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                {card.title}
+                {card.tooltip ? (
+                  <HoursMetricInfoIcon label={card.title} tooltip={card.tooltip} />
+                ) : null}
+              </p>
               <span
                 className={cn(
                   'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
@@ -733,6 +803,7 @@ export default function ServiceUserHoursPage() {
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    tooltip={HOURS_METRIC_TOOLTIPS.package}
                   />
                   <SortableTh
                     label="Assigned"
@@ -740,6 +811,7 @@ export default function ServiceUserHoursPage() {
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    tooltip={HOURS_METRIC_TOOLTIPS.assigned}
                   />
                   <SortableTh
                     label="Worked"
@@ -747,6 +819,7 @@ export default function ServiceUserHoursPage() {
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    tooltip={HOURS_METRIC_TOOLTIPS.worked}
                   />
                   <SortableTh
                     label="Utilisation"
@@ -754,6 +827,7 @@ export default function ServiceUserHoursPage() {
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    tooltip={HOURS_METRIC_TOOLTIPS.utilisation}
                   />
                   <SortableTh
                     label="Over package"
@@ -761,6 +835,7 @@ export default function ServiceUserHoursPage() {
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    tooltip={HOURS_METRIC_TOOLTIPS.overPackage}
                   />
                   <SortableTh
                     label="Visits (week)"
@@ -768,8 +843,14 @@ export default function ServiceUserHoursPage() {
                     activeKey={sortKey}
                     dir={sortDir}
                     onSort={handleSort}
+                    tooltip={HOURS_METRIC_TOOLTIPS.visits}
                   />
-                  <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Band</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      Band
+                      <HoursMetricInfoIcon label="Band" tooltip={HOURS_METRIC_TOOLTIPS.band} />
+                    </span>
+                  </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Action
                   </th>
@@ -1026,5 +1107,6 @@ export default function ServiceUserHoursPage() {
         listWeekWorkedVisits={detailTarget?.workedVisits}
       />
     </div>
+    </TooltipProvider>
   )
 }
