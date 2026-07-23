@@ -64,7 +64,7 @@ export default function PayrollTaxYearsPage() {
               size="sm"
               variant="outline"
               disabled={ensureMut.isPending}
-              onClick={() => ensureMut.mutate()}
+              onClick={() => ensureMut.mutate(undefined)}
             >
               {ensureMut.isPending ? 'Adding…' : 'Add UK tax years'}
             </Button>

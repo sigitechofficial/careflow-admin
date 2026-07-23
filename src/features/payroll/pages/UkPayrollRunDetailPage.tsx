@@ -89,7 +89,7 @@ export default function UkPayrollRunDetailPage() {
               </div>
               {data.statutoryBasis ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Basis: {data.statutoryBasis.replaceAll('_', ' ')}
+                  Basis: {data.statutoryBasis.replace(/_/g, ' ')}
                 </p>
               ) : null}
             </div>
@@ -99,14 +99,14 @@ export default function UkPayrollRunDetailPage() {
                   size="sm"
                   variant="outline"
                   disabled={enrolMut.isPending}
-                  onClick={() => enrolMut.mutate()}
+                  onClick={() => enrolMut.mutate(undefined)}
                 >
                   Enrol ready employees
                 </Button>
                 <Button
                   size="sm"
                   disabled={calculateMut.isPending || data.employeeCount < 1}
-                  onClick={() => calculateMut.mutate()}
+                  onClick={() => calculateMut.mutate(undefined)}
                 >
                   {calculateMut.isPending ? 'Calculating…' : 'Calculate gross'}
                 </Button>
@@ -116,7 +116,7 @@ export default function UkPayrollRunDetailPage() {
                   disabled={
                     statutoryMut.isPending || !canCalcStatutory || data.employeeCount < 1
                   }
-                  onClick={() => statutoryMut.mutate()}
+                  onClick={() => statutoryMut.mutate(undefined)}
                 >
                   {statutoryMut.isPending
                     ? 'Calculating…'
@@ -128,7 +128,7 @@ export default function UkPayrollRunDetailPage() {
                   size="sm"
                   variant="outline"
                   disabled={closeMut.isPending || data.employeeCount < 1}
-                  onClick={() => closeMut.mutate()}
+                  onClick={() => closeMut.mutate(undefined)}
                 >
                   Close run
                 </Button>
@@ -136,7 +136,7 @@ export default function UkPayrollRunDetailPage() {
                   size="sm"
                   variant="destructive"
                   disabled={cancelMut.isPending}
-                  onClick={() => cancelMut.mutate()}
+                  onClick={() => cancelMut.mutate(undefined)}
                 >
                   Cancel
                 </Button>
@@ -147,7 +147,7 @@ export default function UkPayrollRunDetailPage() {
                 <Button
                   size="sm"
                   disabled={calculateMut.isPending || data.employeeCount < 1}
-                  onClick={() => calculateMut.mutate()}
+                  onClick={() => calculateMut.mutate(undefined)}
                 >
                   {calculateMut.isPending ? 'Calculating…' : 'Recalculate gross'}
                 </Button>
@@ -157,7 +157,7 @@ export default function UkPayrollRunDetailPage() {
                   disabled={
                     statutoryMut.isPending || !canCalcStatutory || data.employeeCount < 1
                   }
-                  onClick={() => statutoryMut.mutate()}
+                  onClick={() => statutoryMut.mutate(undefined)}
                 >
                   {statutoryMut.isPending ? 'Calculating…' : 'Recalculate tax & NI'}
                 </Button>
@@ -267,7 +267,7 @@ export default function UkPayrollRunDetailPage() {
                                 {e.inputLines.map((line) => (
                                   <tr key={line.id}>
                                     <td className="py-1 pr-3">
-                                      {line.lineType.replaceAll('_', ' ')}
+                                      {line.lineType.replace(/_/g, ' ')}
                                       {line.isProvisional ? ' · provisional' : ''}
                                     </td>
                                     <td className="py-1 pr-3">{line.description}</td>

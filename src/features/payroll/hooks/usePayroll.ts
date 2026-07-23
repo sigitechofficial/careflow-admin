@@ -47,7 +47,7 @@ export function usePurgeAllPayrollData() {
       await qc.invalidateQueries({ queryKey: payrollKeys.all })
       toastSuccess('All UK payroll data deleted')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -66,7 +66,7 @@ export function useCreatePayrollTaxYear() {
       await qc.invalidateQueries({ queryKey: payrollKeys.all })
       toastSuccess('Tax year created')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -78,7 +78,7 @@ export function useActivatePayrollTaxYear() {
       await qc.invalidateQueries({ queryKey: payrollKeys.all })
       toastSuccess('Tax year activated')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -95,7 +95,7 @@ export function useEnsureUkPayrollTaxYears() {
           : 'UK tax years already up to date',
       )
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -114,7 +114,7 @@ export function useCreatePayrollSchedule() {
       await qc.invalidateQueries({ queryKey: payrollKeys.schedules() })
       toastSuccess('Pay schedule created')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -127,7 +127,7 @@ export function useGeneratePayrollPeriods() {
       await qc.invalidateQueries({ queryKey: payrollKeys.all })
       toastSuccess('Pay periods generated')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -154,7 +154,7 @@ export function useUpsertEmployeePayrollProfile(employeeId: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.employees() })
       toastSuccess('Payroll profile saved')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -167,7 +167,7 @@ export function useCreateEmployeePayAgreement(employeeId: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.employees() })
       toastSuccess('Pay agreement created')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -194,7 +194,7 @@ export function useCreateUkPayrollRun() {
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('UK payroll run created')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -207,7 +207,7 @@ export function useEnrolUkPayrollRun(id: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('Employees enrolled')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -220,7 +220,7 @@ export function useCalculateUkPayrollGross(id: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('Gross pay calculated')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -233,7 +233,7 @@ export function useCalculateUkPayrollStatutory(id: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('Tax & NI calculated (Week 1 / Month 1)')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -246,7 +246,7 @@ export function useCloseUkPayrollRun(id: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('Run closed (shell)')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -259,6 +259,6 @@ export function useCancelUkPayrollRun(id: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('Run cancelled')
     },
-    onError: toastApiError,
+    onError: (error) => toastApiError(error),
   })
 }

@@ -20,7 +20,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'success' | 'warn
 export function PayrollStatusBadge({ status }: { status: string }) {
   return (
     <Badge variant={STATUS_VARIANT[status] ?? 'default'} className="font-normal">
-      {status.replaceAll('_', ' ')}
+      {status.replace(/_/g, ' ')}
     </Badge>
   )
 }

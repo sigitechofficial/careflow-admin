@@ -132,7 +132,7 @@ export default function PayrollSchedulesPage() {
                   <tr key={row.id} className="border-b border-border/70">
                     <td className="py-2.5 pr-3 font-medium">{row.name}</td>
                     <td className="py-2.5 pr-3">{row.code}</td>
-                    <td className="py-2.5 pr-3">{row.frequency.replaceAll('_', ' ')}</td>
+                    <td className="py-2.5 pr-3">{row.frequency.replace(/_/g, ' ')}</td>
                     <td className="py-2.5 pr-3 tabular-nums">{row.anchorDay}</td>
                     <td className="py-2.5">
                       <PayrollStatusBadge status={row.status} />
@@ -214,7 +214,7 @@ export default function PayrollSchedulesPage() {
               >
                 {FREQUENCIES.map((f) => (
                   <option key={f} value={f}>
-                    {f.replaceAll('_', ' ')}
+                    {f.replace(/_/g, ' ')}
                   </option>
                 ))}
               </select>
