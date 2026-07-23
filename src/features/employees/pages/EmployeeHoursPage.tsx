@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  ClipboardList,
   Clock,
   Download,
   ExternalLink,
@@ -32,6 +33,7 @@ import type {
 } from '@/features/employees/api/employee-hours.api'
 import { EmployeeHoursMonthlyPanel } from '@/features/employees/components/EmployeeHoursMonthlyPanel'
 import { EmployeeHoursGuideAccordion } from '@/features/employees/components/EmployeeHoursGuideAccordion'
+import { EmployeeHoursDetailDialog } from '@/features/employees/components/EmployeeHoursDetailDialog'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -331,6 +333,13 @@ export default function EmployeeHoursPage() {
   const [sortKey, setSortKey] = React.useState<SortKey>('name')
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc')
   const [expandedId, setExpandedId] = React.useState<string | null>(null)
+  const [detailTarget, setDetailTarget] = React.useState<{
+    employeeId: string
+    employeeName: string
+    assignedHours: number
+    assignedVisits: number
+    workedVisits: number
+  } | null>(null)
 
   const query = useEmployeeHoursWeeklySummary(
     {
@@ -865,7 +874,7 @@ export default function EmployeeHoursPage() {
                     onSort={handleSort}
                   />
                   <SortableTh
-                    label="Visits"
+                    label="Visits (week)"
                     sortKey="workedVisits"
                     activeKey={sortKey}
                     dir={sortDir}
@@ -1034,17 +1043,37 @@ export default function EmployeeHoursPage() {
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5 text-right">
-                          {canOpenEmployee ? (
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link
-                                to="/employee/$employeeId/edit"
-                                params={{ employeeId: row.employeeId }}
-                              >
-                                Open
-                                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                              </Link>
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setDetailTarget({
+                                  employeeId: row.employeeId,
+                                  employeeName: row.employeeName,
+                                  assignedHours: row.assignedHours,
+                                  assignedVisits: row.assignedVisits,
+                                  workedVisits: row.workedVisits,
+                                })
+                              }
+                              data-testid={`employee-hours-detail-${row.employeeId}`}
+                            >
+                              <ClipboardList className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                              Detail
                             </Button>
-                          ) : null}
+                            {canOpenEmployee ? (
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link
+                                  to="/employee/$employeeId/edit"
+                                  params={{ employeeId: row.employeeId }}
+                                >
+                                  Open
+                                  <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                                </Link>
+                              </Button>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                       {expanded ? (
@@ -1119,6 +1148,21 @@ export default function EmployeeHoursPage() {
       </ContentCard>
         </>
       )}
+
+      <EmployeeHoursDetailDialog
+        open={detailTarget != null}
+        onOpenChange={open => {
+          if (!open) setDetailTarget(null)
+        }}
+        employeeId={detailTarget?.employeeId ?? null}
+        employeeName={detailTarget?.employeeName}
+        initialMonth={(data?.weekStart ?? weekStart).slice(0, 7)}
+        listWeekStart={data?.weekStart ?? weekStart}
+        listWeekEnd={data?.weekEnd}
+        listWeekAssignedHours={detailTarget?.assignedHours}
+        listWeekAssignedVisits={detailTarget?.assignedVisits}
+        listWeekWorkedVisits={detailTarget?.workedVisits}
+      />
     </div>
   )
 }

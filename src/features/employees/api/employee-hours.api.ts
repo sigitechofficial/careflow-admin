@@ -180,6 +180,83 @@ export async function fetchEmployeeHoursMonthlySummary(
   return res.data
 }
 
+export type EmployeeHoursMonthlyDetailWeek = {
+  weekNumber: number
+  weekStart: string
+  weekEnd: string
+  dayFrom: number
+  dayTo: number
+  label: string
+  dayRangeLabel: string
+  partialMonth: boolean
+  weeklyHours: number | null
+  effectiveCapHours: number | null
+  assignedHours: number
+  hoursWorked: number
+  hoursOverContract: number
+  hoursOverCap: number
+  hoursOverAssigned: number
+  assignedUtilisationPct: number | null
+  utilisationPct: number | null
+  assignedVisits: number
+  workedVisits: number
+  dayLabels: string[]
+  dayHours: number[]
+}
+
+export type EmployeeHoursMonthlyDetail = {
+  month: string
+  monthName: string
+  year: number
+  daysInMonth: number
+  weekScheme: string
+  employee: {
+    employeeId: string
+    employeeName: string
+    employeeNumber: string | null
+    isActive: boolean
+    branchName: string | null
+    roleName: string | null
+    jobTitleName: string | null
+  }
+  weeklyHours: number | null
+  effectiveCapHours: number | null
+  immigration: { id: string; label: string; capHours: number } | null
+  expectedContractHours: number | null
+  totals: {
+    assignedHours: number
+    hoursWorked: number
+    hoursOverContract: number
+    hoursOverCap: number
+    hoursOverAssigned: number
+    assignedVisits: number
+    workedVisits: number
+    overContractWeekCount: number
+    overCapWeekCount: number
+    overAssignedWeekCount: number
+    weekCount: number
+  }
+  weeks: EmployeeHoursMonthlyDetailWeek[]
+}
+
+export type EmployeeHoursMonthlyDetailParams = {
+  employeeId: string
+  month?: string
+}
+
+export async function fetchEmployeeHoursMonthlyDetail(
+  params: EmployeeHoursMonthlyDetailParams,
+): Promise<EmployeeHoursMonthlyDetail> {
+  const qs = new URLSearchParams()
+  qs.set('employeeId', params.employeeId)
+  if (params.month) qs.set('month', params.month)
+  const res = await apiJson<ApiEnvelope<EmployeeHoursMonthlyDetail>>(
+    `/employee-hours/monthly-detail?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
 export type UpsertMonthlyReviewBody = {
   employeeId: string
   month: string

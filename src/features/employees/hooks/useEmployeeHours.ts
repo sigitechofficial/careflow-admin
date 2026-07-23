@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  fetchEmployeeHoursMonthlyDetail,
   fetchEmployeeHoursMonthlySummary,
   fetchEmployeeHoursWeeklySummary,
   upsertEmployeeHoursMonthlyReview,
+  type EmployeeHoursMonthlyDetailParams,
   type EmployeeHoursMonthlyParams,
   type EmployeeHoursWeeklyParams,
   type UpsertMonthlyReviewBody,
@@ -29,6 +31,18 @@ export function useEmployeeHoursMonthlySummary(
     queryKey: employeeKeys.hoursMonthly(params),
     queryFn: () => fetchEmployeeHoursMonthlySummary(params),
     enabled,
+    placeholderData: previous => previous,
+  })
+}
+
+export function useEmployeeHoursMonthlyDetail(
+  params: EmployeeHoursMonthlyDetailParams | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: employeeKeys.hoursMonthlyDetail(params ?? undefined),
+    queryFn: () => fetchEmployeeHoursMonthlyDetail(params!),
+    enabled: enabled && params != null && Boolean(params.employeeId),
     placeholderData: previous => previous,
   })
 }

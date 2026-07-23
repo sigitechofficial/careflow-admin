@@ -73,6 +73,10 @@ export const employeeKeys = {
   hoursMonthly: (params?: Record<string, string | boolean | undefined>) =>
     [...employeeKeys.all(), 'hours-monthly', params ?? {}] as const,
 
+  /** Per-employee monthly calendar-week hours detail. */
+  hoursMonthlyDetail: (params?: Record<string, string | undefined>) =>
+    [...employeeKeys.all(), 'hours-monthly-detail', params ?? {}] as const,
+
   /** UKVI-aware absence tracker records. */
   absences: (params?: Record<string, string | boolean | undefined>) =>
     [...employeeKeys.all(), 'absences', params ?? {}] as const,

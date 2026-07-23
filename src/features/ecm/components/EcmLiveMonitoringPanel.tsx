@@ -1,8 +1,27 @@
 import * as React from 'react'
-import { Loader2, RefreshCw, Search } from 'lucide-react'
+import {
+  Activity,
+  AlarmClock,
+  AlertTriangle,
+  CalendarDays,
+  CircleAlert,
+  CircleHelp,
+  Clock,
+  ExternalLink,
+  Hand,
+  ListFilter,
+  Loader2,
+  LogOut,
+  MapPinOff,
+  RefreshCw,
+  Search,
+  Timer,
+  XCircle,
+} from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
+import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 import { useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
@@ -12,21 +31,79 @@ import { EcmExceptionQueuePanel } from '@/features/ecm/components/EcmExceptionQu
 import { EcmHealthBanner } from '@/features/ecm/components/EcmHealthBanner'
 import type { EcmDashboardBucket, EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
 
+const BUCKET_TONE_ICON: Record<'neutral' | 'warn' | 'danger' | 'ok', string> = {
+  neutral: 'bg-muted text-muted-foreground',
+  warn: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+  danger: 'bg-destructive/10 text-destructive',
+  ok: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+}
+
 const BUCKET_META: {
   id: EcmDashboardBucket
   label: string
   tone: 'neutral' | 'warn' | 'danger' | 'ok'
+  icon: React.ReactNode
 }[] = [
-  { id: 'dueNow', label: 'Due now', tone: 'warn' },
-  { id: 'startingSoon', label: 'Starting soon', tone: 'neutral' },
-  { id: 'inProgress', label: 'In progress', tone: 'ok' },
-  { id: 'lateArrival', label: 'Late', tone: 'warn' },
-  { id: 'veryLateArrival', label: 'Very late', tone: 'danger' },
-  { id: 'potentialMissed', label: 'Potential missed', tone: 'warn' },
-  { id: 'confirmedMissed', label: 'Confirmed missed', tone: 'danger' },
-  { id: 'missingCheckout', label: 'Missing checkout', tone: 'warn' },
-  { id: 'outsideGeofence', label: 'Outside geofence', tone: 'warn' },
-  { id: 'manualAttendance', label: 'Manual', tone: 'neutral' },
+  {
+    id: 'dueNow',
+    label: 'Due now',
+    tone: 'warn',
+    icon: <AlarmClock className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'startingSoon',
+    label: 'Starting soon',
+    tone: 'neutral',
+    icon: <Clock className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'inProgress',
+    label: 'In progress',
+    tone: 'ok',
+    icon: <Activity className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'lateArrival',
+    label: 'Late',
+    tone: 'warn',
+    icon: <Timer className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'veryLateArrival',
+    label: 'Very late',
+    tone: 'danger',
+    icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'potentialMissed',
+    label: 'Potential missed',
+    tone: 'warn',
+    icon: <CircleAlert className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'confirmedMissed',
+    label: 'Confirmed missed',
+    tone: 'danger',
+    icon: <XCircle className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'missingCheckout',
+    label: 'Missing checkout',
+    tone: 'warn',
+    icon: <LogOut className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'outsideGeofence',
+    label: 'Outside geofence',
+    tone: 'warn',
+    icon: <MapPinOff className="h-4 w-4" aria-hidden />,
+  },
+  {
+    id: 'manualAttendance',
+    label: 'Manual',
+    tone: 'neutral',
+    icon: <Hand className="h-4 w-4" aria-hidden />,
+  },
 ]
 
 function todayIso(): string {
@@ -129,7 +206,7 @@ function durationVarianceBadgeClass(code: string | null | undefined): string {
 }
 
 function tileClass(tone: 'neutral' | 'warn' | 'danger' | 'ok', active: boolean): string {
-  const base = 'rounded-lg border px-3 py-2 text-left transition-colors'
+  const base = 'rounded-xl border px-3 py-3 text-left transition-colors'
   if (active) {
     if (tone === 'danger') return cn(base, 'border-destructive/40 bg-destructive/10')
     if (tone === 'warn') return cn(base, 'border-orange-500/40 bg-orange-500/10')
@@ -189,78 +266,105 @@ export function EcmLiveMonitoringPanel() {
   return (
     <div className="space-y-4" data-testid="ecm-live-monitoring-panel">
       <EcmHealthBanner />
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="space-y-1 text-xs">
-          <span className="text-muted-foreground">Operational date</span>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="h-9 w-[11rem]"
-          />
-        </label>
-        <label className="relative min-w-[12rem] flex-1 space-y-1 text-xs">
-          <span className="text-muted-foreground">Search</span>
-          <Search className="pointer-events-none absolute bottom-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Service user or job…"
-            className="h-9 pl-8"
-          />
-        </label>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9"
-          disabled={dashboard.isFetching}
-          onClick={() => void dashboard.refetch()}
-        >
-          {dashboard.isFetching ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-          )}
-          Refresh
-        </Button>
-      </div>
+      <ContentCard className="p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="space-y-1 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+              Operational date
+            </span>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-9 w-[11rem]"
+            />
+          </label>
+          <label className="relative min-w-[12rem] flex-1 space-y-1 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <Search className="h-3.5 w-3.5" aria-hidden />
+              Search
+            </span>
+            <Search className="pointer-events-none absolute bottom-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Service user or job…"
+              className="h-9 pl-8"
+            />
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={dashboard.isFetching}
+            onClick={() => void dashboard.refetch()}
+          >
+            {dashboard.isFetching ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+            )}
+            Refresh
+          </Button>
+        </div>
+      </ContentCard>
 
       {dashboard.isLoading ? (
-        <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading live ECM…
+        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
+          <p className="text-sm text-muted-foreground">Loading live ECM…</p>
         </div>
       ) : dashboard.isError ? (
-        <p className="py-8 text-sm text-destructive">
-          Could not load the ECM live dashboard. Check API permissions and that the ECM migration is
-          applied.
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-6 w-6" aria-hidden />
+          </span>
+          <p className="text-sm text-destructive">
+            Could not load the ECM live dashboard. Check API permissions and that the ECM migration is
+            applied.
+          </p>
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {BUCKET_META.map((b) => {
               const value = counts?.[b.id] ?? 0
+              const active = bucketFilter === b.id
               return (
                 <button
                   key={b.id}
                   type="button"
-                  className={tileClass(b.tone, bucketFilter === b.id)}
+                  className={tileClass(b.tone, active)}
                   onClick={() => setBucketFilter((prev) => (prev === b.id ? 'all' : b.id))}
                 >
-                  <p className="text-[11px] text-muted-foreground">{b.label}</p>
-                  <p className="text-lg font-semibold tabular-nums">{value}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] font-medium text-muted-foreground">{b.label}</p>
+                    <span
+                      className={cn(
+                        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                        BUCKET_TONE_ICON[b.tone],
+                      )}
+                    >
+                      {b.icon}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{value}</p>
                 </button>
               )
             })}
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <ListFilter className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {dashboard.data?.counts.total ?? visits.length} visits · refreshed{' '}
             {dashboard.data?.refreshedAt
               ? new Date(dashboard.data.refreshedAt).toLocaleTimeString()
               : '—'}
-            {bucketFilter !== 'all' ? ` · filter: ${bucketFilter}` : ''}
+            {bucketFilter !== 'all'
+              ? ` · filter: ${BUCKET_META.find((b) => b.id === bucketFilter)?.label ?? bucketFilter}`
+              : ''}
             {' · '}
             Auto-refresh every 60s
           </p>
@@ -323,11 +427,18 @@ export function EcmLiveMonitoringPanel() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={19}
-                      className="px-3 py-8 text-center text-muted-foreground"
-                    >
-                      No visits in this view.
+                    <td colSpan={19} className="px-3 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <CircleHelp className="h-6 w-6" aria-hidden />
+                        </span>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-foreground">No visits in this view</p>
+                          <p className="text-xs text-muted-foreground">
+                            Try another date, clear the bucket filter, or refresh.
+                          </p>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -475,6 +586,7 @@ export function EcmLiveMonitoringPanel() {
                             onClick={() => openVisit(row.scheduledJobId)}
                           >
                             Open
+                            <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden />
                           </Button>
                         </td>
                       </tr>
