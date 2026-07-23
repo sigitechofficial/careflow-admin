@@ -121,6 +121,15 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.5' },
         },
+        'assign-pop': {
+          '0%': { transform: 'scale(0.55)', opacity: '0' },
+          '55%': { transform: 'scale(1.12)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'assign-flash': {
+          '0%': { boxShadow: '0 0 0 0 hsl(199 89% 48% / 0.4)' },
+          '100%': { boxShadow: '0 0 0 10px hsl(199 89% 48% / 0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -129,6 +138,8 @@ const config: Config = {
         'fade-in': 'fade-in 0.2s ease-out',
         shimmer: 'shimmer 1.5s infinite',
         'pulse-slow': 'pulse 3s ease-in-out infinite',
+        'assign-pop': 'assign-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
+        'assign-flash': 'assign-flash 0.7s ease-out',
       },
       boxShadow: {
         'card-sm': '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)',

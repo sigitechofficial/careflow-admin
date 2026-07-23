@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
+import { CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import {
   contentBadgeClass,
@@ -118,6 +118,10 @@ type Props = {
   showSkills?: boolean
   /** Hide name and badges when parent already shows carer identity. */
   availabilityOnly?: boolean
+  /** Selected / assigned to this slot — shows a clear Assigned chip. */
+  isAssigned?: boolean
+  /** Brief pop animation when the carer was just selected. */
+  justAssigned?: boolean
 }
 
 export function VisitPlanCarerCandidateDetails({
@@ -126,6 +130,8 @@ export function VisitPlanCarerCandidateDetails({
   blocked,
   showSkills = true,
   availabilityOnly = false,
+  isAssigned = false,
+  justAssigned = false,
 }: Props) {
   const slotDays = [...slotDaysOfWeek].sort((a, b) => a - b)
   const availabilityBreakdown = buildCarerAvailabilityBreakdown(c.availability, slotDays)
@@ -136,6 +142,18 @@ export function VisitPlanCarerCandidateDetails({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={contentTitleClass}>{c.displayName}</span>
+            {isAssigned ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100',
+                  contentTagClass,
+                  justAssigned && 'animate-assign-pop',
+                )}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                Assigned
+              </span>
+            ) : null}
             <span
               className={cn(
                 'rounded-full border px-2 py-0.5',
