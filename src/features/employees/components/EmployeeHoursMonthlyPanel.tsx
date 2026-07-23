@@ -1,12 +1,19 @@
 import * as React from 'react'
 import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarRange,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
   Download,
   ExternalLink,
   Loader2,
   Pencil,
   Search,
+  ShieldAlert,
+  Users,
   X,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -232,17 +239,33 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
     smsOnly ||
     sponsoredOnly
 
-  const summaryCards = [
-    { title: 'Employees', value: String(data?.employeeCount ?? 0), hint: 'Matching current filters' },
+  const summaryCards: Array<{
+    title: string
+    value: string
+    hint: string
+    tone: string
+    icon: React.ReactNode
+  }> = [
+    {
+      title: 'Employees',
+      value: String(data?.employeeCount ?? 0),
+      hint: 'Matching current filters',
+      tone: 'bg-primary/10 text-primary',
+      icon: <Users className="h-4 w-4" aria-hidden />,
+    },
     {
       title: 'Hours assigned',
       value: formatHours(data?.totals.assignedHours ?? 0),
       hint: 'Scheduled visits this month',
+      tone: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+      icon: <CalendarClock className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Hours worked',
       value: formatHours(data?.totals.totalMonthlyHours ?? 0),
       hint: `${data?.monthName ?? ''} ${data?.year ?? ''}`,
+      tone: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+      icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Over assigned',
@@ -250,167 +273,187 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
       hint: `${data?.totals.overAssignedCount ?? 0} employee${
         (data?.totals.overAssignedCount ?? 0) === 1 ? '' : 's'
       } above contract/cap for the month`,
+      tone: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+      icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Compliance breaches',
       value: String(data?.totals.statusCounts.breach ?? 0),
       hint: `${data?.totals.statusCounts.action_required ?? 0} action required`,
+      tone: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+      icon: <ShieldAlert className="h-4 w-4" aria-hidden />,
     },
   ]
 
   return (
     <div className="flex flex-col gap-4" data-testid="employee-hours-monthly">
       {/* Month navigation + search + export */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          aria-label="Previous month"
-          onClick={() => setMonth(m => shiftMonth(m, -1))}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-[10rem] text-center">
-          <p className="text-sm font-semibold text-foreground">
-            {data ? `${data.monthName} ${data.year}` : month}
-          </p>
-          <p className="text-xs text-muted-foreground">Weeks: 1–7 · 8–14 · 15–21 · 22–28 · 29+</p>
-        </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          aria-label="Next month"
-          onClick={() => setMonth(m => shiftMonth(m, 1))}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <input
-          type="month"
-          className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={month}
-          aria-label="Jump to month"
-          onChange={e => {
-            if (/^\d{4}-\d{2}$/.test(e.target.value)) setMonth(e.target.value)
-          }}
-          data-testid="employee-hours-month-picker"
-        />
-        <Button type="button" size="sm" variant="ghost" onClick={() => setMonth(currentMonthKey())}>
-          This month
-        </Button>
-
-        <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            placeholder="Search name, worker or record ID…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            data-testid="employee-hours-monthly-search"
+      <ContentCard className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label="Previous month"
+            onClick={() => setMonth(m => shiftMonth(m, -1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-[10rem] text-center">
+            <p className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-foreground">
+              <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              {data ? `${data.monthName} ${data.year}` : month}
+            </p>
+            <p className="text-xs text-muted-foreground">Weeks: 1–7 · 8–14 · 15–21 · 22–28 · 29+</p>
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label="Next month"
+            onClick={() => setMonth(m => shiftMonth(m, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <input
+            type="month"
+            className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={month}
+            aria-label="Jump to month"
+            onChange={e => {
+              if (/^\d{4}-\d{2}$/.test(e.target.value)) setMonth(e.target.value)
+            }}
+            data-testid="employee-hours-month-picker"
           />
+          <Button type="button" size="sm" variant="ghost" onClick={() => setMonth(currentMonthKey())}>
+            <CalendarRange className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            This month
+          </Button>
+
+          <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Search name, worker or record ID…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              data-testid="employee-hours-monthly-search"
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={rows.length === 0}
+            onClick={() => exportCsv(rows, data?.month ?? month)}
+            data-testid="employee-hours-monthly-export"
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={rows.length === 0}
-          onClick={() => exportCsv(rows, data?.month ?? month)}
-          data-testid="employee-hours-monthly-export"
-        >
-          <Download className="mr-1.5 h-4 w-4" />
-          Export CSV
-        </Button>
-      </div>
+      </ContentCard>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm"
-          value={locationId}
-          onChange={e => setLocationId(e.target.value)}
-          aria-label="Location or branch"
-          data-testid="employee-hours-filter-location"
-        >
-          <option value="">Location / branch: all</option>
-          {(data?.facets.locations ?? []).map(location => (
-            <option key={location.id} value={location.id}>
-              {location.name} ({location.count})
-            </option>
-          ))}
-        </select>
-        <select
-          className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={complianceStatus}
-          onChange={e => setComplianceStatus(e.target.value as EmployeeComplianceStatus | '')}
-          aria-label="Compliance status"
-          data-testid="employee-hours-filter-compliance"
-        >
-          <option value="">Compliance: all</option>
-          <option value="compliant">Compliant</option>
-          <option value="action_required">Action required</option>
-          <option value="breach">Breach</option>
-        </select>
-        <select
-          className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={reviewFilter}
-          onChange={e => setReviewFilter(e.target.value as EmployeeReviewFilter)}
-          aria-label="Monthly review"
-          data-testid="employee-hours-filter-review"
-        >
-          {REVIEW_FILTERS.map(f => (
-            <option key={f.id} value={f.id}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-        <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={sponsoredOnly}
-              onChange={e => setSponsoredOnly(e.target.checked)}
-            />
-            Sponsored only
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={smsOnly} onChange={e => setSmsOnly(e.target.checked)} />
-            SMS required only
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={e => setIncludeInactive(e.target.checked)}
-            />
-            Include inactive
-          </label>
-          {hasFilters ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setSearch('')
-                setLocationId('')
-                setComplianceStatus('')
-                setReviewFilter('all')
-                setSmsOnly(false)
-                setSponsoredOnly(false)
-              }}
-            >
-              <X className="mr-1 h-3.5 w-3.5" />
-              Clear
-            </Button>
-          ) : null}
+      <ContentCard className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm"
+            value={locationId}
+            onChange={e => setLocationId(e.target.value)}
+            aria-label="Location or branch"
+            data-testid="employee-hours-filter-location"
+          >
+            <option value="">Location / branch: all</option>
+            {(data?.facets.locations ?? []).map(location => (
+              <option key={location.id} value={location.id}>
+                {location.name} ({location.count})
+              </option>
+            ))}
+          </select>
+          <select
+            className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={complianceStatus}
+            onChange={e => setComplianceStatus(e.target.value as EmployeeComplianceStatus | '')}
+            aria-label="Compliance status"
+            data-testid="employee-hours-filter-compliance"
+          >
+            <option value="">Compliance: all</option>
+            <option value="compliant">Compliant</option>
+            <option value="action_required">Action required</option>
+            <option value="breach">Breach</option>
+          </select>
+          <select
+            className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={reviewFilter}
+            onChange={e => setReviewFilter(e.target.value as EmployeeReviewFilter)}
+            aria-label="Monthly review"
+            data-testid="employee-hours-filter-review"
+          >
+            {REVIEW_FILTERS.map(f => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={sponsoredOnly}
+                onChange={e => setSponsoredOnly(e.target.checked)}
+              />
+              Sponsored only
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={smsOnly} onChange={e => setSmsOnly(e.target.checked)} />
+              SMS required only
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={includeInactive}
+                onChange={e => setIncludeInactive(e.target.checked)}
+              />
+              Include inactive
+            </label>
+            {hasFilters ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSearch('')
+                  setLocationId('')
+                  setComplianceStatus('')
+                  setReviewFilter('all')
+                  setSmsOnly(false)
+                  setSponsoredOnly(false)
+                }}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                Clear
+              </Button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </ContentCard>
 
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {summaryCards.map(card => (
-          <ContentCard key={card.title} className="space-y-1 p-4">
-            <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
+          <ContentCard key={card.title} className="space-y-2 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
+              <span
+                className={cn(
+                  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                  card.tone,
+                )}
+              >
+                {card.icon}
+              </span>
+            </div>
             <p className="text-xl font-semibold tabular-nums text-foreground">{card.value}</p>
             <p className="text-xs text-muted-foreground">{card.hint}</p>
           </ContentCard>
@@ -432,9 +475,17 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
         ) : query.isError ? (
           <p className="p-4 text-sm text-destructive">Could not load the monthly report.</p>
         ) : rows.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">
-            No employees match the selected month and filters.
-          </p>
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <CircleHelp className="h-6 w-6" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">No matching employees</p>
+              <p className="text-sm text-muted-foreground">
+                Try another month, clear filters, or include inactive employees.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1680px] text-sm">

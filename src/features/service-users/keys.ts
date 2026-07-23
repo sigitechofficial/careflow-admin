@@ -106,4 +106,12 @@ export const serviceUserKeys = {
   /** Care plan + forms. */
   carePlan: (id: string) =>
     [...serviceUserKeys.detail(id), 'care-plan'] as const,
+
+  /** Organisation weekly package / assigned / worked hours overview. */
+  hoursWeekly: (params?: Record<string, string | boolean | undefined>) =>
+    [...serviceUserKeys.all(), 'hours-weekly', params ?? {}] as const,
+
+  /** Per–service-user monthly hours detail (week-by-week). */
+  hoursMonthlyDetail: (params?: Record<string, string | undefined>) =>
+    [...serviceUserKeys.all(), 'hours-monthly-detail', params ?? {}] as const,
 } as const

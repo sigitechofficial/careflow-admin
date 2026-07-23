@@ -71,7 +71,7 @@ export function MultiSelect({
   )
 
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen} modal={false}>
       <PopoverPrimitive.Trigger asChild disabled={disabled}>
         <div
           role="combobox"
@@ -122,13 +122,16 @@ export function MultiSelect({
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           className={cn(
-            "z-50 w-[var(--radix-popover-trigger-width)] max-w-[var(--radix-popover-content-available-width)] rounded-lg border border-border bg-popover shadow-lg",
+            "z-[100] w-[var(--radix-popover-trigger-width)] max-w-[var(--radix-popover-content-available-width)] rounded-lg border border-border bg-popover shadow-lg",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           )}
           align="start"
           sideOffset={4}
+          collisionPadding={8}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
         >
           <div className="border-b border-border p-2">
             <input
@@ -140,7 +143,10 @@ export function MultiSelect({
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto p-1">
+          <div
+            className="max-h-60 overflow-y-auto overscroll-contain p-1"
+            onWheel={(e) => e.stopPropagation()}
+          >
             {filtered.length === 0 ? (
               <div className="py-4 text-center text-sm text-muted-foreground">No options found</div>
             ) : (
@@ -168,6 +174,7 @@ export function MultiSelect({
                 return (
                   <button
                     key={opt.value}
+                    type="button"
                     disabled={opt.disabled || (!selected && !!maxSelected && value.length >= maxSelected)}
                     onClick={() => toggle(opt.value)}
                     className={cn(
@@ -190,6 +197,7 @@ export function MultiSelect({
           {value.length > 0 && (
             <div className="border-t border-border p-2">
               <button
+                type="button"
                 onClick={() => onChange?.([])}
                 className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
               >

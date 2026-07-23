@@ -129,6 +129,7 @@ import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 
 // ΓöÇΓöÇ Calendar + employee misc ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import CalendarPage from '@/features/service-users/calendar/pages/CalendarPage'
+import ServiceUserHoursPage from '@/features/service-users/pages/ServiceUserHoursPage'
 import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
@@ -185,6 +186,7 @@ const pageTitles: Record<string, string> = {
   '/': 'Home',
   '/service-users': 'Service Users',
   '/service-users/all': 'Service Users',
+  '/service-users/hours': 'Service User hours',
   '/service-users/calendar': 'Calendar',
   '/service-users/initial-assessment': 'Initial Assessment',
   // '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
@@ -355,7 +357,9 @@ function AppRootShell() {
     /^\/employee(?:\/(?:staff-list|hours|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
       pathname,
     )
-  const contentLayout = fullBleed ? 'full' : employeeManagementWide ? 'wide' : 'default'
+  const serviceUserHoursWide = pathname === '/service-users/hours'
+  const contentLayout =
+    fullBleed ? 'full' : employeeManagementWide || serviceUserHoursWide ? 'wide' : 'default'
 
   return (
     <>
@@ -569,6 +573,13 @@ const serviceUsersAllRoute = createRoute({
     })
   },
   component: ServiceUsersPage,
+})
+
+const serviceUsersHoursRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/hours',
+  beforeLoad: requirePermission('service_users.read'),
+  component: ServiceUserHoursPage,
 })
 
 const serviceUsersCalendarRoute = createRoute({
@@ -1513,6 +1524,7 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     serviceUsersRoute,
     serviceUsersAllRoute,
+    serviceUsersHoursRoute,
     serviceUsersCalendarRoute,
     serviceUsersInitialAssessmentEnterpriseRoute,
     // serviceUsersInitialAssessmentRoute,

@@ -1,13 +1,23 @@
 import * as React from 'react'
 import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarRange,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
   Clock,
   Download,
   ExternalLink,
+  FileWarning,
+  Gauge,
   Loader2,
+  Package,
   Search,
+  ShieldAlert,
+  Users,
   X,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -62,6 +72,17 @@ type SortKey =
   | 'visaType'
   | 'hoursOverCap'
   | 'workedVisits'
+
+type SummaryTone = 'primary' | 'sky' | 'emerald' | 'amber' | 'rose' | 'slate'
+
+const SUMMARY_TONE_CLASS: Record<SummaryTone, string> = {
+  primary: 'bg-primary/10 text-primary',
+  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+  rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  slate: 'bg-muted text-muted-foreground',
+}
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
@@ -417,42 +438,68 @@ export default function EmployeeHoursPage() {
     )
   }
 
-  const summaryCards = [
-    { title: 'Employees', value: String(data?.employeeCount ?? 0), hint: 'Matching current filters' },
+  const summaryCards: Array<{
+    title: string
+    value: string
+    hint: string
+    tone: SummaryTone
+    icon: React.ReactNode
+  }> = [
+    {
+      title: 'Employees',
+      value: String(data?.employeeCount ?? 0),
+      hint: 'Matching current filters',
+      tone: 'primary',
+      icon: <Users className="h-4 w-4" aria-hidden />,
+    },
     {
       title: 'Contracted hours',
       value: formatHours(data?.totals.contractedHours),
       hint: `Avg ${formatHours(data?.totals.averageWeeklyHours)} per employee`,
+      tone: 'sky',
+      icon: <Package className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Assigned hours',
       value: formatHours(data?.totals.assignedHours),
       hint: `${data?.totals.assignedVisits ?? 0} scheduled visits`,
+      tone: 'sky',
+      icon: <CalendarClock className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Hours worked',
       value: formatHours(data?.totals.hoursWorked),
       hint: `${data?.totals.workedVisits ?? 0} payable visits`,
+      tone: 'emerald',
+      icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Avg utilisation',
       value: formatPct(data?.totals.averageUtilisationPct),
       hint: 'Worked vs contracted hours',
+      tone: 'primary',
+      icon: <Gauge className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Over assigned',
       value: formatHours(overAssignedHoursTotal),
       hint: `${overAssignedCount} employee${overAssignedCount === 1 ? '' : 's'} assigned above contract or weekly cap`,
+      tone: 'amber',
+      icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Hours over cap',
       value: formatHours(data?.totals.hoursOverCap),
       hint: `${data?.totals.overCapCount ?? 0} employees over their weekly cap`,
+      tone: 'rose',
+      icon: <ShieldAlert className="h-4 w-4" aria-hidden />,
     },
     {
       title: 'Over contract',
       value: String(data?.totals.overContractCount ?? 0),
       hint: 'Employees worked above contracted hours',
+      tone: 'slate',
+      icon: <FileWarning className="h-4 w-4" aria-hidden />,
     },
   ]
 
@@ -499,211 +546,229 @@ export default function EmployeeHoursPage() {
       ) : (
         <>
       {/* Week navigation + search + export */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          aria-label="Previous week"
-          onClick={() => setWeekStart(w => shiftWeek(w, -1))}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-[12rem] text-center">
-          <p className="text-sm font-semibold text-foreground">
-            {data ? weekLabel(data.weekStart, data.weekEnd) : 'This week'}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {data ? `${data.weekStart} → ${data.weekEnd}` : weekStart}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          aria-label="Next week"
-          onClick={() => setWeekStart(w => shiftWeek(w, 1))}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <input
-          type="date"
-          className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={weekStart}
-          aria-label="Jump to week containing date"
-          onChange={e => {
-            const parsed = e.target.value ? new Date(`${e.target.value}T00:00:00.000Z`) : null
-            if (parsed && !Number.isNaN(parsed.getTime())) {
-              setWeekStart(toIsoDate(mondayOfIsoWeekContaining(parsed)))
-            }
-          }}
-          data-testid="employee-hours-week-picker"
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => setWeekStart(toIsoDate(mondayOfIsoWeekContaining(new Date())))}
-        >
-          This week
-        </Button>
-
-        <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            placeholder="Search name or employee #…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            data-testid="employee-hours-search"
+      <ContentCard className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label="Previous week"
+            onClick={() => setWeekStart(w => shiftWeek(w, -1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-[12rem] text-center">
+            <p className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-foreground">
+              <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              {data ? weekLabel(data.weekStart, data.weekEnd) : 'This week'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {data ? `${data.weekStart} → ${data.weekEnd}` : weekStart}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label="Next week"
+            onClick={() => setWeekStart(w => shiftWeek(w, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <input
+            type="date"
+            className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={weekStart}
+            aria-label="Jump to week containing date"
+            onChange={e => {
+              const parsed = e.target.value ? new Date(`${e.target.value}T00:00:00.000Z`) : null
+              if (parsed && !Number.isNaN(parsed.getTime())) {
+                setWeekStart(toIsoDate(mondayOfIsoWeekContaining(parsed)))
+              }
+            }}
+            data-testid="employee-hours-week-picker"
           />
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setWeekStart(toIsoDate(mondayOfIsoWeekContaining(new Date())))}
+          >
+            <CalendarRange className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            This week
+          </Button>
+
+          <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Search name or employee #…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              data-testid="employee-hours-search"
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={rows.length === 0}
+            onClick={() => exportCsv(rows, data?.weekStart ?? weekStart)}
+            data-testid="employee-hours-export"
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={rows.length === 0}
-          onClick={() => exportCsv(rows, data?.weekStart ?? weekStart)}
-          data-testid="employee-hours-export"
-        >
-          <Download className="mr-1.5 h-4 w-4" />
-          Export CSV
-        </Button>
-      </div>
+      </ContentCard>
 
       {/* Organisation filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <FacetSelect
-          label="Branch"
-          value={locationId}
-          options={facets?.locations ?? []}
-          onChange={setLocationId}
-          testId="employee-hours-filter-branch"
-        />
-        <FacetSelect
-          label="Role"
-          value={roleId}
-          options={facets?.roles ?? []}
-          onChange={setRoleId}
-          testId="employee-hours-filter-role"
-        />
-        <FacetSelect
-          label="Job title"
-          value={jobTitleId}
-          options={facets?.jobTitles ?? []}
-          onChange={setJobTitleId}
-          testId="employee-hours-filter-job-title"
-        />
-        <FacetSelect
-          label="Contract type"
-          value={contractTypeId}
-          options={facets?.contractTypes ?? []}
-          onChange={setContractTypeId}
-          testId="employee-hours-filter-contract-type"
-        />
-        <FacetSelect
-          label="Immigration"
-          value={visaTypeId}
-          options={facets?.visaTypes ?? []}
-          onChange={setVisaTypeId}
-          testId="employee-hours-filter-immigration"
-        />
-        <select
-          className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={staffKind}
-          onChange={e => setStaffKind(e.target.value as EmployeeStaffKind)}
-          aria-label="Staff kind"
-          data-testid="employee-hours-filter-staff-kind"
-        >
-          {STAFF_KINDS.map(k => (
-            <option key={k.id} value={k.id}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-        {hasSecondaryFilters ? (
-          <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
-            <X className="mr-1 h-3.5 w-3.5" />
-            Clear filters
-          </Button>
-        ) : null}
-      </div>
+      <ContentCard className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <FacetSelect
+            label="Branch"
+            value={locationId}
+            options={facets?.locations ?? []}
+            onChange={setLocationId}
+            testId="employee-hours-filter-branch"
+          />
+          <FacetSelect
+            label="Role"
+            value={roleId}
+            options={facets?.roles ?? []}
+            onChange={setRoleId}
+            testId="employee-hours-filter-role"
+          />
+          <FacetSelect
+            label="Job title"
+            value={jobTitleId}
+            options={facets?.jobTitles ?? []}
+            onChange={setJobTitleId}
+            testId="employee-hours-filter-job-title"
+          />
+          <FacetSelect
+            label="Contract type"
+            value={contractTypeId}
+            options={facets?.contractTypes ?? []}
+            onChange={setContractTypeId}
+            testId="employee-hours-filter-contract-type"
+          />
+          <FacetSelect
+            label="Immigration"
+            value={visaTypeId}
+            options={facets?.visaTypes ?? []}
+            onChange={setVisaTypeId}
+            testId="employee-hours-filter-immigration"
+          />
+          <select
+            className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={staffKind}
+            onChange={e => setStaffKind(e.target.value as EmployeeStaffKind)}
+            aria-label="Staff kind"
+            data-testid="employee-hours-filter-staff-kind"
+          >
+            {STAFF_KINDS.map(k => (
+              <option key={k.id} value={k.id}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+          {hasSecondaryFilters ? (
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              <X className="mr-1 h-3.5 w-3.5" />
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      </ContentCard>
 
       {/* Hour bands + exception toggles */}
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={bandMetric}
-          onChange={e => setBandMetric(e.target.value as EmployeeHourMetric)}
-          data-testid="employee-hours-band-metric"
-        >
-          {METRICS.map(m => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-        {BANDS.map(band => {
-          const count =
-            band.id === 'all'
-              ? Object.values(bandCounts ?? {}).reduce((a, b) => a + b, 0)
-              : (bandCounts?.[band.id] ?? 0)
-          const active = hourBand === band.id
-          return (
-            <Button
-              key={band.id}
-              type="button"
-              size="sm"
-              variant={active ? 'default' : 'outline'}
-              onClick={() => setHourBand(band.id)}
-              data-testid={`employee-hours-band-${band.id}`}
-            >
-              {band.label}
-              <Badge
-                variant="outline"
-                className={cn(
-                  'ml-1.5 tabular-nums',
-                  active ? 'border-primary-foreground/30 bg-primary-foreground/10' : '',
-                )}
+      <ContentCard className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={bandMetric}
+            onChange={e => setBandMetric(e.target.value as EmployeeHourMetric)}
+            data-testid="employee-hours-band-metric"
+          >
+            {METRICS.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          {BANDS.map(band => {
+            const count =
+              band.id === 'all'
+                ? Object.values(bandCounts ?? {}).reduce((a, b) => a + b, 0)
+                : (bandCounts?.[band.id] ?? 0)
+            const active = hourBand === band.id
+            return (
+              <Button
+                key={band.id}
+                type="button"
+                size="sm"
+                variant={active ? 'default' : 'outline'}
+                onClick={() => setHourBand(band.id)}
+                data-testid={`employee-hours-band-${band.id}`}
               >
-                {query.isLoading ? '…' : count}
-              </Badge>
-            </Button>
-          )
-        })}
-        <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={overContractOnly}
-              onChange={e => setOverContractOnly(e.target.checked)}
-            />
-            Over contract
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={overCapOnly}
-              onChange={e => setOverCapOnly(e.target.checked)}
-            />
-            Over cap
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={e => setIncludeInactive(e.target.checked)}
-            />
-            Include inactive
-          </label>
+                {band.label}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'ml-1.5 tabular-nums',
+                    active ? 'border-primary-foreground/30 bg-primary-foreground/10' : '',
+                  )}
+                >
+                  {query.isLoading ? '…' : count}
+                </Badge>
+              </Button>
+            )
+          })}
+          <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={overContractOnly}
+                onChange={e => setOverContractOnly(e.target.checked)}
+              />
+              Over contract
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={overCapOnly}
+                onChange={e => setOverCapOnly(e.target.checked)}
+              />
+              Over cap
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={includeInactive}
+                onChange={e => setIncludeInactive(e.target.checked)}
+              />
+              Include inactive
+            </label>
+          </div>
         </div>
-      </div>
+      </ContentCard>
 
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {summaryCards.map(card => (
-          <ContentCard key={card.title} className="space-y-1 p-4">
-            <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
+          <ContentCard key={card.title} className="space-y-2 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
+              <span
+                className={cn(
+                  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                  SUMMARY_TONE_CLASS[card.tone],
+                )}
+              >
+                {card.icon}
+              </span>
+            </div>
             <p className="text-xl font-semibold tabular-nums text-foreground">{card.value}</p>
             <p className="text-xs text-muted-foreground">{card.hint}</p>
           </ContentCard>
@@ -725,9 +790,17 @@ export default function EmployeeHoursPage() {
         ) : query.isError ? (
           <p className="p-4 text-sm text-destructive">Could not load employee hours.</p>
         ) : rows.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">
-            No employees match the selected week and filters.
-          </p>
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <CircleHelp className="h-6 w-6" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">No matching employees</p>
+              <p className="text-sm text-muted-foreground">
+                Try another week, clear filters, or include inactive employees.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-sm">

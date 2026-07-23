@@ -33,8 +33,10 @@ export type UpsertEmployeePayrollProfileInput = {
   studentLoanPlan1?: boolean
   studentLoanPlan2?: boolean
   studentLoanPlan4?: boolean
+  studentLoanPlan5?: boolean
   postgraduateLoan?: boolean
   pensionOptedIn?: boolean
+  deductionElections?: string[]
   pensionSchemeRef?: string | null
   bankSortCode?: string | null
   bankAccountNumber?: string | null

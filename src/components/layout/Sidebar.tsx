@@ -146,6 +146,13 @@ const navItems: NavItem[] = [
     badge: 12,
     children: [
       { label: 'All Service Users',             icon: <Users className="h-4 w-4" />,         href: '/service-users/all', permission: 'service_users.read', navTestId: 'nav-service-users-all' },
+      {
+        label: 'Service User hours',
+        icon: <Clock className="h-4 w-4" />,
+        href: '/service-users/hours',
+        permission: 'service_users.read',
+        navTestId: 'nav-service-user-hours',
+      },
       { label: 'Calendar',                      icon: <CalendarDays className="h-4 w-4" />,  href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
       {
         label: 'Initial Assessment',

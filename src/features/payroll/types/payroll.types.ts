@@ -83,9 +83,11 @@ export type EmployeePayrollProfile = {
   studentLoanPlan1: boolean
   studentLoanPlan2: boolean
   studentLoanPlan4: boolean
+  studentLoanPlan5: boolean
   postgraduateLoan: boolean
   pensionOptedIn: boolean
   pensionSchemeRef: string | null
+  deductionElections: string[]
   bankSortCode: string | null
   bankAccountNumber: string | null
   bankAccountName: string | null

@@ -67,7 +67,7 @@ export function Combobox({
   }
 
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen} modal={false}>
       <PopoverPrimitive.Trigger asChild>
         <button
           id={id}
@@ -100,13 +100,23 @@ export function Combobox({
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           className={cn(
-            "z-50 w-[var(--radix-popover-trigger-width)] rounded-lg border border-border bg-popover shadow-lg",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+            // Above dialog (z-50); dialog RemoveScroll blocks wheel unless we stopPropagation below.
+            'z-[100] w-[var(--radix-popover-trigger-width)] rounded-lg border border-border bg-popover shadow-lg',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           )}
           align="start"
           sideOffset={4}
+          collisionPadding={8}
+          onOpenAutoFocus={(e) => {
+            // Keep focus on search input without fighting the dialog focus trap.
+            e.preventDefault()
+            const input = (e.currentTarget as HTMLElement | null)?.querySelector('input')
+            input?.focus({ preventScroll: true })
+          }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
         >
           <div className="border-b border-border p-2">
             <div className="relative">
@@ -128,7 +138,11 @@ export function Combobox({
             </div>
           </div>
 
-          <div className="max-h-60 overflow-y-auto p-1" role="listbox">
+          <div
+            className="max-h-60 overflow-y-auto overscroll-contain p-1"
+            role="listbox"
+            onWheel={(e) => e.stopPropagation()}
+          >
             {filtered.length === 0 ? (
               <div className="py-4 text-center text-sm text-muted-foreground">{emptyText}</div>
             ) : (
@@ -141,26 +155,33 @@ export function Combobox({
                   disabled={opt.disabled}
                   onClick={() => {
                     if (allowDeselect && opt.value === value) {
-                      onChange?.("")
+                      onChange?.('')
                     } else {
                       onChange?.(opt.value)
                     }
                     setOpen(false)
-                    setSearch("")
+                    setSearch('')
                   }}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors",
-                    "hover:bg-accent hover:text-accent-foreground",
-                    "disabled:cursor-not-allowed disabled:opacity-50",
-                    opt.value === value && "bg-accent/50"
+                    'flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors',
+                    'hover:bg-accent hover:text-accent-foreground',
+                    'disabled:cursor-not-allowed disabled:opacity-50',
+                    opt.value === value && 'bg-accent/50',
                   )}
                 >
                   {opt.icon && <span className="shrink-0 text-muted-foreground">{opt.icon}</span>}
                   <span className="flex min-w-0 flex-1 flex-col items-start text-left">
                     <span>{opt.label}</span>
-                    {opt.description && <span className="text-xs text-muted-foreground">{opt.description}</span>}
+                    {opt.description && (
+                      <span className="text-xs text-muted-foreground">{opt.description}</span>
+                    )}
                   </span>
-                  <Check className={cn("h-4 w-4 shrink-0 text-primary", opt.value === value ? "opacity-100" : "opacity-0")} />
+                  <Check
+                    className={cn(
+                      'h-4 w-4 shrink-0 text-primary',
+                      opt.value === value ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
                 </button>
               ))
             )}
