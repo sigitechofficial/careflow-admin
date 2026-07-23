@@ -1,12 +1,21 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Trash2 } from 'lucide-react'
+import {
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  Landmark,
+  Trash2,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { usePayrollOverview, usePurgeAllPayrollData } from '@/features/payroll/hooks/usePayroll'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { cn } from '@/shared/lib/utils'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -19,6 +28,23 @@ import {
 
 const CONFIRM_PHRASE = 'DELETE ALL PAYROLL'
 
+type OverviewCard = {
+  label: string
+  hint: string
+  value: number
+  href: string
+  icon: React.ReactNode
+  tone: 'sky' | 'emerald' | 'amber' | 'violet' | 'rose'
+}
+
+const TONE_CLASS: Record<OverviewCard['tone'], string> = {
+  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+  violet: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+}
+
 export default function PayrollOverviewPage() {
   const canManage = useAuthStore((s) => s.can('payroll.settings.manage'))
   const { data, isLoading, isError } = usePayrollOverview()
@@ -26,10 +52,55 @@ export default function PayrollOverviewPage() {
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [confirmText, setConfirmText] = React.useState('')
 
+  const cards: OverviewCard[] = data
+    ? [
+        {
+          label: 'Tax years',
+          hint: 'UK 6 Apr – 5 Apr windows & rates',
+          value: data.taxYearCount,
+          href: PAYROLL_PATHS.taxYears,
+          icon: <CalendarDays className="h-5 w-5" aria-hidden />,
+          tone: 'sky',
+        },
+        {
+          label: 'Pay schedules',
+          hint: 'Weekly / monthly pay calendars',
+          value: data.scheduleCount,
+          href: PAYROLL_PATHS.schedules,
+          icon: <CalendarClock className="h-5 w-5" aria-hidden />,
+          tone: 'emerald',
+        },
+        {
+          label: 'Pay periods',
+          hint: 'Generated periods for runs',
+          value: data.periodCount,
+          href: PAYROLL_PATHS.schedules,
+          icon: <CalendarClock className="h-5 w-5" aria-hidden />,
+          tone: 'amber',
+        },
+        {
+          label: 'Ready employees',
+          hint: 'Profiles ready to enrol',
+          value: data.readyEmployeeProfiles,
+          href: PAYROLL_PATHS.employees,
+          icon: <Users className="h-5 w-5" aria-hidden />,
+          tone: 'violet',
+        },
+        {
+          label: 'Open UK runs',
+          hint: 'Gross, tax & NI in progress',
+          value: data.openRuns,
+          href: PAYROLL_PATHS.runs,
+          icon: <Wallet className="h-5 w-5" aria-hidden />,
+          tone: 'rose',
+        },
+      ]
+    : []
+
   return (
     <PayrollSectionLayout
       title="Overview"
-      description="Native UK payroll foundation — tax years, schedules, employee setup, and run shells. Separate from Billing visit-pay."
+      description="Native UK payroll — tax years, schedules, employee setup, gross pay, and PAYE / NI. Separate from Billing visit-pay."
       testId="payroll-overview-page"
     >
       {isLoading ? (
@@ -39,7 +110,15 @@ export default function PayrollOverviewPage() {
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-sm text-muted-foreground">{data.phaseNote}</p>
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Landmark className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">UK Payroll hub</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{data.phaseNote}</p>
+              </div>
+            </div>
             {canManage ? (
               <Button
                 size="sm"
@@ -56,44 +135,114 @@ export default function PayrollOverviewPage() {
             ) : null}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { label: 'Tax years', value: data.taxYearCount, href: PAYROLL_PATHS.taxYears },
-              { label: 'Pay schedules', value: data.scheduleCount, href: PAYROLL_PATHS.schedules },
-              { label: 'Pay periods', value: data.periodCount, href: PAYROLL_PATHS.schedules },
-              {
-                label: 'Ready employee profiles',
-                value: data.readyEmployeeProfiles,
-                href: PAYROLL_PATHS.employees,
-              },
-              { label: 'Open UK runs', value: data.openRuns, href: PAYROLL_PATHS.runs },
-            ].map((card) => (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {cards.map((card) => (
               <Link
                 key={card.label}
                 to={card.href}
-                className="rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40"
+                className="group rounded-xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/30"
               >
-                <div className="text-2xl font-semibold tabular-nums">{card.value}</div>
-                <div className="mt-1 text-sm text-muted-foreground">{card.label}</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div
+                    className={cn(
+                      'flex h-10 w-10 items-center justify-center rounded-lg',
+                      TONE_CLASS[card.tone],
+                    )}
+                  >
+                    {card.icon}
+                  </div>
+                  <ArrowRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                    aria-hidden
+                  />
+                </div>
+                <div className="mt-4 text-2xl font-semibold tabular-nums tracking-tight">
+                  {card.value}
+                </div>
+                <div className="mt-1 text-sm font-medium text-foreground">{card.label}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{card.hint}</div>
               </Link>
             ))}
           </div>
-          {data.currentTaxYear ? (
-            <p className="text-sm">
-              Current tax year:{' '}
-              <span className="font-medium">
-                {data.currentTaxYear.label} ({data.currentTaxYear.startDate} –{' '}
-                {data.currentTaxYear.endDate})
-              </span>
-            </p>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-muted-foreground">No current tax year is active yet.</p>
-              <Button asChild size="sm" variant="outline">
-                <Link to={PAYROLL_PATHS.taxYears}>Set up tax years</Link>
-              </Button>
+
+          <div className="rounded-xl border border-border bg-muted/20 p-4">
+            {data.currentTaxYear ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                  <CalendarDays className="h-4 w-4" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Current tax year</p>
+                  <p className="text-sm text-muted-foreground">
+                    {data.currentTaxYear.label} ({data.currentTaxYear.startDate} –{' '}
+                    {data.currentTaxYear.endDate})
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link to={PAYROLL_PATHS.taxYears}>
+                    Manage
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                  <CalendarDays className="h-4 w-4" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">No current tax year active</p>
+                  <p className="text-sm text-muted-foreground">
+                    Add UK tax years, then activate the current year before creating runs.
+                  </p>
+                </div>
+                <Button asChild size="sm">
+                  <Link to={PAYROLL_PATHS.taxYears}>
+                    Set up tax years
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-3 text-sm font-medium text-foreground">Quick links</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  href: PAYROLL_PATHS.taxYears,
+                  label: 'Tax years',
+                  icon: <CalendarDays className="h-4 w-4" aria-hidden />,
+                },
+                {
+                  href: PAYROLL_PATHS.schedules,
+                  label: 'Schedules & periods',
+                  icon: <CalendarClock className="h-4 w-4" aria-hidden />,
+                },
+                {
+                  href: PAYROLL_PATHS.employees,
+                  label: 'Employee setup',
+                  icon: <Users className="h-4 w-4" aria-hidden />,
+                },
+                {
+                  href: PAYROLL_PATHS.runs,
+                  label: 'UK payroll runs',
+                  icon: <Wallet className="h-4 w-4" aria-hidden />,
+                },
+              ].map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-muted/40"
+                >
+                  <span className="text-muted-foreground">{item.icon}</span>
+                  <span className="font-medium">{item.label}</span>
+                  <ArrowRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                </Link>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       )}
 

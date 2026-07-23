@@ -26,7 +26,11 @@ export function PayrollSectionLayout({ title, description, testId, children }: P
         className="shrink-0"
         title={title}
         description={description}
-        icon={<Landmark className="h-4 w-4 text-muted-foreground" aria-hidden />}
+        icon={
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Landmark className="h-4 w-4" aria-hidden />
+          </span>
+        }
         breadcrumb={[
           { label: 'Home', href: '/' },
           { label: 'UK Payroll', href: PAYROLL_PATHS.overview },
@@ -45,18 +49,17 @@ export function PayrollSectionLayout({ title, description, testId, children }: P
       <Dialog open={guidanceOpen} onOpenChange={setGuidanceOpen}>
         <DialogContent size="md">
           <DialogHeader>
-            <DialogTitle>UK Payroll — Phase 1</DialogTitle>
+            <DialogTitle>UK Payroll guidance</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3 text-sm text-muted-foreground">
             <p>
-              This module is the foundation for native UK PAYE payroll. It is separate from Billing
-              visit-pay runs under{' '}
-              <span className="font-medium text-foreground">Billing → Payroll runs</span>.
+              Native UK payroll is separate from{' '}
+              <span className="font-medium text-foreground">Billing → Visit pay runs</span>. Visit
+              pay feeds gross; this module calculates PAYE Income Tax and employee Class 1 NI.
             </p>
             <p>
-              Phase 1 covers tax years, pay schedules, periods, employee payroll setup,
-              effective-dated pay agreements, and a payroll-run shell. It does not calculate Income
-              Tax, National Insurance, pensions, or submit FPS/EPS to HMRC.
+              Typical flow: tax years → schedules & periods → employee setup (tax code + NI) → UK
+              payroll run → Calculate gross → Calculate tax & NI → Close.
             </p>
           </DialogBody>
         </DialogContent>

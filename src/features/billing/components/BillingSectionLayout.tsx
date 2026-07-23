@@ -8,9 +8,11 @@ type Props = {
   description: string
   testId: string
   children: React.ReactNode
+  /** Optional header icon; defaults to PoundSterling in a tinted well. */
+  icon?: React.ReactNode
 }
 
-export function BillingSectionLayout({ title, description, testId, children }: Props) {
+export function BillingSectionLayout({ title, description, testId, children, icon }: Props) {
   const [guidanceOpen, setGuidanceOpen] = React.useState(false)
 
   return (
@@ -19,7 +21,13 @@ export function BillingSectionLayout({ title, description, testId, children }: P
         className="shrink-0"
         title={title}
         description={description}
-        icon={<PoundSterling className="h-4 w-4 text-muted-foreground" aria-hidden />}
+        icon={
+          icon ?? (
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <PoundSterling className="h-4 w-4" aria-hidden />
+            </span>
+          )
+        }
         breadcrumb={[
           { label: 'Home', href: '/' },
           { label: 'Billing', href: '/billing' },

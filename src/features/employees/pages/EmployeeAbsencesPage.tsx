@@ -1,12 +1,19 @@
 import * as React from 'react'
 import {
+  AlertTriangle,
+  CalendarDays,
   CalendarOff,
+  ClipboardList,
   Download,
+  FileWarning,
   Loader2,
   Pencil,
   Plus,
   Search,
+  ShieldAlert,
+  Thermometer,
   Trash2,
+  Users,
   X,
 } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
@@ -214,31 +221,47 @@ export default function EmployeeAbsencesPage() {
   }
 
   const summaryCards = [
-    { title: 'Records', value: String(data?.recordCount ?? 0), hint: 'Matching current filters' },
+    {
+      title: 'Records',
+      value: String(data?.recordCount ?? 0),
+      hint: 'Matching current filters',
+      icon: <ClipboardList className="h-4 w-4" aria-hidden />,
+      tone: 'sky' as const,
+    },
     {
       title: 'Total days',
       value: String(data?.totals.durationDays ?? 0),
       hint: `${data?.totals.durationHours ?? 0}h total duration`,
+      icon: <CalendarDays className="h-4 w-4" aria-hidden />,
+      tone: 'violet' as const,
     },
     {
       title: 'Sickness',
       value: String(data?.totals.sicknessCount ?? 0),
       hint: `${data?.totals.lastMinuteCount ?? 0} last-minute`,
+      icon: <Thermometer className="h-4 w-4" aria-hidden />,
+      tone: 'amber' as const,
     },
     {
       title: 'Unauthorised',
       value: String(data?.totals.unauthorisedCount ?? 0),
       hint: 'Absence permission status',
+      icon: <FileWarning className="h-4 w-4" aria-hidden />,
+      tone: 'rose' as const,
     },
     {
       title: 'UKVI SMS triggers',
       value: String(data?.totals.smsTriggerCount ?? 0),
       hint: 'Sponsor reporting required',
+      icon: <ShieldAlert className="h-4 w-4" aria-hidden />,
+      tone: 'rose' as const,
     },
     {
       title: 'Sponsored workers',
       value: String(data?.totals.sponsoredCount ?? 0),
       hint: 'Rows for UKVI sponsored staff',
+      icon: <Users className="h-4 w-4" aria-hidden />,
+      tone: 'emerald' as const,
     },
   ]
 
@@ -247,13 +270,37 @@ export default function EmployeeAbsencesPage() {
       <PageHeader
         title="Absence tracker"
         description="UKVI-aware absence records — durations, evidence, sponsor (SMS) reporting triggers and review actions."
-        icon={<CalendarOff className="h-4 w-4 text-muted-foreground" aria-hidden />}
+        icon={
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
+            <CalendarOff className="h-4 w-4" aria-hidden />
+          </span>
+        }
         breadcrumb={[
           { label: 'Home', href: '/' },
           { label: 'Employee', href: '/employee/staff-list' },
           { label: 'Absences' },
         ]}
       />
+
+      <div className="flex flex-wrap items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300">
+          <CalendarOff className="h-5 w-5" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">Absence & UKVI oversight</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Track sickness and leave, evidence, permission status, and sponsor SMS reporting
+            deadlines in one place.
+          </p>
+        </div>
+        {data?.totals.smsTriggerCount ? (
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+            {data.totals.smsTriggerCount} SMS trigger
+            {data.totals.smsTriggerCount === 1 ? '' : 's'}
+          </div>
+        ) : null}
+      </div>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
@@ -403,9 +450,23 @@ export default function EmployeeAbsencesPage() {
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map(card => (
-          <ContentCard key={card.title} className="space-y-1 p-4">
+          <ContentCard key={card.title} className="space-y-2 p-4">
+            <div
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-lg',
+                card.tone === 'sky' && 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+                card.tone === 'violet' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+                card.tone === 'amber' && 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+                card.tone === 'rose' && 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+                card.tone === 'emerald' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+              )}
+            >
+              {card.icon}
+            </div>
             <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
-            <p className="text-xl font-semibold tabular-nums text-foreground">{card.value}</p>
+            <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground">
+              {card.value}
+            </p>
             <p className="text-xs text-muted-foreground">{card.hint}</p>
           </ContentCard>
         ))}

@@ -1,5 +1,18 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Search } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  PoundSterling,
+  Search,
+  Users,
+  Wallet,
+  XCircle,
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
@@ -185,7 +198,24 @@ export function BillingSalaryOverviewPanel() {
 
   return (
     <div className="flex flex-col gap-4" data-testid="billing-salary-overview-panel">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+            <Wallet className="h-5 w-5" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Visit salary overview</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Care visit earnings for the selected {periodNoun}, before UK PAYE / NI on UK Payroll.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3">
+        <div className="mr-1 flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+          <CalendarDays className="h-4 w-4" aria-hidden />
+        </div>
         <Button
           type="button"
           size="icon"
@@ -231,17 +261,69 @@ export function BillingSalaryOverviewPanel() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {[
-          { title: 'Employees', value: String(filtered.length), hint: `With activity this ${periodNoun}` },
-          { title: 'Visit pay', value: money(totals.visitPay), hint: 'Accepted visits' },
-          { title: 'Paid', value: money(totals.paid), hint: 'In locked payroll' },
-          { title: 'Rejected', value: money(totals.rejected), hint: 'Excluded from salary' },
-          { title: 'Fines & penalties', value: money(totals.fines + totals.penalties), hint: 'Deductions' },
-          { title: 'Net salary', value: money(totals.net), hint: 'Visit pay − deductions' },
-        ].map(card => (
-          <ContentCard key={card.title} className="space-y-1 p-4">
+        {(
+          [
+            {
+              title: 'Employees',
+              value: String(filtered.length),
+              hint: `With activity this ${periodNoun}`,
+              icon: <Users className="h-4 w-4" aria-hidden />,
+              tone: 'violet',
+            },
+            {
+              title: 'Visit pay',
+              value: money(totals.visitPay),
+              hint: 'Accepted visits',
+              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              tone: 'sky',
+            },
+            {
+              title: 'Paid',
+              value: money(totals.paid),
+              hint: 'In locked payroll',
+              icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
+              tone: 'emerald',
+            },
+            {
+              title: 'Rejected',
+              value: money(totals.rejected),
+              hint: 'Excluded from salary',
+              icon: <XCircle className="h-4 w-4" aria-hidden />,
+              tone: 'rose',
+            },
+            {
+              title: 'Fines & penalties',
+              value: money(totals.fines + totals.penalties),
+              hint: 'Deductions',
+              icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
+              tone: 'amber',
+            },
+            {
+              title: 'Net salary',
+              value: money(totals.net),
+              hint: 'Visit pay − deductions',
+              icon: <Wallet className="h-4 w-4" aria-hidden />,
+              tone: 'emerald',
+            },
+          ] as const
+        ).map(card => (
+          <ContentCard key={card.title} className="space-y-2 p-4">
+            <div
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-lg',
+                card.tone === 'sky' && 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+                card.tone === 'emerald' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+                card.tone === 'amber' && 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+                card.tone === 'violet' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+                card.tone === 'rose' && 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+              )}
+            >
+              {card.icon}
+            </div>
             <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
-            <p className="text-xl font-semibold tabular-nums text-foreground">{card.value}</p>
+            <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground">
+              {card.value}
+            </p>
             <p className="text-xs text-muted-foreground">{card.hint}</p>
           </ContentCard>
         ))}
