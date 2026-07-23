@@ -306,6 +306,9 @@ export default function ServiceUserHoursPage() {
   const [detailTarget, setDetailTarget] = React.useState<{
     serviceUserId: string
     serviceUserName: string
+    assignedHours: number
+    assignedVisits: number
+    workedVisits: number
   } | null>(null)
 
   const query = useServiceUserHoursWeeklySummary(
@@ -760,7 +763,7 @@ export default function ServiceUserHoursPage() {
                     onSort={handleSort}
                   />
                   <SortableTh
-                    label="Visits"
+                    label="Visits (week)"
                     sortKey="workedVisits"
                     activeKey={sortKey}
                     dir={sortDir}
@@ -912,6 +915,9 @@ export default function ServiceUserHoursPage() {
                                 setDetailTarget({
                                   serviceUserId: row.serviceUserId,
                                   serviceUserName: row.serviceUserName,
+                                  assignedHours: row.assignedHours,
+                                  assignedVisits: row.assignedVisits,
+                                  workedVisits: row.workedVisits,
                                 })
                               }
                               data-testid={`service-user-hours-detail-${row.serviceUserId}`}
@@ -1012,7 +1018,12 @@ export default function ServiceUserHoursPage() {
         }}
         serviceUserId={detailTarget?.serviceUserId ?? null}
         serviceUserName={detailTarget?.serviceUserName}
-        initialMonth={weekStart.slice(0, 7)}
+        initialMonth={(data?.weekStart ?? weekStart).slice(0, 7)}
+        listWeekStart={data?.weekStart ?? weekStart}
+        listWeekEnd={data?.weekEnd}
+        listWeekAssignedHours={detailTarget?.assignedHours}
+        listWeekAssignedVisits={detailTarget?.assignedVisits}
+        listWeekWorkedVisits={detailTarget?.workedVisits}
       />
     </div>
   )

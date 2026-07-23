@@ -58,6 +58,15 @@ function formatPct(n: number | null | undefined): string {
   return `${Math.round(n)}%`
 }
 
+function datesOverlap(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string,
+): boolean {
+  return aStart <= bEnd && bStart <= aEnd
+}
+
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -65,6 +74,12 @@ type Props = {
   serviceUserName?: string
   /** Seed month from the weekly overview week when available (YYYY-MM). */
   initialMonth?: string
+  /** Mon–Sun week shown on the list (may span calendar week blocks). */
+  listWeekStart?: string
+  listWeekEnd?: string
+  listWeekAssignedHours?: number
+  listWeekAssignedVisits?: number
+  listWeekWorkedVisits?: number
 }
 
 export function ServiceUserHoursDetailDialog({
@@ -73,6 +88,11 @@ export function ServiceUserHoursDetailDialog({
   serviceUserId,
   serviceUserName,
   initialMonth,
+  listWeekStart,
+  listWeekEnd,
+  listWeekAssignedHours,
+  listWeekAssignedVisits,
+  listWeekWorkedVisits,
 }: Props) {
   const [month, setMonth] = React.useState(initialMonth || currentMonthKey())
   const [expandedWeek, setExpandedWeek] = React.useState<number | null>(null)
@@ -89,6 +109,11 @@ export function ServiceUserHoursDetailDialog({
     open,
   )
   const data = query.data
+  const showListWeekContext =
+    listWeekStart != null &&
+    listWeekEnd != null &&
+    listWeekAssignedVisits != null &&
+    listWeekWorkedVisits != null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,8 +123,8 @@ export function ServiceUserHoursDetailDialog({
             Monthly hours — {data?.serviceUser.serviceUserName ?? serviceUserName ?? 'Service user'}
           </DialogTitle>
           <DialogDescription>
-            Package, assigned, and worked hours by calendar week blocks within the month
-            (1–7 · 8–14 · 15–21 · 22–28 · 29–end). Short months omit empty weeks.
+            This dialog is the full calendar month (day blocks 1–7 · 8–14 · 15–21 · 22–28 · 29–end).
+            The list row is one Mon–Sun week — visit totals will not match the month total.
           </DialogDescription>
         </DialogHeader>
 
@@ -153,6 +178,36 @@ export function ServiceUserHoursDetailDialog({
               This month
             </Button>
           </div>
+
+          {showListWeekContext ? (
+            <div
+              className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm"
+              data-testid="service-user-hours-list-week-context"
+            >
+              <p className="font-medium text-foreground">Selected list week (Mon–Sun)</p>
+              <p className="mt-0.5 text-muted-foreground">
+                {listWeekStart} → {listWeekEnd}
+                {' · '}
+                <span className="tabular-nums text-foreground">
+                  {listWeekWorkedVisits} / {listWeekAssignedVisits}
+                </span>{' '}
+                visits
+                {listWeekAssignedHours != null ? (
+                  <>
+                    {' · '}
+                    <span className="tabular-nums text-foreground">
+                      {formatHours(listWeekAssignedHours)}
+                    </span>{' '}
+                    assigned
+                  </>
+                ) : null}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Calendar week rows that overlap this Mon–Sun week are highlighted. Month total
+                visits below count the whole month, not this week alone.
+              </p>
+            </div>
+          ) : null}
 
           {query.isLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
@@ -249,6 +304,14 @@ export function ServiceUserHoursDetailDialog({
                     {data.weeks.map(week => {
                       const over = week.hoursOverPackage > 0
                       const expanded = expandedWeek === week.weekNumber
+                      const overlapsListWeek =
+                        Boolean(listWeekStart && listWeekEnd) &&
+                        datesOverlap(
+                          listWeekStart!,
+                          listWeekEnd!,
+                          week.weekStart,
+                          week.weekEnd,
+                        )
                       const dayLabels = week.dayLabels?.length
                         ? week.dayLabels
                         : Array.from(
@@ -261,6 +324,7 @@ export function ServiceUserHoursDetailDialog({
                             className={cn(
                               'border-b border-border last:border-0 hover:bg-muted/20',
                               over && 'bg-warning/5',
+                              overlapsListWeek && 'ring-1 ring-inset ring-primary/40 bg-primary/5',
                             )}
                             data-testid={`service-user-hours-detail-week-${week.weekNumber}`}
                           >
@@ -275,6 +339,7 @@ export function ServiceUserHoursDetailDialog({
                                 <span className="font-medium text-foreground">{week.label}</span>
                                 <span className="mt-0.5 block text-xs text-muted-foreground">
                                   Days {week.dayRangeLabel ?? `${week.dayFrom}–${week.dayTo}`}
+                                  {overlapsListWeek ? ' · overlaps list week' : ''}
                                 </span>
                               </button>
                             </td>
@@ -374,6 +439,9 @@ export function ServiceUserHoursDetailDialog({
                         <span className="text-xs text-muted-foreground">
                           {' '}
                           / {data.totals.assignedVisits}
+                        </span>
+                        <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
+                          month
                         </span>
                       </td>
                     </tr>
