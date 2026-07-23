@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarOff, CalendarClock, Eye, Loader2, PanelRightOpen, Pause, Play, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
+import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Loader2, Package, PanelRightOpen, Pause, Play, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
@@ -699,24 +699,31 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
       {editablePlans.length > 1 && workingPlan ? (
         <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-          <p className={contentTitleClass}>Which package are you editing?</p>
-          <p className={cn('mt-0.5', contentBodyClass)}>
-            Only live, suspended, or draft packages appear here. To compare ended versions or visit outcomes, use{' '}
-            <strong className="font-medium text-foreground">Call pattern</strong> or{' '}
-            <strong className="font-medium text-foreground">Visit calendar</strong>.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {editablePlans.map((plan) => (
-              <Button
-                key={plan.id}
-                type="button"
-                size="sm"
-                variant={plan.id === workingPlan.id ? 'default' : 'outline'}
-                onClick={() => onSelectPlan?.(plan.id)}
-              >
-                {plan.status === 'DRAFT' ? 'Draft' : plan.status === 'SUSPENDED' ? 'Suspended' : 'Active'}
-              </Button>
-            ))}
+          <div className="flex gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-700 dark:text-violet-300">
+              <Package className="h-4 w-4" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className={contentTitleClass}>Which package are you editing?</p>
+              <p className={cn('mt-0.5', contentBodyClass)}>
+                Only live, suspended, or draft packages appear here. To compare ended versions or visit outcomes, use{' '}
+                <strong className="font-medium text-foreground">Call pattern</strong> or{' '}
+                <strong className="font-medium text-foreground">Visit calendar</strong>.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {editablePlans.map((plan) => (
+                  <Button
+                    key={plan.id}
+                    type="button"
+                    size="sm"
+                    variant={plan.id === workingPlan.id ? 'default' : 'outline'}
+                    onClick={() => onSelectPlan?.(plan.id)}
+                  >
+                    {plan.status === 'DRAFT' ? 'Draft' : plan.status === 'SUSPENDED' ? 'Suspended' : 'Active'}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       ) : null}
@@ -739,6 +746,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
       <ContentCard>
         <ContentSectionHeader
+          icon={<ClipboardList className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
           title="Visit plan (care package)"
           titleClassName="text-sky-600 dark:text-sky-400"
           description={
@@ -828,6 +837,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
       <ContentCard className="border-2 border-teal-200 dark:border-teal-900">
         <ContentSectionHeader
+          icon={<CalendarClock className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
           kicker="Step 1–3"
           kickerClassName="text-teal-700 dark:text-teal-300"
           title="Visit schedule"
@@ -1283,6 +1294,18 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         )}
       >
         <ContentSectionHeader
+          icon={
+            planIsLive ? (
+              <Save className="h-5 w-5" aria-hidden />
+            ) : (
+              <Play className="h-5 w-5" aria-hidden />
+            )
+          }
+          iconClassName={
+            workingPlan?.status === 'SUSPENDED'
+              ? 'bg-orange-500/10 text-orange-700 dark:text-orange-300'
+              : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+          }
           kicker="Step 4"
           title={planIsLive ? 'Amend live package' : 'Save or activate'}
           titleAs="h3"
@@ -1414,6 +1437,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       {workingPlan?.status === 'ACTIVE' ? (
         <ContentCard className="space-y-4 border-2 border-sky-200 dark:border-sky-900">
           <ContentSectionHeader
+            icon={<Sparkles className="h-5 w-5" aria-hidden />}
+            iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             kicker="Step 5"
             kickerClassName="text-sky-700 dark:text-sky-300"
             title="Generate rota"
@@ -1486,7 +1511,13 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
       {workingPlan && (workingPlan.amendments ?? []).length > 0 ? (
         <ContentCard>
-              <ContentSectionHeader title="Amendment history" titleAs="h3" className="mb-3" />
+              <ContentSectionHeader
+                icon={<History className="h-5 w-5" aria-hidden />}
+                iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                title="Amendment history"
+                titleAs="h3"
+                className="mb-3"
+              />
               <ul className={cn('space-y-2', contentBodyClass)}>
                 {(workingPlan.amendments ?? []).map((a: VisitPlanAmendment) => (
                   <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">

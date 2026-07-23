@@ -1,4 +1,4 @@
-import { User, AlertTriangle } from 'lucide-react'
+import { ClipboardList, Clock3, History, LayoutGrid, User, AlertTriangle } from 'lucide-react'
 import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type {
@@ -151,16 +151,21 @@ function CallPatternOverviewCard({
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h4 className={cn('flex items-center gap-1.5', contentTitleClass)}>
-            {slot.timeCritical ? (
-              <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
-            ) : null}
-            {slot.label}
-          </h4>
-          <p className={cn('mt-0.5', contentHelperClass)}>
-            {start} – {end} · {slot.requiredCarers} required
-          </p>
+        <div className="flex min-w-0 gap-2.5">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300">
+            <Clock3 className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <h4 className={cn('flex items-center gap-1.5', contentTitleClass)}>
+              {slot.timeCritical ? (
+                <TimeCriticalDot toleranceMinutes={slot.timeToleranceMinutes} size="xs" />
+              ) : null}
+              {slot.label}
+            </h4>
+            <p className={cn('mt-0.5', contentHelperClass)}>
+              {start} – {end} · {slot.requiredCarers} required
+            </p>
+          </div>
         </div>
         <span
           className={cn(
@@ -324,6 +329,8 @@ export function VisitPlanDetailsView({
     <div className={cn('space-y-6', className)}>
       <ContentCard>
         <ContentSectionHeader
+          icon={<ClipboardList className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
           title="Visit plan summary"
           description="Authorised care package — call pattern and scheduling rules."
           action={statusBadge(plan.status)}
@@ -379,6 +386,8 @@ export function VisitPlanDetailsView({
 
       <ContentCard>
         <ContentSectionHeader
+          icon={<LayoutGrid className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-teal-500/10 text-teal-700 dark:text-teal-300"
           title="Call pattern"
           description="One card per call slot — schedule, assigned carers, care plans, and documentation rules."
           className="mb-4"
@@ -407,7 +416,12 @@ export function VisitPlanDetailsView({
 
       {(plan.amendments ?? []).length > 0 ? (
         <ContentCard>
-          <ContentSectionHeader title="Amendment history" className="mb-3" />
+          <ContentSectionHeader
+            icon={<History className="h-5 w-5" aria-hidden />}
+            iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+            title="Amendment history"
+            className="mb-3"
+          />
           <ul className="space-y-2 text-sm">
             {(plan.amendments ?? []).map((a) => (
               <li key={a.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">

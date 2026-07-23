@@ -16,6 +16,9 @@ export type ContentSectionHeaderProps = {
   descriptionClassName?: string
   action?: React.ReactNode
   className?: string
+  /** Optional leading icon (tinted well). */
+  icon?: React.ReactNode
+  iconClassName?: string
 }
 
 /** Standard card shell for module pages (visit plan, employee management, etc.). */
@@ -41,17 +44,31 @@ export function ContentSectionHeader({
   descriptionClassName,
   action,
   className,
+  icon,
+  iconClassName,
 }: ContentSectionHeaderProps) {
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-4', className)}>
-      <div className="min-w-0">
-        {kicker ? (
-          <p className={cn(contentKickerClass, kickerClassName)}>{kicker}</p>
+      <div className="flex min-w-0 gap-3">
+        {icon ? (
+          <div
+            className={cn(
+              'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary',
+              iconClassName,
+            )}
+          >
+            {icon}
+          </div>
         ) : null}
-        <TitleTag className={cn(contentTitleClass, titleClassName)}>{title}</TitleTag>
-        {description ? (
-          <p className={cn('mt-1 max-w-2xl', contentBodyClass, descriptionClassName)}>{description}</p>
-        ) : null}
+        <div className="min-w-0">
+          {kicker ? (
+            <p className={cn(contentKickerClass, kickerClassName)}>{kicker}</p>
+          ) : null}
+          <TitleTag className={cn(contentTitleClass, titleClassName)}>{title}</TitleTag>
+          {description ? (
+            <p className={cn('mt-1 max-w-2xl', contentBodyClass, descriptionClassName)}>{description}</p>
+          ) : null}
+        </div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>

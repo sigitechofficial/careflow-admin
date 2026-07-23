@@ -1,6 +1,16 @@
 import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { Loader2, Pencil } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  CalendarDays,
+  ClipboardList,
+  History,
+  Loader2,
+  Pencil,
+  Settings2,
+  Sparkles,
+  UserPlus,
+} from 'lucide-react'
 import {
   SERVICE_USER_MODULE_CONTENT_WIDE_CLASS,
   SERVICE_USER_MODULE_PAGE_CLASS,
@@ -33,11 +43,36 @@ import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMa
 
 type VisitPlanPageTab = 'setup' | 'summary' | 'calendar' | 'history'
 
-const PAGE_TABS: { id: VisitPlanPageTab; label: string; hint?: string }[] = [
-  { id: 'setup', label: 'Set up visits', hint: 'Edit the live package, activate, generate rota' },
-  { id: 'summary', label: 'Call pattern', hint: 'Read-only summary of slots, carers, and rules' },
-  { id: 'calendar', label: 'Visit calendar', hint: 'Scheduled visits and outcomes for this plan version' },
-  { id: 'history', label: 'Versions & audit', hint: 'Compare plan versions and amendment history' },
+const PAGE_TABS: {
+  id: VisitPlanPageTab
+  label: string
+  hint?: string
+  icon: LucideIcon
+}[] = [
+  {
+    id: 'setup',
+    label: 'Set up visits',
+    hint: 'Edit the live package, activate, generate rota',
+    icon: Settings2,
+  },
+  {
+    id: 'summary',
+    label: 'Call pattern',
+    hint: 'Read-only summary of slots, carers, and rules',
+    icon: ClipboardList,
+  },
+  {
+    id: 'calendar',
+    label: 'Visit calendar',
+    hint: 'Scheduled visits and outcomes for this plan version',
+    icon: CalendarDays,
+  },
+  {
+    id: 'history',
+    label: 'Versions & audit',
+    hint: 'Compare plan versions and amendment history',
+    icon: History,
+  },
 ]
 
 function resolvePageTab(search: { view?: string; detailsTab?: string }): VisitPlanPageTab {
@@ -178,23 +213,42 @@ export default function ServiceUserVisitPlanPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} shellLayout="wide" />
 
       <div className={SERVICE_USER_MODULE_CONTENT_WIDE_CLASS}>
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/20 px-3 py-2.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
+            <ClipboardList className="h-3.5 w-3.5" aria-hidden />
+            Care package
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+            <UserPlus className="h-3.5 w-3.5" aria-hidden />
+            Assign carers
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            Generate rota
+          </span>
+        </div>
+
         <div className="mb-4 flex flex-wrap gap-2 border-b border-border">
-          {PAGE_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              title={tab.hint}
-              className={cn(
-                '-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                activeTab === tab.id
-                  ? 'border-teal-600 text-teal-800 dark:border-teal-400 dark:text-teal-200'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-              onClick={() => setPageTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {PAGE_TABS.map((tab) => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                title={tab.hint}
+                className={cn(
+                  '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                  activeTab === tab.id
+                    ? 'border-teal-600 text-teal-800 dark:border-teal-400 dark:text-teal-200'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+                onClick={() => setPageTab(tab.id)}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
 
         {!apiConfigured ? (
@@ -214,7 +268,10 @@ export default function ServiceUserVisitPlanPage() {
           />
         ) : !selectedPlan ? (
           <ContentCard className="text-center">
-            <h2 className={contentTitleClass}>No visit plan to show yet</h2>
+            <h2 className={cn(contentTitleClass, 'inline-flex items-center justify-center gap-2')}>
+              <ClipboardList className="h-5 w-5 text-teal-700 dark:text-teal-300" aria-hidden />
+              No visit plan to show yet
+            </h2>
             <p className={cn('mx-auto mt-2 max-w-md', contentBodyClass)}>
               Configure and save a draft visit plan first, then use Call pattern to review the summary.
             </p>
