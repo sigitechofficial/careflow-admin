@@ -100,10 +100,16 @@ export function ScheduleJobsGantt({
         const row = employeeRows.find((employeeRow) => employeeRow.employee.id === ref.employeeId)
         return row?.allocations.map((allocation) => allocation.job) ?? []
       }
+      if (ref?.kind === 'service-user') {
+        const row = serviceUserRows.find(
+          (serviceUserRow) => serviceUserRow.serviceUser.id === ref.serviceUserId,
+        )
+        return row?.jobs ?? []
+      }
       if (ref?.kind === 'unassigned') return unassignedJobs
       return []
     },
-    [employeeRows, unassignedJobs],
+    [employeeRows, serviceUserRows, unassignedJobs],
   )
 
   const drag = useScheduleJobsDrag({

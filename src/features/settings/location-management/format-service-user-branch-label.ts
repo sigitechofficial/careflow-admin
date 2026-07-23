@@ -62,28 +62,45 @@ function buildLayersFromFields(input: {
   return layers
 }
 
+/**
+ * Accepts either flat branch fields or a nested `location` (e.g. scheduling
+ * `ServiceUserBrief`) so callers can pass timeline payloads without remapping.
+ */
 export function formatServiceUserBranchLabel(input: {
   locationId?: string | null
   locationName?: string | null
+  location?: { id?: string | null; name?: string | null } | null
   zoneName?: string | null
   branchName?: string | null
   branchLayers?: string[] | null
   displayLabel?: string | null
   notAssignedLabel?: string
 }): string {
+  const locationId = input.locationId ?? input.location?.id ?? null
+  const locationName = input.locationName ?? input.location?.name ?? null
+  const resolved = {
+    locationId,
+    locationName,
+    zoneName: input.zoneName,
+    branchName: input.branchName,
+    branchLayers: input.branchLayers,
+    displayLabel: input.displayLabel,
+  }
+
   const unassigned =
-    !input.locationId &&
-    !input.displayLabel &&
-    !input.branchLayers?.length &&
-    !input.branchName &&
-    !input.zoneName &&
-    !input.locationName
+    !resolved.locationId &&
+    !resolved.displayLabel &&
+    !resolved.branchLayers?.length &&
+    !resolved.branchName &&
+    !resolved.zoneName &&
+    !resolved.locationName
 
   if (unassigned) return input.notAssignedLabel ?? 'Not assigned'
 
-  if (input.displayLabel?.trim()) return input.displayLabel.trim()
+  if (resolved.displayLabel?.trim()) return resolved.displayLabel.trim()
 
-  const layers = input.branchLayers?.filter(Boolean) ?? buildLayersFromFields(input)
+  const layers =
+    resolved.branchLayers?.filter(Boolean) ?? buildLayersFromFields(resolved)
   if (layers.length) return layers.join(' · ')
 
   return input.notAssignedLabel ?? '—'
