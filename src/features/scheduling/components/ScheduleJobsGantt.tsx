@@ -288,7 +288,8 @@ export function ScheduleJobsGantt({
                 serviceUserRows.length > 0 &&
                 filteredServiceUserRows.length === 0 ? (
                   <div className="border-b border-border/70 px-4 py-6 text-center text-xs text-muted-foreground">
-                    No service users match &ldquo;{rowSearch.trim()}&rdquo;.
+                    No service users on this week&apos;s board match &ldquo;{rowSearch.trim()}
+                    &rdquo;.
                   </div>
                 ) : null}
 

@@ -23,7 +23,7 @@ import { useScheduleJobsBoardData } from '@/features/scheduling/hooks/useSchedul
 import { useScheduleJobsPageActions } from '@/features/scheduling/hooks/useScheduleJobsPageActions'
 import { useScheduleJobsPageDialogs } from '@/features/scheduling/hooks/useScheduleJobsPageDialogs'
 import { useScheduleJobsUrlState } from '@/features/scheduling/hooks/useScheduleJobsUrlState'
-import { scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import { jobScheduleDateIso, scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import { scrollScheduleJobsBoardToRow } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
 import { shiftIsoDate } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
@@ -87,15 +87,28 @@ export function ScheduleJobsPageContent() {
 
   const handleViewServiceUserOverAllocationVisits = React.useCallback(
     (serviceUserId: string) => {
+      const hasVisitToday = board.allDayJobs.some((job) => job.serviceUserId === serviceUserId)
+      if (!hasVisitToday) {
+        const nextVisitDate = board.weekJobs
+          .filter((job) => job.serviceUserId === serviceUserId)
+          .map((job) => jobScheduleDateIso(job))
+          .sort()[0]
+        if (nextVisitDate && nextVisitDate !== url.date) {
+          url.setScheduleDate(nextVisitDate)
+        }
+      }
       url.setScheduleServiceUserFilter([serviceUserId])
       if (url.rowAxis !== 'service-users') {
         url.setScheduleRowAxis('service-users')
       }
-      scrollScheduleJobsBoardToRow(
-        scheduleJobsRowKey({ kind: 'service-user', serviceUserId }),
-      )
+      // Allow date/filter state to commit before scrolling the board.
+      window.setTimeout(() => {
+        scrollScheduleJobsBoardToRow(
+          scheduleJobsRowKey({ kind: 'service-user', serviceUserId }),
+        )
+      }, 50)
     },
-    [url],
+    [board.allDayJobs, board.weekJobs, url],
   )
 
   const handleViewCarerOverAllocationVisits = React.useCallback(

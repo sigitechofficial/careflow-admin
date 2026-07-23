@@ -42,6 +42,19 @@ describe('serviceUserRowSubtitle', () => {
       ),
     ).toBe('Merton · 2 visits today')
   })
+
+  it('shows No visits today when the day row is empty', () => {
+    expect(
+      serviceUserRowSubtitle(
+        {
+          id: 'su-1',
+          firstName: 'Harry',
+          lastName: 'Max',
+        },
+        0,
+      ),
+    ).toBe('No visits today')
+  })
 })
 
 describe('buildScheduleJobsServiceUserRows', () => {
@@ -69,6 +82,29 @@ describe('buildScheduleJobsServiceUserRows', () => {
 
     expect(rows.map((row) => row.serviceUser.id)).toEqual(['su-a', 'su-b'])
     expect(rows[0]?.jobs.map((j) => j.id)).toEqual(['j0', 'j1'])
+  })
+
+  it('keeps week-roster service users with no visits on the selected day', () => {
+    const rows = buildScheduleJobsServiceUserRows(
+      [
+        job({
+          id: 'j-today',
+          serviceUserId: 'su-enid',
+          serviceUser: { id: 'su-enid', firstName: 'Enid', lastName: 'Morrison' },
+        }),
+      ],
+      [
+        job({
+          id: 'j-week',
+          serviceUserId: 'su-harry',
+          serviceUser: { id: 'su-harry', firstName: 'Harry', lastName: 'Max' },
+          scheduledStartDateTime: '2026-07-20T10:00:00.000Z',
+        }),
+      ],
+    )
+
+    expect(rows.map((row) => row.serviceUser.id)).toEqual(['su-enid', 'su-harry'])
+    expect(rows.find((row) => row.serviceUser.id === 'su-harry')?.jobs).toEqual([])
   })
 })
 

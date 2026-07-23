@@ -34,19 +34,32 @@ function sortJobsByStartTime(a: TimelineJob, b: TimelineJob): number {
   return new Date(a.scheduledStartDateTime).getTime() - new Date(b.scheduledStartDateTime).getTime()
 }
 
-/** Group all day jobs by service user for the service-user row axis. */
-export function buildScheduleJobsServiceUserRows(jobs: TimelineJob[]): ServiceUserDayRow[] {
-  const byId = new Map<string, TimelineJob[]>()
-  for (const job of jobs) {
-    const list = byId.get(job.serviceUserId) ?? []
-    list.push(job)
-    byId.set(job.serviceUserId, list)
+/** Group day jobs by service user; optionally keep week roster rows with no visits today. */
+export function buildScheduleJobsServiceUserRows(
+  dayJobs: TimelineJob[],
+  weekRosterJobs: TimelineJob[] = [],
+): ServiceUserDayRow[] {
+  const byId = new Map<string, { serviceUser: ServiceUserBrief; jobs: TimelineJob[] }>()
+
+  for (const job of dayJobs) {
+    const existing = byId.get(job.serviceUserId)
+    if (existing) {
+      existing.jobs.push(job)
+      continue
+    }
+    byId.set(job.serviceUserId, { serviceUser: job.serviceUser, jobs: [job] })
+  }
+
+  // Week roster (e.g. over-package banner) so search finds SUs with visits earlier/later this week.
+  for (const job of weekRosterJobs) {
+    if (byId.has(job.serviceUserId)) continue
+    byId.set(job.serviceUserId, { serviceUser: job.serviceUser, jobs: [] })
   }
 
   return [...byId.values()]
-    .map((rows) => ({
-      serviceUser: rows[0]!.serviceUser,
-      jobs: [...rows].sort(sortJobsByStartTime),
+    .map((row) => ({
+      serviceUser: row.serviceUser,
+      jobs: [...row.jobs].sort(sortJobsByStartTime),
     }))
     .sort((a, b) =>
       serviceUserLabel(a.serviceUser).localeCompare(serviceUserLabel(b.serviceUser), 'en'),
@@ -69,7 +82,12 @@ import { formatServiceUserBranchLabel } from '@/features/settings/location-manag
 
 export function serviceUserRowSubtitle(serviceUser: ServiceUserBrief, jobCount: number): string {
   const branch = formatServiceUserBranchLabel(serviceUser)
-  const visits = jobCount === 1 ? '1 visit today' : `${jobCount} visits today`
+  const visits =
+    jobCount === 0
+      ? 'No visits today'
+      : jobCount === 1
+        ? '1 visit today'
+        : `${jobCount} visits today`
   const hasBranch =
     branch && branch !== '—' && branch !== 'Not assigned'
   return hasBranch ? `${branch} · ${visits}` : visits

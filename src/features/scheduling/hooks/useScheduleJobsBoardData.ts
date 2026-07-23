@@ -295,10 +295,6 @@ export function useScheduleJobsBoardData({
   ])
 
   const { employeeRows, unassignedJobs, cancelledJobs } = filteredBoard
-  const serviceUserRows = React.useMemo(
-    () => buildScheduleJobsServiceUserRows(filteredBoard.allJobs),
-    [filteredBoard.allJobs],
-  )
   const allJobs = board.allJobs
 
   const carers = board.carers
@@ -314,6 +310,15 @@ export function useScheduleJobsBoardData({
       locationFilterIds,
     ),
     [weekTimelineQuery.data, locationFilterIds],
+  )
+  const weekRosterJobsForAxis = React.useMemo(() => {
+    if (!serviceUserFilterIds.length) return weekJobs
+    const allowed = new Set(serviceUserFilterIds)
+    return weekJobs.filter((job) => allowed.has(job.serviceUserId))
+  }, [serviceUserFilterIds, weekJobs])
+  const serviceUserRows = React.useMemo(
+    () => buildScheduleJobsServiceUserRows(filteredBoard.allJobs, weekRosterJobsForAxis),
+    [filteredBoard.allJobs, weekRosterJobsForAxis],
   )
   const contractedWeeklyHoursByEmployee = React.useMemo(() => {
     const map = new Map<string, number>()
