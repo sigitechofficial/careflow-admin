@@ -5,6 +5,7 @@ import type {
   CreateUkPayrollRunInput,
   UpsertEmployeePayrollProfileInput,
   CreateEmployeePayAgreementInput,
+  UpdatePayrollScheduleInput,
 } from '@/features/payroll/types/payroll-api.types'
 import type {
   EmployeePayAgreement,
@@ -81,6 +82,14 @@ export async function fetchPayrollSchedules() {
 export async function createPayrollSchedule(body: CreatePayrollScheduleInput) {
   const res = await apiJson<ApiEnvelope<PayrollSchedule>>('/payroll/schedules', {
     method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function updatePayrollSchedule(id: string, body: UpdatePayrollScheduleInput) {
+  const res = await apiJson<ApiEnvelope<PayrollSchedule>>(`/payroll/schedules/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
   })
   return res.data
@@ -191,6 +200,13 @@ export async function closeUkPayrollRun(id: string) {
 
 export async function cancelUkPayrollRun(id: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRun>>(`/payroll/runs/${id}/cancel`, {
+    method: 'POST',
+  })
+  return res.data
+}
+
+export async function reactivateUkPayrollRun(id: string) {
+  const res = await apiJson<ApiEnvelope<UkPayrollRun>>(`/payroll/runs/${id}/reactivate`, {
     method: 'POST',
   })
   return res.data

@@ -20,6 +20,8 @@ import {
   fetchUkPayrollRuns,
   generatePayrollPeriods,
   purgeAllPayrollData,
+  reactivateUkPayrollRun,
+  updatePayrollSchedule,
   upsertEmployeePayrollProfile,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
@@ -28,6 +30,7 @@ import type {
   CreatePayrollScheduleInput,
   CreatePayrollTaxYearInput,
   CreateUkPayrollRunInput,
+  UpdatePayrollScheduleInput,
   UpsertEmployeePayrollProfileInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -113,6 +116,19 @@ export function useCreatePayrollSchedule() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: payrollKeys.schedules() })
       toastSuccess('Pay schedule created')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useUpdatePayrollSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; body: UpdatePayrollScheduleInput }) =>
+      updatePayrollSchedule(args.id, args.body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.schedules() })
+      toastSuccess('Pay schedule updated')
     },
     onError: (error) => toastApiError(error),
   })
@@ -258,6 +274,21 @@ export function useCancelUkPayrollRun(id: string) {
       await qc.invalidateQueries({ queryKey: payrollKeys.run(id) })
       await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
       toastSuccess('Run cancelled')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useReactivateUkPayrollRun(id?: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (runId: string) => reactivateUkPayrollRun(runId),
+    onSuccess: async (_data, runId) => {
+      const idToInvalidate = id || runId
+      await qc.invalidateQueries({ queryKey: payrollKeys.run(idToInvalidate) })
+      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: payrollKeys.periods() })
+      toastSuccess('Run reactivated')
     },
     onError: (error) => toastApiError(error),
   })

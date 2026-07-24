@@ -2,6 +2,41 @@ import type { UkPayrollItemKind } from '@/features/payroll/data/uk-payroll-2026-
 
 /** Short purpose text for payroll setup section headings (shown via info icons). */
 export const PAYROLL_SECTION_GUIDANCE = {
+  runs: {
+    title: 'UK payroll runs',
+    purpose:
+      'A UK payroll run is the working shell for one pay period: enrol ready employees, calculate gross from visit pay / salary, then calculate Week 1 / Month 1 tax & NI. Close when finished; reactivate a closed or cancelled run to continue edits.',
+  },
+  schedules: {
+    title: 'Pay schedules',
+    purpose:
+      'A pay schedule defines how often staff are paid (weekly, fortnightly, four-weekly, or monthly) and the anchor day used when generating payment dates. Schedules are calendar scaffolding only — they do not calculate tax or NI.',
+  },
+  activeSchedules: {
+    title: 'Active schedules',
+    purpose:
+      'Count of schedules currently marked ACTIVE and available for generating periods and opening UK payroll runs. Suspended or draft schedules are excluded.',
+  },
+  taxYears: {
+    title: 'Tax years',
+    purpose:
+      'UK tax years run 6 April to 5 April. Periods and statutory rates are scoped to a tax year. Ensure the current year exists before generating periods.',
+  },
+  openPeriods: {
+    title: 'Open periods',
+    purpose:
+      'Periods in OPEN or IN_RUN status for the filters above. These are the windows you can still create or continue a UK payroll run against.',
+  },
+  periods: {
+    title: 'Pay periods',
+    purpose:
+      'Periods are the dated windows inside a UK tax year for a chosen schedule (e.g. monthly 6th→5th). Generate them after the schedule and tax year exist, then open a UK payroll run against a period. Statutory PAYE / NI is calculated on the run, not here.',
+  },
+  anchorDay: {
+    title: 'Anchor day',
+    purpose:
+      'For monthly schedules, the day of the month used for payment date (1–31; shorter months use the last day). For weekly-style schedules, the day offset within each pay cycle. It shapes payment dates when periods are generated.',
+  },
   paye: {
     title: 'PAYE (Income Tax)',
     purpose:

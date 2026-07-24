@@ -957,16 +957,21 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                         </TableCell>
                         <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
                           <Input
-                            type="number"
-                            min={1}
-                            max={480}
-                            className="h-8 w-16 text-sm"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            className="h-8 w-16 text-sm tabular-nums"
                             value={slot.durationMinutes ?? ''}
                             placeholder="min"
                             disabled={!slot.isEnabled}
                             aria-label={`${slot.label} duration minutes`}
                             onChange={(e) => {
-                              const durationMinutes = e.target.value ? Number(e.target.value) : null
+                              const raw = e.target.value
+                              if (raw !== '' && !/^\d*$/.test(raw)) return
+                              const durationMinutes =
+                                raw === ''
+                                  ? null
+                                  : Math.min(480, Math.max(1, Number(raw)))
                               const end = visitPlanEndTimeFromStartAndDuration(
                                 slot.plannedStartTime,
                                 durationMinutes,
@@ -976,6 +981,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                                 ...(end ? { plannedEndTime: end } : {}),
                               })
                             }}
+                            onFocus={(e) => e.currentTarget.select()}
                           />
                         </TableCell>
                         <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>

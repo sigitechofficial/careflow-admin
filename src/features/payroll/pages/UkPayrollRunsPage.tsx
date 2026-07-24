@@ -1,15 +1,27 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Info,
+  Plus,
+  RotateCcw,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
+import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
+import { PAYROLL_SECTION_GUIDANCE } from '@/features/payroll/data/payroll-section-guidance'
 import {
   useCreateUkPayrollRun,
   usePayrollPeriods,
+  useReactivateUkPayrollRun,
   useUkPayrollRuns,
 } from '@/features/payroll/hooks/usePayroll'
 import { useAuthStore } from '@/features/auth/store'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { Button } from '@/shared/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import {
   Dialog,
   DialogBody,
@@ -18,85 +30,252 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
+import { cn } from '@/shared/lib/utils'
+
+const STAT_TONES = {
+  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+  rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+} as const
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  purpose,
+}: {
+  label: string
+  value: number
+  icon: LucideIcon
+  tone: keyof typeof STAT_TONES
+  purpose: string
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex shrink-0 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`About ${label}`}
+              >
+                <Info className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="z-[110] max-w-sm text-left text-xs leading-snug">
+              <p className="mb-1 font-medium text-popover-foreground">Purpose</p>
+              <p>{purpose}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <span
+          className={cn(
+            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+            STAT_TONES[tone],
+          )}
+        >
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function formatGbp(amount: number) {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+  }).format(amount)
+}
 
 export default function UkPayrollRunsPage() {
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
   const { data = [], isLoading } = useUkPayrollRuns()
   const { data: periods = [] } = usePayrollPeriods()
   const createMut = useCreateUkPayrollRun()
+  const reactivateMut = useReactivateUkPayrollRun()
   const [open, setOpen] = React.useState(false)
   const [periodId, setPeriodId] = React.useState('')
 
   const openPeriods = periods.filter((p) => p.status === 'OPEN' || p.status === 'IN_RUN')
+  const openRuns = data.filter(
+    (r) =>
+      r.status === 'DRAFT' ||
+      r.status === 'EMPLOYEES_ENROLLED' ||
+      r.status === 'GROSS_CALCULATED' ||
+      r.status === 'STATUTORY_CALCULATED',
+  ).length
+  const closedRuns = data.filter((r) => r.status === 'CLOSED').length
+  const cancelledRuns = data.filter((r) => r.status === 'CANCELLED').length
 
   return (
     <PayrollSectionLayout
       title="UK payroll runs"
-      description="Create and manage statutory payroll run shells. Phase 1 does not calculate tax or produce payslips."
+      description="Create runs for a pay period, calculate gross and tax & NI, then close. Reactivate closed or cancelled runs to continue."
       testId="payroll-runs-page"
     >
-      <div className="mb-4 flex justify-end">
-        {canManage ? (
-          <Button size="sm" onClick={() => setOpen(true)}>
-            Create run
-          </Button>
-        ) : null}
-      </div>
+      <TooltipProvider delayDuration={200}>
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/20 px-3 py-2.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <Wallet className="h-3.5 w-3.5" aria-hidden />
+              Gross → tax &amp; NI
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+              <Users className="h-3.5 w-3.5" aria-hidden />
+              Enrol ready carers
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200">
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              Reactivate closed runs
+            </span>
+          </div>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-border text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-3 font-medium">Label</th>
-                  <th className="py-2 pr-3 font-medium">Period</th>
-                  <th className="py-2 pr-3 font-medium">Employees</th>
-                  <th className="py-2 pr-3 font-medium">Gross</th>
-                  <th className="py-2 pr-3 font-medium">Status</th>
-                  <th className="py-2 font-medium">Open</th>
-                </tr>
-            </thead>
-            <tbody>
-              {data.map((row) => (
-                <tr key={row.id} className="border-b border-border/70">
-                  <td className="py-2.5 pr-3 font-medium">{row.label}</td>
-                  <td className="py-2.5 pr-3">
-                    {row.period
-                      ? `${row.period.periodStart} – ${row.period.periodEnd}`
-                      : row.periodId}
-                  </td>
-                  <td className="py-2.5 pr-3 tabular-nums">{row.employeeCount}</td>
-                  <td className="py-2.5 pr-3 tabular-nums">
-                    {row.grossCalculatedAt != null ? `£${Number(row.totalGross ?? 0).toFixed(2)}` : '—'}
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <PayrollStatusBadge status={row.status} />
-                  </td>
-                  <td className="py-2.5">
-                    <Button asChild size="sm" variant="outline">
-                      <Link to={PAYROLL_PATHS.runDetail(row.id)}>View</Link>
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {data.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-6 text-muted-foreground">
-                    No UK payroll runs yet.
-                  </td>
-                </tr>
+          {!isLoading ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <SummaryCard
+                label="Total runs"
+                value={data.length}
+                icon={Wallet}
+                tone="sky"
+                purpose={PAYROLL_SECTION_GUIDANCE.runs.purpose}
+              />
+              <SummaryCard
+                label="Open"
+                value={openRuns}
+                icon={Users}
+                tone="emerald"
+                purpose="Runs still in progress (draft through statutory calculated). Open a run to enrol, calculate, or close."
+              />
+              <SummaryCard
+                label="Closed"
+                value={closedRuns}
+                icon={Wallet}
+                tone="amber"
+                purpose="Finished runs. Use Reactivate to reopen for recalculation if no other open run exists for that period."
+              />
+              <SummaryCard
+                label="Cancelled"
+                value={cancelledRuns}
+                icon={RotateCcw}
+                tone="rose"
+                purpose="Cancelled runs. Reactivate restores the prior working status so you can continue payroll for that period."
+              />
+            </div>
+          ) : null}
+
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                  <Wallet className="h-4 w-4" aria-hidden />
+                </div>
+                <PayrollInfoHeading
+                  title={PAYROLL_SECTION_GUIDANCE.runs.title}
+                  purpose={PAYROLL_SECTION_GUIDANCE.runs.purpose}
+                  description="One run per pay period — view detail to calculate, or reactivate closed/cancelled runs"
+                />
+              </div>
+              {canManage ? (
+                <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden />
+                  Create run
+                </Button>
               ) : null}
-            </tbody>
-          </table>
+            </div>
+
+            {isLoading ? (
+              <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px] text-left text-sm">
+                  <thead className="border-b border-border bg-muted/10 text-muted-foreground">
+                    <tr>
+                      <th className="py-2.5 pl-4 pr-3 font-medium">Label</th>
+                      <th className="py-2.5 pr-3 font-medium">Period</th>
+                      <th className="py-2.5 pr-3 font-medium">Employees</th>
+                      <th className="py-2.5 pr-3 font-medium">Gross</th>
+                      <th className="py-2.5 pr-3 font-medium">Status</th>
+                      <th className="py-2.5 pr-4 text-right font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((row) => {
+                      const canReactivate =
+                        canManage && (row.status === 'CLOSED' || row.status === 'CANCELLED')
+                      return (
+                        <tr
+                          key={row.id}
+                          className="border-b border-border/70 transition-colors hover:bg-muted/20"
+                        >
+                          <td className="py-3 pl-4 pr-3 font-medium text-foreground">{row.label}</td>
+                          <td className="py-3 pr-3 text-muted-foreground">
+                            {row.period
+                              ? `${row.period.periodStart} – ${row.period.periodEnd}`
+                              : row.periodId}
+                          </td>
+                          <td className="py-3 pr-3 tabular-nums">{row.employeeCount}</td>
+                          <td className="py-3 pr-3 tabular-nums">
+                            {row.grossCalculatedAt != null
+                              ? formatGbp(Number(row.totalGross ?? 0))
+                              : '—'}
+                          </td>
+                          <td className="py-3 pr-3">
+                            <PayrollStatusBadge status={row.status} />
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {canReactivate ? (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="gap-1.5"
+                                  disabled={reactivateMut.isPending}
+                                  onClick={() => reactivateMut.mutate(row.id)}
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                                  Reactivate
+                                </Button>
+                              ) : null}
+                              <Button asChild size="sm" variant="outline">
+                                <Link to={PAYROLL_PATHS.runDetail(row.id)}>View</Link>
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {data.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                          <Wallet className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                          No UK payroll runs yet. Create a run after generating periods.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </TooltipProvider>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent size="md">
           <DialogHeader>
-            <DialogTitle>Create UK payroll run</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                <Wallet className="h-4 w-4" aria-hidden />
+              </span>
+              Create UK payroll run
+            </DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3">
             <label className="block space-y-1 text-sm">

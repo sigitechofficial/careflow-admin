@@ -4,6 +4,7 @@ import type {
   EmployeePayrollProfileStatus,
   PayrollNiCategory,
   PayrollPayFrequency,
+  PayrollScheduleStatus,
   PayrollStarterDeclaration,
 } from '@/features/payroll/types/payroll.types'
 
@@ -21,6 +22,15 @@ export type CreatePayrollScheduleInput = {
   frequency: PayrollPayFrequency
   anchorDay?: number
   description?: string
+}
+
+export type UpdatePayrollScheduleInput = {
+  name?: string
+  code?: string
+  frequency?: PayrollPayFrequency
+  anchorDay?: number
+  description?: string | null
+  status?: PayrollScheduleStatus
 }
 
 export type UpsertEmployeePayrollProfileInput = {
