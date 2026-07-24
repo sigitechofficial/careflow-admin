@@ -27,6 +27,11 @@ export function BillingFieldLabel({ label, tooltip, required, className, size = 
             type="button"
             className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
             aria-label={`About ${label}`}
+            onClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
+            onPointerDown={e => e.stopPropagation()}
           >
             <Info className="h-3.5 w-3.5" aria-hidden />
           </button>

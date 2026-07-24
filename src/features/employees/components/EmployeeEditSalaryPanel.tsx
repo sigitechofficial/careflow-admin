@@ -1,5 +1,23 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  ExternalLink,
+  Gavel,
+  ListChecks,
+  Loader2,
+  Pencil,
+  Plus,
+  PoundSterling,
+  Scale,
+  Trash2,
+  Wallet,
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -155,23 +173,51 @@ function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']):
   return 'bg-warning/10 text-warning border-warning/20'
 }
 
+function PaymentStateIcon({ state }: { state: EmployeeEarningVisitRow['paymentState'] }) {
+  if (state === 'PAID') return <CheckCircle2 className="h-3 w-3" aria-hidden />
+  if (state === 'REMAINING') return <CheckCircle2 className="h-3 w-3" aria-hidden />
+  if (state === 'REJECTED') return <AlertCircle className="h-3 w-3" aria-hidden />
+  return <AlertCircle className="h-3 w-3" aria-hidden />
+}
+
 function StatCard({
   title,
   value,
   hint,
   emphasize,
+  icon,
+  iconClassName,
 }: {
   title: string
   value: string | number
   hint: string
   emphasize?: boolean
+  icon: React.ReactNode
+  iconClassName: string
 }) {
   return (
-    <ContentCard className={cn('space-y-1 p-4', emphasize && 'border-primary/40 bg-primary/5')}>
-      <p className="text-xs font-medium text-muted-foreground">{title}</p>
-      <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{hint}</p>
-    </ContentCard>
+    <div
+      className={cn(
+        'rounded-xl border border-border bg-card p-4 shadow-sm',
+        emphasize && 'border-primary/40 bg-primary/5',
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <p className="text-2xl font-display font-bold tabular-nums text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+        <span
+          className={cn(
+            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            iconClassName,
+          )}
+        >
+          {icon}
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -338,19 +384,21 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
       <ContentSectionHeader
         title="Salary"
         description={`Net ${isWeekly ? 'weekly' : 'monthly'} salary = completed visit pay − fines − penalties. Visit pay is added when the visit is completed (pay card required). Edit amounts below to adjust.`}
+        icon={<Wallet className="h-5 w-5" aria-hidden />}
+        iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
           <div className="flex flex-wrap gap-2">
             {canManage ? (
               <Button
                 type="button"
                 size="sm"
+                leftIcon={<Plus className="h-3.5 w-3.5" />}
                 onClick={() => {
                   resetForm()
                   setDialogOpen(true)
                 }}
                 data-testid="employee-salary-add-deduction"
               >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Add fine / penalty
               </Button>
             ) : null}
@@ -360,9 +408,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                   to="/billing/visit-reconciliation"
                   search={{ employeeId }}
                   data-testid="employee-salary-open-recon"
+                  className="inline-flex items-center gap-1.5"
                 >
                   Visit reconciliation
-                  <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                 </Link>
               </Button>
             ) : null}
@@ -370,7 +419,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/10 p-4">
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+          <CalendarDays className="h-4 w-4" aria-hidden />
+        </span>
         <Button
           type="button"
           size="icon"
@@ -399,6 +451,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
           type="button"
           size="sm"
           variant="ghost"
+          leftIcon={<CalendarDays className="h-3.5 w-3.5" />}
           onClick={() => setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())}
         >
           This {periodNoun}
@@ -411,7 +464,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
           <p className="text-sm text-muted-foreground">Loading salary…</p>
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-destructive">Could not load salary for this employee.</p>
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+          Could not load salary for this employee.
+        </div>
       ) : data ? (
         <>
           <div className={cn('grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6')}>
@@ -419,27 +475,37 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
               title="Visit pay"
               value={visitSalary}
               hint={`${salaryVisitCount} accepted visit${salaryVisitCount === 1 ? '' : 's'}`}
+              icon={<PoundSterling className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             />
             <StatCard
               title="Fines"
               value={data.fineTotal ?? '£0.00'}
               hint="Deducted from salary"
+              icon={<Gavel className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
             />
             <StatCard
               title="Penalties"
               value={data.penaltyTotal ?? '£0.00'}
               hint="Deducted from salary"
+              icon={<Scale className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-orange-500/10 text-orange-800 dark:text-orange-300"
             />
             <StatCard
               title={`${periodLabel} net salary`}
               value={netSalary}
               hint="Visit pay − fines − penalties"
               emphasize
+              icon={<Wallet className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-primary/10 text-primary"
             />
             <StatCard
               title="Already paid"
               value={data.totalEarned}
               hint={`${data.paidVisitCount} in locked payroll`}
+              icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             />
             <StatCard
               title="Pending review"
@@ -449,20 +515,34 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                   ? `${rejectedVisits.length} rejected (excluded)`
                   : 'Needs accept / reject'
               }
+              icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
             />
           </div>
 
-          <ContentCard className="space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Fines & penalties</h3>
-              <p className="text-xs text-muted-foreground">
-                Total deductions {data.deductionsTotal ?? '£0.00'}
-              </p>
+          <ContentCard className="space-y-4 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                  <Gavel className="h-4 w-4" aria-hidden />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Fines & penalties</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Total deductions {data.deductionsTotal ?? '£0.00'}
+                  </p>
+                </div>
+              </div>
             </div>
             {deductions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No fines or penalties for {periodLabel}.
-              </p>
+              <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <Scale className="h-5 w-5 text-muted-foreground" aria-hidden />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  No fines or penalties for {periodLabel}.
+                </p>
+              </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full min-w-[640px] text-sm">
@@ -497,12 +577,17 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                           <Badge
                             variant="outline"
                             className={cn(
-                              'font-medium',
+                              'inline-flex items-center gap-1 font-medium',
                               row.type === 'FINE'
                                 ? 'bg-warning/10 text-warning border-warning/20'
                                 : 'bg-destructive/10 text-destructive border-destructive/20',
                             )}
                           >
+                            {row.type === 'FINE' ? (
+                              <Gavel className="h-3 w-3" aria-hidden />
+                            ) : (
+                              <Scale className="h-3 w-3" aria-hidden />
+                            )}
                             {row.type === 'FINE' ? 'Fine' : 'Penalty'}
                           </Badge>
                         </td>
@@ -534,22 +619,34 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
             )}
           </ContentCard>
 
-          <ContentCard className="space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                Visits in this {periodNoun}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {salaryVisits.length} in salary
-                {pendingVisits.length ? ` · ${pendingVisits.length} pending` : ''}
-                {rejectedVisits.length ? ` · ${rejectedVisits.length} rejected` : ''}
-              </p>
+          <ContentCard className="space-y-4 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                  <ListChecks className="h-4 w-4" aria-hidden />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Visits in this {periodNoun}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {salaryVisits.length} in salary
+                    {pendingVisits.length ? ` · ${pendingVisits.length} pending` : ''}
+                    {rejectedVisits.length ? ` · ${rejectedVisits.length} rejected` : ''}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {visits.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No reconciled visits for {periodLabel}.
-              </p>
+              <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <ClipboardCheck className="h-5 w-5 text-muted-foreground" aria-hidden />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  No reconciled visits for {periodLabel}.
+                </p>
+              </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full min-w-[920px] text-sm">
@@ -559,7 +656,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                         Visit
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Date
+                        <span className="inline-flex items-center gap-1.5">
+                          <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+                          Date
+                        </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Service user
@@ -571,7 +671,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                         Hours
                       </th>
                       <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                        Amount
+                        <span className="inline-flex items-center justify-end gap-1.5">
+                          <PoundSterling className="h-3.5 w-3.5" aria-hidden />
+                          Amount
+                        </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Status
@@ -620,8 +723,12 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                           <td className="px-3 py-2.5">
                             <Badge
                               variant="outline"
-                              className={cn('font-medium', paymentStateBadgeClass(row.paymentState))}
+                              className={cn(
+                                'inline-flex items-center gap-1 font-medium',
+                                paymentStateBadgeClass(row.paymentState),
+                              )}
                             >
+                              <PaymentStateIcon state={row.paymentState} />
                               {paymentStateLabel(row.paymentState)}
                             </Badge>
                           </td>
@@ -635,12 +742,12 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                                   type="button"
                                   size="sm"
                                   variant="ghost"
+                                  leftIcon={<Pencil className="h-3.5 w-3.5" />}
                                   onClick={() => openEditAmount(row)}
                                   aria-label={`Edit amount for ${row.visitRef}`}
                                   data-testid={`employee-salary-edit-amount-${row.id}`}
                                 >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                  <span className="ml-1.5">Edit</span>
+                                  Edit
                                 </Button>
                               ) : (
                                 <span className="text-xs text-muted-foreground">Locked</span>
@@ -670,7 +777,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit visit amount</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" aria-hidden />
+              Edit visit amount
+            </DialogTitle>
             <DialogDescription>
               {editingVisit
                 ? `Update payable amount for ${editingVisit.visitRef}. This updates salary totals and accepts the visit for pay if needed.`
@@ -740,7 +850,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add fine or penalty</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Gavel className="h-4 w-4 text-primary" aria-hidden />
+              Add fine or penalty
+            </DialogTitle>
             <DialogDescription>
               Deducted from {periodLabel} net salary for this carer.
             </DialogDescription>

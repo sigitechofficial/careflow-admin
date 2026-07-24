@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Eye, Loader2, RefreshCw, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Eye, Filter, Loader2, RefreshCw, Search, Trash2, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import { Input } from '@/shared/ui/input'
@@ -261,19 +261,26 @@ export function BillingVisitReconciliationPanel({
             className="h-8 w-[220px]"
             allowDeselect
           />
-          <Input
-            placeholder="Search visit or name…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="h-8 w-48"
-            aria-label="Search visit reconciliations"
-          />
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              placeholder="Search visit or name…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-8 w-52 pl-8"
+              aria-label="Search visit reconciliations"
+            />
+          </div>
           <Button
             variant={exceptionsOnly ? 'default' : 'outline'}
             size="sm"
+            leftIcon={<Filter className="h-3.5 w-3.5" />}
             onClick={() => setExceptionsOnly(v => !v)}
           >
-            {exceptionsOnly ? 'Showing exceptions' : 'Filter exceptions'}
+            {exceptionsOnly ? 'Showing exceptions' : 'Exceptions only'}
           </Button>
         </div>
 
@@ -282,24 +289,27 @@ export function BillingVisitReconciliationPanel({
             <Button
               variant="outline"
               size="sm"
+              leftIcon={
+                <RefreshCw className={`h-3.5 w-3.5 ${backfillMutation.isPending ? 'animate-spin' : ''}`} />
+              }
               onClick={() => void handleBackfill()}
               disabled={isMutating}
             >
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               Sync completed visits
             </Button>
             <Button
               variant="outline"
               size="sm"
               className="text-destructive hover:text-destructive"
+              leftIcon={<Trash2 className="h-3.5 w-3.5" />}
               onClick={() => void handleClearAll()}
               disabled={isMutating}
             >
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
               {clearAllMutation.isPending ? 'Deleting…' : 'Delete all'}
             </Button>
             <Button
               size="sm"
+              leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
               onClick={() => void handleBulkApprove()}
               disabled={isMutating || !rows.length}
             >
@@ -320,12 +330,16 @@ export function BillingVisitReconciliationPanel({
         <p className="text-sm text-destructive">Failed to load visit reconciliations.</p>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <ClipboardCheck className="h-5 w-5 text-muted-foreground" aria-hidden />
+          </div>
           <p>No visits awaiting reconciliation.</p>
           {canManage ? (
             <Button
               variant="outline"
               size="sm"
               className="mt-4"
+              leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
               onClick={() => void handleBackfill()}
               disabled={isMutating}
             >
@@ -389,8 +403,18 @@ export function BillingVisitReconciliationPanel({
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
                   Actual Departure
                 </th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Exceptions</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                    Exceptions
+                  </span>
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    <ClipboardCheck className="h-3.5 w-3.5" aria-hidden />
+                    Status
+                  </span>
+                </th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Details</th>
                 {canManage ? (
                   <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Actions</th>
@@ -459,7 +483,8 @@ export function BillingVisitReconciliationPanel({
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {(row.overrunMinutes ?? 0) > 0 ? (
-                            <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
                               +{row.overrunMinutes}m
                               {row.overrunDecision === 'APPROVED'
                                 ? ' approved'

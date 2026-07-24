@@ -1,4 +1,4 @@
-import { ExternalLink, Loader2 } from 'lucide-react'
+import { CalendarDays, CreditCard, ExternalLink, ListChecks, Loader2, Users } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { RateCardStatusBadge, formatBillingLabel } from '@/features/billing/components/BillingStatusBadge'
 import { getRuleRateTypeLabel, isHourlyLongVisitRule, isMileageRule, isTravelTimeRule, isWaitingTimeRule } from '@/features/billing/utils/billing-card-rule.util'
@@ -135,33 +135,41 @@ export function PayCardDetailsView({
   const grouped = groupRules ? groupRulesByCategory(rules) : null
 
   return (
-    <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-4" data-testid="pay-card-details">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-4" data-testid="pay-card-details">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="font-semibold text-foreground">{card.name}</p>
-          <p className="text-xs font-mono text-muted-foreground">{card.code}</p>
-          {sourceLabel ? (
-            <Badge variant={assignmentSource === 'PREVIEW' ? 'warning' : 'secondary'} className="mt-1">
-              {sourceLabel}
-            </Badge>
-          ) : null}
+        <div className="flex items-start gap-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-700 dark:text-sky-300">
+            <CreditCard className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="space-y-1">
+            <p className="font-semibold text-foreground">{card.name}</p>
+            <p className="text-xs font-mono text-muted-foreground">{card.code}</p>
+            {sourceLabel ? (
+              <Badge variant={assignmentSource === 'PREVIEW' ? 'warning' : 'secondary'} className="mt-1">
+                {sourceLabel}
+              </Badge>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <RateCardStatusBadge status={card.status} />
           {showManageLink ? (
             <Button variant="outline" size="sm" asChild>
-              <Link to="/billing" search={{ tab: 'pay-cards' }}>
+              <Link to="/billing" search={{ tab: 'pay-cards' }} className="inline-flex items-center gap-1.5">
                 Manage in Billing
-                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </Button>
           ) : null}
         </div>
       </div>
 
-      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid gap-3 rounded-lg border border-border bg-muted/10 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div>
-          <dt className="text-xs text-muted-foreground">Applies to</dt>
+          <dt className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users className="h-3.5 w-3.5" aria-hidden />
+            Applies to
+          </dt>
           <dd className="mt-0.5">{formatPayCardAssignmentDisplay(card)}</dd>
         </div>
         <div>
@@ -169,44 +177,15 @@ export function PayCardDetailsView({
           <dd className="mt-0.5">{formatBillingCurrencyDisplay(card.currency)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">Effective period</dt>
+          <dt className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+            Effective period
+          </dt>
           <dd className="mt-0.5">
             {formatBillingDate(card.effectiveFrom)}
             {card.effectiveTo ? ` → ${formatBillingDate(card.effectiveTo)}` : ' → open-ended'}
           </dd>
         </div>
-        {card.assignedCarerCount != null || (card.assignedCarers?.length ?? 0) > 0 ? (
-          <div className="sm:col-span-2 lg:col-span-3">
-            <dt className="text-xs text-muted-foreground">Carers on this card</dt>
-            <dd className="mt-1 space-y-1">
-              <p className="tabular-nums">
-                {card.assignedCarerCount ?? card.assignedCarers?.length ?? 0} assigned
-              </p>
-              {(card.assignedCarers?.length ?? 0) > 0 ? (
-                <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-                  {(card.assignedCarers ?? []).slice(0, 12).map(carer => (
-                    <li key={carer.employeeId}>
-                      <Link
-                        to="/employee/$employeeId/edit"
-                        params={{ employeeId: carer.employeeId }}
-                        className="underline-offset-2 hover:underline"
-                      >
-                        {carer.fullName}
-                      </Link>
-                    </li>
-                  ))}
-                  {(card.assignedCarerCount ?? 0) > 12 ? (
-                    <li className="text-muted-foreground">
-                      +{(card.assignedCarerCount ?? 0) - 12} more
-                    </li>
-                  ) : null}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground">None assigned yet</p>
-              )}
-            </dd>
-          </div>
-        ) : null}
         <div className="sm:col-span-2 lg:col-span-3">
           <dt className="text-xs text-muted-foreground">Notes</dt>
           <dd className="mt-0.5 whitespace-pre-wrap text-muted-foreground">
@@ -217,7 +196,10 @@ export function PayCardDetailsView({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Rate rules</h3>
+          <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+            <ListChecks className="h-4 w-4 text-muted-foreground" aria-hidden />
+            Rate rules
+          </h3>
           <span className="text-xs text-muted-foreground">{rules.length} rule{rules.length === 1 ? '' : 's'}</span>
         </div>
 

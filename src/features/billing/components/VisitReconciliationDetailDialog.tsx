@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardCheck, FileText, Loader2, PoundSterling, User, Wallet, XCircle } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
@@ -39,6 +39,7 @@ function RateBreakdownCard({
   hours,
   breakdown,
   fallbackAmount,
+  icon,
 }: {
   title: string
   subtitle: string
@@ -46,13 +47,17 @@ function RateBreakdownCard({
   hours: string | null
   breakdown: VisitReconciliationRateBreakdown | null
   fallbackAmount: string | null
+  icon?: React.ReactNode
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
 
   return (
     <ContentCard className="p-4 space-y-3">
       <div>
-        <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+        <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          {icon}
+          {title}
+        </h4>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -199,7 +204,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Visit billing details</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
+            Visit billing details
+          </DialogTitle>
         </DialogHeader>
         <DialogBody className="max-h-[75vh] space-y-4 overflow-y-auto">
           {!row ? null : detailQuery.isLoading ? (
@@ -223,7 +231,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
               </div>
 
               <ContentCard className="p-4">
-                <h4 className="mb-3 text-sm font-semibold">Time worked</h4>
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                  Time worked
+                </h4>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-xs text-muted-foreground">Planned</dt>
@@ -245,7 +256,8 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
               {(detail.overrunMinutes ?? 0) > 0 ? (
                 <ContentCard className="space-y-3 border-amber-300/50 bg-amber-50/40 p-4 dark:border-amber-700/40 dark:bg-amber-950/20">
                   <div>
-                    <h4 className="text-sm font-semibold text-foreground">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
                       Duration overrun — {detail.overrunMinutes} min
                     </h4>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -284,6 +296,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                         <Button
                           type="button"
                           size="sm"
+                          leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
                           disabled={overrunBusy}
                           onClick={() => void decideOverrun('approve')}
                         >
@@ -293,6 +306,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                           type="button"
                           size="sm"
                           variant="outline"
+                          leftIcon={<XCircle className="h-3.5 w-3.5" />}
                           disabled={overrunBusy}
                           onClick={() => void decideOverrun('reject')}
                         >
@@ -306,7 +320,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
               <ContentCard className="p-4 space-y-3">
                 <div>
-                  <h4 className="text-sm font-semibold">Mileage</h4>
+                  <h4 className="flex items-center gap-2 text-sm font-semibold">
+                    <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    Mileage
+                  </h4>
                   <p className="text-xs text-muted-foreground">
                     Enter approved journey miles between visits. Payroll multiplies this by the carer’s pay card mileage (£/mile) rate.
                   </p>
@@ -346,6 +363,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 hours={preview?.payableHours ?? null}
                 breakdown={preview?.carerPay ?? null}
                 fallbackAmount={detail.payableAmount}
+                icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
               />
 
               <RateBreakdownCard
@@ -355,6 +373,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 hours={preview?.billableHours ?? null}
                 breakdown={preview?.clientCharge ?? null}
                 fallbackAmount={detail.billableAmount}
+                icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
               />
 
               {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (

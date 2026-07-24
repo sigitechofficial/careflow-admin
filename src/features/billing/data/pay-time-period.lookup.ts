@@ -1,6 +1,7 @@
 /**
  * Standard UK domiciliary pay time-period lookups.
- * Used by pay-card day/time premiums (not Settings name lookups — these carry day + clock defaults).
+ * Special days (bank holiday, Boxing Day, org day, …) are normal £/hr periods
+ * that take priority over weekday/weekend rules when that calendar day occurs.
  */
 
 import type { BillingDayType } from '@/features/billing/types/billing-cards.types'
@@ -16,11 +17,29 @@ export type PayTimePeriodCode =
   | 'SUNDAY_EVENING'
   | 'SUNDAY_NIGHT'
   | 'BANK_HOLIDAY'
+  | 'BANK_HOLIDAY_DAYTIME'
+  | 'BANK_HOLIDAY_EVENING'
+  | 'BANK_HOLIDAY_NIGHT'
   | 'CHRISTMAS'
+  | 'CHRISTMAS_DAYTIME'
+  | 'CHRISTMAS_EVENING'
+  | 'CHRISTMAS_NIGHT'
   | 'BOXING_DAY'
+  | 'BOXING_DAY_DAYTIME'
+  | 'BOXING_DAY_EVENING'
+  | 'BOXING_DAY_NIGHT'
   | 'NEW_YEAR'
+  | 'NEW_YEAR_DAYTIME'
+  | 'NEW_YEAR_EVENING'
+  | 'NEW_YEAR_NIGHT'
   | 'EASTER'
+  | 'EASTER_DAYTIME'
+  | 'EASTER_EVENING'
+  | 'EASTER_NIGHT'
   | 'SPECIAL'
+  | 'SPECIAL_DAYTIME'
+  | 'SPECIAL_EVENING'
+  | 'SPECIAL_NIGHT'
 
 export type PayTimePeriodLookup = {
   code: PayTimePeriodCode
@@ -31,6 +50,54 @@ export type PayTimePeriodLookup = {
   endTime: string | null
   /** Higher = preferred when periods overlap (special days beat weekdays). */
   priority: number
+  group: 'weekday' | 'saturday' | 'sunday' | 'special'
+}
+
+const DAY = { startTime: '07:00' as const, endTime: '19:00' as const }
+const EVE = { startTime: '19:00' as const, endTime: '22:00' as const }
+const NIGHT = { startTime: '22:00' as const, endTime: '07:00' as const }
+
+function specialBands(
+  dayType: BillingDayType,
+  baseLabel: string,
+  baseCode: string,
+  basePriority: number,
+): PayTimePeriodLookup[] {
+  return [
+    {
+      code: baseCode as PayTimePeriodCode,
+      label: baseLabel,
+      dayType,
+      startTime: null,
+      endTime: null,
+      priority: basePriority,
+      group: 'special',
+    },
+    {
+      code: `${baseCode}_DAYTIME` as PayTimePeriodCode,
+      label: `${baseLabel} daytime`,
+      dayType,
+      ...DAY,
+      priority: basePriority + 1,
+      group: 'special',
+    },
+    {
+      code: `${baseCode}_EVENING` as PayTimePeriodCode,
+      label: `${baseLabel} evening`,
+      dayType,
+      ...EVE,
+      priority: basePriority + 2,
+      group: 'special',
+    },
+    {
+      code: `${baseCode}_NIGHT` as PayTimePeriodCode,
+      label: `${baseLabel} night`,
+      dayType,
+      ...NIGHT,
+      priority: basePriority + 3,
+      group: 'special',
+    },
+  ]
 }
 
 /**
@@ -38,21 +105,31 @@ export type PayTimePeriodLookup = {
  * Night wraps midnight (22:00 → 07:00).
  */
 export const PAY_TIME_PERIOD_LOOKUP: PayTimePeriodLookup[] = [
-  { code: 'WEEKDAY_DAYTIME', label: 'Weekday daytime', dayType: 'WEEKDAY', startTime: '07:00', endTime: '19:00', priority: 10 },
-  { code: 'WEEKDAY_EVENING', label: 'Weekday evening', dayType: 'WEEKDAY', startTime: '19:00', endTime: '22:00', priority: 20 },
-  { code: 'WEEKDAY_NIGHT', label: 'Weekday night', dayType: 'WEEKDAY', startTime: '22:00', endTime: '07:00', priority: 30 },
-  { code: 'SATURDAY_DAYTIME', label: 'Saturday daytime', dayType: 'SATURDAY', startTime: '07:00', endTime: '19:00', priority: 40 },
-  { code: 'SATURDAY_EVENING', label: 'Saturday evening', dayType: 'SATURDAY', startTime: '19:00', endTime: '22:00', priority: 50 },
-  { code: 'SATURDAY_NIGHT', label: 'Saturday night', dayType: 'SATURDAY', startTime: '22:00', endTime: '07:00', priority: 60 },
-  { code: 'SUNDAY_DAYTIME', label: 'Sunday daytime', dayType: 'SUNDAY', startTime: '07:00', endTime: '19:00', priority: 70 },
-  { code: 'SUNDAY_EVENING', label: 'Sunday evening', dayType: 'SUNDAY', startTime: '19:00', endTime: '22:00', priority: 80 },
-  { code: 'SUNDAY_NIGHT', label: 'Sunday night', dayType: 'SUNDAY', startTime: '22:00', endTime: '07:00', priority: 90 },
-  { code: 'BANK_HOLIDAY', label: 'Bank holiday', dayType: 'BANK_HOLIDAY', startTime: null, endTime: null, priority: 100 },
-  { code: 'CHRISTMAS', label: 'Christmas Day', dayType: 'CHRISTMAS', startTime: null, endTime: null, priority: 110 },
-  { code: 'BOXING_DAY', label: 'Boxing Day', dayType: 'BOXING_DAY', startTime: null, endTime: null, priority: 110 },
-  { code: 'NEW_YEAR', label: "New Year's Day", dayType: 'NEW_YEAR', startTime: null, endTime: null, priority: 110 },
-  { code: 'EASTER', label: 'Easter holidays', dayType: 'EASTER', startTime: null, endTime: null, priority: 105 },
-  { code: 'SPECIAL', label: 'Organisation-defined special day', dayType: 'SPECIAL', startTime: null, endTime: null, priority: 95 },
+  { code: 'WEEKDAY_DAYTIME', label: 'Weekday daytime', dayType: 'WEEKDAY', ...DAY, priority: 10, group: 'weekday' },
+  { code: 'WEEKDAY_EVENING', label: 'Weekday evening', dayType: 'WEEKDAY', ...EVE, priority: 20, group: 'weekday' },
+  { code: 'WEEKDAY_NIGHT', label: 'Weekday night', dayType: 'WEEKDAY', ...NIGHT, priority: 30, group: 'weekday' },
+  { code: 'SATURDAY_DAYTIME', label: 'Saturday daytime', dayType: 'SATURDAY', ...DAY, priority: 40, group: 'saturday' },
+  { code: 'SATURDAY_EVENING', label: 'Saturday evening', dayType: 'SATURDAY', ...EVE, priority: 50, group: 'saturday' },
+  { code: 'SATURDAY_NIGHT', label: 'Saturday night', dayType: 'SATURDAY', ...NIGHT, priority: 60, group: 'saturday' },
+  { code: 'SUNDAY_DAYTIME', label: 'Sunday daytime', dayType: 'SUNDAY', ...DAY, priority: 70, group: 'sunday' },
+  { code: 'SUNDAY_EVENING', label: 'Sunday evening', dayType: 'SUNDAY', ...EVE, priority: 80, group: 'sunday' },
+  { code: 'SUNDAY_NIGHT', label: 'Sunday night', dayType: 'SUNDAY', ...NIGHT, priority: 90, group: 'sunday' },
+  ...specialBands('BANK_HOLIDAY', 'Bank holiday', 'BANK_HOLIDAY', 100),
+  ...specialBands('SPECIAL', 'Organisation special day', 'SPECIAL', 105),
+  ...specialBands('EASTER', 'Easter holiday', 'EASTER', 108),
+  ...specialBands('CHRISTMAS', 'Christmas Day', 'CHRISTMAS', 110),
+  ...specialBands('BOXING_DAY', 'Boxing Day', 'BOXING_DAY', 110),
+  ...specialBands('NEW_YEAR', "New Year's Day", 'NEW_YEAR', 110),
+]
+
+export const PAY_TIME_PERIOD_GROUPS: {
+  id: PayTimePeriodLookup['group']
+  label: string
+}[] = [
+  { id: 'weekday', label: 'Weekdays' },
+  { id: 'saturday', label: 'Saturday' },
+  { id: 'sunday', label: 'Sunday' },
+  { id: 'special', label: 'Bank / org / public holidays' },
 ]
 
 export function getPayTimePeriodByCode(code: string | null | undefined): PayTimePeriodLookup | undefined {

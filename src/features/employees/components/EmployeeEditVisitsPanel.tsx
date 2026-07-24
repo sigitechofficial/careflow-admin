@@ -1,5 +1,22 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2 } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  Filter,
+  FlaskConical,
+  ListChecks,
+  Loader2,
+  MapPin,
+  PlayCircle,
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -105,25 +122,41 @@ function StatCard({
   hint,
   active,
   onClick,
+  icon,
+  iconClassName,
 }: {
   title: string
   value: number
   hint: string
   active?: boolean
   onClick?: () => void
+  icon: React.ReactNode
+  iconClassName: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'rounded-xl border p-4 text-left transition-colors',
+        'rounded-xl border p-4 text-left shadow-sm transition-colors',
         active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40',
       )}
     >
-      <p className="text-xs font-medium text-muted-foreground">{title}</p>
-      <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <p className="text-2xl font-display font-bold tabular-nums text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+        <span
+          className={cn(
+            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            iconClassName,
+          )}
+        >
+          {icon}
+        </span>
+      </div>
     </button>
   )
 }
@@ -247,6 +280,8 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
       <ContentSectionHeader
         title="Visits"
         description="Allocated visits for this carer — planned vs actual times, punctuality, and duration for CQC evidence."
+        icon={<CalendarCheck className="h-5 w-5" aria-hidden />}
+        iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
         action={
           canOpenSchedule ? (
             <Button variant="outline" size="sm" asChild>
@@ -254,9 +289,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                 to="/scheduling/schedule-jobs"
                 search={{}}
                 data-testid="employee-visits-open-schedule"
+                className="inline-flex items-center gap-1.5"
               >
                 Open schedule
-                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </Button>
           ) : null
@@ -272,78 +308,87 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
         onClearFilter={() => setCodeFilter({ kind: 'none' })}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            aria-label="Previous month"
-            onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            data-testid="employee-visits-prev-month"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="min-w-[10rem] text-center">
-            <p className="text-sm font-semibold text-foreground">{utcMonthLabel(month)}</p>
-            <p className="text-xs text-muted-foreground">{month}</p>
-          </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            aria-label="Next month"
-            onClick={() => setMonth((m) => shiftMonth(m, 1))}
-            data-testid="employee-visits-next-month"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setMonth(currentUtcMonth())}
-            data-testid="employee-visits-this-month"
-          >
-            This month
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={showStatusSamples ? 'default' : 'outline'}
-            onClick={() => setShowStatusSamples((v) => !v)}
-            data-testid="employee-visits-toggle-samples"
-          >
-            {showStatusSamples ? 'Sample visits on' : 'Sample visits off'}
-          </Button>
-          {(
-            [
-              ['all', 'All'],
-              ['completed', 'Completed'],
-              ['ongoing', 'Ongoing'],
-              ['upcoming', 'Upcoming'],
-              ['other', 'Other'],
-            ] as const
-          ).map(([id, label]) => (
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+              <CalendarDays className="h-4 w-4" aria-hidden />
+            </span>
             <Button
-              key={id}
+              type="button"
+              size="icon"
+              variant="outline"
+              aria-label="Previous month"
+              onClick={() => setMonth((m) => shiftMonth(m, -1))}
+              data-testid="employee-visits-prev-month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-[10rem] text-center">
+              <p className="text-sm font-semibold text-foreground">{utcMonthLabel(month)}</p>
+              <p className="text-xs text-muted-foreground">{month}</p>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              aria-label="Next month"
+              onClick={() => setMonth((m) => shiftMonth(m, 1))}
+              data-testid="employee-visits-next-month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
               type="button"
               size="sm"
-              variant={filter === id ? 'default' : 'outline'}
-              onClick={() => setFilter(id)}
-              data-testid={`employee-visits-filter-${id}`}
+              variant="ghost"
+              leftIcon={<CalendarClock className="h-3.5 w-3.5" />}
+              onClick={() => setMonth(currentUtcMonth())}
+              data-testid="employee-visits-this-month"
             >
-              {label}
+              This month
             </Button>
-          ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={showStatusSamples ? 'default' : 'outline'}
+              leftIcon={<FlaskConical className="h-3.5 w-3.5" />}
+              onClick={() => setShowStatusSamples((v) => !v)}
+              data-testid="employee-visits-toggle-samples"
+            >
+              {showStatusSamples ? 'Sample visits on' : 'Sample visits off'}
+            </Button>
+            {(
+              [
+                ['all', 'All', <ListChecks className="h-3.5 w-3.5" aria-hidden />],
+                ['completed', 'Completed', <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />],
+                ['ongoing', 'Ongoing', <PlayCircle className="h-3.5 w-3.5" aria-hidden />],
+                ['upcoming', 'Upcoming', <CalendarClock className="h-3.5 w-3.5" aria-hidden />],
+                ['other', 'Other', <AlertTriangle className="h-3.5 w-3.5" aria-hidden />],
+              ] as const
+            ).map(([id, label, icon]) => (
+              <Button
+                key={id}
+                type="button"
+                size="sm"
+                variant={filter === id ? 'default' : 'outline'}
+                leftIcon={icon}
+                onClick={() => setFilter(id)}
+                data-testid={`employee-visits-filter-${id}`}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
       {codeFilter.kind !== 'none' ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <Filter className="h-3.5 w-3.5 text-primary" aria-hidden />
           <span className="text-muted-foreground">Code filter:</span>
           <Badge variant="outline" className="font-medium">
             {codeFilter.kind} · {codeFilter.code}
@@ -402,8 +447,11 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          <span className="self-center text-xs text-muted-foreground">Quick code filters:</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 self-center text-xs font-medium text-muted-foreground">
+            <Filter className="h-3.5 w-3.5" aria-hidden />
+            Quick filters
+          </span>
           {(
             [
               ['timing', 'LATE_START', 'Late start'],
@@ -435,9 +483,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
           Loading visits…
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
           Could not load visits for this employee. Check employees or schedule access.
-        </p>
+        </div>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -447,6 +496,8 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
               hint="Finished or partially completed"
               active={filter === 'completed'}
               onClick={() => setFilter(filter === 'completed' ? 'all' : 'completed')}
+              icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             />
             <StatCard
               title="Ongoing"
@@ -454,6 +505,8 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
               hint="In progress now"
               active={filter === 'ongoing'}
               onClick={() => setFilter(filter === 'ongoing' ? 'all' : 'ongoing')}
+              icon={<PlayCircle className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             />
             <StatCard
               title="Upcoming"
@@ -461,6 +514,8 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
               hint="Allocated future visits"
               active={filter === 'upcoming'}
               onClick={() => setFilter(filter === 'upcoming' ? 'all' : 'upcoming')}
+              icon={<CalendarClock className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
             />
             <StatCard
               title="Other"
@@ -468,40 +523,57 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
               hint="Missed, cancelled, or past incomplete"
               active={filter === 'other'}
               onClick={() => setFilter(filter === 'other' ? 'all' : 'other')}
+              icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
             />
           </div>
 
-          <ContentCard className="space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Visit list</h3>
-              <p className="text-xs text-muted-foreground">
-                {visible.length} visit{visible.length === 1 ? '' : 's'}
-                {showStatusSamples
-                  ? ` · ${classified.filter((r) => r.isSample).length} samples included`
-                  : ''}
-                {query.data?.totalMinutes
-                  ? ` · ${(query.data.totalMinutes / 60).toFixed(1)}h planned (live)`
-                  : ''}
-              </p>
+          <ContentCard className="space-y-4 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-500/10 text-slate-700 dark:text-slate-300">
+                  <ListChecks className="h-4 w-4" aria-hidden />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Visit list</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {visible.length} visit{visible.length === 1 ? '' : 's'}
+                    {showStatusSamples
+                      ? ` · ${classified.filter((r) => r.isSample).length} samples included`
+                      : ''}
+                    {query.data?.totalMinutes
+                      ? ` · ${(query.data.totalMinutes / 60).toFixed(1)}h planned (live)`
+                      : ''}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {visible.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No matching visits
-                {filter !== 'all' ? ` in ${bucketLabel(filter).toLowerCase()}` : ''}
-                {codeFilter.kind !== 'none' ? ` for ${codeFilter.code}` : ''} in{' '}
-                {utcMonthLabel(month)}.
-                {!showStatusSamples
-                  ? ' Turn on Sample visits to load verification rows.'
-                  : ''}
-              </p>
+              <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <CalendarCheck className="h-5 w-5 text-muted-foreground" aria-hidden />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  No matching visits
+                  {filter !== 'all' ? ` in ${bucketLabel(filter).toLowerCase()}` : ''}
+                  {codeFilter.kind !== 'none' ? ` for ${codeFilter.code}` : ''} in{' '}
+                  {utcMonthLabel(month)}.
+                  {!showStatusSamples
+                    ? ' Turn on Sample visits to load verification rows.'
+                    : ''}
+                </p>
+              </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full min-w-[1880px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Date
+                        <span className="inline-flex items-center gap-1.5">
+                          <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+                          Date
+                        </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Slot
@@ -534,7 +606,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         End punctuality
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Planned duration
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" aria-hidden />
+                          Planned duration
+                        </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual duration
@@ -549,10 +624,16 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         Status
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Exceptions
+                        <span className="inline-flex items-center gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                          Exceptions
+                        </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Address
+                        <span className="inline-flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5" aria-hidden />
+                          Address
+                        </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Action
@@ -761,8 +842,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                                     date: job.scheduledStartDateTime.slice(0, 10),
                                     returnTo: `/employee/${employeeId}/edit?tab=visits`,
                                   }}
+                                  className="inline-flex items-center gap-1.5"
                                 >
                                   Open
+                                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                                 </Link>
                               </Button>
                             ) : (

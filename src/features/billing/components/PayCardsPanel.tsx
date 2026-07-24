@@ -1,10 +1,23 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Eye, Pencil, Plus, Search, Trash2, UserMinus, UserPlus } from 'lucide-react'
+import {
+  CheckCircle2,
+  CreditCard,
+  Eye,
+  FileEdit,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  Users,
+} from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { cn } from '@/shared/lib/utils'
 import {
   Dialog,
   DialogBody,
@@ -29,6 +42,59 @@ import {
   type PayCard,
 } from '@/features/billing/types/billing-cards.types'
 import { useAuthStore } from '@/features/auth/store'
+
+function PayCardStatCard({
+  title,
+  value,
+  hint,
+  icon,
+  iconClassName,
+  loading,
+}: {
+  title: string
+  value: number
+  hint: string
+  icon: React.ReactNode
+  iconClassName: string
+  loading?: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <p className="text-2xl font-display font-bold tabular-nums text-foreground">
+            {loading ? '—' : value}
+          </p>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+        <span
+          className={cn(
+            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            iconClassName,
+          )}
+        >
+          {icon}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function usePayCardStats(cards: PayCard[] | undefined) {
+  return React.useMemo(() => {
+    const list = cards ?? []
+    const total = list.length
+    const active = list.filter(c => c.status === 'ACTIVE').length
+    const draft = list.filter(c => c.status === 'DRAFT').length
+    const assignedCards = list.filter(c => (c.assignedCarerCount ?? c.assignedCarers?.length ?? 0) > 0).length
+    const assignedCarers = list.reduce(
+      (sum, c) => sum + (c.assignedCarerCount ?? c.assignedCarers?.length ?? 0),
+      0,
+    )
+    return { total, active, draft, assignedCards, assignedCarers }
+  }, [cards])
+}
 
 type AssignedCarersDialogProps = {
   cardId: string | null
@@ -168,8 +234,10 @@ export function PayCardsPanel() {
   const [assigning, setAssigning] = React.useState<PayCard | null>(null)
   const [viewingCarersId, setViewingCarersId] = React.useState<string | null>(null)
 
-  const listQuery = usePayCards({ search: search.trim() || undefined })
+  const listQuery = usePayCards(search.trim() ? { search: search.trim() } : undefined)
+  const statsQuery = usePayCards()
   const deleteMutation = useDeletePayCard()
+  const stats = usePayCardStats(statsQuery.data)
 
   const rows = listQuery.data ?? []
   const error =
@@ -222,6 +290,41 @@ export function PayCardsPanel() {
           ) : undefined
         }
       />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <PayCardStatCard
+          title="Total pay cards"
+          value={stats.total}
+          hint="All rate templates"
+          loading={statsQuery.isLoading}
+          icon={<CreditCard className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+        />
+        <PayCardStatCard
+          title="Active cards"
+          value={stats.active}
+          hint="Ready to use for pay"
+          loading={statsQuery.isLoading}
+          icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+        />
+        <PayCardStatCard
+          title="Assigned cards"
+          value={stats.assignedCards}
+          hint={`${stats.assignedCarers} carer${stats.assignedCarers === 1 ? '' : 's'} linked`}
+          loading={statsQuery.isLoading}
+          icon={<Users className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+        />
+        <PayCardStatCard
+          title="Draft cards"
+          value={stats.draft}
+          hint="Not yet activated"
+          loading={statsQuery.isLoading}
+          icon={<FileEdit className="h-5 w-5" aria-hidden />}
+          iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
+        />
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1 max-w-sm">
