@@ -704,12 +704,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           <label className="space-y-1 text-sm">
             <span className="text-xs text-muted-foreground">{amountLabel}</span>
             <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={rule.amount}
+              type="text"
+              inputMode="decimal"
+              value={rule.amount === 0 || rule.amount == null ? '' : String(rule.amount)}
               onChange={e => {
-                const amount = Number(e.target.value)
+                const raw = e.target.value.trim()
+                const amount = raw === '' ? 0 : Number(raw)
+                if (Number.isNaN(amount)) return
                 if (mileage) {
                   updateRule(index, {
                     amount,
@@ -746,6 +747,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 }
               }}
               disabled={disabled}
+              placeholder="0.00"
             />
             <p className="text-xs text-muted-foreground">
               {mileage
@@ -1019,20 +1021,23 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           <label className="space-y-1 text-sm">
             <span className="text-xs text-muted-foreground">{enhancementAmountLabel(method)}</span>
             <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={
-                method === 'PERCENTAGE_UPLIFT'
-                  ? (rule.percentageUplift ?? rule.amount)
-                  : method === 'MULTIPLIER'
-                    ? (rule.multiplier ?? rule.amount)
-                    : method === 'ADDITIONAL_PER_HOUR'
-                      ? (rule.additionalAmount ?? rule.amount)
-                      : rule.amount
-              }
+              type="text"
+              inputMode="decimal"
+              value={(() => {
+                const raw =
+                  method === 'PERCENTAGE_UPLIFT'
+                    ? (rule.percentageUplift ?? rule.amount)
+                    : method === 'MULTIPLIER'
+                      ? (rule.multiplier ?? rule.amount)
+                      : method === 'ADDITIONAL_PER_HOUR'
+                        ? (rule.additionalAmount ?? rule.amount)
+                        : rule.amount
+                return raw === 0 || raw == null ? '' : String(raw)
+              })()}
               onChange={e => {
-                const value = Number(e.target.value)
+                const raw = e.target.value.trim()
+                const value = raw === '' ? 0 : Number(raw)
+                if (Number.isNaN(value)) return
                 if (method === 'PERCENTAGE_UPLIFT') {
                   updateRule(index, { percentageUplift: value, amount: value, enhancementMethod: method })
                 } else if (method === 'MULTIPLIER') {
@@ -1044,6 +1049,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 }
               }}
               disabled={disabled}
+              placeholder="0.00"
             />
             {preview ? <p className="text-xs text-muted-foreground">{preview}</p> : null}
           </label>
