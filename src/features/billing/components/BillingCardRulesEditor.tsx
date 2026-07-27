@@ -5,6 +5,7 @@ import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
+import { toastWarning } from '@/shared/lib/toast'
 import { BillingFieldLabel } from '@/features/billing/components/BillingFieldLabel'
 import {
   BILLING_DAY_TYPE_OPTIONS,
@@ -30,6 +31,8 @@ import {
 import {
   applyDurationChangeToChargeRule,
   applyDurationChangeToRule,
+  findOverlappingHourlyPayRule,
+  formatHourlyOverlapMessage,
   getRuleAmountFieldLabel,
   getRuleChargeMethodLabel,
   getRuleRateTypeLabel,
@@ -330,17 +333,54 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   }
 
   const addHourlyRule = () => {
-    onChange(
-      mode === 'charge'
-        ? [emptyHourlyChargeRule(), ...rules]
-        : [emptyHourlyPayRule('WEEKDAY_DAYTIME'), ...rules],
-    )
+    if (mode === 'charge') {
+      onChange([emptyHourlyChargeRule(), ...rules])
+      flashNewRules(1)
+      return
+    }
+
+    const existing = rules as PayCardRule[]
+    const nextPeriod = PAY_TIME_PERIOD_LOOKUP.find(period => {
+      const candidate = {
+        label: period.label,
+        dayType: period.dayType,
+        startTime: period.startTime ?? '00:00',
+        endTime: period.endTime ?? '23:59',
+        rateType: 'HOURLY' as const,
+      }
+      return !findOverlappingHourlyPayRule(existing, candidate)
+    })
+
+    if (!nextPeriod) {
+      toastWarning(
+        'Period already used',
+        'Every day/time window already has an hourly rate. Remove or change an existing rate first.',
+      )
+      return
+    }
+
+    onChange([emptyHourlyPayRule(nextPeriod.code), ...existing])
     flashNewRules(1)
   }
 
-  const applyPeriodToRule = (index: number, code: PayTimePeriodCode) => {
+  const applyPeriodToRule = (index: number, code: PayTimePeriodCode): boolean => {
     const period = getPayTimePeriodByCode(code)
-    if (!period) return
+    if (!period) return false
+    const candidate: PayCardRule = {
+      ...(rules[index] as PayCardRule),
+      label: period.label,
+      dayType: period.dayType,
+      startTime: period.startTime ?? '00:00',
+      endTime: period.endTime ?? '23:59',
+      priority: period.priority,
+      rateType: 'HOURLY',
+      enhancementMethod: 'ABSOLUTE_HOURLY',
+    }
+    const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
+    if (overlap) {
+      toastWarning('Overlapping period', formatHourlyOverlapMessage(candidate, overlap.rule))
+      return false
+    }
     updateRule(index, {
       label: period.label,
       dayType: period.dayType,
@@ -350,6 +390,22 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
     })
+    return true
+  }
+
+  const tryUpdateHourlyWindow = (
+    index: number,
+    patch: Partial<Pick<PayCardRule, 'dayType' | 'startTime' | 'endTime' | 'label' | 'enhancementMethod'>>,
+  ) => {
+    const current = rules[index] as PayCardRule
+    const candidate = { ...current, ...patch }
+    const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
+    if (overlap) {
+      toastWarning('Overlapping period', formatHourlyOverlapMessage(candidate, overlap.rule))
+      return false
+    }
+    updateRule(index, patch)
+    return true
   }
 
   const addMileageRule = () => {
@@ -391,6 +447,20 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
   const showAddHourly = mode === 'charge' || visitPayMethod === 'PRO_RATA_HOURLY' || visitPayMethod === 'BOTH'
   const showAddFixed = mode === 'charge' || visitPayMethod === 'FIXED_BY_DURATION' || visitPayMethod === 'BOTH'
+
+  const hasAvailableHourlyPeriod = React.useMemo(() => {
+    if (mode !== 'pay') return true
+    const existing = rules as PayCardRule[]
+    return PAY_TIME_PERIOD_LOOKUP.some(period =>
+      !findOverlappingHourlyPayRule(existing, {
+        label: period.label,
+        dayType: period.dayType,
+        startTime: period.startTime ?? '00:00',
+        endTime: period.endTime ?? '23:59',
+        rateType: 'HOURLY',
+      }),
+    )
+  }, [mode, rules])
 
   const groupedPayRules = React.useMemo(() => {
     if (mode !== 'pay') return null
@@ -715,6 +785,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     const matched = forceCustomPeriod[index] ? undefined : matchPayTimePeriod(rule)
     const isCustom = !matched
     const fieldLabelClass = 'text-xs font-medium text-foreground/90'
+    const isPeriodTaken = (code: PayTimePeriodCode) => {
+      if (matched?.code === code) return false
+      const period = getPayTimePeriodByCode(code)
+      if (!period) return false
+      return Boolean(
+        findOverlappingHourlyPayRule(
+          rules as PayCardRule[],
+          {
+            label: period.label,
+            dayType: period.dayType,
+            startTime: period.startTime ?? '00:00',
+            endTime: period.endTime ?? '23:59',
+            rateType: 'HOURLY',
+          },
+          index,
+        ),
+      )
+    }
 
     return (
       <div key={index} className={ruleShellClass(index)}>
@@ -753,16 +841,17 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               onChange={e => {
                 const code = e.target.value as PayTimePeriodCode
                 if (code) {
-                  applyPeriodToRule(index, code)
-                  setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
+                  if (applyPeriodToRule(index, code)) {
+                    setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
+                  }
                 } else {
-                  updateRule(index, {
+                  const ok = tryUpdateHourlyWindow(index, {
                     label: 'Custom period',
                     enhancementMethod: 'ABSOLUTE_HOURLY',
                     startTime: rule.startTime?.trim() || '00:00',
                     endTime: rule.endTime?.trim() || '23:59',
                   })
-                  setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
+                  if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
                 }
               }}
               disabled={disabled}
@@ -771,9 +860,14 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               <option value="">Custom…</option>
               {PAY_TIME_PERIOD_GROUPS.map(group => (
                 <optgroup key={group.id} label={group.label}>
-                  {PAY_TIME_PERIOD_LOOKUP.filter(p => p.group === group.id).map(p => (
-                    <option key={p.code} value={p.code}>{p.label}</option>
-                  ))}
+                  {PAY_TIME_PERIOD_LOOKUP.filter(p => p.group === group.id).map(p => {
+                    const taken = isPeriodTaken(p.code)
+                    return (
+                      <option key={p.code} value={p.code} disabled={taken}>
+                        {taken ? `${p.label} (already used)` : p.label}
+                      </option>
+                    )
+                  })}
                 </optgroup>
               ))}
             </select>
@@ -811,11 +905,14 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={rule.dayType}
-                onChange={e => updateRule(index, {
-                  dayType: e.target.value as BillingDayType,
-                  label: 'Custom period',
-                  enhancementMethod: 'ABSOLUTE_HOURLY',
-                })}
+                onChange={e => {
+                  const dayType = e.target.value as BillingDayType
+                  tryUpdateHourlyWindow(index, {
+                    dayType,
+                    label: 'Custom period',
+                    enhancementMethod: 'ABSOLUTE_HOURLY',
+                  })
+                }}
                 disabled={disabled}
                 required
               >
@@ -833,11 +930,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <Input
               value={rule.startTime ?? ''}
               onChange={e => {
-                updateRule(index, {
-                  startTime: e.target.value || null,
+                const startTime = e.target.value || null
+                const ok = tryUpdateHourlyWindow(index, {
+                  startTime,
                   label: matched?.label ?? rule.label ?? 'Custom period',
                 })
-                if (matched) setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
+                if (ok && matched) setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
               }}
               placeholder="HH:mm"
               disabled={disabled}
@@ -850,10 +948,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </span>
             <Input
               value={rule.endTime ?? ''}
-              onChange={e => updateRule(index, {
-                endTime: e.target.value || null,
-                label: matched?.label ?? rule.label ?? 'Custom period',
-              })}
+              onChange={e => {
+                tryUpdateHourlyWindow(index, {
+                  endTime: e.target.value || null,
+                  label: matched?.label ?? rule.label ?? 'Custom period',
+                })
+              }}
               placeholder="HH:mm"
               disabled={disabled}
               required
@@ -1099,7 +1199,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               size="sm"
               leftIcon={<Plus className="h-3.5 w-3.5" />}
               onClick={addHourlyRule}
-              disabled={disabled}
+              disabled={disabled || !hasAvailableHourlyPeriod}
+              title={
+                hasAvailableHourlyPeriod
+                  ? undefined
+                  : 'Every day/time window already has an hourly rate'
+              }
             >
               Add rate
             </Button>

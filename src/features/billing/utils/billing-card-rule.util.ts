@@ -1,5 +1,6 @@
 import type {
   BillingChargeMethod,
+  BillingDayType,
   BillingRateType,
   ChargeCardRule,
   PayCardRule,
@@ -9,6 +10,7 @@ import {
   MAX_FIXED_VISIT_MINUTES,
   formatVisitDurationLabel,
 } from '@/features/billing/types/billing-cards.types'
+import { billingTimeWindowsOverlap, parseBillingTimeToMinutes } from '@/features/billing/utils/billing-time.util'
 
 const NON_VISIT_RATE_TYPES = new Set<BillingRateType>([
   'MILEAGE',
@@ -188,5 +190,64 @@ export function applyHourlyLongVisitToChargeRule(rule: ChargeCardRule): ChargeCa
     ...applyHourlyLongVisitToRule(rule),
     chargeMethod: 'HOURLY_PRO_RATA',
   }
+}
+
+/** Day types that can both apply to the same calendar day. */
+export function billingDayTypesCanOverlap(a: BillingDayType, b: BillingDayType): boolean {
+  if (a === b) return true
+  if (a === 'ANY' || b === 'ANY') return true
+  return false
+}
+
+type HourlyOverlapCandidate = Pick<PayCardRule, 'dayType' | 'startTime' | 'endTime' | 'label' | 'rateType'>
+
+function isHourlyPeriodLike(rule: Pick<PayCardRule, 'rateType'>): boolean {
+  return (
+    rule.rateType === 'HOURLY'
+    || rule.rateType === 'BANDED'
+    || rule.rateType === 'PREMIUM'
+    || rule.rateType === 'UPLIFT'
+  )
+}
+
+/**
+ * Find another hourly period rule whose day type + clock window overlaps `candidate`.
+ * Returns the conflicting rule (and index) or null.
+ * Skips check while From/Until are still being typed (invalid HH:mm).
+ */
+export function findOverlappingHourlyPayRule(
+  rules: PayCardRule[],
+  candidate: HourlyOverlapCandidate,
+  excludeIndex?: number,
+): { index: number; rule: PayCardRule } | null {
+  const startRaw = candidate.startTime?.trim() ?? ''
+  const endRaw = candidate.endTime?.trim() ?? ''
+  if (startRaw && parseBillingTimeToMinutes(startRaw) == null) return null
+  if (endRaw && parseBillingTimeToMinutes(endRaw) == null) return null
+
+  for (let i = 0; i < rules.length; i++) {
+    if (excludeIndex != null && i === excludeIndex) continue
+    const other = rules[i]
+    if (!isHourlyPeriodLike(other)) continue
+    if (!billingDayTypesCanOverlap(candidate.dayType, other.dayType)) continue
+    if (
+      billingTimeWindowsOverlap(
+        { startTime: candidate.startTime, endTime: candidate.endTime },
+        { startTime: other.startTime, endTime: other.endTime },
+      )
+    ) {
+      return { index: i, rule: other }
+    }
+  }
+  return null
+}
+
+export function formatHourlyOverlapMessage(
+  candidate: HourlyOverlapCandidate,
+  conflicting: Pick<PayCardRule, 'label' | 'dayType' | 'startTime' | 'endTime'>,
+): string {
+  const candidateLabel = candidate.label?.trim() || 'This period'
+  const otherLabel = conflicting.label?.trim() || 'another rate'
+  return `${candidateLabel} overlaps ${otherLabel}. Each day/time window can only have one hourly rate.`
 }
 
