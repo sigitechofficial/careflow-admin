@@ -19,7 +19,7 @@ import {
   useIssueManualLearningCertificate,
   useLearningCourses,
 } from '@/features/learning/hooks/useLearning'
-import { listEmployees } from '@/features/employees/api/employees.api'
+import { listAllEmployees } from '@/features/employees/api/employees.api'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 
 type Props = {
@@ -32,7 +32,7 @@ export function IssueCertificateDialog({ open, onOpenChange }: Props) {
   const coursesQuery = useLearningCourses({ limit: 100, status: 'PUBLISHED' })
   const employeesQuery = useQuery({
     queryKey: ['learning', 'issue-certificate-employees'],
-    queryFn: () => listEmployees({ limit: 200 }),
+    queryFn: () => listAllEmployees({}),
     enabled: open,
     staleTime: 60_000,
   })
@@ -57,7 +57,7 @@ export function IssueCertificateDialog({ open, onOpenChange }: Props) {
       label: `${c.title} (${c.code})`,
     }))
 
-  const employeeOptions = (employeesQuery.data?.rows ?? []).map(emp => ({
+  const employeeOptions = (employeesQuery.data ?? []).map(emp => ({
     value: emp.id,
     label: employeeListRowDisplayName(emp),
   }))
@@ -90,11 +90,18 @@ export function IssueCertificateDialog({ open, onOpenChange }: Props) {
   }
 
   const busy = issueMut.isPending
+  const employeePlaceholder = employeesQuery.isLoading
+    ? 'Loading employees…'
+    : employeesQuery.isError
+      ? 'Unable to load employees'
+      : employeeOptions.length === 0
+        ? 'No active employees found'
+        : 'Select employee'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md">
-        <form onSubmit={onSubmit}>
+        <form onSubmit={e => void onSubmit(e)}>
           <DialogHeader>
             <DialogTitle>Issue certificate</DialogTitle>
           </DialogHeader>
@@ -108,8 +115,8 @@ export function IssueCertificateDialog({ open, onOpenChange }: Props) {
                 value={employeeId}
                 onChange={setEmployeeId}
                 options={employeeOptions}
-                placeholder={employeesQuery.isLoading ? 'Loading employees…' : 'Select employee'}
-                disabled={busy || employeesQuery.isLoading}
+                placeholder={employeePlaceholder}
+                disabled={busy || employeesQuery.isLoading || employeesQuery.isError}
               />
             </FormField>
             <FormField label="Course" required>

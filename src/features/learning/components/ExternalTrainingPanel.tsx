@@ -19,7 +19,7 @@ import {
   useRejectLearningExternalTraining,
   useVerifyLearningExternalTraining,
 } from '@/features/learning/hooks/useLearning'
-import { listEmployees } from '@/features/employees/api/employees.api'
+import { listAllEmployees } from '@/features/employees/api/employees.api'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 import { useQuery } from '@tanstack/react-query'
 import { Combobox } from '@/shared/ui/combobox'
@@ -44,8 +44,9 @@ export function ExternalTrainingPanel() {
   const query = useLearningExternalTraining({ page, limit: 20 })
   const employeesQuery = useQuery({
     queryKey: ['learning', 'external-training-employees'],
-    queryFn: () => listEmployees({ limit: 200 }),
+    queryFn: () => listAllEmployees({}),
     enabled: dialogOpen,
+    staleTime: 60_000,
   })
 
   const rows = query.data?.rows ?? []
@@ -135,7 +136,7 @@ export function ExternalTrainingPanel() {
                 <Combobox
                   value={form.employeeId}
                   onChange={v => setForm(p => ({ ...p, employeeId: v }))}
-                  options={(employeesQuery.data?.rows ?? []).map(emp => ({
+                  options={(employeesQuery.data ?? []).map(emp => ({
                     value: emp.id,
                     label: employeeListRowDisplayName(emp),
                   }))}

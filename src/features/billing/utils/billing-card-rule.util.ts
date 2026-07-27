@@ -228,7 +228,7 @@ export function findOverlappingHourlyPayRule(
   for (let i = 0; i < rules.length; i++) {
     if (excludeIndex != null && i === excludeIndex) continue
     const other = rules[i]
-    if (!isHourlyPeriodLike(other)) continue
+    if (!other || !isHourlyPeriodLike(other)) continue
     if (!billingDayTypesCanOverlap(candidate.dayType, other.dayType)) continue
     if (
       billingTimeWindowsOverlap(
