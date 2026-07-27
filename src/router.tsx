@@ -111,6 +111,17 @@ import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
+import LearningDashboardPage from '@/features/learning/pages/LearningDashboardPage'
+import LearningCoursesPage from '@/features/learning/pages/LearningCoursesPage'
+import LearningCourseDetailPage from '@/features/learning/pages/LearningCourseDetailPage'
+import LearningCourseNewPage from '@/features/learning/pages/LearningCourseNewPage'
+import LearningAssignmentsPage from '@/features/learning/pages/LearningAssignmentsPage'
+import LearningCompliancePage from '@/features/learning/pages/LearningCompliancePage'
+import LearningTrainingEventsPage from '@/features/learning/pages/LearningTrainingEventsPage'
+import LearningCertificatesPage from '@/features/learning/pages/LearningCertificatesPage'
+import LearningExternalTrainingPage from '@/features/learning/pages/LearningExternalTrainingPage'
+import LearningReportsPage from '@/features/learning/pages/LearningReportsPage'
+import LearningSettingsPage from '@/features/learning/pages/LearningSettingsPage'
 import {
   BILLING_SECTION_PATHS,
   BILLING_SETUP_TAB_IDS,
@@ -242,6 +253,17 @@ const pageTitles: Record<string, string> = {
   '/payroll/employees': 'Employee payroll setup',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
+  '/learning/dashboard': 'Learning dashboard',
+  '/learning/courses': 'Learning courses',
+  '/learning/courses/new': 'New course',
+  '/learning/courses/$courseId': 'Course detail',
+  '/learning/assignments': 'Learning assignments',
+  '/learning/compliance': 'Learning compliance',
+  '/learning/training-events': 'Training events',
+  '/learning/certificates': 'Learning certificates',
+  '/learning/external-training': 'External training',
+  '/learning/reports': 'Learning reports',
+  '/learning/settings': 'Learning settings',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -1473,6 +1495,91 @@ const payrollRunDetailRoute = createRoute({
   component: UkPayrollRunDetailPage,
 })
 
+const learningIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning',
+  beforeLoad: () => {
+    throw redirect({ to: '/learning/dashboard' })
+  },
+})
+
+const learningDashboardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/dashboard',
+  beforeLoad: requirePermission('learning.dashboard.read'),
+  component: LearningDashboardPage,
+})
+
+const learningCoursesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/courses',
+  beforeLoad: requirePermission('learning.courses.read'),
+  component: LearningCoursesPage,
+})
+
+const learningCourseNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/courses/new',
+  beforeLoad: requirePermission('learning.courses.manage'),
+  component: LearningCourseNewPage,
+})
+
+const learningCourseDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/courses/$courseId',
+  beforeLoad: requirePermission('learning.courses.read'),
+  component: LearningCourseDetailPage,
+})
+
+const learningAssignmentsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/assignments',
+  beforeLoad: requirePermission('learning.assignments.read'),
+  component: LearningAssignmentsPage,
+})
+
+const learningComplianceRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/compliance',
+  beforeLoad: requirePermission('learning.compliance.read'),
+  component: LearningCompliancePage,
+})
+
+const learningTrainingEventsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/training-events',
+  beforeLoad: requirePermission('learning.training_events.read'),
+  component: LearningTrainingEventsPage,
+})
+
+const learningCertificatesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/certificates',
+  beforeLoad: requirePermission('learning.certificates.read'),
+  component: LearningCertificatesPage,
+})
+
+const learningExternalTrainingRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/external-training',
+  beforeLoad: requirePermission('learning.external_training.read'),
+  component: LearningExternalTrainingPage,
+})
+
+const learningReportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/reports',
+  beforeLoad: requirePermission('learning.reports.read'),
+  component: LearningReportsPage,
+})
+
+const learningSettingsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/learning/settings',
+  beforeLoad: requirePermission('learning.settings.manage'),
+  component: LearningSettingsPage,
+})
+
 const carePathwayRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings/care-pathway',
@@ -1594,6 +1701,18 @@ const routeTree = rootRoute.addChildren([
     payrollEmployeesRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
+    learningIndexRoute,
+    learningDashboardRoute,
+    learningCoursesRoute,
+    learningCourseNewRoute,
+    learningCourseDetailRoute,
+    learningAssignmentsRoute,
+    learningComplianceRoute,
+    learningTrainingEventsRoute,
+    learningCertificatesRoute,
+    learningExternalTrainingRoute,
+    learningReportsRoute,
+    learningSettingsRoute,
   ]),
 ])
 

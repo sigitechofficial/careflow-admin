@@ -185,6 +185,29 @@ const PAYROLL_ALL: Permission[] = [
   'payroll.runs.manage',
 ]
 
+const LEARNING_ALL: Permission[] = [
+  'learning.dashboard.read',
+  'learning.categories.read',
+  'learning.categories.manage',
+  'learning.courses.read',
+  'learning.courses.manage',
+  'learning.assignments.read',
+  'learning.assignments.manage',
+  'learning.compliance.read',
+  'learning.compliance.export',
+  'learning.training_events.read',
+  'learning.training_events.manage',
+  'learning.certificates.read',
+  'learning.certificates.manage',
+  'learning.external_training.read',
+  'learning.external_training.manage',
+  'learning.reports.read',
+  'learning.reports.export',
+  'learning.settings.manage',
+  'learning.me.read',
+  'learning.me.progress',
+]
+
 const ECM_COORDINATOR: Permission[] = [
   'ecm.read',
   'ecm.monitor',
@@ -233,6 +256,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...BILLING_ALL,
     ...ECM_ALL,
     ...PAYROLL_ALL,
+    ...LEARNING_ALL,
   ],
   admin: [
     'users.read',
@@ -268,6 +292,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...BILLING_ALL,
     ...ECM_ALL,
     ...PAYROLL_ALL,
+    ...LEARNING_ALL,
   ],
   manager: [
     'users.read',

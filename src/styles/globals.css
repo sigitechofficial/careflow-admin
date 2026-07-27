@@ -282,3 +282,43 @@
     transform: translateY(0) scale(1);
   }
 }
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body:has(.learning-certificate-dialog) * {
+    visibility: hidden;
+  }
+
+  body:has(.learning-certificate-dialog) .learning-certificate-dialog,
+  body:has(.learning-certificate-dialog) .learning-certificate-dialog * {
+    visibility: visible;
+  }
+
+  body:has(.learning-certificate-dialog) .learning-certificate-dialog {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  body:has(.learning-certificate-dialog) .learning-certificate-dialog [data-radix-dialog-close],
+  body:has(.learning-certificate-dialog) [data-radix-dialog-overlay] {
+    display: none !important;
+  }
+}

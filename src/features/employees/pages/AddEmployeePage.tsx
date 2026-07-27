@@ -38,6 +38,7 @@ import { EmployeeEditPayCardPanel } from '@/features/employees/components/Employ
 import { EmployeeEditEarningPanel } from '@/features/employees/components/EmployeeEditEarningPanel'
 import { EmployeeEditVisitsPanel } from '@/features/employees/components/EmployeeEditVisitsPanel'
 import { EmployeeEditSalaryPanel } from '@/features/employees/components/EmployeeEditSalaryPanel'
+import { EmployeeEditLearningPanel } from '@/features/employees/components/EmployeeEditLearningPanel'
 import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
 import {
@@ -2069,6 +2070,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
               <EmployeeEditCompliancePanel employeeId={editEmployeeId} />
             ) : null}
 
+            {isEditMode && editTab === 'learning' && editEmployeeId ? (
+              <EmployeeEditLearningPanel employeeId={editEmployeeId} />
+            ) : null}
+
             {isEditMode &&
             editTab !== 'personal' &&
             editTab !== 'employment' &&
@@ -2076,6 +2081,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             editTab !== 'earning' &&
             editTab !== 'visits' &&
             editTab !== 'salary' &&
+            editTab !== 'learning' &&
             editTab !== 'working-pattern' ? (
               <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
                 <Button

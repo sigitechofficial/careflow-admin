@@ -64,14 +64,17 @@ const fieldLabel = 'text-xs font-medium text-foreground/90'
 function FieldLabel({
   icon,
   children,
+  required,
 }: {
   icon?: React.ReactNode
   children: React.ReactNode
+  required?: boolean
 }) {
   return (
     <span className={`inline-flex items-center gap-1.5 ${fieldLabel}`}>
       {icon ? <span className="text-muted-foreground">{icon}</span> : null}
       {children}
+      {required ? <span className="text-destructive" aria-hidden>*</span> : null}
     </span>
   )
 }
@@ -131,14 +134,12 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
   const [form, setForm] = React.useState<PayCardInput>(() => toFormState(card))
   const [error, setError] = React.useState<string | null>(null)
   const [editorKey, setEditorKey] = React.useState(0)
-  const [showMore, setShowMore] = React.useState(false)
 
   React.useEffect(() => {
     if (open) {
       setForm(toFormState(card))
       setError(null)
       setEditorKey(k => k + 1)
-      setShowMore(Boolean(card?.notes || card?.effectiveTo || card?.assignmentLabel))
     }
   }, [open, card])
 
@@ -185,8 +186,32 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim() || !form.code.trim()) {
-      setError('Name and code are required.')
+    if (!form.name.trim()) {
+      setError('Name is required.')
+      return
+    }
+    if (!form.code.trim()) {
+      setError('Code is required.')
+      return
+    }
+    if (!form.effectiveFrom?.trim()) {
+      setError('Starts from date is required.')
+      return
+    }
+    if (!form.effectiveTo?.trim()) {
+      setError('Ends on date is required.')
+      return
+    }
+    if (form.effectiveTo < form.effectiveFrom) {
+      setError('Ends on must be on or after Starts from.')
+      return
+    }
+    if (!form.assignmentLabel?.trim()) {
+      setError('Display label is required.')
+      return
+    }
+    if (!form.notes?.trim()) {
+      setError('Notes are required.')
       return
     }
     if (form.assignmentLevel === 'WORKER_TYPE' && !form.assignmentTargetKey) {
@@ -202,6 +227,29 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
       setError('Select the branch, role, or employment type this card applies to.')
       return
     }
+
+    const rules = form.rules ?? []
+    if (rules.length === 0) {
+      setError('Add at least one pay rate rule.')
+      return
+    }
+    for (const rule of rules) {
+      const isSupplement =
+        rule.rateType === 'MILEAGE'
+        || rule.rateType === 'TRAVEL_TIME'
+        || rule.rateType === 'WAITING_TIME'
+      if (!(Number(rule.amount) > 0)) {
+        setError('Every rate rule needs an amount greater than zero.')
+        return
+      }
+      if (!isSupplement) {
+        if (!rule.startTime?.trim() || !rule.endTime?.trim()) {
+          setError('Every visit rate rule needs From and Until times.')
+          return
+        }
+      }
+    }
+
     setError(null)
     const payload: PayCardInput = {
       ...form,
@@ -214,9 +262,9 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
           : form.assignmentTargetId || null,
       assignmentTargetKey:
         form.assignmentLevel === 'WORKER_TYPE' ? form.assignmentTargetKey ?? null : null,
-      assignmentLabel: form.assignmentLabel?.trim() || undefined,
-      effectiveTo: form.effectiveTo?.trim() || null,
-      notes: form.notes?.trim() || undefined,
+      assignmentLabel: form.assignmentLabel.trim(),
+      effectiveTo: form.effectiveTo.trim(),
+      notes: form.notes.trim(),
       rules: serializePayCardRulesForApi(form.rules ?? []),
     }
     try {
@@ -260,7 +308,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                   icon={<FileText className="h-4 w-4" aria-hidden />}
                   iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
                   title="Card details"
-                  description="Name, code, status and when this card starts."
+                  description="All fields are required."
                 />
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -269,7 +317,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                       form.assignmentLevel === 'WORKER_TYPE' ? '' : ' sm:col-span-2'
                     }`}
                   >
-                    <FieldLabel icon={<CreditCard className="h-3.5 w-3.5" aria-hidden />}>
+                    <FieldLabel icon={<CreditCard className="h-3.5 w-3.5" aria-hidden />} required>
                       Name
                     </FieldLabel>
                     <Input
@@ -283,12 +331,13 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                       }}
                       placeholder="e.g. Standard weekday rates"
                       disabled={saving}
+                      required
                     />
                   </label>
 
                   {form.assignmentLevel === 'WORKER_TYPE' ? (
                     <label className="space-y-1 text-sm">
-                      <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />}>
+                      <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />} required>
                         Worker type
                       </FieldLabel>
                       <select
@@ -301,6 +350,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                           })
                         }
                         disabled={saving}
+                        required
                       >
                         {PAY_CARD_WORKER_TYPE_OPTIONS.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -310,23 +360,25 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                   ) : null}
 
                   <label className="space-y-1 text-sm">
-                    <FieldLabel icon={<Hash className="h-3.5 w-3.5" aria-hidden />}>
+                    <FieldLabel icon={<Hash className="h-3.5 w-3.5" aria-hidden />} required>
                       Code
                     </FieldLabel>
                     <Input
                       value={form.code}
                       onChange={e => patch({ code: e.target.value.toUpperCase() })}
                       disabled={saving}
+                      required
                     />
                   </label>
 
                   <label className="space-y-1 text-sm">
-                    <FieldLabel>Status</FieldLabel>
+                    <FieldLabel required>Status</FieldLabel>
                     <select
                       className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={statusValue}
                       onChange={e => patch({ status: e.target.value as PayCardInput['status'] })}
                       disabled={saving}
+                      required
                     >
                       {statusOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -338,7 +390,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                   </label>
 
                   <label className="space-y-1 text-sm">
-                    <FieldLabel icon={<Target className="h-3.5 w-3.5" aria-hidden />}>
+                    <FieldLabel icon={<Target className="h-3.5 w-3.5" aria-hidden />} required>
                       Matching
                     </FieldLabel>
                     <select
@@ -348,6 +400,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                         onAssignmentLevelChange(e.target.value as PayCardInput['assignmentLevel'])
                       }
                       disabled={saving}
+                      required
                     >
                       {assignmentOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -356,7 +409,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                   </label>
 
                   <label className="space-y-1 text-sm">
-                    <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>
+                    <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
                       Starts from
                     </FieldLabel>
                     <Input
@@ -364,6 +417,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                       value={form.effectiveFrom}
                       onChange={e => patch({ effectiveFrom: e.target.value })}
                       disabled={saving}
+                      required
                     />
                   </label>
 
@@ -371,7 +425,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                   form.assignmentLevel !== 'ORGANISATION_DEFAULT' &&
                   form.assignmentLevel !== 'WORKER_TYPE' ? (
                     <label className="space-y-1 text-sm sm:col-span-2">
-                      <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />}>
+                      <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />} required>
                         {form.assignmentLevel === 'BRANCH'
                           ? 'Branch'
                           : form.assignmentLevel === 'ROLE'
@@ -387,51 +441,41 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                       />
                     </label>
                   ) : null}
-                </div>
 
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                    onClick={() => setShowMore(v => !v)}
-                  >
-                    <FileText className="h-3.5 w-3.5" aria-hidden />
-                    {showMore ? 'Hide extra details' : 'More details (end date, notes)'}
-                  </button>
-                  {showMore ? (
-                    <div className="grid gap-4 rounded-lg border border-border bg-muted/10 p-4 sm:grid-cols-2">
-                      <label className="space-y-1 text-sm">
-                        <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>
-                          Ends on
-                        </FieldLabel>
-                        <Input
-                          type="date"
-                          value={form.effectiveTo ?? ''}
-                          onChange={e => patch({ effectiveTo: e.target.value })}
-                          disabled={saving}
-                        />
-                      </label>
-                      <label className="space-y-1 text-sm">
-                        <FieldLabel>Display label</FieldLabel>
-                        <Input
-                          value={form.assignmentLabel ?? ''}
-                          onChange={e => patch({ assignmentLabel: e.target.value })}
-                          placeholder="Optional"
-                          disabled={saving}
-                        />
-                      </label>
-                      <label className="space-y-1 text-sm sm:col-span-2">
-                        <FieldLabel icon={<FileText className="h-3.5 w-3.5" aria-hidden />}>
-                          Notes
-                        </FieldLabel>
-                        <Input
-                          value={form.notes ?? ''}
-                          onChange={e => patch({ notes: e.target.value })}
-                          disabled={saving}
-                        />
-                      </label>
-                    </div>
-                  ) : null}
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
+                      Ends on
+                    </FieldLabel>
+                    <Input
+                      type="date"
+                      value={form.effectiveTo ?? ''}
+                      onChange={e => patch({ effectiveTo: e.target.value })}
+                      disabled={saving}
+                      required
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel required>Display label</FieldLabel>
+                    <Input
+                      value={form.assignmentLabel ?? ''}
+                      onChange={e => patch({ assignmentLabel: e.target.value })}
+                      placeholder="e.g. Organisation default"
+                      disabled={saving}
+                      required
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm sm:col-span-2">
+                    <FieldLabel icon={<FileText className="h-3.5 w-3.5" aria-hidden />} required>
+                      Notes
+                    </FieldLabel>
+                    <Input
+                      value={form.notes ?? ''}
+                      onChange={e => patch({ notes: e.target.value })}
+                      placeholder="Describe when this card should be used"
+                      disabled={saving}
+                      required
+                    />
+                  </label>
                 </div>
               </section>
 
@@ -440,7 +484,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
                   icon={<PoundSterling className="h-4 w-4" aria-hidden />}
                   iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                   title="Pay rates"
-                  description="Add day/time £/hr rates. Optionally add fixed £ for short visits and mileage."
+                  description="Add at least one rate. Every rule needs an amount and From / Until times."
                 />
                 <BillingCardRulesEditor
                   key={editorKey}

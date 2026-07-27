@@ -60,6 +60,8 @@ function emptyFixedPayRule(minutes = DEFAULT_VISIT_DURATION_MINUTES): PayCardRul
     rateType: 'FIXED',
     amount: 0,
     minimumMinutes: minutes,
+    startTime: '00:00',
+    endTime: '23:59',
     sortOrder: 0,
   }
 }
@@ -85,8 +87,8 @@ function emptyHourlyPayRule(periodCode: PayTimePeriodCode = 'WEEKDAY_DAYTIME'): 
   return {
     label: period.label,
     dayType: period.dayType,
-    startTime: period.startTime,
-    endTime: period.endTime,
+    startTime: period.startTime ?? '00:00',
+    endTime: period.endTime ?? '23:59',
     rateType: 'HOURLY',
     amount: 0,
     enhancementMethod: 'ABSOLUTE_HOURLY',
@@ -342,8 +344,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     updateRule(index, {
       label: period.label,
       dayType: period.dayType,
-      startTime: period.startTime,
-      endTime: period.endTime,
+      startTime: period.startTime ?? '00:00',
+      endTime: period.endTime ?? '23:59',
       priority: period.priority,
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
@@ -742,7 +744,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>When this rate applies</span>
+            <span className={fieldLabelClass}>
+              When this rate applies <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={matched?.code ?? ''}
@@ -752,11 +756,17 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   applyPeriodToRule(index, code)
                   setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
                 } else {
-                  updateRule(index, { label: 'Custom period', enhancementMethod: 'ABSOLUTE_HOURLY' })
+                  updateRule(index, {
+                    label: 'Custom period',
+                    enhancementMethod: 'ABSOLUTE_HOURLY',
+                    startTime: rule.startTime?.trim() || '00:00',
+                    endTime: rule.endTime?.trim() || '23:59',
+                  })
                   setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
                 }
               }}
               disabled={disabled}
+              required
             >
               <option value="">Custom…</option>
               {PAY_TIME_PERIOD_GROUPS.map(group => (
@@ -770,7 +780,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>£ per hour</span>
+            <span className={fieldLabelClass}>
+              £ per hour <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <Input
               type="text"
               inputMode="decimal"
@@ -787,12 +799,15 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               }}
               disabled={disabled}
               placeholder="0.00"
+              required
             />
           </label>
 
           {isCustom ? (
             <label className="space-y-1 text-sm sm:col-span-2">
-              <span className={fieldLabelClass}>Applies on</span>
+              <span className={fieldLabelClass}>
+                Applies on <span className="text-destructive" aria-hidden>*</span>
+              </span>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={rule.dayType}
@@ -802,6 +817,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   enhancementMethod: 'ABSOLUTE_HOURLY',
                 })}
                 disabled={disabled}
+                required
               >
                 {BILLING_DAY_TYPE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -811,7 +827,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           ) : null}
 
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>From (HH:mm)</span>
+            <span className={fieldLabelClass}>
+              From (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <Input
               value={rule.startTime ?? ''}
               onChange={e => {
@@ -821,20 +839,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 })
                 if (matched) setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
               }}
-              placeholder="Blank = start of day"
+              placeholder="HH:mm"
               disabled={disabled}
+              required
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>Until (HH:mm)</span>
+            <span className={fieldLabelClass}>
+              Until (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <Input
               value={rule.endTime ?? ''}
               onChange={e => updateRule(index, {
                 endTime: e.target.value || null,
                 label: matched?.label ?? rule.label ?? 'Custom period',
               })}
-              placeholder="Blank = end of day"
+              placeholder="HH:mm"
               disabled={disabled}
+              required
             />
           </label>
         </div>
@@ -875,7 +897,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>Visit length</span>
+            <span className={fieldLabelClass}>
+              Visit length <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={durationMinutes}
@@ -887,9 +911,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   label: rule.label?.trim()
                     ? rule.label
                     : `${formatVisitDurationLabel(nextMinutes) ?? `${nextMinutes} min`} visit`,
+                  startTime: rule.startTime?.trim() || '00:00',
+                  endTime: rule.endTime?.trim() || '23:59',
                 })
               }}
               disabled={disabled}
+              required
             >
               {BILLING_VISIT_DURATION_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -897,7 +924,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </select>
           </label>
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>Flat £</span>
+            <span className={fieldLabelClass}>
+              Flat £ <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <Input
               type="text"
               inputMode="decimal"
@@ -914,15 +943,19 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               }}
               disabled={disabled}
               placeholder="0.00"
+              required
             />
           </label>
           <label className="space-y-1 text-sm sm:col-span-2">
-            <span className={fieldLabelClass}>Applies on</span>
+            <span className={fieldLabelClass}>
+              Applies on <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={rule.dayType}
               onChange={e => updateRule(index, { dayType: e.target.value as BillingDayType })}
               disabled={disabled}
+              required
             >
               {BILLING_DAY_TYPE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -930,21 +963,27 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </select>
           </label>
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>From (HH:mm)</span>
+            <span className={fieldLabelClass}>
+              From (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <Input
               value={rule.startTime ?? ''}
               onChange={e => updateRule(index, { startTime: e.target.value || null })}
-              placeholder="Blank = all day"
+              placeholder="HH:mm"
               disabled={disabled}
+              required
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span className={fieldLabelClass}>Until (HH:mm)</span>
+            <span className={fieldLabelClass}>
+              Until (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+            </span>
             <Input
               value={rule.endTime ?? ''}
               onChange={e => updateRule(index, { endTime: e.target.value || null })}
-              placeholder="Blank = all day"
+              placeholder="HH:mm"
               disabled={disabled}
+              required
             />
           </label>
         </div>
@@ -1034,7 +1073,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             />
             <BillingFieldLabel
               label="Non pro-rata (fixed + hourly)"
-              tooltip="Flat £ for short visits (15–60 min), plus hourly rates by day and time for longer visits."
+              tooltip="Flat £ only when the visit length matches a fixed slot (e.g. 15 or 30 min). If there is no exact slot, hourly £/hr is used (pro-rata)."
               className="font-medium text-foreground"
             />
           </label>
@@ -1050,7 +1089,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </span>
               <BillingFieldLabel
                 label="Hourly rates"
-                tooltip="Add £/hr for weekdays, weekends, and bank / org / public holidays. On those special dates the matching holiday rate is used first; otherwise the normal weekday or weekend rate applies."
+                tooltip="Add £/hr for weekdays, weekends, and bank / org / public holidays. Used for visits over 1 hour, and for shorter visits when no exact fixed duration slot exists. On special dates the matching holiday rate is used first."
                 className="text-sm font-semibold text-foreground"
               />
             </div>

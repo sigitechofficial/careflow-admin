@@ -15,6 +15,7 @@ export type EditEmployeeTabId =
   | 'holidays'
   | 'working-pattern'
   | 'employment-compliance'
+  | 'learning'
 
 export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
   { id: 'personal', label: 'Personal Details' },
@@ -30,6 +31,7 @@ export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
   { id: 'holidays', label: 'Holidays & Leave' },
   { id: 'working-pattern', label: 'Working Pattern' },
   { id: 'employment-compliance', label: 'Employment Compliance' },
+  { id: 'learning', label: 'Learning' },
 ]
 
 const EDIT_EMPLOYEE_TAB_IDS = new Set(EDIT_EMPLOYEE_TABS.map(t => t.id))
