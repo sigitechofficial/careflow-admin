@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Eye, Info, Loader2, Search } from 'lucide-react'
+import { Eye, Info, Loader2, Plus, Search } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
@@ -7,7 +7,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { useLearningCertificates } from '@/features/learning/hooks/useLearning'
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { CertificateViewDialog } from '@/features/learning/components/CertificateViewDialog'
+import { IssueCertificateDialog } from '@/features/learning/components/IssueCertificateDialog'
 import type { LearningCertificate } from '@/features/learning/types/learning.types'
+import { useAuthStore } from '@/features/auth/store'
 
 function ColumnInfo({ label, tooltip }: { label: string; tooltip: string }) {
   return (
@@ -36,9 +38,11 @@ function ColumnInfo({ label, tooltip }: { label: string; tooltip: string }) {
 }
 
 export function CertificatesPanel() {
+  const canManage = useAuthStore(s => s.can('learning.certificates.manage'))
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
   const [viewCertificate, setViewCertificate] = React.useState<LearningCertificate | null>(null)
+  const [issueOpen, setIssueOpen] = React.useState(false)
 
   const query = useLearningCertificates({
     page,
@@ -53,7 +57,15 @@ export function CertificatesPanel() {
       <div className="space-y-4" data-testid="learning-certificates-panel">
         <ContentSectionHeader
           title="Certificates"
-          description="Issued course completion certificates across the organisation."
+          description="Issued course completion certificates across the organisation. Certificates are issued automatically on completion, or manually when needed."
+          action={
+            canManage ? (
+              <Button size="sm" onClick={() => setIssueOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" />
+                Issue certificate
+              </Button>
+            ) : undefined
+          }
         />
 
         <div className="relative max-w-sm">
@@ -163,6 +175,8 @@ export function CertificatesPanel() {
           }}
           certificate={viewCertificate}
         />
+
+        <IssueCertificateDialog open={issueOpen} onOpenChange={setIssueOpen} />
       </div>
     </TooltipProvider>
   )

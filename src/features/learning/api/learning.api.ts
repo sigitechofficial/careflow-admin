@@ -367,6 +367,18 @@ export async function revokeLearningCertificate(
   })
 }
 
+export async function issueManualLearningCertificate(body: {
+  employeeId: string
+  courseId: string
+  expiresAt?: string
+  issueNotes?: string
+}): Promise<LearningCertificate> {
+  return fetchData<LearningCertificate>('/learning/certificates/issue', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 // ─── Training events ─────────────────────────────────────────
 
 export async function fetchLearningTrainingEvents(

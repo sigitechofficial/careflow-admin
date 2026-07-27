@@ -400,6 +400,8 @@ export type LearningCertificate = {
   status: LearningCertificateStatus
   revokedAt?: string | null
   revocationReason?: string | null
+  issuedById?: string | null
+  issueNotes?: string | null
 }
 
 export type LearningTrainingEvent = {

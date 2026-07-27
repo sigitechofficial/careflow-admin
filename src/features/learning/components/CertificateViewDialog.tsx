@@ -316,6 +316,13 @@ export function CertificateViewDialog({ open, onOpenChange, certificate }: Props
         </DialogBody>
 
         <DialogFooter className="shrink-0 !py-2.5 print:hidden">
+          {certificate.assignmentId == null || certificate.issueNotes ? (
+            <p className="mr-auto max-w-md text-left text-xs text-muted-foreground">
+              {certificate.assignmentId == null ? 'Issued manually' : null}
+              {certificate.assignmentId == null && certificate.issueNotes ? ' — ' : null}
+              {certificate.issueNotes ?? null}
+            </p>
+          ) : null}
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>

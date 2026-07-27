@@ -42,6 +42,7 @@ import {
   fetchLearningTrainingEvents,
   publishLearningCourse,
   rejectLearningExternalTraining,
+  issueManualLearningCertificate,
   revokeLearningCertificate,
   unpublishLearningCourse,
   updateLearningAssessment,
@@ -398,6 +399,19 @@ export function useRevokeLearningCertificate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => revokeLearningCertificate(id, reason),
+    onSuccess: () => invalidateLearning(qc),
+  })
+}
+
+export function useIssueManualLearningCertificate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      employeeId: string
+      courseId: string
+      expiresAt?: string
+      issueNotes?: string
+    }) => issueManualLearningCertificate(body),
     onSuccess: () => invalidateLearning(qc),
   })
 }
