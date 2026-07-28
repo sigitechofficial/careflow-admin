@@ -44,6 +44,7 @@ import {
   isTravelTimeRule,
   isWaitingTimeRule,
 } from '@/features/billing/utils/billing-card-rule.util'
+import { normalizeBillingTimeInput } from '@/features/billing/utils/billing-time.util'
 
 type RuleMode = 'pay' | 'charge'
 
@@ -593,20 +594,20 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           {!hourly && !supplement ? (
             <>
               <label className="space-y-1 text-sm">
-                <span className="text-xs font-medium text-foreground/90">From (HH:mm)</span>
+                <span className="text-xs font-medium text-foreground/90">From</span>
                 <Input
-                  value={rule.startTime ?? ''}
+                  type="time"
+                  value={normalizeBillingTimeInput(rule.startTime)}
                   onChange={e => updateRule(index, { startTime: e.target.value || null })}
-                  placeholder="Blank = start of day"
                   disabled={disabled}
                 />
               </label>
               <label className="space-y-1 text-sm">
-                <span className="text-xs font-medium text-foreground/90">Until (HH:mm)</span>
+                <span className="text-xs font-medium text-foreground/90">Until</span>
                 <Input
-                  value={rule.endTime ?? ''}
+                  type="time"
+                  value={normalizeBillingTimeInput(rule.endTime)}
                   onChange={e => updateRule(index, { endTime: e.target.value || null })}
-                  placeholder="Blank = end of day"
                   disabled={disabled}
                 />
               </label>
@@ -616,20 +617,20 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           {timeBand ? (
             <>
               <label className="space-y-1 text-sm">
-                <span className="text-xs text-muted-foreground">Band start (HH:mm)</span>
+                <span className="text-xs text-muted-foreground">Band start</span>
                 <Input
-                  value={rule.startTime ?? ''}
+                  type="time"
+                  value={normalizeBillingTimeInput(rule.startTime)}
                   onChange={e => updateRule(index, { startTime: e.target.value || null })}
-                  placeholder="e.g. 18:00"
                   disabled={disabled}
                 />
               </label>
               <label className="space-y-1 text-sm">
-                <span className="text-xs text-muted-foreground">Band end (HH:mm)</span>
+                <span className="text-xs text-muted-foreground">Band end</span>
                 <Input
-                  value={rule.endTime ?? ''}
+                  type="time"
+                  value={normalizeBillingTimeInput(rule.endTime)}
                   onChange={e => updateRule(index, { endTime: e.target.value || null })}
-                  placeholder="e.g. 22:00"
                   disabled={disabled}
                 />
               </label>
@@ -925,10 +926,11 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
-              From (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+              From <span className="text-destructive" aria-hidden>*</span>
             </span>
             <Input
-              value={rule.startTime ?? ''}
+              type="time"
+              value={normalizeBillingTimeInput(rule.startTime)}
               onChange={e => {
                 const startTime = e.target.value || null
                 const ok = tryUpdateHourlyWindow(index, {
@@ -937,24 +939,23 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 })
                 if (ok && matched) setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
               }}
-              placeholder="HH:mm"
               disabled={disabled}
               required
             />
           </label>
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
-              Until (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+              Until <span className="text-destructive" aria-hidden>*</span>
             </span>
             <Input
-              value={rule.endTime ?? ''}
+              type="time"
+              value={normalizeBillingTimeInput(rule.endTime)}
               onChange={e => {
                 tryUpdateHourlyWindow(index, {
                   endTime: e.target.value || null,
                   label: matched?.label ?? rule.label ?? 'Custom period',
                 })
               }}
-              placeholder="HH:mm"
               disabled={disabled}
               required
             />
@@ -1064,24 +1065,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           </label>
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
-              From (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+              From <span className="text-destructive" aria-hidden>*</span>
             </span>
             <Input
-              value={rule.startTime ?? ''}
+              type="time"
+              value={normalizeBillingTimeInput(rule.startTime)}
               onChange={e => updateRule(index, { startTime: e.target.value || null })}
-              placeholder="HH:mm"
               disabled={disabled}
               required
             />
           </label>
           <label className="space-y-1 text-sm">
             <span className={fieldLabelClass}>
-              Until (HH:mm) <span className="text-destructive" aria-hidden>*</span>
+              Until <span className="text-destructive" aria-hidden>*</span>
             </span>
             <Input
-              value={rule.endTime ?? ''}
+              type="time"
+              value={normalizeBillingTimeInput(rule.endTime)}
               onChange={e => updateRule(index, { endTime: e.target.value || null })}
-              placeholder="HH:mm"
               disabled={disabled}
               required
             />
