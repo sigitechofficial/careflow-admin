@@ -84,6 +84,7 @@ export function buildServiceUsersListParams(
     listFilter: QuickSelectListId | null
     statusFilter: StatusFilterValue
     onHoldOnly: boolean
+    locationId?: string
   },
 ): ListServiceUsersParams {
   const query = listQueryForFilters(
@@ -101,6 +102,7 @@ export function buildServiceUsersListParams(
     showDeleted: query.showDeleted,
     sortBy: 'createdAt',
     sortOrder: 'desc',
+    locationId: options.locationId || undefined,
   }
 }
 

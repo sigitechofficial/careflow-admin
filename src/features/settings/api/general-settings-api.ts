@@ -5,6 +5,8 @@ export type DateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_MM_DD'
 export type DefaultCarerStatus = 'ACTIVE' | 'INACTIVE'
 export type HolidayUnit = 'HOURS' | 'DAYS'
 export type SalaryCalculationBasis = 'MONTHLY' | 'WEEKLY'
+/** COMBINED = charge sum of carer hours; FIXED = charge visit window once. */
+export type MultiCarerFunderChargeMode = 'COMBINED' | 'FIXED'
 export type ComplianceRequiredBy = 'ROLE_WORK_AREA' | 'CITIZENSHIP'
 export type ComplianceApprovalType = 'MANAGER_APPROVAL' | 'HR_APPROVAL'
 export type WellbeingRegularity = 'DAILY' | 'WEEKLY' | 'MONTHLY'
@@ -157,6 +159,7 @@ export type OrganisationGeneralSettings = {
   mandateComplianceForNewEmployees: boolean
   defaultHolidaysUnit: HolidayUnit
   salaryCalculationBasis: SalaryCalculationBasis
+  multiCarerFunderChargeMode: MultiCarerFunderChargeMode
   recruitmentFunctionalityRequired: boolean
   complianceRequiredBy: ComplianceRequiredBy
   complianceApprovalForNewEmployee: ComplianceApprovalType

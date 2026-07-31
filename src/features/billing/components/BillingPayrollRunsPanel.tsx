@@ -15,15 +15,17 @@ import {
   usePayrollRuns,
 } from '@/features/billing/hooks/usePayrollRuns'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { PayrollRunRow } from '@/features/billing/api/payroll-runs.api'
 
 export function BillingPayrollRunsPanel() {
   const canRead = useAuthStore(s => s.can('billing.payroll_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.payroll_runs.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [detailRow, setDetailRow] = React.useState<PayrollRunRow | null>(null)
 
-  const query = usePayrollRuns()
+  const query = usePayrollRuns({ locationId: locationId ?? undefined })
   const createMutation = useCreatePayrollRun()
   const calculateMutation = useCalculatePayrollRun()
   const approveMutation = useApprovePayrollRun()

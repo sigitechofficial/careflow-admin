@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { useCreatePayment, useOutstandingInvoiceRuns } from '@/features/billing/hooks/usePayments'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { PaymentType } from '@/features/billing/types/billing.types'
 import type { OutstandingInvoiceRun } from '@/features/billing/api/payments.api'
 import { parseMoney } from '@/features/billing/utils/payment-display.util'
@@ -59,8 +60,9 @@ function defaultLinkAmount(
 }
 
 export function RecordPaymentDialog({ open, onOpenChange, prefill }: RecordPaymentDialogProps) {
+  const { locationId } = useGlobalLocationScope()
   const createMutation = useCreatePayment()
-  const outstandingQuery = useOutstandingInvoiceRuns(open)
+  const outstandingQuery = useOutstandingInvoiceRuns(open, locationId)
 
   const [reference, setReference] = React.useState('')
   const [paymentType, setPaymentType] = React.useState<PaymentType>('BANK_TRANSFER')

@@ -42,6 +42,11 @@ export const PAYROLL_SECTION_GUIDANCE = {
     purpose:
       'Pay As You Earn is HMRC’s system for collecting Income Tax from employment pay. It is not a separate tax — it is how Income Tax is deducted using the employee’s tax code (e.g. 1257L). Care calculates this on the payroll run from gross pay.',
   },
+  starterDeclaration: {
+    title: 'Starter declaration',
+    purpose:
+      'HMRC new-starter statement (when there is no P45). A = first job since 6 April; B = only job this tax year; C = another job or pension. Stored on the profile for setup / future FPS — it does not change Week 1 / Month 1 tax or NI on the run today (tax still uses the tax code).',
+  },
   employeeNi: {
     title: 'Employee National Insurance',
     purpose:

@@ -63,8 +63,11 @@ async function fetchData<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ─── Dashboard ───────────────────────────────────────────────
 
-export async function fetchLearningDashboardSummary(): Promise<LearningDashboardSummary> {
-  return fetchData<LearningDashboardSummary>('/learning/dashboard/summary')
+export async function fetchLearningDashboardSummary(
+  locationId?: string,
+): Promise<LearningDashboardSummary> {
+  const qs = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
+  return fetchData<LearningDashboardSummary>(`/learning/dashboard/summary${qs}`)
 }
 
 // ─── Settings ────────────────────────────────────────────────

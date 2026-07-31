@@ -17,6 +17,7 @@ import {
   useSendInvoiceRun,
 } from '@/features/billing/hooks/useInvoiceRuns'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { ExportStatus } from '@/features/billing/types/billing.types'
 
 function InvoiceRunPreviewButton({ id }: { id: string }) {
@@ -56,9 +57,10 @@ function InvoiceRunPreviewButton({ id }: { id: string }) {
 export function BillingInvoiceRunsPanel() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const [createOpen, setCreateOpen] = React.useState(false)
 
-  const query = useInvoiceRuns()
+  const query = useInvoiceRuns({ locationId: locationId ?? undefined })
   const createMutation = useCreateInvoiceRun()
   const calculateMutation = useCalculateInvoiceRun()
   const approveMutation = useApproveInvoiceRun()

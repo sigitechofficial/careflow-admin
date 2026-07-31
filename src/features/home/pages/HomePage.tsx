@@ -10,6 +10,8 @@ import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card'
 import { useAuthStore } from '@/features/auth/store'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import type { MultiCarerFunderChargeMode } from '@/features/settings/types'
 
 /* â”€â”€â”€ Sample data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const handoverEntries = [
@@ -67,9 +69,29 @@ const systemUpgrades = [
 
 type SortBy = 'name' | 'earliest' | 'latest'
 
-/* â”€â”€â”€ Home Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+function multiCarerFunderChargeLabel(mode: MultiCarerFunderChargeMode | undefined): {
+  title: string
+  detail: string
+} {
+  if (mode === 'FIXED') {
+    return {
+      title: 'Fixed visit pay',
+      detail: 'Funder is charged once for the visit window length.',
+    }
+  }
+  return {
+    title: 'Combined visit pay',
+    detail: 'Funder is charged for each carer’s hours (default).',
+  }
+}
+
+/* ─── Home Page ───────────────────────────────────────────────────────────── */
 export default function HomePage() {
   const canManagePortal = useAuthStore(s => s.can('service_users.portal.read'))
+  const canReadSettings = useAuthStore(s => s.can('lookups.read'))
+  const generalSettingsQuery = useGeneralSettings(canReadSettings)
+  const multiCarerMode = generalSettingsQuery.data?.multiCarerFunderChargeMode ?? 'COMBINED'
+  const multiCarerLabel = multiCarerFunderChargeLabel(multiCarerMode)
   const [showFilter, setShowFilter] = React.useState(false)
   const [sortBy, setSortBy] = React.useState<SortBy>('name')
   const [dateRange, setDateRange] = React.useState('07/05/2026 - 08/05/2026')
@@ -311,8 +333,8 @@ export default function HomePage() {
           </Card>
         </div>
 
-        {/* â”€â”€ Right column (1/3) â”€â”€ */}
-        <div className="lg:col-span-1">
+        {/* Right column (1/3) */}
+        <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardContent className="pt-5">
               <h2 className="font-bold text-base mb-4">System Upgrades 27/01/2026</h2>
@@ -333,6 +355,39 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
+
+          {canReadSettings ? (
+            <Card data-testid="home-multi-carer-funder-charging">
+              <CardContent className="pt-5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-bold text-base">Multi-carer funder charging</h2>
+                  <Link
+                    to="/settings/general"
+                    search={{ tab: 'dom-care' }}
+                    className="shrink-0 text-xs font-medium text-primary hover:underline"
+                  >
+                    Change in settings
+                  </Link>
+                </div>
+                {generalSettingsQuery.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading setting…</p>
+                ) : generalSettingsQuery.isError ? (
+                  <p className="text-sm text-destructive">Could not load this setting.</p>
+                ) : (
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 space-y-1">
+                    <p className="text-sm font-medium text-foreground">{multiCarerLabel.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {multiCarerLabel.detail}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground pt-1">
+                      Mode:{' '}
+                      <span className="font-mono font-medium text-foreground">{multiCarerMode}</span>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
       </div>

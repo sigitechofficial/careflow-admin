@@ -142,25 +142,27 @@ export default function PayrollOverviewPage() {
                 to={card.href}
                 className="group rounded-xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/30"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
                   <div
                     className={cn(
-                      'flex h-10 w-10 items-center justify-center rounded-lg',
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
                       TONE_CLASS[card.tone],
                     )}
                   >
                     {card.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-2xl font-semibold tabular-nums tracking-tight">
+                      {card.value}
+                    </div>
+                    <div className="mt-0.5 text-sm font-medium text-foreground">{card.label}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{card.hint}</div>
                   </div>
                   <ArrowRight
                     className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
                     aria-hidden
                   />
                 </div>
-                <div className="mt-4 text-2xl font-semibold tabular-nums tracking-tight">
-                  {card.value}
-                </div>
-                <div className="mt-1 text-sm font-medium text-foreground">{card.label}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{card.hint}</div>
               </Link>
             ))}
           </div>

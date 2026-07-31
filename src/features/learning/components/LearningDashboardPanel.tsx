@@ -22,6 +22,7 @@ import {
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { useLearningDashboard } from '@/features/learning/hooks/useLearning'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { LEARNING_PATHS } from '@/features/learning/learning-routes'
 import { LearningModuleFlowPanel } from '@/features/learning/components/LearningModuleFlowPanel'
 
@@ -64,7 +65,8 @@ function KpiCard({
 }
 
 export function LearningDashboardPanel() {
-  const { data, isLoading, isError } = useLearningDashboard()
+  const { locationId } = useGlobalLocationScope()
+  const { data, isLoading, isError } = useLearningDashboard(locationId)
 
   const chartData = data
     ? [

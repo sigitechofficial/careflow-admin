@@ -9,6 +9,7 @@ import {
   reinstateHousekeepingJob,
   setJobLeadCarer,
   unallocateJob,
+  updateJobAllocationTiming,
   updateScheduledJob,
 } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
@@ -42,6 +43,7 @@ export function useCompleteHousekeepingJob() {
       extraCareNotes,
       actualStartDateTime,
       actualEndDateTime,
+      carerActuals,
       overrunReason,
       timingExceptionReasonCode,
       timingExceptionNotes,
@@ -54,6 +56,11 @@ export function useCompleteHousekeepingJob() {
       extraCareNotes?: string
       actualStartDateTime?: string
       actualEndDateTime?: string
+      carerActuals?: Array<{
+        allocationId: string
+        actualStartDateTime: string
+        actualEndDateTime: string
+      }>
       overrunReason?: string
       timingExceptionReasonCode?: string
       timingExceptionNotes?: string
@@ -66,6 +73,7 @@ export function useCompleteHousekeepingJob() {
         extraCareNotes,
         actualStartDateTime,
         actualEndDateTime,
+        carerActuals,
         overrunReason,
         timingExceptionReasonCode,
         timingExceptionNotes,
@@ -143,6 +151,8 @@ export function useAllocateJob() {
       force,
       notes,
       isLeadCarer,
+      scheduledStartDateTime,
+      scheduledEndDateTime,
     }: {
       jobId: string
       employeeId: string
@@ -150,7 +160,49 @@ export function useAllocateJob() {
       force?: boolean
       notes?: string
       isLeadCarer?: boolean
-    }) => allocateJob(jobId, { employeeId, scheduledVisitId, force, notes, isLeadCarer }),
+      scheduledStartDateTime?: string
+      scheduledEndDateTime?: string
+    }) =>
+      allocateJob(jobId, {
+        employeeId,
+        scheduledVisitId,
+        force,
+        notes,
+        isLeadCarer,
+        scheduledStartDateTime,
+        scheduledEndDateTime,
+      }),
+    onSuccess: (result) => {
+      invalidateSchedulingQueries(qc)
+      invalidateVisitPlanForAllocation(qc, result.data)
+    },
+  })
+}
+
+export function useUpdateJobAllocationTiming() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      allocationId,
+      scheduledStartDateTime,
+      scheduledEndDateTime,
+      isLeadCarer,
+      notes,
+    }: {
+      jobId: string
+      allocationId: string
+      scheduledStartDateTime?: string
+      scheduledEndDateTime?: string
+      isLeadCarer?: boolean
+      notes?: string
+    }) =>
+      updateJobAllocationTiming(jobId, allocationId, {
+        scheduledStartDateTime,
+        scheduledEndDateTime,
+        isLeadCarer,
+        notes,
+      }),
     onSuccess: (result) => {
       invalidateSchedulingQueries(qc)
       invalidateVisitPlanForAllocation(qc, result.data)

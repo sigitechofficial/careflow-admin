@@ -19,19 +19,29 @@ describe('staffListSearchToFilters', () => {
 })
 
 describe('staffListFiltersToSearch', () => {
-  it('writes all statuses and immigration to url', () => {
+  it('omits status from url when all statuses (default)', () => {
     expect(
       staffListFiltersToSearch({
         ...DEFAULT_STAFF_LIST_FILTERS,
         allStatuses: true,
         visaTypeIds: ['british_citizen'],
       }),
-    ).toEqual({ status: 'all', immigration: 'british_citizen' })
+    ).toEqual({ immigration: 'british_citizen' })
+  })
+
+  it('writes narrowed status ids to url', () => {
+    expect(
+      staffListFiltersToSearch({
+        ...DEFAULT_STAFF_LIST_FILTERS,
+        allStatuses: false,
+        statusIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
+      }),
+    ).toEqual({ status: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })
   })
 })
 
 describe('staffListFiltersToListParams', () => {
-  it('defaults to active status when no status filter set', () => {
+  it('omits status filter by default (active + inactive)', () => {
     const lookups = {
       employeeStatuses: [
         { id: 'st-active', name: 'Active' },
@@ -40,7 +50,7 @@ describe('staffListFiltersToListParams', () => {
     } as const
 
     const params = staffListFiltersToListParams(DEFAULT_STAFF_LIST_FILTERS, lookups as never)
-    expect(params.statusId).toBe('st-active')
+    expect(params.statusId).toBeUndefined()
     expect(params.statusIds).toBeUndefined()
   })
 

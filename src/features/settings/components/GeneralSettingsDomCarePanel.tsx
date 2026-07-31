@@ -4,6 +4,7 @@ import { ApiError } from '@/shared/api/api-client'
 import {
   type DomJobCancellationRule,
   type DomLateVisitZoneAlert,
+  type MultiCarerFunderChargeMode,
   type OrganisationGeneralSettings,
   type RotaHorizonMode,
 } from '@/features/settings/types'
@@ -19,6 +20,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
+import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
 import {
   Select,
   SelectContent,
@@ -60,9 +62,12 @@ const TOOLTIPS = {
   rotaHorizonMode:
     'Fixed days uses the horizon below. Calendar month generates through the end of the month when To date is left blank.',
   autoExtendRotaRunHour: 'Hour (UK time) when the daily rolling rota extension runs. Default is 12 (noon).',
+  multiCarerFunderCharge:
+    'Controls how double-up / multi-carer visits are charged to the service-user funder. Carer pay is always calculated per carer.',
 } as const
 
 type DomCareDraft = {
+  multiCarerFunderChargeMode: MultiCarerFunderChargeMode
   domJobCancellationRules: DomJobCancellationRule[]
   domGlobalToleranceMinutes: number
   domGeofenceDistanceMeters: number
@@ -92,6 +97,7 @@ type DomCareDraft = {
 }
 
 const DEFAULTS: DomCareDraft = {
+  multiCarerFunderChargeMode: 'COMBINED',
   domJobCancellationRules: DEFAULT_DOM_JOB_CANCELLATION_RULES,
   domGlobalToleranceMinutes: 30,
   domGeofenceDistanceMeters: 100,
@@ -153,6 +159,7 @@ function mergeZoneAlerts(
 
 function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[]): DomCareDraft {
   return {
+    multiCarerFunderChargeMode: s.multiCarerFunderChargeMode ?? 'COMBINED',
     domJobCancellationRules:
       s.domJobCancellationRules.length > 0 ? s.domJobCancellationRules : DEFAULT_DOM_JOB_CANCELLATION_RULES,
     domGlobalToleranceMinutes: s.domGlobalToleranceMinutes,
@@ -385,6 +392,46 @@ export function GeneralSettingsDomCarePanel() {
           {error}
         </p>
       )}
+
+      <GeneralSettingsCard title="Multi-carer funder charging">
+        <div className="space-y-3">
+          <SettingsHint text={TOOLTIPS.multiCarerFunderCharge} />
+          <RadioGroup
+            value={draft.multiCarerFunderChargeMode}
+            onValueChange={v =>
+              setDraft(d => ({
+                ...d,
+                multiCarerFunderChargeMode: v as MultiCarerFunderChargeMode,
+              }))
+            }
+            disabled={!canUpdate}
+            className="space-y-3"
+            data-testid="multi-carer-funder-charge-mode"
+          >
+            <label className="flex cursor-pointer items-start gap-2">
+              <RadioGroupItem value="COMBINED" className="mt-0.5" />
+              <span className="space-y-0.5">
+                <span className="block text-sm font-medium text-foreground">
+                  Combined visit pay
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Charge the funder for each carer’s hours (e.g. 2h + 2h = 4h). Default.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2">
+              <RadioGroupItem value="FIXED" className="mt-0.5" />
+              <span className="space-y-0.5">
+                <span className="block text-sm font-medium text-foreground">Fixed visit pay</span>
+                <span className="block text-xs text-muted-foreground">
+                  Charge the funder once for the visit window (e.g. 07:00–10:00 = 3h), even when
+                  carers overlap.
+                </span>
+              </span>
+            </label>
+          </RadioGroup>
+        </div>
+      </GeneralSettingsCard>
 
       <GeneralSettingsCard title="Job Cancellation">
         <div className="space-y-4">

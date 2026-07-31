@@ -91,6 +91,8 @@ export type ListServiceUsersParams = {
   showDeleted?: boolean
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  /** Branch / location scope (singular). */
+  locationId?: string
 }
 
 export type ServiceUserDetailContact = {
@@ -1681,6 +1683,7 @@ export async function listServiceUsers(
   if (params.showDeleted === true) qs.set('showDeleted', 'true')
   if (params.sortBy) qs.set('sortBy', params.sortBy)
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
+  if (params.locationId) qs.set('locationId', params.locationId)
   const q = qs.toString()
   const res = await apiJson<ApiEnvelope<ServiceUserListRow[]>>(`/service-users${q ? `?${q}` : ''}`, {
     method: 'GET',

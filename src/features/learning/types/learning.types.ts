@@ -73,6 +73,7 @@ export type LearningListParams = {
   limit?: number
   search?: string
   isActive?: boolean
+  locationId?: string
 }
 
 export type LearningCategoryListParams = LearningListParams

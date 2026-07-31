@@ -19,6 +19,7 @@ import { Input } from '@/shared/ui/input'
 import { ContentCard } from '@/shared/ui/content-section'
 import { useAuthStore } from '@/features/auth/store'
 import { useEcmDailyOpsReport, useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmHealthBanner } from '@/features/ecm/components/EcmHealthBanner'
 import type { EcmDashboardBucket, EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
 
@@ -100,13 +101,16 @@ function ChartEmpty({ message }: { message: string }) {
 }
 
 export function EcmGraphPanel() {
+  const { locationId } = useGlobalLocationScope()
   const [date, setDate] = React.useState(todayIso)
   const canReports = useAuthStore(
     (s) => s.can('ecm.reports.export') || s.can('ecm.read'),
   )
 
-  const dashboard = useEcmLiveDashboard({ date })
-  const dailyOps = useEcmDailyOpsReport(date, canReports)
+  const dashboard = useEcmLiveDashboard({ date, locationId: locationId ?? undefined })
+  const dailyOps = useEcmDailyOpsReport(date, canReports, {
+    locationId: locationId ?? undefined,
+  })
 
   const counts = dashboard.data?.counts
   const visits = dashboard.data?.visits ?? []

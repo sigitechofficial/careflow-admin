@@ -31,6 +31,7 @@ import {
 import { usePayrollRunsSummary } from '@/features/billing/hooks/usePayrollRuns'
 import { useInvoiceRunsSummary } from '@/features/billing/hooks/useInvoiceRuns'
 import { usePaymentsSummary } from '@/features/billing/hooks/usePayments'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 function DashboardHelpIcon({ label, tooltip }: { label: string; tooltip: string }) {
   return (
@@ -182,10 +183,11 @@ function QuickActionLink({
 }
 
 export function BillingDashboardPanel() {
+  const { locationId } = useGlobalLocationScope()
   const summaryQuery = useFundingContractsSummary()
-  const visitSummaryQuery = useVisitReconciliationsSummary()
-  const payrollSummaryQuery = usePayrollRunsSummary()
-  const invoiceSummaryQuery = useInvoiceRunsSummary()
+  const visitSummaryQuery = useVisitReconciliationsSummary(locationId)
+  const payrollSummaryQuery = usePayrollRunsSummary(locationId)
+  const invoiceSummaryQuery = useInvoiceRunsSummary(locationId)
   const paymentsSummaryQuery = usePaymentsSummary()
   const exceptionQueueQuery = useVisitReconciliationExceptionQueue(10)
   const stats = {

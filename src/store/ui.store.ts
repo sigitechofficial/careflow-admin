@@ -7,11 +7,14 @@ interface UIState {
   theme: Theme
   sidebarCollapsed: boolean
   sidebarMobileOpen: boolean
+  /** null = All locations (org-wide). */
+  selectedLocationId: string | null
 
   setTheme: (theme: Theme) => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   setSidebarMobileOpen: (open: boolean) => void
+  setSelectedLocationId: (locationId: string | null) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -20,6 +23,7 @@ export const useUIStore = create<UIState>()(
       theme: 'light',
       sidebarCollapsed: false,
       sidebarMobileOpen: false,
+      selectedLocationId: null,
 
       setTheme: (theme) => {
         set({ theme })
@@ -40,13 +44,15 @@ export const useUIStore = create<UIState>()(
 
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setSidebarMobileOpen: (open) => set({ sidebarMobileOpen: open }),
+      setSelectedLocationId: (locationId) => set({ selectedLocationId: locationId }),
     }),
     {
       name: 'care-admin-ui',
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,
+        selectedLocationId: state.selectedLocationId,
       }),
-    }
-  )
+    },
+  ),
 )

@@ -81,10 +81,10 @@ function invalidateLearning(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: learningKeys.all })
 }
 
-export function useLearningDashboard() {
+export function useLearningDashboard(locationId?: string | null) {
   return useQuery({
-    queryKey: learningKeys.dashboard(),
-    queryFn: fetchLearningDashboardSummary,
+    queryKey: learningKeys.dashboard(locationId),
+    queryFn: () => fetchLearningDashboardSummary(locationId ?? undefined),
   })
 }
 

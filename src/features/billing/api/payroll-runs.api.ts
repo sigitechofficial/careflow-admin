@@ -50,15 +50,27 @@ export type PayrollRunDetail = PayrollRunRow & {
   lines: PayrollRunLineDetail[]
 }
 
-export async function fetchPayrollRuns(): Promise<PayrollRunRow[]> {
-  const res = await apiJson<ApiEnvelope<PayrollRunRow[]>>('/billing/payroll-runs', { method: 'GET' })
+export async function fetchPayrollRuns(params?: {
+  locationId?: string
+}): Promise<PayrollRunRow[]> {
+  const qs = new URLSearchParams()
+  if (params?.locationId) qs.set('locationId', params.locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<PayrollRunRow[]>>(
+    `/billing/payroll-runs${suffix}`,
+    { method: 'GET' },
+  )
   return res.data
 }
 
-export async function fetchPayrollRunsSummary(): Promise<PayrollRunsSummary> {
-  const res = await apiJson<ApiEnvelope<PayrollRunsSummary>>('/billing/payroll-runs/summary', {
-    method: 'GET',
-  })
+export async function fetchPayrollRunsSummary(locationId?: string): Promise<PayrollRunsSummary> {
+  const qs = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
+  const res = await apiJson<ApiEnvelope<PayrollRunsSummary>>(
+    `/billing/payroll-runs/summary${qs}`,
+    {
+      method: 'GET',
+    },
+  )
   return res.data
 }
 

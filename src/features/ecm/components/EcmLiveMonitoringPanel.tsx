@@ -25,6 +25,7 @@ import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
 import { useEcmLiveDashboard } from '@/features/ecm/hooks/useEcm'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
 import { EcmExceptionQueuePanel } from '@/features/ecm/components/EcmExceptionQueuePanel'
@@ -233,6 +234,7 @@ function actualDurationOf(row: EcmLiveVisitRow): number | null {
 }
 
 export function EcmLiveMonitoringPanel() {
+  const { locationId } = useGlobalLocationScope()
   const [date, setDate] = React.useState(todayIso)
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
@@ -248,6 +250,7 @@ export function EcmLiveMonitoringPanel() {
   const dashboard = useEcmLiveDashboard({
     date,
     search: debouncedSearch || undefined,
+    locationId: locationId ?? undefined,
   })
 
   const counts = dashboard.data?.counts

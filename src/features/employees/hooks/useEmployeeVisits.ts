@@ -261,7 +261,14 @@ export function useEmployeeVisits(employeeId: string, month: string, enabled = t
     enabled: Boolean(enabled && employeeId && /^\d{4}-\d{2}$/.test(month)),
     select: (data) => {
       const jobs = data.visits
-        .map((row) => row.job)
+        .map((row) => ({
+          ...row.job,
+          // Prefer allocation-resolved times from the visit row (per-carer window).
+          scheduledStartDateTime: row.scheduledStartDateTime || row.job.scheduledStartDateTime,
+          scheduledEndDateTime: row.scheduledEndDateTime ?? row.job.scheduledEndDateTime,
+          durationMinutes: row.plannedMinutes || row.job.durationMinutes,
+          deliveryAssessment: row.deliveryAssessment ?? row.job.deliveryAssessment,
+        }))
         .slice()
         .sort(
           (a, b) =>

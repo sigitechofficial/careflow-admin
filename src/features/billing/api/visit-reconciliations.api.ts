@@ -23,6 +23,7 @@ export async function fetchVisitReconciliations(params?: {
   hasExceptions?: boolean
   serviceUserId?: string
   employeeId?: string
+  locationId?: string
   dateFrom?: string
   dateTo?: string
   page?: number
@@ -34,6 +35,7 @@ export async function fetchVisitReconciliations(params?: {
   if (params?.hasExceptions != null) qs.set('hasExceptions', String(params.hasExceptions))
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
   if (params?.employeeId) qs.set('employeeId', params.employeeId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
   if (params?.page != null) qs.set('page', String(params.page))
@@ -57,9 +59,12 @@ export async function fetchVisitReconciliations(params?: {
   }
 }
 
-export async function fetchVisitReconciliationsSummary(): Promise<VisitReconciliationsSummary> {
+export async function fetchVisitReconciliationsSummary(
+  locationId?: string,
+): Promise<VisitReconciliationsSummary> {
+  const qs = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
   const res = await apiJson<ApiEnvelope<VisitReconciliationsSummary>>(
-    '/billing/visit-reconciliations/summary',
+    `/billing/visit-reconciliations/summary${qs}`,
     { method: 'GET' },
   )
   return res.data
@@ -187,14 +192,13 @@ export async function bulkApproveVisitReconciliations(body: {
 export async function backfillVisitReconciliations(body?: {
   dateFrom?: string
   dateTo?: string
-}): Promise<{ count: number; ids: string[] }> {
-  const res = await apiJson<ApiEnvelope<{ count: number; ids: string[] }>>(
-    '/billing/visit-reconciliations/backfill',
-    {
-      method: 'POST',
-      body: JSON.stringify(body ?? {}),
-    },
-  )
+}): Promise<{ count: number; ids: string[]; reEvaluated?: number }> {
+  const res = await apiJson<
+    ApiEnvelope<{ count: number; ids: string[]; reEvaluated?: number }>
+  >('/billing/visit-reconciliations/backfill', {
+    method: 'POST',
+    body: JSON.stringify(body ?? {}),
+  })
   return res.data
 }
 

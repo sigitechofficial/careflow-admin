@@ -13,7 +13,8 @@ import {
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
 import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHeading'
-import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
+// Other deductions catalogue — hidden until Phase 4 engines calculate £ amounts.
+// import { UkPayrollDeductionsCatalogPanel } from '@/features/payroll/components/UkPayrollDeductionsCatalogPanel'
 import {
   electionsFromLegacyFlags,
   syncLoanFlagsFromElections,
@@ -188,7 +189,7 @@ export default function PayrollEmployeesPage() {
   return (
     <PayrollSectionLayout
       title="Employee payroll setup"
-      description="Search carers, then set tax code, Employee National Insurance, and the full UK 2026/27 deductions catalogue. Only PAYE and Class 1 NI £ amounts are calculated on the run today."
+      description="Search carers, then set tax code and Employee National Insurance. Only PAYE and Class 1 NI £ amounts are calculated on the run today."
       testId="payroll-employees-page"
     >
       <div className="space-y-5">
@@ -429,11 +430,13 @@ export default function PayrollEmployeesPage() {
               </div>
             </div>
 
-            <UkPayrollDeductionsCatalogPanel
+            {/* Other deductions (student loans, pension, AEOs, voluntary) — not required for
+                current PAYE / NI runs. Re-enable UkPayrollDeductionsCatalogPanel when Phase 4
+                deduction engines ship. Existing elections are still loaded/saved unchanged. */}
+            {/* <UkPayrollDeductionsCatalogPanel
               selectedCodes={deductionElections}
               onChange={setDeductionElections}
             />
-            </TooltipProvider>
 
             {showPensionRef ? (
               <label className="block space-y-1 text-sm">
@@ -445,7 +448,7 @@ export default function PayrollEmployeesPage() {
                   maxLength={80}
                 />
               </label>
-            ) : null}
+            ) : null} */}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1 text-sm">
@@ -461,7 +464,11 @@ export default function PayrollEmployeesPage() {
                 </select>
               </label>
               <label className="block space-y-1 text-sm">
-                <span>Starter declaration</span>
+                <PayrollInfoHeading
+                  title={PAYROLL_SECTION_GUIDANCE.starterDeclaration.title}
+                  purpose={PAYROLL_SECTION_GUIDANCE.starterDeclaration.purpose}
+                  as="h5"
+                />
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                   value={starter}
@@ -522,6 +529,7 @@ export default function PayrollEmployeesPage() {
                 card link uses the employee default pay card when present.
               </p>
             </div>
+            </TooltipProvider>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedId(null)}>

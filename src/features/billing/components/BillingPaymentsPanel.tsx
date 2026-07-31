@@ -10,6 +10,7 @@ import {
   usePayments,
 } from '@/features/billing/hooks/usePayments'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { PaymentRow } from '@/features/billing/api/payments.api'
 import {
   formatMoneyGbp,
@@ -25,12 +26,13 @@ function needsLinking(row: PaymentRow): boolean {
 export function BillingPaymentsPanel() {
   const canRead = useAuthStore(s => s.can('billing.payments.read' as never))
   const canManage = useAuthStore(s => s.can('billing.payments.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [recordPrefill, setRecordPrefill] = React.useState<RecordPaymentPrefill | null>(null)
   const [matchPayment, setMatchPayment] = React.useState<PaymentRow | null>(null)
 
-  const paymentsQuery = usePayments()
-  const outstandingQuery = useOutstandingInvoiceRuns()
+  const paymentsQuery = usePayments({ locationId: locationId ?? undefined })
+  const outstandingQuery = useOutstandingInvoiceRuns(true, locationId)
 
   const payments = paymentsQuery.data ?? []
   const outstanding = outstandingQuery.data ?? []

@@ -27,6 +27,7 @@ import {
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useUploadServiceUserPhoto } from '@/features/service-users/hooks/useServiceUserPhoto'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import {
   buildServiceUsersListParams,
@@ -256,6 +257,8 @@ export default function ServiceUsersPage() {
     setFlashMessageUser(user)
   }, [])
 
+  const { locationId: globalLocationId } = useGlobalLocationScope()
+
   // Debounce search to avoid a query per keystroke
   React.useEffect(() => {
     const t = window.setTimeout(() => setSearchApi(searchInput.trim()), 350)
@@ -265,7 +268,7 @@ export default function ServiceUsersPage() {
   // Reset to page 1 when filters change
   React.useEffect(() => {
     setPage(1)
-  }, [searchApi, statusFilter, listFilter, onHoldOnly])
+  }, [searchApi, statusFilter, listFilter, onHoldOnly, globalLocationId])
 
   // Lookups (statuses, risk levels, etc.) — prefetched by route loader
   const lookupsQuery = useServiceUserLookups()
@@ -280,8 +283,9 @@ export default function ServiceUsersPage() {
         listFilter,
         statusFilter,
         onHoldOnly,
+        locationId: globalLocationId ?? undefined,
       }),
-    [lookups, listFilter, statusFilter, onHoldOnly, page, searchApi],
+    [lookups, listFilter, statusFilter, onHoldOnly, page, searchApi, globalLocationId],
   )
 
   const listQuery = useServiceUsers(listParams, lookupsQuery.isSuccess)

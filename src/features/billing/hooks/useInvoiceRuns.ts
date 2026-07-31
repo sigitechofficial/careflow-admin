@@ -12,17 +12,17 @@ import {
 } from '@/features/billing/api/invoice-runs.api'
 import { billingKeys } from '@/features/billing/keys'
 
-export function useInvoiceRuns() {
+export function useInvoiceRuns(filters?: { locationId?: string }) {
   return useQuery({
-    queryKey: billingKeys.invoiceRuns(),
-    queryFn: fetchInvoiceRuns,
+    queryKey: billingKeys.invoiceRuns(filters),
+    queryFn: () => fetchInvoiceRuns(filters),
   })
 }
 
-export function useInvoiceRunsSummary() {
+export function useInvoiceRunsSummary(locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.invoiceRunsSummary(),
-    queryFn: fetchInvoiceRunsSummary,
+    queryKey: billingKeys.invoiceRunsSummary(locationId),
+    queryFn: () => fetchInvoiceRunsSummary(locationId ?? undefined),
   })
 }
 

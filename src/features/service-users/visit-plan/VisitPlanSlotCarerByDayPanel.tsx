@@ -15,6 +15,7 @@ import { contentBodyClass, contentHelperClass, contentOverlineClass, contentTitl
 import type { VisitPlanSlot, VisitPlanSlotCarerAssignment } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
+import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import {
   type CarerAssignmentGroup,
   ALL_WEEKDAYS_SELECT_LABEL,
@@ -52,6 +53,9 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
   const nameById = useEmployeeNameMap(employeeIds)
   const groups = groupCarerAssignments(slot.carerAssignments)
   const slotDefaultDuration = slotDefaultDurationMinutes(slot)
+  const showPerCarerTiming = slot.requiredCarers > 1 || groups.length > 1
+  const slotStartHm = normalizeTimeForInput(slot.plannedStartTime)
+  const slotEndHm = normalizeTimeForInput(slot.plannedEndTime)
   const [editingDurationGroupId, setEditingDurationGroupId] = React.useState<string | null>(null)
   const [draftDuration, setDraftDuration] = React.useState('')
 
@@ -63,8 +67,8 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
         employeeId: '',
         role: slot.carerAssignments.length === 0 ? 'LEAD' : 'SECONDARY',
         durationMinutes: null,
-        plannedStartTime: null,
-        plannedEndTime: null,
+        plannedStartTime: showPerCarerTiming ? slotStartHm || null : null,
+        plannedEndTime: showPerCarerTiming ? slotEndHm || null : null,
         sortOrder: slot.carerAssignments.length,
       },
     ])
@@ -208,6 +212,64 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                   }}
                 />
               </div>
+              {showPerCarerTiming ? (
+                <>
+                  <div>
+                    <Label className={contentOverlineClass}>Start time</Label>
+                    <Input
+                      type="time"
+                      disabled={disabled}
+                      value={
+                        normalizeTimeForInput(group.template.plannedStartTime ?? '') || slotStartHm
+                      }
+                      onChange={(e) => {
+                        const plannedStartTime = e.target.value || null
+                        onChange(
+                          replaceGroupField(slot.carerAssignments, group, {
+                            plannedStartTime,
+                            plannedEndTime:
+                              group.template.plannedEndTime ?? (slotEndHm || null),
+                          }),
+                        )
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label className={contentOverlineClass}>End time</Label>
+                    <Input
+                      type="time"
+                      disabled={disabled}
+                      value={
+                        normalizeTimeForInput(group.template.plannedEndTime ?? '') || slotEndHm
+                      }
+                      onChange={(e) => {
+                        const plannedEndTime = e.target.value || null
+                        const start =
+                          normalizeTimeForInput(group.template.plannedStartTime ?? '') ||
+                          slotStartHm
+                        if (plannedEndTime && start && plannedEndTime <= start) {
+                          return
+                        }
+                        if (
+                          plannedEndTime &&
+                          slotStartHm &&
+                          slotEndHm &&
+                          (plannedEndTime > slotEndHm ||
+                            (group.template.plannedStartTime ?? start) < slotStartHm)
+                        ) {
+                          // Still allow edit; generation validates against slot window.
+                        }
+                        onChange(
+                          replaceGroupField(slot.carerAssignments, group, {
+                            plannedStartTime: group.template.plannedStartTime ?? (start || null),
+                            plannedEndTime,
+                          }),
+                        )
+                      }}
+                    />
+                  </div>
+                </>
+              ) : null}
               <div className="flex items-end">
                 <Button
                   type="button"

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Users, ShieldCheck, Star, Award, Activity, TrendingUp,
-  PenLine, Plus, X, Filter, FileText, Globe, Clock,
+  PenLine, Plus, X, Filter, FileText, Globe,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
 import { cn, formatDate } from '@/shared/lib/utils'
@@ -10,6 +10,7 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { ApiError } from '@/shared/api/api-client'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   type EmployeeChartSummary,
   type EmployeeListRow,
@@ -23,10 +24,7 @@ import {
 } from '@/features/employees/hooks/useEmployees'
 import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmployeeMutations'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
-import {
-  labelForVisaType,
-  resolveEmployeeVisaTypes,
-} from '@/features/settings/employee/employee-visa-defaults'
+import { resolveEmployeeVisaTypes } from '@/features/settings/employee/employee-visa-defaults'
 import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
 import { EmployeeSkillsTab } from '@/features/employees/components/EmployeeSkillsTab'
 import { StaffListBranchesCell } from '@/features/employees/components/StaffListBranchesCell'
@@ -55,10 +53,6 @@ import {
   hasStaffListFilters,
 } from '@/features/employees/utils/staff-list-filter.util'
 import { pruneStaffListFiltersToFacets } from '@/features/employees/utils/staff-list-facet.util'
-import {
-  formatStaffListHolidayEnd,
-  isEmployeeEmploymentEnded,
-} from '@/features/employees/utils/employee-availability.util'
 import { Switch } from '@/shared/ui/toggle-controls'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -499,13 +493,9 @@ const STAFF_LIST_SORTABLE_COLUMNS: Array<{
   { label: 'Picture' },
   { label: 'Employee Name', sortKey: 'name' },
   { label: 'Status', sortKey: 'status' },
-  { label: 'Availability' },
-  { label: 'Immigration', sortKey: 'immigration' },
   { label: 'Branch scope' },
   { label: 'Branches' },
-  { label: 'Job Title', sortKey: 'jobTitle' },
   { label: 'Role', sortKey: 'role' },
-  { label: 'Grade', sortKey: 'grade' },
   { label: 'Employment Type', sortKey: 'contractType' },
   { label: 'Action' },
 ]
@@ -521,6 +511,8 @@ function StaffListTab() {
   const filters = React.useMemo(() => staffListSearchToFilters(urlSearch), [urlSearch])
   const sort = React.useMemo(() => staffListSearchToSort(urlSearch), [urlSearch])
   const [searchInput, setSearchInput] = React.useState(filters.search)
+  const { locationIds: globalLocationIds, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
 
   React.useEffect(() => {
     setSearchInput(filters.search)
@@ -554,23 +546,20 @@ function StaffListTab() {
     () => resolveEmployeeVisaTypes(generalSettings?.employeeVisaTypes),
     [generalSettings?.employeeVisaTypes],
   )
-  const resolveImmigrationLabel = React.useCallback(
-    (emp: EmployeeListRow) => {
-      const fromApi = emp.visaTypeLabel?.trim()
-      if (fromApi) return fromApi
-      const label = labelForVisaType(visaTypes, emp.visaTypeId ?? undefined)
-      return label ?? '—'
-    },
-    [visaTypes],
-  )
-  const listParams = React.useMemo(
-    () => staffListFiltersToListParams(filters, lookups, sort),
-    [filters, lookups, sort],
-  )
-  const facetParams = React.useMemo(
-    () => staffListFiltersToCohortParams(filters, lookups),
-    [filters, lookups],
-  )
+  const listParams = React.useMemo(() => {
+    const params = staffListFiltersToListParams(filters, lookups, sort)
+    if (globalLocationScoped && globalLocationIds?.length) {
+      params.locationIds = globalLocationIds
+    }
+    return params
+  }, [filters, lookups, sort, globalLocationScoped, globalLocationIds])
+  const facetParams = React.useMemo(() => {
+    const params = staffListFiltersToCohortParams(filters, lookups)
+    if (globalLocationScoped && globalLocationIds?.length) {
+      params.locationIds = globalLocationIds
+    }
+    return params
+  }, [filters, lookups, globalLocationScoped, globalLocationIds])
   const { data: facets = null } = useEmployeeListFacets(facetParams, Boolean(lookups))
   const { data: listData, isLoading: listLoading, error: listError } = useEmployees(listParams)
 
@@ -694,7 +683,7 @@ function StaffListTab() {
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm" data-testid="employee-staff-table">
+        <table className="w-full min-w-[1100px] text-sm" data-testid="employee-staff-table">
           <thead>
             <tr className="border-b border-border bg-muted/40">
               {STAFF_LIST_SORTABLE_COLUMNS.map((col) => (
@@ -761,8 +750,6 @@ function StaffListTab() {
                     />
                   ) : null
                 const branchScope = describeEmployeeBranchScope(emp, locationNames)
-                const employmentEnded = isEmployeeEmploymentEnded(emp)
-                const holidayEndLabel = formatStaffListHolidayEnd(emp.holidayEndDate)
                 return (
                   <tr
                     key={emp.id}
@@ -806,8 +793,8 @@ function StaffListTab() {
                         ) : null}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
                         <Badge
                           variant={statusNorm === 'active' ? 'success' : statusNorm === 'inactive' ? 'secondary' : 'info'}
                           size="sm"
@@ -817,37 +804,13 @@ function StaffListTab() {
                         {rowStatusSwitch}
                       </div>
                     </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-col gap-1">
-                        {emp.onHolidayToday ? (
-                          <Badge variant="warning" size="sm" className="gap-1">
-                            <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                            On leave
-                            {holidayEndLabel ? ` until ${holidayEndLabel}` : ''}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Available</span>
-                        )}
-                        {employmentEnded ? (
-                          <Badge variant="secondary" size="sm" title={emp.leavingReason?.name ?? undefined}>
-                            Left
-                            {emp.leavingReason?.name ? ` · ${emp.leavingReason.name}` : ''}
-                          </Badge>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                      {resolveImmigrationLabel(emp)}
-                    </td>
                     <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                       {staffListBranchScopeLabel(branchScope)}
                     </td>
                     <td className="px-3 py-3 align-top text-muted-foreground">
                       <StaffListBranchesCell scope={branchScope} />
                     </td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.jobTitle?.name ?? '?'}</td>
                     <td className="px-3 py-3 text-muted-foreground">{emp.role?.name ?? '?'}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{emp.grade?.name ?? '?'}</td>
                     <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                       {emp.contractType?.name ?? '?'}
                     </td>

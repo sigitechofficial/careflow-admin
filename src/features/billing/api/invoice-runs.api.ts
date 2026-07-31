@@ -60,15 +60,27 @@ export type InvoiceRunDetail = InvoiceRunRow & {
   funderSummaries: InvoiceRunFunderSummary[]
 }
 
-export async function fetchInvoiceRuns(): Promise<InvoiceRunRow[]> {
-  const res = await apiJson<ApiEnvelope<InvoiceRunRow[]>>('/billing/invoice-runs', { method: 'GET' })
+export async function fetchInvoiceRuns(params?: {
+  locationId?: string
+}): Promise<InvoiceRunRow[]> {
+  const qs = new URLSearchParams()
+  if (params?.locationId) qs.set('locationId', params.locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<InvoiceRunRow[]>>(
+    `/billing/invoice-runs${suffix}`,
+    { method: 'GET' },
+  )
   return res.data
 }
 
-export async function fetchInvoiceRunsSummary(): Promise<InvoiceRunsSummary> {
-  const res = await apiJson<ApiEnvelope<InvoiceRunsSummary>>('/billing/invoice-runs/summary', {
-    method: 'GET',
-  })
+export async function fetchInvoiceRunsSummary(locationId?: string): Promise<InvoiceRunsSummary> {
+  const qs = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
+  const res = await apiJson<ApiEnvelope<InvoiceRunsSummary>>(
+    `/billing/invoice-runs/summary${qs}`,
+    {
+      method: 'GET',
+    },
+  )
   return res.data
 }
 

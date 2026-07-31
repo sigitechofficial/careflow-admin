@@ -60,8 +60,13 @@ export type PaymentAllocationInput = {
   notes?: string
 }
 
-export async function fetchPayments(): Promise<PaymentRow[]> {
-  const res = await apiJson<ApiEnvelope<PaymentRow[]>>('/billing/payments', { method: 'GET' })
+export async function fetchPayments(params?: { locationId?: string }): Promise<PaymentRow[]> {
+  const qs = new URLSearchParams()
+  if (params?.locationId) qs.set('locationId', params.locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<PaymentRow[]>>(`/billing/payments${suffix}`, {
+    method: 'GET',
+  })
   return res.data
 }
 
@@ -84,9 +89,12 @@ export async function fetchAgedDebt(): Promise<AgedDebtBucket[]> {
   return res.data
 }
 
-export async function fetchOutstandingInvoiceRuns(): Promise<OutstandingInvoiceRun[]> {
+export async function fetchOutstandingInvoiceRuns(
+  locationId?: string,
+): Promise<OutstandingInvoiceRun[]> {
+  const qs = locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''
   const res = await apiJson<ApiEnvelope<OutstandingInvoiceRun[]>>(
-    '/billing/payments/outstanding-invoices',
+    `/billing/payments/outstanding-invoices${qs}`,
     { method: 'GET' },
   )
   return res.data

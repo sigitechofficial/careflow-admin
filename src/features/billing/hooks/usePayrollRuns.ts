@@ -16,10 +16,10 @@ import {
 } from '@/features/billing/api/payroll-runs.api'
 import { billingKeys } from '@/features/billing/keys'
 
-export function usePayrollRuns() {
+export function usePayrollRuns(filters?: { locationId?: string }) {
   return useQuery({
-    queryKey: billingKeys.payrollRuns(),
-    queryFn: fetchPayrollRuns,
+    queryKey: billingKeys.payrollRuns(filters),
+    queryFn: () => fetchPayrollRuns(filters),
   })
 }
 
@@ -31,10 +31,10 @@ export function usePayrollRun(id: string | undefined) {
   })
 }
 
-export function usePayrollRunsSummary() {
+export function usePayrollRunsSummary(locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.payrollRunsSummary(),
-    queryFn: fetchPayrollRunsSummary,
+    queryKey: billingKeys.payrollRunsSummary(locationId),
+    queryFn: () => fetchPayrollRunsSummary(locationId ?? undefined),
   })
 }
 

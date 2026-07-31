@@ -323,7 +323,7 @@ export function StaffListFilters({
                   statusIds: normalizeScheduleJobsFilterChange(next),
                 })
               }}
-              placeholder={filters.allStatuses ? 'All statuses' : 'Active (default)'}
+              placeholder={filters.allStatuses ? 'All statuses' : 'Select statuses'}
               searchPlaceholder="Search statuses…"
               disabled={disabled}
               checkPosition="right"

@@ -132,6 +132,9 @@ export type VisitReconciliationCalculationPreview = {
   billableMinutes: number
   payableHours: string | null
   billableHours: string | null
+  multiCarerFunderChargeMode?: 'COMBINED' | 'FIXED'
+  isFunderBillingRow?: boolean
+  funderChargeNote?: string | null
   timeWindows: {
     planned: string
     actual: string

@@ -23,6 +23,7 @@ import {
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { listAllEmployees } from '@/features/employees/api/employees.api'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { BulkLearningAssignmentInput } from '@/features/learning/types/learning.types'
 
 type WizardForm = {
@@ -46,12 +47,16 @@ function toIsoDueAt(value?: string): string | undefined {
 }
 
 export function AssignmentWizardDialog({ open, onOpenChange }: Props) {
+  const { locationId: globalLocationId } = useGlobalLocationScope()
   const bulkMut = useBulkCreateLearningAssignments()
   const coursesQuery = useLearningCourses({ limit: 100, status: 'PUBLISHED' })
   const lookupsQuery = useEmployeeLookups(open)
   const employeesQuery = useQuery({
-    queryKey: ['learning', 'assignment-wizard-employees'],
-    queryFn: () => listAllEmployees({}),
+    queryKey: ['learning', 'assignment-wizard-employees', globalLocationId ?? 'all'],
+    queryFn: () =>
+      listAllEmployees(
+        globalLocationId ? { locationIds: [globalLocationId] } : {},
+      ),
     enabled: open,
     staleTime: 60_000,
   })
@@ -78,13 +83,19 @@ export function AssignmentWizardDialog({ open, onOpenChange }: Props) {
     setEmployeeSearch('')
     setSelectedEmployeeIds([])
     setSelectedRoleIds([])
-    setSelectedLocationIds([])
+    setSelectedLocationIds(globalLocationId ? [globalLocationId] : [])
     setSelectedWorkAreaIds([])
     reset({ courseId: '', targetMode: 'employees', assignmentReason: '', dueAt: '' })
-  }, [open, reset])
+  }, [open, reset, globalLocationId])
 
   const targetMode = watch('targetMode')
   const courseId = watch('courseId')
+
+  const locationOptions = React.useMemo(() => {
+    const locs = lookupsQuery.data?.locations ?? []
+    if (!globalLocationId) return locs
+    return locs.filter((loc) => loc.id === globalLocationId)
+  }, [lookupsQuery.data?.locations, globalLocationId])
 
   const selectedCount = React.useMemo(() => {
     if (targetMode === 'employees') return selectedEmployeeIds.length
@@ -277,7 +288,7 @@ export function AssignmentWizardDialog({ open, onOpenChange }: Props) {
                   ) : null}
 
                   {targetMode === 'locations' ? (
-                    (lookupsQuery.data?.locations ?? []).map(loc => (
+                    locationOptions.map(loc => (
                       <label key={loc.id} className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"

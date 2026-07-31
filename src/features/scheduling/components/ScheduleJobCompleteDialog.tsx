@@ -89,6 +89,9 @@ export function ScheduleJobCompleteDialog({
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
   const [actualEndTime, setActualEndTime] = React.useState('')
+  const [carerActualTimes, setCarerActualTimes] = React.useState<
+    Array<{ allocationId: string; employeeId: string; startHm: string; endHm: string }>
+  >([])
   const [overrunReason, setOverrunReason] = React.useState('')
   const [timingExceptionReasonCode, setTimingExceptionReasonCode] = React.useState<
     VisitTimingExceptionReasonCode | ''
@@ -128,10 +131,26 @@ export function ScheduleJobCompleteDialog({
   }, [acceptedQuery.data?.items, job])
 
   const scheduleDateIso = job ? jobScheduleDateIso(job) : ''
+  const multiCarerTiming =
+    Boolean(job) &&
+    ((job!.requiredCarers ?? 0) > 1 || (job!.allocations?.length ?? 0) > 1)
+
   const actualDateTimes = React.useMemo(() => {
     if (!scheduleDateIso) return null
+    if (multiCarerTiming && carerActualTimes.length > 0) {
+      const windows = carerActualTimes
+        .map((row) => buildJobScheduleDateTimes(scheduleDateIso, row.startHm, row.endHm))
+        .filter(Boolean)
+      if (!windows.length) return null
+      const starts = windows.map((w) => new Date(w.scheduledStartDateTime).getTime())
+      const ends = windows.map((w) => new Date(w.scheduledEndDateTime).getTime())
+      return {
+        scheduledStartDateTime: new Date(Math.min(...starts)).toISOString(),
+        scheduledEndDateTime: new Date(Math.max(...ends)).toISOString(),
+      }
+    }
     return buildJobScheduleDateTimes(scheduleDateIso, actualStartTime, actualEndTime)
-  }, [actualEndTime, actualStartTime, scheduleDateIso])
+  }, [actualEndTime, actualStartTime, carerActualTimes, multiCarerTiming, scheduleDateIso])
 
   const actualDurationMinutes = React.useMemo(() => {
     if (!actualDateTimes) return null
@@ -166,7 +185,34 @@ export function ScheduleJobCompleteDialog({
           ).toISOString(),
         ),
     )
-  }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits])
+    const visitStart = isoToLocalTimeInput(job.scheduledStartDateTime)
+    const visitEnd =
+      isoToLocalTimeInput(job.scheduledEndDateTime) ||
+      isoToLocalTimeInput(
+        new Date(
+          new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
+        ).toISOString(),
+      )
+    setCarerActualTimes(
+      (job.allocations ?? []).map((a) => {
+        const plannedStart =
+          isoToLocalTimeInput(a.resolvedStartDateTime ?? a.scheduledStartDateTime ?? undefined) ||
+          visitStart
+        const plannedEnd =
+          isoToLocalTimeInput(a.resolvedEndDateTime ?? a.scheduledEndDateTime ?? undefined) ||
+          visitEnd
+        return {
+          allocationId: a.id,
+          employeeId: a.employeeId,
+          startHm:
+            isoToLocalTimeInput(a.actualStartDateTime ?? undefined) ||
+            plannedStart,
+          endHm:
+            isoToLocalTimeInput(a.actualEndDateTime ?? undefined) || plannedEnd,
+        }
+      }),
+    )
+  }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits, job?.allocations])
 
   React.useEffect(() => {
     if (!SHOW_DELIVERED_CARE_PLANS || !open || !job || acceptedQuery.isLoading) return
@@ -276,7 +322,18 @@ export function ScheduleJobCompleteDialog({
       )
       return
     }
-    if (requiresTimes && (!actualStartTime || !actualEndTime || !actualDateTimes)) {
+    if (requiresTimes && multiCarerTiming) {
+      const invalid = carerActualTimes.some(
+        (row) => !row.startHm || !row.endHm || row.endHm <= row.startHm,
+      )
+      if (invalid || !actualDateTimes) {
+        toastWarning(
+          'Enter carer times',
+          'Each assigned carer needs a valid actual start and end time.',
+        )
+        return
+      }
+    } else if (requiresTimes && (!actualStartTime || !actualEndTime || !actualDateTimes)) {
       toastWarning('Enter visit times', 'Actual start and end times are required for this visit status.')
       return
     }
@@ -325,6 +382,21 @@ export function ScheduleJobCompleteDialog({
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
         actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
         actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
+        carerActuals:
+          multiCarerTiming && scheduleDateIso
+            ? carerActualTimes.map((row) => {
+                const window = buildJobScheduleDateTimes(
+                  scheduleDateIso,
+                  row.startHm,
+                  row.endHm,
+                )
+                return {
+                  allocationId: row.allocationId,
+                  actualStartDateTime: window.scheduledStartDateTime,
+                  actualEndDateTime: window.scheduledEndDateTime,
+                }
+              })
+            : undefined,
         overrunReason: hasOverrun ? overrunReason.trim() : undefined,
         timingExceptionReasonCode: requiresTimingExceptionReason
           ? timingExceptionReasonCode || undefined
@@ -400,49 +472,157 @@ export function ScheduleJobCompleteDialog({
           <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <h4 className="text-sm font-semibold text-foreground">Actual visit times</h4>
+              <h4 className="text-sm font-semibold text-foreground">
+                {multiCarerTiming ? 'Actual times per carer' : 'Actual visit times'}
+              </h4>
             </div>
             <p className="text-xs text-muted-foreground">
-              {visitStatus === 'STARTED'
-                ? 'Record when the visit started. End time is optional until the visit is completed.'
-                : requiresTimes
-                  ? 'Record when the visit started and ended.'
-                  : 'Optional — add actual times if known.'}
+              {multiCarerTiming
+                ? 'Record when each carer started and finished. Planned times come from their assignment window.'
+                : visitStatus === 'STARTED'
+                  ? 'Record when the visit started. End time is optional until the visit is completed.'
+                  : requiresTimes
+                    ? 'Record when the visit started and ended.'
+                    : 'Optional — add actual times if known.'}
             </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="schedule-job-actual-start" className="text-xs text-muted-foreground">
-                  Start time
-                </Label>
-                <Input
-                  id="schedule-job-actual-start"
-                  type="time"
-                  className="mt-1"
-                  value={actualStartTime}
-                  disabled={busy}
-                  onChange={(event) => setActualStartTime(event.target.value)}
-                />
+            {multiCarerTiming && job ? (
+              <ul className="space-y-3">
+                {(job.allocations ?? []).map((allocation, index) => {
+                  const draft = carerActualTimes.find((r) => r.allocationId === allocation.id)
+                  if (!draft) return null
+                  const name =
+                    [allocation.employee?.firstName, allocation.employee?.lastName]
+                      .filter(Boolean)
+                      .join(' ')
+                      .trim() || 'Carer'
+                  const plannedStart =
+                    isoToLocalTimeInput(
+                      allocation.resolvedStartDateTime ??
+                        allocation.scheduledStartDateTime ??
+                        undefined,
+                    ) || isoToLocalTimeInput(job.scheduledStartDateTime)
+                  const plannedEnd =
+                    isoToLocalTimeInput(
+                      allocation.resolvedEndDateTime ??
+                        allocation.scheduledEndDateTime ??
+                        undefined,
+                    ) || isoToLocalTimeInput(job.scheduledEndDateTime ?? undefined)
+                  const carerWindow = buildJobScheduleDateTimes(
+                    scheduleDateIso,
+                    draft.startHm,
+                    draft.endHm,
+                  )
+                  const carerMins = carerWindow
+                    ? Math.round(
+                        (new Date(carerWindow.scheduledEndDateTime).getTime() -
+                          new Date(carerWindow.scheduledStartDateTime).getTime()) /
+                          60_000,
+                      )
+                    : null
+                  const plannedMins =
+                    allocation.resolvedDurationMinutes ??
+                    allocation.durationMinutes ??
+                    null
+                  return (
+                    <li
+                      key={allocation.id}
+                      className="space-y-2 rounded-md border border-border bg-muted/20 px-3 py-2"
+                    >
+                      <p className="text-sm font-medium text-foreground">
+                        Carer {index + 1} · {name}
+                        {allocation.isLeadCarer ? ' (Lead)' : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Planned: {plannedStart || '—'}–{plannedEnd || '—'}
+                        {plannedMins != null ? ` · ${plannedMins} min` : ''}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Actual start</Label>
+                          <Input
+                            type="time"
+                            className="mt-1"
+                            value={draft.startHm}
+                            disabled={busy}
+                            onChange={(event) => {
+                              const value = event.target.value
+                              setCarerActualTimes((rows) =>
+                                rows.map((row) =>
+                                  row.allocationId === allocation.id
+                                    ? { ...row, startHm: value }
+                                    : row,
+                                ),
+                              )
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Actual end</Label>
+                          <Input
+                            type="time"
+                            className="mt-1"
+                            value={draft.endHm}
+                            disabled={busy}
+                            onChange={(event) => {
+                              const value = event.target.value
+                              setCarerActualTimes((rows) =>
+                                rows.map((row) =>
+                                  row.allocationId === allocation.id
+                                    ? { ...row, endHm: value }
+                                    : row,
+                                ),
+                              )
+                            }}
+                          />
+                        </div>
+                      </div>
+                      {carerMins != null ? (
+                        <p className="text-xs text-muted-foreground">
+                          Duration: {carerMins} min
+                          {plannedMins != null ? ` (planned ${plannedMins} min)` : ''}
+                        </p>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="schedule-job-actual-start" className="text-xs text-muted-foreground">
+                    Start time
+                  </Label>
+                  <Input
+                    id="schedule-job-actual-start"
+                    type="time"
+                    className="mt-1"
+                    value={actualStartTime}
+                    disabled={busy}
+                    onChange={(event) => setActualStartTime(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="schedule-job-actual-end" className="text-xs text-muted-foreground">
+                    End time
+                  </Label>
+                  <Input
+                    id="schedule-job-actual-end"
+                    type="time"
+                    className="mt-1"
+                    value={actualEndTime}
+                    disabled={busy}
+                    onChange={(event) => setActualEndTime(event.target.value)}
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="schedule-job-actual-end" className="text-xs text-muted-foreground">
-                  End time
-                </Label>
-                <Input
-                  id="schedule-job-actual-end"
-                  type="time"
-                  className="mt-1"
-                  value={actualEndTime}
-                  disabled={busy}
-                  onChange={(event) => setActualEndTime(event.target.value)}
-                />
-              </div>
-            </div>
+            )}
             {actualDurationMinutes != null ? (
               <p className="text-xs text-muted-foreground">
-                Duration: {actualDurationMinutes} min
+                {multiCarerTiming ? 'Visit window duration' : 'Duration'}: {actualDurationMinutes}{' '}
+                min
                 {plannedDurationMinutes != null ? ` (planned ${plannedDurationMinutes} min)` : ''}
               </p>
-            ) : requiresTimes ? (
+            ) : requiresTimes && !multiCarerTiming ? (
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 Enter a valid start and end time (minimum 5 minutes).
               </p>

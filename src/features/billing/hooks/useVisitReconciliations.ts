@@ -24,6 +24,7 @@ export function useVisitReconciliations(filters?: {
   hasExceptions?: boolean
   serviceUserId?: string
   employeeId?: string
+  locationId?: string
   page?: number
   limit?: number
 }) {
@@ -41,10 +42,10 @@ export function useVisitReconciliation(id: string | undefined) {
   })
 }
 
-export function useVisitReconciliationsSummary() {
+export function useVisitReconciliationsSummary(locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.visitReconciliationsSummary(),
-    queryFn: fetchVisitReconciliationsSummary,
+    queryKey: billingKeys.visitReconciliationsSummary(locationId),
+    queryFn: () => fetchVisitReconciliationsSummary(locationId ?? undefined),
   })
 }
 

@@ -4,6 +4,7 @@ import { PageHeader } from '@/shared/ui/page-elements'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { useEcmDailyOpsReport } from '@/features/ecm/hooks/useEcm'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 
 function todayIso(): string {
@@ -12,8 +13,11 @@ function todayIso(): string {
 }
 
 export default function EcmReportsPage() {
+  const { locationId } = useGlobalLocationScope()
   const [date, setDate] = React.useState(todayIso)
-  const report = useEcmDailyOpsReport(date)
+  const report = useEcmDailyOpsReport(date, true, {
+    locationId: locationId ?? undefined,
+  })
 
   const kpis = report.data?.kpis
   const punctuality = kpis?.punctuality

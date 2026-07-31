@@ -8,7 +8,7 @@ type Props = {
 export function StaffListBranchesCell({ scope }: Props) {
   if (scope.kind === 'all-zones') {
     return (
-      <div className="flex max-w-[18rem] flex-col gap-1">
+      <div className="flex min-w-[9rem] max-w-[18rem] flex-col items-start gap-1.5">
         <Badge variant="secondary" size="sm" className="font-normal">
           All branches
         </Badge>
@@ -21,7 +21,7 @@ export function StaffListBranchesCell({ scope }: Props) {
 
   if (scope.kind === 'multiple') {
     return (
-      <ul className="max-w-[18rem] space-y-1">
+      <ul className="min-w-[9rem] max-w-[18rem] space-y-1">
         {scope.branches.map((branch) => (
           <li
             key={branch}
@@ -35,7 +35,7 @@ export function StaffListBranchesCell({ scope }: Props) {
   }
 
   if (scope.kind === 'single' && scope.branches[0]) {
-    return <span className="text-xs leading-snug">{scope.branches[0]}</span>
+    return <span className="text-xs leading-snug whitespace-nowrap">{scope.branches[0]}</span>
   }
 
   return <span className="text-muted-foreground">—</span>

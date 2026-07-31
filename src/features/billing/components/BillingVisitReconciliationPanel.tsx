@@ -15,6 +15,7 @@ import {
   useVisitReconciliations,
 } from '@/features/billing/hooks/useVisitReconciliations'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   listBlockingExceptionCodes,
   type VisitReconciliationRow,
@@ -59,6 +60,7 @@ export function BillingVisitReconciliationPanel({
 }: Props = {}) {
   const canRead = useAuthStore(s => s.can('billing.visit_reconciliations.read' as never))
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [serviceUserId, setServiceUserId] = React.useState(initialServiceUserId ?? '')
@@ -117,6 +119,7 @@ export function BillingVisitReconciliationPanel({
     serviceUserId: serviceUserId || undefined,
     employeeId: employeeId || undefined,
     hasExceptions: exceptionsOnly ? true : undefined,
+    locationId: locationId ?? undefined,
     limit: 100,
   })
   const approveMutation = useApproveVisitReconciliation()
@@ -191,10 +194,11 @@ export function BillingVisitReconciliationPanel({
   const handleBackfill = async () => {
     try {
       const data = await backfillMutation.mutateAsync({})
+      const reEvaluated = data.reEvaluated ?? 0
       toastSuccess(
-        data.count > 0
-          ? `Synced ${data.count} visit reconciliation(s).`
-          : 'No new completed visits to sync.',
+        data.count > 0 || reEvaluated > 0
+          ? `Synced ${data.count} visit(s); recalculated ${reEvaluated} reconciliation(s).`
+          : 'No completed visits to sync.',
       )
     } catch (err) {
       toastApiError(err, 'Could not sync completed visits.')
@@ -349,7 +353,7 @@ export function BillingVisitReconciliationPanel({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[1400px] text-sm">
+          <table className="w-full min-w-[1600px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {canManage ? (
@@ -404,6 +408,12 @@ export function BillingVisitReconciliationPanel({
                   Actual Departure
                 </th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Carer pay
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Client charge
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                     Exceptions
@@ -443,8 +453,11 @@ export function BillingVisitReconciliationPanel({
                         />
                       </td>
                     ) : null}
-                    <td className="px-3 py-2.5 font-medium whitespace-nowrap">
-                      {row.emonitored ?? '—'}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <div className="font-mono text-xs font-medium">{row.visitRef || '—'}</div>
+                      {row.emonitored ? (
+                        <div className="text-[11px] text-muted-foreground">{row.emonitored}</div>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
                       {row.clientId || '—'}
@@ -476,6 +489,12 @@ export function BillingVisitReconciliationPanel({
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
                       {row.actualDeparture || '00:00:00'}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap font-medium">
+                      {row.payableAmount ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums whitespace-nowrap font-medium">
+                      {row.billableAmount ?? '—'}
                     </td>
                     <td className="px-3 py-2.5">
                       {row.exceptions.length === 0 && !pendingOverrun && !(row.overrunMinutes && row.overrunDecision) ? (

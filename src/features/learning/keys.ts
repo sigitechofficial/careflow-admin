@@ -11,7 +11,8 @@ import type {
 
 export const learningKeys = {
   all: ['learning'] as const,
-  dashboard: () => [...learningKeys.all, 'dashboard'] as const,
+  dashboard: (locationId?: string | null) =>
+    [...learningKeys.all, 'dashboard', locationId ?? 'all'] as const,
   settings: () => [...learningKeys.all, 'settings'] as const,
   categories: (params?: LearningCategoryListParams) =>
     [...learningKeys.all, 'categories', params ?? {}] as const,

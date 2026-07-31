@@ -39,28 +39,36 @@ export const billingKeys = {
     hasExceptions?: boolean
     serviceUserId?: string
     employeeId?: string
+    locationId?: string
     page?: number
     limit?: number
   }) => [...billingKeys.all, 'visit-reconciliations', filters ?? {}] as const,
   visitReconciliation: (id: string) => [...billingKeys.all, 'visit-reconciliation', id] as const,
-  visitReconciliationsSummary: () => [...billingKeys.all, 'visit-reconciliations-summary'] as const,
+  visitReconciliationsSummary: (locationId?: string | null) =>
+    [...billingKeys.all, 'visit-reconciliations-summary', locationId ?? 'all'] as const,
   visitReconciliationExceptionQueue: (limit?: number) =>
     [...billingKeys.all, 'visit-reconciliation-exception-queue', limit ?? 10] as const,
-  payrollRuns: () => [...billingKeys.all, 'payroll-runs'] as const,
+  payrollRuns: (filters?: { locationId?: string }) =>
+    [...billingKeys.all, 'payroll-runs', filters ?? {}] as const,
   payrollRun: (id: string) => [...billingKeys.all, 'payroll-run', id] as const,
-  payrollRunsSummary: () => [...billingKeys.all, 'payroll-runs-summary'] as const,
+  payrollRunsSummary: (locationId?: string | null) =>
+    [...billingKeys.all, 'payroll-runs-summary', locationId ?? 'all'] as const,
   employeeEarnings: (employeeId: string, filters?: { dateFrom?: string; dateTo?: string }) =>
     [...billingKeys.all, 'employee-earnings', employeeId, filters ?? {}] as const,
   employeeSalaries: (filters?: { dateFrom?: string; dateTo?: string }) =>
     [...billingKeys.all, 'employee-salaries', filters ?? {}] as const,
-  invoiceRuns: () => [...billingKeys.all, 'invoice-runs'] as const,
-  invoiceRunsSummary: () => [...billingKeys.all, 'invoice-runs-summary'] as const,
+  invoiceRuns: (filters?: { locationId?: string }) =>
+    [...billingKeys.all, 'invoice-runs', filters ?? {}] as const,
+  invoiceRunsSummary: (locationId?: string | null) =>
+    [...billingKeys.all, 'invoice-runs-summary', locationId ?? 'all'] as const,
   invoiceRun: (id: string) => [...billingKeys.all, 'invoice-run', id] as const,
   serviceUserInvoices: (serviceUserId: string) =>
     [...billingKeys.all, 'service-user-invoices', serviceUserId] as const,
-  payments: () => [...billingKeys.all, 'payments'] as const,
+  payments: (filters?: { locationId?: string }) =>
+    [...billingKeys.all, 'payments', filters ?? {}] as const,
   payment: (id: string) => [...billingKeys.all, 'payment', id] as const,
   paymentsSummary: () => [...billingKeys.all, 'payments-summary'] as const,
   agedDebt: () => [...billingKeys.all, 'aged-debt'] as const,
-  outstandingInvoiceRuns: () => [...billingKeys.all, 'outstanding-invoice-runs'] as const,
+  outstandingInvoiceRuns: (locationId?: string | null) =>
+    [...billingKeys.all, 'outstanding-invoice-runs', locationId ?? 'all'] as const,
 }

@@ -358,7 +358,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
               <RateBreakdownCard
                 title="Carer pay"
-                subtitle="Payroll — based on approved payable time"
+                subtitle="Payroll — based on this carer’s approved payable time"
                 timeRange={preview?.timeWindows.approvedPayable ?? row.approvedPayable}
                 hours={preview?.payableHours ?? null}
                 breakdown={preview?.carerPay ?? null}
@@ -368,7 +368,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
               <RateBreakdownCard
                 title="Client charge"
-                subtitle="Invoice — based on approved billable time"
+                subtitle={
+                  preview?.funderChargeNote?.trim() ||
+                  'Invoice — based on approved billable time (org multi-carer funder setting)'
+                }
                 timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
                 hours={preview?.billableHours ?? null}
                 breakdown={preview?.clientCharge ?? null}

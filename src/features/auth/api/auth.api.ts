@@ -22,6 +22,8 @@ export type BackendMeUser = {
   firstName?: string
   lastName?: string
   username?: string
+  /** null/undefined = all locations; string[] = restrict header picker */
+  assignedLocationIds?: string[] | null
 }
 
 export type LoginHistoryRow = {

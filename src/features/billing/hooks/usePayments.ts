@@ -11,10 +11,10 @@ import {
 } from '@/features/billing/api/payments.api'
 import { billingKeys } from '@/features/billing/keys'
 
-export function usePayments() {
+export function usePayments(filters?: { locationId?: string }) {
   return useQuery({
-    queryKey: billingKeys.payments(),
-    queryFn: fetchPayments,
+    queryKey: billingKeys.payments(filters),
+    queryFn: () => fetchPayments(filters),
   })
 }
 
@@ -40,10 +40,10 @@ export function useAgedDebt() {
   })
 }
 
-export function useOutstandingInvoiceRuns(enabled = true) {
+export function useOutstandingInvoiceRuns(enabled = true, locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.outstandingInvoiceRuns(),
-    queryFn: fetchOutstandingInvoiceRuns,
+    queryKey: billingKeys.outstandingInvoiceRuns(locationId),
+    queryFn: () => fetchOutstandingInvoiceRuns(locationId ?? undefined),
     enabled,
   })
 }

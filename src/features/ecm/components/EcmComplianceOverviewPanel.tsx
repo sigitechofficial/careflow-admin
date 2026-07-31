@@ -29,6 +29,7 @@ import { fetchEcmDailyOpsReport } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
 import { useEcmDailyOpsReport } from '@/features/ecm/hooks/useEcm'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   buildDurationComplianceBands,
   buildEcmMethodBreakdown,
@@ -181,6 +182,8 @@ export function EcmComplianceOverviewPanel({
   /** Prefer the graph dashboard "To" date so both sections stay aligned. */
   initialDate?: string
 } = {}) {
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
   const [date, setDate] = React.useState(initialDate ?? todayIso)
   const [scheduleAreaId, setScheduleAreaId] = React.useState('')
   const [ecmUsed, setEcmUsed] = React.useState<EcmUsedFilter>('all')
@@ -191,17 +194,32 @@ export function EcmComplianceOverviewPanel({
   }, [initialDate])
 
   const areasQuery = useScheduleAreas()
+  const scopedAreas = React.useMemo(() => {
+    const areas = areasQuery.data ?? []
+    if (!globalLocationId) return areas
+    return areas.filter((a) => a.location?.id === globalLocationId)
+  }, [areasQuery.data, globalLocationId])
+
+  React.useEffect(() => {
+    if (!scheduleAreaId) return
+    if (globalLocationScoped && !scopedAreas.some((a) => a.id === scheduleAreaId)) {
+      setScheduleAreaId('')
+    }
+  }, [globalLocationScoped, scopedAreas, scheduleAreaId])
+
   const reportQuery = useEcmDailyOpsReport(date, true, {
     scheduleAreaId: scheduleAreaId || undefined,
+    locationId: globalLocationId ?? undefined,
   })
 
   const trendDates = React.useMemo(() => lastNDatesInclusive(date, 7), [date])
   const trendQueries = useQueries({
     queries: trendDates.map((d) => ({
-      queryKey: ecmKeys.dailyOps(d, scheduleAreaId || undefined),
+      queryKey: ecmKeys.dailyOps(d, scheduleAreaId || undefined, globalLocationId ?? undefined),
       queryFn: () =>
         fetchEcmDailyOpsReport(d, {
           scheduleAreaId: scheduleAreaId || undefined,
+          locationId: globalLocationId ?? undefined,
         }),
       staleTime: 60_000,
     })),
@@ -336,7 +354,7 @@ export function EcmComplianceOverviewPanel({
             data-testid="ecm-compliance-area"
           >
             <option value="">All areas</option>
-            {(areasQuery.data ?? []).map((area) => (
+            {scopedAreas.map((area) => (
               <option key={area.id} value={area.id}>
                 {area.name}
               </option>

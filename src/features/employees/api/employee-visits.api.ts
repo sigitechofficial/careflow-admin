@@ -32,6 +32,8 @@ export type EmployeeVisitRow = {
   actualEndDateTime: string | null
   plannedMinutes: number
   actualMinutes: number | null
+  /** True when JobAllocation has its own start/end (not inherited from visit). */
+  hasExplicitTiming?: boolean
   deliveryAssessment?: TimelineJob['deliveryAssessment']
   job: TimelineJob
 }

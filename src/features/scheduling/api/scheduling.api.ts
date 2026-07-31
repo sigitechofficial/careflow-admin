@@ -262,6 +262,11 @@ export async function completeHousekeepingJob(
     extraCareNotes?: string
     actualStartDateTime?: string
     actualEndDateTime?: string
+    carerActuals?: Array<{
+      allocationId: string
+      actualStartDateTime: string
+      actualEndDateTime: string
+    }>
     overrunReason?: string
     timingExceptionReasonCode?: string
     timingExceptionNotes?: string
@@ -279,6 +284,7 @@ export async function completeHousekeepingJob(
   if (payload?.extraCareNotes?.trim()) body.extraCareNotes = payload.extraCareNotes.trim()
   if (payload?.actualStartDateTime) body.actualStartDateTime = payload.actualStartDateTime
   if (payload?.actualEndDateTime) body.actualEndDateTime = payload.actualEndDateTime
+  if (payload?.carerActuals?.length) body.carerActuals = payload.carerActuals
   if (payload?.overrunReason?.trim()) body.overrunReason = payload.overrunReason.trim()
   if (payload?.timingExceptionReasonCode?.trim()) {
     body.timingExceptionReasonCode = payload.timingExceptionReasonCode.trim()
@@ -379,6 +385,13 @@ export type JobAllocationRow = {
   status: string
   isLeadCarer?: boolean
   requiresConfirmation: boolean
+  scheduledStartDateTime?: string | null
+  scheduledEndDateTime?: string | null
+  durationMinutes?: number | null
+  resolvedStartDateTime?: string | null
+  resolvedEndDateTime?: string | null
+  resolvedDurationMinutes?: number | null
+  hasExplicitTiming?: boolean
   scheduledJob?: {
     serviceUserId?: string | null
   } | null
@@ -428,12 +441,34 @@ export async function allocateJob(
     force?: boolean
     notes?: string
     isLeadCarer?: boolean
+    scheduledStartDateTime?: string
+    scheduledEndDateTime?: string
   },
 ) {
   const res = await apiJson<ApiEnvelope<JobAllocationRow>>(`/scheduled-jobs/${jobId}/allocate`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
+  return { message: res.message, data: res.data! }
+}
+
+export async function updateJobAllocationTiming(
+  jobId: string,
+  allocationId: string,
+  body: {
+    scheduledStartDateTime?: string
+    scheduledEndDateTime?: string
+    isLeadCarer?: boolean
+    notes?: string
+  },
+) {
+  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(
+    `/scheduled-jobs/${jobId}/allocations/${allocationId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    },
+  )
   return { message: res.message, data: res.data! }
 }
 

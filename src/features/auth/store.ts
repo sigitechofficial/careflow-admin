@@ -182,6 +182,7 @@ function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
     preferredName: me.preferredName,
     profilePhotoUrl: me.profilePhotoUrl,
     jobTitle: prev?.jobTitle,
+    assignedLocationIds: me.assignedLocationIds ?? null,
   }
 }
 

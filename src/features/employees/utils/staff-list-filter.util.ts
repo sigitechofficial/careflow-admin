@@ -70,7 +70,7 @@ export type StaffListFiltersState = {
 export const DEFAULT_STAFF_LIST_FILTERS: StaffListFiltersState = {
   search: '',
   statusIds: [],
-  allStatuses: false,
+  allStatuses: true,
   locationIds: [],
   roleIds: [],
   jobTitleIds: [],
@@ -110,7 +110,7 @@ export function staffListIdsToComma(ids: string[]): string | undefined {
 
 export function staffListSearchToFilters(search: StaffListSearch): StaffListFiltersState {
   const rawStatus = search.status?.trim()
-  let allStatuses = false
+  let allStatuses = true
   let statusIds: string[] = []
 
   if (rawStatus?.toLowerCase() === 'all') {
@@ -119,6 +119,7 @@ export function staffListSearchToFilters(search: StaffListSearch): StaffListFilt
     const parts = parseStaffListCommaIds(rawStatus)
     if (parts.every((part) => UUID_LIKE.test(part))) {
       statusIds = parts
+      allStatuses = false
     }
   }
 
@@ -149,9 +150,8 @@ export function staffListFiltersToSearch(filters: StaffListFiltersState): StaffL
   const out: StaffListSearch = {}
   const q = filters.search.trim()
   if (q) out.q = q
-  if (filters.allStatuses) {
-    out.status = 'all'
-  } else if (filters.statusIds.length) {
+  // Default is all statuses — only persist status when narrowed.
+  if (!filters.allStatuses && filters.statusIds.length) {
     out.status = staffListIdsToComma(filters.statusIds)
   }
   const branch = staffListIdsToComma(filters.locationIds)
@@ -194,15 +194,13 @@ export function staffListFiltersToListParams(
   if (sort?.sortBy) params.sortBy = sort.sortBy
 
   if (filters.allStatuses) {
-    // no status filter
+    // no status filter — show active + inactive (and any other statuses)
   } else if (filters.statusIds.length === 1) {
     params.statusId = filters.statusIds[0]
   } else if (filters.statusIds.length > 1) {
     params.statusIds = filters.statusIds
-  } else {
-    const activeId = defaultActiveStatusId(lookups)
-    if (activeId) params.statusId = activeId
   }
+  // Empty statusIds without allStatuses: also unscoped (same as all)
 
   const search = filters.search.trim()
   if (search) params.search = search
@@ -255,32 +253,21 @@ export function staffListFilterChips(
   }
 
   if (filters.allStatuses) {
-    chips.push({
-      key: 'status-all',
-      label: 'Status: all',
-      onRemove: () =>
-        onChange({
-          ...filters,
-          allStatuses: false,
-          statusIds: defaultActiveStatusId(lookups) ? [defaultActiveStatusId(lookups)!] : [],
-        }),
-    })
+    // Default — no chip
   } else if (filters.statusIds.length) {
-    const activeId = defaultActiveStatusId(lookups)
-    const isDefaultActiveOnly =
-      filters.statusIds.length === 1 && activeId && filters.statusIds[0] === activeId
-    if (!isDefaultActiveOnly) {
-      for (const id of filters.statusIds) {
-        chips.push({
-          key: `status-${id}`,
-          label: `Status: ${nameFor(lookups?.employeeStatuses ?? [], id)}`,
-          onRemove: () =>
-            onChange({
-              ...filters,
-              statusIds: filters.statusIds.filter((value) => value !== id),
-            }),
-        })
-      }
+    for (const id of filters.statusIds) {
+      chips.push({
+        key: `status-${id}`,
+        label: `Status: ${nameFor(lookups?.employeeStatuses ?? [], id)}`,
+        onRemove: () => {
+          const nextIds = filters.statusIds.filter((value) => value !== id)
+          onChange({
+            ...filters,
+            statusIds: nextIds,
+            allStatuses: nextIds.length === 0,
+          })
+        },
+      })
     }
   }
 

@@ -21,6 +21,7 @@ import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { useEcmGraphDashboard } from '@/features/ecm/hooks/useEcm'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
 import type { EcmGraphDrillVisit } from '@/features/ecm/api/ecm.api'
 import { shiftIsoDate } from '@/features/ecm/utils/ecm-compliance-overview.util'
@@ -180,6 +181,8 @@ export function EcmGraphFirstDashboard({
   /** Notify parent when the active chart period changes (for aligned sections below). */
   onPeriodChange?: (period: { dateFrom: string; dateTo: string }) => void
 } = {}) {
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
   const [dateTo, setDateTo] = React.useState(defaultDateToIso)
   const [dateFrom, setDateFrom] = React.useState(() => rangeFromPreset('7d', defaultDateToIso()))
   const [preset, setPreset] = React.useState<RangePreset>('7d')
@@ -200,10 +203,24 @@ export function EcmGraphFirstDashboard({
   }
 
   const areasQuery = useScheduleAreas()
+  const scopedAreas = React.useMemo(() => {
+    const areas = areasQuery.data ?? []
+    if (!globalLocationId) return areas
+    return areas.filter((a) => a.location?.id === globalLocationId)
+  }, [areasQuery.data, globalLocationId])
+
+  React.useEffect(() => {
+    if (!scheduleAreaId) return
+    if (globalLocationScoped && !scopedAreas.some((a) => a.id === scheduleAreaId)) {
+      setScheduleAreaId('')
+    }
+  }, [globalLocationScoped, scopedAreas, scheduleAreaId])
+
   const dashboard = useEcmGraphDashboard({
     dateFrom,
     dateTo,
     scheduleAreaId: scheduleAreaId || undefined,
+    locationId: globalLocationId ?? undefined,
   })
 
   const data = dashboard.data
@@ -391,7 +408,7 @@ export function EcmGraphFirstDashboard({
               onChange={(e) => setScheduleAreaId(e.target.value)}
             >
               <option value="">All areas</option>
-              {(areasQuery.data ?? []).map((area) => (
+              {scopedAreas.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.name}
                 </option>
@@ -428,7 +445,7 @@ export function EcmGraphFirstDashboard({
           {presetLabel(preset)}
           {daySpan > 0 ? ` · ${daySpan} day${daySpan === 1 ? '' : 's'} inclusive` : ''}
           {scheduleAreaId
-            ? ` · ${(areasQuery.data ?? []).find((a) => a.id === scheduleAreaId)?.name ?? 'Selected area'}`
+            ? ` · ${scopedAreas.find((a) => a.id === scheduleAreaId)?.name ?? 'Selected area'}`
             : ' · All areas'}
           {' · '}
           ISO {effectiveFrom} → {effectiveTo}

@@ -88,6 +88,7 @@ export async function fetchEcmLiveDashboard(params?: {
   date?: string
   search?: string
   scheduleAreaId?: string
+  locationId?: string
   serviceUserId?: string
   limit?: number
 }): Promise<EcmLiveDashboardData> {
@@ -95,6 +96,7 @@ export async function fetchEcmLiveDashboard(params?: {
   if (params?.date) qs.set('date', params.date)
   if (params?.search?.trim()) qs.set('search', params.search.trim())
   if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
   if (params?.limit != null) qs.set('limit', String(params.limit))
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
@@ -178,11 +180,12 @@ export async function fetchEcmHealth(): Promise<EcmHealthData> {
 
 export async function fetchEcmDailyOpsReport(
   date?: string,
-  params?: { scheduleAreaId?: string },
+  params?: { scheduleAreaId?: string; locationId?: string },
 ): Promise<EcmDailyOpsReport> {
   const qs = new URLSearchParams()
   if (date) qs.set('date', date)
   if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EcmDailyOpsReport>>(
     `/ecm/reports/daily-operations${suffix}`,
@@ -257,11 +260,13 @@ export async function fetchEcmGraphDashboard(params?: {
   dateFrom?: string
   dateTo?: string
   scheduleAreaId?: string
+  locationId?: string
 }): Promise<EcmGraphDashboardData> {
   const qs = new URLSearchParams()
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
   if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EcmGraphDashboardData>>(
     `/ecm/reports/graph-dashboard${suffix}`,

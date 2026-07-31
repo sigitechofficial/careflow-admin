@@ -23,6 +23,7 @@ import {
   parseCommaSeparatedFilterIds,
 } from '@/features/scheduling/utils/schedule-jobs-url-state.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 export type ScheduleJobsPageSearch = {
   date?: string
@@ -41,6 +42,8 @@ export type ScheduleJobsPageSearch = {
 export function useScheduleJobsUrlState() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as ScheduleJobsPageSearch
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
 
   const [date, setDate] = React.useState(search.date ?? todayIso())
   const [layout, setLayout] = React.useState<ScheduleJobsLayout>(() => parseScheduleJobsLayout(search.layout))
@@ -66,6 +69,11 @@ export function useScheduleJobsUrlState() {
     ScheduleCarerOperationalFilter[]
   >(() => parseScheduleCarerOperationalFilters(search.carerOp))
 
+  const effectiveLocationFilterIds = React.useMemo(
+    () => (globalLocationScoped && globalLocationId ? [globalLocationId] : locationFilterIds),
+    [globalLocationScoped, globalLocationId, locationFilterIds],
+  )
+
   const buildCurrentScheduleJobsSearch = React.useCallback(
     (partial?: {
       date?: string
@@ -79,7 +87,7 @@ export function useScheduleJobsUrlState() {
     }) =>
       buildScheduleJobsSearch({
         date: partial?.date ?? date,
-        locationIds: partial?.locationIds ?? locationFilterIds,
+        locationIds: partial?.locationIds ?? effectiveLocationFilterIds,
         serviceUserIds: partial?.serviceUserIds ?? serviceUserFilterIds,
         requiredCarersFilters: partial?.requiredCarersFilters ?? requiredCarersFilters,
         jobOperationalFilters: partial?.jobOperationalFilters ?? jobOperationalFilters,
@@ -89,7 +97,7 @@ export function useScheduleJobsUrlState() {
       }),
     [
       date,
-      locationFilterIds,
+      effectiveLocationFilterIds,
       serviceUserFilterIds,
       requiredCarersFilters,
       jobOperationalFilters,
@@ -135,6 +143,7 @@ export function useScheduleJobsUrlState() {
 
   const setScheduleLocationFilter = React.useCallback(
     (next: string[]) => {
+      if (globalLocationScoped) return
       setLocationFilterIds(next)
       setServiceUserFilterIds([])
       setRequiredCarersFilters([])
@@ -144,7 +153,7 @@ export function useScheduleJobsUrlState() {
         requiredCarersFilters: [],
       })
     },
-    [updateScheduleJobsUrl],
+    [globalLocationScoped, updateScheduleJobsUrl],
   )
 
   const setScheduleServiceUserFilter = React.useCallback(
@@ -201,6 +210,21 @@ export function useScheduleJobsUrlState() {
     })
   }, [])
 
+  const wasGlobalScopedRef = React.useRef(globalLocationScoped)
+
+  React.useEffect(() => {
+    if (globalLocationScoped && globalLocationId) {
+      setLocationFilterIds([globalLocationId])
+      updateScheduleJobsUrl({ locationIds: [globalLocationId] })
+    } else if (wasGlobalScopedRef.current && !globalLocationScoped) {
+      // Header switched back to All locations — clear forced board filter.
+      setLocationFilterIds([])
+      updateScheduleJobsUrl({ locationIds: [] })
+    }
+    wasGlobalScopedRef.current = globalLocationScoped
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only follow header scope changes
+  }, [globalLocationId, globalLocationScoped])
+
   React.useEffect(() => {
     if (search.date) setDate(search.date)
   }, [search.date])
@@ -218,8 +242,9 @@ export function useScheduleJobsUrlState() {
   }, [search.requiredCarers])
 
   React.useEffect(() => {
+    if (globalLocationScoped) return
     setLocationFilterIds(parseCommaSeparatedFilterIds(search.locationId))
-  }, [search.locationId])
+  }, [search.locationId, globalLocationScoped])
 
   React.useEffect(() => {
     setServiceUserFilterIds(parseCommaSeparatedFilterIds(search.serviceUserId))
@@ -238,7 +263,7 @@ export function useScheduleJobsUrlState() {
     date,
     layout,
     rowAxis,
-    locationFilterIds,
+    locationFilterIds: effectiveLocationFilterIds,
     serviceUserFilterIds,
     requiredCarersFilters,
     jobOutcomeFilters,

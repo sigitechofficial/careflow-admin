@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEmployeeHoursWeeklySummary } from '@/features/employees/hooks/useEmployeeHours'
 import type {
   EmployeeHourBand,
@@ -146,20 +147,23 @@ function FacetSelect({
   options,
   onChange,
   testId,
+  disabled,
 }: {
   label: string
   value: string
   options: EmployeeHoursFacetOption[]
   onChange: (value: string) => void
   testId: string
+  disabled?: boolean
 }) {
   return (
     <select
-      className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm"
+      className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm disabled:opacity-60"
       value={value}
       onChange={e => onChange(e.target.value)}
       data-testid={testId}
       aria-label={label}
+      disabled={disabled}
     >
       <option value="">{label}: all</option>
       {options.map(o => (
@@ -325,6 +329,11 @@ export default function EmployeeHoursPage() {
   const [jobTitleId, setJobTitleId] = React.useState('')
   const [contractTypeId, setContractTypeId] = React.useState('')
   const [locationId, setLocationId] = React.useState('')
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
+  const effectiveLocationId = globalLocationScoped
+    ? (globalLocationId ?? '')
+    : locationId
   const [visaTypeId, setVisaTypeId] = React.useState('')
   const [staffKind, setStaffKind] = React.useState<EmployeeStaffKind>('all')
   const [overContractOnly, setOverContractOnly] = React.useState(false)
@@ -350,7 +359,7 @@ export default function EmployeeHoursPage() {
       roleId: roleId || undefined,
       jobTitleId: jobTitleId || undefined,
       contractTypeId: contractTypeId || undefined,
-      locationId: locationId || undefined,
+      locationId: effectiveLocationId || undefined,
       visaTypeId: visaTypeId || undefined,
       staffKind: staffKind === 'all' ? undefined : staffKind,
       overContractOnly: overContractOnly || undefined,
@@ -379,7 +388,7 @@ export default function EmployeeHoursPage() {
   }, [data?.rows, sortKey, sortDir])
 
   const hasSecondaryFilters =
-    Boolean(roleId || jobTitleId || contractTypeId || locationId || visaTypeId) ||
+    Boolean(roleId || jobTitleId || contractTypeId || effectiveLocationId || visaTypeId) ||
     staffKind !== 'all' ||
     overContractOnly ||
     overCapOnly
@@ -636,10 +645,11 @@ export default function EmployeeHoursPage() {
         <div className="flex flex-wrap items-center gap-2">
           <FacetSelect
             label="Branch"
-            value={locationId}
+            value={effectiveLocationId}
             options={facets?.locations ?? []}
             onChange={setLocationId}
             testId="employee-hours-filter-branch"
+            disabled={globalLocationScoped}
           />
           <FacetSelect
             label="Role"

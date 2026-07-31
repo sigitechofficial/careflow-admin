@@ -23,6 +23,7 @@ import {
   useConfirmJobAllocation,
   useSetJobLeadCarer,
   useUnallocateJob,
+  useUpdateJobAllocationTiming,
   useUpdateScheduledJob,
 } from '@/features/scheduling/hooks/useSchedulingMutations'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
@@ -66,6 +67,11 @@ import { scheduleJobCarerRotaConflictMessage } from '@/features/scheduling/utils
 import { buildRotaBookedEmployeeIds } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 import type { ScheduleJobAllocateDialogPanel } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import {
+  allocationTimingWithinVisit,
+  propagateVisitWindowToInheritedDrafts,
+  type CarerTimingDraft,
+} from '@/features/scheduling/utils/allocation-carer-timing.util'
 import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
 
 type Props = {
@@ -107,6 +113,8 @@ export function ScheduleJobAllocateDialog({
   const [startTime, setStartTime] = React.useState('')
   const [endTime, setEndTime] = React.useState('')
   const [savingTimes, setSavingTimes] = React.useState(false)
+  const [carerTimings, setCarerTimings] = React.useState<CarerTimingDraft[]>([])
+  const [savingCarerTimingId, setSavingCarerTimingId] = React.useState<string | null>(null)
   const [suggestCandidates, setSuggestCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
   const [assignAsLead, setAssignAsLead] = React.useState(false)
   const [confirmingAllocationId, setConfirmingAllocationId] = React.useState<string | null>(null)
@@ -118,6 +126,7 @@ export function ScheduleJobAllocateDialog({
   const setLeadCarer = useSetJobLeadCarer()
   const unallocate = useUnallocateJob()
   const updateJob = useUpdateScheduledJob()
+  const updateAllocationTiming = useUpdateJobAllocationTiming()
 
   const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
 
@@ -132,6 +141,7 @@ export function ScheduleJobAllocateDialog({
       setAllocatingEmployeeId(null)
       setStartTime('')
       setEndTime('')
+      setCarerTimings([])
       setSavingTimes(false)
       setAssignAsLead(false)
     }
@@ -139,16 +149,57 @@ export function ScheduleJobAllocateDialog({
 
   React.useEffect(() => {
     if (!open || !job) return
-    setStartTime(isoToLocalTimeInput(job.scheduledStartDateTime))
-    setEndTime(
+    const nextStart = isoToLocalTimeInput(job.scheduledStartDateTime)
+    const nextEnd =
       isoToLocalTimeInput(job.scheduledEndDateTime) ||
-        isoToLocalTimeInput(
-          new Date(
-            new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
-          ).toISOString(),
-        ),
-    )
+      isoToLocalTimeInput(
+        new Date(
+          new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
+        ).toISOString(),
+      )
+    setStartTime(prevStart => {
+      setEndTime(prevEnd => {
+        if (prevStart && prevEnd && (prevStart !== nextStart || prevEnd !== nextEnd)) {
+          setCarerTimings(drafts =>
+            propagateVisitWindowToInheritedDrafts({
+              drafts,
+              previousStartHm: prevStart,
+              previousEndHm: prevEnd,
+              nextStartHm: nextStart,
+              nextEndHm: nextEnd,
+            }),
+          )
+        }
+        return nextEnd
+      })
+      return nextStart
+    })
   }, [open, job?.id, job?.scheduledStartDateTime, job?.scheduledEndDateTime])
+
+  React.useEffect(() => {
+    if (!open || !job) return
+    const visitStart = isoToLocalTimeInput(job.scheduledStartDateTime)
+    const visitEnd =
+      isoToLocalTimeInput(job.scheduledEndDateTime) ||
+      isoToLocalTimeInput(
+        new Date(
+          new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
+        ).toISOString(),
+      )
+    setCarerTimings(
+      (job.allocations ?? []).map(a => ({
+        allocationId: a.id,
+        employeeId: a.employeeId,
+        startHm: isoToLocalTimeInput(
+          a.resolvedStartDateTime ?? a.scheduledStartDateTime ?? job.scheduledStartDateTime,
+        ) || visitStart,
+        endHm:
+          isoToLocalTimeInput(
+            a.resolvedEndDateTime ?? a.scheduledEndDateTime ?? job.scheduledEndDateTime ?? undefined,
+          ) || visitEnd,
+      })),
+    )
+  }, [open, job?.id, job?.allocations])
 
   React.useEffect(() => {
     if (!open || !job) return
@@ -170,6 +221,7 @@ export function ScheduleJobAllocateDialog({
   const overAllocated = job ? jobIsOverAllocated(job) : false
   const canAddOrReplaceCarer = needsMoreCarers || !!replacingEmployeeId
   const multiCarerJob = (job?.requiredCarers ?? 0) > 1
+  const showPerCarerTiming = multiCarerJob || allocatedCount > 1
   const attention = job ? jobAttentionReason(job) : null
   const visitId = job?.visits?.[0]?.id
   const allocatedEmployeeIds = new Set((job?.allocations ?? []).map((a) => a.employeeId))
@@ -253,12 +305,18 @@ export function ScheduleJobAllocateDialog({
     }
     setAllocatingEmployeeId(employeeId)
     try {
+      const scheduleWindow =
+        startTime && endTime
+          ? buildJobScheduleDateTimes(jobScheduleDateIso(job), startTime, endTime)
+          : null
       const result = await allocate.mutateAsync({
         jobId: job.id,
         employeeId,
         scheduledVisitId: visitId,
         force,
         isLeadCarer: multiCarerJob ? isLeadCarer ?? assignAsLead : undefined,
+        scheduledStartDateTime: scheduleWindow?.scheduledStartDateTime,
+        scheduledEndDateTime: scheduleWindow?.scheduledEndDateTime ?? undefined,
       })
       setPendingWarnings([])
       setPendingEmployeeId(null)
@@ -308,12 +366,18 @@ export function ScheduleJobAllocateDialog({
     setAllocatingEmployeeId(newEmployeeId)
     try {
       await unallocate.mutateAsync({ jobId: job.id, employeeId: oldEmployeeId })
+      const scheduleWindow =
+        startTime && endTime
+          ? buildJobScheduleDateTimes(jobScheduleDateIso(job), startTime, endTime)
+          : null
       const result = await allocate.mutateAsync({
         jobId: job.id,
         employeeId: newEmployeeId,
         scheduledVisitId: visitId,
         force,
         isLeadCarer: replacingWasLead || assignAsLead ? true : undefined,
+        scheduledStartDateTime: scheduleWindow?.scheduledStartDateTime,
+        scheduledEndDateTime: scheduleWindow?.scheduledEndDateTime ?? undefined,
       })
       setPendingWarnings([])
       setPendingEmployeeId(null)
@@ -385,6 +449,20 @@ export function ScheduleJobAllocateDialog({
 
   const handleSaveTimes = async () => {
     if (!job || !nextScheduleTimes || !timesChanged) return
+    if (showPerCarerTiming) {
+      for (const draft of carerTimings) {
+        const err = allocationTimingWithinVisit({
+          assignmentStartHm: draft.startHm,
+          assignmentEndHm: draft.endHm,
+          visitStartHm: startTime,
+          visitEndHm: endTime,
+        })
+        if (err) {
+          toastWarning('Fix carer timings', err)
+          return
+        }
+      }
+    }
     setSavingTimes(true)
     try {
       await updateJob.mutateAsync({
@@ -398,6 +476,36 @@ export function ScheduleJobAllocateDialog({
       toastApiError(e, 'Could not update job times')
     } finally {
       setSavingTimes(false)
+    }
+  }
+
+  const handleSaveCarerTiming = async (draft: CarerTimingDraft) => {
+    if (!job) return
+    const err = allocationTimingWithinVisit({
+      assignmentStartHm: draft.startHm,
+      assignmentEndHm: draft.endHm,
+      visitStartHm: startTime,
+      visitEndHm: endTime,
+    })
+    if (err) {
+      toastWarning('Invalid carer timing', err)
+      return
+    }
+    const window = buildJobScheduleDateTimes(jobScheduleDateIso(job), draft.startHm, draft.endHm)
+    setSavingCarerTimingId(draft.allocationId)
+    try {
+      await updateAllocationTiming.mutateAsync({
+        jobId: job.id,
+        allocationId: draft.allocationId,
+        scheduledStartDateTime: window.scheduledStartDateTime,
+        scheduledEndDateTime: window.scheduledEndDateTime,
+      })
+      toastSuccess('Carer timing updated', 'Assignment start and end times saved.')
+      onAllocated?.()
+    } catch (e) {
+      toastApiError(e, 'Could not update carer timing')
+    } finally {
+      setSavingCarerTimingId(null)
     }
   }
 
@@ -635,20 +743,32 @@ export function ScheduleJobAllocateDialog({
               <p className="text-sm text-muted-foreground">No carers on this job yet.</p>
             ) : (
               <ul className="space-y-2">
-                {(job.allocations ?? []).map((allocation) => {
+                {(job.allocations ?? []).map((allocation, index) => {
                   const pendingConfirmation = isAllocationPendingConfirmation(allocation.status)
+                  const timing = carerTimings.find(t => t.allocationId === allocation.id)
+                  const timingError =
+                    showPerCarerTiming && timing
+                      ? allocationTimingWithinVisit({
+                          assignmentStartHm: timing.startHm,
+                          assignmentEndHm: timing.endHm,
+                          visitStartHm: startTime,
+                          visitEndHm: endTime,
+                        })
+                      : null
                   return (
                   <li
                     key={allocation.id}
                     className={cn(
-                      'flex items-center justify-between gap-2 rounded-md border px-3 py-2',
+                      'rounded-md border px-3 py-2',
                       pendingConfirmation
                         ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20'
                         : 'border-border bg-card',
                     )}
                   >
+                    <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 text-sm font-medium truncate">
+                        {showPerCarerTiming ? `Carer ${index + 1} · ` : null}
                         {employeeNameFromAllocation(allocation)}
                         {multiCarerJob && allocation.isLeadCarer ? (
                           <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -730,6 +850,71 @@ export function ScheduleJobAllocateDialog({
                         </>
                       ) : null}
                     </div>
+                    </div>
+                    {showPerCarerTiming && timing ? (
+                      <div className="mt-2 grid gap-2 border-t border-border/60 pt-2 sm:grid-cols-[1fr_1fr_auto]">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Start time</Label>
+                          <Input
+                            type="time"
+                            className="mt-1"
+                            value={timing.startHm}
+                            disabled={readOnly}
+                            onChange={e => {
+                              const value = e.target.value
+                              setCarerTimings(rows =>
+                                rows.map(row =>
+                                  row.allocationId === allocation.id
+                                    ? { ...row, startHm: value }
+                                    : row,
+                                ),
+                              )
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">End time</Label>
+                          <Input
+                            type="time"
+                            className="mt-1"
+                            value={timing.endHm}
+                            disabled={readOnly}
+                            onChange={e => {
+                              const value = e.target.value
+                              setCarerTimings(rows =>
+                                rows.map(row =>
+                                  row.allocationId === allocation.id
+                                    ? { ...row, endHm: value }
+                                    : row,
+                                ),
+                              )
+                            }}
+                          />
+                        </div>
+                        {!readOnly ? (
+                          <div className="flex items-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                savingCarerTimingId === allocation.id ||
+                                updateAllocationTiming.isPending
+                              }
+                              onClick={() => void handleSaveCarerTiming(timing)}
+                            >
+                              {savingCarerTimingId === allocation.id ? (
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                              ) : null}
+                              Save times
+                            </Button>
+                          </div>
+                        ) : null}
+                        {timingError ? (
+                          <p className="sm:col-span-3 text-xs text-destructive">{timingError}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </li>
                   )
                 })}

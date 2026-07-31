@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { UserAvatar } from '@/shared/ui/avatar'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
+import { TopbarLocationSelect } from '@/components/layout/TopbarLocationSelect'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -79,6 +80,8 @@ export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps)
           <Search className="h-4 w-4" />
         </Button>
         )}
+
+        {!isPortal ? <TopbarLocationSelect /> : null}
 
         {/* Theme toggle */}
         <DropdownMenu>

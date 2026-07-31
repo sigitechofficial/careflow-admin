@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   useEmployeeHoursMonthlySummary,
   useUpsertEmployeeHoursMonthlyReview,
@@ -167,6 +168,11 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
   const [month, setMonth] = React.useState(currentMonthKey)
   const [search, setSearch] = React.useState('')
   const [locationId, setLocationId] = React.useState('')
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
+  const effectiveLocationId = globalLocationScoped
+    ? (globalLocationId ?? '')
+    : locationId
   const [complianceStatus, setComplianceStatus] = React.useState<EmployeeComplianceStatus | ''>('')
   const [reviewFilter, setReviewFilter] = React.useState<EmployeeReviewFilter>('all')
   const [smsOnly, setSmsOnly] = React.useState(false)
@@ -182,7 +188,7 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
   const query = useEmployeeHoursMonthlySummary({
     month,
     search: search.trim() || undefined,
-    locationId: locationId || undefined,
+    locationId: effectiveLocationId || undefined,
     complianceStatus: complianceStatus || undefined,
     reviewFilter: reviewFilter === 'all' ? undefined : reviewFilter,
     smsOnly: smsOnly || undefined,
@@ -234,7 +240,7 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
   }
 
   const hasFilters =
-    Boolean(search || locationId || complianceStatus) ||
+    Boolean(search || effectiveLocationId || complianceStatus) ||
     reviewFilter !== 'all' ||
     smsOnly ||
     sponsoredOnly
@@ -358,11 +364,17 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
       <ContentCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm"
-            value={locationId}
+            className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm disabled:opacity-60"
+            value={effectiveLocationId}
             onChange={e => setLocationId(e.target.value)}
             aria-label="Location or branch"
             data-testid="employee-hours-filter-location"
+            disabled={globalLocationScoped}
+            title={
+              globalLocationScoped
+                ? 'Controlled by the header location selector'
+                : undefined
+            }
           >
             <option value="">Location / branch: all</option>
             {(data?.facets.locations ?? []).map(location => (

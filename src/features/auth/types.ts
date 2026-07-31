@@ -248,6 +248,8 @@ export interface AuthUser {
   profilePhotoUrl?: string | null
   jobTitle?: string
   avatarUrl?: string
+  /** null/undefined = unrestricted; string[] = header location options ACL */
+  assignedLocationIds?: string[] | null
 }
 
 export interface AuthSession {

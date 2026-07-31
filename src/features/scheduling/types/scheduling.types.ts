@@ -147,6 +147,16 @@ export type TimelineJob = {
     employeeId: string
     status: string
     isLeadCarer?: boolean
+    requiresConfirmation?: boolean
+    scheduledStartDateTime?: string | null
+    scheduledEndDateTime?: string | null
+    durationMinutes?: number | null
+    actualStartDateTime?: string | null
+    actualEndDateTime?: string | null
+    resolvedStartDateTime?: string | null
+    resolvedEndDateTime?: string | null
+    resolvedDurationMinutes?: number | null
+    hasExplicitTiming?: boolean
     employee: {
       id: string
       firstName?: string

@@ -28,6 +28,7 @@ import {
   useRemovePaymentAllocation,
 } from '@/features/billing/hooks/usePayments'
 import { matchStatusVariant, parseMoney, paymentLinkSummary } from '@/features/billing/utils/payment-display.util'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 type MatchPaymentDialogProps = {
   open: boolean
@@ -36,9 +37,10 @@ type MatchPaymentDialogProps = {
 }
 
 export function MatchPaymentDialog({ open, onOpenChange, payment }: MatchPaymentDialogProps) {
+  const { locationId } = useGlobalLocationScope()
   const paymentId = open && payment ? payment.id : undefined
   const detailQuery = usePayment(paymentId)
-  const outstandingQuery = useOutstandingInvoiceRuns(open)
+  const outstandingQuery = useOutstandingInvoiceRuns(open, locationId)
   const addMutation = useAddPaymentAllocation()
   const removeMutation = useRemovePaymentAllocation()
 

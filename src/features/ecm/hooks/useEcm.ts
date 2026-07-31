@@ -24,6 +24,7 @@ export function useEcmLiveDashboard(filters?: {
   date?: string
   search?: string
   scheduleAreaId?: string
+  locationId?: string
   serviceUserId?: string
   enabled?: boolean
 }) {
@@ -85,10 +86,10 @@ export function useEcmHealth(enabled = true) {
 export function useEcmDailyOpsReport(
   date?: string,
   enabled = true,
-  params?: { scheduleAreaId?: string },
+  params?: { scheduleAreaId?: string; locationId?: string },
 ) {
   return useQuery({
-    queryKey: ecmKeys.dailyOps(date, params?.scheduleAreaId),
+    queryKey: ecmKeys.dailyOps(date, params?.scheduleAreaId, params?.locationId),
     queryFn: () => fetchEcmDailyOpsReport(date, params),
     enabled,
   })
@@ -99,6 +100,7 @@ export function useEcmGraphDashboard(
     dateFrom?: string
     dateTo?: string
     scheduleAreaId?: string
+    locationId?: string
     enabled?: boolean
   },
 ) {

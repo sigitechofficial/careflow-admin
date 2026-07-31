@@ -4,17 +4,28 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { useLearningAssignments } from '@/features/learning/hooks/useLearning'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { AssignmentWizardDialog } from '@/features/learning/components/AssignmentWizardDialog'
 import { useAuthStore } from '@/features/auth/store'
 
 export function AssignmentsPanel() {
   const canManage = useAuthStore(s => s.can('learning.assignments.manage'))
+  const { locationId } = useGlobalLocationScope()
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
   const [wizardOpen, setWizardOpen] = React.useState(false)
 
-  const query = useLearningAssignments({ page, limit: 20, search: search || undefined })
+  React.useEffect(() => {
+    setPage(1)
+  }, [locationId])
+
+  const query = useLearningAssignments({
+    page,
+    limit: 20,
+    search: search || undefined,
+    locationId: locationId ?? undefined,
+  })
   const rows = query.data?.rows ?? []
   const meta = query.data?.meta
 

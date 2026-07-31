@@ -70,7 +70,11 @@ type Props = {
   isUnassignedRow?: boolean
 }
 
-const HOVER_COLLISION_PADDING = { top: 80, bottom: 80, left: 24, right: 24 } as const
+const HOVER_COLLISION_PADDING = { top: 16, bottom: 16, left: 16, right: 16 } as const
+
+/** Keep the card inside the floating-ui available box (viewport after collision padding). */
+const HOVER_PANEL_SIZE_CLASS =
+  'w-[min(32rem,calc(var(--radix-tooltip-content-available-width,100vw)-1.5rem))] max-h-[min(40rem,var(--radix-tooltip-content-available-height,calc(100dvh-2rem)))] overflow-x-hidden overflow-y-auto'
 
 type CardStatus =
   | 'booked'
@@ -453,8 +457,10 @@ export function JobHoverPanel({
 
   return (
     <div
+      data-schedule-job-hover-scroll=""
       className={cn(
-        'w-[min(32rem,calc(var(--radix-tooltip-content-available-width,100vw)-1rem))] overflow-visible rounded-2xl bg-popover shadow-xl ring-1 ring-black/5 dark:ring-white/10',
+        HOVER_PANEL_SIZE_CLASS,
+        'rounded-2xl bg-popover shadow-xl ring-1 ring-black/5 dark:ring-white/10',
         cancelled && 'opacity-90',
       )}
     >
@@ -652,6 +658,8 @@ export function ScheduleJobHoverTooltip(props: Props) {
       side="top"
       align="center"
       sideOffset={10}
+      avoidCollisions
+      sticky="always"
       collisionPadding={HOVER_COLLISION_PADDING}
       className="z-[100] max-w-none overflow-visible border-0 bg-transparent p-0 shadow-none"
       onWheel={handleScheduleJobHoverWheel}
