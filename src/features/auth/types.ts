@@ -195,6 +195,8 @@ export type Permission =
   | 'billing.visit_reconciliations.manage'
   | 'billing.payroll_runs.read'
   | 'billing.payroll_runs.manage'
+  | 'billing.employee_payouts.read'
+  | 'billing.employee_payouts.manage'
   | 'billing.invoice_runs.read'
   | 'billing.invoice_runs.manage'
   | 'billing.payments.read'

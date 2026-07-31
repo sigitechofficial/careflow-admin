@@ -269,11 +269,16 @@ export type EmployeeSalaryOverviewRow = {
   deductionsTotalValue: number
   netSalaryAmount: string
   netSalaryAmountValue: number
+  paidOutAmount: string
+  paidOutAmountValue: number
+  outstandingPayoutAmount: string
+  outstandingPayoutAmountValue: number
 }
 
 export type EmployeeSalariesOverview = {
   dateFrom: string | null
   dateTo: string | null
+  periodKey: string | null
   currency: string
   employeeCount: number
   rows: EmployeeSalaryOverviewRow[]

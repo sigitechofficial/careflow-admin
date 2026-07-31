@@ -71,4 +71,8 @@ export const billingKeys = {
   agedDebt: () => [...billingKeys.all, 'aged-debt'] as const,
   outstandingInvoiceRuns: (locationId?: string | null) =>
     [...billingKeys.all, 'outstanding-invoice-runs', locationId ?? 'all'] as const,
+  employeePayoutBatches: (periodKey?: string) =>
+    [...billingKeys.all, 'employee-payouts', periodKey ?? 'all'] as const,
+  employeePayoutBatch: (id: string) =>
+    [...billingKeys.all, 'employee-payout', id] as const,
 }

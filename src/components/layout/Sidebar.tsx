@@ -43,6 +43,7 @@ import {
   Receipt,
   Wallet,
   Banknote,
+  HandCoins,
   ScrollText,
   CircleDollarSign,
   Radio,
@@ -393,6 +394,13 @@ const navItems: NavItem[] = [
         navTestId: 'nav-billing-salary',
       },
       {
+        label: 'Employee payouts',
+        icon: <Banknote className="h-4 w-4" />,
+        href: '/billing/employee-payouts',
+        permission: 'billing.employee_payouts.read',
+        navTestId: 'nav-billing-employee-payouts',
+      },
+      {
         label: 'Invoice runs',
         icon: <FileText className="h-4 w-4" />,
         href: '/billing/invoice-runs',
@@ -401,7 +409,7 @@ const navItems: NavItem[] = [
       },
       {
         label: 'Payments',
-        icon: <Banknote className="h-4 w-4" />,
+        icon: <HandCoins className="h-4 w-4" />,
         href: '/billing/payments',
         permission: 'billing.payments.read',
         navTestId: 'nav-billing-payments',

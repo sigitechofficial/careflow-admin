@@ -6,7 +6,7 @@ export default function SalaryOverviewPage() {
   return (
     <BillingSectionLayout
       title="Salary"
-      description="Employee salary for the current period — visit pay, amounts already paid, rejected visits, fines, and penalties."
+      description="Employee visit-pay salary for the period — net after fines/penalties, visit-pay runs, and bank payouts. Automatic payout executes on the 4th of each month for the previous month."
       testId="billing-salary-page"
       icon={
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">

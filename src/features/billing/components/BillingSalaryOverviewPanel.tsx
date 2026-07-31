@@ -1,6 +1,7 @@
 import * as React from 'react'
 import {
   AlertTriangle,
+  Banknote,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -16,8 +17,16 @@ import {
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
+import {
+  useCreateEmployeePayoutBatch,
+  useEmployeePayoutBatches,
+} from '@/features/billing/hooks/useEmployeePayouts'
+import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
+import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import type { EmployeePayoutBatchRow } from '@/features/billing/api/employee-payouts.api'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import type { SalaryCalculationBasis } from '@/features/settings/types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
@@ -132,6 +141,8 @@ export function BillingSalaryOverviewPanel() {
       s.can('employees.update'),
   )
   const canOpenEmployee = useAuthStore(s => s.can('employees.update') || s.can('employees.read'))
+  const canReadPayouts = useAuthStore(s => s.can('billing.employee_payouts.read'))
+  const canManagePayouts = useAuthStore(s => s.can('billing.employee_payouts.manage'))
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const basis: SalaryCalculationBasis =
@@ -143,6 +154,8 @@ export function BillingSalaryOverviewPanel() {
     basis === 'WEEKLY' ? currentUtcWeek() : currentUtcMonth(),
   )
   const [search, setSearch] = React.useState('')
+  const [selectedBatch, setSelectedBatch] = React.useState<EmployeePayoutBatchRow | null>(null)
+  const [batchDialogOpen, setBatchDialogOpen] = React.useState(false)
 
   React.useEffect(() => {
     setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())
@@ -156,6 +169,8 @@ export function BillingSalaryOverviewPanel() {
 
   const query = useEmployeeSalaries(filters, canRead)
   const rows = query.data?.rows ?? []
+  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts)
+  const createBatch = useCreateEmployeePayoutBatch()
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -171,19 +186,49 @@ export function BillingSalaryOverviewPanel() {
     return filtered.reduce(
       (acc, r) => {
         acc.visitPay += r.salaryAmountValue
-        acc.paid += r.paidAmountValue
+        acc.inVisitPayRun += r.paidAmountValue
         acc.rejected += r.rejectedAmountValue
         acc.fines += r.fineTotalValue
         acc.penalties += r.penaltyTotalValue
         acc.net += r.netSalaryAmountValue
+        acc.bankPaid += r.paidOutAmountValue ?? 0
+        acc.outstanding += r.outstandingPayoutAmountValue ?? 0
         return acc
       },
-      { visitPay: 0, paid: 0, rejected: 0, fines: 0, penalties: 0, net: 0 },
+      {
+        visitPay: 0,
+        inVisitPayRun: 0,
+        rejected: 0,
+        fines: 0,
+        penalties: 0,
+        net: 0,
+        bankPaid: 0,
+        outstanding: 0,
+      },
     )
   }, [filtered])
 
   const money = (n: number) =>
     `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  const openBatch = (batch: EmployeePayoutBatchRow) => {
+    setSelectedBatch(batch)
+    setBatchDialogOpen(true)
+  }
+
+  const handleCreateBatch = async () => {
+    try {
+      const detail = await createBatch.mutateAsync({ periodKey: period })
+      toastSuccess('Payout batch created', `${detail.lineCount} employees · ${detail.totalAmount}`)
+      openBatch(detail)
+    } catch (e) {
+      toastApiError(e, 'Could not create payout batch')
+    }
+  }
+
+  const hasOpenBatch = (batchesQuery.data ?? []).some(
+    b => b.status === 'DRAFT' || b.status === 'APPROVED',
+  )
 
   if (!canRead) {
     return (
@@ -207,8 +252,37 @@ export function BillingSalaryOverviewPanel() {
             <p className="text-sm font-medium text-foreground">Visit salary overview</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Care visit earnings for the selected {periodNoun}, before UK PAYE / NI on UK Payroll.
+              Bank paid is separate from amounts included in a locked visit-pay run.
+              Automatic payout runs on the <span className="font-medium text-foreground">4th of each month</span>{' '}
+              (previous month net).
             </p>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {canReadPayouts ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/billing/employee-payouts">
+                Payout history
+                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          ) : null}
+          {canManagePayouts ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={createBatch.isPending || hasOpenBatch}
+              onClick={() => void handleCreateBatch()}
+              data-testid="billing-salary-create-payout-batch"
+            >
+              {createBatch.isPending ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Banknote className="mr-2 h-3.5 w-3.5" />
+              )}
+              Create payout batch
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -260,7 +334,7 @@ export function BillingSalaryOverviewPanel() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {(
           [
             {
@@ -278,9 +352,9 @@ export function BillingSalaryOverviewPanel() {
               tone: 'sky',
             },
             {
-              title: 'Paid',
-              value: money(totals.paid),
-              hint: 'In locked payroll',
+              title: 'In visit-pay run',
+              value: money(totals.inVisitPayRun),
+              hint: 'Locked / exported run',
               icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
               tone: 'emerald',
             },
@@ -305,29 +379,138 @@ export function BillingSalaryOverviewPanel() {
               icon: <Wallet className="h-4 w-4" aria-hidden />,
               tone: 'emerald',
             },
+            {
+              title: 'Bank paid',
+              value: money(totals.bankPaid),
+              hint: 'Payout batches marked paid',
+              icon: <Banknote className="h-4 w-4" aria-hidden />,
+              tone: 'sky',
+            },
+            {
+              title: 'Outstanding to pay',
+              value: money(totals.outstanding),
+              hint: 'Net − committed payouts',
+              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              tone: 'amber',
+            },
           ] as const
         ).map(card => (
-          <ContentCard key={card.title} className="space-y-2 p-4">
-            <div
-              className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-lg',
-                card.tone === 'sky' && 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-                card.tone === 'emerald' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-                card.tone === 'amber' && 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-                card.tone === 'violet' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-                card.tone === 'rose' && 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-              )}
-            >
-              {card.icon}
+          <ContentCard key={card.title} className="p-4">
+            <div className="flex items-start gap-3">
+              <div
+                className={cn(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                  card.tone === 'sky' && 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+                  card.tone === 'emerald' &&
+                    'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+                  card.tone === 'amber' && 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+                  card.tone === 'violet' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+                  card.tone === 'rose' && 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+                )}
+              >
+                {card.icon}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
+                <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground">
+                  {card.value}
+                </p>
+                <p className="text-xs text-muted-foreground">{card.hint}</p>
+              </div>
             </div>
-            <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
-            <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground">
-              {card.value}
-            </p>
-            <p className="text-xs text-muted-foreground">{card.hint}</p>
           </ContentCard>
         ))}
       </div>
+
+      {canReadPayouts ? (
+        <ContentCard className="space-y-3 p-4" data-testid="billing-salary-payout-batches">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Payout batches this period</p>
+              <p className="text-xs text-muted-foreground">
+                Period {period} — full history is on{' '}
+                <Link
+                  to="/billing/employee-payouts"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Employee payouts
+                </Link>
+                . Auto-runs on the 4th (previous month).
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {hasOpenBatch ? (
+                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                  Open batch in progress
+                </Badge>
+              ) : null}
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/billing/employee-payouts">View all</Link>
+              </Button>
+            </div>
+          </div>
+          {batchesQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading batches…
+            </div>
+          ) : batchesQuery.isError ? (
+            <p className="text-sm text-destructive">Could not load payout batches.</p>
+          ) : (batchesQuery.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No payout batches for this period yet.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-muted/50">
+                  <tr className="border-b border-border">
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                      Created
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      Employees
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      Total
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                      Status
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(batchesQuery.data ?? []).map(batch => (
+                    <tr key={batch.id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {new Date(batch.createdAt).toLocaleString('en-GB')}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{batch.lineCount}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">
+                        {batch.totalAmount}
+                      </td>
+                      <td className="px-3 py-2">
+                        <BillingStatusBadge status={batch.status} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openBatch(batch)}
+                        >
+                          Open
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </ContentCard>
+      ) : null}
 
       <ContentCard className="overflow-hidden p-0">
         {query.isLoading ? (
@@ -343,7 +526,7 @@ export function BillingSalaryOverviewPanel() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
+            <table className="w-full min-w-[1280px] text-sm">
               <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                 <tr className="border-b border-border">
                   <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
@@ -352,7 +535,9 @@ export function BillingSalaryOverviewPanel() {
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Visit pay
                   </th>
-                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    In visit-pay run
+                  </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Remaining
                   </th>
@@ -368,6 +553,12 @@ export function BillingSalaryOverviewPanel() {
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Net salary
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    Bank paid
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    Outstanding
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Action
@@ -443,6 +634,14 @@ export function BillingSalaryOverviewPanel() {
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
                       {row.netSalaryAmount}
                     </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-success">
+                      {row.paidOutAmountValue > 0 ? row.paidOutAmount : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {(row.outstandingPayoutAmountValue ?? 0) > 0
+                        ? row.outstandingPayoutAmount
+                        : '—'}
+                    </td>
                     <td className="px-3 py-2.5 text-right">
                       {canOpenEmployee ? (
                         <Button variant="ghost" size="sm" asChild>
@@ -463,6 +662,13 @@ export function BillingSalaryOverviewPanel() {
           </div>
         )}
       </ContentCard>
+
+      <EmployeePayoutBatchDetailDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
+        batch={selectedBatch}
+        canManage={canManagePayouts}
+      />
     </div>
   )
 }
