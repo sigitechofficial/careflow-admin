@@ -492,6 +492,10 @@ export function ScheduleJobAllocateDialog({
       return
     }
     const window = buildJobScheduleDateTimes(jobScheduleDateIso(job), draft.startHm, draft.endHm)
+    if (!window) {
+      toastWarning('Invalid carer timing', 'Could not resolve start and end times.')
+      return
+    }
     setSavingCarerTimingId(draft.allocationId)
     try {
       await updateAllocationTiming.mutateAsync({

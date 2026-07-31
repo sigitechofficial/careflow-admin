@@ -140,7 +140,10 @@ export function ScheduleJobCompleteDialog({
     if (multiCarerTiming && carerActualTimes.length > 0) {
       const windows = carerActualTimes
         .map((row) => buildJobScheduleDateTimes(scheduleDateIso, row.startHm, row.endHm))
-        .filter(Boolean)
+        .filter(
+          (w): w is { scheduledStartDateTime: string; scheduledEndDateTime: string } =>
+            w != null,
+        )
       if (!windows.length) return null
       const starts = windows.map((w) => new Date(w.scheduledStartDateTime).getTime())
       const ends = windows.map((w) => new Date(w.scheduledEndDateTime).getTime())
@@ -384,17 +387,20 @@ export function ScheduleJobCompleteDialog({
         actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
         carerActuals:
           multiCarerTiming && scheduleDateIso
-            ? carerActualTimes.map((row) => {
+            ? carerActualTimes.flatMap((row) => {
                 const window = buildJobScheduleDateTimes(
                   scheduleDateIso,
                   row.startHm,
                   row.endHm,
                 )
-                return {
-                  allocationId: row.allocationId,
-                  actualStartDateTime: window.scheduledStartDateTime,
-                  actualEndDateTime: window.scheduledEndDateTime,
-                }
+                if (!window) return []
+                return [
+                  {
+                    allocationId: row.allocationId,
+                    actualStartDateTime: window.scheduledStartDateTime,
+                    actualEndDateTime: window.scheduledEndDateTime,
+                  },
+                ]
               })
             : undefined,
         overrunReason: hasOverrun ? overrunReason.trim() : undefined,
