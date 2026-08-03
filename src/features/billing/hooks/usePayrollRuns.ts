@@ -13,8 +13,10 @@ import {
   fetchPayrollRuns,
   fetchPayrollRunsSummary,
   lockPayrollRun,
+  resetEmployeeEarnings,
 } from '@/features/billing/api/payroll-runs.api'
 import { billingKeys } from '@/features/billing/keys'
+import { payrollKeys } from '@/features/payroll/keys'
 
 export function usePayrollRuns(filters?: { locationId?: string }) {
   return useQuery({
@@ -84,6 +86,21 @@ export function useDeleteEmployeeSalaryDeduction(employeeId: string) {
       void qc.invalidateQueries({
         queryKey: [...billingKeys.all, 'employee-earnings', employeeId],
       })
+    },
+  })
+}
+
+export function useResetEmployeeEarnings(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => resetEmployeeEarnings(employeeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: [...billingKeys.all, 'employee-earnings', employeeId],
+      })
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-salaries'] })
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-payouts'] })
+      void qc.invalidateQueries({ queryKey: payrollKeys.all })
     },
   })
 }

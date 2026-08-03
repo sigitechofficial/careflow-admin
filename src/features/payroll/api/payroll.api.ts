@@ -153,6 +153,21 @@ export async function fetchUkPayrollRuns() {
   return res.data ?? []
 }
 
+/** Test/ops: delete all UK payroll runs (+ linked employee payout batches). */
+export async function deleteAllUkPayrollRuns() {
+  const res = await apiJson<
+    ApiEnvelope<{
+      payoutLines: number
+      payoutBatches: number
+      inputLines: number
+      runEmployees: number
+      runs: number
+      periodsReopened: number
+    }>
+  >('/payroll/runs', { method: 'DELETE' })
+  return res.data
+}
+
 export async function fetchUkPayrollRun(id: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRunDetail>>(`/payroll/runs/${id}`)
   return res.data

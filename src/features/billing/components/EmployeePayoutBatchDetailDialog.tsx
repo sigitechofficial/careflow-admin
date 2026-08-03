@@ -80,9 +80,15 @@ export function EmployeePayoutBatchDetailDialog({
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-lg font-semibold">{detail.periodKey}</p>
+                  <p className="text-lg font-semibold">
+                    {detail.ukPayrollRunLabel ?? detail.periodKey}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {detail.periodStart} – {detail.periodEnd}
+                    {detail.periodKey ? ` · ${detail.periodKey}` : ''}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Amounts are UK net pay (after W1/M1 PAYE/NI). Bank paid = UK net disbursed.
                   </p>
                   {detail.notes ? (
                     <p className="mt-1 text-sm text-muted-foreground">{detail.notes}</p>

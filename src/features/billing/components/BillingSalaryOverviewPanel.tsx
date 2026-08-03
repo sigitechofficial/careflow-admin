@@ -17,16 +17,12 @@ import {
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
-import {
-  useCreateEmployeePayoutBatch,
-  useEmployeePayoutBatches,
-} from '@/features/billing/hooks/useEmployeePayouts'
+import { useEmployeePayoutBatches } from '@/features/billing/hooks/useEmployeePayouts'
 import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import type { EmployeePayoutBatchRow } from '@/features/billing/api/employee-payouts.api'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import type { SalaryCalculationBasis } from '@/features/settings/types'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
@@ -169,8 +165,8 @@ export function BillingSalaryOverviewPanel() {
 
   const query = useEmployeeSalaries(filters, canRead)
   const rows = query.data?.rows ?? []
+  const hasEligibleUkRun = query.data?.hasEligibleUkRun ?? false
   const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts)
-  const createBatch = useCreateEmployeePayoutBatch()
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -191,6 +187,7 @@ export function BillingSalaryOverviewPanel() {
         acc.fines += r.fineTotalValue
         acc.penalties += r.penaltyTotalValue
         acc.net += r.netSalaryAmountValue
+        acc.ukNet += r.ukNetPayAmountValue ?? 0
         acc.bankPaid += r.paidOutAmountValue ?? 0
         acc.outstanding += r.outstandingPayoutAmountValue ?? 0
         return acc
@@ -202,6 +199,7 @@ export function BillingSalaryOverviewPanel() {
         fines: 0,
         penalties: 0,
         net: 0,
+        ukNet: 0,
         bankPaid: 0,
         outstanding: 0,
       },
@@ -214,16 +212,6 @@ export function BillingSalaryOverviewPanel() {
   const openBatch = (batch: EmployeePayoutBatchRow) => {
     setSelectedBatch(batch)
     setBatchDialogOpen(true)
-  }
-
-  const handleCreateBatch = async () => {
-    try {
-      const detail = await createBatch.mutateAsync({ periodKey: period })
-      toastSuccess('Payout batch created', `${detail.lineCount} employees · ${detail.totalAmount}`)
-      openBatch(detail)
-    } catch (e) {
-      toastApiError(e, 'Could not create payout batch')
-    }
   }
 
   const hasOpenBatch = (batchesQuery.data ?? []).some(
@@ -251,10 +239,11 @@ export function BillingSalaryOverviewPanel() {
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Visit salary overview</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Care visit earnings for the selected {periodNoun}, before UK PAYE / NI on UK Payroll.
-              Bank paid is separate from amounts included in a locked visit-pay run.
-              Automatic payout runs on the <span className="font-medium text-foreground">4th of each month</span>{' '}
-              (previous month net).
+              Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.
+              Bank paid / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
+              disbursed via Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
+              Auto-payout on the <span className="font-medium text-foreground">4th</span> uses the
+              previous month’s statutory UK run when one exists.
             </p>
           </div>
         </div>
@@ -268,19 +257,11 @@ export function BillingSalaryOverviewPanel() {
             </Button>
           ) : null}
           {canManagePayouts ? (
-            <Button
-              type="button"
-              size="sm"
-              disabled={createBatch.isPending || hasOpenBatch}
-              onClick={() => void handleCreateBatch()}
-              data-testid="billing-salary-create-payout-batch"
-            >
-              {createBatch.isPending ? (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-              ) : (
+            <Button size="sm" asChild data-testid="billing-salary-create-payout-batch">
+              <Link to="/billing/employee-payouts">
                 <Banknote className="mr-2 h-3.5 w-3.5" />
-              )}
-              Create payout batch
+                Create from UK run
+              </Link>
             </Button>
           ) : null}
         </div>
@@ -375,21 +356,32 @@ export function BillingSalaryOverviewPanel() {
             {
               title: 'Net salary',
               value: money(totals.net),
-              hint: 'Visit pay − deductions',
+              hint: 'Visit pay − deductions (not bank)',
               icon: <Wallet className="h-4 w-4" aria-hidden />,
               tone: 'emerald',
             },
             {
+              title: 'UK net',
+              value: hasEligibleUkRun ? money(totals.ukNet) : '—',
+              hint: hasEligibleUkRun
+                ? 'After W1/M1 PAYE/NI'
+                : 'Statutory UK run required',
+              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              tone: 'violet',
+            },
+            {
               title: 'Bank paid',
               value: money(totals.bankPaid),
-              hint: 'Payout batches marked paid',
+              hint: 'UK net disbursed (PAID batches)',
               icon: <Banknote className="h-4 w-4" aria-hidden />,
               tone: 'sky',
             },
             {
               title: 'Outstanding to pay',
-              value: money(totals.outstanding),
-              hint: 'Net − committed payouts',
+              value: hasEligibleUkRun ? money(totals.outstanding) : '—',
+              hint: hasEligibleUkRun
+                ? 'UK net − committed payouts'
+                : 'UK run required',
               icon: <PoundSterling className="h-4 w-4" aria-hidden />,
               tone: 'amber',
             },
@@ -435,7 +427,7 @@ export function BillingSalaryOverviewPanel() {
                 >
                   Employee payouts
                 </Link>
-                . Auto-runs on the 4th (previous month).
+                . Auto-runs on the 4th from a closed/statutory UK run when eligible.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -526,7 +518,7 @@ export function BillingSalaryOverviewPanel() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] text-sm">
+            <table className="w-full min-w-[1400px] text-sm">
               <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                 <tr className="border-b border-border">
                   <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
@@ -553,6 +545,9 @@ export function BillingSalaryOverviewPanel() {
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Net salary
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    UK net
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     Bank paid
@@ -634,13 +629,24 @@ export function BillingSalaryOverviewPanel() {
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
                       {row.netSalaryAmount}
                     </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {row.hasEligibleUkRun ? (
+                        (row.ukNetPayAmount ?? '£0.00')
+                      ) : (
+                        <span className="text-xs text-muted-foreground">UK run required</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-success">
                       {row.paidOutAmountValue > 0 ? row.paidOutAmount : '—'}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
-                      {(row.outstandingPayoutAmountValue ?? 0) > 0
-                        ? row.outstandingPayoutAmount
-                        : '—'}
+                      {!row.hasEligibleUkRun ? (
+                        <span className="text-xs text-muted-foreground">UK run required</span>
+                      ) : (row.outstandingPayoutAmountValue ?? 0) > 0 ? (
+                        row.outstandingPayoutAmount
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       {canOpenEmployee ? (

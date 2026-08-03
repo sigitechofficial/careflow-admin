@@ -3,8 +3,10 @@ import {
   approveEmployeePayoutBatch,
   cancelEmployeePayoutBatch,
   createEmployeePayoutBatch,
+  deleteAllEmployeePayoutBatches,
   fetchEmployeePayoutBatch,
   fetchEmployeePayoutBatches,
+  fetchPayoutEligibleUkRuns,
   markEmployeePayoutBatchPaid,
 } from '@/features/billing/api/employee-payouts.api'
 import { billingKeys } from '@/features/billing/keys'
@@ -19,6 +21,14 @@ export function useEmployeePayoutBatches(
       fetchEmployeePayoutBatches(
         periodKey ? { periodKey } : undefined,
       ),
+    enabled,
+  })
+}
+
+export function usePayoutEligibleUkRuns(enabled = true) {
+  return useQuery({
+    queryKey: [...billingKeys.all, 'employee-payouts-eligible-uk-runs'] as const,
+    queryFn: fetchPayoutEligibleUkRuns,
     enabled,
   })
 }
@@ -38,6 +48,7 @@ export function useCreateEmployeePayoutBatch() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-payouts'] })
       void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-salaries'] })
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-earnings'] })
     },
   })
 }
@@ -80,6 +91,19 @@ export function useCancelEmployeePayoutBatch() {
         queryKey: billingKeys.employeePayoutBatch(data.id),
       })
       void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-salaries'] })
+    },
+  })
+}
+
+export function useDeleteAllEmployeePayoutBatches() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteAllEmployeePayoutBatches,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-payouts'] })
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-payout'] })
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-salaries'] })
+      void qc.invalidateQueries({ queryKey: [...billingKeys.all, 'employee-earnings'] })
     },
   })
 }

@@ -3,8 +3,10 @@ import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   Info,
+  Loader2,
   Plus,
   RotateCcw,
+  Trash2,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -14,6 +16,7 @@ import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHea
 import { PAYROLL_SECTION_GUIDANCE } from '@/features/payroll/data/payroll-section-guidance'
 import {
   useCreateUkPayrollRun,
+  useDeleteAllUkPayrollRuns,
   usePayrollPeriods,
   useReactivateUkPayrollRun,
   useUkPayrollRuns,
@@ -23,6 +26,15 @@ import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { Button } from '@/shared/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Dialog,
   DialogBody,
   DialogContent,
@@ -99,11 +111,14 @@ export default function UkPayrollRunsPage() {
   const { data = [], isLoading } = useUkPayrollRuns()
   const { data: periods = [] } = usePayrollPeriods()
   const createMut = useCreateUkPayrollRun()
+  const deleteAllMut = useDeleteAllUkPayrollRuns()
   const reactivateMut = useReactivateUkPayrollRun()
   const [open, setOpen] = React.useState(false)
   const [periodId, setPeriodId] = React.useState('')
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
 
   const openPeriods = periods.filter((p) => p.status === 'OPEN' || p.status === 'IN_RUN')
+  const closedPeriods = periods.filter((p) => p.status === 'CLOSED')
   const openRuns = data.filter(
     (r) =>
       r.status === 'DRAFT' ||
@@ -113,6 +128,14 @@ export default function UkPayrollRunsPage() {
   ).length
   const closedRuns = data.filter((r) => r.status === 'CLOSED').length
   const cancelledRuns = data.filter((r) => r.status === 'CANCELLED').length
+  const canCleanup =
+    canManage && (data.length > 0 || closedPeriods.length > 0 || periods.some((p) => p.status === 'IN_RUN'))
+
+  const handleDeleteAll = () => {
+    deleteAllMut.mutate(undefined, {
+      onSuccess: () => setDeleteOpen(false),
+    })
+  }
 
   return (
     <PayrollSectionLayout
@@ -183,10 +206,78 @@ export default function UkPayrollRunsPage() {
                 />
               </div>
               {canManage ? (
-                <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
-                  <Plus className="h-3.5 w-3.5" aria-hidden />
-                  Create run
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1.5"
+                        disabled={deleteAllMut.isPending || !canCleanup}
+                        data-testid="payroll-runs-delete-all"
+                      >
+                        {deleteAllMut.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        {data.length === 0 && closedPeriods.length > 0
+                          ? 'Reopen periods'
+                          : 'Delete all runs'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {data.length === 0
+                            ? 'Reopen closed pay periods?'
+                            : 'Delete all UK payroll runs?'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {data.length === 0 ? (
+                            <>
+                              No runs left, but {closedPeriods.length} period
+                              {closedPeriods.length === 1 ? ' is' : 's are'} still marked closed
+                              (e.g. August). This reopens them so they appear in Create run again.
+                            </>
+                          ) : (
+                            <>
+                              Permanently deletes all UK payroll runs ({data.length}), enrolled
+                              employees, and gross/tax calculations. Linked employee payout batches
+                              are also removed (Bank paid resets). Closed/in-run pay periods are
+                              reopened so you can create runs again. Tax years, schedules, and
+                              employee payroll profiles are kept.
+                            </>
+                          )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteAllMut.isPending}>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deleteAllMut.isPending}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            handleDeleteAll()
+                          }}
+                        >
+                          {deleteAllMut.isPending
+                            ? 'Working…'
+                            : data.length === 0
+                              ? 'Reopen periods'
+                              : 'Delete all runs'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
+                    <Plus className="h-3.5 w-3.5" aria-hidden />
+                    Create run
+                  </Button>
+                </div>
               ) : null}
             </div>
 
@@ -292,6 +383,13 @@ export default function UkPayrollRunsPage() {
                   </option>
                 ))}
               </select>
+              {openPeriods.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {closedPeriods.length > 0
+                    ? 'No open periods. Use Reopen periods first (closed after deleting runs).'
+                    : 'No open periods. Generate periods from UK Payroll schedules first.'}
+                </p>
+              ) : null}
             </label>
             {openPeriods.length === 0 ? (
               <p className="text-sm text-muted-foreground">

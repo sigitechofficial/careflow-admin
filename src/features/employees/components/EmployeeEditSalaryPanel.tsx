@@ -1,7 +1,6 @@
 import * as React from 'react'
 import {
   AlertCircle,
-  AlertTriangle,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -160,8 +159,8 @@ function formatVisitDate(iso: string): string {
 }
 
 function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (state === 'PAID') return 'Paid'
-  if (state === 'REMAINING') return 'Accepted'
+  if (state === 'PAID') return 'In visit-pay run'
+  if (state === 'REMAINING') return 'Ready for run'
   if (state === 'REJECTED') return 'Rejected'
   return 'Pending'
 }
@@ -383,7 +382,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
     <div className="space-y-6" data-testid="employee-edit-salary-panel">
       <ContentSectionHeader
         title="Salary"
-        description={`Net ${isWeekly ? 'weekly' : 'monthly'} salary = completed visit pay − fines − penalties. Visit pay is added when the visit is completed (pay card required). Edit amounts below to adjust.`}
+        description={`Visit-pay net for this ${isWeekly ? 'week' : 'month'} = completed visit pay − fines − penalties (not bank pay). Bank paid uses UK net after PAYE/NI — see Earnings or Billing → Employee payouts.`}
         icon={<Wallet className="h-5 w-5" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
@@ -470,7 +469,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
         </div>
       ) : data ? (
         <>
-          <div className={cn('grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6')}>
+          <div className={cn('grid gap-3 sm:grid-cols-3')}>
             <StatCard
               title="Visit pay"
               value={visitSalary}
@@ -479,44 +478,19 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
               iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             />
             <StatCard
-              title="Fines"
-              value={data.fineTotal ?? '£0.00'}
-              hint="Deducted from salary"
+              title="Deductions"
+              value={data.deductionsTotal ?? '£0.00'}
+              hint={`Fines ${data.fineTotal ?? '£0.00'} · Penalties ${data.penaltyTotal ?? '£0.00'}`}
               icon={<Gavel className="h-5 w-5" aria-hidden />}
               iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
             />
             <StatCard
-              title="Penalties"
-              value={data.penaltyTotal ?? '£0.00'}
-              hint="Deducted from salary"
-              icon={<Scale className="h-5 w-5" aria-hidden />}
-              iconClassName="bg-orange-500/10 text-orange-800 dark:text-orange-300"
-            />
-            <StatCard
-              title={`${periodLabel} net salary`}
+              title={`${periodLabel} net`}
               value={netSalary}
               hint="Visit pay − fines − penalties"
               emphasize
               icon={<Wallet className="h-5 w-5" aria-hidden />}
               iconClassName="bg-primary/10 text-primary"
-            />
-            <StatCard
-              title="Already paid"
-              value={data.totalEarned}
-              hint={`${data.paidVisitCount} in locked payroll`}
-              icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
-              iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
-            />
-            <StatCard
-              title="Pending review"
-              value={data.pendingReviewCount}
-              hint={
-                rejectedVisits.length
-                  ? `${rejectedVisits.length} rejected (excluded)`
-                  : 'Needs accept / reject'
-              }
-              icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
-              iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
             />
           </div>
 

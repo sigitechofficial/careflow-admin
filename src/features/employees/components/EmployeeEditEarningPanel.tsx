@@ -1,6 +1,7 @@
 import * as React from 'react'
 import {
   AlertCircle,
+  Banknote,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
@@ -9,21 +10,37 @@ import {
   History,
   Loader2,
   PoundSterling,
+  RotateCcw,
   Wallet,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
-import { useEmployeeEarnings } from '@/features/billing/hooks/usePayrollRuns'
+import {
+  useEmployeeEarnings,
+  useResetEmployeeEarnings,
+} from '@/features/billing/hooks/usePayrollRuns'
 import type { EmployeeEarningVisitRow } from '@/features/billing/api/payroll-runs.api'
 import {
   rangeForPreset,
   type EarningsPeriodPreset,
 } from '@/features/employees/utils/employee-earnings-period.util'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { Badge } from '@/shared/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/shared/ui/dialog'
 
 function formatVisitDate(iso: string): string {
   const d = new Date(iso)
@@ -37,13 +54,17 @@ function formatVisitDate(iso: string): string {
 }
 
 function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (state === 'PAID') return 'Paid'
-  if (state === 'REMAINING') return 'Remaining'
+  if (state === 'BANK_PAID') return 'Bank paid'
+  if (state === 'IN_UK_PAYROLL') return 'In UK payroll'
+  if (state === 'PAID') return 'In visit-pay run'
+  if (state === 'REMAINING') return 'Ready for payroll'
   if (state === 'REJECTED') return 'Rejected'
   return 'Pending'
 }
 
 function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']): string {
+  if (state === 'BANK_PAID') return 'bg-success/10 text-success border-success/20'
+  if (state === 'IN_UK_PAYROLL') return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300'
   if (state === 'PAID') return 'bg-success/10 text-success border-success/20'
   if (state === 'REMAINING') return 'bg-warning/10 text-warning border-warning/20'
   if (state === 'REJECTED') return 'bg-destructive/10 text-destructive border-destructive/20'
@@ -51,6 +72,8 @@ function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']):
 }
 
 function PaymentStateIcon({ state }: { state: EmployeeEarningVisitRow['paymentState'] }) {
+  if (state === 'BANK_PAID') return <Banknote className="h-3 w-3" aria-hidden />
+  if (state === 'IN_UK_PAYROLL') return <CheckCircle2 className="h-3 w-3" aria-hidden />
   if (state === 'PAID') return <CheckCircle2 className="h-3 w-3" aria-hidden />
   if (state === 'REMAINING') return <Clock className="h-3 w-3" aria-hidden />
   if (state === 'REJECTED') return <AlertCircle className="h-3 w-3" aria-hidden />
@@ -112,10 +135,18 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
   const canViewVisits = useAuthStore(s =>
     s.can('billing.visit_reconciliations.read' as never),
   )
+  const canViewPayouts = useAuthStore(s => s.can('billing.employee_payouts.read'))
+  const canResetEarnings = useAuthStore(
+    s =>
+      s.can('employees.update') ||
+      s.can('billing.payroll_runs.manage' as never) ||
+      s.can('billing.employee_payouts.manage'),
+  )
 
   const [preset, setPreset] = React.useState<EarningsPeriodPreset>('all')
   const [customFrom, setCustomFrom] = React.useState('')
   const [customTo, setCustomTo] = React.useState('')
+  const [resetOpen, setResetOpen] = React.useState(false)
 
   const filters = React.useMemo(() => {
     if (preset === 'custom') {
@@ -125,8 +156,36 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
   }, [preset, customFrom, customTo])
 
   const query = useEmployeeEarnings(employeeId, filters, canRead)
+  const resetEarnings = useResetEmployeeEarnings(employeeId)
   const data = query.data
   const visits = data?.visits ?? []
+
+  const handleResetEarnings = async () => {
+    try {
+      const result = await resetEarnings.mutateAsync()
+      const parts = [
+        result.deletedPayoutLines > 0
+          ? `${result.deletedPayoutLines} payout line${result.deletedPayoutLines === 1 ? '' : 's'}`
+          : null,
+        result.zeroedReadyVisits > 0
+          ? `${result.zeroedReadyVisits} ready visit${result.zeroedReadyVisits === 1 ? '' : 's'}`
+          : null,
+        result.removedUkRunEmployees > 0
+          ? `${result.removedUkRunEmployees} UK run row${result.removedUkRunEmployees === 1 ? '' : 's'}`
+          : null,
+        result.clearedDeductions > 0
+          ? `${result.clearedDeductions} deduction${result.clearedDeductions === 1 ? '' : 's'}`
+          : null,
+      ].filter(Boolean)
+      toastSuccess(
+        'Earnings reset to £0',
+        parts.length > 0 ? parts.join(' · ') : 'Nothing left to clear',
+      )
+      setResetOpen(false)
+    } catch (e) {
+      toastApiError(e, 'Could not reset earnings')
+    }
+  }
 
   if (!canRead) {
     return (
@@ -140,23 +199,84 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
     <div className="space-y-6" data-testid="employee-edit-earnings-panel">
       <ContentSectionHeader
         title="Earnings"
-        description="Payroll totals for this carer — paid visits from locked payroll runs, and visit pay accepted automatically when a visit is completed (while a pay card can price it)."
+        description="Visit-pay run progress for this carer. Bank paid / Outstanding are UK net after W1/M1 PAYE/NI — create payouts from Billing → Employee payouts once a statutory UK run exists."
         icon={<Wallet className="h-5 w-5" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
-          canViewVisits ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link
-                to="/billing/visit-reconciliation"
-                search={{ employeeId }}
-                data-testid="employee-earnings-view-all-visits"
-                className="inline-flex items-center gap-1.5"
-              >
-                View all visits
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            </Button>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {canResetEarnings ? (
+              <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={resetEarnings.isPending}
+                    data-testid="employee-earnings-reset"
+                  >
+                    {resetEarnings.isPending ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Reset to £0
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset all earnings to £0?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Clears <span className="font-medium text-foreground">Bank paid</span>,{' '}
+                      <span className="font-medium text-foreground">Ready for visit-pay</span>,{' '}
+                      <span className="font-medium text-foreground">UK net</span>, and{' '}
+                      <span className="font-medium text-foreground">Outstanding</span> for this
+                      employee: deletes payout lines, zeros unpaid visit amounts, removes them from
+                      UK payroll runs, and clears fines/penalties. Locked visit-pay run history is
+                      kept.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={resetEarnings.isPending}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={resetEarnings.isPending}
+                      onClick={e => {
+                        e.preventDefault()
+                        void handleResetEarnings()
+                      }}
+                    >
+                      {resetEarnings.isPending ? 'Resetting…' : 'Reset to £0'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
+            {canViewPayouts ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  to="/billing/employee-payouts"
+                  data-testid="employee-earnings-open-payouts"
+                  className="inline-flex items-center gap-1.5"
+                >
+                  Employee payouts
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </Button>
+            ) : null}
+            {canViewVisits ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  to="/billing/visit-reconciliation"
+                  search={{ employeeId }}
+                  data-testid="employee-earnings-view-all-visits"
+                  className="inline-flex items-center gap-1.5"
+                >
+                  View all visits
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -232,36 +352,74 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
         </div>
       ) : data ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <StatCard
-              title="Total earned"
+              title="In visit-pay run"
               value={data.totalEarned}
-              hint="From locked / exported payroll runs"
+              hint="From locked / exported visit-pay runs"
               icon={<PoundSterling className="h-5 w-5" aria-hidden />}
               iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             />
             <StatCard
-              title="Visits paid"
+              title="Visits in run"
               value={data.paidVisitCount}
               hint="Visits included in locked payroll"
               icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
               iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             />
             <StatCard
-              title="Remaining"
+              title="Ready for payroll"
               value={data.remainingAmount}
-              hint={`${data.remainingVisitCount} completed visit${data.remainingVisitCount === 1 ? '' : 's'} ready for payroll`}
+              hint={`${data.remainingVisitCount} completed visit${data.remainingVisitCount === 1 ? '' : 's'} not yet in UK payroll`}
               icon={<Clock className="h-5 w-5" aria-hidden />}
               iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
             />
             <StatCard
-              title="Pending review"
-              value={data.pendingReviewCount}
-              hint="Visits missing a pay card or pay rates"
-              icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+              title="UK net"
+              value={
+                data.hasEligibleUkRun
+                  ? (data.ukNetPayAmount ?? '£0.00')
+                  : '—'
+              }
+              hint={
+                data.hasEligibleUkRun
+                  ? 'After W1/M1 PAYE/NI'
+                  : 'Statutory UK run required'
+              }
+              icon={<PoundSterling className="h-5 w-5" aria-hidden />}
               iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
             />
+            <StatCard
+              title="Bank paid"
+              value={data.paidOutAmount ?? '£0.00'}
+              hint="UK net disbursed (PAID payout batches)"
+              icon={<Banknote className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+            />
+            <StatCard
+              title="Outstanding"
+              value={
+                data.hasEligibleUkRun
+                  ? (data.outstandingPayoutAmount ?? '£0.00')
+                  : '—'
+              }
+              hint={
+                data.hasEligibleUkRun
+                  ? 'UK net − committed payouts'
+                  : 'UK run required before bank payable'
+              }
+              icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+              iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
+            />
           </div>
+
+          {data.pendingReviewCount > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {data.pendingReviewCount} visit
+              {data.pendingReviewCount === 1 ? '' : 's'} pending review (missing pay card or
+              rates).
+            </p>
+          ) : null}
 
           <ContentCard className="space-y-4 p-4">
             <div className="flex items-start gap-2.5">
@@ -271,7 +429,8 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Visit earnings detail</h3>
                 <p className="text-xs text-muted-foreground">
-                  {visits.length} visit{visits.length === 1 ? '' : 's'} in the selected period
+                  {visits.length} visit{visits.length === 1 ? '' : 's'} in the selected period.
+                  Status reflects UK payroll / bank payout when the visit is on a UK run.
                 </p>
               </div>
             </div>
@@ -282,7 +441,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                   <Wallet className="h-5 w-5 text-muted-foreground" aria-hidden />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  No paid, remaining, or pending visits in this period.
+                  No visits in visit-pay run, ready for run, or pending in this period.
                 </p>
               </div>
             ) : (
@@ -318,10 +477,10 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                         </span>
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Payment
+                        Pay status
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Payroll period
+                        UK / pay period
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Recon status
@@ -364,7 +523,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground">
-                          {row.payrollPeriod ?? '—'}
+                          {row.ukPayrollRunLabel ?? row.payrollPeriod ?? '—'}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-muted-foreground">
                           {row.status.replace(/_/g, ' ')}

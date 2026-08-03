@@ -7,6 +7,7 @@ import {
   createPayrollSchedule,
   createPayrollTaxYear,
   createUkPayrollRun,
+  deleteAllUkPayrollRuns,
   enrolUkPayrollRun,
   calculateUkPayrollGross,
   calculateUkPayrollStatutory,
@@ -191,6 +192,28 @@ export function useUkPayrollRuns() {
   return useQuery({
     queryKey: payrollKeys.runs(),
     queryFn: fetchUkPayrollRuns,
+  })
+}
+
+export function useDeleteAllUkPayrollRuns() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteAllUkPayrollRuns,
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      await qc.invalidateQueries({ queryKey: ['billing'] })
+      toastSuccess(
+        'UK payroll runs deleted',
+        `${data.runs} run${data.runs === 1 ? '' : 's'}` +
+          (data.periodsReopened > 0
+            ? ` · ${data.periodsReopened} period${data.periodsReopened === 1 ? '' : 's'} reopened`
+            : '') +
+          (data.payoutBatches > 0
+            ? ` · ${data.payoutBatches} payout batch${data.payoutBatches === 1 ? '' : 'es'}`
+            : ''),
+      )
+    },
+    onError: (error) => toastApiError(error),
   })
 }
 

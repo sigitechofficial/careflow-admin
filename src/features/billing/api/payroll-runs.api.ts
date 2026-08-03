@@ -181,12 +181,20 @@ export type EmployeeEarningVisitRow = {
   payableMinutes: number | null
   payableHours: string | null
   status: string
-  paymentState: 'PAID' | 'REMAINING' | 'PENDING' | 'REJECTED'
+  paymentState:
+    | 'PAID'
+    | 'REMAINING'
+    | 'PENDING'
+    | 'REJECTED'
+    | 'BANK_PAID'
+    | 'IN_UK_PAYROLL'
   paid: boolean
   countsTowardSalary?: boolean
   payrollRunId: string | null
   payrollPeriod: string | null
   payrollRunStatus: string | null
+  ukPayrollRunId?: string | null
+  ukPayrollRunLabel?: string | null
 }
 
 export type EmployeeSalaryDeductionRow = {
@@ -225,6 +233,14 @@ export type EmployeeEarningsSummary = {
   remainingAmount: string
   remainingAmountValue: number
   pendingReviewCount: number
+  /** Bank payout of UK net (PAID batches) — not visit-pay run. */
+  paidOutAmount?: string
+  paidOutAmountValue?: number
+  outstandingPayoutAmount?: string
+  outstandingPayoutAmountValue?: number
+  ukNetPayAmount?: string
+  ukNetPayAmountValue?: number
+  hasEligibleUkRun?: boolean
   visits: EmployeeEarningVisitRow[]
 }
 
@@ -269,6 +285,9 @@ export type EmployeeSalaryOverviewRow = {
   deductionsTotalValue: number
   netSalaryAmount: string
   netSalaryAmountValue: number
+  ukNetPayAmount?: string
+  ukNetPayAmountValue?: number
+  hasEligibleUkRun?: boolean
   paidOutAmount: string
   paidOutAmountValue: number
   outstandingPayoutAmount: string
@@ -279,6 +298,7 @@ export type EmployeeSalariesOverview = {
   dateFrom: string | null
   dateTo: string | null
   periodKey: string | null
+  hasEligibleUkRun?: boolean
   currency: string
   employeeCount: number
   rows: EmployeeSalaryOverviewRow[]
@@ -322,4 +342,25 @@ export async function deleteEmployeeSalaryDeduction(
   await apiJson(`/billing/payroll-runs/employee/${employeeId}/salary-deductions/${deductionId}`, {
     method: 'DELETE',
   })
+}
+
+export type ResetEmployeeEarningsResult = {
+  deletedPayoutLines: number
+  deletedPayoutBatches: number
+  updatedPayoutBatches: number
+  clearedDeductions: number
+  zeroedReadyVisits: number
+  removedUkRunEmployees: number
+  updatedUkRuns: number
+}
+
+/** Test/ops: wipe Bank paid, ready visit pay, UK net / Outstanding for this employee. */
+export async function resetEmployeeEarnings(
+  employeeId: string,
+): Promise<ResetEmployeeEarningsResult> {
+  const res = await apiJson<ApiEnvelope<ResetEmployeeEarningsResult>>(
+    `/billing/payroll-runs/employee/${employeeId}/reset-earnings`,
+    { method: 'POST' },
+  )
+  return res.data
 }

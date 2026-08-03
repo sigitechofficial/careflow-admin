@@ -1,13 +1,16 @@
-import { Menu, Search, Sun, Moon, Monitor } from 'lucide-react'
+import { Menu, Sun, Moon, Monitor } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { UserAvatar } from '@/shared/ui/avatar'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { TopbarLocationSelect } from '@/components/layout/TopbarLocationSelect'
+import {
+  TopbarNavSearch,
+  TopbarNavSearchMobile,
+} from '@/components/layout/TopbarNavSearch'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,25 +64,12 @@ export function Topbar({ pageTitle, className, variant = 'admin' }: TopbarProps)
         </h1>
       )}
 
-      {/* Search */}
-      {!isPortal && (
-      <div className="hidden md:flex flex-1 max-w-sm">
-        <Input
-          placeholder="Search..."
-          leftElement={<Search className="h-3.5 w-3.5" />}
-          className="h-8 text-xs bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-input"
-        />
-      </div>
-      )}
+      {/* Search sidebar tabs / sub-tabs */}
+      {!isPortal && <TopbarNavSearch className="hidden md:block" />}
       {isPortal && <div className="flex-1" />}
 
       <div className="ml-auto flex items-center gap-1.5">
-        {/* Mobile search */}
-        {!isPortal && (
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Search className="h-4 w-4" />
-        </Button>
-        )}
+        {!isPortal && <TopbarNavSearchMobile />}
 
         {!isPortal ? <TopbarLocationSelect /> : null}
 

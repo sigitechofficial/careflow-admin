@@ -4,12 +4,14 @@ import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft,
   BadgePoundSterling,
+  Banknote,
   Calculator,
   CalendarRange,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Info,
+  Loader2,
   Receipt,
   RotateCcw,
   ShieldAlert,
@@ -29,8 +31,10 @@ import {
   useReactivateUkPayrollRun,
   useUkPayrollRun,
 } from '@/features/payroll/hooks/usePayroll'
+import { useCreateEmployeePayoutBatch } from '@/features/billing/hooks/useEmployeePayouts'
 import { useAuthStore } from '@/features/auth/store'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
@@ -89,6 +93,8 @@ function RunStatCard({
 export default function UkPayrollRunDetailPage() {
   const { runId } = useParams({ strict: false }) as { runId: string }
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
+  const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
+  const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
   const { data, isLoading, isError } = useUkPayrollRun(runId)
   const enrolMut = useEnrolUkPayrollRun(runId)
   const calculateMut = useCalculateUkPayrollGross(runId)
@@ -96,6 +102,7 @@ export default function UkPayrollRunDetailPage() {
   const closeMut = useCloseUkPayrollRun(runId)
   const cancelMut = useCancelUkPayrollRun(runId)
   const reactivateMut = useReactivateUkPayrollRun(runId)
+  const createPayout = useCreateEmployeePayoutBatch()
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
 
   const open =
@@ -114,6 +121,19 @@ export default function UkPayrollRunDetailPage() {
 
   const hasGross = Boolean(data?.grossCalculatedAt)
   const hasStatutory = Boolean(data?.statutoryCalculatedAt)
+  const canCreatePayoutFromRun =
+    canManagePayouts &&
+    (data?.status === 'STATUTORY_CALCULATED' || data?.status === 'CLOSED') &&
+    (data?.totalNetPay ?? 0) > 0
+
+  const handleCreatePayout = async () => {
+    try {
+      const detail = await createPayout.mutateAsync({ ukPayrollRunId: runId })
+      toastSuccess('Payout batch created', `${detail.lineCount} employees · ${detail.totalAmount}`)
+    } catch (e) {
+      toastApiError(e, 'Could not create payout from this run')
+    }
+  }
 
   return (
     <PayrollSectionLayout
@@ -169,12 +189,37 @@ export default function UkPayrollRunDetailPage() {
               </div>
             </div>
 
-            <Button asChild size="sm" variant="outline" className="gap-1.5">
-              <Link to={PAYROLL_PATHS.runs}>
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                Back to runs
-              </Link>
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {canCreatePayoutFromRun ? (
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={createPayout.isPending}
+                  onClick={() => void handleCreatePayout()}
+                  data-testid="payroll-run-create-payout"
+                >
+                  {createPayout.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Banknote className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  Create payout from this run
+                </Button>
+              ) : canReadPayouts && hasStatutory ? (
+                <Button asChild size="sm" variant="secondary" className="gap-1.5">
+                  <Link to="/billing/employee-payouts">
+                    <Banknote className="h-3.5 w-3.5" aria-hidden />
+                    Employee payouts
+                  </Link>
+                </Button>
+              ) : null}
+              <Button asChild size="sm" variant="outline" className="gap-1.5">
+                <Link to={PAYROLL_PATHS.runs}>
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                  Back to runs
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

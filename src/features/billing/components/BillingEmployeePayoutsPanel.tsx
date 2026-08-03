@@ -6,12 +6,15 @@ import {
   ChevronRight,
   Loader2,
   Plus,
+  Trash2,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateEmployeePayoutBatch,
+  useDeleteAllEmployeePayoutBatches,
   useEmployeePayoutBatches,
+  usePayoutEligibleUkRuns,
 } from '@/features/billing/hooks/useEmployeePayouts'
 import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
@@ -32,6 +35,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/shared/ui/dialog'
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
@@ -135,6 +149,8 @@ export function BillingEmployeePayoutsPanel() {
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | EmployeePayoutBatchStatus>('ALL')
   const [selectedBatch, setSelectedBatch] = React.useState<EmployeePayoutBatchRow | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [purgeOpen, setPurgeOpen] = React.useState(false)
+  const [selectedUkRunId, setSelectedUkRunId] = React.useState<string>('')
 
   React.useEffect(() => {
     setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())
@@ -142,7 +158,20 @@ export function BillingEmployeePayoutsPanel() {
 
   const queryPeriodKey = scope === 'period' ? period : undefined
   const batchesQuery = useEmployeePayoutBatches(queryPeriodKey, canRead)
+  const eligibleRunsQuery = usePayoutEligibleUkRuns(canManage)
   const createBatch = useCreateEmployeePayoutBatch()
+  const deleteAll = useDeleteAllEmployeePayoutBatches()
+
+  const eligibleRuns = eligibleRunsQuery.data ?? []
+
+  React.useEffect(() => {
+    if (!selectedUkRunId && eligibleRuns.length > 0) {
+      const match = eligibleRuns.find(r => r.periodKey === period) ?? eligibleRuns[0]
+      setSelectedUkRunId(match.id)
+    }
+  }, [eligibleRuns, period, selectedUkRunId])
+
+  const selectedUkRun = eligibleRuns.find(r => r.id === selectedUkRunId) ?? null
 
   const rows = React.useMemo(() => {
     let list = batchesQuery.data ?? []
@@ -162,14 +191,14 @@ export function BillingEmployeePayoutsPanel() {
     }
   }, [batchesQuery.data])
 
-  const hasOpenBatchForPeriod = React.useMemo(() => {
-    const list = batchesQuery.data ?? []
-    return list.some(
+  const hasOpenBatchForSelectedRun = React.useMemo(() => {
+    if (!selectedUkRunId) return false
+    return (batchesQuery.data ?? []).some(
       b =>
-        b.periodKey === period &&
+        b.ukPayrollRunId === selectedUkRunId &&
         (b.status === 'DRAFT' || b.status === 'APPROVED'),
     )
-  }, [batchesQuery.data, period])
+  }, [batchesQuery.data, selectedUkRunId])
 
   const money = (n: number) =>
     `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -186,13 +215,37 @@ export function BillingEmployeePayoutsPanel() {
   }
 
   const handleCreate = async () => {
+    if (!selectedUkRunId) {
+      toastApiError(new Error('Select a UK payroll run first'), 'Could not create payout batch')
+      return
+    }
     try {
-      const detail = await createBatch.mutateAsync({ periodKey: period })
+      const detail = await createBatch.mutateAsync({ ukPayrollRunId: selectedUkRunId })
       toastSuccess('Payout batch created', `${detail.lineCount} employees · ${detail.totalAmount}`)
-      setScope('period')
+      if (detail.periodKey) {
+        setScope('period')
+        setPeriod(detail.periodKey)
+      }
       openBatch(detail)
     } catch (e) {
       toastApiError(e, 'Could not create payout batch')
+    }
+  }
+
+  const handleDeleteAll = async (onlyCurrentPeriod: boolean) => {
+    try {
+      const result = await deleteAll.mutateAsync(
+        onlyCurrentPeriod ? { periodKey: period } : undefined,
+      )
+      toastSuccess(
+        'Payouts deleted',
+        `${result.deletedBatches} batch${result.deletedBatches === 1 ? '' : 'es'} removed`,
+      )
+      setPurgeOpen(false)
+      setDialogOpen(false)
+      setSelectedBatch(null)
+    } catch (e) {
+      toastApiError(e, 'Could not delete payouts')
     }
   }
 
@@ -211,27 +264,85 @@ export function BillingEmployeePayoutsPanel() {
         title="Employee payouts"
         titleClassName="sr-only"
         descriptionClassName="sr-only"
-        description="Bank payout batches for visit-pay net salaries."
+        description="Bank payout of UK Payroll net (after W1/M1 PAYE/NI)."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <Link to="/billing/salary">Open salary overview</Link>
             </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/payroll/runs">UK payroll runs</Link>
+            </Button>
             {canManage ? (
-              <Button
-                type="button"
-                size="sm"
-                disabled={createBatch.isPending || hasOpenBatchForPeriod}
-                onClick={() => void handleCreate()}
-                data-testid="billing-payouts-create-batch"
-              >
-                {createBatch.isPending ? (
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-3.5 w-3.5" />
-                )}
-                Create batch
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    createBatch.isPending ||
+                    !selectedUkRunId ||
+                    hasOpenBatchForSelectedRun
+                  }
+                  onClick={() => void handleCreate()}
+                  data-testid="billing-payouts-create-batch"
+                >
+                  {createBatch.isPending ? (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                  )}
+                  Create from UK run
+                </Button>
+                <AlertDialog open={purgeOpen} onOpenChange={setPurgeOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={deleteAll.isPending}
+                      data-testid="billing-payouts-delete-all"
+                    >
+                      {deleteAll.isPending ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Delete payouts
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete payout batches?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        For testing only. This permanently deletes payout batches and lines, and
+                        resets Bank paid / Outstanding on Salary. Visit reconciliations and
+                        visit-pay runs are not affected.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteAll.isPending}
+                        onClick={e => {
+                          e.preventDefault()
+                          void handleDeleteAll(false)
+                        }}
+                      >
+                        Delete all periods
+                      </AlertDialogAction>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={deleteAll.isPending}
+                        onClick={() => void handleDeleteAll(true)}
+                      >
+                        Delete {period} only
+                      </Button>
+                      <AlertDialogCancel disabled={deleteAll.isPending}>Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             ) : null}
           </div>
         }
@@ -283,12 +394,60 @@ export function BillingEmployeePayoutsPanel() {
         >
           All history
         </Button>
-        {scope === 'period' && hasOpenBatchForPeriod ? (
+        {scope === 'period' && hasOpenBatchForSelectedRun ? (
           <Badge variant="outline" className="ml-auto bg-warning/10 text-warning border-warning/20">
             Open batch in progress
           </Badge>
         ) : null}
       </div>
+
+      {canManage ? (
+        <ContentCard className="space-y-3 p-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Create payout from UK run</p>
+            <p className="text-xs text-muted-foreground">
+              Pays <span className="font-medium text-foreground">UK net pay</span> (after W1/M1
+              PAYE/NI). Runs must be statutory-calculated or closed. Purge any legacy visit-pay-net
+              payouts before relying on Bank paid.
+            </p>
+          </div>
+          {eligibleRunsQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading UK runs…
+            </div>
+          ) : eligibleRuns.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No eligible UK payroll runs. Calculate tax &amp; NI on a UK run first, then return
+              here.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="min-w-[18rem] flex-1 space-y-1 text-sm">
+                <span className="text-xs font-medium text-muted-foreground">UK payroll run</span>
+                <Select value={selectedUkRunId} onValueChange={setSelectedUkRunId}>
+                  <SelectTrigger data-testid="billing-payouts-uk-run-select">
+                    <SelectValue placeholder="Select UK run" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eligibleRuns.map(run => (
+                      <SelectItem key={run.id} value={run.id}>
+                        {run.label} · {run.totalNetPay} · {run.status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              {selectedUkRun ? (
+                <p className="text-xs text-muted-foreground pb-2">
+                  {selectedUkRun.periodStart} → {selectedUkRun.periodEnd} ·{' '}
+                  {selectedUkRun.employeeCount} employees
+                </p>
+              ) : null}
+            </div>
+          )}
+        </ContentCard>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ContentCard className="p-4">
@@ -395,11 +554,14 @@ export function BillingEmployeePayoutsPanel() {
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-muted/50">
                 <tr className="border-b border-border">
                   <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                     Period
+                  </th>
+                  <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                    UK run
                   </th>
                   <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                     Dates
@@ -429,6 +591,18 @@ export function BillingEmployeePayoutsPanel() {
                     data-testid={`billing-payout-history-row-${batch.id}`}
                   >
                     <td className="px-3 py-2.5 font-medium tabular-nums">{batch.periodKey}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-foreground">
+                          {batch.ukPayrollRunLabel ?? '—'}
+                        </span>
+                        {batch.ukPayrollRunStatus ? (
+                          <span className="text-xs text-muted-foreground">
+                            {batch.ukPayrollRunStatus}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {batch.periodStart} – {batch.periodEnd}
                     </td>

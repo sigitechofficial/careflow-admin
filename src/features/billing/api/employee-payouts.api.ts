@@ -8,6 +8,9 @@ export type EmployeePayoutBatchRow = {
   periodKey: string
   periodStart: string
   periodEnd: string
+  ukPayrollRunId: string | null
+  ukPayrollRunLabel: string | null
+  ukPayrollRunStatus: string | null
   status: EmployeePayoutBatchStatus
   currency: string
   totalAmount: string
@@ -22,6 +25,7 @@ export type EmployeePayoutLineRow = {
   employeeId: string
   employeeName: string
   employeeNumber: string | null
+  ukPayrollRunEmployeeId?: string
   amount: string
   amountValue: number
   status: EmployeePayoutLineStatus
@@ -38,14 +42,38 @@ export type EmployeePayoutBatchDetail = EmployeePayoutBatchRow & {
   lines: EmployeePayoutLineRow[]
 }
 
+export type PayoutEligibleUkRun = {
+  id: string
+  label: string
+  status: string
+  totalNetPay: string
+  totalNetPayValue: number
+  employeeCount: number
+  periodLabel: string
+  periodStart: string
+  periodEnd: string
+  periodKey: string
+  statutoryCalculatedAt: string | null
+}
+
 export async function fetchEmployeePayoutBatches(params?: {
   periodKey?: string
+  ukPayrollRunId?: string
 }): Promise<EmployeePayoutBatchRow[]> {
   const qs = new URLSearchParams()
   if (params?.periodKey) qs.set('periodKey', params.periodKey)
+  if (params?.ukPayrollRunId) qs.set('ukPayrollRunId', params.ukPayrollRunId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EmployeePayoutBatchRow[]>>(
     `/billing/employee-payouts${suffix}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function fetchPayoutEligibleUkRuns(): Promise<PayoutEligibleUkRun[]> {
+  const res = await apiJson<ApiEnvelope<PayoutEligibleUkRun[]>>(
+    '/billing/employee-payouts/eligible-uk-runs',
     { method: 'GET' },
   )
   return res.data
@@ -62,7 +90,7 @@ export async function fetchEmployeePayoutBatch(
 }
 
 export async function createEmployeePayoutBatch(body: {
-  periodKey: string
+  ukPayrollRunId: string
   notes?: string
 }): Promise<EmployeePayoutBatchDetail> {
   const res = await apiJson<ApiEnvelope<EmployeePayoutBatchDetail>>(
@@ -98,6 +126,19 @@ export async function cancelEmployeePayoutBatch(
   const res = await apiJson<ApiEnvelope<EmployeePayoutBatchDetail>>(
     `/billing/employee-payouts/${id}/cancel`,
     { method: 'POST' },
+  )
+  return res.data
+}
+
+export async function deleteAllEmployeePayoutBatches(params?: {
+  periodKey?: string
+}): Promise<{ deletedBatches: number }> {
+  const qs = new URLSearchParams()
+  if (params?.periodKey) qs.set('periodKey', params.periodKey)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<{ deletedBatches: number }>>(
+    `/billing/employee-payouts${suffix}`,
+    { method: 'DELETE' },
   )
   return res.data
 }
