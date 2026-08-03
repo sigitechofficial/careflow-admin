@@ -43,8 +43,6 @@ import {
   Receipt,
   Wallet,
   Banknote,
-  HandCoins,
-  ScrollText,
   CircleDollarSign,
   Radio,
   FileBarChart2,
@@ -441,19 +439,7 @@ const navItems: NavItem[] = [
         permission: 'billing.invoice_runs.read',
         navTestId: 'nav-billing-invoices',
       },
-      {
-        label: 'Payments',
-        icon: <HandCoins className="h-4 w-4" />,
-        href: '/billing/payments',
-        permission: 'billing.payments.read',
-        navTestId: 'nav-billing-payments',
-      },
-      {
-        label: 'Audit & export',
-        icon: <ScrollText className="h-4 w-4" />,
-        href: '/billing/audit-export',
-        navTestId: 'nav-billing-audit-export',
-      },
+      // Payments + Audit & export: hidden for now. Routes remain available by URL if needed.
     ],
   },
   {
