@@ -228,6 +228,86 @@ export function taxCodeSelectValue(stored: string | null | undefined): string {
   return UK_TAX_CODE_OTHER
 }
 
+/** England/NI/Wales PAYE rates used by Week 1 / Month 1 calc (matches backend snapshot). */
+export const UK_PAYE_RATES_2026_27 = {
+  basicRatePercent: 20,
+  higherRatePercent: 40,
+  additionalRatePercent: 45,
+  personalAllowanceAnnual: 12_570,
+} as const
+
+export type TaxCodeRateSummary = {
+  headline: string
+  detail: string
+  ratePercent: number | null
+}
+
+/**
+ * Human-readable tax treatment for an HMRC tax code (W1/M1, England bands).
+ * Used on employee payroll setup so carers see why tax can be £0 on small visit pay.
+ */
+export function summariseTaxCodeRates(taxCode: string | null | undefined): TaxCodeRateSummary {
+  const raw = (taxCode ?? '1257L').trim().toUpperCase().replace(/\s+/g, '') || '1257L'
+  const core = raw.replace(/^[SC]/, '')
+  const { basicRatePercent, higherRatePercent, additionalRatePercent, personalAllowanceAnnual } =
+    UK_PAYE_RATES_2026_27
+
+  if (core === 'NT') {
+    return {
+      headline: '0% — no Income Tax',
+      detail: 'NT codes deduct no PAYE.',
+      ratePercent: 0,
+    }
+  }
+  if (core === 'BR') {
+    return {
+      headline: `${basicRatePercent}% on all taxable pay`,
+      detail: 'BR has no personal allowance — basic rate on the whole period gross.',
+      ratePercent: basicRatePercent,
+    }
+  }
+  if (core === '0T') {
+    return {
+      headline: `${basicRatePercent}% after £0 free pay`,
+      detail: '0T has no personal allowance — pay is taxable from £0 at basic (then higher) rates.',
+      ratePercent: basicRatePercent,
+    }
+  }
+  if (core === 'D0') {
+    return {
+      headline: `${higherRatePercent}% on all taxable pay`,
+      detail: 'D0 taxes all taxable pay at the higher rate.',
+      ratePercent: higherRatePercent,
+    }
+  }
+  if (core === 'D1' || core === 'D2') {
+    return {
+      headline: `${additionalRatePercent}% on all taxable pay`,
+      detail: 'Additional-rate code on all taxable pay.',
+      ratePercent: additionalRatePercent,
+    }
+  }
+
+  const match = core.match(/^(\d+)([A-Z]*)$/)
+  const digits = match ? Number(match[1]) : 1257
+  const annualFree = Number.isFinite(digits) ? digits * 10 : personalAllowanceAnnual
+  const monthlyFree = Math.round((annualFree / 12) * 100) / 100
+
+  return {
+    headline: `${basicRatePercent}% after personal allowance`,
+    detail: `${raw}: ~£${annualFree.toLocaleString('en-GB')} free pay/year (~£${monthlyFree.toFixed(2)}/month on Month 1). Period gross below that free pay → £0 tax. Above it → ${basicRatePercent}% (then ${higherRatePercent}% / ${additionalRatePercent}%).`,
+    ratePercent: basicRatePercent,
+  }
+}
+
+export function summariseNiCategoryRate(category: string | null | undefined): string {
+  const c = (category ?? 'A').toUpperCase()
+  if (c === 'C' || c === 'S' || c === 'X' || c === 'K') return '0% employee NI'
+  if (c === 'B' || c === 'E' || c === 'I') return '1.85% employee NI (main band)'
+  if (c === 'J' || c === 'L' || c === 'Z' || c === 'D') return '2% employee NI (deferment / upper)'
+  return '8% employee NI (main band, cat. A)'
+}
+
 export function buildTaxCodeComboboxOptions(includeOther = true): ComboboxOption[] {
   const options: ComboboxOption[] = UK_TAX_CODE_OPTIONS.map((o) => ({
     value: o.value,

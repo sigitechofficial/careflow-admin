@@ -23,6 +23,8 @@ import { PAYROLL_SECTION_GUIDANCE } from '@/features/payroll/data/payroll-sectio
 import {
   buildNiCategoryComboboxOptions,
   buildTaxCodeComboboxOptions,
+  summariseNiCategoryRate,
+  summariseTaxCodeRates,
   taxCodeSelectValue,
   UK_TAX_CODE_OTHER,
 } from '@/features/payroll/data/uk-payroll-lookups'
@@ -146,6 +148,8 @@ export default function PayrollEmployeesPage() {
     taxCodeSelect === UK_TAX_CODE_OTHER
       ? customTaxCode.trim().toUpperCase()
       : taxCodeSelect
+  const taxRateSummary = summariseTaxCodeRates(resolvedTaxCode || '1257L')
+  const niRateSummary = summariseNiCategoryRate(niCategory)
 
   const syncedLoanFlags = syncLoanFlagsFromElections(deductionElections)
   const showPensionRef =
@@ -253,6 +257,7 @@ export default function PayrollEmployeesPage() {
                     <th className="py-2.5 pr-3 font-medium">Payroll no.</th>
                     <th className="py-2.5 pr-3 font-medium">Profile</th>
                     <th className="py-2.5 pr-3 font-medium">Tax code</th>
+                    <th className="py-2.5 pr-3 font-medium">Tax rate</th>
                     <th className="py-2.5 pr-3 font-medium">NI number</th>
                     <th className="py-2.5 pr-3 font-medium">NI category</th>
                     <th className="py-2.5 pr-3 font-medium">Agreement</th>
@@ -260,7 +265,9 @@ export default function PayrollEmployeesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEmployees.map((row) => (
+                  {filteredEmployees.map((row) => {
+                    const rate = summariseTaxCodeRates(row.profile?.taxCode)
+                    return (
                     <tr
                       key={row.employeeId}
                       className="border-b border-border/70 transition-colors hover:bg-muted/20"
@@ -283,6 +290,9 @@ export default function PayrollEmployeesPage() {
                       </td>
                       <td className="py-3 pr-3 font-medium tabular-nums">
                         {row.profile?.taxCode ?? '—'}
+                      </td>
+                      <td className="py-3 pr-3 text-xs text-muted-foreground">
+                        {row.profile?.taxCode ? rate.headline : '—'}
                       </td>
                       <td className="py-3 pr-3 tabular-nums text-muted-foreground">
                         {row.nationalInsuranceNo ?? '—'}
@@ -311,10 +321,11 @@ export default function PayrollEmployeesPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                   {filteredEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                      <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                         <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
                         {data.length === 0
                           ? 'No employees found.'
@@ -367,6 +378,21 @@ export default function PayrollEmployeesPage() {
                     Most carers use 1257L. Type to search England, Scotland, Wales, and special codes.
                   </p>
                 </label>
+                <div
+                  className="rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2.5 sm:col-span-2"
+                  data-testid="payroll-employee-tax-rate-summary"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-sky-800 dark:text-sky-200">
+                    Tax rate (Week 1 / Month 1)
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {taxRateSummary.headline}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{taxRateSummary.detail}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    NI: <span className="font-medium text-foreground">{niRateSummary}</span>
+                  </p>
+                </div>
                 {taxCodeSelect === UK_TAX_CODE_OTHER ? (
                   <label className="block space-y-1 text-sm sm:col-span-2">
                     <span>Enter HMRC tax code</span>
