@@ -11,6 +11,7 @@ import {
   ListChecks,
   Loader2,
   Pencil,
+  Percent,
   Plus,
   PoundSterling,
   Scale,
@@ -26,6 +27,12 @@ import {
 } from '@/features/billing/hooks/usePayrollRuns'
 import { useSetVisitPayableAmount } from '@/features/billing/hooks/useVisitReconciliations'
 import type { EmployeeEarningVisitRow } from '@/features/billing/api/payroll-runs.api'
+import {
+  summariseNiCategoryRate,
+  summariseTaxCodeRates,
+} from '@/features/payroll/data/uk-payroll-lookups'
+import { useEmployeePayrollProfile } from '@/features/payroll/hooks/usePayroll'
+import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import type { SalaryCalculationBasis } from '@/features/settings/types'
 import { Button } from '@/shared/ui/button'
@@ -238,6 +245,9 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
   const canViewRecon = useAuthStore(s =>
     s.can('billing.visit_reconciliations.read' as never),
   )
+  const canReadPayrollProfile = useAuthStore(s =>
+    s.can('payroll.employees.read' as never),
+  )
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const basis: SalaryCalculationBasis =
@@ -260,6 +270,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
   const periodNoun = isWeekly ? 'week' : 'month'
 
   const query = useEmployeeEarnings(employeeId, filters, canRead)
+  const payrollProfileQuery = useEmployeePayrollProfile(
+    employeeId,
+    canRead && canReadPayrollProfile,
+  )
   const createDeduction = useCreateEmployeeSalaryDeduction(employeeId)
   const deleteDeduction = useDeleteEmployeeSalaryDeduction(employeeId)
   const setPayableAmount = useSetVisitPayableAmount()
@@ -296,6 +310,13 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
       : '£0.00')
   const netSalary = data?.netSalaryAmount ?? visitSalary
   const salaryVisitCount = data?.salaryVisitCount ?? salaryVisits.length
+
+  const payrollProfile = payrollProfileQuery.data
+  const taxCodeRaw = payrollProfile?.taxCode?.trim() || null
+  const taxCode = taxCodeRaw || '1257L'
+  const taxRateSummary = summariseTaxCodeRates(taxCode)
+  const niCategory = payrollProfile?.niCategory ?? 'A'
+  const niRateSummary = summariseNiCategoryRate(niCategory)
 
   const resetForm = () => {
     setDeductionType('FINE')
@@ -493,6 +514,111 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
               iconClassName="bg-primary/10 text-primary"
             />
           </div>
+
+          {canReadPayrollProfile ? (
+            <ContentCard
+              className="space-y-3 border-sky-500/20 bg-sky-500/5 p-4"
+              data-testid="employee-salary-tax-summary"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-start gap-2.5">
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-800 dark:text-sky-200">
+                    <Percent className="h-4 w-4" aria-hidden />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      UK tax &amp; NI (Week 1 / Month 1)
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Applied when this carer is enrolled in a statutory UK payroll run — bank pay
+                      uses UK net after PAYE/NI, not visit-pay net above.
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    to={PAYROLL_PATHS.employees}
+                    data-testid="employee-salary-open-payroll-setup"
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    Payroll setup
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+
+              {payrollProfileQuery.isLoading ? (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Loading tax profile…
+                </p>
+              ) : payrollProfileQuery.isError ? (
+                <p className="text-sm text-destructive">Could not load payroll tax profile.</p>
+              ) : !payrollProfile ? (
+                <p className="text-sm text-muted-foreground">
+                  No UK payroll profile yet. Set tax code and NI category in{' '}
+                  <Link
+                    to={PAYROLL_PATHS.employees}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    UK Payroll → Employee setup
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-lg border border-border/80 bg-background/80 px-3 py-2.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Tax code
+                    </p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                      {taxCode}
+                      {!taxCodeRaw ? (
+                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                          (default)
+                        </span>
+                      ) : null}
+                      {payrollProfile.taxCodeWeek1Month1 ? (
+                        <span className="ml-1.5 text-xs font-medium text-sky-800 dark:text-sky-200">
+                          W1/M1
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/80 bg-background/80 px-3 py-2.5 sm:col-span-2 lg:col-span-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Tax rate
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {taxRateSummary.headline}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{taxRateSummary.detail}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/80 bg-background/80 px-3 py-2.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      NI category
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">{niCategory}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{niRateSummary}</p>
+                  </div>
+                  {data?.hasEligibleUkRun ? (
+                    <div className="rounded-lg border border-border/80 bg-background/80 px-3 py-2.5 sm:col-span-2 lg:col-span-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        UK net (this period)
+                      </p>
+                      <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                        {data.ukNetPayAmount ?? '£0.00'}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        After W1/M1 PAYE/NI from eligible statutory UK run(s). See Earnings for bank
+                        paid / outstanding.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </ContentCard>
+          ) : null}
 
           <ContentCard className="space-y-4 p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">

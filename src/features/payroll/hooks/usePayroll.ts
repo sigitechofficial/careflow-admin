@@ -12,6 +12,7 @@ import {
   calculateUkPayrollGross,
   calculateUkPayrollStatutory,
   ensureUkPayrollTaxYears,
+  fetchEmployeePayrollProfile,
   fetchPayrollEmployees,
   fetchPayrollOverview,
   fetchPayrollPeriods,
@@ -162,6 +163,14 @@ export function usePayrollEmployees() {
   })
 }
 
+export function useEmployeePayrollProfile(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: payrollKeys.profile(employeeId),
+    queryFn: () => fetchEmployeePayrollProfile(employeeId),
+    enabled: Boolean(employeeId) && enabled,
+  })
+}
+
 export function useUpsertEmployeePayrollProfile(employeeId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -169,6 +178,7 @@ export function useUpsertEmployeePayrollProfile(employeeId: string) {
       upsertEmployeePayrollProfile(employeeId, body),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: payrollKeys.employees() })
+      await qc.invalidateQueries({ queryKey: payrollKeys.profile(employeeId) })
       toastSuccess('Payroll profile saved')
     },
     onError: (error) => toastApiError(error),

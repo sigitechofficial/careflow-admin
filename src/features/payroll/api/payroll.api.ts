@@ -120,6 +120,13 @@ export async function fetchPayrollEmployees() {
   return res.data ?? []
 }
 
+export async function fetchEmployeePayrollProfile(employeeId: string) {
+  const res = await apiJson<ApiEnvelope<EmployeePayrollProfile | null>>(
+    `/payroll/employees/${employeeId}/profile`,
+  )
+  return res.data ?? null
+}
+
 export async function upsertEmployeePayrollProfile(
   employeeId: string,
   body: UpsertEmployeePayrollProfileInput,
