@@ -167,7 +167,7 @@ export function BillingEmployeePayoutsPanel() {
   React.useEffect(() => {
     if (!selectedUkRunId && eligibleRuns.length > 0) {
       const match = eligibleRuns.find(r => r.periodKey === period) ?? eligibleRuns[0]
-      setSelectedUkRunId(match.id)
+      if (match) setSelectedUkRunId(match.id)
     }
   }, [eligibleRuns, period, selectedUkRunId])
 
