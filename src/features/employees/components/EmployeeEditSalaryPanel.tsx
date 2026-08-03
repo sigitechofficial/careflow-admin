@@ -1,11 +1,13 @@
 import * as React from 'react'
 import {
   AlertCircle,
+  Banknote,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Clock,
   ExternalLink,
   Gavel,
   ListChecks,
@@ -166,22 +168,29 @@ function formatVisitDate(iso: string): string {
 }
 
 function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
+  if (state === 'BANK_PAID') return 'Bank paid'
+  if (state === 'IN_UK_PAYROLL') return 'In UK payroll'
   if (state === 'PAID') return 'In visit-pay run'
-  if (state === 'REMAINING') return 'Ready for run'
+  if (state === 'REMAINING') return 'Ready for payroll'
   if (state === 'REJECTED') return 'Rejected'
   return 'Pending'
 }
 
 function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']): string {
+  if (state === 'BANK_PAID') return 'bg-success/10 text-success border-success/20'
+  if (state === 'IN_UK_PAYROLL')
+    return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300'
   if (state === 'PAID') return 'bg-success/10 text-success border-success/20'
-  if (state === 'REMAINING') return 'bg-primary/10 text-primary border-primary/20'
+  if (state === 'REMAINING') return 'bg-warning/10 text-warning border-warning/20'
   if (state === 'REJECTED') return 'bg-destructive/10 text-destructive border-destructive/20'
-  return 'bg-warning/10 text-warning border-warning/20'
+  return 'bg-muted text-muted-foreground border-border'
 }
 
 function PaymentStateIcon({ state }: { state: EmployeeEarningVisitRow['paymentState'] }) {
+  if (state === 'BANK_PAID') return <Banknote className="h-3 w-3" aria-hidden />
+  if (state === 'IN_UK_PAYROLL') return <CheckCircle2 className="h-3 w-3" aria-hidden />
   if (state === 'PAID') return <CheckCircle2 className="h-3 w-3" aria-hidden />
-  if (state === 'REMAINING') return <CheckCircle2 className="h-3 w-3" aria-hidden />
+  if (state === 'REMAINING') return <Clock className="h-3 w-3" aria-hidden />
   if (state === 'REJECTED') return <AlertCircle className="h-3 w-3" aria-hidden />
   return <AlertCircle className="h-3 w-3" aria-hidden />
 }
@@ -298,7 +307,10 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
   const salaryVisits = visits.filter(
     v =>
       v.countsTowardSalary ??
-      (v.paymentState === 'PAID' || v.paymentState === 'REMAINING'),
+      (v.paymentState === 'PAID' ||
+        v.paymentState === 'REMAINING' ||
+        v.paymentState === 'BANK_PAID' ||
+        v.paymentState === 'IN_UK_PAYROLL'),
   )
   const pendingVisits = visits.filter(v => v.paymentState === 'PENDING')
   const rejectedVisits = visits.filter(v => v.paymentState === 'REJECTED')
@@ -793,10 +805,15 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                     {visits.map(row => {
                       const inSalary =
                         row.countsTowardSalary ??
-                        (row.paymentState === 'PAID' || row.paymentState === 'REMAINING')
+                        (row.paymentState === 'PAID' ||
+                          row.paymentState === 'REMAINING' ||
+                          row.paymentState === 'BANK_PAID' ||
+                          row.paymentState === 'IN_UK_PAYROLL')
                       const canEditAmount =
                         canEditVisitAmount &&
                         row.paymentState !== 'PAID' &&
+                        row.paymentState !== 'BANK_PAID' &&
+                        row.paymentState !== 'IN_UK_PAYROLL' &&
                         !row.payrollRunId
                       return (
                         <tr
