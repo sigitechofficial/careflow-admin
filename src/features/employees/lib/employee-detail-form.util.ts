@@ -84,6 +84,8 @@ type EmployeeDetailEmploymentApi = NonNullable<EmployeeDetail['employment']> & {
   baseLocation?: LookupRef
   location?: LookupRef
   baseLocations?: Array<{ location?: LookupRef }> | null
+  floorLocations?: Array<{ locationId?: string | null; location?: LookupRef }> | null
+  baseLocationIds?: string[] | null
 }
 
 function pickLookupId(scalar: string | null | undefined, relation: LookupRef): string {
@@ -91,6 +93,40 @@ function pickLookupId(scalar: string | null | undefined, relation: LookupRef): s
   if (fromScalar) return fromScalar
   const fromRel = typeof relation?.id === 'string' ? relation.id.trim() : ''
   return fromRel
+}
+
+/** Other branch ids for the employment form (excludes primary branch). */
+export function resolveOtherBranchLocationIds(
+  em: Pick<
+    EmployeeDetailEmploymentApi,
+    | 'locationId'
+    | 'location'
+    | 'baseLocationId'
+    | 'baseLocation'
+    | 'baseLocationIds'
+    | 'baseLocations'
+    | 'floorLocations'
+  >,
+): string[] {
+  const primaryId = pickLookupId(em.locationId, em.location)
+  const fromFloor =
+    em.floorLocations
+      ?.map((row) => pickLookupId(row.locationId, row.location))
+      .filter((id) => id.length > 0) ?? []
+  const fromJoin =
+    em.baseLocations
+      ?.map((row) => pickLookupId(null, row.location))
+      .filter((id) => id.length > 0) ?? []
+  const fromFlat = (em.baseLocationIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+  const legacy = pickLookupId(em.baseLocationId, em.baseLocation)
+
+  const combined = [
+    ...fromFloor,
+    ...fromJoin,
+    ...fromFlat,
+    ...(legacy ? [legacy] : []),
+  ]
+  return [...new Set(combined)].filter((id) => id !== primaryId)
 }
 
 function isoToDateInput(iso: string | null | undefined): string {
@@ -160,15 +196,7 @@ export function mapEmployeeDetailToFormValues(
         gradeId: pickLookupId(em.gradeId, em.grade),
         contractTypeId: pickLookupId(em.contractTypeId, em.contractType),
         travelPaymentTypeId: pickLookupId(em.travelPaymentTypeId, em.travelPaymentType),
-        baseLocationIds: (() => {
-          const fromJoin =
-            em.baseLocations
-              ?.map((row) => pickLookupId(null, row.location))
-              .filter((id) => id.length > 0) ?? []
-          if (fromJoin.length > 0) return [...new Set(fromJoin)]
-          const legacy = pickLookupId(em.baseLocationId, em.baseLocation)
-          return legacy ? [legacy] : []
-        })(),
+        baseLocationIds: resolveOtherBranchLocationIds(em),
         startDate: isoToDateInput(em.startDate ?? undefined),
         endDate: isoToDateInput(em.endDate ?? undefined),
         nationalInsuranceNo: em.nationalInsuranceNo ?? '',

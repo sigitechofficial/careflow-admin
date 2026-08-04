@@ -143,7 +143,14 @@ export type EmployeeDetail = {
     travelPaymentType?: { id: string; name: string } | null
     baseLocationId?: string | null
     baseLocation?: { id: string; name: string } | null
+    /** Extra branches (API join rows). Prefer `floorLocations` from GET employee. */
     baseLocations?: Array<{ location?: { id: string; name: string } | null }> | null
+    floorLocations?: Array<{
+      locationId?: string | null
+      location?: { id: string; name: string } | null
+    }> | null
+    /** Extra branch ids when already flattened by the API. */
+    baseLocationIds?: string[] | null
     locationId?: string | null
     location?: { id: string; name: string } | null
     startDate?: string | null
