@@ -23,6 +23,8 @@ type PayCardDetailsViewProps = {
   card: PayCard
   assignmentSource?: 'EXPLICIT' | 'MATCHED' | 'PREVIEW' | null
   matchedLevelLabel?: string | null
+  /** Why this card matches (or does not match) the current carer. */
+  matchReason?: string | null
   loading?: boolean
   showManageLink?: boolean
   groupRules?: boolean
@@ -126,6 +128,7 @@ export function PayCardDetailsView({
   card,
   assignmentSource,
   matchedLevelLabel,
+  matchReason,
   loading,
   showManageLink,
   groupRules = true,
@@ -163,6 +166,18 @@ export function PayCardDetailsView({
           ) : null}
         </div>
       </div>
+
+      {matchReason ? (
+        <div
+          className="rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2.5 text-sm"
+          data-testid="pay-card-match-reason"
+        >
+          <p className="text-xs font-medium uppercase tracking-wide text-sky-800 dark:text-sky-200">
+            Why this matches the carer
+          </p>
+          <p className="mt-1 text-foreground">{matchReason}</p>
+        </div>
+      ) : null}
 
       <dl className="grid gap-3 rounded-lg border border-border bg-muted/10 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div>

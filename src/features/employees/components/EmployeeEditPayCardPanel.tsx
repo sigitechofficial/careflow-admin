@@ -22,8 +22,10 @@ import {
   type PayCard,
 } from '@/features/billing/types/billing-cards.types'
 import {
+  explainPayCardMatch,
   isPayCardAssignableToEmployment,
   type EmploymentPayCardMatchInput,
+  type EmploymentPayCardMatchLabels,
 } from '@/features/billing/utils/pay-card-match.util'
 import { useEmployee } from '@/features/employees/hooks/useEmployees'
 import { usePatchEmploymentMutation } from '@/features/employees/hooks/useEmployeeMutations'
@@ -32,9 +34,18 @@ import { Combobox } from '@/shared/ui/combobox'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 
-function payCardOptionLabel(card: PayCard, incompatible = false): string {
+function payCardOptionLabel(
+  card: PayCard,
+  matchInput: EmploymentPayCardMatchInput | null,
+  labels: EmploymentPayCardMatchLabels | null,
+  incompatible = false,
+): string {
   const base = `${card.name} (${card.code}) · ${formatPayCardAssignmentDisplay(card)}`
-  return incompatible ? `${base} — does not match this carer` : base
+  if (incompatible || !matchInput) {
+    return incompatible ? `${base} — does not match this carer` : base
+  }
+  const explanation = explainPayCardMatch(matchInput, card, labels)
+  return `${base} — ${explanation.reason}`
 }
 
 function StatusChip({
@@ -80,6 +91,24 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
       isBankStaff: employment.isBankStaff ?? false,
     }
   }, [employeeId, employment])
+
+  const matchLabels = React.useMemo<EmploymentPayCardMatchLabels | null>(() => {
+    if (!employment) return null
+    return {
+      roleName: employment.role?.name ?? null,
+      locationName: employment.location?.name ?? null,
+      baseLocationName: employment.baseLocation?.name ?? null,
+      contractTypeName: employment.contractType?.name ?? null,
+    }
+  }, [employment])
+
+  const explainCard = React.useCallback(
+    (card: PayCard | null | undefined) => {
+      if (!card || !matchInput) return null
+      return explainPayCardMatch(matchInput, card, matchLabels)
+    },
+    [matchInput, matchLabels],
+  )
 
   const savedPayCard = employment?.defaultPayCard ?? null
   const savedPayCardId = employment?.defaultPayCardId ?? savedPayCard?.id ?? ''
@@ -127,7 +156,7 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
   const payCardOptions = React.useMemo(() => {
     const options = compatibleCards.map(card => ({
       value: card.id,
-      label: payCardOptionLabel(card),
+      label: payCardOptionLabel(card, matchInput, matchLabels),
     }))
     // Keep a currently selected incompatible card visible so it can be cleared.
     if (
@@ -137,7 +166,7 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
     ) {
       options.unshift({
         value: selectedPayCardId,
-        label: payCardOptionLabel(selectedCardMeta, true),
+        label: payCardOptionLabel(selectedCardMeta, matchInput, matchLabels, true),
       })
     } else if (selectedPayCardId && !options.some(o => o.value === selectedPayCardId)) {
       options.unshift({
@@ -146,7 +175,7 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
       })
     }
     return options
-  }, [compatibleCards, selectedPayCardId, selectedCardMeta])
+  }, [compatibleCards, selectedPayCardId, selectedCardMeta, matchInput, matchLabels])
 
   const resolved = resolveQuery.data
   const suggestedCard =
@@ -317,8 +346,9 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">Suggested pay card</p>
                 <p className="text-xs text-muted-foreground">
-                  Matched by {matchedLevelLabel?.toLowerCase() ?? 'criteria'}. Save below to assign
-                  explicitly, or apply the suggestion now.
+                  {explainCard(suggestedCard)?.reason ??
+                    `Matched by ${matchedLevelLabel?.toLowerCase() ?? 'criteria'}.`}{' '}
+                  Save below to assign explicitly, or apply the suggestion now.
                 </p>
                 <p className="pt-1 font-medium text-foreground">{suggestedCard.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -340,6 +370,7 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
           card={attachedCard}
           assignmentSource={savedPayCardId ? 'EXPLICIT' : resolved?.source === 'MATCHED' ? 'MATCHED' : null}
           matchedLevelLabel={matchedLevelLabel}
+          matchReason={explainCard(attachedCard)?.reason}
           loading={Boolean(savedPayCardId) && attachedPayCardQuery.isLoading}
           showManageLink={canManageBilling}
         />
@@ -350,6 +381,7 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
           card={suggestedCard}
           assignmentSource="MATCHED"
           matchedLevelLabel={matchedLevelLabel}
+          matchReason={explainCard(suggestedCard)?.reason}
           showManageLink={canManageBilling}
         />
       ) : null}
@@ -414,6 +446,7 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
               <PayCardDetailsView
                 card={previewCard}
                 assignmentSource="PREVIEW"
+                matchReason={explainCard(previewCard)?.reason}
                 loading={previewPayCardQuery.isLoading}
                 showManageLink={canManageBilling}
               />
