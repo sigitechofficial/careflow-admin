@@ -167,6 +167,7 @@ export type EmployeeDetail = {
     weeklyHoursCapOverrideExpiresAt?: string | null
     optedOutOf48Hours?: boolean | null
     isAgencyStaff?: boolean | null
+    isBankStaff?: boolean | null
     agencyName?: string | null
     agencyRating?: string | null
     isPreferredAgency?: boolean | null
