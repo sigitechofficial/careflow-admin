@@ -26,6 +26,7 @@ import type { SalaryCalculationBasis } from '@/features/settings/types'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
+import { StatCard, type StatCardTone } from '@/shared/ui/card'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 
@@ -387,30 +388,14 @@ export function BillingSalaryOverviewPanel() {
             },
           ] as const
         ).map(card => (
-          <ContentCard key={card.title} className="p-4">
-            <div className="flex items-start gap-3">
-              <div
-                className={cn(
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                  card.tone === 'sky' && 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-                  card.tone === 'emerald' &&
-                    'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-                  card.tone === 'amber' && 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-                  card.tone === 'violet' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-                  card.tone === 'rose' && 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-                )}
-              >
-                {card.icon}
-              </div>
-              <div className="min-w-0 space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">{card.title}</p>
-                <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground">
-                  {card.value}
-                </p>
-                <p className="text-xs text-muted-foreground">{card.hint}</p>
-              </div>
-            </div>
-          </ContentCard>
+          <StatCard
+            key={card.title}
+            label={card.title}
+            value={card.value}
+            hint={card.hint}
+            icon={card.icon}
+            tone={card.tone as StatCardTone}
+          />
         ))}
       </div>
 

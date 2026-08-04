@@ -21,6 +21,10 @@ import {
   formatPayCardAssignmentDisplay,
   type PayCard,
 } from '@/features/billing/types/billing-cards.types'
+import {
+  isPayCardAssignableToEmployment,
+  type EmploymentPayCardMatchInput,
+} from '@/features/billing/utils/pay-card-match.util'
 import { useEmployee } from '@/features/employees/hooks/useEmployees'
 import { usePatchEmploymentMutation } from '@/features/employees/hooks/useEmployeeMutations'
 import { Button } from '@/shared/ui/button'
@@ -28,8 +32,9 @@ import { Combobox } from '@/shared/ui/combobox'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 
-function payCardOptionLabel(card: PayCard): string {
-  return `${card.name} (${card.code})`
+function payCardOptionLabel(card: PayCard, incompatible = false): string {
+  const base = `${card.name} (${card.code}) · ${formatPayCardAssignmentDisplay(card)}`
+  return incompatible ? `${base} — does not match this carer` : base
 }
 
 function StatusChip({
@@ -62,9 +67,22 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
   const resolveQuery = useResolveEmployeePayCard(employeeId)
   const patchEmploymentMutation = usePatchEmploymentMutation()
 
-  const savedPayCard = employeeQuery.data?.employment?.defaultPayCard ?? null
-  const savedPayCardId =
-    employeeQuery.data?.employment?.defaultPayCardId ?? savedPayCard?.id ?? ''
+  const employment = employeeQuery.data?.employment
+  const matchInput = React.useMemo<EmploymentPayCardMatchInput | null>(() => {
+    if (!employment) return null
+    return {
+      employeeId,
+      roleId: employment.roleId ?? null,
+      locationId: employment.locationId ?? null,
+      baseLocationId: employment.baseLocationId ?? null,
+      contractTypeId: employment.contractTypeId ?? null,
+      isAgencyStaff: employment.isAgencyStaff ?? false,
+      isBankStaff: employment.isBankStaff ?? false,
+    }
+  }, [employeeId, employment])
+
+  const savedPayCard = employment?.defaultPayCard ?? null
+  const savedPayCardId = employment?.defaultPayCardId ?? savedPayCard?.id ?? ''
 
   const [selectedPayCardId, setSelectedPayCardId] = React.useState('')
   const [dirty, setDirty] = React.useState(false)
@@ -80,20 +98,55 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
     Boolean(dirty && selectedPayCardId && selectedPayCardId !== savedPayCardId),
   )
 
-  const payCardOptions = React.useMemo(() => {
+  const compatibleCards = React.useMemo(() => {
     const cards = payCardsQuery.data ?? []
-    const options = cards.map(card => ({
+    if (!matchInput) return []
+    return cards.filter(card => isPayCardAssignableToEmployment(card, matchInput))
+  }, [payCardsQuery.data, matchInput])
+
+  const selectedCardMeta = React.useMemo(() => {
+    const fromList = (payCardsQuery.data ?? []).find(c => c.id === selectedPayCardId)
+    if (fromList) return fromList
+    if (selectedPayCardId && savedPayCard?.id === selectedPayCardId) {
+      return savedPayCard as PayCard
+    }
+    return null
+  }, [payCardsQuery.data, selectedPayCardId, savedPayCard])
+
+  const selectedIsCompatible =
+    !selectedPayCardId ||
+    (selectedCardMeta
+      ? isPayCardAssignableToEmployment(selectedCardMeta, matchInput)
+      : false)
+
+  const savedIsIncompatible =
+    Boolean(savedPayCardId) &&
+    Boolean(attachedPayCardQuery.data) &&
+    !isPayCardAssignableToEmployment(attachedPayCardQuery.data!, matchInput)
+
+  const payCardOptions = React.useMemo(() => {
+    const options = compatibleCards.map(card => ({
       value: card.id,
       label: payCardOptionLabel(card),
     }))
-    if (selectedPayCardId && !options.some(o => o.value === selectedPayCardId)) {
-      const label = savedPayCard
-        ? payCardOptionLabel(savedPayCard as PayCard)
-        : '(saved pay card)'
-      return [{ value: selectedPayCardId, label }, ...options]
+    // Keep a currently selected incompatible card visible so it can be cleared.
+    if (
+      selectedPayCardId &&
+      !options.some(o => o.value === selectedPayCardId) &&
+      selectedCardMeta
+    ) {
+      options.unshift({
+        value: selectedPayCardId,
+        label: payCardOptionLabel(selectedCardMeta, true),
+      })
+    } else if (selectedPayCardId && !options.some(o => o.value === selectedPayCardId)) {
+      options.unshift({
+        value: selectedPayCardId,
+        label: '(saved pay card — does not match this carer)',
+      })
     }
     return options
-  }, [payCardsQuery.data, selectedPayCardId, savedPayCard])
+  }, [compatibleCards, selectedPayCardId, selectedCardMeta])
 
   const resolved = resolveQuery.data
   const suggestedCard =
@@ -137,6 +190,15 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
 
   const onSave = async () => {
     if (!canUpdate) return
+    if (selectedPayCardId && !selectedIsCompatible) {
+      toastApiError(
+        new Error(
+          'Selected pay card does not match this carer’s branch, role, or employment details.',
+        ),
+        'Could not save pay card assignment.',
+      )
+      return
+    }
     try {
       await patchEmploymentMutation.mutateAsync({
         employeeId,
@@ -155,11 +217,14 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
     setDirty(suggestedCard.id !== savedPayCardId)
   }
 
+  const branchLabel =
+    employment?.location?.name ?? employment?.baseLocation?.name ?? null
+
   return (
     <div className="space-y-6" data-testid="employee-pay-card-panel">
       <ContentSectionHeader
         title="Pay card"
-        description="Default pay rate card for this carer. Payroll uses these rules when calculating visit pay. Bulk-assign from Billing → Pay cards, or override here for an individual carer."
+        description="Default pay rate card for this carer. Only cards that match this carer’s branch, role, employment type, or worker type can be assigned. Bulk-assign from Billing → Pay cards, or override here."
         icon={<CreditCard className="h-5 w-5" aria-hidden />}
         iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
         action={
@@ -189,6 +254,23 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
           {error}
+        </div>
+      ) : null}
+
+      {!loading && (savedIsIncompatible || (dirty && selectedPayCardId && !selectedIsCompatible)) ? (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-950 dark:text-amber-100"
+          data-testid="employee-pay-card-mismatch-warning"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <div className="space-y-1">
+            <p className="font-medium">Pay card does not match this carer</p>
+            <p className="text-xs opacity-90">
+              {branchLabel
+                ? `This carer’s branch is ${branchLabel}. Choose a card for that branch (or organisation default / matching role), or clear the selection.`
+                : 'Choose a card that matches this carer’s branch, role, or employment type, or clear the selection.'}
+            </p>
+          </div>
         </div>
       ) : null}
 
@@ -293,7 +375,9 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
             <div>
               <h3 className="text-sm font-semibold text-foreground">Assign or change card</h3>
               <p className="text-xs text-muted-foreground">
-                Override the default for this carer. Clear the selection to remove an explicit assignment.
+                Only cards matching this carer
+                {branchLabel ? ` (branch: ${branchLabel})` : ''} are listed. Clear the selection to
+                remove an explicit assignment.
               </p>
             </div>
           </div>
@@ -311,7 +395,11 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
                 setSelectedPayCardId(value)
                 setDirty(value !== savedPayCardId)
               }}
-              placeholder="Select pay card"
+              placeholder={
+                compatibleCards.length === 0
+                  ? 'No matching pay cards'
+                  : 'Select matching pay card'
+              }
               disabled={!canUpdate || patchEmploymentMutation.isPending}
               allowDeselect
             />
@@ -338,7 +426,11 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
                 type="button"
                 leftIcon={<Save className="h-4 w-4" />}
                 onClick={() => void onSave()}
-                disabled={!dirty || patchEmploymentMutation.isPending}
+                disabled={
+                  !dirty ||
+                  patchEmploymentMutation.isPending ||
+                  Boolean(selectedPayCardId && !selectedIsCompatible)
+                }
                 data-testid="employee-pay-card-save"
               >
                 {patchEmploymentMutation.isPending ? 'Saving…' : 'Save pay card'}

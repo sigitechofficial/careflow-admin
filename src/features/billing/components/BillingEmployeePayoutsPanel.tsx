@@ -27,6 +27,7 @@ import type { SalaryCalculationBasis } from '@/features/settings/types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { StatCard } from '@/shared/ui/card'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import {
   Select,
@@ -450,58 +451,35 @@ export function BillingEmployeePayoutsPanel() {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <ContentCard className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300">
-              <Banknote className="h-4 w-4" aria-hidden />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Batches</p>
-              <p className="text-xl font-semibold tabular-nums">{totals.batches}</p>
-              <p className="text-xs text-muted-foreground">
-                {scope === 'all' ? 'All periods' : period}
-              </p>
-            </div>
-          </div>
-        </ContentCard>
-        <ContentCard className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-              <Banknote className="h-4 w-4" aria-hidden />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Bank paid</p>
-              <p className="text-xl font-semibold tabular-nums text-success">
-                {money(totals.paid)}
-              </p>
-              <p className="text-xs text-muted-foreground">PAID batches</p>
-            </div>
-          </div>
-        </ContentCard>
-        <ContentCard className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
-              <Banknote className="h-4 w-4" aria-hidden />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Open</p>
-              <p className="text-xl font-semibold tabular-nums">{totals.open}</p>
-              <p className="text-xs text-muted-foreground">Draft or approved</p>
-            </div>
-          </div>
-        </ContentCard>
-        <ContentCard className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <Banknote className="h-4 w-4" aria-hidden />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Cancelled</p>
-              <p className="text-xl font-semibold tabular-nums">{totals.cancelled}</p>
-              <p className="text-xs text-muted-foreground">Not paid</p>
-            </div>
-          </div>
-        </ContentCard>
+        <StatCard
+          label="Batches"
+          value={totals.batches}
+          hint={scope === 'all' ? 'All periods' : period}
+          icon={<Banknote className="h-5 w-5" aria-hidden />}
+          tone="violet"
+        />
+        <StatCard
+          label="Bank paid"
+          value={money(totals.paid)}
+          hint="PAID batches"
+          icon={<Banknote className="h-5 w-5" aria-hidden />}
+          tone="emerald"
+          valueClassName="text-success"
+        />
+        <StatCard
+          label="Open"
+          value={totals.open}
+          hint="Draft or approved"
+          icon={<Banknote className="h-5 w-5" aria-hidden />}
+          tone="amber"
+        />
+        <StatCard
+          label="Cancelled"
+          value={totals.cancelled}
+          hint="Not paid"
+          icon={<Banknote className="h-5 w-5" aria-hidden />}
+          tone="muted"
+        />
       </div>
 
       <ContentCard className="space-y-3 p-4">

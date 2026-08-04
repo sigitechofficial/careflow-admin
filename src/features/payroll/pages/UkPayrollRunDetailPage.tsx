@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft,
   BadgePoundSterling,
@@ -37,6 +36,7 @@ import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { StatCard } from '@/shared/ui/card'
 import { cn } from '@/shared/lib/utils'
 
 function formatGbp(amount: number) {
@@ -44,50 +44,6 @@ function formatGbp(amount: number) {
     style: 'currency',
     currency: 'GBP',
   }).format(amount)
-}
-
-const STAT_TONES = {
-  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-  violet: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-  rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-} as const
-
-function RunStatCard({
-  label,
-  value,
-  icon: Icon,
-  tone,
-  muted,
-}: {
-  label: string
-  value: string
-  icon: LucideIcon
-  tone: keyof typeof STAT_TONES
-  muted?: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        'rounded-xl border border-border bg-card p-4 shadow-sm',
-        muted && 'opacity-70',
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <span
-          className={cn(
-            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-            STAT_TONES[tone],
-          )}
-        >
-          <Icon className="h-4 w-4" aria-hidden />
-        </span>
-      </div>
-      <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
-    </div>
-  )
 }
 
 export default function UkPayrollRunDetailPage() {
@@ -223,37 +179,43 @@ export default function UkPayrollRunDetailPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <RunStatCard
+            <StatCard
               label="Employees"
               value={String(data.employeeCount)}
-              icon={Users}
+              icon={<Users className="h-5 w-5" aria-hidden />}
               tone="violet"
             />
-            <RunStatCard
+            <StatCard
               label="Gross"
               value={hasGross ? formatGbp(data.totalGross) : '—'}
-              icon={BadgePoundSterling}
+              icon={<BadgePoundSterling className="h-5 w-5" aria-hidden />}
               tone="sky"
               muted={!hasGross}
             />
-            <RunStatCard
+            <StatCard
               label="Income tax"
               value={hasStatutory ? formatGbp(data.totalIncomeTax) : '—'}
-              icon={Calculator}
+              icon={<Calculator className="h-5 w-5" aria-hidden />}
               tone="amber"
               muted={!hasStatutory}
             />
-            <RunStatCard
+            <StatCard
               label="Employee NI"
               value={hasStatutory ? formatGbp(data.totalEmployeeNi) : '—'}
-              icon={ShieldAlert}
+              icon={<ShieldAlert className="h-5 w-5" aria-hidden />}
               tone="rose"
               muted={!hasStatutory}
             />
-            <RunStatCard
+            <StatCard
               label="Net pay"
-              value={hasStatutory ? formatGbp(data.totalNetPay) : hasGross ? formatGbp(data.totalGross) : '—'}
-              icon={Wallet}
+              value={
+                hasStatutory
+                  ? formatGbp(data.totalNetPay)
+                  : hasGross
+                    ? formatGbp(data.totalGross)
+                    : '—'
+              }
+              icon={<Wallet className="h-5 w-5" aria-hidden />}
               tone="emerald"
               muted={!hasGross && !hasStatutory}
             />

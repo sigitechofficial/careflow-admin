@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
 import {
-  Info,
   Loader2,
   Plus,
   RotateCcw,
@@ -24,7 +22,8 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { Button } from '@/shared/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { StatCard } from '@/shared/ui/card'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,62 +41,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
-import { cn } from '@/shared/lib/utils'
-
-const STAT_TONES = {
-  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-  rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-} as const
-
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  tone,
-  purpose,
-}: {
-  label: string
-  value: number
-  icon: LucideIcon
-  tone: keyof typeof STAT_TONES
-  purpose: string
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex shrink-0 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`About ${label}`}
-              >
-                <Info className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="z-[110] max-w-sm text-left text-xs leading-snug">
-              <p className="mb-1 font-medium text-popover-foreground">Purpose</p>
-              <p>{purpose}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <span
-          className={cn(
-            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-            STAT_TONES[tone],
-          )}
-        >
-          <Icon className="h-4 w-4" aria-hidden />
-        </span>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-    </div>
-  )
-}
 
 function formatGbp(amount: number) {
   return new Intl.NumberFormat('en-GB', {
@@ -162,33 +105,33 @@ export default function UkPayrollRunsPage() {
 
           {!isLoading ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <SummaryCard
+              <StatCard
                 label="Total runs"
                 value={data.length}
-                icon={Wallet}
+                icon={<Wallet className="h-5 w-5" aria-hidden />}
                 tone="sky"
-                purpose={PAYROLL_SECTION_GUIDANCE.runs.purpose}
+                tooltip={PAYROLL_SECTION_GUIDANCE.runs.purpose}
               />
-              <SummaryCard
+              <StatCard
                 label="Open"
                 value={openRuns}
-                icon={Users}
+                icon={<Users className="h-5 w-5" aria-hidden />}
                 tone="emerald"
-                purpose="Runs still in progress (draft through statutory calculated). Open a run to enrol, calculate, or close."
+                tooltip="Runs still in progress (draft through statutory calculated). Open a run to enrol, calculate, or close."
               />
-              <SummaryCard
+              <StatCard
                 label="Closed"
                 value={closedRuns}
-                icon={Wallet}
+                icon={<Wallet className="h-5 w-5" aria-hidden />}
                 tone="amber"
-                purpose="Finished runs. Use Reactivate to reopen for recalculation if no other open run exists for that period."
+                tooltip="Finished runs. Use Reactivate to reopen for recalculation if no other open run exists for that period."
               />
-              <SummaryCard
+              <StatCard
                 label="Cancelled"
                 value={cancelledRuns}
-                icon={RotateCcw}
+                icon={<RotateCcw className="h-5 w-5" aria-hidden />}
                 tone="rose"
-                purpose="Cancelled runs. Reactivate restores the prior working status so you can continue payroll for that period."
+                tooltip="Cancelled runs. Reactivate restores the prior working status so you can continue payroll for that period."
               />
             </div>
           ) : null}

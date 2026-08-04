@@ -15,7 +15,7 @@ import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { cn } from '@/shared/lib/utils'
+import { StatCard, type StatCardTone } from '@/shared/ui/card'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -34,15 +34,7 @@ type OverviewCard = {
   value: number
   href: string
   icon: React.ReactNode
-  tone: 'sky' | 'emerald' | 'amber' | 'violet' | 'rose'
-}
-
-const TONE_CLASS: Record<OverviewCard['tone'], string> = {
-  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-  violet: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-  rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  tone: StatCardTone
 }
 
 export default function PayrollOverviewPage() {
@@ -137,33 +129,15 @@ export default function PayrollOverviewPage() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {cards.map((card) => (
-              <Link
+              <StatCard
                 key={card.label}
+                label={card.label}
+                value={card.value}
+                hint={card.hint}
+                icon={card.icon}
+                tone={card.tone}
                 to={card.href}
-                className="group rounded-xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/30"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-                      TONE_CLASS[card.tone],
-                    )}
-                  >
-                    {card.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-2xl font-semibold tabular-nums tracking-tight">
-                      {card.value}
-                    </div>
-                    <div className="mt-0.5 text-sm font-medium text-foreground">{card.label}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">{card.hint}</div>
-                  </div>
-                  <ArrowRight
-                    className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                    aria-hidden
-                  />
-                </div>
-              </Link>
+              />
             ))}
           </div>
 

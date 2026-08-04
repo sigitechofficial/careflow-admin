@@ -654,32 +654,35 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Stat Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <ShowSection title="Stat Cards" description="KPI metric cards for dashboard overviews.">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* ── Stat Cards ─────────────────────────────────────────────────── */}
+        <ShowSection
+          title="Stat Cards"
+          description="Shared KPI card — icon on the left, label/value/hint on the right. Used across payroll and billing. Change this component once to update every page."
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
             <StatCard
               label="Service Users"
               value="247"
               change="+12 this month"
               changeType="positive"
               icon={<User className="h-5 w-5" />}
-              iconColor="bg-primary/10 text-primary"
+              tone="primary"
             />
             <StatCard
               label="Active Staff"
               value="84"
               change="+3 this week"
               changeType="positive"
-              icon={<UserAvatar name="S" size="xs" />}
-              iconColor="bg-success/10 text-success"
+              icon={<User className="h-5 w-5" />}
+              tone="success"
             />
             <StatCard
               label="Open Shifts"
               value="9"
-              change="2 urgent"
-              changeType="negative"
+              hint="2 urgent"
               icon={<Calendar className="h-5 w-5" />}
-              iconColor="bg-warning/10 text-warning"
+              tone="warning"
+              tooltip="Shifts still needing a carer assignment for the coming week."
             />
             <StatCard
               label="Incidents (MTD)"
@@ -687,7 +690,9 @@ export default function ComponentShowcase() {
               change="-2 vs last month"
               changeType="positive"
               icon={<AlertCircle className="h-5 w-5" />}
-              iconColor="bg-destructive/10 text-destructive"
+              tone="destructive"
+              to="/showcase"
+              showChevron
             />
           </div>
         </ShowSection>

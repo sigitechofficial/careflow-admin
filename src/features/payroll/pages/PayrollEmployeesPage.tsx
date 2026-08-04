@@ -1,5 +1,4 @@
 import * as React from 'react'
-import type { LucideIcon } from 'lucide-react'
 import {
   BadgeCheck,
   FilePenLine,
@@ -44,6 +43,7 @@ import type {
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import { Input } from '@/shared/ui/input'
+import { StatCard } from '@/shared/ui/card'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 import {
@@ -58,42 +58,6 @@ import { cn } from '@/shared/lib/utils'
 
 const TAX_CODE_OPTIONS = buildTaxCodeComboboxOptions(true)
 const NI_OPTIONS = buildNiCategoryComboboxOptions()
-
-const STAT_TONES = {
-  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-  violet: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-} as const
-
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  tone,
-}: {
-  label: string
-  value: number
-  icon: LucideIcon
-  tone: keyof typeof STAT_TONES
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <span
-          className={cn(
-            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-            STAT_TONES[tone],
-          )}
-        >
-          <Icon className="h-4 w-4" aria-hidden />
-        </span>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-    </div>
-  )
-}
 
 export default function PayrollEmployeesPage() {
   const canManage = useAuthStore((s) => s.can('payroll.employees.manage'))
@@ -214,10 +178,30 @@ export default function PayrollEmployeesPage() {
 
         {!isLoading ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <SummaryCard label="Employees" value={summary.total} icon={Users} tone="sky" />
-            <SummaryCard label="Ready" value={summary.ready} icon={BadgeCheck} tone="emerald" />
-            <SummaryCard label="Draft" value={summary.draft} icon={FilePenLine} tone="amber" />
-            <SummaryCard label="Not set" value={summary.notSet} icon={UserRound} tone="violet" />
+            <StatCard
+              label="Employees"
+              value={summary.total}
+              icon={<Users className="h-5 w-5" aria-hidden />}
+              tone="sky"
+            />
+            <StatCard
+              label="Ready"
+              value={summary.ready}
+              icon={<BadgeCheck className="h-5 w-5" aria-hidden />}
+              tone="emerald"
+            />
+            <StatCard
+              label="Draft"
+              value={summary.draft}
+              icon={<FilePenLine className="h-5 w-5" aria-hidden />}
+              tone="amber"
+            />
+            <StatCard
+              label="Not set"
+              value={summary.notSet}
+              icon={<UserRound className="h-5 w-5" aria-hidden />}
+              tone="violet"
+            />
           </div>
         ) : null}
 

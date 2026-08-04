@@ -19,6 +19,7 @@ import {
 import { Link } from '@tanstack/react-router'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
+import { StatCard } from '@/shared/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 import { BILLING_DASHBOARD_STATS } from '@/features/billing/data/billing-mock.data'
@@ -53,57 +54,6 @@ function DashboardHelpIcon({ label, tooltip }: { label: string; tooltip: string 
         {tooltip}
       </TooltipContent>
     </Tooltip>
-  )
-}
-
-function DashboardStatCard({
-  title,
-  value,
-  hint,
-  icon,
-  iconClassName,
-  tooltip,
-  loading,
-  to,
-  search,
-}: {
-  title: string
-  value: number
-  hint: string
-  icon: React.ReactNode
-  iconClassName: string
-  tooltip: string
-  loading?: boolean
-  to: string
-  search?: Record<string, string>
-}) {
-  return (
-    <Link
-      to={to}
-      search={search}
-      className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/20"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <span className="truncate">{title}</span>
-            <DashboardHelpIcon label={title} tooltip={tooltip} />
-          </p>
-          <p className="text-2xl font-display font-bold tabular-nums text-foreground">
-            {loading ? '—' : value}
-          </p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        </div>
-        <span
-          className={cn(
-            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105',
-            iconClassName,
-          )}
-        >
-          {icon}
-        </span>
-      </div>
-    </Link>
   )
 }
 
@@ -219,43 +169,43 @@ export function BillingDashboardPanel() {
         />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <DashboardStatCard
-            title="Visits ready"
+          <StatCard
+            label="Visits ready"
             value={stats.visitsReady}
             hint="Approved for pay / invoice"
             loading={visitLoading}
             icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
-            iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            tone="emerald"
             tooltip="Completed visits approved for pay and/or invoice. Ready to include in payroll and invoice runs."
             to="/billing/visit-reconciliation"
           />
-          <DashboardStatCard
-            title="Exceptions"
+          <StatCard
+            label="Exceptions"
             value={stats.visitsWithExceptions}
             hint="Need attention before billing"
             loading={visitLoading}
             icon={<CircleAlert className="h-5 w-5" aria-hidden />}
-            iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
+            tone="amber"
             tooltip="Visit reconciliations with unresolved finance exceptions — missing cards, funding, or times."
             to="/billing/visit-reconciliation"
           />
-          <DashboardStatCard
-            title="Overdue invoices"
+          <StatCard
+            label="Overdue invoices"
             value={stats.overdueInvoices}
             hint="Unpaid over 7 days"
             loading={paymentsLoading}
             icon={<Receipt className="h-5 w-5" aria-hidden />}
-            iconClassName="bg-rose-500/10 text-rose-700 dark:text-rose-300"
+            tone="rose"
             tooltip="Locked or sent invoice runs with an unpaid balance overdue by more than 7 days."
             to="/billing/payments"
           />
-          <DashboardStatCard
-            title="Unmatched payments"
+          <StatCard
+            label="Unmatched payments"
             value={stats.unmatchedPayments}
             hint="Received, not fully linked"
             loading={paymentsLoading}
             icon={<Link2 className="h-5 w-5" aria-hidden />}
-            iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+            tone="violet"
             tooltip="Payments received but not fully matched to invoice runs."
             to="/billing/payments"
           />

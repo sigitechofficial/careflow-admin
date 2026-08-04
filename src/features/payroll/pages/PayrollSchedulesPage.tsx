@@ -1,10 +1,8 @@
 import * as React from 'react'
-import type { LucideIcon } from 'lucide-react'
 import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
-  Info,
   Plus,
   RefreshCw,
   Sparkles,
@@ -25,7 +23,8 @@ import { useAuthStore } from '@/features/auth/store'
 import type { PayrollPayFrequency } from '@/features/payroll/types/payroll.types'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { StatCard } from '@/shared/ui/card'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { toastWarning } from '@/shared/lib/toast'
 import {
   Dialog,
@@ -38,61 +37,6 @@ import {
 import { cn } from '@/shared/lib/utils'
 
 const FREQUENCIES: PayrollPayFrequency[] = ['WEEKLY', 'FORTNIGHTLY', 'FOUR_WEEKLY', 'MONTHLY']
-
-const STAT_TONES = {
-  sky: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  amber: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-  violet: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-} as const
-
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  tone,
-  purpose,
-}: {
-  label: string
-  value: number
-  icon: LucideIcon
-  tone: keyof typeof STAT_TONES
-  purpose: string
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex shrink-0 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`About ${label}`}
-              >
-                <Info className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="z-[110] max-w-sm text-left text-xs leading-snug">
-              <p className="mb-1 font-medium text-popover-foreground">Purpose</p>
-              <p>{purpose}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <span
-          className={cn(
-            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-            STAT_TONES[tone],
-          )}
-        >
-          <Icon className="h-4 w-4" aria-hidden />
-        </span>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-    </div>
-  )
-}
 
 export default function PayrollSchedulesPage() {
   const canManage = useAuthStore((s) => s.can('payroll.settings.manage'))
@@ -189,33 +133,33 @@ export default function PayrollSchedulesPage() {
 
         {!isLoading ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <SummaryCard
+            <StatCard
               label="Schedules"
               value={schedules.length}
-              icon={CalendarClock}
+              icon={<CalendarClock className="h-5 w-5" aria-hidden />}
               tone="emerald"
-              purpose={PAYROLL_SECTION_GUIDANCE.schedules.purpose}
+              tooltip={PAYROLL_SECTION_GUIDANCE.schedules.purpose}
             />
-            <SummaryCard
+            <StatCard
               label="Active"
               value={activeSchedules}
-              icon={CalendarDays}
+              icon={<CalendarDays className="h-5 w-5" aria-hidden />}
               tone="sky"
-              purpose={PAYROLL_SECTION_GUIDANCE.activeSchedules.purpose}
+              tooltip={PAYROLL_SECTION_GUIDANCE.activeSchedules.purpose}
             />
-            <SummaryCard
+            <StatCard
               label="Tax years"
               value={taxYears.length}
-              icon={CalendarRange}
+              icon={<CalendarRange className="h-5 w-5" aria-hidden />}
               tone="violet"
-              purpose={PAYROLL_SECTION_GUIDANCE.taxYears.purpose}
+              tooltip={PAYROLL_SECTION_GUIDANCE.taxYears.purpose}
             />
-            <SummaryCard
+            <StatCard
               label="Open periods"
               value={openPeriods}
-              icon={Sparkles}
+              icon={<Sparkles className="h-5 w-5" aria-hidden />}
               tone="amber"
-              purpose={PAYROLL_SECTION_GUIDANCE.openPeriods.purpose}
+              tooltip={PAYROLL_SECTION_GUIDANCE.openPeriods.purpose}
             />
           </div>
         ) : null}
