@@ -211,8 +211,7 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     gradeId: e.gradeId,
     contractTypeId: e.contractTypeId,
     travelPaymentTypeId: e.travelPaymentTypeId,
-    baseLocationIds:
-      e.accessAllZones || !e.baseLocationIds?.length ? undefined : e.baseLocationIds,
+    baseLocationIds: e.accessAllZones ? [] : (e.baseLocationIds ?? []),
     startDate: e.startDate ? new Date(e.startDate).toISOString() : undefined,
     endDate: e.endDate ? new Date(e.endDate).toISOString() : undefined,
     nationalInsuranceNo: e.nationalInsuranceNo,
