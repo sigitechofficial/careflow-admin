@@ -416,8 +416,14 @@ const navItems: NavItem[] = [
         search: { tab: 'dashboard' },
         navTestId: 'nav-billing-management',
       },
-      // Visit reconciliation + Visit pay runs: hidden while completed visits auto-accept
-      // into recon/pay runs. Routes remain available by URL if needed.
+      {
+        label: 'Visit reconciliation',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/billing/visit-reconciliation',
+        permission: 'billing.visit_reconciliations.read',
+        navTestId: 'nav-billing-reconciliation',
+      },
+      // Visit pay runs: hidden for now. Route remains available by URL if needed.
       {
         label: 'Salary',
         icon: <CircleDollarSign className="h-4 w-4" />,

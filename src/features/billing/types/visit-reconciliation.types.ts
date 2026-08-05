@@ -14,6 +14,11 @@ export type FinanceExceptionCode =
   | 'PO_EXPIRED'
   | 'PO_MISSING'
 
+export type VisitReconciliationException = {
+  code: FinanceExceptionCode
+  message: string
+}
+
 /** Must match backend `BLOCKING_EXCEPTION_CODES` — blocks approve unless managerOverride. */
 export const BLOCKING_EXCEPTION_CODES = new Set<FinanceExceptionCode>([
   'MISSING_CHECK_IN',
@@ -28,8 +33,9 @@ export const BLOCKING_EXCEPTION_CODES = new Set<FinanceExceptionCode>([
 ])
 
 export function listBlockingExceptionCodes(
-  codes: FinanceExceptionCode[],
+  exceptions: Array<FinanceExceptionCode | VisitReconciliationException>,
 ): FinanceExceptionCode[] {
+  const codes = exceptions.map(e => (typeof e === 'string' ? e : e.code))
   return [...new Set(codes.filter(c => BLOCKING_EXCEPTION_CODES.has(c)))]
 }
 
@@ -55,7 +61,7 @@ export type VisitReconciliationRow = {
   travelMinutes: number | null
   currency: string
   status: VisitReconciliationStatus
-  exceptions: FinanceExceptionCode[]
+  exceptions: VisitReconciliationException[]
   overrunMinutes: number | null
   overrunReason: string | null
   overrunDecision: VisitOverrunDecision | null

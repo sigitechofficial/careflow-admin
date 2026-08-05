@@ -254,7 +254,10 @@ export const MOCK_VISIT_RECONCILIATION = [
     approvedPayable: '09:04–09:30',
     approvedBillable: '09:00–09:30',
     status: 'REQUIRES_MANAGER_APPROVAL' as VisitReconciliationStatus,
-    exceptions: ['OVERRUN', 'CHARGE_CARD_MISSING'],
+    exceptions: [
+      { code: 'OVERRUN' as const, message: 'Actual duration exceeded planned by 2 minutes' },
+      { code: 'CHARGE_CARD_MISSING' as const, message: 'No charge card could be resolved for this service user' },
+    ],
   },
   {
     id: 'vr-2',
@@ -280,7 +283,10 @@ export const MOCK_VISIT_RECONCILIATION = [
     approvedPayable: '—',
     approvedBillable: '—',
     status: 'PENDING_REVIEW' as VisitReconciliationStatus,
-    exceptions: ['MISSING_CHECK_OUT', 'GPS_MISMATCH'],
+    exceptions: [
+      { code: 'MISSING_CHECK_OUT' as const, message: 'Visit ended without a recorded check-out' },
+      { code: 'GPS_MISMATCH' as const, message: 'Check-in location does not match the service user address' },
+    ],
   },
 ]
 

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Badge, type BadgeProps } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import type {
   ExportStatus,
   InvoiceRunStatus,
@@ -152,7 +153,7 @@ export function BillingExceptionBadge({
 }: {
   code: string
   className?: string
-  /** Optional exception message — improves RATE_MISSING routing. */
+  /** Optional exception message — improves RATE_MISSING routing and hover detail. */
   message?: string | null
   serviceUserId?: string | null
   employeeId?: string | null
@@ -171,6 +172,9 @@ export function BillingExceptionBadge({
         })
       : fixTarget
 
+  const label = formatBillingLabel(code)
+  const detail = message?.trim() || null
+
   const badge = (
     <Badge
       variant={variantForStatus(code)}
@@ -181,23 +185,45 @@ export function BillingExceptionBadge({
         className,
       )}
     >
-      {formatBillingLabel(code)}
+      {label}
     </Badge>
   )
 
-  if (!resolved) return badge
-
-  return (
+  const trigger = resolved ? (
     <Link
       to={resolved.to}
       params={resolved.params}
       search={resolved.search}
-      title={resolved.label}
       className="inline-flex"
       onClick={e => e.stopPropagation()}
     >
       {badge}
     </Link>
+  ) : (
+    <span className="inline-flex">{badge}</span>
+  )
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent
+          side="top"
+          className="z-[110] max-w-sm text-left text-xs leading-snug"
+          data-testid="billing-exception-tooltip"
+        >
+          <p className="font-medium text-popover-foreground">{label}</p>
+          {detail && detail !== code && detail !== label ? (
+            <p className="mt-1 text-popover-foreground/90">{detail}</p>
+          ) : (
+            <p className="mt-1 text-popover-foreground/80">Code: {code}</p>
+          )}
+          {resolved ? (
+            <p className="mt-1.5 text-popover-foreground/70">Click to open: {resolved.label}</p>
+          ) : null}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 

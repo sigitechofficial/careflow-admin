@@ -502,7 +502,20 @@ export function BillingVisitReconciliationPanel({
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {(row.overrunMinutes ?? 0) > 0 ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                              title={
+                                row.overrunReason?.trim()
+                                  ? `Overrun +${row.overrunMinutes}m — ${row.overrunReason.trim()}`
+                                  : `Overrun +${row.overrunMinutes}m${
+                                      row.overrunDecision === 'APPROVED'
+                                        ? ' (approved)'
+                                        : row.overrunDecision === 'REJECTED'
+                                          ? ' (rejected)'
+                                          : ' (pending decision)'
+                                    }`
+                              }
+                            >
                               <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
                               +{row.overrunMinutes}m
                               {row.overrunDecision === 'APPROVED'
@@ -514,8 +527,9 @@ export function BillingVisitReconciliationPanel({
                           ) : null}
                           {row.exceptions.map(ex => (
                             <BillingExceptionBadge
-                              key={ex}
-                              code={ex}
+                              key={`${ex.code}-${ex.message}`}
+                              code={ex.code}
+                              message={ex.message}
                               serviceUserId={row.serviceUserId}
                               employeeId={row.employeeId}
                               scheduledJobId={row.scheduledJobId}
