@@ -64,11 +64,17 @@ import {
   type UpdateServiceUserPayload,
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { billingKeys } from '@/features/billing/keys'
 import { ensureServiceUserAddressCoordinates } from '@/features/service-users/utils/ensure-service-user-address-coordinates.util'
 
 function invalidateDetail(qc: ReturnType<typeof useQueryClient>, serviceUserId: string) {
   void qc.invalidateQueries({ queryKey: serviceUserKeys.detail(serviceUserId) })
   void qc.invalidateQueries({ queryKey: serviceUserKeys.lists() })
+}
+
+/** Funding readiness exceptions live on visit reconciliations — refresh after funding setup changes. */
+function invalidateBillingAfterFundingChange(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: billingKeys.all })
 }
 
 export function useCreateServiceUser() {
@@ -478,6 +484,7 @@ export function useCreateServiceUserEnterpriseFunding(serviceUserId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.funding(serviceUserId) })
       invalidateDetail(qc, serviceUserId)
+      invalidateBillingAfterFundingChange(qc)
     },
   })
 }
@@ -495,6 +502,7 @@ export function useUpdateServiceUserEnterpriseFunding(serviceUserId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.funding(serviceUserId) })
       invalidateDetail(qc, serviceUserId)
+      invalidateBillingAfterFundingChange(qc)
     },
   })
 }
@@ -506,6 +514,7 @@ export function useDeleteServiceUserEnterpriseFunding(serviceUserId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.funding(serviceUserId) })
       invalidateDetail(qc, serviceUserId)
+      invalidateBillingAfterFundingChange(qc)
     },
   })
 }
@@ -557,6 +566,7 @@ export function useApproveServiceUserEnterpriseFunding(serviceUserId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.funding(serviceUserId) })
       invalidateDetail(qc, serviceUserId)
+      invalidateBillingAfterFundingChange(qc)
     },
   })
 }
@@ -568,6 +578,7 @@ export function useSetPrimaryServiceUserEnterpriseFunding(serviceUserId: string)
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.funding(serviceUserId) })
       invalidateDetail(qc, serviceUserId)
+      invalidateBillingAfterFundingChange(qc)
     },
   })
 }
@@ -585,6 +596,7 @@ export function useEndServiceUserEnterpriseFunding(serviceUserId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.funding(serviceUserId) })
       invalidateDetail(qc, serviceUserId)
+      invalidateBillingAfterFundingChange(qc)
     },
   })
 }
