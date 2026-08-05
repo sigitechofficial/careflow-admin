@@ -10,7 +10,7 @@ export const PAYROLL_SECTION_GUIDANCE = {
   schedules: {
     title: 'Pay schedules',
     purpose:
-      'A pay schedule defines how often staff are paid (weekly, fortnightly, four-weekly, or monthly) and the anchor day used when generating payment dates. Schedules are calendar scaffolding only — they do not calculate tax or NI.',
+      'A pay schedule defines how often staff are paid (weekly, fortnightly, four-weekly, or monthly). Monthly periods run from the 1st to the last day of each month. Schedules are calendar scaffolding only — they do not calculate tax or NI.',
   },
   activeSchedules: {
     title: 'Active schedules',
@@ -30,12 +30,7 @@ export const PAYROLL_SECTION_GUIDANCE = {
   periods: {
     title: 'Pay periods',
     purpose:
-      'Periods are the dated windows inside a UK tax year for a chosen schedule (e.g. monthly 6th→5th). Generate them after the schedule and tax year exist, then open a UK payroll run against a period. Statutory PAYE / NI is calculated on the run, not here.',
-  },
-  anchorDay: {
-    title: 'Anchor day',
-    purpose:
-      'For monthly schedules, the day of the month used for payment date (1–31; shorter months use the last day). For weekly-style schedules, the day offset within each pay cycle. It shapes payment dates when periods are generated.',
+      'Periods are the dated windows for a chosen schedule inside a tax year. Monthly schedules use full calendar months (1st → last day). Generate them after the schedule and tax year exist, then open a UK payroll run against a period. Statutory PAYE / NI is calculated on the run, not here.',
   },
   paye: {
     title: 'PAYE (Income Tax)',

@@ -8,6 +8,8 @@ import {
   createPayrollTaxYear,
   createUkPayrollRun,
   deleteAllUkPayrollRuns,
+  deletePayrollPeriod,
+  deletePayrollPeriods,
   enrolUkPayrollRun,
   calculateUkPayrollGross,
   calculateUkPayrollStatutory,
@@ -139,11 +141,43 @@ export function useUpdatePayrollSchedule() {
 export function useGeneratePayrollPeriods() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (args: { scheduleId: string; taxYearId: string }) =>
-      generatePayrollPeriods(args.scheduleId, args.taxYearId),
+    mutationFn: (args: {
+      scheduleId: string
+      taxYearId: string
+      replaceExisting?: boolean
+    }) =>
+      generatePayrollPeriods(args.scheduleId, args.taxYearId, {
+        replaceExisting: args.replaceExisting,
+      }),
+    onSuccess: async (_data, vars) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      toastSuccess(vars.replaceExisting ? 'Pay periods regenerated' : 'Pay periods generated')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useDeletePayrollPeriod() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (periodId: string) => deletePayrollPeriod(periodId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: payrollKeys.all })
-      toastSuccess('Pay periods generated')
+      toastSuccess('Pay period deleted')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useDeletePayrollPeriods() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { scheduleId: string; taxYearId: string }) =>
+      deletePayrollPeriods(args.scheduleId, args.taxYearId),
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      const n = data?.deleted ?? 0
+      toastSuccess(`Deleted ${n} pay period${n === 1 ? '' : 's'}`)
     },
     onError: (error) => toastApiError(error),
   })

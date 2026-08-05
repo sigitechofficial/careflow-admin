@@ -6,6 +6,7 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
@@ -13,6 +14,8 @@ import { PayrollInfoHeading } from '@/features/payroll/components/PayrollInfoHea
 import { PAYROLL_SECTION_GUIDANCE } from '@/features/payroll/data/payroll-section-guidance'
 import {
   useCreatePayrollSchedule,
+  useDeletePayrollPeriod,
+  useDeletePayrollPeriods,
   useGeneratePayrollPeriods,
   usePayrollPeriods,
   usePayrollSchedules,
@@ -27,6 +30,15 @@ import { StatCard } from '@/shared/ui/card'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 import { toastWarning } from '@/shared/lib/toast'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Dialog,
   DialogBody,
   DialogContent,
@@ -56,11 +68,13 @@ export default function PayrollSchedulesPage() {
   const createMut = useCreatePayrollSchedule()
   const updateMut = useUpdatePayrollSchedule()
   const generateMut = useGeneratePayrollPeriods()
+  const deletePeriodMut = useDeletePayrollPeriod()
+  const deletePeriodsMut = useDeletePayrollPeriods()
   const [open, setOpen] = React.useState(false)
+  const [deleteAllOpen, setDeleteAllOpen] = React.useState(false)
   const [name, setName] = React.useState('')
   const [code, setCode] = React.useState('')
   const [frequency, setFrequency] = React.useState<PayrollPayFrequency>('MONTHLY')
-  const [anchorDay, setAnchorDay] = React.useState(28)
 
   React.useEffect(() => {
     if (schedules.length === 0) {
@@ -102,16 +116,38 @@ export default function PayrollSchedulesPage() {
       toastWarning('Schedule archived', 'Activate or create another schedule before generating periods.')
       return
     }
+    const replaceExisting = periods.length > 0
+    if (replaceExisting) {
+      const ok = window.confirm(
+        'Replace existing periods with full calendar months (1st → last day)? This only works if no UK payroll runs are attached to those periods.',
+      )
+      if (!ok) return
+    }
     generateMut.mutate({
       scheduleId: selectedSchedule.id,
       taxYearId: selectedTaxYearId,
+      replaceExisting,
     })
   }
+
+  const handleDeleteAllPeriods = () => {
+    if (!selectedScheduleId || !selectedTaxYearId) {
+      toastWarning('Select filters', 'Choose a schedule and tax year before deleting periods.')
+      return
+    }
+    deletePeriodsMut.mutate(
+      { scheduleId: selectedScheduleId, taxYearId: selectedTaxYearId },
+      { onSuccess: () => setDeleteAllOpen(false) },
+    )
+  }
+
+  const isPeriodMutating =
+    generateMut.isPending || deletePeriodMut.isPending || deletePeriodsMut.isPending
 
   return (
     <PayrollSectionLayout
       title="Schedules & periods"
-      description="Define pay frequencies and generate calendar periods for a tax year. No statutory calculations."
+      description="Define pay frequencies and generate monthly periods (1st → last day of each month) for a tax year. No statutory calculations."
       testId="payroll-schedules-page"
     >
       <TooltipProvider delayDuration={200}>
@@ -123,11 +159,11 @@ export default function PayrollSchedulesPage() {
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
             <CalendarRange className="h-3.5 w-3.5" aria-hidden />
-            Tax-year periods
+            Calendar months
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Generate calendar
+            1st → last day
           </span>
         </div>
 
@@ -200,19 +236,69 @@ export default function PayrollSchedulesPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {canPeriods && selectedScheduleId && selectedTaxYearId ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                disabled={generateMut.isPending || selectedSchedule?.status === 'ARCHIVED'}
-                onClick={handleGeneratePeriods}
-              >
-                <RefreshCw
-                  className={cn('h-3.5 w-3.5', generateMut.isPending && 'animate-spin')}
-                  aria-hidden
-                />
-                {generateMut.isPending ? 'Generating…' : 'Generate periods'}
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={isPeriodMutating || selectedSchedule?.status === 'ARCHIVED'}
+                  onClick={handleGeneratePeriods}
+                >
+                  <RefreshCw
+                    className={cn('h-3.5 w-3.5', generateMut.isPending && 'animate-spin')}
+                    aria-hidden
+                  />
+                  {generateMut.isPending
+                    ? periods.length > 0
+                      ? 'Regenerating…'
+                      : 'Generating…'
+                    : periods.length > 0
+                      ? 'Regenerate periods'
+                      : 'Generate periods'}
+                </Button>
+                {periods.length > 0 ? (
+                  <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1.5"
+                        disabled={isPeriodMutating}
+                        data-testid="payroll-periods-delete-all"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        Delete periods
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete all filtered periods?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Permanently deletes {periods.length} pay period
+                          {periods.length === 1 ? '' : 's'} for the selected schedule and tax year.
+                          Blocked if any period still has a UK payroll run — delete those runs
+                          first.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deletePeriodsMut.isPending}>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deletePeriodsMut.isPending}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            handleDeleteAllPeriods()
+                          }}
+                        >
+                          {deletePeriodsMut.isPending ? 'Deleting…' : 'Delete periods'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : null}
+              </>
             ) : null}
             {canManage ? (
               <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
@@ -235,7 +321,7 @@ export default function PayrollSchedulesPage() {
                 <PayrollInfoHeading
                   title={PAYROLL_SECTION_GUIDANCE.schedules.title}
                   purpose={PAYROLL_SECTION_GUIDANCE.schedules.purpose}
-                  description="Weekly, fortnightly, four-weekly, or monthly calendars"
+                  description="Weekly, fortnightly, four-weekly, or monthly (1st → last day)"
                 />
               </div>
               <div className="overflow-x-auto">
@@ -245,7 +331,6 @@ export default function PayrollSchedulesPage() {
                       <th className="py-2.5 pl-4 pr-3 font-medium">Name</th>
                       <th className="py-2.5 pr-3 font-medium">Code</th>
                       <th className="py-2.5 pr-3 font-medium">Frequency</th>
-                      <th className="py-2.5 pr-3 font-medium">Anchor</th>
                       <th className="py-2.5 pr-3 font-medium">Status</th>
                       <th className="py-2.5 pr-4 text-right font-medium">Actions</th>
                     </tr>
@@ -263,7 +348,6 @@ export default function PayrollSchedulesPage() {
                         <td className="py-3 pl-4 pr-3 font-medium text-foreground">{row.name}</td>
                         <td className="py-3 pr-3 text-muted-foreground">{row.code}</td>
                         <td className="py-3 pr-3">{row.frequency.replace(/_/g, ' ')}</td>
-                        <td className="py-3 pr-3 tabular-nums">{row.anchorDay}</td>
                         <td className="py-3 pr-3">
                           <PayrollStatusBadge status={row.status} />
                         </td>
@@ -291,7 +375,7 @@ export default function PayrollSchedulesPage() {
                     ))}
                     {schedules.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                        <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                           <CalendarClock className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
                           No schedules yet. Add a schedule to start generating periods.
                         </td>
@@ -310,7 +394,7 @@ export default function PayrollSchedulesPage() {
                 <PayrollInfoHeading
                   title={PAYROLL_SECTION_GUIDANCE.periods.title}
                   purpose={PAYROLL_SECTION_GUIDANCE.periods.purpose}
-                  description="Filtered by the schedule and tax year above"
+                  description="Monthly = 1st to last day of each calendar month · filtered by schedule and tax year above"
                 />
               </div>
               <div className="overflow-x-auto">
@@ -321,7 +405,10 @@ export default function PayrollSchedulesPage() {
                       <th className="py-2.5 pr-3 font-medium">Label</th>
                       <th className="py-2.5 pr-3 font-medium">Period</th>
                       <th className="py-2.5 pr-3 font-medium">Payment</th>
-                      <th className="py-2.5 pr-4 font-medium">Status</th>
+                      <th className="py-2.5 pr-3 font-medium">Status</th>
+                      {canPeriods ? (
+                        <th className="py-2.5 pr-4 text-right font-medium">Actions</th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -338,14 +425,38 @@ export default function PayrollSchedulesPage() {
                           {p.periodStart} – {p.periodEnd}
                         </td>
                         <td className="py-3 pr-3 tabular-nums">{p.paymentDate}</td>
-                        <td className="py-3 pr-4">
+                        <td className="py-3 pr-3">
                           <PayrollStatusBadge status={p.status} />
                         </td>
+                        {canPeriods ? (
+                          <td className="py-3 pr-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              disabled={isPeriodMutating}
+                              aria-label={`Delete period ${p.label}`}
+                              onClick={() => {
+                                const ok = window.confirm(
+                                  `Delete period “${p.label}” (${p.periodStart} – ${p.periodEnd})? This fails if a UK payroll run is linked.`,
+                                )
+                                if (!ok) return
+                                deletePeriodMut.mutate(p.id)
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                              Delete
+                            </Button>
+                          </td>
+                        ) : null}
                       </tr>
                     ))}
                     {periods.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                        <td
+                          colSpan={canPeriods ? 6 : 5}
+                          className="px-4 py-10 text-center text-muted-foreground"
+                        >
                           <CalendarRange className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
                           No periods for the selected filters. Choose a schedule and tax year, then
                           generate.
@@ -372,7 +483,6 @@ export default function PayrollSchedulesPage() {
             </DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3">
-            <TooltipProvider delayDuration={200}>
             <label className="block space-y-1 text-sm">
               <span>Name</span>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -394,26 +504,12 @@ export default function PayrollSchedulesPage() {
                   </option>
                 ))}
               </select>
+              {frequency === 'MONTHLY' ? (
+                <span className="text-xs text-muted-foreground">
+                  Monthly periods run from the 1st to the last day of each calendar month.
+                </span>
+              ) : null}
             </label>
-            <label className="block space-y-1 text-sm">
-              <PayrollInfoHeading
-                title={PAYROLL_SECTION_GUIDANCE.anchorDay.title}
-                purpose={PAYROLL_SECTION_GUIDANCE.anchorDay.purpose}
-                as="h5"
-              />
-              <Input
-                type="number"
-                min={1}
-                max={31}
-                value={anchorDay}
-                onChange={(e) => setAnchorDay(Number(e.target.value) || 1)}
-              />
-              <span className="text-xs text-muted-foreground">
-                Monthly: day of month (1–31; shorter months use the last day). Weekly-style: day
-                within the pay cycle.
-              </span>
-            </label>
-            </TooltipProvider>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
@@ -423,12 +519,13 @@ export default function PayrollSchedulesPage() {
               disabled={createMut.isPending || !name.trim() || !code.trim()}
               onClick={() =>
                 createMut.mutate(
-                  { name, code, frequency, anchorDay },
+                  { name, code, frequency },
                   {
                     onSuccess: (created) => {
                       setOpen(false)
                       setName('')
                       setCode('')
+                      setFrequency('MONTHLY')
                       if (created?.id) setSelectedScheduleId(created.id)
                     },
                   },

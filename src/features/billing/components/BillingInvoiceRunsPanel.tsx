@@ -111,7 +111,7 @@ export function BillingInvoiceRunsPanel() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No invoice runs yet. Create a run for a completed week with approved billable visit times.
+          No invoice runs yet. Create a run for a completed calendar month with approved billable visit times.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">

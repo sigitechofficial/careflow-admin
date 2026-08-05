@@ -9,7 +9,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { defaultBillingWeekRange } from '@/features/billing/utils/billing-run.util'
+import { defaultBillingMonthRange } from '@/features/billing/utils/billing-run.util'
 
 type BillingRunPeriodDialogProps = {
   open: boolean
@@ -28,13 +28,13 @@ export function BillingRunPeriodDialog({
   isPending,
   onSubmit,
 }: BillingRunPeriodDialogProps) {
-  const defaults = React.useMemo(() => defaultBillingWeekRange(), [])
+  const defaults = React.useMemo(() => defaultBillingMonthRange(), [])
   const [periodStart, setPeriodStart] = React.useState(defaults.periodStart)
   const [periodEnd, setPeriodEnd] = React.useState(defaults.periodEnd)
 
   React.useEffect(() => {
     if (open) {
-      const range = defaultBillingWeekRange()
+      const range = defaultBillingMonthRange()
       setPeriodStart(range.periodStart)
       setPeriodEnd(range.periodEnd)
     }
@@ -68,7 +68,7 @@ export function BillingRunPeriodDialog({
             </div>
             <div className="grid gap-2">
               <label htmlFor="periodEnd" className="text-sm font-medium text-foreground">
-                Period end (week ending)
+                Period end
               </label>
               <Input
                 id="periodEnd"

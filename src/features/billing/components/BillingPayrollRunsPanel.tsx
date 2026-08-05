@@ -78,7 +78,7 @@ export function BillingPayrollRunsPanel() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No payroll runs yet. Create a run for a completed week with approved visit pay times.
+          No payroll runs yet. Create a run for a completed calendar month with approved visit pay times.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">

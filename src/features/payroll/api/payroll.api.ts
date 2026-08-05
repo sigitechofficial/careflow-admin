@@ -95,12 +95,19 @@ export async function updatePayrollSchedule(id: string, body: UpdatePayrollSched
   return res.data
 }
 
-export async function generatePayrollPeriods(scheduleId: string, taxYearId: string) {
+export async function generatePayrollPeriods(
+  scheduleId: string,
+  taxYearId: string,
+  options?: { replaceExisting?: boolean },
+) {
   const res = await apiJson<ApiEnvelope<PayrollPeriod[]>>(
     `/payroll/schedules/${scheduleId}/generate-periods`,
     {
       method: 'POST',
-      body: JSON.stringify({ taxYearId }),
+      body: JSON.stringify({
+        taxYearId,
+        ...(options?.replaceExisting ? { replaceExisting: true } : {}),
+      }),
     },
   )
   return res.data ?? []
@@ -113,6 +120,21 @@ export async function fetchPayrollPeriods(params?: { scheduleId?: string; taxYea
   const qs = search.toString()
   const res = await apiJson<ApiEnvelope<PayrollPeriod[]>>(`/payroll/periods${qs ? `?${qs}` : ''}`)
   return res.data ?? []
+}
+
+export async function deletePayrollPeriod(periodId: string) {
+  const res = await apiJson<ApiEnvelope<{ id: string }>>(`/payroll/periods/${periodId}`, {
+    method: 'DELETE',
+  })
+  return res.data
+}
+
+export async function deletePayrollPeriods(scheduleId: string, taxYearId: string) {
+  const res = await apiJson<ApiEnvelope<{ deleted: number }>>('/payroll/periods/delete', {
+    method: 'POST',
+    body: JSON.stringify({ scheduleId, taxYearId }),
+  })
+  return res.data
 }
 
 export async function fetchPayrollEmployees() {
