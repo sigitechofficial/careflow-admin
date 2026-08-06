@@ -380,6 +380,20 @@ const navItems: NavItem[] = [
         navTestId: 'nav-payroll-runs',
       },
       {
+        label: 'Taxes',
+        icon: <Receipt className="h-4 w-4" />,
+        href: '/payroll/taxes',
+        permission: 'payroll.settings.read',
+        navTestId: 'nav-payroll-taxes',
+      },
+      {
+        label: 'Employer PAYE',
+        icon: <Building2 className="h-4 w-4" />,
+        href: '/payroll/employer',
+        permission: 'payroll.settings.read',
+        navTestId: 'nav-payroll-employer',
+      },
+      {
         label: 'Employee setup',
         icon: <Users className="h-4 w-4" />,
         href: '/payroll/employees',

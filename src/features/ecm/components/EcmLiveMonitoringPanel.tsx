@@ -107,6 +107,47 @@ const BUCKET_META: {
   },
 ]
 
+type EcmTileWindows = {
+  dueNowWindowMinutes: number
+  startingSoonMinutes: number
+  lateArrivalToleranceMinutes: number
+  veryLateThresholdMinutes: number
+  missedVisitThresholdMinutes: number
+  geofenceRadiusMeters: number
+}
+
+function bucketLabel(
+  id: EcmDashboardBucket,
+  baseLabel: string,
+  windows?: EcmTileWindows | null,
+): string {
+  if (!windows) return baseLabel
+  switch (id) {
+    case 'dueNow':
+      return `Due now (±${windows.dueNowWindowMinutes} min)`
+    case 'startingSoon':
+      return `Starting soon (${windows.startingSoonMinutes} min)`
+    case 'inProgress':
+      return 'In progress (checked in)'
+    case 'lateArrival':
+      return `Late (>${windows.lateArrivalToleranceMinutes} min)`
+    case 'veryLateArrival':
+      return `Very late (>${windows.veryLateThresholdMinutes} min)`
+    case 'potentialMissed':
+      return `Potential missed (≥${windows.missedVisitThresholdMinutes} min)`
+    case 'confirmedMissed':
+      return 'Confirmed missed (ops confirmed)'
+    case 'missingCheckout':
+      return 'Missing checkout (past end)'
+    case 'outsideGeofence':
+      return `Outside geofence (>${windows.geofenceRadiusMeters} m)`
+    case 'manualAttendance':
+      return 'Manual (office entry)'
+    default:
+      return baseLabel
+  }
+}
+
 function todayIso(): string {
   const d = new Date()
   const y = d.getFullYear()
@@ -233,7 +274,13 @@ function actualDurationOf(row: EcmLiveVisitRow): number | null {
   return Math.round(ms / 60_000)
 }
 
-export function EcmLiveMonitoringPanel() {
+export function EcmLiveMonitoringPanel({
+  serviceUserId,
+}: {
+  /** When set, scopes the live dashboard + exception queue to one service user. */
+  serviceUserId?: string
+} = {}) {
+  const scoped = Boolean(serviceUserId)
   const { locationId } = useGlobalLocationScope()
   const [date, setDate] = React.useState(todayIso)
   const [search, setSearch] = React.useState('')
@@ -249,12 +296,14 @@ export function EcmLiveMonitoringPanel() {
 
   const dashboard = useEcmLiveDashboard({
     date,
-    search: debouncedSearch || undefined,
-    locationId: locationId ?? undefined,
+    search: scoped ? undefined : debouncedSearch || undefined,
+    locationId: scoped ? undefined : (locationId ?? undefined),
+    serviceUserId,
   })
 
   const counts = dashboard.data?.counts
   const visits = dashboard.data?.visits ?? []
+  const windows = dashboard.data?.windows ?? null
 
   const filtered: EcmLiveVisitRow[] =
     bucketFilter === 'all'
@@ -266,9 +315,18 @@ export function EcmLiveMonitoringPanel() {
     setDetailOpen(true)
   }
 
+  const activeBucketLabel =
+    bucketFilter === 'all'
+      ? null
+      : bucketLabel(
+          bucketFilter,
+          BUCKET_META.find((b) => b.id === bucketFilter)?.label ?? bucketFilter,
+          windows,
+        )
+
   return (
     <div className="space-y-4" data-testid="ecm-live-monitoring-panel">
-      <EcmHealthBanner />
+      {scoped ? null : <EcmHealthBanner />}
       <ContentCard className="p-4">
         <div className="flex flex-wrap items-end gap-3">
           <label className="space-y-1 text-xs">
@@ -283,19 +341,21 @@ export function EcmLiveMonitoringPanel() {
               className="h-9 w-[11rem]"
             />
           </label>
-          <label className="relative min-w-[12rem] flex-1 space-y-1 text-xs">
-            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <Search className="h-3.5 w-3.5" aria-hidden />
-              Search
-            </span>
-            <Search className="pointer-events-none absolute bottom-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Service user or job…"
-              className="h-9 pl-8"
-            />
-          </label>
+          {scoped ? null : (
+            <label className="relative min-w-[12rem] flex-1 space-y-1 text-xs">
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Search className="h-3.5 w-3.5" aria-hidden />
+                Search
+              </span>
+              <Search className="pointer-events-none absolute bottom-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Service user or job…"
+                className="h-9 pl-8"
+              />
+            </label>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -335,15 +395,19 @@ export function EcmLiveMonitoringPanel() {
             {BUCKET_META.map((b) => {
               const value = counts?.[b.id] ?? 0
               const active = bucketFilter === b.id
+              const label = bucketLabel(b.id, b.label, windows)
               return (
                 <button
                   key={b.id}
                   type="button"
                   className={tileClass(b.tone, active)}
+                  title={label}
                   onClick={() => setBucketFilter((prev) => (prev === b.id ? 'all' : b.id))}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-[11px] font-medium text-muted-foreground">{b.label}</p>
+                    <p className="text-[11px] font-medium leading-snug text-muted-foreground">
+                      {label}
+                    </p>
                     <span
                       className={cn(
                         'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
@@ -365,9 +429,7 @@ export function EcmLiveMonitoringPanel() {
             {dashboard.data?.refreshedAt
               ? new Date(dashboard.data.refreshedAt).toLocaleTimeString()
               : '—'}
-            {bucketFilter !== 'all'
-              ? ` · filter: ${BUCKET_META.find((b) => b.id === bucketFilter)?.label ?? bucketFilter}`
-              : ''}
+            {activeBucketLabel ? ` · filter: ${activeBucketLabel}` : ''}
             {' · '}
             Auto-refresh every 60s
           </p>
@@ -438,7 +500,9 @@ export function EcmLiveMonitoringPanel() {
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-foreground">No visits in this view</p>
                           <p className="text-xs text-muted-foreground">
-                            Try another date, clear the bucket filter, or refresh.
+                            {scoped
+                              ? `No ECM visits for this service user on ${date}. Pick a day that has scheduled visits, clear the bucket filter, or refresh.`
+                              : 'Try another date, clear the bucket filter, or refresh.'}
                           </p>
                         </div>
                       </div>
@@ -600,7 +664,7 @@ export function EcmLiveMonitoringPanel() {
             </table>
           </div>
 
-          <EcmExceptionQueuePanel onOpenVisit={openVisit} />
+          <EcmExceptionQueuePanel onOpenVisit={openVisit} serviceUserId={serviceUserId} />
         </>
       )}
 

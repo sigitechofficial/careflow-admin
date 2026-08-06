@@ -3,9 +3,9 @@ import { Loader2 } from 'lucide-react'
 import type { GenerateSchedulePreview } from '@/features/service-users/visit-plan/types'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
-import { Label } from '@/shared/ui/form-field'
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -13,11 +13,14 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
+export type VisitPlanScheduleGenerateMode = 'generate' | 'backfill'
+
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   preview: GenerateSchedulePreview | null
   loading?: boolean
+  mode?: VisitPlanScheduleGenerateMode
   fromDate: string
   toDate: string
   isPending?: boolean
@@ -29,6 +32,7 @@ export function VisitPlanGeneratePreviewDialog({
   onOpenChange,
   preview,
   loading,
+  mode = 'generate',
   fromDate,
   toDate,
   isPending = false,
@@ -36,7 +40,8 @@ export function VisitPlanGeneratePreviewDialog({
 }: Props) {
   const [backfillAck, setBackfillAck] = React.useState(false)
   const backfill = preview?.backfillDays ?? 0
-  const needsBackfillAck = backfill > 0
+  const isBackfill = mode === 'backfill'
+  const needsBackfillAck = isBackfill || backfill > 0
 
   React.useEffect(() => {
     if (!open) setBackfillAck(false)
@@ -47,55 +52,110 @@ export function VisitPlanGeneratePreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Generate rota from visit plan</DialogTitle>
-          <DialogDescription>
-            Preview for {fromDate} to {toDate}. Confirm before creating visits on the scheduling board.
+        <DialogHeader className="px-6 py-5 pr-12">
+          <DialogTitle>
+            {isBackfill ? 'Backfill past visits' : 'Generate rota from visit plan'}
+          </DialogTitle>
+          <DialogDescription className="pt-1">
+            {isBackfill
+              ? `Preview for ${fromDate} to ${toDate} (days before rota start). Confirm before creating backdated visits.`
+              : `Preview for ${fromDate} to ${toDate}. Confirm before creating visits on the scheduling board.`}
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Calculating…</p>
-        ) : preview ? (
-          <ul className="space-y-1 text-sm">
-            <li>
-              <strong>{preview.visitsToCreate}</strong> visit{preview.visitsToCreate === 1 ? '' : 's'} to create
-            </li>
-            {preview.visitsAlreadyExist > 0 ? (
-              <li className="text-muted-foreground">
-                {preview.visitsAlreadyExist} already on the rota (will sync carers only)
+        <DialogBody className="space-y-4 px-6 py-5">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Calculating…</p>
+          ) : preview ? (
+            <ul className="space-y-2 text-sm">
+              <li>
+                <strong>{preview.visitsToCreate}</strong> visit
+                {preview.visitsToCreate === 1 ? '' : 's'} to create
               </li>
-            ) : null}
-            {preview.visitsSkippedAbsent > 0 ? (
-              <li className="text-muted-foreground">{preview.visitsSkippedAbsent} skipped — client absent</li>
-            ) : null}
-            {preview.visitsSkippedSkip > 0 ? (
-              <li className="text-muted-foreground">{preview.visitsSkippedSkip} skipped — plan SKIP exceptions</li>
-            ) : null}
-            {preview.visitsSkippedBankHoliday > 0 ? (
-              <li className="text-muted-foreground">
-                {preview.visitsSkippedBankHoliday} dates skipped — bank holiday
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
+              {preview.visitsAlreadyExist > 0 ? (
+                <li className="text-muted-foreground">
+                  {preview.visitsAlreadyExist} already on the rota (will sync carers only)
+                </li>
+              ) : null}
+              {preview.visitsSkippedAbsent > 0 ? (
+                <li className="text-muted-foreground">
+                  {preview.visitsSkippedAbsent} skipped — client absent
+                </li>
+              ) : null}
+              {preview.visitsSkippedSkip > 0 ? (
+                <li className="text-muted-foreground">
+                  {preview.visitsSkippedSkip} skipped — plan SKIP exceptions
+                </li>
+              ) : null}
+              {preview.visitsSkippedBankHoliday > 0 ? (
+                <li className="text-muted-foreground">
+                  {preview.visitsSkippedBankHoliday} dates skipped — bank holiday
+                </li>
+              ) : null}
+              {(preview.visitsSkippedOffPattern ?? 0) > 0 ? (
+                <li className="text-muted-foreground">
+                  {preview.visitsSkippedOffPattern} skipped — not on call pattern (weekday / dates)
+                </li>
+              ) : null}
+              {(preview.visitsSkippedNoBackfillAllow ?? 0) > 0 ? (
+                <li className="text-destructive">
+                  {preview.visitsSkippedNoBackfillAllow} day(s) skipped — Max backfill days not saved on
+                  the call (use Record amendment, then try again)
+                </li>
+              ) : null}
+              {isBackfill && (preview.maxSlotBackfillDays ?? 0) <= 0 ? (
+                <li className="text-destructive">
+                  Saved plan has Max backfill days = 0 on all enabled calls. Set it on Morning (or
+                  another call), click Record amendment, then backfill again.
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
 
-        {needsBackfillAck ? (
-          <label className="flex items-start gap-2 text-sm">
-            <Checkbox checked={backfillAck} onCheckedChange={(c) => setBackfillAck(c === true)} className="mt-0.5" />
-            <span>
-              Authorised to create <strong>{backfill}</strong> day(s) of backdated visits for billing
-            </span>
-          </label>
-        ) : null}
+          {preview && !loading && preview.visitsToCreate === 0 && preview.visitsAlreadyExist > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No new visits to create — matching call days in this window already have rota entries.
+            </p>
+          ) : null}
 
-        <DialogFooter>
+          {preview &&
+          !loading &&
+          isBackfill &&
+          preview.visitsToCreate === 0 &&
+          (preview.visitsAlreadyExist ?? 0) === 0 &&
+          (preview.maxSlotBackfillDays ?? 0) <= 0 ? (
+            <p className="text-sm text-destructive">
+              Backfill uses the <strong>saved</strong> plan. Changing Max backfill days in the form is
+              not enough until you save (Record amendment).
+            </p>
+          ) : null}
+
+          {needsBackfillAck ? (
+            <label className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-3 text-sm">
+              <Checkbox
+                checked={backfillAck}
+                onCheckedChange={(c) => setBackfillAck(c === true)}
+                className="mt-0.5"
+              />
+              <span>
+                Authorised to create <strong>{Math.max(backfill, 1)}</strong> day(s) of backdated visits
+                for billing
+              </span>
+            </label>
+          ) : null}
+        </DialogBody>
+
+        <DialogFooter className="gap-2 px-6 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void onConfirm()} disabled={isPending || loading || !canConfirm}>
+          <Button
+            type="button"
+            onClick={() => void onConfirm()}
+            disabled={isPending || loading || !canConfirm}
+          >
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Generate visits
+            {isBackfill ? 'Backfill visits' : 'Generate visits'}
           </Button>
         </DialogFooter>
       </DialogContent>

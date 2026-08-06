@@ -6,6 +6,7 @@ export type ScheduleJobContextAction =
   | 'reassign-run'
   | 'unallocate-job'
   | 'complete-job'
+  | 'mark-incomplete'
   | 'cancel-job'
   | 'reinstate-job'
   | 'add-notes'
@@ -31,6 +32,14 @@ export function isScheduleJobReinstatable(job: Pick<TimelineJob, 'status'>): boo
 
 export function isScheduleJobCancelled(job: Pick<TimelineJob, 'status'>): boolean {
   return isScheduleJobReinstatable(job)
+}
+
+/**
+ * Outcome recording (complete / incomplete / reopen to Planned) is blocked only for
+ * cancelled / called-off jobs. COMPLETED jobs may still change outcome.
+ */
+export function isScheduleJobOutcomeLocked(job: Pick<TimelineJob, 'status'>): boolean {
+  return isScheduleJobCancelled(job)
 }
 
 /** Completed, cancelled, and called-off jobs cannot be edited on the rota board (until reinstated). */

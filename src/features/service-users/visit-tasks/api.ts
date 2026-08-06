@@ -3,6 +3,7 @@ import type {
   ServiceUserVisitTasksResponse,
   TaskCatalogueGroup,
 } from '@/features/service-users/visit-tasks/types'
+import type { VisitTaskSchedule } from '@/features/service-users/visit-tasks/visit-task-schedule.util'
 
 export async function fetchTaskCatalogue(): Promise<TaskCatalogueGroup[]> {
   const res = await apiJson<ApiEnvelope<TaskCatalogueGroup[]>>('/task-catalogue', { method: 'GET' })
@@ -20,6 +21,11 @@ export async function fetchServiceUserVisitTasks(
     res.data ?? {
       rounds: [],
       assignmentsByRound: {},
+      emarPrompt: {
+        medicationCountByRound: {},
+        addedRoundCodes: [],
+        removedRoundCodes: [],
+      },
     }
   )
 }
@@ -33,6 +39,7 @@ export async function replaceServiceUserVisitTasks(
         taskCatalogueTaskId: string
         carerInstructions?: string | null
         priority?: string
+        schedule?: VisitTaskSchedule
       }>
     }>
   },
@@ -48,6 +55,11 @@ export async function replaceServiceUserVisitTasks(
     res.data ?? {
       rounds: [],
       assignmentsByRound: {},
+      emarPrompt: {
+        medicationCountByRound: {},
+        addedRoundCodes: [],
+        removedRoundCodes: [],
+      },
     }
   )
 }

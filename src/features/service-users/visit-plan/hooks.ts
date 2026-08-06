@@ -216,6 +216,7 @@ export function useServiceUserVisitPlanMutations(serviceUserId: string) {
       toDate: string
       scheduleAreaId?: string | null
       backfillDays?: number
+      backfillOnly?: boolean
       respectWorkingPatternOnSync?: boolean
     }) =>
       generateScheduleFromVisitPlan(serviceUserId, planId, body),

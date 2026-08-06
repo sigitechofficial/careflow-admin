@@ -29,6 +29,7 @@ describe('buildVisitStatusSampleJobs', () => {
     expect(durations.has('OVERRUN')).toBe(true)
     expect(durations.has('ACTUAL_SHORT_VISIT')).toBe(true)
     expect(durations.has('PLANNED_SHORT_VISIT')).toBe(true)
+    expect(durations.has('LATE_END')).toBe(true)
   })
 
   it('uses administration round lookup for slot labels and codes', () => {

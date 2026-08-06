@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { ScheduleJobContextAction } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
+  isScheduleJobOutcomeLocked,
   isScheduleJobReadOnly,
   isScheduleJobReinstatable,
   isScheduleJobTerminal,
@@ -24,6 +25,7 @@ type Props = {
 
 export function ScheduleJobContextMenu({ job, children, tooltip, onAction }: Props) {
   const readOnly = isScheduleJobReadOnly(job)
+  const outcomeLocked = isScheduleJobOutcomeLocked(job)
   const terminal = isScheduleJobTerminal(job)
   const reinstatable = isScheduleJobReinstatable(job)
   const hasAllocations = scheduleJobHasAllocations(job)
@@ -70,8 +72,11 @@ export function ScheduleJobContextMenu({ job, children, tooltip, onAction }: Pro
         >
           Unallocate Job
         </ContextMenuItem>
-        <ContextMenuItem disabled={terminal} onSelect={() => onAction(job, 'complete-job')}>
-          Complete Job
+        <ContextMenuItem disabled={outcomeLocked} onSelect={() => onAction(job, 'complete-job')}>
+          {job.status === 'COMPLETED' ? 'Change visit outcome' : 'Complete Job'}
+        </ContextMenuItem>
+        <ContextMenuItem disabled={outcomeLocked} onSelect={() => onAction(job, 'mark-incomplete')}>
+          Mark incomplete
         </ContextMenuItem>
         <ContextMenuItem disabled={terminal} onSelect={() => onAction(job, 'cancel-job')} destructive>
           Cancel Job

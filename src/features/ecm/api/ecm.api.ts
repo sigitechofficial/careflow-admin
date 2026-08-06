@@ -133,9 +133,15 @@ export async function reevaluateEcmVisit(jobId: string): Promise<{
   return res.data
 }
 
-export async function fetchEcmExceptions(limit = 50): Promise<EcmExceptionRow[]> {
+export async function fetchEcmExceptions(params?: {
+  limit?: number
+  serviceUserId?: string
+}): Promise<EcmExceptionRow[]> {
+  const qs = new URLSearchParams()
+  qs.set('limit', String(params?.limit ?? 50))
+  if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
   const res = await apiJson<ApiEnvelope<EcmExceptionRow[]>>(
-    `/ecm/exceptions?limit=${limit}`,
+    `/ecm/exceptions?${qs.toString()}`,
     { method: 'GET' },
   )
   return res.data
@@ -357,4 +363,35 @@ export async function applyMissedTriage(
     method: 'PATCH',
     body: JSON.stringify({ outcome, note: note ?? undefined }),
   })
+}
+
+export type EcmThresholdLookupRow = {
+  id: string
+  code: string
+  label: string
+  description: string | null
+  groupCode: string
+  relatedTile: string | null
+  valueInt: number
+  unit: string
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchEcmThresholdLookups(): Promise<EcmThresholdLookupRow[]> {
+  const res = await apiJson<ApiEnvelope<EcmThresholdLookupRow[]>>('/ecm/threshold-lookups', {
+    method: 'GET',
+  })
+  return res.data ?? []
+}
+
+export async function updateEcmThresholdLookup(
+  id: string,
+  valueInt: number,
+): Promise<EcmThresholdLookupRow> {
+  const res = await apiJson<ApiEnvelope<EcmThresholdLookupRow>>(`/ecm/threshold-lookups/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ valueInt }),
+  })
+  return res.data
 }

@@ -221,20 +221,36 @@ export const UK_NI_CATEGORY_OPTIONS: UkNiCategoryOption[] = [
   },
 ]
 
-export function taxCodeSelectValue(stored: string | null | undefined): string {
+export function taxCodeSelectValue(
+  stored: string | null | undefined,
+  knownCodes?: readonly string[],
+): string {
   const code = (stored ?? '').trim().toUpperCase()
   if (!code) return '1257L'
-  if (UK_TAX_CODE_OPTIONS.some((o) => o.value === code)) return code
+  const catalogue =
+    knownCodes && knownCodes.length > 0
+      ? knownCodes
+      : UK_TAX_CODE_OPTIONS.map((o) => o.value)
+  if (catalogue.some((c) => c === code)) return code
   return UK_TAX_CODE_OTHER
 }
 
-/** England/NI/Wales PAYE rates used by Week 1 / Month 1 calc (matches backend snapshot). */
+/** England/NI/Wales PAYE rates used by Week 1 / Month 1 calc (fallback if DB rates not loaded). */
 export const UK_PAYE_RATES_2026_27 = {
   basicRatePercent: 20,
   higherRatePercent: 40,
   additionalRatePercent: 45,
   personalAllowanceAnnual: 12_570,
+  niEmployeeRateMainPercent: 8,
 } as const
+
+export type PayeRateDisplay = {
+  basicRatePercent: number
+  higherRatePercent: number
+  additionalRatePercent: number
+  personalAllowanceAnnual: number
+  niEmployeeRateMainPercent?: number
+}
 
 export type TaxCodeRateSummary = {
   headline: string
@@ -244,13 +260,20 @@ export type TaxCodeRateSummary = {
 
 /**
  * Human-readable tax treatment for an HMRC tax code (W1/M1, England bands).
- * Used on employee payroll setup so carers see why tax can be £0 on small visit pay.
+ * Pass `rates` from PayrollStatutoryRateSet when available.
  */
-export function summariseTaxCodeRates(taxCode: string | null | undefined): TaxCodeRateSummary {
+export function summariseTaxCodeRates(
+  taxCode: string | null | undefined,
+  rates?: Partial<PayeRateDisplay> | null,
+): TaxCodeRateSummary {
   const raw = (taxCode ?? '1257L').trim().toUpperCase().replace(/\s+/g, '') || '1257L'
   const core = raw.replace(/^[SC]/, '')
-  const { basicRatePercent, higherRatePercent, additionalRatePercent, personalAllowanceAnnual } =
-    UK_PAYE_RATES_2026_27
+  const basicRatePercent = rates?.basicRatePercent ?? UK_PAYE_RATES_2026_27.basicRatePercent
+  const higherRatePercent = rates?.higherRatePercent ?? UK_PAYE_RATES_2026_27.higherRatePercent
+  const additionalRatePercent =
+    rates?.additionalRatePercent ?? UK_PAYE_RATES_2026_27.additionalRatePercent
+  const personalAllowanceAnnual =
+    rates?.personalAllowanceAnnual ?? UK_PAYE_RATES_2026_27.personalAllowanceAnnual
 
   if (core === 'NT') {
     return {
@@ -289,7 +312,7 @@ export function summariseTaxCodeRates(taxCode: string | null | undefined): TaxCo
   }
 
   const match = core.match(/^(\d+)([A-Z]*)$/)
-  const digits = match ? Number(match[1]) : 1257
+  const digits = match ? Number(match[1]) : Math.round(personalAllowanceAnnual / 10)
   const annualFree = Number.isFinite(digits) ? digits * 10 : personalAllowanceAnnual
   const monthlyFree = Math.round((annualFree / 12) * 100) / 100
 
@@ -300,20 +323,37 @@ export function summariseTaxCodeRates(taxCode: string | null | undefined): TaxCo
   }
 }
 
-export function summariseNiCategoryRate(category: string | null | undefined): string {
+export function summariseNiCategoryRate(
+  category: string | null | undefined,
+  rates?: Partial<PayeRateDisplay> | null,
+): string {
   const c = (category ?? 'A').toUpperCase()
+  const main =
+    rates?.niEmployeeRateMainPercent ?? UK_PAYE_RATES_2026_27.niEmployeeRateMainPercent
   if (c === 'C' || c === 'S' || c === 'X' || c === 'K') return '0% employee NI'
   if (c === 'B' || c === 'E' || c === 'I') return '1.85% employee NI (main band)'
   if (c === 'J' || c === 'L' || c === 'Z' || c === 'D') return '2% employee NI (deferment / upper)'
-  return '8% employee NI (main band, cat. A)'
+  return `${main}% employee NI (main band, cat. A)`
 }
 
-export function buildTaxCodeComboboxOptions(includeOther = true): ComboboxOption[] {
-  const options: ComboboxOption[] = UK_TAX_CODE_OPTIONS.map((o) => ({
-    value: o.value,
-    label: o.label,
-    description: o.description ?? o.group,
-  }))
+export function buildTaxCodeComboboxOptions(
+  includeOther = true,
+  catalogue?: Array<{ code: string; label: string; description?: string | null }>,
+): ComboboxOption[] {
+  const source =
+    catalogue && catalogue.length > 0
+      ? catalogue.map((o) => ({
+          value: o.code,
+          label: o.label,
+          description: o.description ?? undefined,
+        }))
+      : UK_TAX_CODE_OPTIONS.map((o) => ({
+          value: o.value,
+          label: o.label,
+          description: o.description ?? o.group,
+        }))
+
+  const options: ComboboxOption[] = [...source]
   if (includeOther) {
     options.push({
       value: UK_TAX_CODE_OTHER,

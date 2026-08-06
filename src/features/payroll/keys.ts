@@ -1,7 +1,12 @@
 export const payrollKeys = {
   all: ['payroll'] as const,
   overview: () => [...payrollKeys.all, 'overview'] as const,
+  employerSettings: () => [...payrollKeys.all, 'employer-settings'] as const,
   taxYears: () => [...payrollKeys.all, 'tax-years'] as const,
+  taxCodes: (params?: { includeInactive?: boolean }) =>
+    [...payrollKeys.all, 'tax-codes', params ?? {}] as const,
+  statutoryRates: (params?: { taxYearId?: string }) =>
+    [...payrollKeys.all, 'statutory-rates', params ?? {}] as const,
   schedules: () => [...payrollKeys.all, 'schedules'] as const,
   periods: (params?: { scheduleId?: string; taxYearId?: string }) =>
     [...payrollKeys.all, 'periods', params ?? {}] as const,

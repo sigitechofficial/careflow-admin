@@ -273,13 +273,14 @@ export async function previewVisitPlanActivateImpact(serviceUserId: string, plan
 export async function previewVisitPlanGenerateSchedule(
   serviceUserId: string,
   planId: string,
-  params: { fromDate: string; toDate: string; backfillDays?: number },
+  params: { fromDate: string; toDate: string; backfillDays?: number; backfillOnly?: boolean },
 ) {
   const qs = new URLSearchParams({
     fromDate: params.fromDate,
     toDate: params.toDate,
   })
   if (params.backfillDays != null) qs.set('backfillDays', String(params.backfillDays))
+  if (params.backfillOnly === true) qs.set('backfillOnly', 'true')
   const res = await apiJson<ApiEnvelope<GenerateSchedulePreview>>(
     `/service-users/${serviceUserId}/visit-plans/${planId}/generate-schedule-preview?${qs.toString()}`,
     { method: 'GET' },
@@ -467,6 +468,7 @@ export async function generateScheduleFromVisitPlan(
     toDate: string
     scheduleAreaId?: string | null
     backfillDays?: number
+    backfillOnly?: boolean
     respectWorkingPatternOnSync?: boolean
   },
 ) {

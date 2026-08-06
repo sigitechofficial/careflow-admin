@@ -34,7 +34,7 @@ function durationBadgeClass(code: string): string {
   ) {
     return 'bg-destructive/10 text-destructive border-destructive/30'
   }
-  if (code === 'PLANNED_SHORT_VISIT') {
+  if (code === 'PLANNED_SHORT_VISIT' || code === 'EARLY_END') {
     return 'bg-sky-500/10 text-sky-800 border-sky-500/30 dark:text-sky-200'
   }
   return 'bg-orange-500/10 text-orange-800 border-orange-500/30 dark:text-orange-200'

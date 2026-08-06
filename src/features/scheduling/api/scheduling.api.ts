@@ -223,6 +223,101 @@ export async function fetchVisitJobTasks(
   )
 }
 
+export type VisitObservationCatalogItem = {
+  id: string
+  typeCode: string
+  observationTypeCode: string
+  label: string
+  subtitle?: string | null
+  description?: string | null
+  unit?: string | null
+  normalRangeLabel?: string | null
+}
+
+export type VisitObservationCatalogSection = {
+  id: string
+  label: string
+  items: VisitObservationCatalogItem[]
+}
+
+export type VisitObservationFormField = {
+  key: string
+  label: string
+  inputType: 'number' | 'text' | 'textarea' | 'select' | 'boolean' | 'score' | 'datetime'
+  required: boolean
+  unit?: string | null
+  placeholder?: string | null
+  helperText?: string | null
+  min?: number | null
+  max?: number | null
+  step?: number | null
+  options?: Array<{ value: string; label: string }>
+  payloadPath?: string | null
+}
+
+export type VisitObservationDefinition = {
+  typeCode: string
+  observationTypeCode: string
+  label: string
+  description?: string | null
+  unit?: string | null
+  valueKind?: string
+  previousValue?: string | null
+  form: {
+    title: string
+    subtitle: string | null
+    submitLabel: string
+    unableLabel: string
+    fields: VisitObservationFormField[]
+    showUnableToRecord: boolean
+  }
+}
+
+export type VisitObservationRecordedRow = {
+  id: string
+  title: string
+  observationTypeCode: string
+  valueLabel: string | null
+  recordedAt: string
+  statusLabel?: string | null
+}
+
+export type VisitObservationsResponse = {
+  scheduledJobId: string
+  scheduledVisitId: string | null
+  serviceUserId: string
+  catalog: {
+    title: string
+    anotherTitle: string
+    searchPlaceholder: string
+    sections: VisitObservationCatalogSection[]
+  }
+  definitionsByTypeCode: Record<string, VisitObservationDefinition>
+  suggested: VisitObservationCatalogItem[]
+  recordedThisVisit: VisitObservationRecordedRow[]
+  recordedCount: number
+  unableReasons: Array<{
+    code: string
+    label: string
+    resolvesRequirement: boolean
+    requiresNotes: boolean
+  }>
+}
+
+export async function fetchVisitObservations(
+  jobId: string,
+  options?: { signal?: AbortSignal },
+): Promise<VisitObservationsResponse> {
+  const res = await apiJson<ApiEnvelope<VisitObservationsResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/visit-observations`,
+    { method: 'GET', signal: options?.signal },
+  )
+  if (!res.data) {
+    throw new Error('No visit observations data returned')
+  }
+  return res.data
+}
+
 export async function saveVisitJobTasks(
   jobId: string,
   tasks: Array<{
@@ -230,6 +325,7 @@ export async function saveVisitJobTasks(
     taskCatalogueTaskId?: string
     isExtra?: boolean
     isCompleted: boolean
+    outcome?: string
     recordedValue?: string
     notes?: string
   }>,

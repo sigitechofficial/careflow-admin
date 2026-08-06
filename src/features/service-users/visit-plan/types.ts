@@ -62,8 +62,14 @@ export type GenerateSchedulePreview = {
   visitsSkippedAbsent: number
   visitsSkippedSkip: number
   visitsSkippedBankHoliday: number
+  /** Days/slots in range that are not on the call pattern (wrong weekday, outside slot dates, etc.). */
+  visitsSkippedOffPattern: number
+  /** Backfill days skipped because no enabled call has Max backfill days saved. */
+  visitsSkippedNoBackfillAllow?: number
   visitsAlreadyExist: number
   backfillDays: number
+  /** Highest Max backfill days on enabled calls (from saved plan). */
+  maxSlotBackfillDays?: number
   truncated: boolean
 }
 

@@ -27,10 +27,16 @@ import {
   PLANNER_STAT_VISUALS,
 } from '@/features/service-users/visit-tasks/visit-task-planner-visual.util'
 import { VisitTaskPriorityPicker } from '@/features/service-users/visit-tasks/VisitTaskPriorityPicker'
+import { VisitTaskSchedulePanel } from '@/features/service-users/visit-tasks/VisitTaskSchedulePanel'
 import {
   DEFAULT_VISIT_TASK_PRIORITY,
   type VisitTaskPriorityCode,
 } from '@/features/service-users/visit-tasks/visit-task-priority.util'
+import {
+  DEFAULT_VISIT_TASK_SCHEDULE,
+  mergeVisitTaskSchedule,
+  type VisitTaskSchedule,
+} from '@/features/service-users/visit-tasks/visit-task-schedule.util'
 import type { TaskCatalogueGroup } from '@/features/service-users/visit-tasks/types'
 
 const GROUP_LABELS: Record<string, string> = {
@@ -45,6 +51,7 @@ export type VisitTaskAddItem = {
   taskId: string
   carerInstructions: string
   priority: VisitTaskPriorityCode
+  schedule: VisitTaskSchedule
 }
 
 type ReviewDraft = {
@@ -55,6 +62,7 @@ type ReviewDraft = {
   consentRequired: boolean
   carerInstructions: string
   priority: VisitTaskPriorityCode
+  schedule: VisitTaskSchedule
 }
 
 type Props = {
@@ -158,6 +166,7 @@ export function VisitTasksAddDialog({
           consentRequired: meta.consentRequired,
           carerInstructions: '',
           priority: DEFAULT_VISIT_TASK_PRIORITY,
+          schedule: { ...DEFAULT_VISIT_TASK_SCHEDULE },
         }
       })
       .filter((row): row is ReviewDraft => row != null)
@@ -177,6 +186,16 @@ export function VisitTasksAddDialog({
   const updateReviewPriority = (taskId: string, priority: VisitTaskPriorityCode) => {
     setReviewDrafts((prev) =>
       prev.map((draft) => (draft.taskId === taskId ? { ...draft, priority } : draft)),
+    )
+  }
+
+  const updateReviewSchedule = (taskId: string, patch: Partial<VisitTaskSchedule>) => {
+    setReviewDrafts((prev) =>
+      prev.map((draft) =>
+        draft.taskId === taskId
+          ? { ...draft, schedule: mergeVisitTaskSchedule({ ...draft.schedule, ...patch }) }
+          : draft,
+      ),
     )
   }
 
@@ -202,6 +221,7 @@ export function VisitTasksAddDialog({
           taskId: draft.taskId,
           carerInstructions: draft.carerInstructions.trim(),
           priority: draft.priority,
+          schedule: draft.schedule,
         })),
       )
     } finally {
@@ -412,6 +432,18 @@ export function VisitTasksAddDialog({
                         onChange={(event) =>
                           updateReviewInstructions(draft.taskId, event.target.value)
                         }
+                      />
+                    </div>
+
+                    <div className="mt-3 border-t border-border pt-3">
+                      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Schedule
+                      </div>
+                      <VisitTaskSchedulePanel
+                        compact
+                        scheduleKey={`add-${draft.taskId}`}
+                        schedule={draft.schedule}
+                        onChange={(patch) => updateReviewSchedule(draft.taskId, patch)}
                       />
                     </div>
                   </div>

@@ -66,6 +66,7 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
         requiresSupervision: draft.requiresSupervision,
         requiresCarerAdministration: draft.requiresCarerAdministration,
         familyMemberOrCarerSupportsMedication: draft.familyMemberOrCarerSupportsMedication,
+        storageLocation: draft.storageLocation?.trim() ? draft.storageLocation.trim() : null,
         notes: draft.notes?.trim() ? draft.notes.trim() : null,
       })
       toastSuccess('Support profile saved')
@@ -172,6 +173,28 @@ export function MedicationSupportProfileTab({ serviceUserId }: Props) {
             </label>
           ))}
         </div>
+      </section>
+
+      <section className="space-y-2">
+        <label htmlFor="med-support-storage" className="text-sm font-medium">
+          Medication storage location
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Where medicines are kept in the property. Shown on the carer app visit Overview (not the
+          home address).
+        </p>
+        <textarea
+          id="med-support-storage"
+          rows={3}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={data.storageLocation ?? ''}
+          disabled={!canEdit || updateMutation.isPending}
+          onChange={e => {
+            setDirty(true)
+            setDraft(d => (d ? { ...d, storageLocation: e.target.value } : d))
+          }}
+          placeholder='e.g. Kitchen cupboard, above the sink (left-hand side, labelled “MAR”).'
+        />
       </section>
 
       <section className="space-y-2">

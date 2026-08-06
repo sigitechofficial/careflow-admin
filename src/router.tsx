@@ -43,6 +43,8 @@ import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceU
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserTasksPlannerPage from '@/features/service-users/pages/ServiceUserTasksPlannerPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
+import ServiceUserActivityPage from '@/features/service-users/pages/ServiceUserActivityPage'
+import ServiceUserEcmPage from '@/features/service-users/pages/ServiceUserEcmPage'
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
 import ServiceUserDocumentsModulePage from '@/features/service-users/pages/ServiceUserDocumentsModulePage'
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
@@ -108,6 +110,8 @@ import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
 import PayrollOverviewPage from '@/features/payroll/pages/PayrollOverviewPage'
 import PayrollTaxYearsPage from '@/features/payroll/pages/PayrollTaxYearsPage'
+import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
+import PayrollEmployerSettingsPage from '@/features/payroll/pages/PayrollEmployerSettingsPage'
 import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
@@ -251,6 +255,8 @@ const pageTitles: Record<string, string> = {
   '/ecm/reports': 'ECM reports',
   '/payroll': 'UK Payroll',
   '/payroll/tax-years': 'Tax years',
+  '/payroll/taxes': 'Taxes',
+  '/payroll/employer': 'Employer PAYE',
   '/payroll/schedules': 'Schedules & periods',
   '/payroll/employees': 'Employee payroll setup',
   '/payroll/runs': 'UK payroll runs',
@@ -288,6 +294,8 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'record-types',
   'allergies',
   'tasks-planner',
+  'vital-ranges',
+  'ecm-thresholds',
 ]
 
 const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [
@@ -348,8 +356,10 @@ function AppRootShell() {
           ? 'Medication'
           : /^\/service-users\/[^/]+\/observations$/.test(pathname)
             ? 'Observations'
+            : /^\/service-users\/[^/]+\/ecm$/.test(pathname)
+              ? 'ECM'
             : /^\/service-users\/[^/]+\/body-map$/.test(pathname)
-              ? 'Body Map'
+                ? 'Body Map'
               : /^\/service-users\/[^/]+\/documents$/.test(pathname)
                 ? 'Documents'
               : pathname === '/body-map/review-queue'
@@ -358,6 +368,8 @@ function AppRootShell() {
               ? 'Care Plan'
             : /^\/service-users\/[^/]+\/visit-plan$/.test(pathname)
               ? 'Visit Plan'
+            : /^\/service-users\/[^/]+\/activity$/.test(pathname)
+              ? 'Visit Activity'
             : /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname)
               ? 'Tasks Planner'
             : /^\/service-users\/[^/]+$/.test(pathname)
@@ -371,10 +383,12 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/ecm$/.test(pathname) ||
     /^\/service-users\/[^/]+\/body-map$/.test(pathname) ||
     /^\/service-users\/[^/]+\/documents$/.test(pathname) ||
     /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname) ||
     /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/activity$/.test(pathname) ||
     /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname) ||
     /^\/service-users\/[^/]+$/.test(pathname)
   const employeeManagementWide =
@@ -808,6 +822,16 @@ const serviceUsersVisitPlanRoute = createRoute({
   component: ServiceUserVisitPlanPage,
 })
 
+const serviceUsersActivityRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/activity',
+  beforeLoad: requireAnyPermission('service_users.read', 'scheduled_visits.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserProfile(qc, serviceUserId)
+  },
+  component: ServiceUserActivityPage,
+})
+
 const serviceUsersObservationsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/observations',
@@ -820,6 +844,13 @@ const serviceUsersObservationsRoute = createRoute({
     prefetchServiceUserObservationsRoute(qc, serviceUserId)
   },
   component: ServiceUserObservationsPage,
+})
+
+const serviceUsersEcmRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/ecm',
+  beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
+  component: ServiceUserEcmPage,
 })
 
 const serviceUsersBodyMapRoute = createRoute({
@@ -1476,6 +1507,20 @@ const payrollTaxYearsRoute = createRoute({
   component: PayrollTaxYearsPage,
 })
 
+const payrollTaxesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/taxes',
+  beforeLoad: requirePermission('payroll.settings.read'),
+  component: PayrollTaxesPage,
+})
+
+const payrollEmployerRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/employer',
+  beforeLoad: requirePermission('payroll.settings.read'),
+  component: PayrollEmployerSettingsPage,
+})
+
 const payrollSchedulesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/schedules',
@@ -1651,7 +1696,9 @@ const routeTree = rootRoute.addChildren([
     serviceUsersCarePlanFormRoute,
     serviceUsersTasksPlannerRoute,
     serviceUsersVisitPlanRoute,
+    serviceUsersActivityRoute,
     serviceUsersObservationsRoute,
+    serviceUsersEcmRoute,
     serviceUsersBodyMapRoute,
     serviceUsersDocumentsRoute,
     bodyMapReviewQueueRoute,
@@ -1707,6 +1754,8 @@ const routeTree = rootRoute.addChildren([
     ecmReportsRoute,
     payrollOverviewRoute,
     payrollTaxYearsRoute,
+    payrollTaxesRoute,
+    payrollEmployerRoute,
     payrollSchedulesRoute,
     payrollEmployeesRoute,
     payrollRunsRoute,

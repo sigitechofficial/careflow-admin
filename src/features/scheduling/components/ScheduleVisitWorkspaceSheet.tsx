@@ -20,6 +20,7 @@ type Props = {
   date: string
   defaultTab?: ScheduleVisitWorkspaceTab
   onCompleteVisit?: (job: TimelineJob) => void
+  onMarkIncomplete?: (job: TimelineJob) => void
   onAddNotes?: (job: TimelineJob) => void
   onAllocate?: (job: TimelineJob) => void
 }
@@ -31,6 +32,7 @@ export function ScheduleVisitWorkspaceSheet({
   date,
   defaultTab,
   onCompleteVisit,
+  onMarkIncomplete,
   onAddNotes,
   onAllocate,
 }: Props) {
@@ -49,7 +51,7 @@ export function ScheduleVisitWorkspaceSheet({
             {formatJobTimeRange(job)}
           </SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
           <ScheduleVisitWorkspaceContent
             job={job}
             date={date}
@@ -57,6 +59,7 @@ export function ScheduleVisitWorkspaceSheet({
             defaultTab={defaultTab}
             layout="sheet"
             onCompleteVisit={onCompleteVisit ? () => onCompleteVisit(job) : undefined}
+            onMarkIncomplete={onMarkIncomplete ? () => onMarkIncomplete(job) : undefined}
             onAddNotes={onAddNotes ? () => onAddNotes(job) : undefined}
             onAllocate={onAllocate ? () => onAllocate(job) : undefined}
           />

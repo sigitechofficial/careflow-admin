@@ -2,6 +2,7 @@ import * as React from 'react'
 import type { ScheduleVisitWorkspaceTab } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { ScheduleJobAllocateDialogPanel } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
 export function useScheduleJobsPageDialogs() {
   const [allocateJobId, setAllocateJobId] = React.useState<string | null>(null)
@@ -12,6 +13,8 @@ export function useScheduleJobsPageDialogs() {
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [completeJobTarget, setCompleteJobTarget] = React.useState<TimelineJob | null>(null)
   const [completeOpen, setCompleteOpen] = React.useState(false)
+  const [completeInitialStatus, setCompleteInitialStatus] =
+    React.useState<VisitPlanCalendarOutcomeStatus | null>(null)
   const [cancelJobTarget, setCancelJobTarget] = React.useState<TimelineJob | null>(null)
   const [cancelOpen, setCancelOpen] = React.useState(false)
   const [reinstateJobTarget, setReinstateJobTarget] = React.useState<TimelineJob | null>(null)
@@ -22,6 +25,15 @@ export function useScheduleJobsPageDialogs() {
   const [savingJobId, setSavingJobId] = React.useState<string | null>(null)
   const [createRunOpen, setCreateRunOpen] = React.useState(false)
   const [createRunJobs, setCreateRunJobs] = React.useState<TimelineJob[]>([])
+
+  const openCompleteDialog = React.useCallback(
+    (job: TimelineJob, initialStatus: VisitPlanCalendarOutcomeStatus | null = null) => {
+      setCompleteJobTarget(job)
+      setCompleteInitialStatus(initialStatus)
+      setCompleteOpen(true)
+    },
+    [],
+  )
 
   return {
     allocateJobId,
@@ -38,6 +50,9 @@ export function useScheduleJobsPageDialogs() {
     setCompleteJobTarget,
     completeOpen,
     setCompleteOpen,
+    completeInitialStatus,
+    setCompleteInitialStatus,
+    openCompleteDialog,
     cancelJobTarget,
     setCancelJobTarget,
     cancelOpen,

@@ -16,8 +16,21 @@ const job: TimelineJob = {
   scheduledEndDateTime: '2026-06-18T09:00:00.000Z',
   requiredCarers: 1,
   allocations: [],
-  visits: [{ id: 'visit-1', visitName: 'Morning', visitPlanSlotId: 'slot-1' }],
-  visitPlan: { slotId: 'slot-1', slotCode: 'MORNING', label: 'Morning', linkedCarePlanFormIds: [], medicationRoundCode: 'MORNING' },
+  visits: [
+    {
+      id: 'visit-1',
+      visitName: 'Morning',
+      visitPlanSlotId: 'slot-1',
+      medicationRequired: true,
+    },
+  ],
+  visitPlan: {
+    slotId: 'slot-1',
+    slotCode: 'MORNING',
+    label: 'Morning',
+    linkedCarePlanFormIds: [],
+    medicationRoundCode: 'MORNING',
+  },
 }
 
 describe('schedule-visit-context.util', () => {
@@ -25,8 +38,20 @@ describe('schedule-visit-context.util', () => {
     expect(resolveScheduledVisitId(job)).toBe('visit-1')
   })
 
-  it('detects medication round from visit plan', () => {
+  it('uses persisted visit.medicationRequired (not round code alone)', () => {
     expect(resolveJobMedicationRequired(job)).toBe(true)
+    expect(
+      resolveJobMedicationRequired({
+        ...job,
+        visits: [{ id: 'visit-1', visitName: 'Morning', visitPlanSlotId: 'slot-1', medicationRequired: false }],
+      }),
+    ).toBe(false)
+    expect(
+      resolveJobMedicationRequired({
+        ...job,
+        visits: [{ id: 'visit-1', visitName: 'Morning', visitPlanSlotId: 'slot-1' }],
+      }),
+    ).toBe(false)
   })
 
   it('builds visit context for workspace', () => {

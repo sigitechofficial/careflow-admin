@@ -99,9 +99,15 @@ import type {
 } from '@/features/service-users/visit-plan/types'
 import {
   buildGenerateRotaHorizonOptions,
+  maxEnabledSlotBackfillDays,
+  resolveBackfillWindowEnd,
+  resolveBackfillWindowStart,
   resolveGenerateRotaToDate,
+  resolveRotaStartIsoDate,
+  SHOW_GENERATE_ROTA_SECTION,
   todayIsoDate,
 } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import type { VisitPlanScheduleGenerateMode } from '@/features/service-users/visit-plan/VisitPlanGeneratePreviewDialog'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import {
   visitPlanRespectWorkingPatternOnSync,
@@ -195,6 +201,10 @@ function toSlotInput(slots: VisitPlanSlot[]) {
   })
 }
 
+/** Generate rota step number when visible; Backfill follows (or becomes 5 when Generate is hidden). */
+const GENERATE_ROTA_STEP = 5
+const BACKFILL_STEP = SHOW_GENERATE_ROTA_SECTION ? 6 : 5
+
 export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }: Props) {
   const { data: plans, isLoading } = useServiceUserVisitPlans(serviceUserId)
   const { data: activePlan } = useActiveServiceUserVisitPlan(serviceUserId)
@@ -226,7 +236,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
   const [amendmentReason, setAmendmentReason] = React.useState('')
   const [generateFrom, setGenerateFrom] = React.useState(todayIsoDate)
   const [generateTo, setGenerateTo] = React.useState('')
-  const [backfillDays, setBackfillDays] = React.useState(0)
+  const [backfillDays, setBackfillDays] = React.useState(6)
   const [scheduleAreaId, setScheduleAreaId] = React.useState<string>('')
   const [configSlotCode, setConfigSlotCode] = React.useState<VisitPlanSlot['slotCode']>('')
   const [detailsSlotCode, setDetailsSlotCode] = React.useState<VisitPlanSlot['slotCode'] | null>(null)
@@ -244,6 +254,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
   const [endDialogOpen, setEndDialogOpen] = React.useState(false)
   const [reactivateDialogOpen, setReactivateDialogOpen] = React.useState(false)
   const [activateDialogOpen, setActivateDialogOpen] = React.useState(false)
+  const [generatePreviewMode, setGeneratePreviewMode] =
+    React.useState<VisitPlanScheduleGenerateMode>('generate')
   const [generatePreviewOpen, setGeneratePreviewOpen] = React.useState(false)
   const [generatePreview, setGeneratePreview] = React.useState<GenerateSchedulePreview | null>(null)
   const [generatePreviewLoading, setGeneratePreviewLoading] = React.useState(false)
@@ -636,6 +648,26 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
   const isPublishing = update.isPending || activate.isPending
   const planIsLive = workingPlan?.status === 'ACTIVE'
   const hasWeeklyContractedHours = parseWeeklyContractedHours(weeklyHours) !== null
+  const maxSlotBackfillDays = React.useMemo(() => maxEnabledSlotBackfillDays(slots), [slots])
+  const rotaStartDate = React.useMemo(
+    () => resolveRotaStartIsoDate(slots, workingPlan?.effectiveFrom ?? null),
+    [slots, workingPlan?.effectiveFrom],
+  )
+  const effectiveBackfillDays =
+    maxSlotBackfillDays > 0
+      ? Math.min(Math.max(1, backfillDays), maxSlotBackfillDays)
+      : Math.max(1, backfillDays)
+  const backfillWindowStart = rotaStartDate
+    ? resolveBackfillWindowStart(rotaStartDate, effectiveBackfillDays)
+    : ''
+  const backfillWindowEnd = rotaStartDate ? resolveBackfillWindowEnd(rotaStartDate) : ''
+  const generatePreviewRange =
+    generatePreviewMode === 'backfill'
+      ? { fromDate: backfillWindowStart, toDate: backfillWindowEnd }
+      : {
+          fromDate: generateFrom,
+          toDate: resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions),
+        }
 
   const handleGenerate = async () => {
     if (!workingPlan || workingPlan.status !== 'ACTIVE' || !workingPlan.id) return
@@ -644,13 +676,14 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       return
     }
     const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
+    setGeneratePreviewMode('generate')
+    setGeneratePreview(null)
     setGeneratePreviewLoading(true)
     setGeneratePreviewOpen(true)
     try {
       const preview = await previewVisitPlanGenerateSchedule(serviceUserId, workingPlan.id, {
         fromDate: generateFrom,
         toDate,
-        backfillDays: backfillDays > 0 ? backfillDays : undefined,
       })
       setGeneratePreview(preview)
     } catch (e) {
@@ -661,16 +694,88 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
     }
   }
 
+  const handleBackfill = async () => {
+    if (!workingPlan || workingPlan.status !== 'ACTIVE' || !workingPlan.id) return
+    if (!rotaStartDate) {
+      toastApiError(
+        new Error('Rota start date missing'),
+        'Set a Start Date on at least one enabled call first',
+      )
+      return
+    }
+    const savedMaxBackfill = maxEnabledSlotBackfillDays(workingPlan.slots ?? [])
+    if (savedMaxBackfill <= 0) {
+      toastApiError(
+        new Error('Max backfill days not saved'),
+        'Set Max backfill days on Morning, then click Record amendment to save — then run Backfill',
+      )
+      return
+    }
+    if (maxSlotBackfillDays <= 0) {
+      toastApiError(
+        new Error('No call slots allow backfill'),
+        'Set Max backfill days on at least one enabled call before backfilling',
+      )
+      return
+    }
+    if (maxSlotBackfillDays > savedMaxBackfill) {
+      toastApiError(
+        new Error('Unsaved backfill days'),
+        `Form shows ${maxSlotBackfillDays} days but saved plan allows ${savedMaxBackfill}. Record amendment first.`,
+      )
+      return
+    }
+    const days = Math.min(Math.max(1, backfillDays), savedMaxBackfill)
+    setGeneratePreviewMode('backfill')
+    setGeneratePreview(null)
+    setGeneratePreviewLoading(true)
+    setGeneratePreviewOpen(true)
+    try {
+      const preview = await previewVisitPlanGenerateSchedule(serviceUserId, workingPlan.id, {
+        fromDate: rotaStartDate,
+        toDate: rotaStartDate,
+        backfillDays: days,
+        backfillOnly: true,
+      })
+      setGeneratePreview(preview)
+    } catch (e) {
+      setGeneratePreviewOpen(false)
+      toastApiError(e, 'Could not preview backfill')
+    } finally {
+      setGeneratePreviewLoading(false)
+    }
+  }
+
   const runGenerateSchedule = async () => {
-    if (!workingPlan?.id || !generateFrom) return
-    const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
+    if (!workingPlan?.id) return
     const respect = visitPlanRespectWorkingPatternOnSync(workingPlan)
     try {
+      if (generatePreviewMode === 'backfill') {
+        if (!rotaStartDate) return
+        const days = Math.min(Math.max(1, backfillDays), maxSlotBackfillDays || 14)
+        const result = await generateSchedule.mutateAsync({
+          planId: workingPlan.id,
+          fromDate: rotaStartDate,
+          toDate: rotaStartDate,
+          backfillDays: days,
+          backfillOnly: true,
+          scheduleAreaId: scheduleAreaId || undefined,
+          respectWorkingPatternOnSync: respect,
+        })
+        setGeneratePreviewOpen(false)
+        toastSuccess(
+          'Backfill complete',
+          `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
+        )
+        return
+      }
+
+      if (!generateFrom) return
+      const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
       const result = await generateSchedule.mutateAsync({
         planId: workingPlan.id,
         fromDate: generateFrom,
         toDate,
-        backfillDays: backfillDays > 0 ? backfillDays : undefined,
         scheduleAreaId: scheduleAreaId || undefined,
         respectWorkingPatternOnSync: respect,
       })
@@ -680,7 +785,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
       )
     } catch (e) {
-      toastApiError(e, 'Could not generate schedule')
+      toastApiError(
+        e,
+        generatePreviewMode === 'backfill' ? 'Could not backfill visits' : 'Could not generate schedule',
+      )
     }
   }
 
@@ -1440,23 +1548,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
             </div>
       </ContentCard>
 
-      {workingPlan?.status === 'ACTIVE' ? (
+      {/* Temporarily hidden — re-enable with SHOW_GENERATE_ROTA_SECTION = true */}
+      {SHOW_GENERATE_ROTA_SECTION && workingPlan?.status === 'ACTIVE' ? (
         <ContentCard className="space-y-4 border-2 border-sky-200 dark:border-sky-900">
           <ContentSectionHeader
             icon={<Sparkles className="h-5 w-5" aria-hidden />}
             iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
-            kicker="Step 5"
+            kicker={`Step ${GENERATE_ROTA_STEP}`}
             kickerClassName="text-sky-700 dark:text-sky-300"
             title="Generate rota"
             titleAs="h3"
             description={
               <>
-                Create scheduled visits from this plan (max 31 days). Leave To empty for the next 14 days. View
-                results in{' '}
+                Create scheduled visits from this plan going forward (max 31 days). Leave To empty for the
+                configured horizon. View results in{' '}
                 <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
                   Scheduling
                 </Link>
-                .
+                . Use Backfill past visits below for catch-up days.
               </>
             }
           />
@@ -1470,15 +1579,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                     value={generateTo}
                     placeholder="Next 14 days"
                     onChange={(e) => setGenerateTo(e.target.value)}
-                  />
-                </FormField>
-                <FormField label="Backfill days" className="w-28">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={14}
-                    value={backfillDays}
-                    onChange={(e) => setBackfillDays(Number(e.target.value) || 0)}
                   />
                 </FormField>
                 <FormField label="Schedule area" className="min-w-[12rem]">
@@ -1504,7 +1604,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   onClick={() => void handleGenerate()}
                   disabled={generateSchedule.isPending}
                 >
-                  {generateSchedule.isPending ? (
+                  {generateSchedule.isPending && generatePreviewMode === 'generate' ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <CalendarClock className="mr-2 h-4 w-4" />
@@ -1512,6 +1612,95 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   Generate visits
                 </Button>
               </div>
+        </ContentCard>
+      ) : null}
+
+      {workingPlan?.status === 'ACTIVE' ? (
+        <ContentCard className="space-y-4 border-2 border-amber-200 dark:border-amber-900">
+          <ContentSectionHeader
+            icon={<History className="h-5 w-5" aria-hidden />}
+            iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
+            kicker={`Step ${BACKFILL_STEP}`}
+            kickerClassName="text-amber-800 dark:text-amber-300"
+            title="Backfill past visits"
+            titleAs="h3"
+            description={
+              <>
+                Create visits for the days <strong>before</strong> rota start (call Start Date). Example: rota
+                starts 6 Aug and days = 5 → creates 1–5 Aug. First set Max backfill days on the call, then{' '}
+                <strong>Record amendment</strong> to save, then backfill. View results in{' '}
+                <Link
+                  to="/scheduling/view"
+                  search={{ date: backfillWindowStart || rotaStartDate || generateFrom }}
+                  className="text-amber-700 underline dark:text-amber-300"
+                >
+                  Scheduling
+                </Link>
+                .
+              </>
+            }
+          />
+          <div className="flex flex-wrap items-end gap-3">
+            <FormField label="Days before rota start" className="w-40">
+              <Input
+                type="number"
+                min={1}
+                max={maxSlotBackfillDays || 14}
+                value={backfillDays}
+                onChange={(e) => setBackfillDays(Number(e.target.value) || 0)}
+              />
+            </FormField>
+            <FormField label="Schedule area" className="min-w-[12rem]">
+              <Select
+                value={scheduleAreaId || '__none__'}
+                onValueChange={(v) => setScheduleAreaId(v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Default</SelectItem>
+                  {(scheduleAreasQuery.data ?? []).map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void handleBackfill()}
+              disabled={
+                generateSchedule.isPending ||
+                maxSlotBackfillDays <= 0 ||
+                backfillDays < 1 ||
+                !rotaStartDate
+              }
+            >
+              {generateSchedule.isPending && generatePreviewMode === 'backfill' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <History className="mr-2 h-4 w-4" />
+              )}
+              Backfill visits
+            </Button>
+          </div>
+          {!rotaStartDate ? (
+            <p className={contentHelperErrorClass}>
+              Set a Start Date on an enabled call (e.g. Morning) so we know when the rota started.
+            </p>
+          ) : maxSlotBackfillDays <= 0 ? (
+            <p className={contentHelperErrorClass}>
+              No enabled call allows backfill. Open a call&apos;s details and set Max backfill days (1–14).
+            </p>
+          ) : (
+            <p className={contentHelperClass}>
+              Rota start: {rotaStartDate}. Will create: {backfillWindowStart} → {backfillWindowEnd} (slot
+              cap {maxSlotBackfillDays} day{maxSlotBackfillDays === 1 ? '' : 's'}).
+            </p>
+          )}
         </ContentCard>
       ) : null}
 
@@ -1588,8 +1777,9 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         onOpenChange={setGeneratePreviewOpen}
         preview={generatePreview}
         loading={generatePreviewLoading}
-        fromDate={generateFrom}
-        toDate={resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)}
+        mode={generatePreviewMode}
+        fromDate={generatePreviewRange.fromDate}
+        toDate={generatePreviewRange.toDate}
         isPending={generateSchedule.isPending}
         onConfirm={runGenerateSchedule}
       />
@@ -1646,6 +1836,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
           setGenerateFrom(from)
           setGenerateTo('')
           setPostReactivateGenerateOpen(false)
+          setGeneratePreviewMode('generate')
           const toDate = resolveGenerateRotaToDate(from, '', rotaHorizonOptions)
           setGeneratePreviewLoading(true)
           setGeneratePreviewOpen(true)

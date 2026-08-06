@@ -54,6 +54,7 @@ export function scheduleJobBlockHasVisibleIcons(
   showRequiredCarersIcon: boolean,
   showTravelIcon: boolean,
   outsidePattern?: boolean,
+  hasDeliveryFlags = false,
 ): boolean {
   const showLaneBadge = stackedLanes && overlapLayout != null
   const showOperationalBadges =
@@ -61,5 +62,11 @@ export function scheduleJobBlockHasVisibleIcons(
     (job.carersOnLeave?.length ?? 0) > 0 ||
     Boolean(job.needsCover) ||
     Boolean(outsidePattern)
-  return showLaneBadge || showRequiredCarersIcon || showTravelIcon || showOperationalBadges
+  return (
+    showLaneBadge ||
+    showRequiredCarersIcon ||
+    showTravelIcon ||
+    showOperationalBadges ||
+    hasDeliveryFlags
+  )
 }

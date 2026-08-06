@@ -14,7 +14,10 @@ import type {
   ScheduleJobAllocateDialogPanel,
   ScheduleJobContextAction,
 } from '@/features/scheduling/types/schedule-job-context-actions.types'
-import { isScheduleJobReadOnly } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import {
+  isScheduleJobOutcomeLocked,
+  isScheduleJobReadOnly,
+} from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
   allocationWarningsSummary,
   isDragAllocationHardBlock,
@@ -82,6 +85,7 @@ export function useScheduleJobsPageActions({
     setNotesOpen,
     setCompleteJobTarget,
     setCompleteOpen,
+    openCompleteDialog,
     setCancelJobTarget,
     setCancelOpen,
     setReinstateJobTarget,
@@ -138,8 +142,7 @@ export function useScheduleJobsPageActions({
       if (action === 'workspace') {
         openVisitWorkspace(job, search.visitTab ?? 'overview')
       } else if (action === 'complete') {
-        setCompleteJobTarget(job)
-        setCompleteOpen(true)
+        openCompleteDialog(job)
       } else if (action === 'notes') {
         setNotesJob(job)
         setNotesOpen(true)
@@ -164,8 +167,7 @@ export function useScheduleJobsPageActions({
     setAllocateDialogPanel,
     setAllocateJobId,
     setAllocateOpen,
-    setCompleteJobTarget,
-    setCompleteOpen,
+    openCompleteDialog,
     setNotesJob,
     setNotesOpen,
   ])
@@ -194,8 +196,12 @@ export function useScheduleJobsPageActions({
   const handleJobAction = React.useCallback(
     (job: TimelineJob, action: ScheduleJobContextAction) => {
       const readOnly = isScheduleJobReadOnly(job)
+      const outcomeLocked = isScheduleJobOutcomeLocked(job)
+      const allowOutcomeOnCompleted =
+        !outcomeLocked && (action === 'complete-job' || action === 'mark-incomplete')
       if (
         readOnly &&
+        !allowOutcomeOnCompleted &&
         action !== 'allocate-employees' &&
         action !== 'add-notes' &&
         action !== 'open-visit-workspace' &&
@@ -225,8 +231,10 @@ export function useScheduleJobsPageActions({
           void handleUnallocateJob(job)
           return
         case 'complete-job':
-          setCompleteJobTarget(job)
-          setCompleteOpen(true)
+          openCompleteDialog(job)
+          return
+        case 'mark-incomplete':
+          openCompleteDialog(job, 'PARTIALLY_COMPLETED')
           return
         case 'cancel-job':
           setCancelJobTarget(job)
@@ -256,13 +264,12 @@ export function useScheduleJobsPageActions({
     [
       handleUnallocateJob,
       openAllocate,
+      openCompleteDialog,
       openVisitWorkspace,
       runEdit,
       runReassign,
       setCancelJobTarget,
       setCancelOpen,
-      setCompleteJobTarget,
-      setCompleteOpen,
       setNotesJob,
       setNotesOpen,
       setReinstateJobTarget,

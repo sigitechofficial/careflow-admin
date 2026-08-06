@@ -182,10 +182,13 @@ function ExceptionActions({
 
 export function EcmExceptionQueuePanel({
   onOpenVisit,
+  serviceUserId,
 }: {
   onOpenVisit: (jobId: string) => void
+  /** When set, only exceptions for this service user are loaded. */
+  serviceUserId?: string
 }) {
-  const exceptions = useEcmExceptions(50)
+  const exceptions = useEcmExceptions({ limit: 50, serviceUserId })
   const reasons = useEcmReasonCodes()
   const [expandedId, setExpandedId] = React.useState<string | null>(null)
 
@@ -212,7 +215,9 @@ export function EcmExceptionQueuePanel({
     <section className="space-y-2" data-testid="ecm-exception-queue">
       <div className="flex items-center gap-2">
         <Radio className="h-4 w-4 text-muted-foreground" aria-hidden />
-        <h3 className="text-sm font-semibold">Exception queue</h3>
+        <h3 className="text-sm font-semibold">
+          {serviceUserId ? 'Exceptions for this service user' : 'Exception queue'}
+        </h3>
         <span className="text-xs text-muted-foreground">
           {rows.length} open · acknowledge / resolve with reason codes
         </span>

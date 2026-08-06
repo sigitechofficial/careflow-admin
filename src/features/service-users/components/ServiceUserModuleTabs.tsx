@@ -14,6 +14,8 @@ type ModuleTab = {
   id: ServiceUserModuleTabIconId
   label: string
   to?:
+    | '/service-users/$serviceUserId/view'
+    | '/service-users/$serviceUserId/ecm'
     | '/service-users/$serviceUserId/tasks-planner'
     | '/service-users/$serviceUserId/visit-plan'
     | '/service-users/$serviceUserId/care-plan'
@@ -21,10 +23,14 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/observations'
     | '/service-users/$serviceUserId/body-map'
     | '/service-users/$serviceUserId/documents'
+    | '/service-users/$serviceUserId/activity'
+  search?: { layout?: 'wed' | 'thu' | 'simple' | 'classic' }
 }
 
 /** Light circle behind glyph exports that omit a filled disc (meds includes its own). */
 const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = {
+  overview: '#E8F0FE',
+  ecm: '#FEF3E8',
   observations: '#E8F5F2',
   comms: '#F4EDF9',
   'tasks-planner': '#EEF2FF',
@@ -35,9 +41,21 @@ const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = 
   history: '#EDF3FE',
   'body-map': '#F1F2F3',
   alerts: '#FEEEEE',
+  activity: '#E8F5F2',
 }
 
 const MODULE_TABS: ModuleTab[] = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    to: '/service-users/$serviceUserId/view',
+    search: { layout: 'wed' },
+  },
+  {
+    id: 'ecm',
+    label: 'ECM',
+    to: '/service-users/$serviceUserId/ecm',
+  },
   {
     id: 'observations',
     label: 'Observations',
@@ -69,17 +87,23 @@ const MODULE_TABS: ModuleTab[] = [
     label: 'Documents',
     to: '/service-users/$serviceUserId/documents',
   },
-  { id: 'history', label: 'History' },
   {
     id: 'body-map',
     label: 'Body Map',
     to: '/service-users/$serviceUserId/body-map',
   },
   { id: 'alerts', label: 'Alerts' },
+  {
+    id: 'activity',
+    label: 'Activity',
+    to: '/service-users/$serviceUserId/activity',
+  },
 ]
 
 function isTabActive(tab: ModuleTab, pathname: string): boolean {
   if (!tab.to) return false
+  if (tab.id === 'overview') return /\/service-users\/[^/]+\/view\/?$/.test(pathname)
+  if (tab.id === 'ecm') return /\/service-users\/[^/]+\/ecm\/?$/.test(pathname)
   if (tab.id === 'meds') return pathname.includes('/medication')
   if (tab.id === 'observations') return pathname.includes('/observations')
   if (tab.id === 'tasks-planner') return pathname.includes('/tasks-planner')
@@ -87,6 +111,7 @@ function isTabActive(tab: ModuleTab, pathname: string): boolean {
   if (tab.id === 'care-plan') return pathname.includes('/care-plan')
   if (tab.id === 'body-map') return pathname.includes('/body-map')
   if (tab.id === 'documents') return pathname.includes('/documents')
+  if (tab.id === 'activity') return pathname.includes('/activity')
   return false
 }
 
@@ -146,7 +171,13 @@ export function ServiceUserModuleTabs({
 
           if (tab.to) {
             return (
-              <Link key={tab.id} to={tab.to} params={{ serviceUserId }} title={tab.label}>
+              <Link
+                key={tab.id}
+                to={tab.to}
+                params={{ serviceUserId }}
+                search={tab.search}
+                title={tab.label}
+              >
                 {content}
               </Link>
             )

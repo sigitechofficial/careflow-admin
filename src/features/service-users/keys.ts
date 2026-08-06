@@ -82,6 +82,12 @@ export const serviceUserKeys = {
   visitPlanWorking: (id: string) =>
     [...serviceUserKeys.visitPlans(id), 'working'] as const,
 
+  /** Completed / partial visit activity for one service user. */
+  visitActivity: (
+    id: string,
+    params?: { page?: number; limit?: number; dateFrom?: string; dateTo?: string },
+  ) => [...serviceUserKeys.detail(id), 'visit-activity', params ?? {}] as const,
+
   /** Live-in profile. */
   liveIn: (id: string) =>
     [...serviceUserKeys.detail(id), 'live-in'] as const,

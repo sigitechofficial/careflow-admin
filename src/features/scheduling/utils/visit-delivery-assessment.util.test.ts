@@ -99,23 +99,29 @@ describe('assessVisitDelivery', () => {
     expect(inProgress.lifecycleStatus).toBe('IN_PROGRESS')
   })
 
-  it('flags zero and invalid duration', () => {
-    const zero = assessVisitDelivery({
+  it('flags late end when checkout is after planned end without duration overrun', () => {
+    // Started 20 min late and ended 20 min late → duration matches plan, but end is late.
+    const result = assessVisitDelivery({
       ...base,
       visitStatus: 'COMPLETED',
       jobStatus: 'COMPLETED',
-      actualStartIso: '2026-07-16T08:00:00.000Z',
-      actualEndIso: '2026-07-16T08:00:00.000Z',
+      actualStartIso: '2026-07-16T08:20:00.000Z',
+      actualEndIso: '2026-07-16T09:20:00.000Z',
     })
-    expect(zero.durationExceptions).toContain('ZERO_DURATION')
+    expect(result.timingStatus).toBe('LATE_START')
+    expect(result.durationExceptions).toContain('LATE_END')
+    expect(result.flags.some((f) => f.code === 'LATE_END')).toBe(true)
+  })
 
-    const invalid = assessVisitDelivery({
+  it('flags early arrival and early end', () => {
+    const result = assessVisitDelivery({
       ...base,
       visitStatus: 'COMPLETED',
       jobStatus: 'COMPLETED',
-      actualStartIso: '2026-07-16T09:00:00.000Z',
-      actualEndIso: '2026-07-16T08:00:00.000Z',
+      actualStartIso: '2026-07-16T07:40:00.000Z',
+      actualEndIso: '2026-07-16T08:40:00.000Z',
     })
-    expect(invalid.durationExceptions).toContain('NEGATIVE_OR_INVALID_DURATION')
+    expect(result.timingStatus).toBe('EARLY_ARRIVAL')
+    expect(result.durationExceptions).toContain('EARLY_END')
   })
 })

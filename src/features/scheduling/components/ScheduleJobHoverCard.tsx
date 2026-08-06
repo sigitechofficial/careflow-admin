@@ -52,6 +52,12 @@ import {
 } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { isoToLocalTimeInput } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import {
+  assessTimelineJobDelivery,
+  boardVisibleDeliveryFlags,
+  deliveryFlagChipClass,
+  deliveryFlagShortLabel,
+} from '@/features/scheduling/utils/schedule-job-delivery-flags.util'
+import {
   handleScheduleJobHoverWheel,
 } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
 
@@ -432,6 +438,8 @@ export function JobHoverPanel({
         ? displayFormat.formatTimeHm(isoToLocalTimeInput(actualStart))
         : null
 
+  const deliveryFlags = boardVisibleDeliveryFlags(assessTimelineJobDelivery(job))
+
   const timeCritical = visitSlot?.timeCritical
   const timeCriticalText = timeCritical
     ? timeCriticalLabel(visitSlot.timeToleranceMinutes)
@@ -569,6 +577,25 @@ export function JobHoverPanel({
                 ? `Was unstaffed — needed ${required} carer${required === 1 ? '' : 's'}`
                 : 'Visit cancelled on rota'}
             </p>
+          ) : null}
+          {deliveryFlags.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {deliveryFlags.map((flag) => (
+                <span
+                  key={flag.code}
+                  title={flag.detail ?? flag.label}
+                  className={cn(
+                    'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold',
+                    deliveryFlagChipClass(flag.severity),
+                  )}
+                >
+                  {deliveryFlagShortLabel(flag)}
+                  {flag.detail ? (
+                    <span className="ml-1 font-normal opacity-90">· {flag.detail}</span>
+                  ) : null}
+                </span>
+              ))}
+            </div>
           ) : null}
         </div>
 

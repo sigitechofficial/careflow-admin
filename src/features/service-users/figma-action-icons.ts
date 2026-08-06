@@ -95,6 +95,8 @@ export const QUICK_SELECT_RISK_ICON = {
 const moduleTabsBase = '/care-plan-icons/module-tabs'
 
 export type ServiceUserModuleTabIconId =
+  | 'overview'
+  | 'ecm'
   | 'observations'
   | 'comms'
   | 'tasks-planner'
@@ -105,8 +107,11 @@ export type ServiceUserModuleTabIconId =
   | 'history'
   | 'body-map'
   | 'alerts'
+  | 'activity'
 
 export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, string> = {
+  overview: `${base}/view.svg`,
+  ecm: `${moduleTabsBase}/alerts.svg`,
   observations: `${moduleTabsBase}/observations.svg`,
   comms: `${moduleTabsBase}/comms.svg`,
   'tasks-planner': `${moduleTabsBase}/tasks-planner.svg`,
@@ -117,6 +122,7 @@ export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, s
   history: `${moduleTabsBase}/history.svg`,
   'body-map': `${moduleTabsBase}/body-map.svg`,
   alerts: `${moduleTabsBase}/alerts.svg`,
+  activity: `${moduleTabsBase}/history.svg`,
 }
 
 export function figmaModuleTabIcon(id: ServiceUserModuleTabIconId): string {

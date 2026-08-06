@@ -110,6 +110,7 @@ export type TimelineJob = {
     visitName: string
     visitPlanSlotId: string | null
     status?: string
+    medicationRequired?: boolean
     scheduledStartDateTime?: string
     scheduledEndDateTime?: string | null
     actualStartDateTime?: string | null

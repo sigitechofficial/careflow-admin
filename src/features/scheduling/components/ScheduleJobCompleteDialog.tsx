@@ -30,8 +30,12 @@ import { VisitJobTasksChecklist } from '@/features/scheduling/components/VisitJo
 import { VisitJobExtraTaskPicker } from '@/features/scheduling/components/VisitJobExtraTaskPicker'
 import { fetchVisitJobTasks, saveVisitJobTasks } from '@/features/scheduling/api/scheduling.api'
 import { fetchTaskCatalogue } from '@/features/service-users/visit-tasks/api'
-import type { VisitJobTaskRow } from '@/features/scheduling/types/visit-job-tasks.types'
-import { validateVisitJobTasks } from '@/features/scheduling/types/visit-job-tasks.types'
+import type { VisitJobTaskOutcome, VisitJobTaskRow } from '@/features/scheduling/types/visit-job-tasks.types'
+import {
+  hydrateVisitJobTaskRow,
+  mapVisitJobTaskForSave,
+  validateVisitJobTasks,
+} from '@/features/scheduling/types/visit-job-tasks.types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { formatMedicationRoundWindow } from '@/features/service-users/medication/medication-time-slots'
 import {
@@ -72,6 +76,8 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   job: TimelineJob | null
+  /** When set, overrides the default outcome status when the dialog opens. */
+  initialVisitStatus?: VisitPlanCalendarOutcomeStatus | null
   onCompleted?: () => void
   onJobUpdated?: () => void
 }
@@ -80,6 +86,7 @@ export function ScheduleJobCompleteDialog({
   open,
   onOpenChange,
   job,
+  initialVisitStatus = null,
   onCompleted,
   onJobUpdated,
 }: Props) {
@@ -164,7 +171,7 @@ export function ScheduleJobCompleteDialog({
 
   React.useEffect(() => {
     if (!visitTasksQuery.data) return
-    setVisitTasks(visitTasksQuery.data.tasks)
+    setVisitTasks(visitTasksQuery.data.tasks.map(hydrateVisitJobTaskRow))
   }, [visitTasksQuery.data])
 
   React.useEffect(() => {
@@ -175,7 +182,7 @@ export function ScheduleJobCompleteDialog({
     setOverrunReason('')
     setTimingExceptionReasonCode('')
     setTimingExceptionNotes('')
-    setVisitStatus(defaultScheduleJobVisitOutcome(job))
+    setVisitStatus(initialVisitStatus ?? defaultScheduleJobVisitOutcome(job))
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
     )
@@ -215,7 +222,7 @@ export function ScheduleJobCompleteDialog({
         }
       }),
     )
-  }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits, job?.allocations])
+  }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits, job?.allocations, initialVisitStatus])
 
   React.useEffect(() => {
     if (!SHOW_DELIVERED_CARE_PLANS || !open || !job || acceptedQuery.isLoading) return
@@ -272,6 +279,7 @@ export function ScheduleJobCompleteDialog({
     assignmentId: string,
     patch: {
       isCompleted?: boolean
+      outcome?: VisitJobTaskOutcome | null
       recordedValue?: string | null
       notes?: string | null
     },
@@ -288,27 +296,11 @@ export function ScheduleJobCompleteDialog({
   const addExtraVisitTask = (task: VisitJobTaskRow) => {
     setVisitTasks((prev) => {
       if (prev.some((row) => row.taskCatalogueTaskId === task.taskCatalogueTaskId)) return prev
-      return [...prev, task]
+      return [...prev, hydrateVisitJobTaskRow(task)]
     })
   }
 
-  const mapVisitTasksForSave = (tasks: VisitJobTaskRow[]) =>
-    tasks.map((task) =>
-      task.isExtra
-        ? {
-            taskCatalogueTaskId: task.taskCatalogueTaskId,
-            isExtra: true,
-            isCompleted: task.isCompleted,
-            recordedValue: task.recordedValue ?? undefined,
-            notes: task.notes ?? undefined,
-          }
-        : {
-            assignmentId: task.assignmentId,
-            isCompleted: task.isCompleted,
-            recordedValue: task.recordedValue ?? undefined,
-            notes: task.notes ?? undefined,
-          },
-    )
+  const mapVisitTasksForSave = (tasks: VisitJobTaskRow[]) => tasks.map(mapVisitJobTaskForSave)
 
   const actualStartDateTime = React.useMemo(() => {
     if (!scheduleDateIso || !actualStartTime || !/^\d{2}:\d{2}$/.test(actualStartTime)) return undefined
@@ -413,8 +405,19 @@ export function ScheduleJobCompleteDialog({
       })
       toastSuccess(
         visitStatus === 'COMPLETED' ? 'Job completed' : 'Visit saved',
-        SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)?.label ??
-          'Visit details recorded.',
+        (() => {
+          const base =
+            SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)
+              ?.label ?? 'Visit details recorded.'
+          const syncedObs = visitTasks.some(
+            (task) =>
+              task.isCompleted &&
+              (task.outcome ?? 'completed') === 'completed' &&
+              Boolean(task.observationTypeCode) &&
+              Boolean(task.recordedValue?.trim() || task.notes?.trim()),
+          )
+          return syncedObs ? `${base} Observation recorded from visit tasks.` : base
+        })(),
       )
       onCompleted?.()
       onOpenChange(false)

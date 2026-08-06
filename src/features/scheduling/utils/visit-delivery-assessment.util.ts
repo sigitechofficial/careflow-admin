@@ -34,6 +34,7 @@ export type VisitDurationExceptionCode =
   | 'PLANNED_SHORT_VISIT'
   | 'ACTUAL_SHORT_VISIT'
   | 'EARLY_END'
+  | 'LATE_END'
   | 'OVERRUN'
   | 'ABNORMALLY_LONG_OPEN'
   | 'ZERO_DURATION'
@@ -111,6 +112,7 @@ const DURATION_LABELS: Record<VisitDurationExceptionCode, string> = {
   PLANNED_SHORT_VISIT: 'Planned short visit',
   ACTUAL_SHORT_VISIT: 'Actual short visit',
   EARLY_END: 'Early end',
+  LATE_END: 'Late end',
   OVERRUN: 'Overrun / long visit',
   ABNORMALLY_LONG_OPEN: 'Abnormally long open visit',
   ZERO_DURATION: 'Zero-duration visit',
@@ -341,6 +343,20 @@ export function assessVisitDelivery(input: VisitDeliveryAssessmentInput): VisitD
     });
   }
 
+  if (
+    endVarianceMinutes != null &&
+    endVarianceMinutes > toleranceMinutes &&
+    !durationExceptions.includes('OVERRUN')
+  ) {
+    durationExceptions.push('LATE_END');
+    flags.push({
+      code: 'LATE_END',
+      label: DURATION_LABELS.LATE_END,
+      severity: 'warning',
+      detail: `Ended +${endVarianceMinutes} min after planned end`,
+    });
+  }
+
   if (lifecycleStatus === 'PARTIALLY_COMPLETED') {
     durationExceptions.push('PARTIALLY_COMPLETED');
     flags.push({
@@ -425,6 +441,7 @@ export function assessVisitDelivery(input: VisitDeliveryAssessmentInput): VisitD
     timingStatus === 'CRITICALLY_LATE' ||
     timingStatus === 'EARLY_ARRIVAL' ||
     durationExceptions.includes('OVERRUN') ||
+    durationExceptions.includes('LATE_END') ||
     durationExceptions.includes('ACTUAL_SHORT_VISIT') ||
     durationExceptions.includes('EARLY_END') ||
     durationExceptions.includes('ZERO_DURATION') ||

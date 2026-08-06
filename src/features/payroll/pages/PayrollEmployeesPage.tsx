@@ -31,6 +31,8 @@ import {
   useCreateEmployeePayAgreement,
   usePayrollEmployees,
   usePayrollSchedules,
+  usePayrollStatutoryRates,
+  usePayrollTaxCodes,
   useUpsertEmployeePayrollProfile,
 } from '@/features/payroll/hooks/usePayroll'
 import { useAuthStore } from '@/features/auth/store'
@@ -56,18 +58,45 @@ import {
 } from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 
-const TAX_CODE_OPTIONS = buildTaxCodeComboboxOptions(true)
 const NI_OPTIONS = buildNiCategoryComboboxOptions()
 
 export default function PayrollEmployeesPage() {
   const canManage = useAuthStore((s) => s.can('payroll.employees.manage'))
   const { data = [], isLoading } = usePayrollEmployees()
   const { data: schedules = [] } = usePayrollSchedules()
+  const { data: taxCodes = [] } = usePayrollTaxCodes()
+  const { data: statutoryRates = [] } = usePayrollStatutoryRates()
+  const displayRates = React.useMemo(() => {
+    const current =
+      statutoryRates.find((r) => r.taxYear?.isCurrent) ?? statutoryRates[0] ?? null
+    if (!current) return null
+    return {
+      basicRatePercent: current.basicRatePercent,
+      higherRatePercent: current.higherRatePercent,
+      additionalRatePercent: current.additionalRatePercent,
+      personalAllowanceAnnual: current.personalAllowanceAnnual,
+      niEmployeeRateMainPercent: current.niEmployeeRateMainPercent,
+    }
+  }, [statutoryRates])
   const [listSearch, setListSearch] = React.useState('')
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const selected = data.find((r) => r.employeeId === selectedId) ?? null
   const upsertMut = useUpsertEmployeePayrollProfile(selectedId ?? '')
   const agreementMut = useCreateEmployeePayAgreement(selectedId ?? '')
+
+  const TAX_CODE_OPTIONS = React.useMemo(
+    () =>
+      buildTaxCodeComboboxOptions(
+        true,
+        taxCodes.map((c) => ({
+          code: c.code,
+          label: c.label,
+          description: c.description,
+        })),
+      ),
+    [taxCodes],
+  )
+  const knownTaxCodes = React.useMemo(() => taxCodes.map((c) => c.code), [taxCodes])
 
   const [taxCodeSelect, setTaxCodeSelect] = React.useState('1257L')
   const [customTaxCode, setCustomTaxCode] = React.useState('')
@@ -86,7 +115,7 @@ export default function PayrollEmployeesPage() {
   React.useEffect(() => {
     if (!selected) return
     const stored = selected.profile?.taxCode ?? '1257L'
-    const selectValue = taxCodeSelectValue(stored)
+    const selectValue = taxCodeSelectValue(stored, knownTaxCodes)
     setTaxCodeSelect(selectValue)
     setCustomTaxCode(selectValue === UK_TAX_CODE_OTHER ? stored.trim().toUpperCase() : '')
     setTaxCodeWeek1Month1(selected.profile?.taxCodeWeek1Month1 ?? false)
@@ -106,14 +135,30 @@ export default function PayrollEmployeesPage() {
     )
     setPensionSchemeRef(selected.profile?.pensionSchemeRef ?? '')
     setScheduleId(selected.profile?.scheduleId ?? '')
-  }, [selected])
+  }, [selected, knownTaxCodes])
 
   const resolvedTaxCode =
     taxCodeSelect === UK_TAX_CODE_OTHER
       ? customTaxCode.trim().toUpperCase()
       : taxCodeSelect
-  const taxRateSummary = summariseTaxCodeRates(resolvedTaxCode || '1257L')
-  const niRateSummary = summariseNiCategoryRate(niCategory)
+  const taxRateSummary = summariseTaxCodeRates(resolvedTaxCode || '1257L', displayRates)
+  const niRateSummary = summariseNiCategoryRate(niCategory, displayRates)
+
+  const liveRtiIssues = React.useMemo(() => {
+    const hrIssues = (selected?.rtiIdentity?.issues ?? []).filter(
+      (issue) => !/tax code/i.test(issue) && !/NI category/i.test(issue),
+    )
+    const next = [...hrIssues]
+    if (!resolvedTaxCode || resolvedTaxCode.length < 2) {
+      next.push('UK tax code must be set on the payroll profile')
+    }
+    if (!niCategory) {
+      next.push('NI category letter must be set on the payroll profile')
+    }
+    return next
+  }, [selected?.rtiIdentity?.issues, resolvedTaxCode, niCategory])
+
+  const canSetReady = liveRtiIssues.length === 0
 
   const syncedLoanFlags = syncLoanFlagsFromElections(deductionElections)
   const showPensionRef =
@@ -157,7 +202,7 @@ export default function PayrollEmployeesPage() {
   return (
     <PayrollSectionLayout
       title="Employee payroll setup"
-      description="Search carers, then set tax code and Employee National Insurance. Only PAYE and Class 1 NI £ amounts are calculated on the run today."
+      description="Search carers, then set tax code and NI. READY requires complete HMRC identity (name, DOB, gender, address, NINo, payroll number)."
       testId="payroll-employees-page"
     >
       <div className="space-y-5">
@@ -250,7 +295,7 @@ export default function PayrollEmployeesPage() {
                 </thead>
                 <tbody>
                   {filteredEmployees.map((row) => {
-                    const rate = summariseTaxCodeRates(row.profile?.taxCode)
+                    const rate = summariseTaxCodeRates(row.profile?.taxCode, displayRates)
                     return (
                     <tr
                       key={row.employeeId}
@@ -266,11 +311,18 @@ export default function PayrollEmployeesPage() {
                       </td>
                       <td className="py-3 pr-3 text-muted-foreground">{row.payrollNumber ?? '—'}</td>
                       <td className="py-3 pr-3">
-                        {row.profile ? (
-                          <PayrollStatusBadge status={row.profile.status} />
-                        ) : (
-                          <span className="text-muted-foreground">Not set</span>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {row.profile ? (
+                            <PayrollStatusBadge status={row.profile.status} />
+                          ) : (
+                            <span className="text-muted-foreground">Not set</span>
+                          )}
+                          {row.profile?.status === 'READY' && row.rtiIdentity && !row.rtiIdentity.isComplete ? (
+                            <span className="text-[11px] text-amber-700 dark:text-amber-300">
+                              Identity incomplete
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="py-3 pr-3 font-medium tabular-nums">
                         {row.profile?.taxCode ?? '—'}
@@ -367,7 +419,7 @@ export default function PayrollEmployeesPage() {
                   data-testid="payroll-employee-tax-rate-summary"
                 >
                   <p className="text-xs font-medium uppercase tracking-wide text-sky-800 dark:text-sky-200">
-                    Tax rate (Week 1 / Month 1)
+                    Tax rate (Month 1 · monthly)
                   </p>
                   <p className="mt-1 text-sm font-semibold text-foreground">
                     {taxRateSummary.headline}
@@ -393,8 +445,12 @@ export default function PayrollEmployeesPage() {
                     checked={taxCodeWeek1Month1}
                     onCheckedChange={(v) => setTaxCodeWeek1Month1(v === true)}
                   />
-                  <span>Week 1 / Month 1 tax code (non-cumulative)</span>
+                  <span>Month 1 / Week 1 tax code (non-cumulative)</span>
                 </label>
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  Leave unticked for normal cumulative PAYE (uses YTD from closed runs). Tick only
+                  when the HMRC code is Week 1 / Month 1.
+                </p>
               </div>
             </div>
 
@@ -440,6 +496,102 @@ export default function PayrollEmployeesPage() {
               </div>
             </div>
 
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <PayrollInfoHeading
+                title={PAYROLL_SECTION_GUIDANCE.rtiIdentity.title}
+                purpose={PAYROLL_SECTION_GUIDANCE.rtiIdentity.purpose}
+              />
+              <div className="grid gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Date of birth</p>
+                  <p className="font-medium tabular-nums">
+                    {selected?.rtiIdentity?.dateOfBirth ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Gender (HMRC)</p>
+                  <p className="font-medium">
+                    {selected?.rtiIdentity?.genderHmrc
+                      ? selected.rtiIdentity.genderHmrc === 'M'
+                        ? 'M — Male'
+                        : 'F — Female'
+                      : '—'}
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs text-muted-foreground">Address</p>
+                  <p className="font-medium">{selected?.rtiIdentity?.addressSummary ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Payroll number</p>
+                  <p className="font-medium tabular-nums">{selected?.payrollNumber ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">NI number</p>
+                  <p className="font-medium tabular-nums">
+                    {selected?.nationalInsuranceNo ?? '—'}
+                  </p>
+                </div>
+              </div>
+              {liveRtiIssues.length === 0 ? (
+                <p className="rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                  Identity checks passed — profile can be set to READY.
+                </p>
+              ) : (
+                <div className="rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                  <p className="font-medium">Complete these before READY:</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    {liveRtiIssues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-muted-foreground dark:text-amber-200/80">
+                    Edit personal/address/gender under Employees → Personal. Edit NI number and
+                    payroll number under Employees → Employment.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {selected?.ytd ? (
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <h4 className="text-sm font-medium text-foreground">
+                  Year to date
+                  {selected.ytd.taxYearCode ? ` · ${selected.ytd.taxYearCode}` : ''}
+                </h4>
+                <div className="grid gap-2 text-sm sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Gross YTD</p>
+                    <p className="font-medium tabular-nums">
+                      £{selected.ytd.grossPayYtd.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tax YTD</p>
+                    <p className="font-medium tabular-nums">
+                      £
+                      {selected.ytd.incomeTaxYtd.toLocaleString('en-GB', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Employee NI YTD</p>
+                    <p className="font-medium tabular-nums">
+                      £
+                      {selected.ytd.employeeNiYtd.toLocaleString('en-GB', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Updated when a UK payroll run is closed. Reactivating a closed run reverses that
+                  run’s YTD.
+                </p>
+              </div>
+            ) : null}
+
             {/* Other deductions (student loans, pension, AEOs, voluntary) — not required for
                 current PAYE / NI runs. Re-enable UkPayrollDeductionsCatalogPanel when Phase 4
                 deduction engines ship. Existing elections are still loaded/saved unchanged. */}
@@ -466,12 +618,24 @@ export default function PayrollEmployeesPage() {
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as EmployeePayrollProfileStatus)}
+                  onChange={(e) => {
+                    const next = e.target.value as EmployeePayrollProfileStatus
+                    if (next === 'READY' && !canSetReady) return
+                    setStatus(next)
+                  }}
                 >
                   <option value="DRAFT">DRAFT</option>
-                  <option value="READY">READY</option>
+                  <option value="READY" disabled={!canSetReady}>
+                    READY{canSetReady ? '' : ' (fix identity first)'}
+                  </option>
                   <option value="SUSPENDED">SUSPENDED</option>
                 </select>
+                {!canSetReady && status === 'READY' ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Status will save as DRAFT until identity checks pass — switch to DRAFT or fix
+                    gaps above.
+                  </p>
+                ) : null}
               </label>
               <label className="block space-y-1 text-sm">
                 <PayrollInfoHeading
@@ -565,14 +729,15 @@ export default function PayrollEmployeesPage() {
                 !selectedId ||
                 upsertMut.isPending ||
                 !resolvedTaxCode ||
-                (taxCodeSelect === UK_TAX_CODE_OTHER && customTaxCode.trim().length < 2)
+                (taxCodeSelect === UK_TAX_CODE_OTHER && customTaxCode.trim().length < 2) ||
+                (status === 'READY' && !canSetReady)
               }
               onClick={() =>
                 upsertMut.mutate({
                   taxCode: resolvedTaxCode || null,
                   taxCodeWeek1Month1,
                   niCategory,
-                  status,
+                  status: status === 'READY' && !canSetReady ? 'DRAFT' : status,
                   starterDeclaration: starter,
                   deductionElections,
                   ...syncedLoanFlags,

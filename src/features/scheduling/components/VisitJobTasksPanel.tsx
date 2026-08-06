@@ -3,17 +3,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
-import { validateVisitJobTasks } from '@/features/scheduling/types/visit-job-tasks.types'
+import { validateVisitJobTasks, hydrateVisitJobTaskRow, mapVisitJobTaskForSave } from '@/features/scheduling/types/visit-job-tasks.types'
 import { fetchVisitJobTasks, saveVisitJobTasks } from '@/features/scheduling/api/scheduling.api'
 import { VisitJobTasksChecklist } from '@/features/scheduling/components/VisitJobTasksChecklist'
-import type { VisitJobTaskRow } from '@/features/scheduling/types/visit-job-tasks.types'
+import type { VisitJobTaskRow, VisitJobTaskOutcome } from '@/features/scheduling/types/visit-job-tasks.types'
 import { formatMedicationRoundWindow } from '@/features/service-users/medication/medication-time-slots'
 
 type Props = {
   jobId: string
+  /** Stretch checklist to fill parent height (visit workspace sheet / hub). */
+  fillHeight?: boolean
 }
 
-export function VisitJobTasksPanel({ jobId }: Props) {
+export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
   const queryClient = useQueryClient()
   const tasksQuery = useQuery({
     queryKey: ['visit-job-tasks', jobId],
@@ -26,7 +28,7 @@ export function VisitJobTasksPanel({ jobId }: Props) {
 
   React.useEffect(() => {
     if (!tasksQuery.data) return
-    setLocalTasks(tasksQuery.data.tasks)
+    setLocalTasks(tasksQuery.data.tasks.map(hydrateVisitJobTaskRow))
     setDirty(false)
   }, [tasksQuery.data])
 
@@ -36,21 +38,22 @@ export function VisitJobTasksPanel({ jobId }: Props) {
       if (validationError) {
         throw new Error(validationError)
       }
-      return saveVisitJobTasks(
-        jobId,
-        localTasks.map((task) => ({
-          assignmentId: task.assignmentId,
-          isCompleted: task.isCompleted,
-          recordedValue: task.recordedValue ?? undefined,
-          notes: task.notes ?? undefined,
-        })),
-      )
+      return saveVisitJobTasks(jobId, localTasks.map(mapVisitJobTaskForSave))
     },
     onSuccess: async (data) => {
-      setLocalTasks(data.tasks)
+      const syncedObs = localTasks.some(
+        (task) =>
+          task.isCompleted &&
+          (task.outcome ?? 'completed') === 'completed' &&
+          Boolean(task.observationTypeCode) &&
+          Boolean(task.recordedValue?.trim() || task.notes?.trim()),
+      )
+      setLocalTasks(data.tasks.map(hydrateVisitJobTaskRow))
       setDirty(false)
       await queryClient.invalidateQueries({ queryKey: ['visit-job-tasks', jobId] })
-      toastSuccess('Visit tasks updated')
+      toastSuccess(
+        syncedObs ? 'Visit tasks updated · observation recorded' : 'Visit tasks updated',
+      )
     },
     onError: (error) => {
       if (error instanceof Error && error.message.includes(':')) {
@@ -61,11 +64,15 @@ export function VisitJobTasksPanel({ jobId }: Props) {
     },
   })
 
-  const toggleTask = (assignmentId: string, patch: {
-    isCompleted?: boolean
-    recordedValue?: string | null
-    notes?: string | null
-  }) => {
+  const toggleTask = (
+    assignmentId: string,
+    patch: {
+      isCompleted?: boolean
+      outcome?: VisitJobTaskOutcome | null
+      recordedValue?: string | null
+      notes?: string | null
+    },
+  ) => {
     setLocalTasks((prev) =>
       prev.map((task) =>
         task.assignmentId === assignmentId ? { ...task, ...patch } : task,
@@ -89,8 +96,8 @@ export function VisitJobTasksPanel({ jobId }: Props) {
         : null
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col gap-4' : 'space-y-4'}>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">Planned visit tasks</h3>
         {dirty ? (
           <Button
@@ -108,6 +115,7 @@ export function VisitJobTasksPanel({ jobId }: Props) {
       <VisitJobTasksChecklist
         tasks={localTasks}
         loading={tasksQuery.isLoading}
+        fillHeight={fillHeight}
         roundLabel={roundLabel}
         roundWindow={roundWindow}
         noRoundMessage={

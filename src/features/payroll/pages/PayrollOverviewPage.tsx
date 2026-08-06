@@ -2,9 +2,11 @@ import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
+  Building2,
   CalendarClock,
   CalendarDays,
   Landmark,
+  Receipt,
   Trash2,
   Users,
   Wallet,
@@ -141,6 +143,35 @@ export default function PayrollOverviewPage() {
             ))}
           </div>
 
+          <Link
+            to={PAYROLL_PATHS.employer}
+            className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/40"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-foreground">Employer PAYE (HMRC)</p>
+                <span
+                  className={
+                    data.employerSettingsComplete
+                      ? 'rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+                      : 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100'
+                  }
+                >
+                  {data.employerSettingsComplete ? 'Complete' : 'Needs setup'}
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {data.employerFullPayeReference
+                  ? `PAYE reference ${data.employerFullPayeReference}. Used on future FPS/EPS filings.`
+                  : 'Add office number, PAYE reference, and Accounts Office reference from your HMRC letter.'}
+              </p>
+            </div>
+            <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+
           <div className="rounded-xl border border-border bg-muted/20 p-4">
             {data.currentTaxYear ? (
               <div className="flex flex-wrap items-center gap-3">
@@ -184,17 +215,17 @@ export default function PayrollOverviewPage() {
 
           <div>
             <p className="mb-3 text-sm font-medium text-foreground">Quick links</p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 {
-                  href: PAYROLL_PATHS.taxYears,
-                  label: 'Tax years',
-                  icon: <CalendarDays className="h-4 w-4" aria-hidden />,
+                  href: PAYROLL_PATHS.runs,
+                  label: 'UK payroll runs',
+                  icon: <Wallet className="h-4 w-4" aria-hidden />,
                 },
                 {
-                  href: PAYROLL_PATHS.schedules,
-                  label: 'Schedules & periods',
-                  icon: <CalendarClock className="h-4 w-4" aria-hidden />,
+                  href: PAYROLL_PATHS.taxes,
+                  label: 'Taxes',
+                  icon: <Receipt className="h-4 w-4" aria-hidden />,
                 },
                 {
                   href: PAYROLL_PATHS.employees,
@@ -202,9 +233,14 @@ export default function PayrollOverviewPage() {
                   icon: <Users className="h-4 w-4" aria-hidden />,
                 },
                 {
-                  href: PAYROLL_PATHS.runs,
-                  label: 'UK payroll runs',
-                  icon: <Wallet className="h-4 w-4" aria-hidden />,
+                  href: PAYROLL_PATHS.schedules,
+                  label: 'Schedules & periods',
+                  icon: <CalendarClock className="h-4 w-4" aria-hidden />,
+                },
+                {
+                  href: PAYROLL_PATHS.taxYears,
+                  label: 'Tax years',
+                  icon: <CalendarDays className="h-4 w-4" aria-hidden />,
                 },
               ].map((item) => (
                 <Link
@@ -241,6 +277,10 @@ export default function PayrollOverviewPage() {
                   <li>Employee payroll profiles and pay agreements</li>
                   <li>UK payroll runs</li>
                 </ul>
+                <p>
+                  Employer PAYE settings (HMRC references) are kept. Billing visit-pay and employee
+                  HR records are not touched.
+                </p>
                 <p>
                   It does <span className="font-medium text-foreground">not</span> delete employees,
                   billing visit-pay runs, or pay cards.

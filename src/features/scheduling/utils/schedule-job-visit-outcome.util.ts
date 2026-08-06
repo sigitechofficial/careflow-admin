@@ -55,6 +55,8 @@ export function scheduleJobVisitOutcomeSaveLabel(status: VisitPlanCalendarOutcom
   switch (status) {
     case 'COMPLETED':
       return 'Complete job'
+    case 'PARTIALLY_COMPLETED':
+      return 'Mark incomplete'
     case 'STARTED':
       return 'Start visit'
     case 'PLANNED':

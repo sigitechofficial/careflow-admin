@@ -49,6 +49,52 @@ export function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+/** Visit-plan tab: show forward Generate rota (Step 5). When false, Backfill is Step 5. */
+export const SHOW_GENERATE_ROTA_SECTION = false
+
+/** Inclusive start of a backfill window ending the day before `rotaStartDate` (UTC date-only). */
+export function resolveBackfillWindowStart(rotaStartDate: string, backfillDays: number): string {
+  const days = Math.max(0, Math.floor(backfillDays))
+  const start = rotaStartDate?.trim() || todayIsoDate()
+  if (days <= 0) return start
+  return addDaysToIsoDate(start, -days)
+}
+
+/** Last day included in a backfill-only window (day before rota start). */
+export function resolveBackfillWindowEnd(rotaStartDate: string): string {
+  return addDaysToIsoDate(rotaStartDate?.trim() || todayIsoDate(), -1)
+}
+
+/** Earliest enabled call Start Date — used as rota start for backfill. */
+export function resolveRotaStartIsoDate(
+  slots: Array<{ isEnabled?: boolean; slotEffectiveFrom?: string | null }>,
+  planEffectiveFrom?: string | null,
+): string | null {
+  let earliest: string | null = null
+  for (const slot of slots) {
+    if (slot.isEnabled === false) continue
+    const raw = slot.slotEffectiveFrom?.trim()
+    if (!raw) continue
+    const key = raw.slice(0, 10)
+    if (!earliest || key < earliest) earliest = key
+  }
+  if (earliest) return earliest
+  const planFrom = planEffectiveFrom?.trim()
+  return planFrom ? planFrom.slice(0, 10) : null
+}
+
+export function maxEnabledSlotBackfillDays(
+  slots: Array<{ isEnabled?: boolean; allowBackfillDays?: number | null }>,
+): number {
+  let max = 0
+  for (const slot of slots) {
+    if (slot.isEnabled === false) continue
+    const allowed = Math.max(0, Math.floor(Number(slot.allowBackfillDays) || 0))
+    if (allowed > max) max = allowed
+  }
+  return Math.min(14, max)
+}
+
 export function buildGenerateRotaHorizonOptions(
   settings?: {
     domRotaHorizonDays?: number

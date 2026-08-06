@@ -5,36 +5,48 @@ import {
   closeUkPayrollRun,
   createEmployeePayAgreement,
   createPayrollSchedule,
+  createPayrollTaxCode,
   createPayrollTaxYear,
   createUkPayrollRun,
   deleteAllUkPayrollRuns,
   deletePayrollPeriod,
   deletePayrollPeriods,
+  deletePayrollTaxCode,
   enrolUkPayrollRun,
   calculateUkPayrollGross,
   calculateUkPayrollStatutory,
   ensureUkPayrollTaxYears,
   fetchEmployeePayrollProfile,
   fetchPayrollEmployees,
+  fetchPayrollEmployerSettings,
   fetchPayrollOverview,
   fetchPayrollPeriods,
   fetchPayrollSchedules,
+  fetchPayrollTaxCodes,
   fetchPayrollTaxYears,
+  fetchPayrollStatutoryRates,
   fetchUkPayrollRun,
   fetchUkPayrollRuns,
   generatePayrollPeriods,
   purgeAllPayrollData,
   reactivateUkPayrollRun,
+  updatePayrollEmployerSettings,
   updatePayrollSchedule,
+  updatePayrollStatutoryRates,
+  updatePayrollTaxCode,
   upsertEmployeePayrollProfile,
 } from '@/features/payroll/api/payroll.api'
 import { payrollKeys } from '@/features/payroll/keys'
 import type {
   CreateEmployeePayAgreementInput,
   CreatePayrollScheduleInput,
+  CreatePayrollTaxCodeInput,
   CreatePayrollTaxYearInput,
   CreateUkPayrollRunInput,
+  UpdatePayrollEmployerSettingsInput,
   UpdatePayrollScheduleInput,
+  UpdatePayrollStatutoryRatesInput,
+  UpdatePayrollTaxCodeInput,
   UpsertEmployeePayrollProfileInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -43,6 +55,26 @@ export function usePayrollOverview() {
   return useQuery({
     queryKey: payrollKeys.overview(),
     queryFn: fetchPayrollOverview,
+  })
+}
+
+export function usePayrollEmployerSettings() {
+  return useQuery({
+    queryKey: payrollKeys.employerSettings(),
+    queryFn: fetchPayrollEmployerSettings,
+  })
+}
+
+export function useUpdatePayrollEmployerSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: UpdatePayrollEmployerSettingsInput) => updatePayrollEmployerSettings(body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.employerSettings() })
+      await qc.invalidateQueries({ queryKey: payrollKeys.overview() })
+      toastSuccess('Employer PAYE settings saved')
+    },
+    onError: (error) => toastApiError(error),
   })
 }
 
@@ -62,6 +94,70 @@ export function usePayrollTaxYears() {
   return useQuery({
     queryKey: payrollKeys.taxYears(),
     queryFn: fetchPayrollTaxYears,
+  })
+}
+
+export function usePayrollTaxCodes(params?: { includeInactive?: boolean }) {
+  return useQuery({
+    queryKey: payrollKeys.taxCodes(params),
+    queryFn: () => fetchPayrollTaxCodes(params),
+  })
+}
+
+export function useCreatePayrollTaxCode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreatePayrollTaxCodeInput) => createPayrollTaxCode(body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      toastSuccess('Tax code created')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useUpdatePayrollTaxCode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; body: UpdatePayrollTaxCodeInput }) =>
+      updatePayrollTaxCode(args.id, args.body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      toastSuccess('Tax code updated')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useDeletePayrollTaxCode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deletePayrollTaxCode(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      toastSuccess('Tax code deleted')
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function usePayrollStatutoryRates(params?: { taxYearId?: string }) {
+  return useQuery({
+    queryKey: payrollKeys.statutoryRates(params),
+    queryFn: () => fetchPayrollStatutoryRates(params),
+  })
+}
+
+export function useUpdatePayrollStatutoryRates() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: { id: string; body: UpdatePayrollStatutoryRatesInput }) =>
+      updatePayrollStatutoryRates(args.id, args.body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.all })
+      toastSuccess('Tax & NI rates saved')
+    },
+    onError: (error) => toastApiError(error),
   })
 }
 

@@ -6,6 +6,7 @@ import type {
   PayrollPayFrequency,
   PayrollScheduleStatus,
   PayrollStarterDeclaration,
+  PayrollTaxCodeGroup,
 } from '@/features/payroll/types/payroll.types'
 
 export type CreatePayrollTaxYearInput = {
@@ -14,6 +15,46 @@ export type CreatePayrollTaxYearInput = {
   startDate: string
   endDate: string
   notes?: string
+}
+
+export type CreatePayrollTaxCodeInput = {
+  code: string
+  label: string
+  description?: string | null
+  group?: PayrollTaxCodeGroup
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export type UpdatePayrollTaxCodeInput = {
+  code?: string
+  label?: string
+  description?: string | null
+  group?: PayrollTaxCodeGroup
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export type UpdatePayrollStatutoryRatesInput = {
+  personalAllowanceAnnual?: number
+  basicRateBandAnnual?: number
+  higherRateThresholdAnnual?: number
+  additionalRateThresholdAnnual?: number
+  basicRatePercent?: number
+  higherRatePercent?: number
+  additionalRatePercent?: number
+  niEmployeeRateMainPercent?: number
+  niEmployeeRateUpperPercent?: number
+  niEmployerRatePercent?: number
+  niLelWeekly?: number
+  niPtWeekly?: number
+  niStWeekly?: number
+  niUelWeekly?: number
+  niLelMonthly?: number
+  niPtMonthly?: number
+  niStMonthly?: number
+  niUelMonthly?: number
+  sourceNote?: string | null
 }
 
 export type CreatePayrollScheduleInput = {
@@ -70,4 +111,13 @@ export type CreateEmployeePayAgreementInput = {
 export type CreateUkPayrollRunInput = {
   periodId: string
   notes?: string
+}
+
+export type UpdatePayrollEmployerSettingsInput = {
+  hmrcOfficeNumber?: string | null
+  employerPayeReference?: string | null
+  accountsOfficeReference?: string | null
+  taxDistrict?: string | null
+  employerTradingName?: string | null
+  notes?: string | null
 }

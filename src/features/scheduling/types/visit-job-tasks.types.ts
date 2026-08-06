@@ -10,6 +10,19 @@ export type VisitTaskCompletionInputSpec = {
   notePlaceholder?: string
 }
 
+/** Parity with carer mobile save-task outcomes. */
+export type VisitJobTaskOutcome = 'completed' | 'partial' | 'declined'
+
+export const VISIT_JOB_TASK_OUTCOMES: Array<{
+  value: VisitJobTaskOutcome
+  label: string
+  description: string
+}> = [
+  { value: 'completed', label: 'Completed', description: 'Task fully completed' },
+  { value: 'partial', label: 'Partial', description: 'Partly done — notes required' },
+  { value: 'declined', label: 'Declined', description: 'Not done / refused — notes required' },
+]
+
 export type VisitJobTaskRow = {
   assignmentId: string
   taskCatalogueTaskId: string
@@ -23,6 +36,11 @@ export type VisitJobTaskRow = {
   priority: string
   isExtra?: boolean
   isCompleted: boolean
+  /** Present when the task has been addressed (completed / partial / declined). */
+  outcome?: VisitJobTaskOutcome | null
+  /** When set, completing with a value also writes a Service User Observation. */
+  observationTypeCode?: string | null
+  linkedTypeCode?: string | null
   recordedValue: string | null
   notes: string | null
   completedAt: string | null
@@ -75,15 +93,85 @@ export function visitTaskNeedsInputFields(spec: VisitTaskCompletionInputSpec): b
   return spec.inputMode !== 'tick'
 }
 
+export function isVisitTaskOutcomeSentinel(value: string | null | undefined): boolean {
+  const upper = String(value ?? '')
+    .trim()
+    .toUpperCase()
+  return upper === 'PARTIAL' || upper === 'DECLINED'
+}
+
+/** Strip Outcome/Reason/Checklist markers for editable free-text notes. */
+export function stripVisitTaskOutcomeNotes(notes: string | null | undefined): string | null {
+  if (!notes?.trim()) return null
+  const cleaned = notes
+    .split(/\s*·\s*/)
+    .map((part) => part.trim())
+    .filter(
+      (part) =>
+        part.length > 0 &&
+        !/^Outcome:\s*/i.test(part) &&
+        !/^Reason:\s*/i.test(part) &&
+        !/^Checklist:\s*/i.test(part),
+    )
+    .join(' · ')
+    .trim()
+  return cleaned.length > 0 ? cleaned : null
+}
+
+export function normalizeVisitJobTaskOutcome(
+  value: string | null | undefined,
+): VisitJobTaskOutcome | null {
+  if (!value?.trim()) return null
+  const lower = value.trim().toLowerCase()
+  if (lower === 'completed' || lower === 'partial' || lower === 'declined') return lower
+  return null
+}
+
+export function inferVisitJobTaskOutcome(task: {
+  isCompleted?: boolean | null
+  outcome?: string | null
+  recordedValue?: string | null
+  notes?: string | null
+}): VisitJobTaskOutcome | null {
+  const fromApi = normalizeVisitJobTaskOutcome(task.outcome)
+  if (fromApi) return fromApi
+  const notes = String(task.notes ?? '')
+  const rv = String(task.recordedValue ?? '')
+    .trim()
+    .toUpperCase()
+  if (/Outcome:\s*DECLINED\b/i.test(notes) || rv === 'DECLINED') return 'declined'
+  if (/Outcome:\s*PARTIAL\b/i.test(notes) || rv === 'PARTIAL') return 'partial'
+  if (task.isCompleted) return 'completed'
+  return null
+}
+
+export function displayVisitTaskRecordedValue(value: string | null | undefined): string {
+  if (isVisitTaskOutcomeSentinel(value)) return ''
+  return value ?? ''
+}
+
 export function visitTaskCompletionInputMissing(
   spec: VisitTaskCompletionInputSpec,
   isCompleted: boolean,
   recordedValue?: string | null,
   notes?: string | null,
+  outcome?: VisitJobTaskOutcome | null,
 ): string | null {
   if (!isCompleted) return null
-  const value = recordedValue?.trim() ?? ''
-  const note = notes?.trim() ?? ''
+  const resolvedOutcome = outcome ?? (isCompleted ? 'completed' : null)
+  if (resolvedOutcome === 'partial' || resolvedOutcome === 'declined') {
+    if (!stripVisitTaskOutcomeNotes(notes)?.trim()) {
+      return resolvedOutcome === 'partial'
+        ? 'Add notes explaining the partial outcome'
+        : 'Add notes explaining why the task was declined'
+    }
+    return null
+  }
+
+  const value = isVisitTaskOutcomeSentinel(recordedValue)
+    ? ''
+    : (recordedValue?.trim() ?? '')
+  const note = stripVisitTaskOutcomeNotes(notes)?.trim() ?? ''
   if (spec.inputMode === 'value' && !value) return 'Enter a recorded value'
   if (spec.inputMode === 'note' && !note) return 'Enter a description'
   if (spec.inputMode === 'value_and_note') {
@@ -97,11 +185,13 @@ export function visitTaskCompletionInputMissing(
 export function validateVisitJobTasks(tasks: VisitJobTaskRow[]): string | null {
   for (const task of tasks) {
     if (!task.isCompleted) continue
+    const outcome = inferVisitJobTaskOutcome(task)
     const missing = visitTaskCompletionInputMissing(
       task.completionInput,
       true,
       task.recordedValue,
       task.notes,
+      outcome,
     )
     if (missing) return `${task.name}: ${missing}`
   }
@@ -116,4 +206,53 @@ export function sortVisitJobTasksForCarer(tasks: VisitJobTaskRow[]): VisitJobTas
     if (rankDiff !== 0) return rankDiff
     return a.name.localeCompare(b.name)
   })
+}
+
+/** Normalize API rows for admin editing (outcome + clean notes/value). */
+export function hydrateVisitJobTaskRow(task: VisitJobTaskRow): VisitJobTaskRow {
+  const outcome = inferVisitJobTaskOutcome(task)
+  return {
+    ...task,
+    outcome,
+    isCompleted: Boolean(task.isCompleted || outcome),
+    notes: stripVisitTaskOutcomeNotes(task.notes),
+    recordedValue: isVisitTaskOutcomeSentinel(task.recordedValue)
+      ? null
+      : task.recordedValue,
+  }
+}
+
+export function mapVisitJobTaskForSave(task: VisitJobTaskRow): {
+  assignmentId?: string
+  taskCatalogueTaskId?: string
+  isExtra?: boolean
+  isCompleted: boolean
+  outcome?: string
+  recordedValue?: string
+  notes?: string
+} {
+  const outcome = task.isCompleted
+    ? (inferVisitJobTaskOutcome(task) ?? 'completed')
+    : null
+  const base = task.isExtra
+    ? {
+        taskCatalogueTaskId: task.taskCatalogueTaskId,
+        isExtra: true as const,
+        isCompleted: Boolean(task.isCompleted),
+        recordedValue: task.recordedValue ?? undefined,
+        notes: task.notes ?? undefined,
+      }
+    : {
+        assignmentId: task.assignmentId,
+        isCompleted: Boolean(task.isCompleted),
+        recordedValue: task.recordedValue ?? undefined,
+        notes: task.notes ?? undefined,
+      }
+
+  if (!outcome) return base
+  return {
+    ...base,
+    isCompleted: true,
+    outcome: outcome.toUpperCase(),
+  }
 }

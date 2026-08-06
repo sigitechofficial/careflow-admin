@@ -46,6 +46,12 @@ import type { ScheduleJobsTimelineViewport } from '@/features/scheduling/utils/s
 import type { ScheduleRunsDisplayPreferences } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
 import { cn } from '@/shared/lib/utils'
 import { scheduleJobBlockHasVisibleIcons, scheduleJobsRowRefKey } from '@/features/scheduling/components/schedule-jobs-gantt/schedule-jobs-gantt.util'
+import {
+  deliveryFlagChipClass,
+  deliveryFlagShortLabel,
+  timelineJobBoardDeliveryFlags,
+} from '@/features/scheduling/utils/schedule-job-delivery-flags.util'
+import type { VisitDeliveryExceptionFlag } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 
 type ScheduleJobBlockIconsProps = {
   job: TimelineJob
@@ -55,6 +61,7 @@ type ScheduleJobBlockIconsProps = {
   showTravelIcon: boolean
   showOperationalBadges: boolean
   outsidePattern?: boolean
+  deliveryFlags?: VisitDeliveryExceptionFlag[]
 }
 
 function ScheduleJobBlockIcons({
@@ -65,9 +72,16 @@ function ScheduleJobBlockIcons({
   showTravelIcon,
   showOperationalBadges,
   outsidePattern,
+  deliveryFlags = [],
 }: ScheduleJobBlockIconsProps) {
   const showLaneBadge = stackedLanes && overlapLayout
-  if (!showLaneBadge && !showRequiredCarersIcon && !showTravelIcon && !showOperationalBadges) {
+  if (
+    !showLaneBadge &&
+    !showRequiredCarersIcon &&
+    !showTravelIcon &&
+    !showOperationalBadges &&
+    deliveryFlags.length === 0
+  ) {
     return null
   }
 
@@ -103,6 +117,30 @@ function ScheduleJobBlockIcons({
       {outsidePattern ? (
         <span title="Outside carer working pattern">
           <CalendarClock className="h-2.5 w-2.5 shrink-0 text-orange-600" aria-label="Outside carer working pattern" />
+        </span>
+      ) : null}
+      {deliveryFlags.slice(0, 2).map((flag) => (
+        <span
+          key={flag.code}
+          title={flag.detail ? `${flag.label}: ${flag.detail}` : flag.label}
+          className={cn(
+            'shrink-0 rounded px-1 text-[8px] font-bold leading-none',
+            deliveryFlagChipClass(flag.severity),
+          )}
+          aria-label={flag.label}
+        >
+          {deliveryFlagShortLabel(flag)}
+        </span>
+      ))}
+      {deliveryFlags.length > 2 ? (
+        <span
+          title={deliveryFlags
+            .slice(2)
+            .map((f) => f.label)
+            .join(', ')}
+          className="shrink-0 rounded bg-slate-700 px-1 text-[8px] font-bold leading-none text-white"
+        >
+          +{deliveryFlags.length - 2}
         </span>
       ) : null}
     </>
@@ -231,6 +269,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
     (job.carersOnLeave?.length ?? 0) > 0 ||
     Boolean(job.needsCover) ||
     Boolean(outsidePattern)
+  const deliveryFlags = timelineJobBoardDeliveryFlags(job)
   const hasVisibleIcons = scheduleJobBlockHasVisibleIcons(
     job,
     stackedLanes,
@@ -238,6 +277,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
     showRequiredCarersIcon,
     showTravelIcon,
     outsidePattern,
+    deliveryFlags.length > 0,
   )
   const showStackedBlockLayout = showRunsOnBoard || hasVisibleIcons
   const jobLaneHeight = resolveScheduleJobsJobLaneHeight({
@@ -389,6 +429,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
                 showTravelIcon={showTravelIcon}
                 showOperationalBadges={showOperationalBadges}
                 outsidePattern={outsidePattern}
+                deliveryFlags={deliveryFlags}
               />
             </div>
           ) : null}
@@ -430,6 +471,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
             showTravelIcon={showTravelIcon}
             showOperationalBadges={showOperationalBadges}
             outsidePattern={outsidePattern}
+            deliveryFlags={deliveryFlags}
           />
           <span className="relative z-[1] min-w-0 flex-1 truncate text-xs font-semibold leading-snug">
             {blockLabel}

@@ -1,19 +1,26 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   CreatePayrollScheduleInput,
+  CreatePayrollTaxCodeInput,
   CreatePayrollTaxYearInput,
   CreateUkPayrollRunInput,
   UpsertEmployeePayrollProfileInput,
   CreateEmployeePayAgreementInput,
   UpdatePayrollScheduleInput,
+  UpdatePayrollStatutoryRatesInput,
+  UpdatePayrollTaxCodeInput,
+  UpdatePayrollEmployerSettingsInput,
 } from '@/features/payroll/types/payroll-api.types'
 import type {
   EmployeePayAgreement,
   EmployeePayrollProfile,
   EmployeePayrollSetupRow,
+  PayrollEmployerSettings,
   PayrollOverview,
   PayrollPeriod,
   PayrollSchedule,
+  PayrollStatutoryRateSet,
+  PayrollTaxCode,
   PayrollTaxYear,
   UkPayrollRun,
   UkPayrollRunDetail,
@@ -21,6 +28,19 @@ import type {
 
 export async function fetchPayrollOverview() {
   const res = await apiJson<ApiEnvelope<PayrollOverview>>('/payroll/overview')
+  return res.data
+}
+
+export async function fetchPayrollEmployerSettings() {
+  const res = await apiJson<ApiEnvelope<PayrollEmployerSettings>>('/payroll/employer-settings')
+  return res.data
+}
+
+export async function updatePayrollEmployerSettings(body: UpdatePayrollEmployerSettingsInput) {
+  const res = await apiJson<ApiEnvelope<PayrollEmployerSettings>>('/payroll/employer-settings', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
   return res.data
 }
 
@@ -45,6 +65,63 @@ export async function purgeAllPayrollData() {
 export async function fetchPayrollTaxYears() {
   const res = await apiJson<ApiEnvelope<PayrollTaxYear[]>>('/payroll/tax-years')
   return res.data ?? []
+}
+
+export async function fetchPayrollTaxCodes(params?: { includeInactive?: boolean }) {
+  const search = new URLSearchParams()
+  if (params?.includeInactive) search.set('includeInactive', 'true')
+  const qs = search.toString()
+  const res = await apiJson<ApiEnvelope<PayrollTaxCode[]>>(
+    `/payroll/tax-codes${qs ? `?${qs}` : ''}`,
+  )
+  return res.data ?? []
+}
+
+export async function createPayrollTaxCode(body: CreatePayrollTaxCodeInput) {
+  const res = await apiJson<ApiEnvelope<PayrollTaxCode>>('/payroll/tax-codes', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function updatePayrollTaxCode(id: string, body: UpdatePayrollTaxCodeInput) {
+  const res = await apiJson<ApiEnvelope<PayrollTaxCode>>(`/payroll/tax-codes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function deletePayrollTaxCode(id: string) {
+  const res = await apiJson<ApiEnvelope<{ id: string }>>(`/payroll/tax-codes/${id}`, {
+    method: 'DELETE',
+  })
+  return res.data
+}
+
+export async function fetchPayrollStatutoryRates(params?: { taxYearId?: string }) {
+  const search = new URLSearchParams()
+  if (params?.taxYearId) search.set('taxYearId', params.taxYearId)
+  const qs = search.toString()
+  const res = await apiJson<ApiEnvelope<PayrollStatutoryRateSet[]>>(
+    `/payroll/statutory-rates${qs ? `?${qs}` : ''}`,
+  )
+  return res.data ?? []
+}
+
+export async function updatePayrollStatutoryRates(
+  id: string,
+  body: UpdatePayrollStatutoryRatesInput,
+) {
+  const res = await apiJson<ApiEnvelope<PayrollStatutoryRateSet>>(
+    `/payroll/statutory-rates/${id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    },
+  )
+  return res.data
 }
 
 export async function createPayrollTaxYear(body: CreatePayrollTaxYearInput) {

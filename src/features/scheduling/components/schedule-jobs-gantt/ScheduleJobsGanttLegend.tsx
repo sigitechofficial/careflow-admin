@@ -56,6 +56,9 @@ export function ScheduleJobsGanttLegend({
       <LegendPill swatch="bg-rose-500" label="Over booked (extra carers)" />
       <LegendPill swatch="border-2 border-orange-500 bg-orange-100/80" label="Travel time conflict" />
       <LegendPill swatch="border-b-4 border-primary bg-background" label="Part of a run" />
+      <LegendPill swatch="bg-sky-600" label="Early start / end" />
+      <LegendPill swatch="bg-orange-600" label="Late start / end / overrun" />
+      <LegendPill swatch="bg-destructive" label="Critically late" />
       <div className="hidden h-4 w-px bg-border/80 sm:block" />
       {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
         <button

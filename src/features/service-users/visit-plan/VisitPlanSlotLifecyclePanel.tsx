@@ -46,7 +46,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
       <div>
         <h4 className={contentTitleClass}>Slot lifecycle & duration</h4>
         <p className={contentHelperClass}>
-          When this call is active, how long it lasts, and optional backfill for rota generation.
+          When this call is active, how long it lasts, and optional backfill for past-visit catch-up.
         </p>
       </div>
 
@@ -135,7 +135,7 @@ export function VisitPlanSlotLifecyclePanel({ slot, disabled, onChange }: Props)
         <div>
           <Label className={cn('flex items-center gap-1', contentOverlineClass)}>
             Max backfill days
-            <FieldHelp text="How many days before the generate-from date rota may create visits for this slot (0 = none)." />
+            <FieldHelp text="How many days before this call's Start Date may be created via Backfill past visits (0 = none)." />
           </Label>
           <Input
             type="number"

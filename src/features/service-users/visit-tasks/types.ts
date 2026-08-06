@@ -31,6 +31,8 @@ export type VisitTaskAssignment = {
   sortOrder: number
   carerInstructions: string | null
   priority: string
+  schedule: import('@/features/service-users/visit-tasks/visit-task-schedule.util').VisitTaskSchedule
+  isEmarPrompt?: boolean
   task: {
     id: string
     name: string
@@ -56,7 +58,14 @@ export type MedicationRoundLookupRow = {
   sortOrder: number
 }
 
+export type ServiceUserVisitTasksEmarPromptMeta = {
+  medicationCountByRound: Record<string, number>
+  addedRoundCodes: string[]
+  removedRoundCodes: string[]
+}
+
 export type ServiceUserVisitTasksResponse = {
   rounds: MedicationRoundLookupRow[]
   assignmentsByRound: Record<string, VisitTaskAssignment[]>
+  emarPrompt?: ServiceUserVisitTasksEmarPromptMeta
 }

@@ -14,7 +14,11 @@ export function resolveScheduledVisitId(job: TimelineJob): string | undefined {
 }
 
 export function resolveJobMedicationRequired(job: TimelineJob): boolean {
-  return Boolean(job.visitPlan?.medicationRoundCode)
+  // Prefer persisted visit flag (set from actual scheduled meds for the round).
+  const fromVisit = job.visits?.[0]?.medicationRequired
+  if (typeof fromVisit === 'boolean') return fromVisit
+  // Legacy fallback — round code alone is NOT proof of MAR.
+  return false
 }
 
 export function buildScheduleVisitContext(job: TimelineJob, date?: string): ScheduleVisitContext {

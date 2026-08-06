@@ -35,12 +35,17 @@ export const PAYROLL_SECTION_GUIDANCE = {
   paye: {
     title: 'PAYE (Income Tax)',
     purpose:
-      'Pay As You Earn is HMRC’s system for collecting Income Tax from employment pay. It is not a separate tax — it is how Income Tax is deducted using the employee’s tax code (e.g. 1257L). Care calculates this on the payroll run from gross pay.',
+      'Pay As You Earn collects Income Tax using the employee’s tax code. Care uses cumulative PAYE by default (tax due to date minus tax already paid in YTD). Tick Month 1 / Week 1 only when HMRC says the code is non-cumulative.',
   },
   starterDeclaration: {
     title: 'Starter declaration',
     purpose:
       'HMRC new-starter statement (when there is no P45). A = first job since 6 April; B = only job this tax year; C = another job or pension. Stored on the profile for setup / future FPS — it does not change Week 1 / Month 1 tax or NI on the run today (tax still uses the tax code).',
+  },
+  rtiIdentity: {
+    title: 'HMRC identity (FPS)',
+    purpose:
+      'Before a profile can be READY, Care checks name, date of birth, Male/Female gender, address, NI number, and payroll number from the employee HR record, plus tax code and NI category on this profile. Fix gaps under Employees → Personal / Employment.',
   },
   employeeNi: {
     title: 'Employee National Insurance',

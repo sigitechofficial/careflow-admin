@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Circle,
   Clock3,
+  History,
   ListChecks,
   Play,
   ToggleRight,
@@ -14,6 +15,7 @@ import { cn } from '@/shared/lib/utils'
 import { contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import { SHOW_GENERATE_ROTA_SECTION } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 
 type Step = {
   id: string
@@ -41,7 +43,7 @@ function buildSteps(slots: VisitPlanSlot[], planStatus: ServiceUserVisitPlan['st
     })
   const isActive = planStatus === 'ACTIVE'
 
-  return [
+  const steps: Step[] = [
     {
       id: 'enable',
       title: 'Choose which visits happen',
@@ -70,14 +72,28 @@ function buildSteps(slots: VisitPlanSlot[], planStatus: ServiceUserVisitPlan['st
       done: hasPlan && (planStatus === 'ACTIVE' || planStatus === 'DRAFT' || planStatus === 'SUSPENDED'),
       icon: Play,
     },
-    {
+  ]
+
+  if (SHOW_GENERATE_ROTA_SECTION) {
+    steps.push({
       id: 'rota',
       title: 'Generate rota',
-      detail: 'When plan is Active, pick dates and click Generate rota → open Scheduling.',
+      detail: 'When plan is Active, pick From/To and click Generate visits → open Scheduling.',
       done: isActive,
       icon: CalendarClock,
-    },
-  ]
+    })
+  }
+
+  steps.push({
+    id: 'backfill',
+    title: 'Backfill past visits (optional)',
+    detail:
+      'Set Max backfill days on calls, save (Record amendment), then enter how many days before rota start.',
+    done: isActive,
+    icon: History,
+  })
+
+  return steps
 }
 
 export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
@@ -113,7 +129,7 @@ export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
           />
         </div>
       </summary>
-      <ol className="grid gap-3 px-4 pb-4 pt-4 sm:grid-cols-2 sm:px-0 lg:grid-cols-5">
+      <ol className="grid gap-3 px-4 pb-4 pt-4 sm:grid-cols-2 sm:px-0 lg:grid-cols-3 xl:grid-cols-5">
         {steps.map((step, index) => {
           const StepIcon = step.icon
           return (

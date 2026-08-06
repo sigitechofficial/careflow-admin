@@ -14,9 +14,11 @@ import {
   fetchEcmNotifications,
   fetchEcmReasonCodes,
   fetchEcmVisitDetail,
+  fetchEcmThresholdLookups,
   recordManualAttendance,
   reevaluateEcmVisit,
   resolveEcmException,
+  updateEcmThresholdLookup,
 } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
 
@@ -56,10 +58,13 @@ export function useReevaluateEcmVisit() {
   })
 }
 
-export function useEcmExceptions(limit = 50, enabled = true) {
+export function useEcmExceptions(
+  options?: { limit?: number; serviceUserId?: string; enabled?: boolean },
+) {
+  const { limit = 50, serviceUserId, enabled = true } = options ?? {}
   return useQuery({
-    queryKey: ecmKeys.exceptions(limit),
-    queryFn: () => fetchEcmExceptions(limit),
+    queryKey: ecmKeys.exceptions({ limit, serviceUserId }),
+    queryFn: () => fetchEcmExceptions({ limit, serviceUserId }),
     enabled,
     refetchInterval: 60_000,
   })
@@ -132,7 +137,7 @@ export function useEcmNotifications(jobId: string | null | undefined) {
 function useInvalidateEcmExceptions() {
   const qc = useQueryClient()
   return () => {
-    void qc.invalidateQueries({ queryKey: ecmKeys.exceptions() })
+    void qc.invalidateQueries({ queryKey: [...ecmKeys.all, 'exceptions'] })
     void qc.invalidateQueries({ queryKey: ecmKeys.all })
   }
 }
@@ -254,6 +259,27 @@ export function useMissedTriage() {
     }) => applyMissedTriage(jobId, outcome, note),
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all })
+    },
+  })
+}
+
+export function useEcmThresholdLookups(enabled = true) {
+  return useQuery({
+    queryKey: ecmKeys.thresholdLookups(),
+    queryFn: fetchEcmThresholdLookups,
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateEcmThresholdLookup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, valueInt }: { id: string; valueInt: number }) =>
+      updateEcmThresholdLookup(id, valueInt),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ecmKeys.thresholdLookups() })
       void qc.invalidateQueries({ queryKey: ecmKeys.all })
     },
   })

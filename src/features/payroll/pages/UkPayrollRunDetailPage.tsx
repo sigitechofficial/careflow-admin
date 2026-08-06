@@ -367,9 +367,10 @@ export default function UkPayrollRunDetailPage() {
                     <th className="py-2.5 pr-3 text-right font-medium">Tax</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Emp NI</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Er NI</th>
-                    <th className="bg-emerald-50/60 py-2.5 pr-4 text-right font-medium text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
+                    <th className="bg-emerald-50/60 py-2.5 pr-3 text-right font-medium text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
                       Net pay
                     </th>
+                    <th className="py-2.5 pr-4 text-right font-medium">Tax YTD</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -423,13 +424,38 @@ export default function UkPayrollRunDetailPage() {
                           <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
                             {formatGbp(e.employerNi)}
                           </td>
-                          <td className="bg-emerald-50/40 py-3 pr-4 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
+                          <td className="bg-emerald-50/40 py-3 pr-3 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
                             {formatGbp(e.netPay)}
+                          </td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-muted-foreground">
+                            {e.ytd ? formatGbp(e.ytd.incomeTaxYtd) : '—'}
                           </td>
                         </tr>
                         {isOpen ? (
                           <tr className="border-b border-border/70 bg-muted/15">
-                            <td colSpan={10} className="px-4 py-4">
+                            <td colSpan={11} className="px-4 py-4">
+                              {e.ytd ? (
+                                <div className="mb-3 grid gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs sm:grid-cols-3">
+                                  <p>
+                                    Gross YTD:{' '}
+                                    <span className="font-medium tabular-nums">
+                                      {formatGbp(e.ytd.grossPayYtd)}
+                                    </span>
+                                  </p>
+                                  <p>
+                                    Tax YTD:{' '}
+                                    <span className="font-medium tabular-nums">
+                                      {formatGbp(e.ytd.incomeTaxYtd)}
+                                    </span>
+                                  </p>
+                                  <p>
+                                    Emp NI YTD:{' '}
+                                    <span className="font-medium tabular-nums">
+                                      {formatGbp(e.ytd.employeeNiYtd)}
+                                    </span>
+                                  </p>
+                                </div>
+                              ) : null}
                               {e.statutoryExplanation ? (
                                 <div className="mb-3 flex gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground">
                                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -108,6 +108,14 @@ export type EcmLiveDashboardCounts = Record<EcmDashboardBucket, number> & {
 export type EcmLiveDashboardData = {
   date: string
   refreshedAt: string
+  windows?: {
+    dueNowWindowMinutes: number
+    startingSoonMinutes: number
+    lateArrivalToleranceMinutes: number
+    veryLateThresholdMinutes: number
+    missedVisitThresholdMinutes: number
+    geofenceRadiusMeters: number
+  }
   counts: EcmLiveDashboardCounts
   visits: EcmLiveVisitRow[]
 }
@@ -291,6 +299,7 @@ export type EcmExceptionRow = {
   acknowledgedAt: string | null
   createdAt: string
   jobName: string
+  serviceUserId?: string
   serviceUserName: string
 }
 

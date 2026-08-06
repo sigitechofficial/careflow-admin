@@ -1,20 +1,21 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   Filter,
   LayoutList,
   ListChecks,
-  ListTree,
   Loader2,
+  Pencil,
   Plus,
   Save,
   Search,
   Trash2,
   X,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -54,10 +55,20 @@ import {
   PlannerIconBadge,
   PLANNER_STAT_VISUALS,
   roundVisual,
-  SIDEBAR_ICONS,
-  SUMMARY_ROW_ICONS,
   type PlannerVisual,
 } from '@/features/service-users/visit-tasks/visit-task-planner-visual.util'
+import {
+  VisitTaskEditDialog,
+  type VisitTaskEditValues,
+} from '@/features/service-users/visit-tasks/VisitTaskEditDialog'
+import {
+  DEFAULT_VISIT_TASK_SCHEDULE,
+  formatVisitTaskScheduleDetail,
+  formatVisitTaskScheduleSummary,
+  mergeVisitTaskSchedule,
+  type VisitTaskSchedule,
+  visitTaskFrequencyLabel,
+} from '@/features/service-users/visit-tasks/visit-task-schedule.util'
 import type {
   TaskCatalogueGroup,
   TaskCatalogueTask,
@@ -112,9 +123,48 @@ function buildTaskLookup(catalogue: TaskCatalogueGroup[]): Map<string, TaskMeta>
   return map
 }
 
+function isEmarMedicationPromptTask(input: {
+  name?: string | null
+  flagsJson?: Record<string, unknown> | null
+  isEmarPrompt?: boolean
+}): boolean {
+  if (input.isEmarPrompt) return true
+  if (input.name?.trim() === 'Medication prompt') return true
+  return Boolean(input.flagsJson?.emarPrompt)
+}
+
+function mergeAssignmentTasksIntoLookup(
+  map: Map<string, TaskMeta>,
+  assignmentsByRound: Record<string, VisitTaskAssignment[]>,
+): Map<string, TaskMeta> {
+  const next = new Map(map)
+  for (const rows of Object.values(assignmentsByRound)) {
+    for (const row of rows) {
+      if (next.has(row.task.id)) continue
+      next.set(row.task.id, {
+        task: {
+          id: row.task.id,
+          name: row.task.name,
+          sortOrder: row.sortOrder,
+          supportLevelApplicable: row.task.supportLevelApplicable,
+          consentRequired: row.task.consentRequired,
+          competencyGated: row.task.competencyGated,
+          competency: row.task.competency,
+          outOfScope: row.task.outOfScope,
+          flagsJson: row.task.flagsJson,
+        },
+        categoryName: row.task.categoryName,
+        groupCode: row.task.groupCode,
+      })
+    }
+  }
+  return next
+}
+
 type RoundTaskDraft = {
   carerInstructions: string
   priority: VisitTaskPriorityCode
+  schedule: VisitTaskSchedule
 }
 
 type DraftByRound = Map<string, Map<string, RoundTaskDraft>>
@@ -129,6 +179,7 @@ function buildDraftFromAssignments(
       roundMap.set(row.task.id, {
         carerInstructions: row.carerInstructions ?? '',
         priority: normalizeVisitTaskPriority(row.priority),
+        schedule: mergeVisitTaskSchedule(row.schedule),
       })
     }
     map.set(roundCode, roundMap)
@@ -145,6 +196,7 @@ function buildVisitTasksSavePayload(draft: DraftByRound, rounds: Array<{ code: s
           taskCatalogueTaskId,
           carerInstructions: taskDraft.carerInstructions.trim() || null,
           priority: taskDraft.priority,
+          schedule: taskDraft.schedule,
         }),
       ),
     })),
@@ -162,6 +214,7 @@ function mergeTasksIntoDraft(
     roundDraft.set(item.taskId, {
       carerInstructions: item.carerInstructions,
       priority: item.priority,
+      schedule: item.schedule ?? { ...DEFAULT_VISIT_TASK_SCHEDULE },
     })
   }
   nextDraft.set(roundCode, roundDraft)
@@ -185,7 +238,7 @@ type Props = {
   serviceUserId: string
 }
 
-type PlannerViewMode = 'timeline' | 'list'
+// type PlannerViewMode = 'timeline' | 'list'
 
 export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
   const queryClient = useQueryClient()
@@ -211,16 +264,32 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
     [catalogueQuery.data],
   )
 
-  const taskById = React.useMemo(() => buildTaskLookup(catalogue), [catalogue])
+  const taskById = React.useMemo(
+    () =>
+      mergeAssignmentTasksIntoLookup(
+        buildTaskLookup(catalogue),
+        assignmentsQuery.data?.assignmentsByRound ?? {},
+      ),
+    [assignmentsQuery.data?.assignmentsByRound, catalogue],
+  )
 
-  const totalCatalogueTasks = taskById.size
+  const medicationCountByRound = assignmentsQuery.data?.emarPrompt?.medicationCountByRound ?? {}
+
+  const totalCatalogueTasks = buildTaskLookup(catalogue).size
 
   const [draftByRound, setDraftByRound] = React.useState<DraftByRound>(new Map())
   const [collapsedRounds, setCollapsedRounds] = React.useState<Set<string>>(new Set())
   const [search, setSearch] = React.useState('')
   const [groupFilter, setGroupFilter] = React.useState<string>('ALL')
-  const [viewMode, setViewMode] = React.useState<PlannerViewMode>('timeline')
+  // Timeline view temporarily disabled — list-only for now.
+  // const [viewMode, setViewMode] = React.useState<PlannerViewMode>('timeline')
   const [addDialogRoundCode, setAddDialogRoundCode] = React.useState<string | null>(null)
+  const [taskEditTarget, setTaskEditTarget] = React.useState<{
+    roundCode: string
+    taskId: string
+    taskName: string
+    categoryName: string
+  } | null>(null)
 
   React.useEffect(() => {
     if (!assignmentsQuery.data) return
@@ -273,27 +342,27 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
     return ids.size
   }, [draftByRound, taskById])
 
-  const categoryCounts = React.useMemo(() => {
-    const counts = new Map<string, { name: string; count: number }>()
-    for (const roundDraft of draftByRound.values()) {
-      for (const taskId of roundDraft.keys()) {
-        const meta = taskById.get(taskId)
-        if (!meta) continue
-        const row = counts.get(meta.categoryName) ?? { name: meta.categoryName, count: 0 }
-        row.count++
-        counts.set(meta.categoryName, row)
-      }
-    }
-    return [...counts.values()].sort((a, b) => b.count - a.count)
-  }, [draftByRound, taskById])
-
   const addDialogRound = rounds.find((round) => round.code === addDialogRoundCode) ?? null
 
   const getSelectedTasksForRound = React.useCallback(
-    (roundCode: string): Array<TaskMeta & { carerInstructions: string; priority: VisitTaskPriorityCode }> => {
+    (roundCode: string): Array<
+      TaskMeta & {
+        carerInstructions: string
+        priority: VisitTaskPriorityCode
+        schedule: VisitTaskSchedule
+        isEmarPrompt: boolean
+      }
+    > => {
       const roundDraft = draftByRound.get(roundCode) ?? new Map<string, RoundTaskDraft>()
       const q = search.trim().toLowerCase()
-      const items: Array<TaskMeta & { carerInstructions: string; priority: VisitTaskPriorityCode }> = []
+      const items: Array<
+        TaskMeta & {
+          carerInstructions: string
+          priority: VisitTaskPriorityCode
+          schedule: VisitTaskSchedule
+          isEmarPrompt: boolean
+        }
+      > = []
       for (const [taskId, draft] of roundDraft.entries()) {
         const meta = taskById.get(taskId)
         if (!meta) continue
@@ -311,9 +380,12 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           ...meta,
           carerInstructions: draft.carerInstructions,
           priority: draft.priority,
+          schedule: draft.schedule,
+          isEmarPrompt: isEmarMedicationPromptTask(meta.task),
         })
       }
       return items.sort((a, b) => {
+        if (a.isEmarPrompt !== b.isEmarPrompt) return a.isEmarPrompt ? -1 : 1
         const rankDiff = visitTaskPriorityRank(b.priority) - visitTaskPriorityRank(a.priority)
         if (rankDiff !== 0) return rankDiff
         return a.task.name.localeCompare(b.task.name)
@@ -485,35 +557,32 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
         </div>
         {filtersActive ? (
           <p className="text-xs text-muted-foreground">
-            Filtering tasks shown in the {viewMode === 'timeline' ? 'timeline' : 'list'} — your
-            selections are unchanged.
+            Filtering tasks shown in the list — your selections are unchanged.
           </p>
         ) : null}
       </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="min-w-0 space-y-1">
+      <div className="min-w-0 space-y-1">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <PlannerIconBadge
                 visual={{
                   ...PLANNER_STAT_VISUALS.slots,
-                  icon: viewMode === 'timeline' ? ListTree : LayoutList,
+                  icon: LayoutList,
                 }}
                 size="sm"
               />
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
-                  {viewMode === 'timeline' ? 'The day, call by call' : 'All tasks by visit slot'}
+                  All tasks by visit slot
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {viewMode === 'timeline'
-                    ? 'Plan tasks for each visit window'
-                    : 'Compact list of every planned task'}
+                  Compact list of every planned task — expand a slot to show or hide its tasks
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {/* Timeline / list toggle — timeline temporarily commented out
               <div
                 className="inline-flex rounded-xl border border-border bg-card p-0.5 shadow-sm"
                 role="group"
@@ -548,6 +617,25 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
                   List
                 </button>
               </div>
+              */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-lg text-xs"
+                onClick={() => setCollapsedRounds(new Set())}
+              >
+                Expand all
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-lg text-xs"
+                onClick={() => setCollapsedRounds(new Set(rounds.map((r) => r.code)))}
+              >
+                Collapse all
+              </Button>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground shadow-sm">
                 {(() => {
                   const CatalogueIcon = PLANNER_STAT_VISUALS.categories.icon
@@ -558,137 +646,33 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
             </div>
           </div>
 
+          {/* Timeline view temporarily disabled
           {viewMode === 'timeline' ? (
           <div className="relative">
-            {rounds.map((round, index) => {
-              const roundStyle = roundVisual(round.code)
-              const windowLabel = formatMedicationRoundWindow(round)
-              const collapsed = collapsedRounds.has(round.code)
-              const isLast = index === rounds.length - 1
-              const roundDraft = draftByRound.get(round.code)
-              const selectedCount = roundDraft?.size ?? 0
-              const visibleTasks = getSelectedTasksForRound(round.code)
-
-              return (
-                <div key={round.id} className="relative pb-5 pl-12 sm:pl-16">
-                  {!isLast ? (
-                    <span
-                      className="absolute bottom-0 left-[19px] top-12 w-px bg-border sm:left-[27px]"
-                      aria-hidden
-                    />
-                  ) : null}
-
-                  <PlannerIconBadge
-                    visual={roundStyle}
-                    size="lg"
-                    className="absolute left-0 top-1"
-                  />
-
-                  <div className="mb-2.5 flex min-h-[40px] items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleRoundCollapsed(round.code)}
-                      className="flex min-w-0 items-center gap-2 text-left"
-                    >
-                      {collapsed ? (
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
-                            {formatRoundLabel(round.name)}
-                          </h3>
-                          {windowLabel ? (
-                            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-                              {windowLabel}
-                            </span>
-                          ) : null}
-                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
-                            {selectedCount}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {selectedCount > 0
-                            ? `${selectedCount} task${selectedCount === 1 ? '' : 's'} on this visit`
-                            : 'No tasks yet'}
-                        </p>
-                      </div>
-                    </button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0 gap-1 rounded-lg border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
-                      onClick={() => setAddDialogRoundCode(round.code)}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add
-                    </Button>
-                  </div>
-
-                  {!collapsed ? (
-                    <div className="space-y-2">
-                      {selectedCount === 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setAddDialogRoundCode(round.code)}
-                          className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border px-3.5 py-3.5 text-left transition hover:border-primary hover:bg-primary/5 hover:text-primary"
-                        >
-                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                            <PlannerEmptyIcons.addFirst className="h-4 w-4" aria-hidden />
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            No tasks yet — add the first one for this time slot.
-                          </span>
-                        </button>
-                      ) : visibleTasks.length === 0 ? (
-                        <div className="flex items-center gap-3 rounded-xl border border-dashed border-border px-3.5 py-3 text-xs text-muted-foreground">
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted">
-                            <PlannerEmptyIcons.noMatch className="h-4 w-4" aria-hidden />
-                          </span>
-                          No planned tasks match your filter for this slot.
-                        </div>
-                      ) : (
-                        visibleTasks.map((meta) => (
-                          <SelectedTaskCard
-                            key={meta.task.id}
-                            meta={meta}
-                            carerInstructions={meta.carerInstructions}
-                            priority={meta.priority}
-                            onInstructionsChange={(value) =>
-                              updateTaskInstructions(round.code, meta.task.id, value)
-                            }
-                            onPriorityChange={(value) =>
-                              updateTaskPriority(round.code, meta.task.id, value)
-                            }
-                            onRemove={() => removeTaskFromRound(round.code, meta.task.id)}
-                          />
-                        ))
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })}
+            ... timeline content ...
           </div>
           ) : (
+          */}
             <div className="space-y-4">
               {rounds.map((round) => {
                 const roundStyle = roundVisual(round.code)
                 const windowLabel = formatMedicationRoundWindow(round)
                 const selectedCount = draftByRound.get(round.code)?.size ?? 0
                 const visibleTasks = getSelectedTasksForRound(round.code)
+                const collapsed = collapsedRounds.has(round.code)
 
                 return (
                   <PlannerRoundListSection
                     key={round.id}
+                    serviceUserId={serviceUserId}
                     round={round}
                     roundStyle={roundStyle}
                     windowLabel={windowLabel}
                     selectedCount={selectedCount}
+                    medicationDueCount={medicationCountByRound[round.code] ?? 0}
                     visibleTasks={visibleTasks}
+                    collapsed={collapsed}
+                    onToggleCollapsed={() => toggleRoundCollapsed(round.code)}
                     onAdd={() => setAddDialogRoundCode(round.code)}
                     onRemove={(taskId) => removeTaskFromRound(round.code, taskId)}
                     onInstructionsChange={(taskId, value) =>
@@ -697,92 +681,20 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
                     onPriorityChange={(taskId, value) =>
                       updateTaskPriority(round.code, taskId, value)
                     }
+                    onEditSchedule={(taskId, taskName) =>
+                      setTaskEditTarget({
+                        roundCode: round.code,
+                        taskId,
+                        taskName,
+                        categoryName:
+                          visibleTasks.find((t) => t.task.id === taskId)?.categoryName ?? '',
+                      })
+                    }
                   />
                 )
               })}
             </div>
-          )}
-        </div>
-
-        <aside className="space-y-4 lg:sticky lg:top-20">
-          <SidebarCard visual={SIDEBAR_ICONS.summary} title="Plan summary">
-            <div className="space-y-1.5 text-xs">
-              <SummaryRow icon={SUMMARY_ROW_ICONS.total} label="Total selected" value={String(totalSelected)} />
-              <SummaryRow
-                icon={SUMMARY_ROW_ICONS.slots}
-                label="Time slots in use"
-                value={`${roundsWithTasks} of ${rounds.length}`}
-              />
-              <SummaryRow icon={SUMMARY_ROW_ICONS.catalogue} label="Catalogue size" value={String(totalCatalogueTasks)} />
-            </div>
-          </SidebarCard>
-
-          <SidebarCard visual={SIDEBAR_ICONS.category} title="By category">
-            <div className="space-y-2">
-              {categoryCounts.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No tasks selected yet.</p>
-              ) : (
-                categoryCounts.slice(0, 8).map((row) => (
-                  <div key={row.name}>
-                    <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate text-foreground">{row.name}</span>
-                      <span className="shrink-0 font-semibold tabular-nums text-primary">
-                        {row.count}
-                      </span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{
-                          width: `${Math.min(100, (row.count / Math.max(totalSelected, 1)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </SidebarCard>
-
-          <SidebarCard visual={SIDEBAR_ICONS.timeSlot} title="By time slot">
-            <div className="space-y-2">
-              {rounds.map((round) => {
-                const count = draftByRound.get(round.code)?.size ?? 0
-                const slotVisual = roundVisual(round.code)
-                const SlotIcon = slotVisual.icon
-                return (
-                  <div
-                    key={round.id}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-2.5 py-2 text-xs"
-                  >
-                    <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
-                      <span
-                        className={cn(
-                          'grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1',
-                          slotVisual.surfaceClass,
-                          slotVisual.ringClass,
-                        )}
-                      >
-                        <SlotIcon className={cn('h-3.5 w-3.5', slotVisual.iconClass)} aria-hidden />
-                      </span>
-                      <span className="truncate">{formatRoundLabel(round.name)}</span>
-                    </span>
-                    <span
-                      className={cn(
-                        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                        count > 0
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </SidebarCard>
-        </aside>
+          {/* )} */}
       </div>
 
       <VisitTasksAddDialog
@@ -802,6 +714,50 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           setAddDialogRoundCode(null)
         }}
       />
+
+      <VisitTaskEditDialog
+        key={
+          taskEditTarget
+            ? `${taskEditTarget.roundCode}:${taskEditTarget.taskId}`
+            : 'task-edit-closed'
+        }
+        open={Boolean(taskEditTarget)}
+        taskName={taskEditTarget?.taskName ?? ''}
+        categoryName={taskEditTarget?.categoryName}
+        initial={
+          taskEditTarget
+            ? (() => {
+                const draft = draftByRound
+                  .get(taskEditTarget.roundCode)
+                  ?.get(taskEditTarget.taskId)
+                return {
+                  carerInstructions: draft?.carerInstructions ?? '',
+                  priority: draft?.priority ?? DEFAULT_VISIT_TASK_PRIORITY,
+                  schedule: draft?.schedule ?? DEFAULT_VISIT_TASK_SCHEDULE,
+                } satisfies VisitTaskEditValues
+              })()
+            : {
+                carerInstructions: '',
+                priority: DEFAULT_VISIT_TASK_PRIORITY,
+                schedule: DEFAULT_VISIT_TASK_SCHEDULE,
+              }
+        }
+        onOpenChange={(open) => {
+          if (!open) setTaskEditTarget(null)
+        }}
+        onSave={(values) => {
+          if (!taskEditTarget) return
+          updateRoundDraft(taskEditTarget.roundCode, (roundDraft) => {
+            const existing = roundDraft.get(taskEditTarget.taskId)
+            if (!existing) return
+            roundDraft.set(taskEditTarget.taskId, {
+              carerInstructions: values.carerInstructions,
+              priority: values.priority,
+              schedule: mergeVisitTaskSchedule(values.schedule),
+            })
+          })
+        }}
+      />
     </div>
   )
 }
@@ -809,35 +765,57 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
 type PlannerTaskRow = TaskMeta & {
   carerInstructions: string
   priority: VisitTaskPriorityCode
+  schedule: VisitTaskSchedule
+  isEmarPrompt: boolean
 }
 
 function PlannerRoundListSection({
+  serviceUserId,
   round,
   roundStyle,
   windowLabel,
   selectedCount,
+  medicationDueCount,
   visibleTasks,
+  collapsed,
+  onToggleCollapsed,
   onAdd,
   onRemove,
   onInstructionsChange,
   onPriorityChange,
+  onEditSchedule,
 }: {
+  serviceUserId: string
   round: MedicationRoundLookup
   roundStyle: PlannerVisual
   windowLabel: string | null
   selectedCount: number
+  medicationDueCount: number
   visibleTasks: PlannerTaskRow[]
+  collapsed: boolean
+  onToggleCollapsed: () => void
   onAdd: () => void
   onRemove: (taskId: string) => void
   onInstructionsChange: (taskId: string, value: string) => void
   onPriorityChange: (taskId: string, value: VisitTaskPriorityCode) => void
+  onEditSchedule: (taskId: string, taskName: string) => void
 }) {
   const RoundIcon = roundStyle.icon
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/30 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
           <span
             className={cn(
               'grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1',
@@ -860,14 +838,28 @@ function PlannerRoundListSection({
               <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
                 {selectedCount}
               </span>
+              {medicationDueCount > 0 ? (
+                <Link
+                  to="/service-users/$serviceUserId/medication"
+                  params={{ serviceUserId }}
+                  search={{ view: 'calendar' }}
+                  className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[11px] font-semibold text-rose-800 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-200 dark:hover:bg-rose-900"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {medicationDueCount} eMAR med
+                  {medicationDueCount === 1 ? '' : 's'}
+                </Link>
+              ) : null}
             </div>
             <p className="text-xs text-muted-foreground">
-              {selectedCount > 0
-                ? `${selectedCount} task${selectedCount === 1 ? '' : 's'} planned`
-                : 'No tasks yet'}
+              {collapsed
+                ? `Hidden · ${selectedCount} task${selectedCount === 1 ? '' : 's'}`
+                : selectedCount > 0
+                  ? `${selectedCount} task${selectedCount === 1 ? '' : 's'} planned`
+                  : 'No tasks yet'}
             </p>
           </div>
-        </div>
+        </button>
         <Button
           type="button"
           variant="outline"
@@ -880,7 +872,8 @@ function PlannerRoundListSection({
         </Button>
       </div>
 
-      {selectedCount === 0 ? (
+      {!collapsed ? (
+        selectedCount === 0 ? (
         <button
           type="button"
           onClick={onAdd}
@@ -908,6 +901,7 @@ function PlannerRoundListSection({
                 <th className="px-4 py-2.5">Task</th>
                 <th className="px-4 py-2.5">Category</th>
                 <th className="px-4 py-2.5">Priority</th>
+                <th className="px-4 py-2.5">Schedule</th>
                 <th className="min-w-[220px] px-4 py-2.5">Instructions</th>
                 <th className="w-12 px-4 py-2.5" />
               </tr>
@@ -932,8 +926,30 @@ function PlannerRoundListSection({
                           <TaskIcon className={cn('h-3.5 w-3.5', taskVisual.iconClass)} aria-hidden />
                         </span>
                         <div className="min-w-0">
-                          <p className="font-medium leading-snug text-foreground">{meta.task.name}</p>
+                          {meta.isEmarPrompt ? (
+                            <Link
+                              to="/service-users/$serviceUserId/medication"
+                              params={{ serviceUserId }}
+                              search={{ view: 'calendar' }}
+                              className="inline-flex items-center gap-1.5 font-medium leading-snug text-rose-700 hover:underline dark:text-rose-300"
+                            >
+                              {meta.task.name}
+                              <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+                            </Link>
+                          ) : (
+                            <p className="font-medium leading-snug text-foreground">{meta.task.name}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
+                            {meta.isEmarPrompt ? (
+                              <Link
+                                to="/service-users/$serviceUserId/medication"
+                                params={{ serviceUserId }}
+                                search={{ view: 'calendar' }}
+                                className="inline-flex rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-200 dark:hover:bg-rose-900"
+                              >
+                                Open MAR calendar
+                              </Link>
+                            ) : null}
                             {meta.task.consentRequired ? (
                               <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200">
                                 Consent
@@ -957,6 +973,15 @@ function PlannerRoundListSection({
                       />
                     </td>
                     <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => onEditSchedule(meta.task.id, meta.task.name)}
+                      >
+                        <VisitTaskScheduleBadge schedule={meta.schedule} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
                       <textarea
                         rows={2}
                         value={meta.carerInstructions}
@@ -968,14 +993,45 @@ function PlannerRoundListSection({
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        className="grid h-8 w-8 place-items-center rounded-lg text-destructive opacity-60 transition hover:bg-destructive/10 hover:opacity-100"
-                        aria-label={`Remove ${meta.task.name}`}
-                        onClick={() => onRemove(meta.task.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {meta.isEmarPrompt ? (
+                          <Link
+                            to="/service-users/$serviceUserId/medication"
+                            params={{ serviceUserId }}
+                            search={{ view: 'calendar' }}
+                            className="grid h-8 w-8 place-items-center rounded-lg text-rose-700 opacity-80 transition hover:bg-rose-100 hover:opacity-100 dark:text-rose-300 dark:hover:bg-rose-950"
+                            aria-label={`Open medication page for ${meta.task.name}`}
+                            title="Open MAR calendar"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-primary opacity-70 transition hover:bg-primary/10 hover:opacity-100"
+                          aria-label={`Edit schedule for ${meta.task.name}`}
+                          onClick={() => onEditSchedule(meta.task.id, meta.task.name)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        {meta.isEmarPrompt ? (
+                          <span
+                            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground/50"
+                            title="Managed from eMAR — removed automatically when no scheduled meds remain for this slot"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-destructive opacity-60 transition hover:bg-destructive/10 hover:opacity-100"
+                            aria-label={`Remove ${meta.task.name}`}
+                            onClick={() => onRemove(meta.task.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -983,7 +1039,28 @@ function PlannerRoundListSection({
             </tbody>
           </table>
         </div>
-      )}
+      )
+      ) : null}
+    </div>
+  )
+}
+
+function VisitTaskScheduleBadge({ schedule }: { schedule: VisitTaskSchedule }) {
+  const frequency = visitTaskFrequencyLabel(schedule.scheduleFrequency)
+  const summary = formatVisitTaskScheduleSummary(schedule)
+
+  return (
+    <div
+      className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5"
+      title={summary}
+    >
+      <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+        {frequency}
+      </span>
+      <span className="min-w-0 truncate text-[11px] font-medium text-foreground">
+        {formatVisitTaskScheduleDetail(schedule)}
+        {schedule.repeatEvery > 1 ? ` · every ${schedule.repeatEvery}` : null}
+      </span>
     </div>
   )
 }
@@ -992,15 +1069,19 @@ function SelectedTaskCard({
   meta,
   carerInstructions,
   priority,
+  schedule,
   onInstructionsChange,
   onPriorityChange,
+  onEditSchedule,
   onRemove,
 }: {
   meta: TaskMeta
   carerInstructions: string
   priority: VisitTaskPriorityCode
+  schedule: VisitTaskSchedule
   onInstructionsChange: (value: string) => void
   onPriorityChange: (value: VisitTaskPriorityCode) => void
+  onEditSchedule: () => void
   onRemove: () => void
 }) {
   const needsInput = taskNeedsRecordedInput(meta.task.flagsJson)
@@ -1013,14 +1094,24 @@ function SelectedTaskCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-sm font-semibold leading-snug text-foreground">{meta.task.name}</h4>
-          <button
-            type="button"
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-destructive opacity-0 transition hover:bg-destructive/10 group-hover:opacity-100"
-            aria-label={`Remove ${meta.task.name}`}
-            onClick={onRemove}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+            <button
+              type="button"
+              className="grid h-7 w-7 place-items-center rounded-lg text-primary transition hover:bg-primary/10"
+              aria-label={`Edit schedule for ${meta.task.name}`}
+              onClick={onEditSchedule}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="grid h-7 w-7 place-items-center rounded-lg text-destructive transition hover:bg-destructive/10"
+              aria-label={`Remove ${meta.task.name}`}
+              onClick={onRemove}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
@@ -1052,6 +1143,9 @@ function SelectedTaskCard({
             </span>
           ) : null}
         </div>
+        <button type="button" className="mt-2 w-full text-left" onClick={onEditSchedule}>
+          <VisitTaskScheduleBadge schedule={schedule} />
+        </button>
         <details className="group/details mt-2">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold text-muted-foreground transition hover:text-foreground [&::-webkit-details-marker]:hidden">
             <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform group-open/details:rotate-90" />
@@ -1106,48 +1200,6 @@ function StatTile({
       <div className="mt-2 font-display text-2xl font-semibold leading-none text-foreground">
         {value}
       </div>
-    </div>
-  )
-}
-
-function SidebarCard({
-  visual: VisualIcon,
-  title,
-  children,
-}: {
-  visual: LucideIcon
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <h3 className="mb-3 flex items-center gap-2.5 text-sm font-semibold text-foreground">
-        <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 ring-1 ring-primary/15">
-          <VisualIcon className="h-4 w-4 text-primary" aria-hidden />
-        </span>
-        {title}
-      </h3>
-      {children}
-    </div>
-  )
-}
-
-function SummaryRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-primary/5 px-2.5 py-2">
-      <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5 shrink-0 text-primary/70" aria-hidden />
-        <span className="truncate">{label}</span>
-      </span>
-      <span className="shrink-0 font-semibold tabular-nums text-foreground">{value}</span>
     </div>
   )
 }

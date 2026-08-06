@@ -8,6 +8,8 @@ export type MedicationSupportProfile = {
   requiresSupervision: boolean
   requiresCarerAdministration: boolean
   familyMemberOrCarerSupportsMedication: boolean
+  /** Where medicines are kept in the property (carer visit overview). */
+  storageLocation: string | null
   notes: string | null
   isActive: boolean
 }
@@ -18,6 +20,7 @@ export type UpdateMedicationSupportProfilePayload = {
   requiresSupervision?: boolean
   requiresCarerAdministration?: boolean
   familyMemberOrCarerSupportsMedication?: boolean
+  storageLocation?: string | null
   notes?: string | null
 }
 

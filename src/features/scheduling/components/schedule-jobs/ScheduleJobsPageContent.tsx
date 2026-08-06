@@ -277,8 +277,11 @@ export function ScheduleJobsPageContent() {
         defaultTab={dialogs.workspaceTab}
         onCompleteVisit={(job) => {
           dialogs.setWorkspaceOpen(false)
-          dialogs.setCompleteJobTarget(job)
-          dialogs.setCompleteOpen(true)
+          dialogs.openCompleteDialog(job)
+        }}
+        onMarkIncomplete={(job) => {
+          dialogs.setWorkspaceOpen(false)
+          dialogs.openCompleteDialog(job, 'PARTIALLY_COMPLETED')
         }}
         onAddNotes={(job) => {
           dialogs.setWorkspaceOpen(false)
@@ -295,9 +298,13 @@ export function ScheduleJobsPageContent() {
         open={dialogs.completeOpen}
         onOpenChange={(open) => {
           dialogs.setCompleteOpen(open)
-          if (!open) dialogs.setCompleteJobTarget(null)
+          if (!open) {
+            dialogs.setCompleteJobTarget(null)
+            dialogs.setCompleteInitialStatus(null)
+          }
         }}
         job={completeJob}
+        initialVisitStatus={dialogs.completeInitialStatus}
         onCompleted={() => {
           void board.refreshBoard()
         }}

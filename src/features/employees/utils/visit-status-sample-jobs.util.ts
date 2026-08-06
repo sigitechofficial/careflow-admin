@@ -236,6 +236,18 @@ const SAMPLE_DEFS: SampleDef[] = [
     allocated: true,
   },
   {
+    id: 'late-end',
+    label: 'Sample · Late end',
+    dayOffset: 22,
+    roundIndex: 0,
+    jobStatus: 'COMPLETED',
+    visitStatus: 'COMPLETED',
+    // Late start + same duration → late end without duration overrun.
+    actualStartOffsetMin: 20,
+    actualDurationMin: 60,
+    allocated: true,
+  },
+  {
     id: 'overrun',
     label: 'Sample · Overrun',
     dayOffset: 17,

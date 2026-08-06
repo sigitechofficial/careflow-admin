@@ -32,6 +32,55 @@ export type UkPayrollRunStatus =
   | 'CLOSED'
   | 'CANCELLED'
 
+export type PayrollTaxCodeGroup = 'STANDARD' | 'SPECIAL' | 'SCOTLAND' | 'WALES'
+
+export type PayrollTaxCode = {
+  id: string
+  code: string
+  label: string
+  description: string | null
+  group: PayrollTaxCodeGroup
+  sortOrder: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type PayrollStatutoryRateSet = {
+  id: string
+  taxYearId: string
+  nation: string
+  version: number
+  isActive: boolean
+  personalAllowanceAnnual: number
+  basicRateBandAnnual: number
+  higherRateThresholdAnnual: number
+  additionalRateThresholdAnnual: number
+  basicRatePercent: number
+  higherRatePercent: number
+  additionalRatePercent: number
+  niLelWeekly: number
+  niPtWeekly: number
+  niStWeekly: number
+  niUelWeekly: number
+  niLelMonthly: number
+  niPtMonthly: number
+  niStMonthly: number
+  niUelMonthly: number
+  niEmployeeRateMainPercent: number
+  niEmployeeRateUpperPercent: number
+  niEmployerRatePercent: number
+  sourceNote: string | null
+  createdAt: string
+  updatedAt: string
+  taxYear: {
+    id: string
+    code: string
+    label: string
+    isCurrent: boolean
+  } | null
+}
+
 export type PayrollTaxYear = {
   id: string
   code: string
@@ -114,6 +163,29 @@ export type EmployeePayAgreement = {
   updatedAt: string
 }
 
+export type EmployeeRtiIdentity = {
+  isComplete: boolean
+  issues: string[]
+  genderHmrc: 'M' | 'F' | null
+  dateOfBirth: string | null
+  addressSummary: string | null
+}
+
+export type EmployeePayrollYtd = {
+  employeeId: string
+  taxYearId: string
+  taxYearCode?: string | null
+  taxYearLabel?: string | null
+  grossPayYtd: number
+  taxablePayYtd: number
+  incomeTaxYtd: number
+  employeeNiYtd: number
+  employerNiYtd: number
+  netPayYtd: number
+  lastClosedRunId: string | null
+  updatedAt: string
+}
+
 export type EmployeePayrollSetupRow = {
   employeeId: string
   displayName: string
@@ -122,6 +194,8 @@ export type EmployeePayrollSetupRow = {
   defaultPayCardId: string | null
   profile: EmployeePayrollProfile | null
   activeAgreement: EmployeePayAgreement | null
+  rtiIdentity?: EmployeeRtiIdentity
+  ytd?: EmployeePayrollYtd | null
 }
 
 export type UkPayrollRun = {
@@ -197,6 +271,7 @@ export type UkPayrollRunDetail = UkPayrollRun & {
     statutoryExplanation: string | null
     statutoryCalculatedAt: string | null
     inputLines: UkPayrollInputLine[]
+    ytd?: EmployeePayrollYtd | null
   }>
   phaseNote?: string
 }
@@ -208,5 +283,22 @@ export type PayrollOverview = {
   readyEmployeeProfiles: number
   openRuns: number
   currentTaxYear: PayrollTaxYear | null
+  employerSettingsComplete?: boolean
+  employerFullPayeReference?: string | null
   phaseNote: string
+}
+
+/** Org-level HMRC employer identity for FPS/EPS (T01). */
+export type PayrollEmployerSettings = {
+  id: string
+  hmrcOfficeNumber: string | null
+  employerPayeReference: string | null
+  accountsOfficeReference: string | null
+  taxDistrict: string | null
+  employerTradingName: string | null
+  notes: string | null
+  fullPayeReference: string | null
+  isComplete: boolean
+  createdAt: string
+  updatedAt: string
 }
