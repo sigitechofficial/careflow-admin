@@ -23,6 +23,10 @@ import {
 } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
+import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
+import {
+  fetchUkPayrollRunHmrcSubmission,
+} from '@/features/payroll/api/payroll.api'
 import {
   useCalculateUkPayrollGross,
   useCalculateUkPayrollStatutory,
@@ -678,147 +682,37 @@ export default function UkPayrollRunDetailPage() {
                       ) : null}
                     </div>
 
-                    {hmrcSubsQuery.isLoading ? (
-                      <p className="text-xs text-muted-foreground">Loading submission history…</p>
-                    ) : hmrcSubsQuery.data && hmrcSubsQuery.data.length > 0 ? (
-                      <div className="overflow-hidden rounded-lg border border-border">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-muted/40 text-muted-foreground">
-                            <tr>
-                              <th className="px-3 py-2 font-medium">When</th>
-                              <th className="px-3 py-2 font-medium">Env</th>
-                              <th className="px-3 py-2 font-medium">Mode</th>
-                              <th className="px-3 py-2 font-medium">Status</th>
-                              <th className="px-3 py-2 font-medium">Detail</th>
-                              <th className="px-3 py-2 font-medium">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {hmrcSubsQuery.data.map((s) => {
-                              const isPendingLive =
-                                s.environment === 'LIVE' && s.status === 'PENDING_APPROVAL'
-                              const isRequester = Boolean(
-                                currentUserId && s.createdById && currentUserId === s.createdById,
-                              )
-                              const canApprove =
-                                canManage && isPendingLive && !isRequester && Boolean(currentUserId)
-                              const canReject = canManage && isPendingLive
-                              return (
-                                <tr key={s.id} className="border-t border-border">
-                                  <td className="px-3 py-2 text-muted-foreground">
-                                    {new Date(s.createdAt).toLocaleString('en-GB')}
-                                  </td>
-                                  <td className="px-3 py-2 font-medium text-foreground">
-                                    {s.environment}
-                                  </td>
-                                  <td className="px-3 py-2 font-medium text-foreground">{s.mode}</td>
-                                  <td className="px-3 py-2">
-                                    <span
-                                      className={cn(
-                                        'rounded px-1.5 py-0.5 font-medium',
-                                        s.status === 'DRAFT_BUILT' ||
-                                          s.status === 'ACKNOWLEDGED' ||
-                                          s.status === 'ACCEPTED'
-                                          ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
-                                          : s.status === 'ERROR' ||
-                                              s.status === 'REJECTED' ||
-                                              s.status === 'REJECTED_APPROVAL'
-                                            ? 'bg-rose-500/15 text-rose-800 dark:text-rose-200'
-                                            : 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
-                                      )}
-                                    >
-                                      {s.status}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2 text-muted-foreground">
-                                    {[
-                                      s.correlationId ? `Corr ${s.correlationId}` : null,
-                                      s.errorMessage,
-                                      s.httpStatus ? `HTTP ${s.httpStatus}` : null,
-                                      isPendingLive && isRequester
-                                        ? 'Waiting for another user'
-                                        : null,
-                                      s.fraudPreventionHeaders?.omitted?.length
-                                        ? `${s.fraudPreventionHeaders.omitted.length} header(s) omitted`
-                                        : s.fraudPreventionHeaders?.headers
-                                          ? 'Fraud headers attached'
-                                          : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(' · ') || '—'}
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    {canApprove || canReject ? (
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {canApprove ? (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 gap-1 px-2 text-[11px]"
-                                            disabled={
-                                              approveLiveMut.isPending || rejectLiveMut.isPending
-                                            }
-                                            onClick={() => {
-                                              if (
-                                                !window.confirm(
-                                                  'Approve and SEND this FPS to LIVE HMRC? Type confirmation is required next.',
-                                                )
-                                              ) {
-                                                return
-                                              }
-                                              const phrase = window.prompt(
-                                                'Type exactly: SEND LIVE FPS',
-                                              )
-                                              if (phrase !== 'SEND LIVE FPS') {
-                                                window.alert(
-                                                  'Cancelled — confirmation phrase did not match.',
-                                                )
-                                                return
-                                              }
-                                              approveLiveMut.mutate(s.id)
-                                            }}
-                                          >
-                                            Approve live
-                                          </Button>
-                                        ) : null}
-                                        {canReject ? (
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-7 px-2 text-[11px] text-rose-700 dark:text-rose-300"
-                                            disabled={
-                                              approveLiveMut.isPending || rejectLiveMut.isPending
-                                            }
-                                            onClick={() => {
-                                              const reason =
-                                                window.prompt(
-                                                  'Optional reason for rejecting this live send:',
-                                                ) ?? undefined
-                                              rejectLiveMut.mutate({
-                                                submissionId: s.id,
-                                                reason: reason || undefined,
-                                              })
-                                            }}
-                                          >
-                                            Reject
-                                          </Button>
-                                        ) : null}
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted-foreground">—</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        No HMRC attempts yet for this run.
-                      </p>
-                    )}
+                    <PayrollHmrcSubmissionStatusPanel
+                      documentLabel="FPS"
+                      isValidated={Boolean(fpsQuery.data.validation?.isReadyToSubmit)}
+                      submissions={hmrcSubsQuery.data ?? []}
+                      isLoading={hmrcSubsQuery.isLoading}
+                      canManage={canManage}
+                      currentUserId={currentUserId}
+                      onDownload={(s) => fetchUkPayrollRunHmrcSubmission(runId, s.id)}
+                      onRetry={(s) => {
+                        const env = s.environment === 'LIVE' ? 'LIVE' : 'TEST'
+                        if (
+                          !window.confirm(
+                            `Retry this FPS ${env} send? This creates a new attempt.`,
+                          )
+                        ) {
+                          return
+                        }
+                        if (env === 'LIVE') {
+                          submitFpsMut.mutate({ mode: 'SUBMIT', environment: 'LIVE' })
+                        } else {
+                          submitFpsMut.mutate({ mode: 'SUBMIT', environment: 'TEST' })
+                        }
+                      }}
+                      onApproveLive={(id) => approveLiveMut.mutate(id)}
+                      onRejectLive={(id, reason) =>
+                        rejectLiveMut.mutate({ submissionId: id, reason })
+                      }
+                      approvePending={approveLiveMut.isPending}
+                      rejectPending={rejectLiveMut.isPending}
+                      retryPending={submitFpsMut.isPending}
+                    />
                   </div>
                 </div>
               ) : null}

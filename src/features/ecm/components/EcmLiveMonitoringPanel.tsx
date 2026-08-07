@@ -1,11 +1,8 @@
 import * as React from 'react'
 import {
-  Activity,
   AlarmClock,
   AlertTriangle,
-  CheckCircle2,
   CircleAlert,
-  CircleCheck,
   CircleHelp,
   Clock,
   ExternalLink,
@@ -62,105 +59,66 @@ const BUCKET_META: {
   label: string
   tone: 'neutral' | 'warn' | 'danger' | 'ok'
   icon: React.ReactNode
-  group: 'completion' | 'live'
 }[] = [
-  {
-    id: 'completed',
-    label: 'Completed',
-    tone: 'ok',
-    icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
-    group: 'completion',
-  },
-  {
-    id: 'completedOnTime',
-    label: 'Completed on time',
-    tone: 'ok',
-    icon: <CircleCheck className="h-4 w-4" aria-hidden />,
-    group: 'completion',
-  },
-  {
-    id: 'completedLate',
-    label: 'Completed late',
-    tone: 'warn',
-    icon: <Timer className="h-4 w-4" aria-hidden />,
-    group: 'completion',
-  },
   {
     id: 'dueNow',
     label: 'Due now',
     tone: 'warn',
     icon: <AlarmClock className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'startingSoon',
     label: 'Starting soon',
     tone: 'neutral',
     icon: <Clock className="h-4 w-4" aria-hidden />,
-    group: 'live',
-  },
-  {
-    id: 'inProgress',
-    label: 'In progress',
-    tone: 'ok',
-    icon: <Activity className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'earlyArrival',
     label: 'Early (open)',
     tone: 'warn',
     icon: <AlarmClock className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'lateArrival',
     label: 'Late (open)',
     tone: 'warn',
     icon: <Timer className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'veryLateArrival',
     label: 'Very late (open)',
     tone: 'danger',
     icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'potentialMissed',
     label: 'Potential missed',
     tone: 'warn',
     icon: <CircleAlert className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'confirmedMissed',
     label: 'Confirmed missed',
     tone: 'danger',
     icon: <XCircle className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'missingCheckout',
     label: 'Missing checkout',
     tone: 'warn',
     icon: <LogOut className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'outsideGeofence',
     label: 'Outside geofence',
     tone: 'warn',
     icon: <MapPinOff className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
   {
     id: 'manualAttendance',
-    label: 'Manual',
+    label: 'Admin completed',
     tone: 'neutral',
     icon: <Hand className="h-4 w-4" aria-hidden />,
-    group: 'live',
   },
 ]
 
@@ -209,7 +167,7 @@ function bucketLabel(
     case 'outsideGeofence':
       return `Outside geofence (>${windows.geofenceRadiusMeters} m)`
     case 'manualAttendance':
-      return 'Manual (office entry)'
+      return 'Admin completed (schedule-jobs / office times)'
     default:
       return baseLabel
   }
@@ -598,9 +556,6 @@ export function EcmLiveMonitoringPanel({
   const statusScopeLabel =
     statusScope === 'all' ? 'All visits' : statusScope === 'completed' ? 'Completed' : 'Active'
 
-  const completionTiles = BUCKET_META.filter((b) => b.group === 'completion')
-  const liveTiles = BUCKET_META.filter((b) => b.group === 'live')
-
   const filtersHideAll =
     visits.length > 0 && filtered.length === 0 && (bucketFilter !== 'all' || statusScope !== 'all')
 
@@ -798,70 +753,36 @@ export function EcmLiveMonitoringPanel({
             </div>
           </ContentCard>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
-              {completionTiles.map((b) => {
-                const value = counts?.[b.id] ?? 0
-                const active = bucketFilter === b.id
-                const label = bucketLabel(b.id, b.label, windows)
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    className={tileClass(b.tone, active)}
-                    title={label}
-                    onClick={() => setBucketOrClear(b.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[11px] font-medium leading-snug text-muted-foreground">
-                        {label}
-                      </p>
-                      <span
-                        className={cn(
-                          'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                          BUCKET_TONE_ICON[b.tone],
-                        )}
-                      >
-                        {b.icon}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{value}</p>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {liveTiles.map((b) => {
-                const value = counts?.[b.id] ?? 0
-                const active = bucketFilter === b.id
-                const label = bucketLabel(b.id, b.label, windows)
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    className={tileClass(b.tone, active)}
-                    title={label}
-                    onClick={() => setBucketOrClear(b.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[11px] font-medium leading-snug text-muted-foreground">
-                        {label}
-                      </p>
-                      <span
-                        className={cn(
-                          'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                          BUCKET_TONE_ICON[b.tone],
-                        )}
-                      >
-                        {b.icon}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{value}</p>
-                  </button>
-                )
-              })}
-            </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {BUCKET_META.map((b) => {
+              const value = counts?.[b.id] ?? 0
+              const active = bucketFilter === b.id
+              const label = bucketLabel(b.id, b.label, windows)
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={tileClass(b.tone, active)}
+                  title={label}
+                  onClick={() => setBucketOrClear(b.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] font-medium leading-snug text-muted-foreground">
+                      {label}
+                    </p>
+                    <span
+                      className={cn(
+                        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                        BUCKET_TONE_ICON[b.tone],
+                      )}
+                    >
+                      {b.icon}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{value}</p>
+                </button>
+              )
+            })}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

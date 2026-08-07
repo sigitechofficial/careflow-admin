@@ -5,6 +5,7 @@ import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { EcmGraphFirstDashboard } from '@/features/ecm/components/EcmGraphFirstDashboard'
 import { EcmComplianceOverviewPanel } from '@/features/ecm/components/EcmComplianceOverviewPanel'
+import { EcmComplianceMethodCards } from '@/features/ecm/components/EcmComplianceMethodCards'
 import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
 import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { ecmKeys } from '@/features/ecm/keys'
@@ -51,7 +52,7 @@ export default function EcmGraphPage() {
       />
 
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
-        <div className="space-y-10">
+        <div className="space-y-6">
           <EcmOperationalPeriodCard
             preset={preset}
             dateFrom={dateFrom}
@@ -91,9 +92,13 @@ export default function EcmGraphPage() {
             </Button>
           </EcmOperationalPeriodCard>
 
-          <EcmGraphFirstDashboard />
-          <div className="border-t border-border pt-8">
-            <EcmComplianceOverviewPanel />
+          <EcmComplianceMethodCards compact />
+
+          <div className="space-y-10 border-t border-border pt-6">
+            <EcmGraphFirstDashboard />
+            <div className="border-t border-border pt-8">
+              <EcmComplianceOverviewPanel hideMethodCards />
+            </div>
           </div>
         </div>
       </div>

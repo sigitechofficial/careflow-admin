@@ -20,6 +20,10 @@ import {
   fetchPayrollEmployees,
   fetchPayrollEmployerSettings,
   fetchPayrollEpsPreview,
+  fetchPayrollEpsSubmissions,
+  submitPayrollEps,
+  approvePayrollEpsSubmission,
+  rejectPayrollEpsSubmission,
   fetchPayrollOverview,
   fetchPayrollPeriods,
   fetchPayrollSchedules,
@@ -104,6 +108,83 @@ export function usePayrollEpsPreview(
     queryKey: payrollKeys.epsPreview(params),
     queryFn: () => fetchPayrollEpsPreview(params),
     enabled: enabled && params.taxMonth >= 1 && params.taxMonth <= 12,
+  })
+}
+
+export function usePayrollEpsSubmissions(
+  params: { taxYearId?: string; taxMonth?: number },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: payrollKeys.epsSubmissions(params),
+    queryFn: () => fetchPayrollEpsSubmissions(params),
+    enabled,
+  })
+}
+
+export function useSubmitPayrollEps() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      mode: 'DRY_RUN' | 'SUBMIT'
+      environment?: 'TEST' | 'LIVE'
+      taxYearId?: string
+      taxMonth: number
+      noPaymentThisPeriod?: boolean
+      employmentAllowanceClaimed?: boolean
+      smpRecovered?: number
+    }) =>
+      submitPayrollEps({
+        ...body,
+        clientContext: collectHmrcFraudClientContext(),
+      }),
+    onSuccess: async (data, vars) => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'eps-submissions'] })
+      if (vars.mode === 'DRY_RUN') {
+        toastSuccess(`EPS ${vars.environment ?? 'TEST'} dry run saved (not sent)`)
+        return
+      }
+      if (data.status === 'PENDING_APPROVAL') {
+        toastSuccess('Live EPS send requested — waiting for a second person to approve')
+        return
+      }
+      if (data.status === 'ACKNOWLEDGED' || data.status === 'ACCEPTED' || data.status === 'SUBMITTED') {
+        toastSuccess(`EPS sent to HMRC ${data.environment} · ${data.status}`)
+        return
+      }
+      toastApiError(new Error(data.errorMessage || `EPS submit finished as ${data.status}`))
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useApprovePayrollEpsSubmission() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (submissionId: string) =>
+      approvePayrollEpsSubmission(submissionId, collectHmrcFraudClientContext()),
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'eps-submissions'] })
+      if (data.status === 'ACKNOWLEDGED' || data.status === 'ACCEPTED' || data.status === 'SUBMITTED') {
+        toastSuccess(`Live EPS approved and sent · ${data.status}`)
+        return
+      }
+      toastApiError(new Error(data.errorMessage || `Live EPS finished as ${data.status}`))
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useRejectPayrollEpsSubmission() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { submissionId: string; reason?: string }) =>
+      rejectPayrollEpsSubmission(input.submissionId, input.reason),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'eps-submissions'] })
+      toastSuccess('Live EPS request rejected — nothing sent to HMRC')
+    },
+    onError: (error) => toastApiError(error),
   })
 }
 

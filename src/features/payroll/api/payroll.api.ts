@@ -85,6 +85,70 @@ export async function fetchPayrollEpsPreview(params: {
   return res.data
 }
 
+export async function fetchPayrollEpsSubmissions(params?: {
+  taxYearId?: string
+  taxMonth?: number
+}) {
+  const qs = new URLSearchParams()
+  if (params?.taxYearId) qs.set('taxYearId', params.taxYearId)
+  if (params?.taxMonth != null) qs.set('taxMonth', String(params.taxMonth))
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission[]>>(
+    `/payroll/eps/submissions${q ? `?${q}` : ''}`,
+  )
+  return res.data ?? []
+}
+
+export async function submitPayrollEps(body: {
+  mode: 'DRY_RUN' | 'SUBMIT'
+  environment?: 'TEST' | 'LIVE'
+  taxYearId?: string
+  taxMonth: number
+  noPaymentThisPeriod?: boolean
+  employmentAllowanceClaimed?: boolean
+  smpRecovered?: number
+  sppRecovered?: number
+  sapRecovered?: number
+  shppRecovered?: number
+  spbpRecovered?: number
+  nicCompensationOnStatutory?: number
+  clientContext?: HmrcFraudClientContext
+}) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>('/payroll/eps/submit', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function approvePayrollEpsSubmission(
+  submissionId: string,
+  clientContext?: HmrcFraudClientContext,
+) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(
+    `/payroll/eps/submissions/${submissionId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        confirmPhrase: 'SEND LIVE EPS',
+        clientContext,
+      }),
+    },
+  )
+  return res.data
+}
+
+export async function rejectPayrollEpsSubmission(submissionId: string, reason?: string) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(
+    `/payroll/eps/submissions/${submissionId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    },
+  )
+  return res.data
+}
+
 export async function purgeAllPayrollData() {
   const res = await apiJson<
     ApiEnvelope<{
@@ -329,6 +393,20 @@ export async function fetchUkPayrollRunFps(id: string) {
 export async function fetchUkPayrollRunHmrcSubmissions(id: string) {
   const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission[]>>(
     `/payroll/runs/${id}/hmrc-submissions`,
+  )
+  return res.data
+}
+
+export async function fetchUkPayrollRunHmrcSubmission(runId: string, submissionId: string) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(
+    `/payroll/runs/${runId}/hmrc-submissions/${submissionId}`,
+  )
+  return res.data
+}
+
+export async function fetchPayrollEpsSubmission(submissionId: string) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(
+    `/payroll/eps/submissions/${submissionId}`,
   )
   return res.data
 }

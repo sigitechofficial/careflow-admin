@@ -52,6 +52,8 @@ type EcmUsedFilter = 'all' | 'yes' | 'no'
 
 export type EcmComplianceOverviewPanelProps = {
   className?: string
+  /** When true, Electronic/Manual/Geofence cards are omitted (shown at page top). */
+  hideMethodCards?: boolean
 }
 
 /**
@@ -59,7 +61,10 @@ export type EcmComplianceOverviewPanelProps = {
  * Arrival/duration band charts live on Graphs (classification SSOT) — not duplicated here.
  * Period/location SSOT matches Live / Graphs / Reports (page-level filter).
  */
-export function EcmComplianceOverviewPanel({ className }: EcmComplianceOverviewPanelProps = {}) {
+export function EcmComplianceOverviewPanel({
+  className,
+  hideMethodCards = false,
+}: EcmComplianceOverviewPanelProps = {}) {
   const { locationId: globalLocationId } = useGlobalLocationScope()
   const { dateFrom, dateTo, periodLabel, period, multiDay } = useEcmOperationalPeriod('today')
   const [ecmUsed, setEcmUsed] = React.useState<EcmUsedFilter>('all')
@@ -236,68 +241,70 @@ export function EcmComplianceOverviewPanel({ className }: EcmComplianceOverviewP
         </p>
       ) : method ? (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <ContentCard className="flex flex-col justify-center p-4">
-              <p className="text-xs font-medium text-muted-foreground">Electronic %</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                Phone/app check-in = Electronic. Admin typed start/end times = Manual.
-              </p>
-              <p className={cn('mt-2 text-4xl font-bold tabular-nums tracking-tight', electronicTone)}>
-                {formatPct(method.electronicPercent)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {method.electronic.toLocaleString()} of {method.total.toLocaleString()} visits
-              </p>
-            </ContentCard>
+          {hideMethodCards ? null : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <ContentCard className="flex flex-col justify-center p-4">
+                <p className="text-xs font-medium text-muted-foreground">Electronic %</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Phone/app check-in = Electronic. Admin completed visit = Manual.
+                </p>
+                <p className={cn('mt-2 text-4xl font-bold tabular-nums tracking-tight', electronicTone)}>
+                  {formatPct(method.electronicPercent)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {method.electronic.toLocaleString()} of {method.total.toLocaleString()} visits
+                </p>
+              </ContentCard>
 
-            <ContentCard className="space-y-2 p-4">
-              <h3 className="text-sm font-semibold text-foreground">ECM Method</h3>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Electronic = carer mobile app. Manual = office completed the visit with typed
-                times (no phone check-in).
-              </p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="pb-2 font-medium">Method</th>
-                    <th className="pb-2 font-medium">Visits</th>
-                    <th className="pb-2 font-medium">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-border/60">
-                    <td className="py-2 font-medium text-emerald-700 dark:text-emerald-300">
-                      Electronic
-                    </td>
-                    <td className="py-2 tabular-nums">{method.electronic.toLocaleString()}</td>
-                    <td className="py-2 tabular-nums">{formatPct(method.electronicPercent)}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-medium text-red-600 dark:text-red-400">Manual</td>
-                    <td className="py-2 tabular-nums">{method.manual.toLocaleString()}</td>
-                    <td className="py-2 tabular-nums">{formatPct(method.manualPercent)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </ContentCard>
+              <ContentCard className="space-y-2 p-4">
+                <h3 className="text-sm font-semibold text-foreground">ECM Method</h3>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Electronic = carer mobile app. Manual = visit completed from admin
+                  (typed start/end times).
+                </p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                      <th className="pb-2 font-medium">Method</th>
+                      <th className="pb-2 font-medium">Visits</th>
+                      <th className="pb-2 font-medium">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-border/60">
+                      <td className="py-2 font-medium text-emerald-700 dark:text-emerald-300">
+                        Electronic
+                      </td>
+                      <td className="py-2 tabular-nums">{method.electronic.toLocaleString()}</td>
+                      <td className="py-2 tabular-nums">{formatPct(method.electronicPercent)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 font-medium text-red-600 dark:text-red-400">Manual</td>
+                      <td className="py-2 tabular-nums">{method.manual.toLocaleString()}</td>
+                      <td className="py-2 tabular-nums">{formatPct(method.manualPercent)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </ContentCard>
 
-            <ContentCard className="space-y-3 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Geo-Fence Breaches</h3>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                    Count of visits where check-in happened outside the expected location.
-                  </p>
+              <ContentCard className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Geo-Fence Breaches</h3>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                      Count of visits where check-in happened outside the expected location.
+                    </p>
+                  </div>
+                  <span title="Counts visits with OUTSIDE_GEOFENCE in the selected period.">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </span>
                 </div>
-                <span title="Counts visits with OUTSIDE_GEOFENCE in the selected period.">
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                </span>
-              </div>
-              <p className="text-5xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
-                {geofenceBreaches.toLocaleString()}
-              </p>
-            </ContentCard>
-          </div>
+                <p className="text-5xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
+                  {geofenceBreaches.toLocaleString()}
+                </p>
+              </ContentCard>
+            </div>
+          )}
 
           <ContentCard className="space-y-3 p-4 max-w-2xl">
             <h3 className="text-sm font-semibold text-foreground">Electronic % Trend</h3>

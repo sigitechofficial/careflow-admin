@@ -470,9 +470,26 @@ export type CareFpsPayload = {
 }
 
 /** T16 — HMRC RTI submission attempt (passwords never returned). */
+export type PayrollHmrcSubmissionAuditEvent = {
+  id: string
+  submissionId: string
+  eventType: string
+  actorUserId: string | null
+  fromStatus: string | null
+  toStatus: string
+  payloadFingerprint: string | null
+  correlationId: string | null
+  responseSha256: string | null
+  httpStatus: number | null
+  detail: unknown
+  createdAt: string
+}
+
 export type PayrollHmrcSubmission = {
   id: string
-  ukPayrollRunId: string
+  ukPayrollRunId: string | null
+  taxYearId?: string | null
+  taxMonth?: number | null
   documentType: string
   mode: 'DRY_RUN' | 'SUBMIT' | string
   environment: 'TEST' | 'LIVE' | string
@@ -504,6 +521,14 @@ export type PayrollHmrcSubmission = {
   rejectionNote?: string | null
   createdAt: string
   createdById: string | null
+  /** T20 — DRAFT | AWAITING_APPROVAL | SUBMITTED | ACKNOWLEDGED | ACCEPTED | REJECTED */
+  lifecycleStage?: string
+  canDownloadPayload?: boolean
+  canRetry?: boolean
   requestXmlRedacted?: string | null
   responseXml?: string | null
+  /** T21 — SHA-256 of stored gateway response (when present). */
+  responseSha256?: string | null
+  /** T21 — append-only lifecycle events (detail endpoints). */
+  auditEvents?: PayrollHmrcSubmissionAuditEvent[]
 }
