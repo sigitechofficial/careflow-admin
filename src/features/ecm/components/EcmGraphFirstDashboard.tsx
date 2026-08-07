@@ -368,6 +368,11 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
     })
   }
 
+  const trendDotClick = (series: TrendSeries) => (props: unknown) => {
+    const date = (props as { payload?: { date?: string } } | null)?.payload?.date
+    if (date) selectTrendDay(date, series)
+  }
+
   return (
     <div className={cn('space-y-4', className)} data-testid="ecm-graph-first-dashboard">
       <div>
@@ -483,18 +488,12 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
                         dot={{
                           r: 3,
                           cursor: 'pointer',
-                          onClick: (pt: { payload?: { date?: string } }) => {
-                            if (pt?.payload?.date) selectTrendDay(pt.payload.date, 'late')
-                          },
+                          onClick: trendDotClick('late'),
                         }}
                         activeDot={{
                           r: 5,
                           cursor: 'pointer',
-                          onClick: (_e: unknown, payload: { payload?: { date?: string } }) => {
-                            if (payload?.payload?.date) {
-                              selectTrendDay(payload.payload.date, 'late')
-                            }
-                          },
+                          onClick: trendDotClick('late'),
                         }}
                       />
                       <Line
@@ -505,18 +504,12 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
                         dot={{
                           r: 3,
                           cursor: 'pointer',
-                          onClick: (pt: { payload?: { date?: string } }) => {
-                            if (pt?.payload?.date) selectTrendDay(pt.payload.date, 'short')
-                          },
+                          onClick: trendDotClick('short'),
                         }}
                         activeDot={{
                           r: 5,
                           cursor: 'pointer',
-                          onClick: (_e: unknown, payload: { payload?: { date?: string } }) => {
-                            if (payload?.payload?.date) {
-                              selectTrendDay(payload.payload.date, 'short')
-                            }
-                          },
+                          onClick: trendDotClick('short'),
                         }}
                       />
                       <Line
@@ -527,18 +520,12 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
                         dot={{
                           r: 3,
                           cursor: 'pointer',
-                          onClick: (pt: { payload?: { date?: string } }) => {
-                            if (pt?.payload?.date) selectTrendDay(pt.payload.date, 'missed')
-                          },
+                          onClick: trendDotClick('missed'),
                         }}
                         activeDot={{
                           r: 5,
                           cursor: 'pointer',
-                          onClick: (_e: unknown, payload: { payload?: { date?: string } }) => {
-                            if (payload?.payload?.date) {
-                              selectTrendDay(payload.payload.date, 'missed')
-                            }
-                          },
+                          onClick: trendDotClick('missed'),
                         }}
                       />
                     </LineChart>
@@ -627,7 +614,10 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
                         <LabelList
                           dataKey="value"
                           position="right"
-                          formatter={(v: number) => `${v}%`}
+                          formatter={(label) => {
+                            const v = typeof label === 'number' ? label : Number(label)
+                            return Number.isFinite(v) ? `${v}%` : ''
+                          }}
                           style={{ fontSize: 10, fill: 'currentColor' }}
                         />
                       </Bar>
