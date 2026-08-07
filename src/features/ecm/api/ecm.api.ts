@@ -221,6 +221,8 @@ export type EcmGraphDrillVisit = {
   jobName: string
   serviceUserName: string
   plannedStartDateTime: string
+  /** Operational calendar day YYYY-MM-DD (Europe/London). */
+  localVisitDate?: string
   hourKey: string
   statusKey: string
   arrivalBand: string
@@ -228,6 +230,9 @@ export type EcmGraphDrillVisit = {
   branchName: string | null
   /** Distinct reason codes (exceptions ∪ operationalExceptionCodes). */
   reasonCodes?: string[]
+  weekday?: string
+  timeBandKey?: string
+  verified?: boolean
 }
 
 export type EcmGraphDashboardData = {
@@ -244,18 +249,25 @@ export type EcmGraphDashboardData = {
     hours: string[]
     series: Array<{ key: string; label: string; data: number[] }>
   }
+  /** Late%/Short%/Missed% by day (assessed denominators for late/short). */
   exceptionTrend: {
     dates: string[]
     series: {
+      latePct: number[]
+      shortPct: number[]
+      missedPct: number[]
+    }
+    counts?: {
       late: number[]
-      veryLate: number[]
       short: number[]
       missed: number[]
-      missingCheckout: number[]
-      noAccess: number[]
+    }
+    denominators?: {
+      assessedArrival: number[]
+      assessedDuration: number[]
+      visits: number[]
     }
   }
-  manualTrend: { dates: string[]; manual: number[] }
   /** Classification SSOT bands: early | on_time | late | very_late | not_assessed */
   arrivalPunctuality: Array<{ key: string; count: number }>
   /** Classification SSOT bands: short | on_time | long | excessive | not_assessed */
@@ -276,6 +288,8 @@ export type EcmGraphDashboardData = {
   branchComparison: Array<{
     name: string
     total: number
+    assessedArrival?: number
+    assessedDuration?: number
     onTimePct: number
     latePct: number
     missedPct: number
@@ -283,8 +297,6 @@ export type EcmGraphDashboardData = {
     verifiedPct: number
   }>
   exceptionReasons: Array<{ code: string; label: string; count: number }>
-  /** Attendance confidence histogram (not check-in channel). */
-  verificationMethod: Array<{ code: string; label: string; value: number }>
   drillVisits: EcmGraphDrillVisit[]
 }
 

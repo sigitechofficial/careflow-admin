@@ -7,8 +7,6 @@ import {
   Legend,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -36,20 +34,23 @@ export type EcmGraphFirstDashboardProps = {
   scopedAreas: EcmGraphScheduleAreaOption[]
 }
 
+type BranchMetric = 'onTimePct' | 'latePct' | 'missedPct' | 'shortPct' | 'verifiedPct'
+type TrendSeries = 'late' | 'short' | 'missed'
+
 type DrillFilter =
   | { kind: 'hourStatus'; hourKey: string; statusKey: string; label: string }
   | { kind: 'arrivalBand'; band: string; label: string }
   | { kind: 'durationBand'; band: string; label: string }
   | { kind: 'reason'; code: string; label: string }
-  | { kind: 'branch'; name: string; label: string }
-
-type BranchMetric = 'onTimePct' | 'latePct' | 'missedPct' | 'shortPct' | 'verifiedPct'
+  | { kind: 'branch'; name: string; metric: BranchMetric; label: string }
+  | { kind: 'trendDay'; date: string; series: TrendSeries; label: string }
+  | { kind: 'heatmapCell'; weekday: string; bandKey: string; label: string }
 
 const STATUS_LABELS: Record<string, string> = {
   // Key kept for API compatibility; includes completed early + on-time arrivals.
   completedOnTime: 'Completed',
   inProgress: 'In progress',
-  late: 'Late',
+  late: 'Late arrival',
   potentialMissed: 'Potentially missed',
   missed: 'Missed',
   unassigned: 'Unassigned',
@@ -80,13 +81,15 @@ const ARRIVAL_COLORS: Record<string, string> = {
   on_time: '#16a34a',
   late: '#f97316',
   very_late: '#dc2626',
-  not_assessed: '#64748b',
+  not_assessed: '#94a3b8',
 }
+
+const ARRIVAL_ORDER = ['early', 'on_time', 'late', 'very_late', 'not_assessed'] as const
 
 /** Classification SSOT — matches graph-dashboard durationVariance keys. */
 const DURATION_LABELS: Record<string, string> = {
   short: 'Short visit',
-  on_time: 'On time',
+  on_time: 'Planned duration',
   long: 'Long visit',
   excessive: 'Excessive overrun',
   not_assessed: 'Not assessed',
@@ -97,10 +100,21 @@ const DURATION_COLORS: Record<string, string> = {
   on_time: '#16a34a',
   long: '#f59e0b',
   excessive: '#c2410c',
-  not_assessed: '#64748b',
+  not_assessed: '#94a3b8',
 }
 
-const VERIFY_COLORS = ['#16a34a', '#0ea5e9', '#64748b', '#ea580c', '#dc2626', '#7c3aed', '#94a3b8']
+const DURATION_ORDER = ['short', 'on_time', 'long', 'excessive', 'not_assessed'] as const
+
+const BRANCH_METRIC_META: Record<
+  BranchMetric,
+  { label: string; adverse: boolean; sortLabel: string }
+> = {
+  latePct: { label: 'Late %', adverse: true, sortLabel: 'Worst 12 by Late %' },
+  missedPct: { label: 'Missed %', adverse: true, sortLabel: 'Worst 12 by Missed %' },
+  shortPct: { label: 'Short-visit %', adverse: true, sortLabel: 'Worst 12 by Short %' },
+  onTimePct: { label: 'On-time %', adverse: false, sortLabel: 'Top 12 by On-time %' },
+  verifiedPct: { label: 'Verified %', adverse: false, sortLabel: 'Top 12 by Verified %' },
+}
 
 function inclusiveDayCount(from: string, to: string): number {
   const a = Date.parse(`${from}T00:00:00.000Z`)
@@ -112,10 +126,51 @@ function inclusiveDayCount(from: string, to: string): number {
 function heatmapCellClass(rate: number | null): string {
   if (rate == null) return 'bg-muted/40 text-muted-foreground'
   if (rate === 0) return 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
-  if (rate < 10) return 'bg-emerald-500/25 text-emerald-900 dark:text-emerald-100'
-  if (rate < 20) return 'bg-amber-500/25 text-amber-900 dark:text-amber-100'
-  if (rate < 35) return 'bg-orange-500/30 text-orange-950 dark:text-orange-100'
-  return 'bg-red-500/35 text-red-950 dark:text-red-100'
+  if (rate < 10) return 'bg-amber-500/20 text-amber-900 dark:text-amber-100'
+  if (rate < 20) return 'bg-amber-500/35 text-amber-950 dark:text-amber-50'
+  if (rate < 35) return 'bg-orange-500/40 text-orange-950 dark:text-orange-100'
+  return 'bg-red-500/40 text-red-950 dark:text-red-100'
+}
+
+function branchBarColor(metric: BranchMetric): string {
+  return BRANCH_METRIC_META[metric].adverse ? '#dc2626' : '#16a34a'
+}
+
+function branchDenominator(
+  row: { total: number; assessedArrival?: number; assessedDuration?: number },
+  metric: BranchMetric,
+): number {
+  if (metric === 'onTimePct' || metric === 'latePct') {
+    return row.assessedArrival ?? row.total
+  }
+  if (metric === 'shortPct') {
+    return row.assessedDuration ?? row.total
+  }
+  return row.total
+}
+
+function matchesBranchMetric(v: EcmGraphDrillVisit, metric: BranchMetric): boolean {
+  switch (metric) {
+    case 'onTimePct':
+      return v.arrivalBand === 'on_time'
+    case 'latePct':
+      return v.arrivalBand === 'late' || v.arrivalBand === 'very_late'
+    case 'missedPct':
+      return v.statusKey === 'missed' || v.statusKey === 'potentialMissed'
+    case 'shortPct':
+      return v.durationBand === 'short'
+    case 'verifiedPct':
+      return v.verified === true
+    default:
+      return true
+  }
+}
+
+function matchesTrendDay(v: EcmGraphDrillVisit, date: string, series: TrendSeries): boolean {
+  if (v.localVisitDate !== date) return false
+  if (series === 'late') return v.arrivalBand === 'late' || v.arrivalBand === 'very_late'
+  if (series === 'short') return v.durationBand === 'short'
+  return v.statusKey === 'missed' || v.statusKey === 'potentialMissed'
 }
 
 function ChartCard({
@@ -158,7 +213,7 @@ export function EcmGraphFirstDashboard({
     setDateTo,
     applyPreset,
   } = period
-  const [branchMetric, setBranchMetric] = React.useState<BranchMetric>('onTimePct')
+  const [branchMetric, setBranchMetric] = React.useState<BranchMetric>('latePct')
   const [drill, setDrill] = React.useState<DrillFilter | null>(null)
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null)
   const [detailOpen, setDetailOpen] = React.useState(false)
@@ -175,6 +230,7 @@ export function EcmGraphFirstDashboard({
   const effectiveFrom = data?.dateFrom ?? dateFrom
   const effectiveTo = data?.dateTo ?? dateTo
   const daySpan = inclusiveDayCount(effectiveFrom, effectiveTo)
+  const showStatusByHour = daySpan === 1
 
   React.useEffect(() => {
     if (!drill) return
@@ -193,43 +249,68 @@ export function EcmGraphFirstDashboard({
   }, [data])
 
   const trendChartData = React.useMemo(() => {
-    if (!data) return []
-    return data.exceptionTrend.dates.map((date, i) => ({
-      date: date.slice(5),
-      Late: data.exceptionTrend.series.late[i] ?? 0,
-      'Very late': data.exceptionTrend.series.veryLate[i] ?? 0,
-      Short: data.exceptionTrend.series.short[i] ?? 0,
-      Missed: data.exceptionTrend.series.missed[i] ?? 0,
-      'Missing checkout': data.exceptionTrend.series.missingCheckout[i] ?? 0,
-      'No access': data.exceptionTrend.series.noAccess[i] ?? 0,
+    if (!data?.exceptionTrend?.series) return []
+    const { dates, series, counts, denominators } = data.exceptionTrend
+    return dates.map((date, i) => ({
+      date,
+      dateLabel: date.slice(5),
+      'Late %': series.latePct?.[i] ?? 0,
+      'Short %': series.shortPct?.[i] ?? 0,
+      'Missed %': series.missedPct?.[i] ?? 0,
+      lateCount: counts?.late?.[i] ?? 0,
+      shortCount: counts?.short?.[i] ?? 0,
+      missedCount: counts?.missed?.[i] ?? 0,
+      assessedArrival: denominators?.assessedArrival?.[i] ?? 0,
+      assessedDuration: denominators?.assessedDuration?.[i] ?? 0,
+      visits: denominators?.visits?.[i] ?? 0,
     }))
   }, [data])
 
   const arrivalChartData = React.useMemo(() => {
     if (!data) return []
-    return data.arrivalPunctuality.map((b) => ({
-      key: b.key,
-      name: ARRIVAL_LABELS[b.key] ?? b.key,
-      count: b.count,
-      color: ARRIVAL_COLORS[b.key] ?? '#94a3b8',
-    }))
-  }, [data])
-
-  const durationChartData = React.useMemo(() => {
-    if (!data) return []
-    return data.durationVariance.map((b) => {
-      const short = b.key === 'short'
-      const signed = short ? -b.count : b.count
+    const assessed = data.arrivalPunctuality
+      .filter((b) => b.key !== 'not_assessed')
+      .reduce((sum, b) => sum + b.count, 0)
+    const byKey = new Map(data.arrivalPunctuality.map((b) => [b.key, b.count]))
+    return ARRIVAL_ORDER.map((key) => {
+      const count = byKey.get(key) ?? 0
+      const assessedPct =
+        key !== 'not_assessed' && assessed > 0
+          ? Math.round((count / assessed) * 1000) / 10
+          : null
       return {
-        key: b.key,
-        name: DURATION_LABELS[b.key] ?? b.key,
-        value: signed,
-        abs: b.count,
-        color: DURATION_COLORS[b.key] ?? '#94a3b8',
+        key,
+        name: ARRIVAL_LABELS[key] ?? key,
+        count,
+        assessedPct,
+        color: ARRIVAL_COLORS[key] ?? '#94a3b8',
       }
     })
   }, [data])
 
+  const durationChartData = React.useMemo(() => {
+    if (!data) return []
+    const assessed = data.durationVariance
+      .filter((b) => b.key !== 'not_assessed')
+      .reduce((sum, b) => sum + b.count, 0)
+    const byKey = new Map(data.durationVariance.map((b) => [b.key, b.count]))
+    return DURATION_ORDER.map((key) => {
+      const count = byKey.get(key) ?? 0
+      const assessedPct =
+        key !== 'not_assessed' && assessed > 0
+          ? Math.round((count / assessed) * 1000) / 10
+          : null
+      return {
+        key,
+        name: DURATION_LABELS[key] ?? key,
+        count,
+        assessedPct,
+        color: DURATION_COLORS[key] ?? '#94a3b8',
+      }
+    })
+  }, [data])
+
+  const branchMeta = BRANCH_METRIC_META[branchMetric]
   const branchChartData = React.useMemo(() => {
     if (!data) return []
     return [...data.branchComparison]
@@ -239,32 +320,18 @@ export function EcmGraphFirstDashboard({
         name: b.name,
         value: b[branchMetric],
         total: b.total,
+        n: branchDenominator(b, branchMetric),
       }))
   }, [branchMetric, data])
 
   const reasonChartData = React.useMemo(() => {
     if (!data) return []
+    const visitN = data.visitCount || 0
     return data.exceptionReasons.slice(0, 12).map((r) => ({
       name: r.label,
       code: r.code,
       count: r.count,
-    }))
-  }, [data])
-
-  const verificationPie = React.useMemo(() => {
-    if (!data) return []
-    return data.verificationMethod.map((v, i) => ({
-      name: v.label,
-      value: v.value,
-      color: VERIFY_COLORS[i % VERIFY_COLORS.length],
-    }))
-  }, [data])
-
-  const manualLineData = React.useMemo(() => {
-    if (!data) return []
-    return data.manualTrend.dates.map((date, i) => ({
-      date: date.slice(5),
-      Manual: data.manualTrend.manual[i] ?? 0,
+      visitPct: visitN > 0 ? Math.round((r.count / visitN) * 1000) / 10 : 0,
     }))
   }, [data])
 
@@ -276,9 +343,18 @@ export function EcmGraphFirstDashboard({
       }
       if (drill.kind === 'arrivalBand') return v.arrivalBand === drill.band
       if (drill.kind === 'durationBand') return v.durationBand === drill.band
-      if (drill.kind === 'branch') return (v.branchName ?? 'Unassigned area') === drill.name
+      if (drill.kind === 'branch') {
+        if ((v.branchName ?? 'Unassigned area') !== drill.name) return false
+        return matchesBranchMetric(v, drill.metric)
+      }
       if (drill.kind === 'reason') {
         return (v.reasonCodes ?? []).includes(drill.code)
+      }
+      if (drill.kind === 'trendDay') {
+        return matchesTrendDay(v, drill.date, drill.series)
+      }
+      if (drill.kind === 'heatmapCell') {
+        return v.weekday === drill.weekday && v.timeBandKey === drill.bandKey
       }
       return false
     })
@@ -289,12 +365,27 @@ export function EcmGraphFirstDashboard({
     setDetailOpen(true)
   }
 
+  const selectTrendDay = (date: string, series: TrendSeries) => {
+    const labels: Record<TrendSeries, string> = {
+      late: 'Late / very late',
+      short: 'Short visit',
+      missed: 'Missed',
+    }
+    setDrill({
+      kind: 'trendDay',
+      date,
+      series,
+      label: `${labels[series]} · ${date}`,
+    })
+  }
+
   return (
     <div className="space-y-4" data-testid="ecm-graph-first-dashboard">
       <div>
         <h2 className="text-base font-semibold text-foreground">Graphs</h2>
         <p className="text-xs text-muted-foreground">
-          Click a chart series to list matching visits below.
+          Exception rates, classification bands, and branch risk — click a series to list
+          matching visits.
         </p>
       </div>
 
@@ -361,7 +452,7 @@ export function EcmGraphFirstDashboard({
         </div>
       ) : dashboard.isError || !data ? (
         <p className="text-sm text-destructive">
-          Could not load graph analytics. Restart the API after pulling BE1.43
+          Could not load graph analytics. Restart the API after pulling the latest
           (`GET /ecm/reports/graph-dashboard`).
         </p>
       ) : (
@@ -391,87 +482,137 @@ export function EcmGraphFirstDashboard({
             </p>
           ) : null}
 
-          {/* Sticky drill — always visible while scrolling charts */}
-          <div
-            ref={drillPanelRef}
-            className={cn(
-              'sticky top-2 z-20 rounded-lg border shadow-sm backdrop-blur-sm transition-colors',
-              drill
-                ? 'border-primary/40 bg-background/95 ring-1 ring-primary/20'
-                : 'border-border bg-background/90',
-            )}
-            data-testid="ecm-graph-drill-panel"
-          >
-            <ChartCard
-              title="Drill-down"
-              subtitle={
-                drill
-                  ? 'Visits for the selected series — open a row for detail'
-                  : 'Click a chart segment (arrival, duration, branch, reason, or hour status) to list visits here'
-              }
-              className="border-0 bg-transparent shadow-none"
-            >
-              {!drill ? (
-                <p className="py-2 text-sm text-muted-foreground">
-                  No series selected yet.
-                </p>
-              ) : (
-                <DrillTable
-                  title={drill.label}
-                  visits={drilledVisits}
-                  onClear={() => setDrill(null)}
-                  onOpen={openVisit}
-                />
-              )}
-            </ChartCard>
-          </div>
-
-          {/* 1–2: exception trend + branch */}
+          {/* 1–2: exception rates + branch risk */}
           <div className="grid gap-3 xl:grid-cols-2">
             <ChartCard
-              title="1. Late, short and missed trend"
-              subtitle="Primary management trend — is performance improving?"
+              title="1. Exception rates by day"
+              subtitle="Late % and Short % use assessed denominators; Missed % uses all visits. Click a day point to drill."
             >
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={trendChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="Late" stroke="#ea580c" strokeWidth={2} dot={false} />
-                    <Line
-                      type="monotone"
-                      dataKey="Very late"
-                      stroke="#dc2626"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line type="monotone" dataKey="Short" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="Missed" stroke="#b91c1c" strokeWidth={2} dot={false} />
-                    <Line
-                      type="monotone"
-                      dataKey="Missing checkout"
-                      stroke="#ca8a04"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="No access"
-                      stroke="#64748b"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {trendChartData.length === 0 ? (
+                  <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    No trend data in range.
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart
+                      data={trendChartData}
+                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="dateLabel" tick={{ fontSize: 10 }} />
+                      <YAxis
+                        domain={[0, 'auto']}
+                        tick={{ fontSize: 11 }}
+                        unit="%"
+                        allowDecimals
+                      />
+                      <Tooltip
+                        contentStyle={{ fontSize: 12 }}
+                        formatter={(value, name, item) => {
+                          const row = item?.payload as {
+                            lateCount?: number
+                            shortCount?: number
+                            missedCount?: number
+                            assessedArrival?: number
+                            assessedDuration?: number
+                            visits?: number
+                          }
+                          const n = typeof value === 'number' ? value : Number(value)
+                          if (name === 'Late %') {
+                            return [
+                              `${n}% (${row?.lateCount ?? 0}/${row?.assessedArrival ?? 0} assessed)`,
+                              name,
+                            ]
+                          }
+                          if (name === 'Short %') {
+                            return [
+                              `${n}% (${row?.shortCount ?? 0}/${row?.assessedDuration ?? 0} assessed)`,
+                              name,
+                            ]
+                          }
+                          return [
+                            `${n}% (${row?.missedCount ?? 0}/${row?.visits ?? 0} visits)`,
+                            name,
+                          ]
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="Late %"
+                        stroke="#ea580c"
+                        strokeWidth={2}
+                        dot={{
+                          r: 3,
+                          cursor: 'pointer',
+                          onClick: (pt: { payload?: { date?: string } }) => {
+                            if (pt?.payload?.date) selectTrendDay(pt.payload.date, 'late')
+                          },
+                        }}
+                        activeDot={{
+                          r: 5,
+                          cursor: 'pointer',
+                          onClick: (_e: unknown, payload: { payload?: { date?: string } }) => {
+                            if (payload?.payload?.date) {
+                              selectTrendDay(payload.payload.date, 'late')
+                            }
+                          },
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Short %"
+                        stroke="#0ea5e9"
+                        strokeWidth={2}
+                        dot={{
+                          r: 3,
+                          cursor: 'pointer',
+                          onClick: (pt: { payload?: { date?: string } }) => {
+                            if (pt?.payload?.date) selectTrendDay(pt.payload.date, 'short')
+                          },
+                        }}
+                        activeDot={{
+                          r: 5,
+                          cursor: 'pointer',
+                          onClick: (_e: unknown, payload: { payload?: { date?: string } }) => {
+                            if (payload?.payload?.date) {
+                              selectTrendDay(payload.payload.date, 'short')
+                            }
+                          },
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Missed %"
+                        stroke="#b91c1c"
+                        strokeWidth={2}
+                        dot={{
+                          r: 3,
+                          cursor: 'pointer',
+                          onClick: (pt: { payload?: { date?: string } }) => {
+                            if (pt?.payload?.date) selectTrendDay(pt.payload.date, 'missed')
+                          },
+                        }}
+                        activeDot={{
+                          r: 5,
+                          cursor: 'pointer',
+                          onClick: (_e: unknown, payload: { payload?: { date?: string } }) => {
+                            if (payload?.payload?.date) {
+                              selectTrendDay(payload.payload.date, 'missed')
+                            }
+                          },
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </ChartCard>
 
             <ChartCard
-              title="2. Branch comparison"
-              subtitle="On-time % uses arrivalClassification.ON_TIME (same SSOT as chart 3)"
+              title="2. Branch risk board"
+              subtitle={`${branchMeta.sortLabel}. Punctuality % exclude not assessed. Click a bar for that metric cohort.`}
             >
               <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                 Metric
@@ -479,11 +620,12 @@ export function EcmGraphFirstDashboard({
                   className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
                   value={branchMetric}
                   onChange={(e) => setBranchMetric(e.target.value as BranchMetric)}
+                  data-testid="ecm-graph-branch-metric"
                 >
-                  <option value="onTimePct">On-time %</option>
                   <option value="latePct">Late %</option>
                   <option value="missedPct">Missed %</option>
                   <option value="shortPct">Short-visit %</option>
+                  <option value="onTimePct">On-time %</option>
                   <option value="verifiedPct">Verified %</option>
                 </select>
               </label>
@@ -502,10 +644,24 @@ export function EcmGraphFirstDashboard({
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                       <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
-                      <Tooltip contentStyle={{ fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={{ fontSize: 12 }}
+                        formatter={(value, _name, item) => {
+                          const row = item?.payload as { n?: number; total?: number }
+                          const n = typeof value === 'number' ? value : Number(value)
+                          return [
+                            `${n}% (n=${row?.n ?? 0}${
+                              row?.total != null && row.total !== row.n
+                                ? ` of ${row.total} visits`
+                                : ''
+                            })`,
+                            branchMeta.label,
+                          ]
+                        }}
+                      />
                       <Bar
                         dataKey="value"
-                        fill="#16a34a"
+                        fill={branchBarColor(branchMetric)}
                         radius={[0, 4, 4, 0]}
                         maxBarSize={22}
                         cursor="pointer"
@@ -515,7 +671,8 @@ export function EcmGraphFirstDashboard({
                           setDrill({
                             kind: 'branch',
                             name: row.name,
-                            label: `Branch · ${row.name}`,
+                            metric: branchMetric,
+                            label: `${row.name} · ${branchMeta.label}`,
                           })
                         }}
                       />
@@ -526,30 +683,76 @@ export function EcmGraphFirstDashboard({
             </ChartCard>
           </div>
 
-          {/* 3–4: arrival + duration (classification SSOT) */}
+          {/* Drill below first row — collapses empty chrome above fold */}
+          <div
+            ref={drillPanelRef}
+            className={cn(
+              'sticky top-2 z-20 rounded-lg border shadow-sm backdrop-blur-sm transition-colors',
+              drill
+                ? 'border-primary/40 bg-background/95 ring-1 ring-primary/20'
+                : 'border-border bg-background/90',
+            )}
+            data-testid="ecm-graph-drill-panel"
+          >
+            <ChartCard
+              title="Drill-down"
+              subtitle={
+                drill
+                  ? 'Visits for the selected series — open a row for detail'
+                  : 'Click a chart segment to list visits here'
+              }
+              className="border-0 bg-transparent shadow-none"
+            >
+              {!drill ? (
+                <p className="py-2 text-sm text-muted-foreground">No series selected yet.</p>
+              ) : (
+                <DrillTable
+                  title={drill.label}
+                  visits={drilledVisits}
+                  onClear={() => setDrill(null)}
+                  onOpen={openVisit}
+                />
+              )}
+            </ChartCard>
+          </div>
+
+          {/* 3–4: arrival + duration band mix */}
           <div className="grid gap-3 xl:grid-cols-2">
             <ChartCard
-              title="3. Arrival punctuality"
-              subtitle="Evaluation arrivalClassification bands — click a bar to drill"
+              title="3. Arrival band mix"
+              subtitle="Counts by arrivalClassification — % of assessed in tooltip. Click a bar to drill."
             >
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={arrivalChartData} margin={{ top: 8, right: 8, left: 0, bottom: 48 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 9 }}
-                      interval={0}
-                      angle={-28}
-                      textAnchor="end"
-                      height={56}
+                  <BarChart
+                    data={arrivalChartData}
+                    layout="vertical"
+                    margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 12 }}
+                      formatter={(_v, _n, item) => {
+                        const row = item?.payload as {
+                          count?: number
+                          assessedPct?: number | null
+                          name?: string
+                        }
+                        if (row?.assessedPct != null) {
+                          return [
+                            `${row.count ?? 0} (${row.assessedPct}% of assessed)`,
+                            row.name ?? 'Visits',
+                          ]
+                        }
+                        return [row?.count ?? 0, row?.name ?? 'Visits']
+                      }}
                     />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
                     <Bar
                       dataKey="count"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={36}
+                      radius={[0, 4, 4, 0]}
+                      maxBarSize={22}
                       cursor="pointer"
                       onClick={(item) => {
                         const row = item as { key?: string; name?: string }
@@ -571,8 +774,8 @@ export function EcmGraphFirstDashboard({
             </ChartCard>
 
             <ChartCard
-              title="4. Duration compliance"
-              subtitle="Evaluation durationClassification — short left (negative), others right"
+              title="4. Duration band mix"
+              subtitle="Counts by durationClassification — positive bars only. Planned duration ≠ arrival on-time."
             >
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height={280}>
@@ -582,22 +785,27 @@ export function EcmGraphFirstDashboard({
                     margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={110}
-                      tick={{ fontSize: 10 }}
-                    />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
                     <Tooltip
-                      formatter={(_v, _n, item) => {
-                        const row = item?.payload as { abs?: number; name?: string }
-                        return [row?.abs ?? 0, row?.name ?? 'Visits']
-                      }}
                       contentStyle={{ fontSize: 12 }}
+                      formatter={(_v, _n, item) => {
+                        const row = item?.payload as {
+                          count?: number
+                          assessedPct?: number | null
+                          name?: string
+                        }
+                        if (row?.assessedPct != null) {
+                          return [
+                            `${row.count ?? 0} (${row.assessedPct}% of assessed)`,
+                            row.name ?? 'Visits',
+                          ]
+                        }
+                        return [row?.count ?? 0, row?.name ?? 'Visits']
+                      }}
                     />
                     <Bar
-                      dataKey="value"
+                      dataKey="count"
                       radius={[0, 4, 4, 0]}
                       maxBarSize={22}
                       cursor="pointer"
@@ -623,7 +831,7 @@ export function EcmGraphFirstDashboard({
 
           {/* 5: reasons */}
           <ChartCard
-            title="5. Exception reasons"
+            title="5. Top exception reasons"
             subtitle="Distinct codes per visit — click a bar to list matching visits"
           >
             <div className="h-[300px] w-full min-w-0 overflow-hidden">
@@ -640,8 +848,21 @@ export function EcmGraphFirstDashboard({
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10 }} />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
+                    <YAxis type="category" dataKey="name" width={160} tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 12 }}
+                      formatter={(_v, _n, item) => {
+                        const row = item?.payload as {
+                          count?: number
+                          visitPct?: number
+                          name?: string
+                        }
+                        return [
+                          `${row?.count ?? 0} (${row?.visitPct ?? 0}% of visits)`,
+                          row?.name ?? 'Visits',
+                        ]
+                      }}
+                    />
                     <Bar
                       dataKey="count"
                       fill="#ea580c"
@@ -670,11 +891,11 @@ export function EcmGraphFirstDashboard({
             </div>
           </ChartCard>
 
-          {/* 6–7: heatmap + status by hour (demoted) */}
-          <div className="grid gap-3 xl:grid-cols-2">
+          {/* 6: heatmap (+ optional single-day status by hour) */}
+          <div className={cn('grid gap-3', showStatusByHour && 'xl:grid-cols-2')}>
             <ChartCard
-              title="6. Day and time exception heatmap"
-              subtitle="Exception rate by weekday × time band (empty cells are neutral)"
+              title="6. Weekday × time hotspots"
+              subtitle="Exception rate (late / short / missed) by weekday × planned-start band (Europe/London). Click a cell to drill."
             >
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] text-xs">
@@ -701,15 +922,33 @@ export function EcmGraphFirstDashboard({
                         </td>
                         {band.rates.map((cell) => (
                           <td key={`${band.bandKey}-${cell.day}`} className="p-1">
-                            <div
+                            <button
+                              type="button"
+                              disabled={cell.total === 0}
                               className={cn(
-                                'rounded px-1 py-2 text-center tabular-nums font-medium',
+                                'w-full rounded px-1 py-2 text-center tabular-nums font-medium',
                                 heatmapCellClass(cell.rate),
+                                cell.total > 0
+                                  ? 'cursor-pointer hover:ring-1 hover:ring-foreground/30'
+                                  : 'cursor-default',
                               )}
-                              title={`${cell.exceptions}/${cell.total} exceptions`}
+                              title={
+                                cell.total
+                                  ? `${cell.exceptions}/${cell.total} exceptions — click to list`
+                                  : 'No visits'
+                              }
+                              onClick={() => {
+                                if (!cell.total) return
+                                setDrill({
+                                  kind: 'heatmapCell',
+                                  weekday: cell.day,
+                                  bandKey: band.bandKey,
+                                  label: `${cell.day} · ${band.bandLabel}`,
+                                })
+                              }}
                             >
                               {cell.rate == null ? '—' : `${cell.rate}%`}
-                            </div>
+                            </button>
                           </td>
                         ))}
                       </tr>
@@ -719,109 +958,47 @@ export function EcmGraphFirstDashboard({
               </div>
             </ChartCard>
 
-            <ChartCard
-              title="7. Visit status by hour"
-              subtitle="Stacked by planned start hour — strongest for a single day"
-            >
-              <div className="h-[300px] w-full min-w-0 overflow-hidden">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={hourChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={1} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    {data.visitStatusByHour.series.map((s) => (
-                      <Bar
-                        key={s.key}
-                        dataKey={s.key}
-                        name={STATUS_LABELS[s.key] ?? s.key}
-                        stackId="status"
-                        fill={STATUS_COLORS[s.key] ?? '#94a3b8'}
-                        maxBarSize={28}
-                        cursor="pointer"
-                        onClick={(item) => {
-                          const payload = item as { hour?: string }
-                          const hourLabel = String(payload.hour ?? '')
-                          const hourKey = hourLabel.slice(0, 2)
-                          if (!hourKey) return
-                          setDrill({
-                            kind: 'hourStatus',
-                            hourKey,
-                            statusKey: s.key,
-                            label: `${STATUS_LABELS[s.key] ?? s.key} · ${hourLabel}`,
-                          })
-                        }}
-                      />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartCard>
-          </div>
-
-          {/* 8–9: quality */}
-          <div className="grid gap-3 xl:grid-cols-2">
-            <ChartCard
-              title="8. Attendance confidence"
-              subtitle="Confidence enum mix — not check-in channel"
-            >
-              <div className="h-[280px] w-full min-w-0 overflow-hidden">
-                {verificationPie.length === 0 ? (
-                  <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                    No confidence data.
-                  </p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                      <Pie
-                        data={verificationPie}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="42%"
-                        innerRadius={52}
-                        outerRadius={88}
-                        paddingAngle={1}
-                      >
-                        {verificationPie.map((entry, i) => (
-                          <Cell key={entry.name} fill={entry.color ?? VERIFY_COLORS[i]} />
-                        ))}
-                      </Pie>
+            {showStatusByHour ? (
+              <ChartCard
+                title="7. Today status by hour"
+                subtitle="Stacked by planned start hour (Europe/London) — single-day periods only"
+              >
+                <div className="h-[300px] w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={hourChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={1} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                       <Tooltip contentStyle={{ fontSize: 12 }} />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        wrapperStyle={{ fontSize: 11 }}
-                      />
-                    </PieChart>
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      {data.visitStatusByHour.series.map((s) => (
+                        <Bar
+                          key={s.key}
+                          dataKey={s.key}
+                          name={STATUS_LABELS[s.key] ?? s.key}
+                          stackId="status"
+                          fill={STATUS_COLORS[s.key] ?? '#94a3b8'}
+                          maxBarSize={28}
+                          cursor="pointer"
+                          onClick={(item) => {
+                            const payload = item as { hour?: string }
+                            const hourLabel = String(payload.hour ?? '')
+                            const hourKey = hourLabel.slice(0, 2)
+                            if (!hourKey) return
+                            setDrill({
+                              kind: 'hourStatus',
+                              hourKey,
+                              statusKey: s.key,
+                              label: `${STATUS_LABELS[s.key] ?? s.key} · ${hourLabel}`,
+                            })
+                          }}
+                        />
+                      ))}
+                    </BarChart>
                   </ResponsiveContainer>
-                )}
-              </div>
-            </ChartCard>
-
-            <ChartCard
-              title="9. Manual attendance trend"
-              subtitle="Rising manual entries can signal app or training issues"
-            >
-              <div className="h-[280px] w-full min-w-0 overflow-hidden">
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={manualLineData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Line
-                      type="monotone"
-                      dataKey="Manual"
-                      stroke="#475569"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartCard>
+                </div>
+              </ChartCard>
+            ) : null}
           </div>
         </>
       )}
@@ -846,11 +1023,16 @@ function DrillTable({
   onClear: () => void
   onOpen: (jobId: string) => void
 }) {
+  const shown = Math.min(visits.length, 50)
+  const truncated = visits.length > 50
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-foreground">
-          {title} · {visits.length} visit{visits.length === 1 ? '' : 's'}
+          {title} ·{' '}
+          {truncated
+            ? `showing ${shown} of ${visits.length} visits`
+            : `${visits.length} visit${visits.length === 1 ? '' : 's'}`}
         </p>
         <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={onClear}>
           <X className="h-3.5 w-3.5" />
