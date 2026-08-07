@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { FileJson, Loader2, Send, ShieldAlert } from 'lucide-react'
+import { FileJson, Loader2, RotateCcw, Send, ShieldAlert } from 'lucide-react'
 import {
   useApprovePayrollEpsSubmission,
   usePayrollEpsPreview,

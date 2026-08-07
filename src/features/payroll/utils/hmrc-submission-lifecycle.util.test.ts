@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { buildHmrcLifecycleSteps, mapHmrcStatusToLifecycle } from './hmrc-submission-lifecycle.util'
 
 describe('hmrc-submission-lifecycle.util', () => {
@@ -13,7 +14,7 @@ describe('hmrc-submission-lifecycle.util', () => {
       latestStatus: 'ERROR',
     })
     expect(steps.map((s) => s.id)).toEqual(['validated', 'built', 'sent', 'rejected'])
-    expect(steps[3].state).toBe('error')
+    expect(steps[3]?.state).toBe('error')
   })
 
   it('shows pending approval as current step', () => {
