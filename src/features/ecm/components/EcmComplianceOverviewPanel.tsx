@@ -173,14 +173,14 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
         <div>
           <h2 className="text-base font-semibold text-foreground">ECM Compliance Overview</h2>
           <p className="text-xs text-muted-foreground">
-            Electronic vs manual attendance and geofence breaches. Arrival and duration
-            distributions are on Graphs above (same classification SSOT).
+            Electronic vs manual attendance and geofence breaches. For the audit period pack
+            (n/d, exclusions, threshold version, CSV), open Reports.
           </p>
         </div>
         <Button type="button" size="sm" variant="outline" className="h-9" asChild>
           <Link to="/ecm/reports" search={buildEcmPeriodSearch(period)}>
             <FileBarChart2 className="h-4 w-4" />
-            Reports
+            Open report pack
           </Link>
         </Button>
       </div>

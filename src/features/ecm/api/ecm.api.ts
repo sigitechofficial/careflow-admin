@@ -47,13 +47,42 @@ export type EcmHealthData = {
   guidance: string
 }
 
+export type EcmDailyOpsReportRow = {
+  scheduledJobId: string
+  jobName: string
+  serviceUserName: string
+  carerNames?: string[]
+  carers?: Array<{ employeeId: string; name: string; isLeadCarer: boolean }>
+  localVisitDate?: string
+  plannedStartDateTime?: string
+  plannedEndDateTime?: string | null
+  lifecycleStatus: string
+  arrivalClassification: string
+  durationClassification: string
+  missedClassification: string
+  confidence: string
+  criticality: string
+  startVarianceMinutes: number | null
+  durationVarianceMinutes: number | null
+  operationalExceptionCodes?: string[]
+  exceptionReasons?: string[]
+  inExceptionRegister?: boolean
+}
+
 export type EcmDailyOpsReport = {
   reportType: string
   date: string
   dateFrom?: string
   dateTo?: string
   refreshedAt: string
+  operationalTimezone?: string
   thresholdVersion: string
+  definitions?: {
+    punctuality?: string
+    electronicMonitoring?: string
+    exceptionRegister?: string
+    opsDay?: string
+  }
   kpis: {
     punctuality: {
       numerator: number
@@ -61,7 +90,15 @@ export type EcmDailyOpsReport = {
       rate: number | null
       exclusions: Record<string, number>
     }
+    electronicMonitoring?: {
+      numerator: number
+      denominator: number
+      rate: number | null
+    }
     lateArrivals: number
+    earlyArrivals?: number
+    shortVisits?: number
+    longVisits?: number
     potentialMissed: number
     confirmedMissed: number
     manualAttendance: number
@@ -69,21 +106,51 @@ export type EcmDailyOpsReport = {
     geofenceBreaches?: number
     verifiedConfidence: number
     totalVisits: number
+    exceptionRegisterCount?: number
   }
-  rows: Array<{
-    scheduledJobId: string
-    jobName: string
-    serviceUserName: string
-    lifecycleStatus: string
-    arrivalClassification: string
-    durationClassification: string
-    missedClassification: string
-    confidence: string
-    criticality: string
-    startVarianceMinutes: number | null
-    durationVarianceMinutes: number | null
-    operationalExceptionCodes?: string[]
-  }>
+  classifications?: {
+    arrival: {
+      onTime: number
+      early: number
+      late: number
+      veryLate: number
+      notAssessed: number
+      total: number
+    }
+    duration: {
+      onTime: number
+      short: number
+      long: number
+      excessiveOverrun: number
+      notAssessed: number
+      total: number
+    }
+  }
+  integrity?: {
+    verified: number
+    partiallyVerified?: number
+    manuallyVerified: number
+    unverified: number
+    disputed: number
+    rejected: number
+  }
+  rows: EcmDailyOpsReportRow[]
+  exceptionRegister?: EcmDailyOpsReportRow[]
+}
+
+export type EcmComplianceReport = {
+  reportType: string
+  date: string
+  dateFrom?: string
+  dateTo?: string
+  refreshedAt: string
+  operationalTimezone?: string
+  thresholdVersion: string
+  openExceptions: number
+  kpis: EcmDailyOpsReport['kpis']
+  integrity: NonNullable<EcmDailyOpsReport['integrity']>
+  classifications?: EcmDailyOpsReport['classifications']
+  definitions?: EcmDailyOpsReport['definitions']
 }
 
 export async function fetchEcmLiveDashboard(params?: {
@@ -211,6 +278,28 @@ export async function fetchEcmDailyOpsReport(
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EcmDailyOpsReport>>(
     `/ecm/reports/daily-operations${suffix}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function fetchEcmComplianceReport(
+  dateOrRange?: string | { dateFrom?: string; dateTo?: string },
+  params?: { scheduleAreaId?: string; locationId?: string },
+): Promise<EcmComplianceReport> {
+  const qs = new URLSearchParams()
+  if (typeof dateOrRange === 'string') {
+    if (dateOrRange) qs.set('date', dateOrRange)
+  } else if (dateOrRange) {
+    if (dateOrRange.dateFrom) qs.set('dateFrom', dateOrRange.dateFrom)
+    if (dateOrRange.dateTo) qs.set('dateTo', dateOrRange.dateTo)
+    if (dateOrRange.dateFrom && !dateOrRange.dateTo) qs.set('date', dateOrRange.dateFrom)
+  }
+  if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<EcmComplianceReport>>(
+    `/ecm/reports/compliance${suffix}`,
     { method: 'GET' },
   )
   return res.data

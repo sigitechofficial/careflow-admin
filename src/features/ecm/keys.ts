@@ -22,6 +22,14 @@ export const ecmKeys = {
       scheduleAreaId ?? 'all',
       locationId ?? 'all',
     ] as const,
+  complianceReport: (date?: string, scheduleAreaId?: string, locationId?: string) =>
+    [
+      ...ecmKeys.all,
+      'compliance-report',
+      date ?? 'today',
+      scheduleAreaId ?? 'all',
+      locationId ?? 'all',
+    ] as const,
   graphDashboard: (filters?: {
     dateFrom?: string
     dateTo?: string

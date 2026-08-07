@@ -7,6 +7,7 @@ import {
   closeEcmException,
   createEcmNotification,
   fetchEcmAuditTrail,
+  fetchEcmComplianceReport,
   fetchEcmDailyOpsReport,
   fetchEcmExceptions,
   fetchEcmGraphDashboard,
@@ -120,6 +121,22 @@ export function useEcmDailyOpsReport(
   return useQuery({
     queryKey: ecmKeys.dailyOps(rangeKey, params?.scheduleAreaId, params?.locationId),
     queryFn: () => fetchEcmDailyOpsReport(dateOrRange, params),
+    enabled,
+  })
+}
+
+export function useEcmComplianceReport(
+  dateOrRange?: string | { dateFrom?: string; dateTo?: string },
+  enabled = true,
+  params?: { scheduleAreaId?: string; locationId?: string },
+) {
+  const rangeKey =
+    typeof dateOrRange === 'string'
+      ? dateOrRange
+      : `${dateOrRange?.dateFrom ?? ''}:${dateOrRange?.dateTo ?? ''}`
+  return useQuery({
+    queryKey: ecmKeys.complianceReport(rangeKey, params?.scheduleAreaId, params?.locationId),
+    queryFn: () => fetchEcmComplianceReport(dateOrRange, params),
     enabled,
   })
 }
