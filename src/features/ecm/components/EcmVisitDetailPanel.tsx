@@ -37,8 +37,8 @@ function visitTypeLabel(jobName: string, serviceUserName: string): string {
   if (!raw) return 'Visit'
 
   const emDashParts = raw.split(/\s+[—–-]\s+/).map(p => p.trim()).filter(Boolean)
-  if (emDashParts.length >= 2) {
-    const slot = emDashParts[0]
+  const slotPart = emDashParts[0]
+  if (emDashParts.length >= 2 && slotPart) {
     const suffix = emDashParts.slice(1).join(' — ')
     const su = serviceUserName.trim().toLowerCase()
     const first = su.split(/\s+/)[0] ?? ''
@@ -49,14 +49,15 @@ function visitTypeLabel(jobName: string, serviceUserName: string): string {
       suffixLower === first ||
       su.includes(suffixLower)
     ) {
-      return /visit$/i.test(slot) ? slot : `${slot} visit`
+      return /visit$/i.test(slotPart) ? slotPart : `${slotPart} visit`
     }
-    return `${slot} visit`
+    return `${slotPart} visit`
   }
 
   const tokens = raw.split(/\s+/)
   const first = serviceUserName.trim().split(/\s+/)[0]
-  if (first && tokens.length >= 2 && tokens[tokens.length - 1].toLowerCase() === first.toLowerCase()) {
+  const lastToken = tokens[tokens.length - 1]
+  if (first && tokens.length >= 2 && lastToken && lastToken.toLowerCase() === first.toLowerCase()) {
     const slot = tokens.slice(0, -1).join(' ')
     return /visit$/i.test(slot) ? slot : `${slot} visit`
   }
