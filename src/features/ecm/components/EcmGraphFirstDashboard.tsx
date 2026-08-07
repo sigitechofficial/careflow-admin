@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -311,18 +312,24 @@ export function EcmGraphFirstDashboard({
   }, [data])
 
   const branchMeta = BRANCH_METRIC_META[branchMetric]
+  const branchAreaScoped = Boolean(scheduleAreaId)
   const branchChartData = React.useMemo(() => {
-    if (!data) return []
+    if (!data || branchAreaScoped) return []
     return [...data.branchComparison]
-      .sort((a, b) => b[branchMetric] - a[branchMetric])
+      .sort((a, b) => {
+        const byMetric = b[branchMetric] - a[branchMetric]
+        if (byMetric !== 0) return byMetric
+        return b.total - a.total
+      })
       .slice(0, 12)
       .map((b) => ({
         name: b.name,
+        label: `${b.name} (${b.total})`,
         value: b[branchMetric],
         total: b.total,
         n: branchDenominator(b, branchMetric),
       }))
-  }, [branchMetric, data])
+  }, [branchAreaScoped, branchMetric, data])
 
   const reasonChartData = React.useMemo(() => {
     if (!data) return []
@@ -612,25 +619,51 @@ export function EcmGraphFirstDashboard({
 
             <ChartCard
               title="2. Branch risk board"
-              subtitle={`${branchMeta.sortLabel}. Punctuality % exclude not assessed. Click a bar for that metric cohort.`}
+              subtitle={
+                branchAreaScoped
+                  ? 'Compares schedule areas side-by-side — clear the area filter to use this board.'
+                  : `${branchMeta.sortLabel}. Labels are schedule area names (visit count in parentheses). Punctuality % exclude not assessed.`
+              }
             >
-              <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                Metric
-                <select
-                  className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-                  value={branchMetric}
-                  onChange={(e) => setBranchMetric(e.target.value as BranchMetric)}
-                  data-testid="ecm-graph-branch-metric"
-                >
-                  <option value="latePct">Late %</option>
-                  <option value="missedPct">Missed %</option>
-                  <option value="shortPct">Short-visit %</option>
-                  <option value="onTimePct">On-time %</option>
-                  <option value="verifiedPct">Verified %</option>
-                </select>
-              </label>
+              {!branchAreaScoped ? (
+                <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  Metric
+                  <select
+                    className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                    value={branchMetric}
+                    onChange={(e) => setBranchMetric(e.target.value as BranchMetric)}
+                    data-testid="ecm-graph-branch-metric"
+                  >
+                    <option value="latePct">Late %</option>
+                    <option value="missedPct">Missed %</option>
+                    <option value="shortPct">Short-visit %</option>
+                    <option value="onTimePct">On-time %</option>
+                    <option value="verifiedPct">Verified %</option>
+                  </select>
+                </label>
+              ) : null}
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
-                {branchChartData.length === 0 ? (
+                {branchAreaScoped ? (
+                  <div
+                    className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center"
+                    data-testid="ecm-graph-branch-area-scoped"
+                  >
+                    <p className="text-sm text-muted-foreground">
+                      Select{' '}
+                      <span className="font-medium text-foreground">All areas</span> to
+                      compare branches. A single schedule area cannot be ranked against
+                      itself.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onScheduleAreaIdChange('')}
+                    >
+                      Show all areas
+                    </Button>
+                  </div>
+                ) : branchChartData.length === 0 ? (
                   <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
                     No branch data in range.
                   </p>
@@ -639,15 +672,21 @@ export function EcmGraphFirstDashboard({
                     <BarChart
                       data={branchChartData}
                       layout="vertical"
-                      margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
+                      margin={{ top: 4, right: 36, left: 8, bottom: 4 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                      <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={128}
+                        tick={{ fontSize: 10 }}
+                        interval={0}
+                      />
                       <Tooltip
                         contentStyle={{ fontSize: 12 }}
                         formatter={(value, _name, item) => {
-                          const row = item?.payload as { n?: number; total?: number }
+                          const row = item?.payload as { n?: number; total?: number; name?: string }
                           const n = typeof value === 'number' ? value : Number(value)
                           return [
                             `${n}% (n=${row?.n ?? 0}${
@@ -657,6 +696,10 @@ export function EcmGraphFirstDashboard({
                             })`,
                             branchMeta.label,
                           ]
+                        }}
+                        labelFormatter={(_label, payload) => {
+                          const row = payload?.[0]?.payload as { name?: string } | undefined
+                          return row?.name ?? ''
                         }}
                       />
                       <Bar
@@ -675,7 +718,14 @@ export function EcmGraphFirstDashboard({
                             label: `${row.name} · ${branchMeta.label}`,
                           })
                         }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="value"
+                          position="right"
+                          formatter={(v: number) => `${v}%`}
+                          style={{ fontSize: 10, fill: 'currentColor' }}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
