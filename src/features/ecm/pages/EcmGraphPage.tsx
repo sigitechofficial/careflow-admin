@@ -1,29 +1,40 @@
 import * as React from 'react'
-import { BarChart3 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { BarChart3, Loader2, RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
+import { Button } from '@/shared/ui/button'
 import { EcmGraphFirstDashboard } from '@/features/ecm/components/EcmGraphFirstDashboard'
 import { EcmComplianceOverviewPanel } from '@/features/ecm/components/EcmComplianceOverviewPanel'
-import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
-import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
+import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
+import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
+import { ecmKeys } from '@/features/ecm/keys'
+import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
 
 export default function EcmGraphPage() {
-  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
-    useGlobalLocationScope()
-  const [scheduleAreaId, setScheduleAreaId] = React.useState('')
+  const queryClient = useQueryClient()
+  const [refreshing, setRefreshing] = React.useState(false)
 
-  const areasQuery = useScheduleAreas()
-  const scopedAreas = React.useMemo(() => {
-    const areas = areasQuery.data ?? []
-    if (!globalLocationId) return areas
-    return areas.filter((a) => a.location?.id === globalLocationId)
-  }, [areasQuery.data, globalLocationId])
+  const period = useEcmOperationalPeriod('today')
+  const {
+    preset,
+    dateFrom,
+    dateTo,
+    periodLabel,
+    operationalToday,
+    setPreset,
+    setDateFrom,
+    setDateTo,
+    applyPreset,
+  } = period
 
-  React.useEffect(() => {
-    if (!scheduleAreaId) return
-    if (globalLocationScoped && !scopedAreas.some((a) => a.id === scheduleAreaId)) {
-      setScheduleAreaId('')
+  const onRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await queryClient.invalidateQueries({ queryKey: ecmKeys.all })
+    } finally {
+      setRefreshing(false)
     }
-  }, [globalLocationScoped, scopedAreas, scheduleAreaId])
+  }
 
   return (
     <div className="flex flex-col gap-4" data-testid="ecm-graph-page">
@@ -38,14 +49,52 @@ export default function EcmGraphPage() {
           { label: 'Graph' },
         ]}
       />
-      <div className="space-y-10 rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
-        <EcmGraphFirstDashboard
-          scheduleAreaId={scheduleAreaId}
-          onScheduleAreaIdChange={setScheduleAreaId}
-          scopedAreas={scopedAreas}
-        />
-        <div className="border-t border-border pt-8">
-          <EcmComplianceOverviewPanel scheduleAreaId={scheduleAreaId} />
+
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
+        <div className="space-y-10">
+          <EcmOperationalPeriodCard
+            preset={preset}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            periodLabel={periodLabel}
+            operationalToday={operationalToday}
+            onPresetChange={setPreset}
+            onApplyPreset={applyPreset}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+            testIdPrefix="ecm-graph"
+            footnote={
+              <>
+                {dateFrom === dateTo
+                  ? formatPeriodDayShort(dateFrom)
+                  : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`}
+                {' · '}
+                ISO {dateFrom}
+                {dateFrom !== dateTo ? ` → ${dateTo}` : ''}
+              </>
+            }
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9"
+              disabled={refreshing}
+              onClick={() => void onRefresh()}
+            >
+              {refreshing ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              )}
+              Refresh
+            </Button>
+          </EcmOperationalPeriodCard>
+
+          <EcmGraphFirstDashboard />
+          <div className="border-t border-border pt-8">
+            <EcmComplianceOverviewPanel />
+          </div>
         </div>
       </div>
     </div>

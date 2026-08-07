@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Loader2, RefreshCw, X } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
@@ -21,18 +21,10 @@ import { useEcmGraphDashboard } from '@/features/ecm/hooks/useEcm'
 import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
-import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
 import type { EcmGraphDrillVisit } from '@/features/ecm/api/ecm.api'
 
-export type EcmGraphScheduleAreaOption = {
-  id: string
-  name: string
-}
-
 export type EcmGraphFirstDashboardProps = {
-  scheduleAreaId: string
-  onScheduleAreaIdChange: (id: string) => void
-  scopedAreas: EcmGraphScheduleAreaOption[]
+  className?: string
 }
 
 type BranchMetric = 'onTimePct' | 'latePct' | 'missedPct' | 'shortPct' | 'verifiedPct'
@@ -176,44 +168,36 @@ function matchesTrendDay(v: EcmGraphDrillVisit, date: string, series: TrendSerie
 
 function ChartCard({
   title,
-  subtitle,
+  purpose,
+  hint,
   children,
   className,
 }: {
   title: string
-  subtitle?: string
+  /** Plain-language “what is this for?” */
+  purpose?: string
+  /** Optional interaction / reading tip */
+  hint?: string
   children: React.ReactNode
   className?: string
 }) {
   return (
     <ContentCard className={cn('space-y-3 p-4', className)}>
-      <div>
+      <div className="space-y-1">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+        {purpose ? (
+          <p className="text-xs leading-relaxed text-foreground/80">{purpose}</p>
+        ) : null}
+        {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
       </div>
       {children}
     </ContentCard>
   )
 }
 
-export function EcmGraphFirstDashboard({
-  scheduleAreaId,
-  onScheduleAreaIdChange,
-  scopedAreas,
-}: EcmGraphFirstDashboardProps) {
+export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProps = {}) {
   const { locationId: globalLocationId } = useGlobalLocationScope()
-  const period = useEcmOperationalPeriod('today')
-  const {
-    preset,
-    dateFrom,
-    dateTo,
-    periodLabel,
-    operationalToday,
-    setPreset,
-    setDateFrom,
-    setDateTo,
-    applyPreset,
-  } = period
+  const { dateFrom, dateTo } = useEcmOperationalPeriod('today')
   const [branchMetric, setBranchMetric] = React.useState<BranchMetric>('latePct')
   const [drill, setDrill] = React.useState<DrillFilter | null>(null)
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null)
@@ -223,7 +207,6 @@ export function EcmGraphFirstDashboard({
   const dashboard = useEcmGraphDashboard({
     dateFrom,
     dateTo,
-    scheduleAreaId: scheduleAreaId || undefined,
     locationId: globalLocationId ?? undefined,
   })
 
@@ -312,9 +295,8 @@ export function EcmGraphFirstDashboard({
   }, [data])
 
   const branchMeta = BRANCH_METRIC_META[branchMetric]
-  const branchAreaScoped = Boolean(scheduleAreaId)
   const branchChartData = React.useMemo(() => {
-    if (!data || branchAreaScoped) return []
+    if (!data) return []
     return [...data.branchComparison]
       .sort((a, b) => {
         const byMetric = b[branchMetric] - a[branchMetric]
@@ -329,7 +311,7 @@ export function EcmGraphFirstDashboard({
         total: b.total,
         n: branchDenominator(b, branchMetric),
       }))
-  }, [branchAreaScoped, branchMetric, data])
+  }, [branchMetric, data])
 
   const reasonChartData = React.useMemo(() => {
     if (!data) return []
@@ -387,70 +369,17 @@ export function EcmGraphFirstDashboard({
   }
 
   return (
-    <div className="space-y-4" data-testid="ecm-graph-first-dashboard">
+    <div className={cn('space-y-4', className)} data-testid="ecm-graph-first-dashboard">
       <div>
         <h2 className="text-base font-semibold text-foreground">Graphs</h2>
         <p className="text-xs text-muted-foreground">
           Exception rates, classification bands, and branch risk — click a series to list
           matching visits.
+          {' · '}
+          ISO {effectiveFrom}
+          {effectiveFrom !== effectiveTo ? ` → ${effectiveTo}` : ''}
         </p>
       </div>
-
-      <EcmOperationalPeriodCard
-        preset={preset}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        periodLabel={periodLabel}
-        operationalToday={operationalToday}
-        onPresetChange={setPreset}
-        onApplyPreset={applyPreset}
-        onDateFromChange={setDateFrom}
-        onDateToChange={setDateTo}
-        testIdPrefix="ecm-graph"
-        footnote={
-          <>
-            {daySpan > 0 ? `${daySpan} day${daySpan === 1 ? '' : 's'} inclusive` : null}
-            {scheduleAreaId
-              ? ` · ${scopedAreas.find((a) => a.id === scheduleAreaId)?.name ?? 'Selected area'}`
-              : ' · All areas'}
-            {' · '}
-            ISO {effectiveFrom}
-            {effectiveFrom !== effectiveTo ? ` → ${effectiveTo}` : ''}
-          </>
-        }
-      >
-        <label className="space-y-1 text-xs">
-          <span className="text-muted-foreground">Schedule area</span>
-          <select
-            className="flex h-9 w-[12rem] rounded-md border border-input bg-background px-2 text-sm"
-            value={scheduleAreaId}
-            onChange={(e) => onScheduleAreaIdChange(e.target.value)}
-            data-testid="ecm-graph-area"
-          >
-            <option value="">All areas</option>
-            {scopedAreas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-9"
-          disabled={dashboard.isFetching}
-          onClick={() => void dashboard.refetch()}
-        >
-          {dashboard.isFetching ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-          )}
-          Refresh
-        </Button>
-      </EcmOperationalPeriodCard>
 
       {dashboard.isLoading ? (
         <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
@@ -470,7 +399,7 @@ export function EcmGraphFirstDashboard({
             </span>
             {' '}in this period
             {data.truncated && data.totalMatching != null
-              ? ` · showing first ${(data.rowCap ?? data.visitCount).toLocaleString()} of ${data.totalMatching.toLocaleString()} (narrow period or area for full coverage)`
+              ? ` · showing first ${(data.rowCap ?? data.visitCount).toLocaleString()} of ${data.totalMatching.toLocaleString()} (narrow period or location for full coverage)`
               : ''}
             {data.visitCount === 0
               ? ' — try adjusting the operational period (demo seed often ends on recent completed days)'
@@ -484,8 +413,8 @@ export function EcmGraphFirstDashboard({
               data-testid="ecm-graph-truncated-warning"
             >
               Chart aggregates are truncated at {(data.rowCap ?? 5000).toLocaleString()} visits
-              matching this filter. Totals and drills may under-count until you narrow the period,
-              location, or schedule area.
+              matching this filter. Totals and drills may under-count until you narrow the period
+              or location.
             </p>
           ) : null}
 
@@ -493,7 +422,8 @@ export function EcmGraphFirstDashboard({
           <div className="grid gap-3 xl:grid-cols-2">
             <ChartCard
               title="1. Exception rates by day"
-              subtitle="Late % and Short % use assessed denominators; Missed % uses all visits. Click a day point to drill."
+              purpose="Use this to spot whether late, short, or missed visits are getting better or worse over the selected days."
+              hint="Click a day on a line to list those visits below."
             >
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
                 {trendChartData.length === 0 ? (
@@ -619,51 +549,26 @@ export function EcmGraphFirstDashboard({
 
             <ChartCard
               title="2. Branch risk board"
-              subtitle={
-                branchAreaScoped
-                  ? 'Compares schedule areas side-by-side — clear the area filter to use this board.'
-                  : `${branchMeta.sortLabel}. Labels are schedule area names (visit count in parentheses). Punctuality % exclude not assessed.`
-              }
+              purpose="Use this to compare branches side by side and see which areas need the most follow-up."
+              hint={`${branchMeta.sortLabel}. Click a bar to list visits for that branch.`}
             >
-              {!branchAreaScoped ? (
-                <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  Metric
-                  <select
-                    className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-                    value={branchMetric}
-                    onChange={(e) => setBranchMetric(e.target.value as BranchMetric)}
-                    data-testid="ecm-graph-branch-metric"
-                  >
-                    <option value="latePct">Late %</option>
-                    <option value="missedPct">Missed %</option>
-                    <option value="shortPct">Short-visit %</option>
-                    <option value="onTimePct">On-time %</option>
-                    <option value="verifiedPct">Verified %</option>
-                  </select>
-                </label>
-              ) : null}
+              <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                Metric
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                  value={branchMetric}
+                  onChange={(e) => setBranchMetric(e.target.value as BranchMetric)}
+                  data-testid="ecm-graph-branch-metric"
+                >
+                  <option value="latePct">Late %</option>
+                  <option value="missedPct">Missed %</option>
+                  <option value="shortPct">Short-visit %</option>
+                  <option value="onTimePct">On-time %</option>
+                  <option value="verifiedPct">Verified %</option>
+                </select>
+              </label>
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
-                {branchAreaScoped ? (
-                  <div
-                    className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center"
-                    data-testid="ecm-graph-branch-area-scoped"
-                  >
-                    <p className="text-sm text-muted-foreground">
-                      Select{' '}
-                      <span className="font-medium text-foreground">All areas</span> to
-                      compare branches. A single schedule area cannot be ranked against
-                      itself.
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onScheduleAreaIdChange('')}
-                    >
-                      Show all areas
-                    </Button>
-                  </div>
-                ) : branchChartData.length === 0 ? (
+                {branchChartData.length === 0 ? (
                   <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
                     No branch data in range.
                   </p>
@@ -746,10 +651,11 @@ export function EcmGraphFirstDashboard({
           >
             <ChartCard
               title="Drill-down"
-              subtitle={
+              purpose="Use this list to open the exact visits behind a chart click — triage, amend, or follow up from here."
+              hint={
                 drill
-                  ? 'Visits for the selected series — open a row for detail'
-                  : 'Click a chart segment to list visits here'
+                  ? 'Visits for the selected series — open a row for detail.'
+                  : 'Click any chart segment above to fill this list.'
               }
               className="border-0 bg-transparent shadow-none"
             >
@@ -770,7 +676,8 @@ export function EcmGraphFirstDashboard({
           <div className="grid gap-3 xl:grid-cols-2">
             <ChartCard
               title="3. Arrival band mix"
-              subtitle="Counts by arrivalClassification — % of assessed in tooltip. Click a bar to drill."
+              purpose="Use this to see how carers arrived against plan — early, on time, or late."
+              hint="Click a bar to list visits in that arrival band."
             >
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height={280}>
@@ -825,7 +732,8 @@ export function EcmGraphFirstDashboard({
 
             <ChartCard
               title="4. Duration band mix"
-              subtitle="Counts by durationClassification — positive bars only. Planned duration ≠ arrival on-time."
+              purpose="Use this to check whether visits ran the planned length, or finished too short or too long."
+              hint="This is about visit length, not whether the carer arrived on time. Click a bar to drill."
             >
               <div className="h-[280px] w-full min-w-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height={280}>
@@ -882,7 +790,8 @@ export function EcmGraphFirstDashboard({
           {/* 5: reasons */}
           <ChartCard
             title="5. Top exception reasons"
-            subtitle="Distinct codes per visit — click a bar to list matching visits"
+            purpose="Use this to see the most common reasons recorded when a visit goes wrong — so you know what to fix first."
+            hint="Click a bar to list visits with that reason."
           >
             <div className="h-[300px] w-full min-w-0 overflow-hidden">
               {reasonChartData.length === 0 ? (
@@ -945,7 +854,8 @@ export function EcmGraphFirstDashboard({
           <div className={cn('grid gap-3', showStatusByHour && 'xl:grid-cols-2')}>
             <ChartCard
               title="6. Weekday × time hotspots"
-              subtitle="Exception rate (late / short / missed) by weekday × planned-start band (Europe/London). Click a cell to drill."
+              purpose="Use this to find which days of the week and times of day problems cluster — useful for rota and staffing changes."
+              hint="Darker cells mean a higher exception rate. Click a cell to drill."
             >
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] text-xs">
@@ -1011,7 +921,8 @@ export function EcmGraphFirstDashboard({
             {showStatusByHour ? (
               <ChartCard
                 title="7. Today status by hour"
-                subtitle="Stacked by planned start hour (Europe/London) — single-day periods only"
+                purpose="Use this on a single day to see how planned visits stack by start hour — completed, in progress, or still open."
+                hint="Only shown when the operational period is one day."
               >
                 <div className="h-[300px] w-full min-w-0 overflow-hidden">
                   <ResponsiveContainer width="100%" height={300}>

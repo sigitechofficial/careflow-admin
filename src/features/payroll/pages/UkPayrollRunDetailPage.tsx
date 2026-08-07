@@ -11,8 +11,10 @@ import {
   ChevronRight,
   Info,
   Loader2,
+  FileJson,
   Receipt,
   RotateCcw,
+  Send,
   ShieldAlert,
   UserPlus,
   Users,
@@ -28,7 +30,12 @@ import {
   useCloseUkPayrollRun,
   useEnrolUkPayrollRun,
   useReactivateUkPayrollRun,
+  useApproveUkPayrollRunHmrcSubmission,
+  useRejectUkPayrollRunHmrcSubmission,
+  useSubmitUkPayrollRunFps,
   useUkPayrollRun,
+  useUkPayrollRunFps,
+  useUkPayrollRunHmrcSubmissions,
 } from '@/features/payroll/hooks/usePayroll'
 import { useCreateEmployeePayoutBatch } from '@/features/billing/hooks/useEmployeePayouts'
 import { useAuthStore } from '@/features/auth/store'
@@ -49,9 +56,15 @@ function formatGbp(amount: number) {
 export default function UkPayrollRunDetailPage() {
   const { runId } = useParams({ strict: false }) as { runId: string }
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null)
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
   const { data, isLoading, isError } = useUkPayrollRun(runId)
+  const fpsQuery = useUkPayrollRunFps(runId, data?.status === 'CLOSED')
+  const hmrcSubsQuery = useUkPayrollRunHmrcSubmissions(runId, data?.status === 'CLOSED')
+  const submitFpsMut = useSubmitUkPayrollRunFps(runId)
+  const approveLiveMut = useApproveUkPayrollRunHmrcSubmission(runId)
+  const rejectLiveMut = useRejectUkPayrollRunHmrcSubmission(runId)
   const enrolMut = useEnrolUkPayrollRun(runId)
   const calculateMut = useCalculateUkPayrollGross(runId)
   const statutoryMut = useCalculateUkPayrollStatutory(runId)
@@ -89,6 +102,19 @@ export default function UkPayrollRunDetailPage() {
     } catch (e) {
       toastApiError(e, 'Could not create payout from this run')
     }
+  }
+
+  const handleDownloadFps = () => {
+    if (!fpsQuery.data) return
+    const blob = new Blob([JSON.stringify(fpsQuery.data, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `fps-preview-${runId.slice(0, 8)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -336,6 +362,466 @@ export default function UkPayrollRunDetailPage() {
             <div className="flex gap-3 rounded-xl border border-sky-200/80 bg-sky-50/70 px-4 py-3 dark:border-sky-900 dark:bg-sky-950/30">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700 dark:text-sky-300" aria-hidden />
               <p className="text-sm leading-relaxed text-sky-950 dark:text-sky-100">{data.phaseNote}</p>
+            </div>
+          ) : null}
+
+          {data.status === 'CLOSED' ? (
+            <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-200">
+                    <FileJson className="h-4 w-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-semibold text-foreground">FPS preview</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Full Payment Submission draft from this closed run. When checks pass you can
+                      dry-run GovTalk XML or send to the HMRC test gateway (live send is locked).
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={fpsQuery.isFetching}
+                    onClick={() => void fpsQuery.refetch()}
+                  >
+                    {fpsQuery.isFetching ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    Refresh
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={!fpsQuery.data}
+                    onClick={handleDownloadFps}
+                    data-testid="payroll-run-download-fps"
+                  >
+                    <FileJson className="h-3.5 w-3.5" aria-hidden />
+                    Download JSON
+                  </Button>
+                </div>
+              </div>
+
+              {fpsQuery.isLoading ? (
+                <p className="text-sm text-muted-foreground">Building FPS preview…</p>
+              ) : fpsQuery.isError ? (
+                <p className="text-sm text-destructive">
+                  Could not build FPS preview. Check employer PAYE settings and employee RTI fields.
+                </p>
+              ) : fpsQuery.data ? (
+                <div className="space-y-3">
+                  {(() => {
+                    const v = fpsQuery.data.validation
+                    if (!v) return null
+                    return (
+                      <div
+                        className={cn(
+                          'rounded-lg border px-3 py-2 text-xs',
+                          v.isReadyToSubmit
+                            ? 'border-emerald-200/80 bg-emerald-50/80 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100'
+                            : 'border-rose-200/80 bg-rose-50/80 text-rose-950 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100',
+                        )}
+                        data-testid="payroll-fps-validation-summary"
+                      >
+                        {v.isReadyToSubmit ? (
+                          <p className="font-medium">
+                            FPS checks passed
+                            {v.warningCount > 0
+                              ? ` · ${v.warningCount} warning${v.warningCount === 1 ? '' : 's'} (not blocking)`
+                              : ''}
+                            . Ready for dry-run or HMRC test send.
+                          </p>
+                        ) : (
+                          <p className="font-medium">
+                            {v.errorCount} blocking issue{v.errorCount === 1 ? '' : 's'}
+                            {v.warningCount > 0
+                              ? ` · ${v.warningCount} warning${v.warningCount === 1 ? '' : 's'}`
+                              : ''}
+                            . Fix these before Care can send this FPS to HMRC.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {fpsQuery.data.validation?.items?.length ? (
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-muted/40 text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Level</th>
+                            <th className="px-3 py-2 font-medium">Who / where</th>
+                            <th className="px-3 py-2 font-medium">What to fix</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fpsQuery.data.validation.items.map((item) => (
+                            <tr
+                              key={`${item.code}-${item.employeeId ?? item.scope}-${item.field ?? ''}`}
+                              className="border-t border-border"
+                            >
+                              <td className="px-3 py-2">
+                                <span
+                                  className={cn(
+                                    'rounded px-1.5 py-0.5 font-medium',
+                                    item.severity === 'error'
+                                      ? 'bg-rose-500/15 text-rose-800 dark:text-rose-200'
+                                      : 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
+                                  )}
+                                >
+                                  {item.severity === 'error' ? 'Must fix' : 'Warning'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 font-medium text-foreground">
+                                {item.employeeName ??
+                                  (item.scope === 'employer'
+                                    ? 'Employer'
+                                    : item.scope === 'submission'
+                                      ? 'Pay period'
+                                      : item.scope === 'run'
+                                        ? 'Run'
+                                        : item.scope)}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{item.message}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+
+                  {fpsQuery.data.warnings.length > 0 ? (
+                    <ul className="space-y-1 rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                      {fpsQuery.data.warnings.map((w) => (
+                        <li key={w}>• {w}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
+                    <p>
+                      Employer:{' '}
+                      <span className="font-medium text-foreground">
+                        {fpsQuery.data.employer.fullPayeReference || '—'}
+                      </span>
+                    </p>
+                    <p>
+                      Tax year:{' '}
+                      <span className="font-medium text-foreground">
+                        {fpsQuery.data.submission.relatedTaxYear}
+                      </span>
+                    </p>
+                    <p>
+                      Period:{' '}
+                      <span className="font-medium text-foreground">
+                        {fpsQuery.data.submission.taxMonthOrWeekNumber}
+                      </span>
+                    </p>
+                    <p>
+                      Employees:{' '}
+                      <span className="font-medium text-foreground">
+                        {fpsQuery.data.totals.employeeCount}
+                      </span>
+                    </p>
+                  </div>
+
+                  {fpsQuery.data.employees.some(
+                    (e) =>
+                      e.employment.isFirstPayOfEmployment || e.employment.isLastPayOfEmployment,
+                  ) ? (
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-muted/40 text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Employee</th>
+                            <th className="px-3 py-2 font-medium">Starter / leaver</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fpsQuery.data.employees
+                            .filter(
+                              (e) =>
+                                e.employment.isFirstPayOfEmployment ||
+                                e.employment.isLastPayOfEmployment,
+                            )
+                            .map((e) => (
+                              <tr key={`sl-${e.employeeId}`} className="border-t border-border">
+                                <td className="px-3 py-2 font-medium text-foreground">
+                                  {e.name.forename} {e.name.surname}
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground">
+                                  {[
+                                    e.employment.isFirstPayOfEmployment
+                                      ? 'First pay (starter in period)'
+                                      : null,
+                                    e.employment.isLastPayOfEmployment
+                                      ? 'Last pay (leaver in period)'
+                                      : null,
+                                    e.employment.p45Received ? 'P45 received' : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+
+                  <details className="rounded-lg border border-border bg-background">
+                    <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">
+                      View JSON payload
+                    </summary>
+                    <pre className="max-h-72 overflow-auto border-t border-border p-3 text-[11px] leading-relaxed text-muted-foreground">
+                      {JSON.stringify(fpsQuery.data, null, 2)}
+                    </pre>
+                  </details>
+
+                  <div
+                    className="space-y-3 rounded-lg border border-border bg-background p-3"
+                    data-testid="payroll-hmrc-test-submit"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-semibold text-foreground">HMRC gateway</p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Test sends post when HMRC_RTI_HTTP_ENABLED=true. Live sends need Employer
+                          PAYE on Live, HMRC_RTI_LIVE_ENABLED=true, and a second person to approve
+                          (you cannot approve your own request).
+                        </p>
+                      </div>
+                      {canManage ? (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            disabled={
+                              submitFpsMut.isPending || !fpsQuery.data.validation?.isReadyToSubmit
+                            }
+                            onClick={() =>
+                              submitFpsMut.mutate({ mode: 'DRY_RUN', environment: 'TEST' })
+                            }
+                            data-testid="payroll-fps-dry-run"
+                          >
+                            {submitFpsMut.isPending &&
+                            submitFpsMut.variables?.mode === 'DRY_RUN' &&
+                            (submitFpsMut.variables.environment ?? 'TEST') === 'TEST' ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <FileJson className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                            Dry run (test)
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="gap-1.5"
+                            disabled={
+                              submitFpsMut.isPending || !fpsQuery.data.validation?.isReadyToSubmit
+                            }
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  'Send this FPS to the HMRC TEST gateway? This contacts HMRC’s test Transaction Engine (not live).',
+                                )
+                              ) {
+                                return
+                              }
+                              submitFpsMut.mutate({ mode: 'SUBMIT', environment: 'TEST' })
+                            }}
+                            data-testid="payroll-fps-submit-test"
+                          >
+                            {submitFpsMut.isPending &&
+                            submitFpsMut.variables?.mode === 'SUBMIT' &&
+                            (submitFpsMut.variables.environment ?? 'TEST') === 'TEST' ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <Send className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                            Send to HMRC test
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 border-rose-300 text-rose-800 dark:border-rose-800 dark:text-rose-200"
+                            disabled={
+                              submitFpsMut.isPending || !fpsQuery.data.validation?.isReadyToSubmit
+                            }
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  'Request a LIVE FPS send? A different user must approve before Care contacts real HMRC. Nothing is sent yet.',
+                                )
+                              ) {
+                                return
+                              }
+                              submitFpsMut.mutate({ mode: 'SUBMIT', environment: 'LIVE' })
+                            }}
+                            data-testid="payroll-fps-request-live"
+                          >
+                            {submitFpsMut.isPending &&
+                            submitFpsMut.variables?.mode === 'SUBMIT' &&
+                            submitFpsMut.variables.environment === 'LIVE' ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                            Request live send
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {hmrcSubsQuery.isLoading ? (
+                      <p className="text-xs text-muted-foreground">Loading submission history…</p>
+                    ) : hmrcSubsQuery.data && hmrcSubsQuery.data.length > 0 ? (
+                      <div className="overflow-hidden rounded-lg border border-border">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-muted/40 text-muted-foreground">
+                            <tr>
+                              <th className="px-3 py-2 font-medium">When</th>
+                              <th className="px-3 py-2 font-medium">Env</th>
+                              <th className="px-3 py-2 font-medium">Mode</th>
+                              <th className="px-3 py-2 font-medium">Status</th>
+                              <th className="px-3 py-2 font-medium">Detail</th>
+                              <th className="px-3 py-2 font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {hmrcSubsQuery.data.map((s) => {
+                              const isPendingLive =
+                                s.environment === 'LIVE' && s.status === 'PENDING_APPROVAL'
+                              const isRequester = Boolean(
+                                currentUserId && s.createdById && currentUserId === s.createdById,
+                              )
+                              const canApprove =
+                                canManage && isPendingLive && !isRequester && Boolean(currentUserId)
+                              const canReject = canManage && isPendingLive
+                              return (
+                                <tr key={s.id} className="border-t border-border">
+                                  <td className="px-3 py-2 text-muted-foreground">
+                                    {new Date(s.createdAt).toLocaleString('en-GB')}
+                                  </td>
+                                  <td className="px-3 py-2 font-medium text-foreground">
+                                    {s.environment}
+                                  </td>
+                                  <td className="px-3 py-2 font-medium text-foreground">{s.mode}</td>
+                                  <td className="px-3 py-2">
+                                    <span
+                                      className={cn(
+                                        'rounded px-1.5 py-0.5 font-medium',
+                                        s.status === 'DRAFT_BUILT' ||
+                                          s.status === 'ACKNOWLEDGED' ||
+                                          s.status === 'ACCEPTED'
+                                          ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                                          : s.status === 'ERROR' ||
+                                              s.status === 'REJECTED' ||
+                                              s.status === 'REJECTED_APPROVAL'
+                                            ? 'bg-rose-500/15 text-rose-800 dark:text-rose-200'
+                                            : 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
+                                      )}
+                                    >
+                                      {s.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 text-muted-foreground">
+                                    {[
+                                      s.correlationId ? `Corr ${s.correlationId}` : null,
+                                      s.errorMessage,
+                                      s.httpStatus ? `HTTP ${s.httpStatus}` : null,
+                                      isPendingLive && isRequester
+                                        ? 'Waiting for another user'
+                                        : null,
+                                      s.fraudPreventionHeaders?.omitted?.length
+                                        ? `${s.fraudPreventionHeaders.omitted.length} header(s) omitted`
+                                        : s.fraudPreventionHeaders?.headers
+                                          ? 'Fraud headers attached'
+                                          : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ') || '—'}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    {canApprove || canReject ? (
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {canApprove ? (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 gap-1 px-2 text-[11px]"
+                                            disabled={
+                                              approveLiveMut.isPending || rejectLiveMut.isPending
+                                            }
+                                            onClick={() => {
+                                              if (
+                                                !window.confirm(
+                                                  'Approve and SEND this FPS to LIVE HMRC? Type confirmation is required next.',
+                                                )
+                                              ) {
+                                                return
+                                              }
+                                              const phrase = window.prompt(
+                                                'Type exactly: SEND LIVE FPS',
+                                              )
+                                              if (phrase !== 'SEND LIVE FPS') {
+                                                window.alert(
+                                                  'Cancelled — confirmation phrase did not match.',
+                                                )
+                                                return
+                                              }
+                                              approveLiveMut.mutate(s.id)
+                                            }}
+                                          >
+                                            Approve live
+                                          </Button>
+                                        ) : null}
+                                        {canReject ? (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 px-2 text-[11px] text-rose-700 dark:text-rose-300"
+                                            disabled={
+                                              approveLiveMut.isPending || rejectLiveMut.isPending
+                                            }
+                                            onClick={() => {
+                                              const reason =
+                                                window.prompt(
+                                                  'Optional reason for rejecting this live send:',
+                                                ) ?? undefined
+                                              rejectLiveMut.mutate({
+                                                submissionId: s.id,
+                                                reason: reason || undefined,
+                                              })
+                                            }}
+                                          >
+                                            Reject
+                                          </Button>
+                                        ) : null}
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        No HMRC attempts yet for this run.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 

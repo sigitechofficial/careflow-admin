@@ -17,6 +17,8 @@ import type {
   EmployeePayrollSetupRow,
   PayrollEmployerSettings,
   PayrollOverview,
+  CareEpsPayload,
+  PayrollHmrcSubmission,
   PayrollPeriod,
   PayrollSchedule,
   PayrollStatutoryRateSet,
@@ -24,7 +26,9 @@ import type {
   PayrollTaxYear,
   UkPayrollRun,
   UkPayrollRunDetail,
+  CareFpsPayload,
 } from '@/features/payroll/types/payroll.types'
+import type { HmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
 
 export async function fetchPayrollOverview() {
   const res = await apiJson<ApiEnvelope<PayrollOverview>>('/payroll/overview')
@@ -41,6 +45,43 @@ export async function updatePayrollEmployerSettings(body: UpdatePayrollEmployerS
     method: 'PATCH',
     body: JSON.stringify(body),
   })
+  return res.data
+}
+
+export async function fetchPayrollEpsPreview(params: {
+  taxYearId?: string
+  taxMonth: number
+  noPaymentThisPeriod?: boolean
+  employmentAllowanceClaimed?: boolean
+  smpRecovered?: number
+  sppRecovered?: number
+  sapRecovered?: number
+  shppRecovered?: number
+  spbpRecovered?: number
+  nicCompensationOnStatutory?: number
+}) {
+  const qs = new URLSearchParams()
+  qs.set('taxMonth', String(params.taxMonth))
+  if (params.taxYearId) qs.set('taxYearId', params.taxYearId)
+  if (params.noPaymentThisPeriod !== undefined) {
+    qs.set('noPaymentThisPeriod', String(params.noPaymentThisPeriod))
+  }
+  if (params.employmentAllowanceClaimed !== undefined) {
+    qs.set('employmentAllowanceClaimed', String(params.employmentAllowanceClaimed))
+  }
+  const recoveryKeys = [
+    'smpRecovered',
+    'sppRecovered',
+    'sapRecovered',
+    'shppRecovered',
+    'spbpRecovered',
+    'nicCompensationOnStatutory',
+  ] as const
+  for (const key of recoveryKeys) {
+    const v = params[key]
+    if (v !== undefined && v !== null) qs.set(key, String(v))
+  }
+  const res = await apiJson<ApiEnvelope<CareEpsPayload>>(`/payroll/eps/preview?${qs.toString()}`)
   return res.data
 }
 
@@ -276,6 +317,65 @@ export async function deleteAllUkPayrollRuns() {
 
 export async function fetchUkPayrollRun(id: string) {
   const res = await apiJson<ApiEnvelope<UkPayrollRunDetail>>(`/payroll/runs/${id}`)
+  return res.data
+}
+
+/** Closed-run FPS preview JSON (Care schema). */
+export async function fetchUkPayrollRunFps(id: string) {
+  const res = await apiJson<ApiEnvelope<CareFpsPayload>>(`/payroll/runs/${id}/fps`)
+  return res.data
+}
+
+export async function fetchUkPayrollRunHmrcSubmissions(id: string) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission[]>>(
+    `/payroll/runs/${id}/hmrc-submissions`,
+  )
+  return res.data
+}
+
+export async function submitUkPayrollRunFps(
+  id: string,
+  mode: 'DRY_RUN' | 'SUBMIT',
+  clientContext?: HmrcFraudClientContext,
+  environment: 'TEST' | 'LIVE' = 'TEST',
+) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(`/payroll/runs/${id}/fps/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ mode, clientContext, environment }),
+  })
+  return res.data
+}
+
+export async function approveUkPayrollRunHmrcSubmission(
+  runId: string,
+  submissionId: string,
+  clientContext?: HmrcFraudClientContext,
+) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(
+    `/payroll/runs/${runId}/hmrc-submissions/${submissionId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        confirmPhrase: 'SEND LIVE FPS',
+        clientContext,
+      }),
+    },
+  )
+  return res.data
+}
+
+export async function rejectUkPayrollRunHmrcSubmission(
+  runId: string,
+  submissionId: string,
+  reason?: string,
+) {
+  const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission>>(
+    `/payroll/runs/${runId}/hmrc-submissions/${submissionId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    },
+  )
   return res.data
 }
 

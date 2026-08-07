@@ -126,6 +126,12 @@ export type TimelineJob = {
     notes?: string | null
     overrunReason?: string | null
   } | null
+  /** Carer attended (COMPLETED) but care was not delivered — SU unavailable / not home. */
+  careNotDelivered?: {
+    reasonCode?: string | null
+    reasonLabel?: string | null
+    notes?: string | null
+  } | null
   cancellation?: {
     reasonCode?: string | null
     reasonNotes?: string | null

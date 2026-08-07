@@ -81,6 +81,8 @@ export type UpsertEmployeePayrollProfileInput = {
   taxCodeWeek1Month1?: boolean
   niCategory?: PayrollNiCategory | null
   starterDeclaration?: PayrollStarterDeclaration
+  hoursNormallyWorked?: 'A' | 'B' | 'C' | 'D' | 'E' | null
+  p45Received?: boolean
   studentLoanPlan1?: boolean
   studentLoanPlan2?: boolean
   studentLoanPlan4?: boolean
@@ -120,4 +122,25 @@ export type UpdatePayrollEmployerSettingsInput = {
   taxDistrict?: string | null
   employerTradingName?: string | null
   notes?: string | null
+  activeHmrcEnvironment?: 'TEST' | 'LIVE'
+  gatewayTestUserId?: string | null
+  gatewayTestPassword?: string | null
+  clearTestPassword?: boolean
+  gatewayLiveUserId?: string | null
+  gatewayLivePassword?: string | null
+  clearLivePassword?: boolean
+  employmentAllowanceClaimed?: boolean
+}
+
+export type PreviewEpsQuery = {
+  taxYearId?: string
+  taxMonth: number
+  noPaymentThisPeriod?: boolean
+  employmentAllowanceClaimed?: boolean
+  smpRecovered?: number
+  sppRecovered?: number
+  sapRecovered?: number
+  shppRecovered?: number
+  spbpRecovered?: number
+  nicCompensationOnStatutory?: number
 }

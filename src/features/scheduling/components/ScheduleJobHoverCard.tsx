@@ -597,6 +597,20 @@ export function JobHoverPanel({
               ))}
             </div>
           ) : null}
+          {job.careNotDelivered?.reasonCode || job.careNotDelivered?.reasonLabel ? (
+            <p
+              className={cn('mt-1.5 text-[13px] font-medium sm:text-sm', subtitleClass)}
+              title={job.careNotDelivered.notes ?? undefined}
+            >
+              Care could not be delivered
+              {job.careNotDelivered.reasonLabel || job.careNotDelivered.reasonCode
+                ? ` · ${
+                    job.careNotDelivered.reasonLabel ??
+                    job.careNotDelivered.reasonCode?.replace(/_/g, ' ')
+                  }`
+                : null}
+            </p>
+          ) : null}
         </div>
 
         {!cancelled && (excessContracted || outsidePattern) ? (

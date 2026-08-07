@@ -71,6 +71,10 @@ import {
   VISIT_MISSED_REASONS,
   type VisitMissedReasonCode,
 } from '@/features/scheduling/utils/visit-missed-reason.util'
+import {
+  VISIT_CARE_NOT_DELIVERED_REASONS,
+  type VisitCareNotDeliveredReasonCode,
+} from '@/features/scheduling/utils/visit-care-not-delivered-reason.util'
 import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
 /** Re-enable when care-plan delivery checkboxes return to Record visit. */
@@ -110,6 +114,11 @@ export function ScheduleJobCompleteDialog({
   const [timingExceptionNotes, setTimingExceptionNotes] = React.useState('')
   const [missedReasonCode, setMissedReasonCode] = React.useState<VisitMissedReasonCode | ''>('')
   const [missedReasonNotes, setMissedReasonNotes] = React.useState('')
+  const [careNotDelivered, setCareNotDelivered] = React.useState(false)
+  const [careNotDeliveredReasonCode, setCareNotDeliveredReasonCode] = React.useState<
+    VisitCareNotDeliveredReasonCode | ''
+  >('')
+  const [careNotDeliveredNotes, setCareNotDeliveredNotes] = React.useState('')
   const [visitTasks, setVisitTasks] = React.useState<VisitJobTaskRow[]>([])
 
   const visitTasksQuery = useQuery({
@@ -150,6 +159,8 @@ export function ScheduleJobCompleteDialog({
 
   const isStartedOutcome = visitStatus === 'STARTED'
   const isMissedOutcome = visitStatus === 'MISSED'
+  const isCompletedOutcome =
+    visitStatus === 'COMPLETED' || visitStatus === 'PARTIALLY_COMPLETED'
 
   const actualDateTimes = React.useMemo(() => {
     if (!scheduleDateIso || isStartedOutcome) return null
@@ -200,6 +211,13 @@ export function ScheduleJobCompleteDialog({
     setTimingExceptionNotes('')
     setMissedReasonCode('')
     setMissedReasonNotes('')
+    setCareNotDelivered(
+      Boolean(job.careNotDelivered?.reasonCode || job.careNotDelivered?.reasonLabel),
+    )
+    setCareNotDeliveredReasonCode(
+      (job.careNotDelivered?.reasonCode as VisitCareNotDeliveredReasonCode | undefined) ?? '',
+    )
+    setCareNotDeliveredNotes(job.careNotDelivered?.notes?.trim() ?? '')
     const nextStatus = initialVisitStatus ?? defaultScheduleJobVisitOutcome(job)
     setVisitStatus(nextStatus)
     const started = nextStatus === 'STARTED'
@@ -253,6 +271,15 @@ export function ScheduleJobCompleteDialog({
     if (!open || visitStatus !== 'STARTED') return
     setActualEndTime('')
     setCarerActualTimes((rows) => rows.map((row) => ({ ...row, endHm: '' })))
+  }, [open, visitStatus])
+
+  React.useEffect(() => {
+    if (!open) return
+    if (visitStatus === 'MISSED' || visitStatus === 'STARTED') {
+      setCareNotDelivered(false)
+      setCareNotDeliveredReasonCode('')
+      setCareNotDeliveredNotes('')
+    }
   }, [open, visitStatus])
 
   React.useEffect(() => {
@@ -404,6 +431,22 @@ export function ScheduleJobCompleteDialog({
         return
       }
     }
+    if (isCompletedOutcome && careNotDelivered) {
+      if (!careNotDeliveredReasonCode) {
+        toastWarning(
+          'Reason required',
+          'Select why care could not be delivered. Visit will still be completed because the carer attended.',
+        )
+        return
+      }
+      const careMeta = VISIT_CARE_NOT_DELIVERED_REASONS.find(
+        (r) => r.code === careNotDeliveredReasonCode,
+      )
+      if (careMeta?.requiresNotes && !careNotDeliveredNotes.trim()) {
+        toastWarning('Notes required', 'Add notes for this care-not-delivered reason.')
+        return
+      }
+    }
     if (requiresCarePlans && deliveredIds.length === 0 && !notes.trim()) {
       toastWarning(
         'Select care plans',
@@ -474,6 +517,16 @@ export function ScheduleJobCompleteDialog({
           (requiresTimingExceptionReason && overrunReason.trim() ? overrunReason.trim() : undefined),
         missedReasonCode: isMissedOutcome ? missedReasonCode || undefined : undefined,
         missedReasonNotes: isMissedOutcome ? missedReasonNotes.trim() || undefined : undefined,
+        careNotDelivered:
+          isCompletedOutcome && careNotDelivered ? true : isCompletedOutcome ? false : undefined,
+        careNotDeliveredReasonCode:
+          isCompletedOutcome && careNotDelivered
+            ? careNotDeliveredReasonCode || undefined
+            : undefined,
+        careNotDeliveredNotes:
+          isCompletedOutcome && careNotDelivered
+            ? careNotDeliveredNotes.trim() || undefined
+            : undefined,
       })
       toastSuccess(
         visitStatus === 'COMPLETED' ? 'Job completed' : 'Visit saved',
@@ -891,6 +944,85 @@ export function ScheduleJobCompleteDialog({
                 placeholder="Additional context for the missed visit"
                 maxLength={2000}
               />
+            </section>
+          ) : null}
+
+          {isCompletedOutcome ? (
+            <section className="space-y-2 rounded-lg border border-sky-300/60 bg-sky-50/70 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/30">
+              <label className="flex items-start gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={careNotDelivered}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setCareNotDelivered(e.target.checked)
+                    if (!e.target.checked) {
+                      setCareNotDeliveredReasonCode('')
+                      setCareNotDeliveredNotes('')
+                    }
+                  }}
+                />
+                <span>
+                  <span className="font-semibold">Care could not be delivered</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Same as carer-app “Unable to start visit”: carer checked in / attended, but care
+                    could not start (not home, hospital, refused, unsafe, etc.). Visit stays
+                    Completed with a care-not-delivered reason.
+                  </span>
+                </span>
+              </label>
+              {careNotDelivered ? (
+                <>
+                  <Label className="text-sm font-medium text-foreground">Reason</Label>
+                  <Select
+                    value={careNotDeliveredReasonCode || undefined}
+                    onValueChange={(value) =>
+                      setCareNotDeliveredReasonCode(value as VisitCareNotDeliveredReasonCode)
+                    }
+                    disabled={busy}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reason…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VISIT_CARE_NOT_DELIVERED_REASONS.map((reason) => (
+                        <SelectItem key={reason.code} value={reason.code}>
+                          {reason.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {careNotDeliveredReasonCode ? (
+                    <p className="text-xs text-muted-foreground">
+                      {
+                        VISIT_CARE_NOT_DELIVERED_REASONS.find(
+                          (r) => r.code === careNotDeliveredReasonCode,
+                        )?.description
+                      }
+                    </p>
+                  ) : null}
+                  <Label
+                    htmlFor="schedule-job-care-not-delivered-notes"
+                    className="text-xs text-muted-foreground"
+                  >
+                    {VISIT_CARE_NOT_DELIVERED_REASONS.find(
+                      (r) => r.code === careNotDeliveredReasonCode,
+                    )?.requiresNotes
+                      ? 'Notes (required)'
+                      : 'Notes (optional)'}
+                  </Label>
+                  <textarea
+                    id="schedule-job-care-not-delivered-notes"
+                    className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    value={careNotDeliveredNotes}
+                    disabled={busy}
+                    onChange={(event) => setCareNotDeliveredNotes(event.target.value)}
+                    placeholder="Add notes — required for every reason"
+                    maxLength={2000}
+                  />
+                </>
+              ) : null}
             </section>
           ) : null}
 

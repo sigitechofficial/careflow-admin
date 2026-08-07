@@ -10,6 +10,12 @@ type TimingExceptionSummary = {
   overrunReason?: string | null
 } | null
 
+type CareNotDeliveredSummary = {
+  reasonCode?: string | null
+  reasonLabel?: string | null
+  notes?: string | null
+} | null
+
 type CancellationSummary = {
   reasonCode?: string | null
   reasonNotes?: string | null
@@ -19,6 +25,7 @@ type CancellationSummary = {
 type Props = {
   assessment: VisitDeliveryAssessment
   timingException?: TimingExceptionSummary
+  careNotDelivered?: CareNotDeliveredSummary
   cancellation?: CancellationSummary
   className?: string
 }
@@ -41,6 +48,7 @@ function formatSignedMinutes(value: number | null): string {
 export function VisitDeliveryStatusPanel({
   assessment,
   timingException,
+  careNotDelivered,
   cancellation,
   className,
 }: Props) {
@@ -154,6 +162,23 @@ export function VisitDeliveryStatusPanel({
             <p className="mt-0.5 text-muted-foreground">
               Overrun notes: {timingException.overrunReason}
             </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {careNotDelivered?.reasonCode || careNotDelivered?.reasonLabel ? (
+        <div className="mt-3 rounded-md border border-sky-300/50 bg-sky-50/70 px-3 py-2 text-xs dark:border-sky-800 dark:bg-sky-950/40">
+          <p className="font-medium text-foreground">Care could not be delivered</p>
+          <p className="mt-0.5 text-muted-foreground">
+            Carer attended / checked in, but care was not started (same as carer-app Unable to start).
+          </p>
+          <p className="mt-1 text-foreground">
+            {careNotDelivered.reasonLabel ??
+              careNotDelivered.reasonCode?.replace(/_/g, ' ') ??
+              'Recorded'}
+          </p>
+          {careNotDelivered.notes ? (
+            <p className="mt-0.5 text-muted-foreground">{careNotDelivered.notes}</p>
           ) : null}
         </div>
       ) : null}

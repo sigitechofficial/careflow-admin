@@ -15,4 +15,9 @@ export const payrollKeys = {
   agreements: (employeeId: string) => [...payrollKeys.all, 'agreements', employeeId] as const,
   runs: () => [...payrollKeys.all, 'runs'] as const,
   run: (id: string) => [...payrollKeys.all, 'run', id] as const,
+  runFps: (id: string) => [...payrollKeys.all, 'run', id, 'fps'] as const,
+  runHmrcSubmissions: (id: string) =>
+    [...payrollKeys.all, 'run', id, 'hmrc-submissions'] as const,
+  epsPreview: (params: Record<string, unknown>) =>
+    [...payrollKeys.all, 'eps-preview', params] as const,
 }

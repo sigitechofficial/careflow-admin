@@ -35,6 +35,10 @@ import {
   usePayrollTaxCodes,
   useUpsertEmployeePayrollProfile,
 } from '@/features/payroll/hooks/usePayroll'
+import {
+  PAYROLL_HOURS_NORMALLY_WORKED_OPTIONS,
+  type PayrollHoursNormallyWorked,
+} from '@/features/payroll/utils/payroll-hours-normally-worked.util'
 import { useAuthStore } from '@/features/auth/store'
 import type {
   EmployeePayAgreementBasis,
@@ -104,6 +108,10 @@ export default function PayrollEmployeesPage() {
   const [niCategory, setNiCategory] = React.useState<PayrollNiCategory>('A')
   const [status, setStatus] = React.useState<EmployeePayrollProfileStatus>('DRAFT')
   const [starter, setStarter] = React.useState<PayrollStarterDeclaration>('UNKNOWN')
+  const [p45Received, setP45Received] = React.useState(false)
+  const [hoursNormallyWorked, setHoursNormallyWorked] = React.useState<
+    PayrollHoursNormallyWorked | ''
+  >('')
   const [deductionElections, setDeductionElections] = React.useState<string[]>([])
   const [pensionSchemeRef, setPensionSchemeRef] = React.useState('')
   const [scheduleId, setScheduleId] = React.useState('')
@@ -122,6 +130,8 @@ export default function PayrollEmployeesPage() {
     setNiCategory(selected.profile?.niCategory ?? 'A')
     setStatus(selected.profile?.status ?? 'DRAFT')
     setStarter(selected.profile?.starterDeclaration ?? 'UNKNOWN')
+    setP45Received(Boolean(selected.profile?.p45Received))
+    setHoursNormallyWorked(selected.profile?.hoursNormallyWorked ?? '')
     setDeductionElections(
       electionsFromLegacyFlags({
         studentLoanPlan1: selected.profile?.studentLoanPlan1,
@@ -155,8 +165,11 @@ export default function PayrollEmployeesPage() {
     if (!niCategory) {
       next.push('NI category letter must be set on the payroll profile')
     }
+    if (!hoursNormallyWorked) {
+      next.push('Hours normally worked band (A–E) must be set on the payroll profile')
+    }
     return next
-  }, [selected?.rtiIdentity?.issues, resolvedTaxCode, niCategory])
+  }, [selected?.rtiIdentity?.issues, resolvedTaxCode, niCategory, hoursNormallyWorked])
 
   const canSetReady = liveRtiIssues.length === 0
 
@@ -493,6 +506,33 @@ export default function PayrollEmployeesPage() {
                     Controls how employee NI is calculated. Category A is standard for most carers.
                   </p>
                 </label>
+                <label className="block space-y-1 text-sm sm:col-span-2">
+                  <span>Hours normally worked (FPS band)</span>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={hoursNormallyWorked}
+                    onChange={(e) =>
+                      setHoursNormallyWorked(
+                        (e.target.value || '') as PayrollHoursNormallyWorked | '',
+                      )
+                    }
+                    aria-label="Hours normally worked band"
+                  >
+                    <option value="">Select band A–E…</option>
+                    {PAYROLL_HOURS_NORMALLY_WORKED_OPTIONS.map((opt) => (
+                      <option key={opt.code} value={opt.code}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    {hoursNormallyWorked
+                      ? PAYROLL_HOURS_NORMALLY_WORKED_OPTIONS.find(
+                          (o) => o.code === hoursNormallyWorked,
+                        )?.description
+                      : 'Required for READY profiles and FPS. Choose the band that best matches usual weekly hours (or E if irregular).'}
+                  </p>
+                </label>
               </div>
             </div>
 
@@ -647,12 +687,32 @@ export default function PayrollEmployeesPage() {
                   className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                   value={starter}
                   onChange={(e) => setStarter(e.target.value as PayrollStarterDeclaration)}
+                  disabled={p45Received}
                 >
                   <option value="UNKNOWN">Unknown</option>
                   <option value="A_FIRST_JOB">A — first job</option>
                   <option value="B_ONLY_JOB_THIS_YEAR">B — only job this year</option>
                   <option value="C_HAS_ANOTHER_JOB_OR_PENSION">C — another job/pension</option>
                 </select>
+                <label className="mt-2 flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={p45Received}
+                    onCheckedChange={(v) => setP45Received(v === true)}
+                  />
+                  <span>P45 received from previous employer</span>
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Employment dates (from HR): start{' '}
+                  <span className="font-medium text-foreground">
+                    {selected?.employmentStartDate ?? '—'}
+                  </span>
+                  {' · '}leave{' '}
+                  <span className="font-medium text-foreground">
+                    {selected?.employmentEndDate ?? '—'}
+                  </span>
+                  . Edit under Employees → Employment. Leave date in a pay period marks last pay on
+                  FPS.
+                </p>
               </label>
               <label className="block space-y-1 text-sm sm:col-span-2">
                 <span>Pay schedule</span>
@@ -739,6 +799,8 @@ export default function PayrollEmployeesPage() {
                   niCategory,
                   status: status === 'READY' && !canSetReady ? 'DRAFT' : status,
                   starterDeclaration: starter,
+                  p45Received,
+                  hoursNormallyWorked: hoursNormallyWorked || null,
                   deductionElections,
                   ...syncedLoanFlags,
                   pensionSchemeRef: showPensionRef ? pensionSchemeRef.trim() || null : null,

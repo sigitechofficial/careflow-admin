@@ -369,6 +369,9 @@ export async function completeHousekeepingJob(
     timingExceptionNotes?: string
     missedReasonCode?: string
     missedReasonNotes?: string
+    careNotDelivered?: boolean
+    careNotDeliveredReasonCode?: string
+    careNotDeliveredNotes?: string
   },
 ) {
   const body: Record<string, unknown> = {}
@@ -396,6 +399,14 @@ export async function completeHousekeepingJob(
   }
   if (payload?.missedReasonNotes?.trim()) {
     body.missedReasonNotes = payload.missedReasonNotes.trim()
+  }
+  if (payload?.careNotDelivered === true) body.careNotDelivered = true
+  if (payload?.careNotDelivered === false) body.careNotDelivered = false
+  if (payload?.careNotDeliveredReasonCode?.trim()) {
+    body.careNotDeliveredReasonCode = payload.careNotDeliveredReasonCode.trim()
+  }
+  if (payload?.careNotDeliveredNotes?.trim()) {
+    body.careNotDeliveredNotes = payload.careNotDeliveredNotes.trim()
   }
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {
     method: 'PATCH',

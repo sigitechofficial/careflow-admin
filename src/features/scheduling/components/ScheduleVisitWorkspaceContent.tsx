@@ -157,6 +157,7 @@ export function ScheduleVisitWorkspaceContent({
           <VisitDeliveryStatusPanel
             assessment={deliveryAssessment}
             timingException={job.timingException}
+            careNotDelivered={job.careNotDelivered}
             cancellation={job.cancellation}
           />
 

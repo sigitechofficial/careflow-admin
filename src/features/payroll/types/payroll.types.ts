@@ -129,6 +129,10 @@ export type EmployeePayrollProfile = {
   taxCodeWeek1Month1: boolean
   niCategory: PayrollNiCategory | null
   starterDeclaration: PayrollStarterDeclaration
+  /** HMRC FPS hours-normally-worked band A–E (T04). */
+  hoursNormallyWorked: 'A' | 'B' | 'C' | 'D' | 'E' | null
+  /** Previous employer P45 received (T05). */
+  p45Received: boolean
   studentLoanPlan1: boolean
   studentLoanPlan2: boolean
   studentLoanPlan4: boolean
@@ -192,6 +196,8 @@ export type EmployeePayrollSetupRow = {
   payrollNumber: string | null
   nationalInsuranceNo: string | null
   defaultPayCardId: string | null
+  employmentStartDate?: string | null
+  employmentEndDate?: string | null
   profile: EmployeePayrollProfile | null
   activeAgreement: EmployeePayAgreement | null
   rtiIdentity?: EmployeeRtiIdentity
@@ -299,6 +305,205 @@ export type PayrollEmployerSettings = {
   notes: string | null
   fullPayeReference: string | null
   isComplete: boolean
+  /** T02 — which Gateway environment Care will use for RTI. */
+  activeHmrcEnvironment: 'TEST' | 'LIVE'
+  gatewayTestUserId: string | null
+  gatewayLiveUserId: string | null
+  hasTestPassword: boolean
+  hasLivePassword: boolean
+  gatewayCredentialsUpdatedAt: string | null
+  gatewayCredentialsReady: boolean
+  employmentAllowanceClaimed: boolean
   createdAt: string
   updatedAt: string
+}
+
+/** Care-owned EPS preview (T14) — not GovTalk XML. */
+export type CareEpsPayload = {
+  meta: {
+    schemaVersion: 'care-eps-preview-1'
+    generatedAt: string
+    purpose: 'PREVIEW'
+  }
+  employer: {
+    hmrcOfficeNumber: string
+    employerPayeReference: string
+    fullPayeReference: string
+    accountsOfficeReference: string
+    employerTradingName: string | null
+  }
+  period: {
+    taxYearCode: string
+    relatedTaxYear: string
+    taxMonth: number
+    taxMonthStart: string
+    taxMonthEnd: string
+    electronicDeadline: string
+    daysUntilDeadline: number | null
+    deadlineStatus: 'OK' | 'DUE_SOON' | 'OVERDUE' | 'UNKNOWN'
+  }
+  indicators: {
+    noPaymentThisPeriod: boolean
+    employmentAllowanceClaimed: boolean
+  }
+  recoveries: {
+    smpRecovered: number
+    sppRecovered: number
+    sapRecovered: number
+    shppRecovered: number
+    spbpRecovered: number
+    nicCompensationOnStatutory: number
+  }
+  context: {
+    closedRunsInTaxMonth: number
+    employeesPaidInTaxMonth: number
+    suggestedNilPayment: boolean
+  }
+  warnings: string[]
+  validation: {
+    isReadyToSubmit: boolean
+    errorCount: number
+    warningCount: number
+    items: Array<{
+      severity: 'error' | 'warning'
+      code: string
+      field?: string
+      message: string
+    }>
+  }
+}
+
+/** Care-owned FPS preview (T12) — not GovTalk XML. */
+export type CareFpsPayload = {
+  meta: {
+    schemaVersion: 'care-fps-preview-1'
+    generatedAt: string
+    ukPayrollRunId: string
+    runStatus: string
+    taxYearCode: string
+    purpose: 'PREVIEW'
+  }
+  employer: {
+    hmrcOfficeNumber: string
+    employerPayeReference: string
+    fullPayeReference: string
+    accountsOfficeReference: string
+    employerTradingName: string | null
+  }
+  submission: {
+    relatedTaxYear: string
+    taxMonthOrWeekNumber: number
+    payFrequency: string
+    paymentDate: string
+    periodStart: string
+    periodEnd: string
+  }
+  employees: Array<{
+    employeeId: string
+    name: { forename: string; surname: string }
+    birthDate: string | null
+    gender: 'M' | 'F' | null
+    nino: string | null
+    payId: string | null
+    address: {
+      line1: string | null
+      line2: string | null
+      city: string | null
+      county: string | null
+      postcode: string | null
+      country: string | null
+    }
+    employment: {
+      taxCode: string | null
+      week1Month1: boolean
+      niCategory: string | null
+      starterDeclaration: string | null
+      hoursNormallyWorked: 'A' | 'B' | 'C' | 'D' | 'E' | null
+      startingDate: string | null
+      leavingDate: string | null
+      isStarterInPeriod: boolean
+      isLeaverInPeriod: boolean
+      isFirstPayOfEmployment: boolean
+      isLastPayOfEmployment: boolean
+      p45Received: boolean
+    }
+    payment: {
+      taxablePay: number
+      taxDeductedOrRefunded: number
+      employeeNiContribution: number
+      employerNiContribution: number
+      periodGross: number
+      periodNetPay: number
+      taxablePayYtd: number
+      totalTaxYtd: number
+      employeeNiYtd: number
+      employerNiYtd: number
+      grossPayYtd: number
+      netPayYtd: number
+    }
+    issues: string[]
+  }>
+  totals: {
+    employeeCount: number
+    totalGross: number
+    totalIncomeTax: number
+    totalEmployeeNi: number
+    totalEmployerNi: number
+    totalNetPay: number
+  }
+  warnings: string[]
+  /** T13 — structured checks before HMRC TEST send (T16). */
+  validation: {
+    isReadyToSubmit: boolean
+    errorCount: number
+    warningCount: number
+    items: Array<{
+      severity: 'error' | 'warning'
+      code: string
+      scope: 'run' | 'employer' | 'submission' | 'employee'
+      employeeId?: string
+      employeeName?: string
+      field?: string
+      message: string
+    }>
+  }
+}
+
+/** T16 — HMRC RTI submission attempt (passwords never returned). */
+export type PayrollHmrcSubmission = {
+  id: string
+  ukPayrollRunId: string
+  documentType: string
+  mode: 'DRY_RUN' | 'SUBMIT' | string
+  environment: 'TEST' | 'LIVE' | string
+  status: string
+  correlationId: string | null
+  gatewayUserId: string | null
+  vendorId: string | null
+  submissionUrl: string | null
+  hasRequestXml: boolean
+  hasResponseXml: boolean
+  httpStatus: number | null
+  qualifier: string | null
+  functionCode: string | null
+  errorCode: string | null
+  errorMessage: string | null
+  acknowledgement: unknown
+  /** T17 — Gov-* header snapshot (connection method, headers, omitted). */
+  fraudPreventionHeaders?: {
+    connectionMethod?: string
+    headers?: Record<string, string>
+    omitted?: string[]
+    collectedAt?: string
+  } | null
+  payloadFingerprint?: string | null
+  approvedById?: string | null
+  approvedAt?: string | null
+  rejectedById?: string | null
+  rejectedAt?: string | null
+  rejectionNote?: string | null
+  createdAt: string
+  createdById: string | null
+  requestXmlRedacted?: string | null
+  responseXml?: string | null
 }

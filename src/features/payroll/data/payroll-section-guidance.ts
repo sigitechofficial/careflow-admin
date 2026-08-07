@@ -40,12 +40,12 @@ export const PAYROLL_SECTION_GUIDANCE = {
   starterDeclaration: {
     title: 'Starter declaration',
     purpose:
-      'HMRC new-starter statement (when there is no P45). A = first job since 6 April; B = only job this tax year; C = another job or pension. Stored on the profile for setup / future FPS — it does not change Week 1 / Month 1 tax or NI on the run today (tax still uses the tax code).',
+      'HMRC new-starter statement (when there is no P45). A = first job since 6 April; B = only job this tax year; C = another job or pension. Tick “P45 received” if they brought a P45 instead. Employment start/leave dates come from the HR record and drive first/last pay on FPS.',
   },
   rtiIdentity: {
     title: 'HMRC identity (FPS)',
     purpose:
-      'Before a profile can be READY, Care checks name, date of birth, Male/Female gender, address, NI number, and payroll number from the employee HR record, plus tax code and NI category on this profile. Fix gaps under Employees → Personal / Employment.',
+      'Before a profile can be READY, Care checks name, date of birth, Male/Female gender, address, NI number, and payroll number from the employee HR record, plus tax code, NI category, and hours normally worked (A–E) on this profile. Fix gaps under Employees → Personal / Employment.',
   },
   employeeNi: {
     title: 'Employee National Insurance',

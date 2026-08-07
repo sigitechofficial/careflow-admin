@@ -50,6 +50,9 @@ export function useCompleteHousekeepingJob() {
       timingExceptionNotes,
       missedReasonCode,
       missedReasonNotes,
+      careNotDelivered,
+      careNotDeliveredReasonCode,
+      careNotDeliveredNotes,
     }: {
       jobId: string
       status?: string
@@ -70,6 +73,9 @@ export function useCompleteHousekeepingJob() {
       timingExceptionNotes?: string
       missedReasonCode?: string
       missedReasonNotes?: string
+      careNotDelivered?: boolean
+      careNotDeliveredReasonCode?: string
+      careNotDeliveredNotes?: string
     }) =>
       completeHousekeepingJob(jobId, {
         status,
@@ -85,6 +91,9 @@ export function useCompleteHousekeepingJob() {
         timingExceptionNotes,
         missedReasonCode,
         missedReasonNotes,
+        careNotDelivered,
+        careNotDeliveredReasonCode,
+        careNotDeliveredNotes,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })

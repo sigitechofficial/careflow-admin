@@ -19,6 +19,7 @@ import {
   fetchEmployeePayrollProfile,
   fetchPayrollEmployees,
   fetchPayrollEmployerSettings,
+  fetchPayrollEpsPreview,
   fetchPayrollOverview,
   fetchPayrollPeriods,
   fetchPayrollSchedules,
@@ -26,10 +27,15 @@ import {
   fetchPayrollTaxYears,
   fetchPayrollStatutoryRates,
   fetchUkPayrollRun,
+  fetchUkPayrollRunFps,
+  fetchUkPayrollRunHmrcSubmissions,
   fetchUkPayrollRuns,
   generatePayrollPeriods,
   purgeAllPayrollData,
   reactivateUkPayrollRun,
+  submitUkPayrollRunFps,
+  approveUkPayrollRunHmrcSubmission,
+  rejectUkPayrollRunHmrcSubmission,
   updatePayrollEmployerSettings,
   updatePayrollSchedule,
   updatePayrollStatutoryRates,
@@ -50,6 +56,7 @@ import type {
   UpsertEmployeePayrollProfileInput,
 } from '@/features/payroll/types/payroll-api.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { collectHmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
 
 export function usePayrollOverview() {
   return useQuery({
@@ -75,6 +82,28 @@ export function useUpdatePayrollEmployerSettings() {
       toastSuccess('Employer PAYE settings saved')
     },
     onError: (error) => toastApiError(error),
+  })
+}
+
+export function usePayrollEpsPreview(
+  params: {
+    taxYearId?: string
+    taxMonth: number
+    noPaymentThisPeriod?: boolean
+    employmentAllowanceClaimed?: boolean
+    smpRecovered?: number
+    sppRecovered?: number
+    sapRecovered?: number
+    shppRecovered?: number
+    spbpRecovered?: number
+    nicCompensationOnStatutory?: number
+  },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: payrollKeys.epsPreview(params),
+    queryFn: () => fetchPayrollEpsPreview(params),
+    enabled: enabled && params.taxMonth >= 1 && params.taxMonth <= 12,
   })
 }
 
@@ -362,6 +391,87 @@ export function useUkPayrollRun(id: string) {
     queryKey: payrollKeys.run(id),
     queryFn: () => fetchUkPayrollRun(id),
     enabled: Boolean(id),
+  })
+}
+
+export function useUkPayrollRunFps(id: string, enabled = true) {
+  return useQuery({
+    queryKey: payrollKeys.runFps(id),
+    queryFn: () => fetchUkPayrollRunFps(id),
+    enabled: Boolean(id) && enabled,
+  })
+}
+
+export function useUkPayrollRunHmrcSubmissions(id: string, enabled = true) {
+  return useQuery({
+    queryKey: payrollKeys.runHmrcSubmissions(id),
+    queryFn: () => fetchUkPayrollRunHmrcSubmissions(id),
+    enabled: Boolean(id) && enabled,
+  })
+}
+
+export function useSubmitUkPayrollRunFps(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { mode: 'DRY_RUN' | 'SUBMIT'; environment?: 'TEST' | 'LIVE' }) =>
+      submitUkPayrollRunFps(
+        id,
+        input.mode,
+        collectHmrcFraudClientContext(),
+        input.environment ?? 'TEST',
+      ),
+    onSuccess: async (data, input) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.runHmrcSubmissions(id) })
+      await qc.invalidateQueries({ queryKey: payrollKeys.runFps(id) })
+      if (input.mode === 'DRY_RUN') {
+        toastSuccess(
+          `FPS ${input.environment ?? 'TEST'} dry run saved — GovTalk XML + fraud headers (not sent)`,
+        )
+        return
+      }
+      if (data.status === 'PENDING_APPROVAL') {
+        toastSuccess('Live FPS send requested — waiting for a second person to approve')
+        return
+      }
+      if (data.status === 'ACKNOWLEDGED' || data.status === 'ACCEPTED' || data.status === 'SUBMITTED') {
+        toastSuccess(`FPS sent to HMRC ${data.environment} · ${data.status}`)
+        return
+      }
+      toastApiError(
+        new Error(data.errorMessage || `HMRC submit finished as ${data.status}`),
+      )
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useApproveUkPayrollRunHmrcSubmission(runId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (submissionId: string) =>
+      approveUkPayrollRunHmrcSubmission(runId, submissionId, collectHmrcFraudClientContext()),
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.runHmrcSubmissions(runId) })
+      if (data.status === 'ACKNOWLEDGED' || data.status === 'ACCEPTED' || data.status === 'SUBMITTED') {
+        toastSuccess(`Live FPS approved and sent · ${data.status}`)
+        return
+      }
+      toastApiError(new Error(data.errorMessage || `Live send finished as ${data.status}`))
+    },
+    onError: (error) => toastApiError(error),
+  })
+}
+
+export function useRejectUkPayrollRunHmrcSubmission(runId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { submissionId: string; reason?: string }) =>
+      rejectUkPayrollRunHmrcSubmission(runId, input.submissionId, input.reason),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: payrollKeys.runHmrcSubmissions(runId) })
+      toastSuccess('Live FPS request rejected — nothing sent to HMRC')
+    },
+    onError: (error) => toastApiError(error),
   })
 }
 

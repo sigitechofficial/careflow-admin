@@ -106,6 +106,7 @@ export default function CarerVisitHubPage() {
                 })
               }
               timingException={job.timingException}
+              careNotDelivered={job.careNotDelivered}
               cancellation={job.cancellation}
             />
           </div>

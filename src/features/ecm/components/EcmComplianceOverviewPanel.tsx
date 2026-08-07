@@ -51,16 +51,15 @@ function electronicRateColor(rate: number): string {
 type EcmUsedFilter = 'all' | 'yes' | 'no'
 
 export type EcmComplianceOverviewPanelProps = {
-  /** Shared with Graphs via EcmGraphPage — secondary to Location scope. */
-  scheduleAreaId: string
+  className?: string
 }
 
 /**
  * Slim compliance strip on the Graph page: electronic vs manual + geofence.
  * Arrival/duration band charts live on Graphs (classification SSOT) — not duplicated here.
- * Period/location SSOT matches Live / Graphs / Reports.
+ * Period/location SSOT matches Live / Graphs / Reports (page-level filter).
  */
-export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOverviewPanelProps) {
+export function EcmComplianceOverviewPanel({ className }: EcmComplianceOverviewPanelProps = {}) {
   const { locationId: globalLocationId } = useGlobalLocationScope()
   const { dateFrom, dateTo, periodLabel, period, multiDay } = useEcmOperationalPeriod('today')
   const [ecmUsed, setEcmUsed] = React.useState<EcmUsedFilter>('all')
@@ -69,7 +68,6 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
     { dateFrom, dateTo },
     true,
     {
-      scheduleAreaId: scheduleAreaId || undefined,
       locationId: globalLocationId ?? undefined,
     },
   )
@@ -77,10 +75,9 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
   const trendDates = React.useMemo(() => lastNDatesInclusive(dateTo, 7), [dateTo])
   const trendQueries = useQueries({
     queries: trendDates.map((d) => ({
-      queryKey: ecmKeys.dailyOps(d, scheduleAreaId || undefined, globalLocationId ?? undefined),
+      queryKey: ecmKeys.dailyOps(d, undefined, globalLocationId ?? undefined),
       queryFn: () =>
         fetchEcmDailyOpsReport(d, {
-          scheduleAreaId: scheduleAreaId || undefined,
           locationId: globalLocationId ?? undefined,
         }),
       staleTime: 60_000,
@@ -168,7 +165,7 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
   }
 
   return (
-    <div className="space-y-4" data-testid="ecm-compliance-overview-panel">
+    <div className={cn('space-y-4', className)} data-testid="ecm-compliance-overview-panel">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-foreground">ECM Compliance Overview</h2>
@@ -189,17 +186,11 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
         className="rounded-lg border border-sky-500/25 bg-sky-500/5 px-4 py-3"
         data-testid="ecm-compliance-period-banner"
       >
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Shared operational period
-        </p>
-        <p className="text-base font-semibold text-foreground">{rangeLabel}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Same period and location as Graphs / Live / Reports
-          {multiDay ? ` · ${periodLabel}` : ''}
+        <p className="text-xs text-muted-foreground">
+          Using page period above
+          {multiDay ? ` · ${periodLabel}` : ` · ${rangeLabel}`}
           {' · '}
           Electronic % trend: last 7 days ending {formatPeriodDayShort(dateTo)}
-          {' · '}
-          ISO {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
         </p>
       </div>
 
@@ -248,7 +239,10 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <ContentCard className="flex flex-col justify-center p-4">
               <p className="text-xs font-medium text-muted-foreground">Electronic %</p>
-              <p className={cn('text-4xl font-bold tabular-nums tracking-tight', electronicTone)}>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                Phone/app check-in = Electronic. Admin typed start/end times = Manual.
+              </p>
+              <p className={cn('mt-2 text-4xl font-bold tabular-nums tracking-tight', electronicTone)}>
                 {formatPct(method.electronicPercent)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -258,6 +252,10 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
 
             <ContentCard className="space-y-2 p-4">
               <h3 className="text-sm font-semibold text-foreground">ECM Method</h3>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Electronic = carer mobile app. Manual = office completed the visit with typed
+                times (no phone check-in).
+              </p>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -285,7 +283,12 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
 
             <ContentCard className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Geo-Fence Breaches</h3>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Geo-Fence Breaches</h3>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    Count of visits where check-in happened outside the expected location.
+                  </p>
+                </div>
                 <span title="Counts visits with OUTSIDE_GEOFENCE in the selected period.">
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </span>
@@ -298,6 +301,10 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
 
           <ContentCard className="space-y-3 p-4 max-w-2xl">
             <h3 className="text-sm font-semibold text-foreground">Electronic % Trend</h3>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Use this to see if electronic attendance is improving or dropping over the last
+              week.
+            </p>
             <p className="text-xs text-muted-foreground">
               Last 7 days ending {formatPeriodDay(dateTo)} ({trendDates[0]} → {dateTo})
             </p>
