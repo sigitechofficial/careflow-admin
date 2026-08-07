@@ -16,17 +16,25 @@ import {
 } from 'recharts'
 import { Loader2, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { useEcmGraphDashboard } from '@/features/ecm/hooks/useEcm'
-import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
+import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
 import type { EcmGraphDrillVisit } from '@/features/ecm/api/ecm.api'
-import { shiftIsoDate } from '@/features/ecm/utils/ecm-compliance-overview.util'
 
-type RangePreset = '7d' | '30d' | '12w' | '12m' | 'custom'
+export type EcmGraphScheduleAreaOption = {
+  id: string
+  name: string
+}
+
+export type EcmGraphFirstDashboardProps = {
+  scheduleAreaId: string
+  onScheduleAreaIdChange: (id: string) => void
+  scopedAreas: EcmGraphScheduleAreaOption[]
+}
 
 type DrillFilter =
   | { kind: 'hourStatus'; hourKey: string; statusKey: string; label: string }
@@ -101,48 +109,11 @@ const DURATION_COLORS: Record<string, string> = {
 
 const VERIFY_COLORS = ['#16a34a', '#0ea5e9', '#64748b', '#ea580c', '#dc2626', '#7c3aed', '#94a3b8']
 
-function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/** Prefer yesterday so completed demo/historical days are in range by default. */
-function defaultDateToIso(): string {
-  return shiftIsoDate(todayIso(), -1)
-}
-
-function rangeFromPreset(preset: Exclude<RangePreset, 'custom'>, end: string): string {
-  if (preset === '7d') return shiftIsoDate(end, -6)
-  if (preset === '30d') return shiftIsoDate(end, -29)
-  if (preset === '12w') return shiftIsoDate(end, -83)
-  return shiftIsoDate(end, -364)
-}
-
-function formatPeriodDay(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, d)))
-}
-
 function inclusiveDayCount(from: string, to: string): number {
   const a = Date.parse(`${from}T00:00:00.000Z`)
   const b = Date.parse(`${to}T00:00:00.000Z`)
   if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0
   return Math.round((b - a) / 86_400_000) + 1
-}
-
-function presetLabel(preset: RangePreset): string {
-  if (preset === '7d') return 'Last 7 days'
-  if (preset === '30d') return 'Last 30 days'
-  if (preset === '12w') return 'Last 12 weeks'
-  if (preset === '12m') return 'Last 12 months'
-  return 'Custom range'
 }
 
 function heatmapCellClass(rate: number | null): string {
@@ -176,45 +147,28 @@ function ChartCard({
 }
 
 export function EcmGraphFirstDashboard({
-  onPeriodChange,
-}: {
-  /** Notify parent when the active chart period changes (for aligned sections below). */
-  onPeriodChange?: (period: { dateFrom: string; dateTo: string }) => void
-} = {}) {
-  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
-    useGlobalLocationScope()
-  const [dateTo, setDateTo] = React.useState(defaultDateToIso)
-  const [dateFrom, setDateFrom] = React.useState(() => rangeFromPreset('7d', defaultDateToIso()))
-  const [preset, setPreset] = React.useState<RangePreset>('7d')
-  const [scheduleAreaId, setScheduleAreaId] = React.useState('')
+  scheduleAreaId,
+  onScheduleAreaIdChange,
+  scopedAreas,
+}: EcmGraphFirstDashboardProps) {
+  const { locationId: globalLocationId } = useGlobalLocationScope()
+  const period = useEcmOperationalPeriod('today')
+  const {
+    preset,
+    dateFrom,
+    dateTo,
+    periodLabel,
+    operationalToday,
+    setPreset,
+    setDateFrom,
+    setDateTo,
+    applyPreset,
+  } = period
   const [branchMetric, setBranchMetric] = React.useState<BranchMetric>('onTimePct')
   const [drill, setDrill] = React.useState<DrillFilter | null>(null)
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null)
   const [detailOpen, setDetailOpen] = React.useState(false)
-
-  React.useEffect(() => {
-    onPeriodChange?.({ dateFrom, dateTo })
-  }, [dateFrom, dateTo, onPeriodChange])
-
-  const applyPreset = (next: Exclude<RangePreset, 'custom'>, end = dateTo) => {
-    setPreset(next)
-    setDateTo(end)
-    setDateFrom(rangeFromPreset(next, end))
-  }
-
-  const areasQuery = useScheduleAreas()
-  const scopedAreas = React.useMemo(() => {
-    const areas = areasQuery.data ?? []
-    if (!globalLocationId) return areas
-    return areas.filter((a) => a.location?.id === globalLocationId)
-  }, [areasQuery.data, globalLocationId])
-
-  React.useEffect(() => {
-    if (!scheduleAreaId) return
-    if (globalLocationScoped && !scopedAreas.some((a) => a.id === scheduleAreaId)) {
-      setScheduleAreaId('')
-    }
-  }, [globalLocationScoped, scopedAreas, scheduleAreaId])
+  const drillPanelRef = React.useRef<HTMLDivElement>(null)
 
   const dashboard = useEcmGraphDashboard({
     dateFrom,
@@ -227,7 +181,11 @@ export function EcmGraphFirstDashboard({
   const effectiveFrom = data?.dateFrom ?? dateFrom
   const effectiveTo = data?.dateTo ?? dateTo
   const daySpan = inclusiveDayCount(effectiveFrom, effectiveTo)
-  const periodHeadline = `${formatPeriodDay(effectiveFrom)} → ${formatPeriodDay(effectiveTo)}`
+
+  React.useEffect(() => {
+    if (!drill) return
+    drillPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [drill])
 
   const hourChartData = React.useMemo(() => {
     if (!data) return []
@@ -336,121 +294,68 @@ export function EcmGraphFirstDashboard({
 
   return (
     <div className="space-y-4" data-testid="ecm-graph-first-dashboard">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">Graph-first ECM dashboard</h2>
-          <p className="text-xs text-muted-foreground">
-            Charts first (target 75–80% of the view). Click a series to open matching visits — tables
-            stay hidden until then.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="space-y-1 text-xs">
-            <span className="text-muted-foreground">Quick range</span>
-            <select
-              className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={preset}
-              onChange={(e) => {
-                const v = e.target.value as RangePreset
-                if (v === 'custom') {
-                  setPreset('custom')
-                  return
-                }
-                applyPreset(v)
-              }}
-              data-testid="ecm-graph-range-preset"
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="12w">Last 12 weeks</option>
-              <option value="12m">Last 12 months</option>
-              <option value="custom">Custom dates</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-xs">
-            <span className="text-muted-foreground">From</span>
-            <Input
-              type="date"
-              value={dateFrom}
-              max={dateTo}
-              onChange={(e) => {
-                setPreset('custom')
-                setDateFrom(e.target.value)
-              }}
-              className="h-9 w-[11rem]"
-              data-testid="ecm-graph-date-from"
-            />
-          </label>
-          <label className="space-y-1 text-xs">
-            <span className="text-muted-foreground">To</span>
-            <Input
-              type="date"
-              value={dateTo}
-              min={dateFrom}
-              onChange={(e) => {
-                const nextTo = e.target.value
-                if (preset !== 'custom') {
-                  applyPreset(preset, nextTo)
-                } else {
-                  setDateTo(nextTo)
-                  if (nextTo < dateFrom) setDateFrom(nextTo)
-                }
-              }}
-              className="h-9 w-[11rem]"
-              data-testid="ecm-graph-date-to"
-            />
-          </label>
-          <label className="space-y-1 text-xs">
-            <span className="text-muted-foreground">Branch / area</span>
-            <select
-              className="flex h-9 w-[12rem] rounded-md border border-input bg-background px-2 text-sm"
-              value={scheduleAreaId}
-              onChange={(e) => setScheduleAreaId(e.target.value)}
-            >
-              <option value="">All areas</option>
-              {scopedAreas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-9"
-            disabled={dashboard.isFetching}
-            onClick={() => void dashboard.refetch()}
-          >
-            {dashboard.isFetching ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-3.5 w-3.5" />
-            )}
-            Refresh
-          </Button>
-        </div>
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Graphs</h2>
+        <p className="text-xs text-muted-foreground">
+          Click a chart series to list matching visits below.
+        </p>
       </div>
 
-      <div
-        className="rounded-lg border border-primary/25 bg-primary/5 px-4 py-3"
-        data-testid="ecm-graph-period-banner"
+      <EcmOperationalPeriodCard
+        preset={preset}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        periodLabel={periodLabel}
+        operationalToday={operationalToday}
+        onPresetChange={setPreset}
+        onApplyPreset={applyPreset}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        testIdPrefix="ecm-graph"
+        footnote={
+          <>
+            {daySpan > 0 ? `${daySpan} day${daySpan === 1 ? '' : 's'} inclusive` : null}
+            {scheduleAreaId
+              ? ` · ${scopedAreas.find((a) => a.id === scheduleAreaId)?.name ?? 'Selected area'}`
+              : ' · All areas'}
+            {' · '}
+            ISO {effectiveFrom}
+            {effectiveFrom !== effectiveTo ? ` → ${effectiveTo}` : ''}
+          </>
+        }
       >
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Data period shown
-        </p>
-        <p className="text-base font-semibold text-foreground tabular-nums">{periodHeadline}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {presetLabel(preset)}
-          {daySpan > 0 ? ` · ${daySpan} day${daySpan === 1 ? '' : 's'} inclusive` : ''}
-          {scheduleAreaId
-            ? ` · ${scopedAreas.find((a) => a.id === scheduleAreaId)?.name ?? 'Selected area'}`
-            : ' · All areas'}
-          {' · '}
-          ISO {effectiveFrom} → {effectiveTo}
-        </p>
-      </div>
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">Schedule area</span>
+          <select
+            className="flex h-9 w-[12rem] rounded-md border border-input bg-background px-2 text-sm"
+            value={scheduleAreaId}
+            onChange={(e) => onScheduleAreaIdChange(e.target.value)}
+            data-testid="ecm-graph-area"
+          >
+            <option value="">All areas</option>
+            {scopedAreas.map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-9"
+          disabled={dashboard.isFetching}
+          onClick={() => void dashboard.refetch()}
+        >
+          {dashboard.isFetching ? (
+            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+          )}
+          Refresh
+        </Button>
+      </EcmOperationalPeriodCard>
 
       {dashboard.isLoading ? (
         <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
@@ -470,7 +375,7 @@ export function EcmGraphFirstDashboard({
             </span>
             {' '}in this period
             {data.visitCount === 0
-              ? ' — try adjusting From/To (demo seed uses completed days ending yesterday)'
+              ? ' — try adjusting the operational period (demo seed often ends on recent completed days)'
               : ''}
             {' · refreshed '}
             {new Date(data.refreshedAt).toLocaleTimeString()}
@@ -816,49 +721,68 @@ export function EcmGraphFirstDashboard({
           </div>
 
           {/* Row 5 quality */}
-          <div className="grid gap-3 md:grid-cols-2">
-            <ChartCard
-              title="8a. Verification method"
-              subtitle="How much attendance evidence is genuinely verified?"
-            >
-              <div className="h-[300px] w-full min-w-0 overflow-hidden">
-                {verificationPie.length === 0 ? (
-                  <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                    No verification data.
-                  </p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                      <Pie
-                        data={verificationPie}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="42%"
-                        innerRadius={52}
-                        outerRadius={88}
-                        paddingAngle={1}
-                      >
-                        {verificationPie.map((entry, i) => (
-                          <Cell key={entry.name} fill={entry.color ?? VERIFY_COLORS[i]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ fontSize: 12 }} />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        wrapperStyle={{ fontSize: 11 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </ChartCard>
+          <ChartCard
+            title="8a. Verification method"
+            subtitle="How much attendance evidence is genuinely verified?"
+            className="max-w-xl"
+          >
+            <div className="h-[280px] w-full min-w-0 overflow-hidden">
+              {verificationPie.length === 0 ? (
+                <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  No verification data.
+                </p>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                    <Pie
+                      data={verificationPie}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="42%"
+                      innerRadius={52}
+                      outerRadius={88}
+                      paddingAngle={1}
+                    >
+                      {verificationPie.map((entry, i) => (
+                        <Cell key={entry.name} fill={entry.color ?? VERIFY_COLORS[i]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ fontSize: 12 }} />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      wrapperStyle={{ fontSize: 11 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </ChartCard>
 
-            <ChartCard title="Drill-down" subtitle="Appears after you click a chart segment">
+          <div
+            ref={drillPanelRef}
+            className={cn(
+              'rounded-lg border transition-colors',
+              drill
+                ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                : 'border-border bg-muted/10',
+            )}
+            data-testid="ecm-graph-drill-panel"
+          >
+            <ChartCard
+              title="Drill-down"
+              subtitle={
+                drill
+                  ? 'Visits for the selected series — open a row for detail'
+                  : 'Click a status hour, arrival band, duration band, or branch bar to list visits here'
+              }
+              className="border-0 bg-transparent shadow-none"
+            >
               {!drill ? (
-                <p className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
-                  Click a status hour, arrival band, duration band, or branch bar to list visits here.
+                <p className="py-6 text-sm text-muted-foreground">
+                  No series selected yet. Matching visits appear in this panel after you click a
+                  drillable chart segment.
                 </p>
               ) : (
                 <DrillTable
@@ -906,7 +830,7 @@ function DrillTable({
       {visits.length === 0 ? (
         <p className="text-sm text-muted-foreground">No matching visits in this selection.</p>
       ) : (
-        <div className="max-h-[220px] overflow-auto rounded-md border border-border">
+        <div className="max-h-[320px] overflow-auto rounded-md border border-border bg-background">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-muted/80 text-left text-xs text-muted-foreground">
               <tr>

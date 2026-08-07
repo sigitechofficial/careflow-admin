@@ -2,6 +2,8 @@ export const ecmKeys = {
   all: ['ecm'] as const,
   liveDashboard: (filters?: {
     date?: string
+    dateFrom?: string
+    dateTo?: string
     search?: string
     scheduleAreaId?: string
     locationId?: string

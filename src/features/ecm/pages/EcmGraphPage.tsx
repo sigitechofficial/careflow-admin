@@ -3,20 +3,34 @@ import { BarChart3 } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { EcmGraphFirstDashboard } from '@/features/ecm/components/EcmGraphFirstDashboard'
 import { EcmComplianceOverviewPanel } from '@/features/ecm/components/EcmComplianceOverviewPanel'
+import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 export default function EcmGraphPage() {
-  const [complianceDay, setComplianceDay] = React.useState<string | undefined>(undefined)
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
+  const [scheduleAreaId, setScheduleAreaId] = React.useState('')
 
-  const handlePeriodChange = React.useCallback((period: { dateFrom: string; dateTo: string }) => {
-    setComplianceDay(period.dateTo)
-  }, [])
+  const areasQuery = useScheduleAreas()
+  const scopedAreas = React.useMemo(() => {
+    const areas = areasQuery.data ?? []
+    if (!globalLocationId) return areas
+    return areas.filter((a) => a.location?.id === globalLocationId)
+  }, [areasQuery.data, globalLocationId])
+
+  React.useEffect(() => {
+    if (!scheduleAreaId) return
+    if (globalLocationScoped && !scopedAreas.some((a) => a.id === scheduleAreaId)) {
+      setScheduleAreaId('')
+    }
+  }, [globalLocationScoped, scopedAreas, scheduleAreaId])
 
   return (
     <div className="flex flex-col gap-4" data-testid="ecm-graph-page">
       <PageHeader
         className="shrink-0"
         title="ECM graphs"
-        description="Graph-first monitoring — charts occupy most of the screen; visit tables appear only after you click a series."
+        description="Graph-first monitoring with the same operational period and location as Live and Reports. Visit tables appear only after you click a series."
         icon={<BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },
@@ -25,9 +39,13 @@ export default function EcmGraphPage() {
         ]}
       />
       <div className="space-y-10 rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
-        <EcmGraphFirstDashboard onPeriodChange={handlePeriodChange} />
+        <EcmGraphFirstDashboard
+          scheduleAreaId={scheduleAreaId}
+          onScheduleAreaIdChange={setScheduleAreaId}
+          scopedAreas={scopedAreas}
+        />
         <div className="border-t border-border pt-8">
-          <EcmComplianceOverviewPanel initialDate={complianceDay} />
+          <EcmComplianceOverviewPanel scheduleAreaId={scheduleAreaId} />
         </div>
       </div>
     </div>

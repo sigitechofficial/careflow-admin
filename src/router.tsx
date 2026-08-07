@@ -108,6 +108,7 @@ import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
+import { validateEcmPeriodSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
 import PayrollOverviewPage from '@/features/payroll/pages/PayrollOverviewPage'
 import PayrollTaxYearsPage from '@/features/payroll/pages/PayrollTaxYearsPage'
 import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
@@ -695,15 +696,10 @@ const serviceUsersViewRoute = createRoute({
   path: '/service-users/$serviceUserId/view',
   validateSearch: (raw: Record<string, unknown>): {
     focus?: string
-    layout?: 'wed' | 'thu' | 'simple' | 'classic'
   } => {
     const focus = raw.focus
-    const layout = raw.layout
-    const next: { focus?: string; layout?: 'wed' | 'thu' | 'simple' | 'classic' } = {}
+    const next: { focus?: string } = {}
     if (typeof focus === 'string' && focus.trim()) next.focus = focus.trim()
-    if (layout === 'wed' || layout === 'thu' || layout === 'simple' || layout === 'classic') {
-      next.layout = layout
-    }
     return next
   },
   beforeLoad: requirePermission('service_users.read'),
@@ -1463,10 +1459,7 @@ const billingAuditExportRoute = createRoute({
 const ecmLiveRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/ecm/live',
-  validateSearch: (raw: Record<string, unknown>): { date?: string } => {
-    const date = typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : undefined
-    return date ? { date } : {}
-  },
+  validateSearch: validateEcmPeriodSearch,
   beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
   component: EcmLiveMonitoringPage,
 })
@@ -1474,10 +1467,7 @@ const ecmLiveRoute = createRoute({
 const ecmGraphRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/ecm/graph',
-  validateSearch: (raw: Record<string, unknown>): { date?: string } => {
-    const date = typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : undefined
-    return date ? { date } : {}
-  },
+  validateSearch: validateEcmPeriodSearch,
   beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
   component: EcmGraphPage,
 })
@@ -1485,6 +1475,7 @@ const ecmGraphRoute = createRoute({
 const ecmReportsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/ecm/reports',
+  validateSearch: validateEcmPeriodSearch,
   beforeLoad: requireAnyPermission('ecm.read', 'ecm.reports.export'),
   component: EcmReportsPage,
 })

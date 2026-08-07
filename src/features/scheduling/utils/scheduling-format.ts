@@ -1,5 +1,6 @@
 import type { ServiceUserBrief, TimelineJob } from '../types/scheduling.types'
 import { formatOrganisationDateTime, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 export function serviceUserLabel(su: ServiceUserBrief): string {
   const name = su.preferredName?.trim() || [su.firstName, su.lastName].filter(Boolean).join(' ')
@@ -103,7 +104,7 @@ export function jobNeedsAlert(job: TimelineJob): boolean {
   )
 }
 
+/** Board / schedule "Today" = organisation operational calendar (Europe/London P0), not browser local. */
 export function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return operationalTodayIso()
 }

@@ -1,0 +1,23 @@
+import { describe, expect, it } from 'vitest'
+import {
+  DEFAULT_OPERATIONAL_TIMEZONE,
+  dayKeyInTimeZone,
+  operationalTodayIso,
+} from './operational-day.util'
+
+describe('operationalTodayIso', () => {
+  it('uses Europe/London, not Asia/Karachi', () => {
+    // Still 6 Aug in London (BST); already 7 Aug in Karachi
+    const now = new Date('2026-08-06T21:05:00.000Z')
+    expect(operationalTodayIso(now, DEFAULT_OPERATIONAL_TIMEZONE)).toBe('2026-08-06')
+    expect(operationalTodayIso(now, 'Asia/Karachi')).toBe('2026-08-07')
+  })
+})
+
+describe('dayKeyInTimeZone', () => {
+  it('maps evening UTC start to London next calendar day when past midnight BST', () => {
+    // 2026-08-06 23:30 UTC = 2026-08-07 00:30 London (BST)
+    const instant = new Date('2026-08-06T23:30:00.000Z')
+    expect(dayKeyInTimeZone(instant, 'Europe/London')).toBe('2026-08-07')
+  })
+})

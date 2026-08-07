@@ -6,6 +6,7 @@ import { cn } from '@/shared/lib/utils'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { formatScheduleJobsWeekday } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
+import { formatOperationalDayLabel } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/date-picker'
 
@@ -109,7 +110,10 @@ export function ScheduleJobsDateControls({
             {new Date(`${date}T12:00:00`).getDate()}
           </span>
         </div>
-        <p className="text-sm font-semibold text-foreground">{displayFormat.formatDate(date)}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{displayFormat.formatDate(date)}</p>
+          <p className="text-[10px] text-muted-foreground">{formatOperationalDayLabel(todayIso())}</p>
+        </div>
       </div>
     </div>
   )

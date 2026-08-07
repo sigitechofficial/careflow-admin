@@ -24,7 +24,6 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/body-map'
     | '/service-users/$serviceUserId/documents'
     | '/service-users/$serviceUserId/activity'
-  search?: { layout?: 'wed' | 'thu' | 'simple' | 'classic' }
 }
 
 /** Light circle behind glyph exports that omit a filled disc (meds includes its own). */
@@ -49,7 +48,6 @@ const MODULE_TABS: ModuleTab[] = [
     id: 'overview',
     label: 'Overview',
     to: '/service-users/$serviceUserId/view',
-    search: { layout: 'wed' },
   },
   {
     id: 'ecm',
@@ -175,7 +173,6 @@ export function ServiceUserModuleTabs({
                 key={tab.id}
                 to={tab.to}
                 params={{ serviceUserId }}
-                search={tab.search}
                 title={tab.label}
               >
                 {content}

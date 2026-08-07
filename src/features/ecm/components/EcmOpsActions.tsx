@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, HelpCircle, Scale, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
@@ -40,16 +40,32 @@ function formatWhen(iso: string): string {
   }
 }
 
+function toDatetimeLocalValue(iso: string | null | undefined): string {
+  const d = iso ? new Date(iso) : new Date()
+  if (Number.isNaN(d.getTime())) {
+    const fallback = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${fallback.getFullYear()}-${pad(fallback.getMonth() + 1)}-${pad(fallback.getDate())}T${pad(fallback.getHours())}:${pad(fallback.getMinutes())}`
+  }
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export function EcmManualAttendanceDialog({
   open,
   onOpenChange,
   jobId,
   carers,
+  plannedStart,
+  plannedEnd,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   jobId: string
   carers: Array<{ employeeId: string; name: string }>
+  /** Prefer planned visit start for check-in defaults (not "now"). */
+  plannedStart?: string | null
+  plannedEnd?: string | null
 }) {
   const record = useRecordManualAttendance()
   const reasons = useEcmReasonCodes()
@@ -58,14 +74,28 @@ export function EcmManualAttendanceDialog({
   )
   const [employeeId, setEmployeeId] = React.useState(carers[0]?.employeeId ?? '')
   const [eventType, setEventType] = React.useState<'CHECK_IN' | 'CHECK_OUT'>('CHECK_IN')
-  const [occurredAt, setOccurredAt] = React.useState(() => new Date().toISOString().slice(0, 16))
+  const [occurredAt, setOccurredAt] = React.useState(() =>
+    toDatetimeLocalValue(plannedStart),
+  )
   const [reasonCode, setReasonCode] = React.useState('')
   const [note, setNote] = React.useState('')
   const [overrideGeofence, setOverrideGeofence] = React.useState(false)
 
   React.useEffect(() => {
-    if (open && carers[0]?.employeeId) setEmployeeId(carers[0].employeeId)
+    if (!open) return
+    if (carers[0]?.employeeId) setEmployeeId(carers[0].employeeId)
+    setEventType('CHECK_IN')
+    setReasonCode('')
+    setNote('')
+    setOverrideGeofence(false)
   }, [open, carers])
+
+  React.useEffect(() => {
+    if (!open) return
+    setOccurredAt(
+      toDatetimeLocalValue(eventType === 'CHECK_OUT' ? plannedEnd || plannedStart : plannedStart),
+    )
+  }, [eventType, open, plannedStart, plannedEnd])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -196,10 +226,10 @@ export function EcmNotificationEvidenceForm({ jobId }: { jobId: string }) {
 
   return (
     <section className="space-y-2" data-testid="ecm-notification-evidence">
-      <p className="text-xs font-medium text-muted-foreground">
-        Notification evidence ({list.data?.length ?? 0})
-      </p>
       <ul className="space-y-1.5">
+        {(list.data ?? []).length === 0 ? (
+          <li className="text-sm text-muted-foreground">No contact attempts recorded yet.</li>
+        ) : null}
         {(list.data ?? []).map(row => (
           <li key={row.id} className="rounded-md border border-border px-3 py-2 text-xs">
             <div className="flex flex-wrap gap-1">
@@ -326,34 +356,79 @@ export function EcmMissedTriageActions({
   }
 
   const actions = [
-    { outcome: 'CONFIRMED_MISSED', label: 'Confirm missed' },
-    { outcome: 'FALSE_ECM_ALERT', label: 'False ECM alert' },
-    { outcome: 'DISPUTED', label: 'Mark disputed' },
-    { outcome: 'ATTENDANCE_VERIFICATION_PENDING', label: 'Verify pending' },
+    {
+      outcome: 'CONFIRMED_MISSED',
+      label: 'Confirm missed',
+      helper: 'The visit did not happen and should be recorded as missed.',
+      Icon: XCircle,
+    },
+    {
+      outcome: 'FALSE_ECM_ALERT',
+      label: 'False ECM alert',
+      helper: 'Monitoring raised a false alarm (visit delivery may already be recorded elsewhere).',
+      Icon: CheckCircle2,
+    },
+    {
+      outcome: 'DISPUTED',
+      label: 'Mark disputed',
+      helper: 'Outcome is contested and needs further investigation.',
+      Icon: Scale,
+    },
+    {
+      outcome: 'ATTENDANCE_VERIFICATION_PENDING',
+      label: 'Still verifying',
+      helper: 'Keep open while you confirm attendance with the carer or family.',
+      Icon: HelpCircle,
+    },
   ] as const
 
   return (
-    <div className="flex flex-wrap gap-2" data-testid="ecm-missed-triage">
-      {actions.map(a => (
-        <Button
-          key={a.outcome}
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={triage.isPending}
-          onClick={() => {
-            triage.mutate(
-              { jobId, outcome: a.outcome },
-              {
-                onSuccess: () => toastSuccess(`Triage: ${a.label}`),
-                onError: e => toastApiError(e, 'Triage failed'),
-              },
-            )
-          }}
-        >
-          {a.label}
-        </Button>
-      ))}
-    </div>
+    <section
+      className="space-y-3 rounded-lg border border-border bg-card p-3.5 shadow-sm"
+      data-testid="ecm-missed-triage"
+    >
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" aria-hidden />
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">What happened?</h4>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Choose the outcome that matches this visit. This updates the ECM triage.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {actions.map(a => (
+          <button
+            key={a.outcome}
+            type="button"
+            disabled={triage.isPending}
+            onClick={() => {
+              triage.mutate(
+                { jobId, outcome: a.outcome },
+                {
+                  onSuccess: () => toastSuccess(`Triage: ${a.label}`),
+                  onError: e => toastApiError(e, 'Triage failed'),
+                },
+              )
+            }}
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-teal-300 hover:bg-teal-50/40 disabled:opacity-50 dark:hover:border-teal-800 dark:hover:bg-teal-950/20"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <a.Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              {a.label}
+            </span>
+            <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+              {a.helper}
+            </span>
+          </button>
+        ))}
+      </div>
+      {triage.isPending ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Saving triage…
+        </p>
+      ) : null}
+    </section>
   )
 }

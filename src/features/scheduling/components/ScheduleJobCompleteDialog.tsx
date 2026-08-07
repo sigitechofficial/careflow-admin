@@ -67,6 +67,10 @@ import {
   VISIT_TIMING_EXCEPTION_REASONS,
   type VisitTimingExceptionReasonCode,
 } from '@/features/scheduling/utils/visit-timing-exception-reason.util'
+import {
+  VISIT_MISSED_REASONS,
+  type VisitMissedReasonCode,
+} from '@/features/scheduling/utils/visit-missed-reason.util'
 import type { VisitPlanCalendarOutcomeStatus } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 
 /** Re-enable when care-plan delivery checkboxes return to Record visit. */
@@ -104,6 +108,8 @@ export function ScheduleJobCompleteDialog({
     VisitTimingExceptionReasonCode | ''
   >('')
   const [timingExceptionNotes, setTimingExceptionNotes] = React.useState('')
+  const [missedReasonCode, setMissedReasonCode] = React.useState<VisitMissedReasonCode | ''>('')
+  const [missedReasonNotes, setMissedReasonNotes] = React.useState('')
   const [visitTasks, setVisitTasks] = React.useState<VisitJobTaskRow[]>([])
 
   const visitTasksQuery = useQuery({
@@ -142,8 +148,11 @@ export function ScheduleJobCompleteDialog({
     Boolean(job) &&
     ((job!.requiredCarers ?? 0) > 1 || (job!.allocations?.length ?? 0) > 1)
 
+  const isStartedOutcome = visitStatus === 'STARTED'
+  const isMissedOutcome = visitStatus === 'MISSED'
+
   const actualDateTimes = React.useMemo(() => {
-    if (!scheduleDateIso) return null
+    if (!scheduleDateIso || isStartedOutcome) return null
     if (multiCarerTiming && carerActualTimes.length > 0) {
       const windows = carerActualTimes
         .map((row) => buildJobScheduleDateTimes(scheduleDateIso, row.startHm, row.endHm))
@@ -160,14 +169,21 @@ export function ScheduleJobCompleteDialog({
       }
     }
     return buildJobScheduleDateTimes(scheduleDateIso, actualStartTime, actualEndTime)
-  }, [actualEndTime, actualStartTime, carerActualTimes, multiCarerTiming, scheduleDateIso])
+  }, [
+    actualEndTime,
+    actualStartTime,
+    carerActualTimes,
+    isStartedOutcome,
+    multiCarerTiming,
+    scheduleDateIso,
+  ])
 
   const actualDurationMinutes = React.useMemo(() => {
-    if (!actualDateTimes) return null
+    if (!actualDateTimes || isStartedOutcome) return null
     const start = new Date(actualDateTimes.scheduledStartDateTime)
     const end = new Date(actualDateTimes.scheduledEndDateTime)
     return Math.round((end.getTime() - start.getTime()) / 60_000)
-  }, [actualDateTimes])
+  }, [actualDateTimes, isStartedOutcome])
 
   React.useEffect(() => {
     if (!visitTasksQuery.data) return
@@ -182,18 +198,25 @@ export function ScheduleJobCompleteDialog({
     setOverrunReason('')
     setTimingExceptionReasonCode('')
     setTimingExceptionNotes('')
-    setVisitStatus(initialVisitStatus ?? defaultScheduleJobVisitOutcome(job))
+    setMissedReasonCode('')
+    setMissedReasonNotes('')
+    const nextStatus = initialVisitStatus ?? defaultScheduleJobVisitOutcome(job)
+    setVisitStatus(nextStatus)
+    const started = nextStatus === 'STARTED'
     setActualStartTime(
       isoToLocalTimeInput(job.actualStartDateTime) || isoToLocalTimeInput(job.scheduledStartDateTime),
     )
+    // Never seed planned end as "actual" end for Started — that polluted ECM as Completed.
     setActualEndTime(
-      isoToLocalTimeInput(job.actualEndDateTime) ||
-        isoToLocalTimeInput(job.scheduledEndDateTime) ||
-        isoToLocalTimeInput(
-          new Date(
-            new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
-          ).toISOString(),
-        ),
+      started
+        ? ''
+        : isoToLocalTimeInput(job.actualEndDateTime) ||
+            isoToLocalTimeInput(job.scheduledEndDateTime) ||
+            isoToLocalTimeInput(
+              new Date(
+                new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
+              ).toISOString(),
+            ),
     )
     const visitStart = isoToLocalTimeInput(job.scheduledStartDateTime)
     const visitEnd =
@@ -217,12 +240,20 @@ export function ScheduleJobCompleteDialog({
           startHm:
             isoToLocalTimeInput(a.actualStartDateTime ?? undefined) ||
             plannedStart,
-          endHm:
-            isoToLocalTimeInput(a.actualEndDateTime ?? undefined) || plannedEnd,
+          endHm: started
+            ? ''
+            : isoToLocalTimeInput(a.actualEndDateTime ?? undefined) || plannedEnd,
         }
       }),
     )
   }, [open, job?.id, job?.actualEndDateTime, job?.actualStartDateTime, job?.scheduledEndDateTime, job?.scheduledStartDateTime, job?.status, job?.visits, job?.allocations, initialVisitStatus])
+
+  // Switching outcome to Started clears draft ends so they cannot be posted.
+  React.useEffect(() => {
+    if (!open || visitStatus !== 'STARTED') return
+    setActualEndTime('')
+    setCarerActualTimes((rows) => rows.map((row) => ({ ...row, endHm: '' })))
+  }, [open, visitStatus])
 
   React.useEffect(() => {
     if (!SHOW_DELIVERED_CARE_PLANS || !open || !job || acceptedQuery.isLoading) return
@@ -317,7 +348,16 @@ export function ScheduleJobCompleteDialog({
       )
       return
     }
-    if (requiresTimes && multiCarerTiming) {
+    if (isStartedOutcome && multiCarerTiming) {
+      const invalid = carerActualTimes.some((row) => !row.startHm || !/^\d{2}:\d{2}$/.test(row.startHm))
+      if (invalid) {
+        toastWarning('Enter carer start times', 'Each assigned carer needs an actual start time.')
+        return
+      }
+    } else if (isStartedOutcome && (!actualStartTime || !/^\d{2}:\d{2}$/.test(actualStartTime))) {
+      toastWarning('Enter start time', 'Record when the visit started.')
+      return
+    } else if (requiresTimes && multiCarerTiming) {
       const invalid = carerActualTimes.some(
         (row) => !row.startHm || !row.endHm || row.endHm <= row.startHm,
       )
@@ -353,6 +393,17 @@ export function ScheduleJobCompleteDialog({
       toastWarning('Notes required', 'Add notes when the exception reason is Other.')
       return
     }
+    if (isMissedOutcome) {
+      if (!missedReasonCode) {
+        toastWarning('Missed reason required', 'Select why this visit did not take place.')
+        return
+      }
+      const missedMeta = VISIT_MISSED_REASONS.find((r) => r.code === missedReasonCode)
+      if (missedMeta?.requiresNotes && !missedReasonNotes.trim()) {
+        toastWarning('Notes required', 'Add notes when the missed reason is Other.')
+        return
+      }
+    }
     if (requiresCarePlans && deliveredIds.length === 0 && !notes.trim()) {
       toastWarning(
         'Select care plans',
@@ -370,15 +421,34 @@ export function ScheduleJobCompleteDialog({
         await saveVisitJobTasks(job.id, mapVisitTasksForSave(visitTasks))
       }
 
+      const startedCarerActuals =
+        isStartedOutcome && multiCarerTiming && scheduleDateIso
+          ? carerActualTimes.flatMap((row) => {
+              if (!row.startHm || !/^\d{2}:\d{2}$/.test(row.startHm)) return []
+              const start = new Date(`${scheduleDateIso}T${row.startHm}:00.000Z`)
+              if (Number.isNaN(start.getTime())) return []
+              return [
+                {
+                  allocationId: row.allocationId,
+                  actualStartDateTime: start.toISOString(),
+                },
+              ]
+            })
+          : undefined
+
       await completeJob.mutateAsync({
         jobId: job.id,
         status: visitStatus,
         notes: notes.trim() || undefined,
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
-        actualStartDateTime: actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime,
-        actualEndDateTime: actualDateTimes?.scheduledEndDateTime,
-        carerActuals:
-          multiCarerTiming && scheduleDateIso
+        actualStartDateTime: isStartedOutcome
+          ? actualStartDateTime
+          : (actualDateTimes?.scheduledStartDateTime ?? actualStartDateTime),
+        // Started visits must not send draft/planned ends — workspace SSOT has no checkout yet.
+        actualEndDateTime: isStartedOutcome ? undefined : actualDateTimes?.scheduledEndDateTime,
+        carerActuals: isStartedOutcome
+          ? startedCarerActuals
+          : multiCarerTiming && scheduleDateIso
             ? carerActualTimes.flatMap((row) => {
                 const window = buildJobScheduleDateTimes(
                   scheduleDateIso,
@@ -402,6 +472,8 @@ export function ScheduleJobCompleteDialog({
         timingExceptionNotes:
           timingExceptionNotes.trim() ||
           (requiresTimingExceptionReason && overrunReason.trim() ? overrunReason.trim() : undefined),
+        missedReasonCode: isMissedOutcome ? missedReasonCode || undefined : undefined,
+        missedReasonNotes: isMissedOutcome ? missedReasonNotes.trim() || undefined : undefined,
       })
       toastSuccess(
         visitStatus === 'COMPLETED' ? 'Job completed' : 'Visit saved',
@@ -565,27 +637,29 @@ export function ScheduleJobCompleteDialog({
                             }}
                           />
                         </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Actual end</Label>
-                          <Input
-                            type="time"
-                            className="mt-1"
-                            value={draft.endHm}
-                            disabled={busy}
-                            onChange={(event) => {
-                              const value = event.target.value
-                              setCarerActualTimes((rows) =>
-                                rows.map((row) =>
-                                  row.allocationId === allocation.id
-                                    ? { ...row, endHm: value }
-                                    : row,
-                                ),
-                              )
-                            }}
-                          />
-                        </div>
+                        {isStartedOutcome ? null : (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Actual end</Label>
+                            <Input
+                              type="time"
+                              className="mt-1"
+                              value={draft.endHm}
+                              disabled={busy}
+                              onChange={(event) => {
+                                const value = event.target.value
+                                setCarerActualTimes((rows) =>
+                                  rows.map((row) =>
+                                    row.allocationId === allocation.id
+                                      ? { ...row, endHm: value }
+                                      : row,
+                                  ),
+                                )
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
-                      {carerMins != null ? (
+                      {!isStartedOutcome && carerMins != null ? (
                         <p className="text-xs text-muted-foreground">
                           Duration: {carerMins} min
                           {plannedMins != null ? ` (planned ${plannedMins} min)` : ''}
@@ -610,19 +684,21 @@ export function ScheduleJobCompleteDialog({
                     onChange={(event) => setActualStartTime(event.target.value)}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="schedule-job-actual-end" className="text-xs text-muted-foreground">
-                    End time
-                  </Label>
-                  <Input
-                    id="schedule-job-actual-end"
-                    type="time"
-                    className="mt-1"
-                    value={actualEndTime}
-                    disabled={busy}
-                    onChange={(event) => setActualEndTime(event.target.value)}
-                  />
-                </div>
+                {isStartedOutcome ? null : (
+                  <div>
+                    <Label htmlFor="schedule-job-actual-end" className="text-xs text-muted-foreground">
+                      End time
+                    </Label>
+                    <Input
+                      id="schedule-job-actual-end"
+                      type="time"
+                      className="mt-1"
+                      value={actualEndTime}
+                      disabled={busy}
+                      onChange={(event) => setActualEndTime(event.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             )}
             {actualDurationMinutes != null ? (
@@ -768,6 +844,53 @@ export function ScheduleJobCompleteDialog({
                   onChange={setDeliveredIds}
                 />
               )}
+            </section>
+          ) : null}
+
+          {isMissedOutcome ? (
+            <section className="space-y-2 rounded-lg border border-orange-300/60 bg-orange-50/80 px-4 py-3 dark:border-orange-700/50 dark:bg-orange-950/30">
+              <Label className="text-sm font-semibold text-foreground">Missed reason</Label>
+              <p className="text-xs text-muted-foreground">
+                Required when marking did not attend — used for ECM confirmed missed and audit.
+              </p>
+              <Select
+                value={missedReasonCode || undefined}
+                onValueChange={(value) => setMissedReasonCode(value as VisitMissedReasonCode)}
+                disabled={busy}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select reason…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VISIT_MISSED_REASONS.map((reason) => (
+                    <SelectItem key={reason.code} value={reason.code}>
+                      {reason.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {missedReasonCode ? (
+                <p className="text-xs text-muted-foreground">
+                  {VISIT_MISSED_REASONS.find((r) => r.code === missedReasonCode)?.description}
+                </p>
+              ) : null}
+              <Label
+                htmlFor="schedule-job-missed-reason-notes"
+                className="text-xs text-muted-foreground"
+              >
+                {VISIT_MISSED_REASONS.find((r) => r.code === missedReasonCode)?.requiresNotes
+                  ? 'Notes (required)'
+                  : 'Notes (optional)'}
+              </Label>
+              <textarea
+                id="schedule-job-missed-reason-notes"
+                className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={missedReasonNotes}
+                disabled={busy}
+                onChange={(event) => setMissedReasonNotes(event.target.value)}
+                placeholder="Additional context for the missed visit"
+                maxLength={2000}
+              />
             </section>
           ) : null}
 

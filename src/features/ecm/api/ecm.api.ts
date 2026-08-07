@@ -50,6 +50,8 @@ export type EcmHealthData = {
 export type EcmDailyOpsReport = {
   reportType: string
   date: string
+  dateFrom?: string
+  dateTo?: string
   refreshedAt: string
   thresholdVersion: string
   kpis: {
@@ -86,19 +88,26 @@ export type EcmDailyOpsReport = {
 
 export async function fetchEcmLiveDashboard(params?: {
   date?: string
+  dateFrom?: string
+  dateTo?: string
   search?: string
   scheduleAreaId?: string
   locationId?: string
   serviceUserId?: string
   limit?: number
+  cursor?: string
 }): Promise<EcmLiveDashboardData> {
   const qs = new URLSearchParams()
-  if (params?.date) qs.set('date', params.date)
+  if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) qs.set('dateTo', params.dateTo)
+  // Prefer range; keep single `date` for callers that have not migrated yet.
+  if (!params?.dateFrom && params?.date) qs.set('date', params.date)
   if (params?.search?.trim()) qs.set('search', params.search.trim())
   if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
   if (params?.locationId) qs.set('locationId', params.locationId)
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
   if (params?.limit != null) qs.set('limit', String(params.limit))
+  if (params?.cursor) qs.set('cursor', params.cursor)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EcmLiveDashboardData>>(
     `/ecm/visits/live-dashboard${suffix}`,
@@ -185,11 +194,18 @@ export async function fetchEcmHealth(): Promise<EcmHealthData> {
 }
 
 export async function fetchEcmDailyOpsReport(
-  date?: string,
+  dateOrRange?: string | { dateFrom?: string; dateTo?: string },
   params?: { scheduleAreaId?: string; locationId?: string },
 ): Promise<EcmDailyOpsReport> {
   const qs = new URLSearchParams()
-  if (date) qs.set('date', date)
+  if (typeof dateOrRange === 'string') {
+    if (dateOrRange) qs.set('date', dateOrRange)
+  } else if (dateOrRange) {
+    if (dateOrRange.dateFrom) qs.set('dateFrom', dateOrRange.dateFrom)
+    if (dateOrRange.dateTo) qs.set('dateTo', dateOrRange.dateTo)
+    // Back-compat for older servers that only read `date`
+    if (dateOrRange.dateFrom && !dateOrRange.dateTo) qs.set('date', dateOrRange.dateFrom)
+  }
   if (params?.scheduleAreaId) qs.set('scheduleAreaId', params.scheduleAreaId)
   if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''

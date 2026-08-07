@@ -361,11 +361,14 @@ export async function completeHousekeepingJob(
     carerActuals?: Array<{
       allocationId: string
       actualStartDateTime: string
-      actualEndDateTime: string
+      /** Omitted when marking visit Started (start-only). */
+      actualEndDateTime?: string
     }>
     overrunReason?: string
     timingExceptionReasonCode?: string
     timingExceptionNotes?: string
+    missedReasonCode?: string
+    missedReasonNotes?: string
   },
 ) {
   const body: Record<string, unknown> = {}
@@ -387,6 +390,12 @@ export async function completeHousekeepingJob(
   }
   if (payload?.timingExceptionNotes?.trim()) {
     body.timingExceptionNotes = payload.timingExceptionNotes.trim()
+  }
+  if (payload?.missedReasonCode?.trim()) {
+    body.missedReasonCode = payload.missedReasonCode.trim()
+  }
+  if (payload?.missedReasonNotes?.trim()) {
+    body.missedReasonNotes = payload.missedReasonNotes.trim()
   }
   const res = await apiJson<ApiEnvelope<unknown>>(`/scheduled-jobs-housekeeping/jobs/${id}/complete`, {
     method: 'PATCH',

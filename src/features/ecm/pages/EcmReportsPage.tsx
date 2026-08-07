@@ -1,32 +1,35 @@
 import * as React from 'react'
-import { FileBarChart2, Loader2 } from 'lucide-react'
+import { FileBarChart2, Loader2, RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
-import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { useEcmDailyOpsReport } from '@/features/ecm/hooks/useEcm'
+import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
-
-function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
+import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
 
 export default function EcmReportsPage() {
   const { locationId } = useGlobalLocationScope()
-  const [date, setDate] = React.useState(todayIso)
-  const report = useEcmDailyOpsReport(date, true, {
-    locationId: locationId ?? undefined,
-  })
+  const period = useEcmOperationalPeriod('today')
+  const report = useEcmDailyOpsReport(
+    { dateFrom: period.dateFrom, dateTo: period.dateTo },
+    true,
+    { locationId: locationId ?? undefined },
+  )
 
   const kpis = report.data?.kpis
   const punctuality = kpis?.punctuality
+  const rangeLabel =
+    period.dateFrom === period.dateTo
+      ? formatPeriodDayShort(period.dateFrom)
+      : `${formatPeriodDayShort(period.dateFrom)} – ${formatPeriodDayShort(period.dateTo)}`
 
   return (
     <div className="space-y-4 p-4 md:p-6" data-testid="ecm-reports-page">
       <PageHeader
         title="ECM reports"
-        description="Daily operations and compliance KPIs with numerator, denominator, exclusions, and threshold version."
+        description="Operations and compliance KPIs with numerator, denominator, exclusions, and threshold version — same operational period as Live and Graphs."
         icon={<FileBarChart2 className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },
@@ -35,16 +38,19 @@ export default function EcmReportsPage() {
         ]}
       />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="space-y-1 text-xs">
-          <span className="text-muted-foreground">Operational date</span>
-          <Input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="h-9 w-[11rem]"
-          />
-        </label>
+      <EcmOperationalPeriodCard
+        preset={period.preset}
+        dateFrom={period.dateFrom}
+        dateTo={period.dateTo}
+        periodLabel={period.periodLabel}
+        operationalToday={period.operationalToday}
+        onPresetChange={period.setPreset}
+        onApplyPreset={period.applyPreset}
+        onDateFromChange={period.setDateFrom}
+        onDateToChange={period.setDateTo}
+        testIdPrefix="ecm-reports"
+        footnote={<>KPIs for {rangeLabel}</>}
+      >
         <Button
           type="button"
           size="sm"
@@ -53,10 +59,14 @@ export default function EcmReportsPage() {
           disabled={report.isFetching}
           onClick={() => void report.refetch()}
         >
-          {report.isFetching ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+          {report.isFetching ? (
+            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+          )}
           Refresh
         </Button>
-      </div>
+      </EcmOperationalPeriodCard>
 
       {report.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading report…</p>
@@ -87,51 +97,48 @@ export default function EcmReportsPage() {
               </p>
             </div>
             <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground">Manual / verified</p>
-              <p className="text-2xl font-semibold tabular-nums">
-                {kpis?.manualAttendance ?? 0} / {kpis?.verifiedConfidence ?? 0}
-              </p>
+              <p className="text-xs text-muted-foreground">Total visits</p>
+              <p className="text-2xl font-semibold tabular-nums">{kpis?.totalVisits ?? 0}</p>
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Threshold version: {report.data.thresholdVersion} · refreshed{' '}
-            {new Date(report.data.refreshedAt).toLocaleTimeString()} · exclusions:{' '}
-            {punctuality
-              ? Object.entries(punctuality.exclusions)
-                  .map(([k, v]) => `${k}=${v}`)
-                  .join(', ')
-              : '—'}
-          </p>
-
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                <tr>
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Service user</th>
+                  <th className="px-3 py-2 font-medium">Job</th>
+                  <th className="px-3 py-2 font-medium">Lifecycle</th>
                   <th className="px-3 py-2 font-medium">Arrival</th>
                   <th className="px-3 py-2 font-medium">Missed</th>
                   <th className="px-3 py-2 font-medium">Confidence</th>
                 </tr>
               </thead>
               <tbody>
-                {report.data.rows.map(row => (
-                  <tr key={row.scheduledJobId} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2">
-                      <p className="font-medium">{row.serviceUserName}</p>
-                      <p className="text-xs text-muted-foreground">{row.jobName}</p>
-                    </td>
-                    <td className="px-3 py-2">
-                      <EcmStatusBadge code={row.arrivalClassification} kind="arrival" />
-                    </td>
-                    <td className="px-3 py-2">
-                      <EcmStatusBadge code={row.missedClassification} kind="missed" />
-                    </td>
-                    <td className="px-3 py-2">
-                      <EcmStatusBadge code={row.confidence} kind="confidence" />
+                {report.data.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                      No evaluations in this period.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  report.data.rows.map((row) => (
+                    <tr key={row.scheduledJobId} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">{row.serviceUserName}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.jobName}</td>
+                      <td className="px-3 py-2">
+                        <EcmStatusBadge code={row.lifecycleStatus} kind="lifecycle" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <EcmStatusBadge code={row.arrivalClassification} kind="arrival" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <EcmStatusBadge code={row.missedClassification} kind="missed" />
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.confidence}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

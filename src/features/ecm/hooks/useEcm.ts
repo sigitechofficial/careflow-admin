@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   acknowledgeEcmException,
@@ -24,6 +25,8 @@ import { ecmKeys } from '@/features/ecm/keys'
 
 export function useEcmLiveDashboard(filters?: {
   date?: string
+  dateFrom?: string
+  dateTo?: string
   search?: string
   scheduleAreaId?: string
   locationId?: string
@@ -33,10 +36,25 @@ export function useEcmLiveDashboard(filters?: {
   const { enabled = true, ...params } = filters ?? {}
   return useQuery({
     queryKey: ecmKeys.liveDashboard(params),
-    queryFn: () => fetchEcmLiveDashboard({ ...params, limit: 150 }),
+    // Let the API size the page from dateFrom–dateTo (period filters must cover the range).
+    queryFn: () => fetchEcmLiveDashboard(params),
     enabled,
     refetchInterval: 60_000,
+    // Override app defaults (30s stale / no focus refetch) so return from
+    // schedule-board completion immediately shows cleared exceptions / tiles.
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   })
+}
+
+/** Invalidate all ECM queries (live tiles, exceptions, visit detail, etc.). */
+export function useInvalidateEcmQueries() {
+  const qc = useQueryClient()
+  return useCallback(() => {
+    // refetchType 'active' ensures mounted live dashboard + exception queue refetch now
+    // (not only mark stale), so return-from-complete / Refresh always show new status.
+    void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+  }, [qc])
 }
 
 export function useEcmVisitDetail(jobId: string | null | undefined) {
@@ -67,6 +85,8 @@ export function useEcmExceptions(
     queryFn: () => fetchEcmExceptions({ limit, serviceUserId }),
     enabled,
     refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   })
 }
 
@@ -89,13 +109,17 @@ export function useEcmHealth(enabled = true) {
 }
 
 export function useEcmDailyOpsReport(
-  date?: string,
+  dateOrRange?: string | { dateFrom?: string; dateTo?: string },
   enabled = true,
   params?: { scheduleAreaId?: string; locationId?: string },
 ) {
+  const rangeKey =
+    typeof dateOrRange === 'string'
+      ? dateOrRange
+      : `${dateOrRange?.dateFrom ?? ''}:${dateOrRange?.dateTo ?? ''}`
   return useQuery({
-    queryKey: ecmKeys.dailyOps(date, params?.scheduleAreaId, params?.locationId),
-    queryFn: () => fetchEcmDailyOpsReport(date, params),
+    queryKey: ecmKeys.dailyOps(rangeKey, params?.scheduleAreaId, params?.locationId),
+    queryFn: () => fetchEcmDailyOpsReport(dateOrRange, params),
     enabled,
   })
 }

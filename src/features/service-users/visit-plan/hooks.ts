@@ -62,6 +62,16 @@ export function useActiveServiceUserVisitPlan(serviceUserId: string) {
   })
 }
 
+/** Active plan first; otherwise suspended or draft (for overview / hours checks). */
+export function useWorkingServiceUserVisitPlan(serviceUserId: string) {
+  return useQuery({
+    queryKey: serviceUserKeys.visitPlanWorking(serviceUserId),
+    queryFn: () => fetchWorkingServiceUserVisitPlan(serviceUserId),
+    enabled: Boolean(serviceUserId),
+    staleTime: 60_000,
+  })
+}
+
 export function useVisitPlanContractByServiceUser(serviceUserIds: string[]) {
   const uniqueIds = [...new Set(serviceUserIds.filter(Boolean))]
   const queries = useQueries({

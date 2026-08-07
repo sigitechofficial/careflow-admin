@@ -11,15 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import {
-  CheckSquare,
-  ClipboardList,
-  Download,
-  Home,
-  Info,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react'
+import { Home, Info, Loader2, RefreshCw } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -28,7 +20,7 @@ import { cn } from '@/shared/lib/utils'
 import { fetchEcmDailyOpsReport } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
 import { useEcmDailyOpsReport } from '@/features/ecm/hooks/useEcm'
-import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
+import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   buildDurationComplianceBands,
@@ -39,11 +31,8 @@ import {
   lastNDatesInclusive,
   type ComplianceBandRow,
 } from '@/features/ecm/utils/ecm-compliance-overview.util'
-
-function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
+import { buildEcmPeriodSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
 
 function formatPeriodDay(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
@@ -55,6 +44,12 @@ function formatPeriodDay(iso: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(y, m - 1, d)))
+}
+
+function electronicRateColor(rate: number): string {
+  if (rate >= 95) return '#16a34a'
+  if (rate >= 90) return '#f59e0b'
+  return '#dc2626'
 }
 
 function BandTable({
@@ -113,7 +108,7 @@ function BandHorizontalChart({
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {bands.every((b) => b.count === 0) ? (
         <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
-          No assessed visits for this day.
+          No assessed visits for this period.
         </p>
       ) : (
         <>
@@ -176,43 +171,34 @@ function BandHorizontalChart({
 
 type EcmUsedFilter = 'all' | 'yes' | 'no'
 
-export function EcmComplianceOverviewPanel({
-  initialDate,
-}: {
-  /** Prefer the graph dashboard "To" date so both sections stay aligned. */
-  initialDate?: string
-} = {}) {
-  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
-    useGlobalLocationScope()
-  const [date, setDate] = React.useState(initialDate ?? todayIso)
-  const [scheduleAreaId, setScheduleAreaId] = React.useState('')
+export type EcmComplianceOverviewPanelProps = {
+  /** Shared with Graphs via EcmGraphPage — secondary to Location scope. */
+  scheduleAreaId: string
+}
+
+/**
+ * Compliance Overview consumes the shared ECM operational period + global location SSOT
+ * (same URL/store as Live / Graphs / Reports). No parallel date picker.
+ * Schedule area is owned by the Graph page period card (not duplicated here).
+ * Daily-ops API already supports dateFrom–dateTo ranges; trend chart still ends on dateTo.
+ */
+export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOverviewPanelProps) {
+  const { locationId: globalLocationId } = useGlobalLocationScope()
+  // Default matches Live/Reports; shared store/URL wins when already set.
+  const { dateFrom, dateTo, periodLabel, period, multiDay } = useEcmOperationalPeriod('today')
   const [ecmUsed, setEcmUsed] = React.useState<EcmUsedFilter>('all')
   const [serviceUserQuery, setServiceUserQuery] = React.useState('')
 
-  React.useEffect(() => {
-    if (initialDate) setDate(initialDate)
-  }, [initialDate])
+  const reportQuery = useEcmDailyOpsReport(
+    { dateFrom, dateTo },
+    true,
+    {
+      scheduleAreaId: scheduleAreaId || undefined,
+      locationId: globalLocationId ?? undefined,
+    },
+  )
 
-  const areasQuery = useScheduleAreas()
-  const scopedAreas = React.useMemo(() => {
-    const areas = areasQuery.data ?? []
-    if (!globalLocationId) return areas
-    return areas.filter((a) => a.location?.id === globalLocationId)
-  }, [areasQuery.data, globalLocationId])
-
-  React.useEffect(() => {
-    if (!scheduleAreaId) return
-    if (globalLocationScoped && !scopedAreas.some((a) => a.id === scheduleAreaId)) {
-      setScheduleAreaId('')
-    }
-  }, [globalLocationScoped, scopedAreas, scheduleAreaId])
-
-  const reportQuery = useEcmDailyOpsReport(date, true, {
-    scheduleAreaId: scheduleAreaId || undefined,
-    locationId: globalLocationId ?? undefined,
-  })
-
-  const trendDates = React.useMemo(() => lastNDatesInclusive(date, 7), [date])
+  const trendDates = React.useMemo(() => lastNDatesInclusive(dateTo, 7), [dateTo])
   const trendQueries = useQueries({
     queries: trendDates.map((d) => ({
       queryKey: ecmKeys.dailyOps(d, scheduleAreaId || undefined, globalLocationId ?? undefined),
@@ -224,6 +210,11 @@ export function EcmComplianceOverviewPanel({
       staleTime: 60_000,
     })),
   })
+
+  const rangeLabel =
+    dateFrom === dateTo
+      ? formatPeriodDay(dateFrom)
+      : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`
 
   const rows = React.useMemo(() => {
     const all = reportQuery.data?.rows ?? []
@@ -290,7 +281,7 @@ export function EcmComplianceOverviewPanel({
         date: d,
         label: formatTrendDayLabel(d),
         rate,
-        color: rate >= 95 ? '#ea580c' : rate >= 90 ? '#f97316' : '#dc2626',
+        color: electronicRateColor(rate),
       }
     })
   }, [trendDates, trendQueries])
@@ -299,7 +290,7 @@ export function EcmComplianceOverviewPanel({
     method && method.electronicPercent >= 95
       ? 'text-emerald-700 dark:text-emerald-300'
       : method && method.electronicPercent >= 90
-        ? 'text-orange-600 dark:text-orange-300'
+        ? 'text-amber-600 dark:text-amber-300'
         : 'text-red-600 dark:text-red-400'
 
   const refetchAll = () => {
@@ -317,17 +308,12 @@ export function EcmComplianceOverviewPanel({
             breaches, and daily electronic %.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="default" className="h-9" disabled>
-            Historical Data
-          </Button>
-          <Button type="button" size="sm" variant="outline" className="h-9" asChild>
-            <Link to="/ecm/live" search={{ date }}>
-              <Home className="h-4 w-4" />
-              <span className="sr-only">Live monitoring</span>
-            </Link>
-          </Button>
-        </div>
+        <Button type="button" size="sm" variant="outline" className="h-9" asChild>
+          <Link to="/ecm/live" search={buildEcmPeriodSearch(period)}>
+            <Home className="h-4 w-4" />
+            <span className="sr-only">Live monitoring</span>
+          </Link>
+        </Button>
       </div>
 
       <div
@@ -335,42 +321,22 @@ export function EcmComplianceOverviewPanel({
         data-testid="ecm-compliance-period-banner"
       >
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Single-day view (not a date range)
+          Shared operational period
         </p>
-        <p className="text-base font-semibold text-foreground">{formatPeriodDay(date)}</p>
+        <p className="text-base font-semibold text-foreground">{rangeLabel}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Cards and duration/punctuality tables are for this day only · Electronic % trend still uses
-          the previous 7 days ending on this day · ISO {date}
+          Same period and location as Graphs / Live / Reports
+          {multiDay ? ` · ${periodLabel}` : ''}
+          {' · '}
+          Cards and duration/punctuality tables use the full period
+          {' · '}
+          Electronic % trend: last 7 days ending {formatPeriodDayShort(dateTo)}
+          {' · '}
+          ISO {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
         </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/20 p-3">
-        <label className="space-y-1 text-xs">
-          <span className="text-muted-foreground">Branch / area</span>
-          <select
-            className="flex h-9 w-[12rem] rounded-md border border-input bg-background px-2 text-sm"
-            value={scheduleAreaId}
-            onChange={(e) => setScheduleAreaId(e.target.value)}
-            data-testid="ecm-compliance-area"
-          >
-            <option value="">All areas</option>
-            {scopedAreas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-1 text-xs">
-          <span className="text-muted-foreground">Operational day</span>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="h-9 w-[11rem]"
-            data-testid="ecm-compliance-date"
-          />
-        </label>
         <label className="space-y-1 text-xs">
           <span className="text-muted-foreground">Service user</span>
           <Input
@@ -421,7 +387,7 @@ export function EcmComplianceOverviewPanel({
         </p>
       ) : method ? (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <ContentCard className="flex flex-col justify-center p-4">
               <p className="text-xs font-medium text-muted-foreground">Electronic %</p>
               <p className={cn('text-4xl font-bold tabular-nums tracking-tight', electronicTone)}>
@@ -459,47 +425,20 @@ export function EcmComplianceOverviewPanel({
               </table>
             </ContentCard>
 
-            <ContentCard className="flex flex-col items-center justify-center gap-2 p-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-300">
-                <ClipboardList className="h-7 w-7" />
+            <ContentCard className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Geo-Fence Breaches</h3>
+                <span title="Counts visits with OUTSIDE_GEOFENCE in the selected period.">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </span>
               </div>
-              <h3 className="text-sm font-semibold text-foreground">ECM Method Details</h3>
-              <p className="text-xs text-muted-foreground">
-                Electronic check-in/out vs office manual attendance for the selected day.
-              </p>
-            </ContentCard>
-
-            <ContentCard className="relative flex flex-col items-center justify-center gap-2 overflow-hidden p-4 text-center">
-              <span className="absolute right-2 top-2 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                New
-              </span>
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                <CheckSquare className="h-7 w-7" />
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">ECM Compliance Details</h3>
-              <p className="text-xs text-muted-foreground">
-                Duration and punctuality bands with visit counts and percentages.
+              <p className="text-5xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
+                {geofenceBreaches.toLocaleString()}
               </p>
             </ContentCard>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-3">
-            <ContentCard className="space-y-3 p-4">
-              <h3 className="text-sm font-semibold text-foreground">Geo-Fence Breaches</h3>
-              <p className="text-5xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
-                {geofenceBreaches.toLocaleString()}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" className="h-8" disabled>
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
-                  Detailed Report Download (last 14 days)
-                </Button>
-                <span title="Counts visits with OUTSIDE_GEOFENCE on the selected day.">
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                </span>
-              </div>
-            </ContentCard>
-
+          <div className="grid gap-3 lg:grid-cols-2">
             <BandTable
               title="ECM Compliance by Duration"
               bandHeader="Duration Band"
@@ -516,7 +455,7 @@ export function EcmComplianceOverviewPanel({
             <ContentCard className="space-y-3 p-4 lg:col-span-1">
               <h3 className="text-sm font-semibold text-foreground">Electronic % Trend</h3>
               <p className="text-xs text-muted-foreground">
-                Last 7 days ending {formatPeriodDay(date)} ({trendDates[0]} → {date})
+                Last 7 days ending {formatPeriodDay(dateTo)} ({trendDates[0]} → {dateTo})
               </p>
               <div className="h-[220px] w-full min-w-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height={220}>

@@ -86,7 +86,7 @@ export function ServiceUserModuleHeader({
             <div className="mt-2 flex flex-wrap gap-2">
               {dnacpr && (
                 <span className="rounded-md bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                  For Resus
+                  DNACPR
                 </span>
               )}
               {diabetesAllergy && (

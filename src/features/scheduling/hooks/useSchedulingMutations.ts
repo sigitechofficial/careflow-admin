@@ -12,6 +12,7 @@ import {
   updateJobAllocationTiming,
   updateScheduledJob,
 } from '@/features/scheduling/api/scheduling.api'
+import { ecmKeys } from '@/features/ecm/keys'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import { serviceUserKeys } from '@/features/service-users/keys'
 
@@ -47,6 +48,8 @@ export function useCompleteHousekeepingJob() {
       overrunReason,
       timingExceptionReasonCode,
       timingExceptionNotes,
+      missedReasonCode,
+      missedReasonNotes,
     }: {
       jobId: string
       status?: string
@@ -59,11 +62,14 @@ export function useCompleteHousekeepingJob() {
       carerActuals?: Array<{
         allocationId: string
         actualStartDateTime: string
-        actualEndDateTime: string
+        /** Omitted when marking visit Started (start-only). */
+        actualEndDateTime?: string
       }>
       overrunReason?: string
       timingExceptionReasonCode?: string
       timingExceptionNotes?: string
+      missedReasonCode?: string
+      missedReasonNotes?: string
     }) =>
       completeHousekeepingJob(jobId, {
         status,
@@ -77,10 +83,14 @@ export function useCompleteHousekeepingJob() {
         overrunReason,
         timingExceptionReasonCode,
         timingExceptionNotes,
+        missedReasonCode,
+        missedReasonNotes,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
       invalidateSchedulingQueries(qc)
+      // completeJob runs evaluateJobSafe server-side; refresh ECM live + exception queues.
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
     },
   })
 }
@@ -93,6 +103,7 @@ export function useReinstateHousekeepingJob() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
       invalidateSchedulingQueries(qc)
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
     },
   })
 }
@@ -105,6 +116,7 @@ export function useCancelHousekeepingJob() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
       invalidateSchedulingQueries(qc)
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
     },
   })
 }

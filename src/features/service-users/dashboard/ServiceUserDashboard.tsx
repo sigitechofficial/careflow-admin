@@ -7,13 +7,22 @@ import {
   Zap,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDateTime } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import type { ServiceUserDolsRow, ServiceUserDetail } from '@/features/service-users/types'
 import { useServiceUserDetail } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlan } from '@/features/service-users/hooks/useServiceUserCarePlan'
+import { useCarePlanInstances } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
 import { useBodyMapSummary } from '@/features/service-users/body-map/hooks/useBodyMap'
+import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
+import { useWorkingServiceUserVisitPlan } from '@/features/service-users/visit-plan/hooks'
+import {
+  parseWeeklyContractedHours,
+  summarizeVisitPlanWeeklyHours,
+} from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
+import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
+import { useServiceUserVisitActivity } from '@/features/service-users/activity/hooks'
 import {
   fetchServiceUserDomCare,
   listServiceUserEnterpriseFundings,
@@ -47,20 +56,34 @@ type AttentionItem = {
   search?: Record<string, string>
 }
 
+const ECM_OPEN_LIFECYCLES = new Set([
+  'DETECTED',
+  'ALERT_GENERATED',
+  'ASSIGNED',
+  'ACKNOWLEDGED',
+  'INVESTIGATING',
+  'ACTION_TAKEN',
+])
+
 function SimpleCard({
   title,
   children,
   className,
+  action,
 }: {
   title: string
   children: React.ReactNode
   className?: string
+  action?: React.ReactNode
 }) {
   return (
     <section
       className={cn('rounded-lg border border-border bg-card p-4 shadow-sm', className)}
     >
-      <h2 className="mb-3 text-sm font-semibold text-foreground">{title}</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   )
@@ -113,13 +136,72 @@ function DocumentOpenLink({
   )
 }
 
+function CardLink({
+  to,
+  serviceUserId,
+  children,
+}: {
+  to:
+    | '/service-users/$serviceUserId/visit-plan'
+    | '/service-users/$serviceUserId/care-plan'
+    | '/service-users/$serviceUserId/medication'
+    | '/service-users/$serviceUserId/ecm'
+    | '/service-users/$serviceUserId/activity'
+    | '/service-users/$serviceUserId/body-map'
+  serviceUserId: string
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      to={to}
+      params={{ serviceUserId }}
+      className="inline-flex items-center gap-0.5 text-xs font-medium text-teal-700 hover:underline dark:text-teal-300"
+    >
+      {children}
+      <ArrowRight className="h-3 w-3" />
+    </Link>
+  )
+}
+
+function visitStatusLabel(status: string): string {
+  if (status === 'PARTIALLY_COMPLETED') return 'Partially completed'
+  if (status === 'COMPLETED') return 'Completed'
+  return status.replace(/_/g, ' ')
+}
+
+function formatPlannedHours(minutes: number): string {
+  if (minutes <= 0) return '0h'
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return `${h}h`
+  if (h === 0) return `${m}m`
+  return `${h}h ${m}m`
+}
+
+function isFundingReviewOverdue(iso: string | null | undefined): boolean {
+  if (!iso) return false
+  const day = iso.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false
+  const today = new Date().toISOString().slice(0, 10)
+  return day < today
+}
+
 export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: string }) {
   const apiConfigured = Boolean(getApiBaseUrl())
 
   const { profile, documents, allergies, inventory, initialAssessment, flashMessage } =
     useServiceUserDetail(serviceUserId)
   const carePlan = useServiceUserCarePlan(serviceUserId)
+  const carePlanInstances = useCarePlanInstances(serviceUserId, apiConfigured)
   const bodyMapSummary = useBodyMapSummary(serviceUserId)
+  const visitPlanQuery = useWorkingServiceUserVisitPlan(serviceUserId)
+  const medicationsQuery = useServiceUserMedications(serviceUserId)
+  const ecmExceptionsQuery = useEcmExceptions({
+    limit: 50,
+    serviceUserId,
+    enabled: apiConfigured && Boolean(serviceUserId),
+  })
+  const activityQuery = useServiceUserVisitActivity(serviceUserId, { page: 1, limit: 5 })
 
   const fundingQuery = useQuery({
     queryKey: [...serviceUserKeys.detail(serviceUserId), 'enterprise-funding'],
@@ -143,15 +225,69 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
   const ia = initialAssessment.data ?? null
   const bm = bodyMapSummary.data
   const acceptedItems = carePlan.acceptedCarePlans.data?.items ?? []
+  const instances = carePlanInstances.data ?? []
+  const publishedCount = instances.filter(
+    (row) =>
+      row.displayStatus === 'PUBLISHED' || row.displayStatus === 'PUBLISHED_WITH_DRAFT',
+  ).length
+  const draftCount = instances.filter(
+    (row) => row.displayStatus === 'DRAFT' || row.displayStatus === 'PUBLISHED_WITH_DRAFT',
+  ).length
   const fundingRows = fundingQuery.data?.rows ?? []
   const primaryFunding =
-    fundingRows.find(f => f.isPrimary && f.isActive) ?? fundingRows.find(f => f.isActive) ?? null
+    fundingRows.find((f) => f.isPrimary && f.isActive) ??
+    fundingRows.find((f) => f.isActive) ??
+    null
+  const fundingReviewOverdue = isFundingReviewOverdue(primaryFunding?.reviewDate)
+
+  const visitPlan = visitPlanQuery.data ?? null
+  const weeklyHours = visitPlan
+    ? summarizeVisitPlanWeeklyHours(visitPlan.slots ?? [], visitPlan.weeklyContractedHours)
+    : null
+  const contractedHours =
+    weeklyHours?.contractedHours ??
+    parseWeeklyContractedHours(visitPlan?.weeklyContractedHours) ??
+    null
+  const carersPerVisit =
+    visitPlan?.numberOfCarers ??
+    domCareQuery.data?.numberOfCarers ??
+    ia?.numberOfCarers ??
+    null
+  const enabledSlots = (visitPlan?.slots ?? []).filter((s) => s.isEnabled).length
+
+  const medications = medicationsQuery.data?.rows ?? []
+  const activeMeds = medications.filter((m) => String(m.status).toUpperCase() === 'ACTIVE')
+  const prnMeds = activeMeds.filter((m) => m.medicationKind === 'PRN')
+  const controlledMeds = activeMeds.filter((m) => m.isControlledMedication)
+
+  const openEcmExceptions = (ecmExceptionsQuery.data ?? []).filter((row) =>
+    ECM_OPEN_LIFECYCLES.has(String(row.lifecycle).toUpperCase()),
+  )
+  const overdueEcm = openEcmExceptions.filter((row) => row.overdue).length
+
+  const recentVisits = activityQuery.data?.data ?? []
+  const medMissingSites = bm?.medicationAlerts?.missingBodyMapSiteCount ?? 0
+  const overduePatches = bm?.medicationAlerts?.overduePatchChangeCount ?? 0
 
   const highRisk = isHighRisk(detail)
-  const diabetesFlag = hasDiabetesAllergyFlag(allergyRows.map(a => a.allergyName))
+  const diabetesFlag = hasDiabetesAllergyFlag(allergyRows.map((a) => a.allergyName))
 
   const attentionItems = React.useMemo((): AttentionItem[] => {
     const items: AttentionItem[] = []
+    if (openEcmExceptions.length > 0) {
+      items.push({
+        id: 'ecm',
+        severity: overdueEcm > 0 ? 'red' : 'amber',
+        title: `ECM — ${openEcmExceptions.length} open exception${openEcmExceptions.length === 1 ? '' : 's'}`,
+        detail:
+          overdueEcm > 0
+            ? `${overdueEcm} overdue response${overdueEcm === 1 ? '' : 's'}`
+            : 'Attendance exceptions need review',
+        linkLabel: 'Open ECM',
+        to: '/service-users/$serviceUserId/ecm',
+        params: { serviceUserId },
+      })
+    }
     if (bm && bm.reviewDueCount > 0) {
       items.push({
         id: 'body-map',
@@ -163,15 +299,67 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         params: { serviceUserId },
       })
     }
-    if (acceptedItems.length === 0) {
+    if (medMissingSites > 0 || overduePatches > 0) {
+      items.push({
+        id: 'body-map-meds',
+        severity: 'amber',
+        title: 'Body map — medication alerts',
+        detail: [
+          medMissingSites > 0 ? `${medMissingSites} missing site` : null,
+          overduePatches > 0 ? `${overduePatches} overdue patch` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        linkLabel: 'Open body map',
+        to: '/service-users/$serviceUserId/body-map',
+        params: { serviceUserId },
+      })
+    }
+    if (acceptedItems.length === 0 && publishedCount === 0) {
       items.push({
         id: 'care-plan',
         severity: 'amber',
-        title: 'Care plan — none accepted',
-        detail: 'Link care plans from initial assessment or care pathway',
+        title: 'Care plan — none published',
+        detail:
+          draftCount > 0
+            ? `${draftCount} draft${draftCount === 1 ? '' : 's'} in progress`
+            : 'Link care plans from initial assessment or care pathway',
         linkLabel: 'Go to care plan',
         to: '/service-users/$serviceUserId/care-plan',
         params: { serviceUserId },
+      })
+    }
+    if (visitPlan?.status === 'SUSPENDED') {
+      items.push({
+        id: 'visit-plan-suspended',
+        severity: 'amber',
+        title: 'Visit plan — suspended',
+        detail: visitPlan.pauseReasonCatalog?.name ?? 'Care package is paused',
+        linkLabel: 'Open visit plan',
+        to: '/service-users/$serviceUserId/visit-plan',
+        params: { serviceUserId },
+      })
+    } else if (!visitPlan) {
+      items.push({
+        id: 'visit-plan-missing',
+        severity: 'blue',
+        title: 'Visit plan — not set up',
+        detail: 'Create a visit plan to generate rota',
+        linkLabel: 'Open visit plan',
+        to: '/service-users/$serviceUserId/visit-plan',
+        params: { serviceUserId },
+      })
+    }
+    if (fundingReviewOverdue) {
+      items.push({
+        id: 'funding-review',
+        severity: 'amber',
+        title: 'Funding review overdue',
+        detail: `Review was due ${formatShortUk(primaryFunding?.reviewDate)}`,
+        linkLabel: 'Edit profile',
+        to: '/service-users/$serviceUserId',
+        params: { serviceUserId },
+        search: { tab: 'personal' },
       })
     }
     if (flashData) {
@@ -179,7 +367,10 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         id: 'flash',
         severity: 'amber',
         title: 'Active flash message',
-        detail: flashData.message.length > 80 ? `${flashData.message.slice(0, 80)}…` : flashData.message,
+        detail:
+          flashData.message.length > 80
+            ? `${flashData.message.slice(0, 80)}…`
+            : flashData.message,
         linkLabel: 'Edit message',
         to: '/service-users/$serviceUserId',
         params: { serviceUserId },
@@ -199,13 +390,39 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
       })
     }
     return items
-  }, [acceptedItems.length, bm, flashData, ia, serviceUserId])
+  }, [
+    acceptedItems.length,
+    bm,
+    draftCount,
+    flashData,
+    fundingReviewOverdue,
+    ia,
+    medMissingSites,
+    openEcmExceptions.length,
+    overdueEcm,
+    overduePatches,
+    primaryFunding?.reviewDate,
+    publishedCount,
+    serviceUserId,
+    visitPlan,
+  ])
 
   const primaryContacts = (detail?.contacts ?? [])
-    .filter(c => c.isPrimary || c.isEmergencyContact)
+    .filter((c) => c.isPrimary || c.isEmergencyContact)
     .slice(0, 3)
   const contactsTotal = detail?.contacts?.length ?? 0
   const addr = detail?.address
+
+  const carePlanSummary =
+    acceptedItems.length > 0 || publishedCount > 0 || draftCount > 0
+      ? [
+          acceptedItems.length > 0 ? `${acceptedItems.length} accepted` : null,
+          publishedCount > 0 ? `${publishedCount} published` : null,
+          draftCount > 0 ? `${draftCount} draft` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : 'None published'
 
   if (loading) {
     return (
@@ -286,7 +503,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         {attentionItems.length > 0 ? (
           <SimpleCard title="Needs attention">
             <ul className="space-y-2">
-              {attentionItems.map(item => (
+              {attentionItems.map((item) => (
                 <li key={item.id}>
                   <Link
                     to={item.to}
@@ -317,25 +534,128 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
           </SimpleCard>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SimpleCard title="Care">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <SimpleCard
+            title="Visit package"
+            action={
+              <CardLink to="/service-users/$serviceUserId/visit-plan" serviceUserId={serviceUserId}>
+                Visit plan
+              </CardLink>
+            }
+          >
             <InfoRow
-              label="Care plan"
-              value={acceptedItems.length > 0 ? `${acceptedItems.length} accepted` : 'None accepted'}
-              tone={acceptedItems.length > 0 ? 'ok' : 'warn'}
+              label="Status"
+              value={visitPlan?.status ?? 'Not set up'}
+              tone={
+                visitPlan?.status === 'ACTIVE'
+                  ? 'ok'
+                  : visitPlan?.status === 'SUSPENDED'
+                    ? 'warn'
+                    : visitPlan
+                      ? undefined
+                      : 'warn'
+              }
+            />
+            <InfoRow
+              label="Carers per visit"
+              value={carersPerVisit ?? '—'}
+            />
+            <InfoRow
+              label="Enabled calls"
+              value={visitPlan ? enabledSlots : '—'}
+            />
+            <InfoRow
+              label="Weekly contracted"
+              value={contractedHours != null ? `${contractedHours}h` : '—'}
+            />
+            <InfoRow
+              label="Weekly planned"
+              value={
+                weeklyHours
+                  ? formatPlannedHours(weeklyHours.plannedMinutes)
+                  : '—'
+              }
+              tone={weeklyHours?.isOverContract ? 'warn' : undefined}
+            />
+            <InfoRow label="Effective from" value={formatShortUk(visitPlan?.effectiveFrom)} />
+          </SimpleCard>
+
+          <SimpleCard
+            title="Care delivery"
+            action={
+              <CardLink to="/service-users/$serviceUserId/care-plan" serviceUserId={serviceUserId}>
+                Care plan
+              </CardLink>
+            }
+          >
+            <InfoRow
+              label="Care plans"
+              value={carePlanSummary}
+              tone={publishedCount > 0 || acceptedItems.length > 0 ? 'ok' : 'warn'}
             />
             <InfoRow label="Care type" value={detail.careType?.name ?? '—'} />
             <InfoRow label="Service start" value={formatShortUk(detail.serviceStartDate)} />
-            <InfoRow
-              label="Carers per visit"
-              value={domCareQuery.data?.numberOfCarers ?? ia?.numberOfCarers ?? '—'}
-            />
             <InfoRow label="Personal inventory" value={`${inventory.data?.length ?? 0} items`} />
             <InfoRow
               label="Initial assessment"
               value={ia ? 'On file' : 'Not recorded'}
               tone={ia ? 'ok' : 'warn'}
             />
+          </SimpleCard>
+
+          <SimpleCard
+            title="Medication"
+            action={
+              <CardLink to="/service-users/$serviceUserId/medication" serviceUserId={serviceUserId}>
+                Meds
+              </CardLink>
+            }
+          >
+            <InfoRow label="Active medicines" value={activeMeds.length} />
+            <InfoRow label="PRN" value={prnMeds.length} />
+            <InfoRow
+              label="Controlled"
+              value={controlledMeds.length}
+              tone={controlledMeds.length > 0 ? 'warn' : undefined}
+            />
+            {activeMeds.length > 0 ? (
+              <p className="pt-1 text-xs text-muted-foreground">
+                {activeMeds
+                  .slice(0, 3)
+                  .map((m) => m.medicationName)
+                  .join(', ')}
+                {activeMeds.length > 3 ? '…' : ''}
+              </p>
+            ) : (
+              <p className="pt-1 text-xs text-muted-foreground">No active medicines on file.</p>
+            )}
+          </SimpleCard>
+
+          <SimpleCard
+            title="ECM & attendance"
+            action={
+              <CardLink to="/service-users/$serviceUserId/ecm" serviceUserId={serviceUserId}>
+                ECM
+              </CardLink>
+            }
+          >
+            <InfoRow
+              label="Open exceptions"
+              value={openEcmExceptions.length}
+              tone={openEcmExceptions.length > 0 ? 'warn' : 'ok'}
+            />
+            <InfoRow
+              label="Overdue responses"
+              value={overdueEcm}
+              tone={overdueEcm > 0 ? 'danger' : undefined}
+            />
+            {openEcmExceptions[0] ? (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Latest: {openEcmExceptions[0].title}
+              </p>
+            ) : (
+              <p className="pt-1 text-xs text-muted-foreground">No open attendance exceptions.</p>
+            )}
           </SimpleCard>
 
           <SimpleCard title="Clinical & safety">
@@ -355,14 +675,14 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
               <p className="pb-2 text-xs text-muted-foreground">
                 {allergyRows
                   .slice(0, 4)
-                  .map(a => a.allergyName)
+                  .map((a) => a.allergyName)
                   .join(', ')}
                 {allergyRows.length > 4 ? '…' : ''}
               </p>
             ) : null}
             {diabetesFlag ? (
               <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
-                Diabetes-related allergy on file — inform prescribing clinicians
+                Diabetes flag from allergy names — confirm clinically
               </p>
             ) : null}
             <InfoRow label="Body map — active" value={bm?.activeCount ?? 0} />
@@ -371,12 +691,19 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
               value={bm?.reviewDueCount ?? 0}
               tone={(bm?.reviewDueCount ?? 0) > 0 ? 'danger' : undefined}
             />
+            {medMissingSites > 0 || overduePatches > 0 ? (
+              <InfoRow
+                label="Body map — med alerts"
+                value={`${medMissingSites} missing site · ${overduePatches} overdue patch`}
+                tone="warn"
+              />
+            ) : null}
             {legal?.dnacprInPlace ? (
               <InfoRow label="DNACPR" value="In place" tone="warn" />
             ) : null}
           </SimpleCard>
 
-          <SimpleCard title="People & admin">
+          <SimpleCard title="People & funding">
             <InfoRow
               label="Key worker"
               value={employeeDisplayName(detail.keyWorker) ?? 'Not assigned'}
@@ -402,11 +729,12 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             <InfoRow
               label="Funding review"
               value={formatShortUk(primaryFunding?.reviewDate)}
+              tone={fundingReviewOverdue ? 'danger' : undefined}
             />
             <InfoRow label="Contacts" value={`${contactsTotal} on file`} />
             {primaryContacts.length > 0 ? (
               <ul className="mt-1 space-y-1.5 text-xs text-muted-foreground">
-                {primaryContacts.map(c => (
+                {primaryContacts.map((c) => (
                   <li key={c.id}>
                     {c.firstName} {c.lastName ?? ''}
                     {c.isPrimary ? ' · Primary' : ''}
@@ -417,7 +745,42 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             ) : null}
           </SimpleCard>
 
-          <SimpleCard title="Documents">
+          <SimpleCard
+            title="Recent visits"
+            className="md:col-span-2 xl:col-span-3"
+            action={
+              <CardLink to="/service-users/$serviceUserId/activity" serviceUserId={serviceUserId}>
+                Activity
+              </CardLink>
+            }
+          >
+            {activityQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading recent visits…</p>
+            ) : recentVisits.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No completed visits in recent history.</p>
+            ) : (
+              <ul className="divide-y divide-border/60">
+                {recentVisits.map((visit) => (
+                  <li
+                    key={visit.id}
+                    className="flex flex-wrap items-start justify-between gap-2 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">{visit.visitName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(visit.scheduledStartDateTime)}
+                      </p>
+                    </div>
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                      {visitStatusLabel(visit.status)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SimpleCard>
+
+          <SimpleCard title="Legal documents">
             <InfoRow
               label="DNACPR certificate"
               value={<DocumentOpenLink storedUrl={legal?.dnacprCertificateUrl} />}
@@ -446,6 +809,9 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             ) : (
               <InfoRow label="DoLS" value="No records" />
             )}
+          </SimpleCard>
+
+          <SimpleCard title="Record">
             <InfoRow
               label="Service user #"
               value={detail.serviceUserNumber ?? detail.id.slice(0, 8)}
@@ -458,6 +824,18 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
 
         <SimpleCard title="Quick links">
           <div className="flex flex-wrap gap-2">
+            <QuickLink to="/service-users/$serviceUserId/visit-plan" serviceUserId={serviceUserId}>
+              Visit plan
+            </QuickLink>
+            <QuickLink to="/service-users/$serviceUserId/tasks-planner" serviceUserId={serviceUserId}>
+              Tasks planner
+            </QuickLink>
+            <QuickLink to="/service-users/$serviceUserId/ecm" serviceUserId={serviceUserId}>
+              ECM
+            </QuickLink>
+            <QuickLink to="/service-users/$serviceUserId/activity" serviceUserId={serviceUserId}>
+              Activity
+            </QuickLink>
             <QuickLink to="/service-users/$serviceUserId/observations" serviceUserId={serviceUserId}>
               Observations
             </QuickLink>
@@ -470,18 +848,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             <QuickLink to="/service-users/$serviceUserId/body-map" serviceUserId={serviceUserId}>
               Body map
             </QuickLink>
-            <QuickLink
-              to="/service-users/$serviceUserId"
-              serviceUserId={serviceUserId}
-              search={{ tab: 'calendar' }}
-            >
-              Calendar
-            </QuickLink>
-            <QuickLink
-              to="/service-users/$serviceUserId"
-              serviceUserId={serviceUserId}
-              search={{ tab: 'documents' }}
-            >
+            <QuickLink to="/service-users/$serviceUserId/documents" serviceUserId={serviceUserId}>
               Documents
             </QuickLink>
             <QuickLink
@@ -510,6 +877,11 @@ function QuickLink({
     | '/service-users/$serviceUserId/care-plan'
     | '/service-users/$serviceUserId/medication'
     | '/service-users/$serviceUserId/body-map'
+    | '/service-users/$serviceUserId/documents'
+    | '/service-users/$serviceUserId/visit-plan'
+    | '/service-users/$serviceUserId/tasks-planner'
+    | '/service-users/$serviceUserId/ecm'
+    | '/service-users/$serviceUserId/activity'
     | '/service-users/$serviceUserId'
   serviceUserId: string
   search?: Record<string, string>

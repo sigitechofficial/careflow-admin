@@ -1,3 +1,5 @@
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+
 export const DEFAULT_GENERATE_ROTA_DAYS = 28
 
 export type RotaHorizonMode = 'FIXED_DAYS' | 'CALENDAR_MONTH'
@@ -45,8 +47,9 @@ export function resolveGenerateRotaToDate(
   return addDaysToIsoDate(from, horizonDays - 1)
 }
 
+/** Rota "today" = operational calendar (Europe/London P0), not UTC slice of now. */
 export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return operationalTodayIso()
 }
 
 /** Visit-plan tab: show forward Generate rota (Step 5). When false, Backfill is Step 5. */

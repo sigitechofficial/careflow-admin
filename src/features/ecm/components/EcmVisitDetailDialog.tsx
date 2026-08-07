@@ -22,7 +22,7 @@ export function EcmVisitDetailDialog({ open, onOpenChange, jobId }: Props) {
           <DialogTitle>ECM visit detail</DialogTitle>
         </DialogHeader>
         <DialogBody className="overflow-y-auto">
-          {jobId ? <EcmVisitDetailPanel jobId={jobId} /> : null}
+          {jobId && open ? <EcmVisitDetailPanel key={jobId} jobId={jobId} /> : null}
         </DialogBody>
       </DialogContent>
     </Dialog>

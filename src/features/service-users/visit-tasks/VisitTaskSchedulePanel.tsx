@@ -106,49 +106,51 @@ export function VisitTaskSchedulePanel({
 
   return (
     <div className={cn('space-y-3', compact && 'space-y-2.5')}>
-      <div>
-        <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          How often? <span className="text-red-600">*</span>
-        </Label>
-        <Select
-          value={schedule.scheduleFrequency}
-          disabled={disabled}
-          onValueChange={(v) => {
-            const scheduleFrequency = v as VisitTaskSchedule['scheduleFrequency']
-            onChange({
-              scheduleFrequency,
-              repeatUnit: repeatUnitForFrequency(scheduleFrequency),
-            })
-          }}
-        >
-          <SelectTrigger className={cn('mt-1 w-full', compact && 'h-9 rounded-lg text-sm')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VISIT_PLAN_SCHEDULE_FREQUENCIES.map((f) => (
-              <SelectItem key={f.value} value={f.value}>
-                {f.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Repeat every <span className="text-red-600">*</span>
-        </Label>
-        <div className="mt-1 flex items-center gap-2">
-          <Input
-            type="number"
-            min={1}
-            max={365}
+      <div className={cn('grid gap-3 sm:grid-cols-2', compact && 'gap-2.5')}>
+        <div>
+          <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            How often? <span className="text-red-600">*</span>
+          </Label>
+          <Select
+            value={schedule.scheduleFrequency}
             disabled={disabled}
-            value={schedule.repeatEvery}
-            onChange={(e) => onChange({ repeatEvery: Number(e.target.value) || 1 })}
-            className={cn('w-20', compact && 'h-9 rounded-lg')}
-          />
-          <span className="text-xs text-muted-foreground sm:text-sm">{unitLabel}</span>
+            onValueChange={(v) => {
+              const scheduleFrequency = v as VisitTaskSchedule['scheduleFrequency']
+              onChange({
+                scheduleFrequency,
+                repeatUnit: repeatUnitForFrequency(scheduleFrequency),
+              })
+            }}
+          >
+            <SelectTrigger className={cn('mt-1 w-full', compact && 'h-9 rounded-lg text-sm')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VISIT_PLAN_SCHEDULE_FREQUENCIES.map((f) => (
+                <SelectItem key={f.value} value={f.value}>
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Repeat every <span className="text-red-600">*</span>
+          </Label>
+          <div className="mt-1 flex items-center gap-2">
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              disabled={disabled}
+              value={schedule.repeatEvery}
+              onChange={(e) => onChange({ repeatEvery: Number(e.target.value) || 1 })}
+              className={cn('w-20', compact && 'h-9 rounded-lg')}
+            />
+            <span className="text-xs text-muted-foreground sm:text-sm">{unitLabel}</span>
+          </div>
         </div>
       </div>
 

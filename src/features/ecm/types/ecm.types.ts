@@ -63,6 +63,7 @@ export type EcmDashboardBucket =
   | 'dueNow'
   | 'startingSoon'
   | 'inProgress'
+  | 'earlyArrival'
   | 'lateArrival'
   | 'veryLateArrival'
   | 'potentialMissed'
@@ -70,6 +71,9 @@ export type EcmDashboardBucket =
   | 'missingCheckout'
   | 'outsideGeofence'
   | 'manualAttendance'
+  | 'completed'
+  | 'completedOnTime'
+  | 'completedLate'
 
 export type EcmLiveVisitRow = {
   scheduledJobId: string
@@ -78,6 +82,7 @@ export type EcmLiveVisitRow = {
   slotLabel?: string | null
   serviceUserId: string
   serviceUserName: string
+  carers?: Array<{ employeeId: string; name: string; isLeadCarer: boolean }>
   address?: string | null
   postcode?: string | null
   plannedStartDateTime: string
@@ -105,18 +110,42 @@ export type EcmLiveDashboardCounts = Record<EcmDashboardBucket, number> & {
   total: number
 }
 
+/** Day-level ops summary from live dashboard (same day as tiles). */
+export type EcmLiveDashboardSummary = {
+  total: number
+  completed: number
+  completedOnTime: number
+  completedLate: number
+  completedOnTimePct: number | null
+  outstanding: number
+  inProgress: number
+  potentialMissed: number
+  confirmedMissed: number
+  missingCheckout: number
+  missingCheckIn: number
+}
+
 export type EcmLiveDashboardData = {
   date: string
+  dateFrom?: string
+  dateTo?: string
+  operationalToday?: string
+  operationalTimezone?: string
   refreshedAt: string
   windows?: {
     dueNowWindowMinutes: number
     startingSoonMinutes: number
+    earlyArrivalToleranceMinutes: number
     lateArrivalToleranceMinutes: number
     veryLateThresholdMinutes: number
     missedVisitThresholdMinutes: number
     geofenceRadiusMeters: number
   }
   counts: EcmLiveDashboardCounts
+  summary?: EcmLiveDashboardSummary
+  /** Total evaluations in the period (independent of page). */
+  total?: number
+  nextCursor?: string | null
   visits: EcmLiveVisitRow[]
 }
 
@@ -299,6 +328,13 @@ export type EcmExceptionRow = {
   acknowledgedAt: string | null
   createdAt: string
   jobName: string
+  /** Scheduled job status when returned by open-exception list. */
+  jobStatus?: string
+  /** YYYY-MM-DD from scheduled start (for schedule-jobs deep link). */
+  plannedDate?: string
+  plannedStartDateTime?: string
+  plannedEndDateTime?: string | null
+  carers?: Array<{ employeeId: string; name: string; isLeadCarer: boolean }>
   serviceUserId?: string
   serviceUserName: string
 }
