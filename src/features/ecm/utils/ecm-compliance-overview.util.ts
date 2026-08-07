@@ -40,6 +40,11 @@ export function buildEcmMethodBreakdown(kpis: EcmDailyOpsReport['kpis']): EcmMet
   }
 }
 
+/**
+ * Coarse duration bands from durationClassification (same enum SSOT as
+ * graph-dashboard durationVariance). Prefer Graphs for full distribution;
+ * this helper remains for Reports / tests.
+ */
 export function buildDurationComplianceBands(
   rows: EcmDailyOpsReport['rows'],
 ): ComplianceBandRow[] {
@@ -56,42 +61,41 @@ export function buildDurationComplianceBands(
     else other += 1
   }
 
-  const assessed = compliant + overstay + understay
-  const total = assessed > 0 ? assessed : compliant + overstay + understay + other
+  const total = compliant + overstay + understay + other
 
   const bands: ComplianceBandRow[] = [
     {
-      key: 'compliant',
-      label: 'Compliant',
+      key: 'on_time',
+      label: 'On time',
       count: compliant,
       percent: pct(compliant, total),
       color: '#16a34a',
       textClass: 'text-emerald-700 dark:text-emerald-300',
     },
     {
-      key: 'overstay',
-      label: 'Overstay',
-      count: overstay,
-      percent: pct(overstay, total),
-      color: '#ea580c',
-      textClass: 'text-orange-700 dark:text-orange-300',
-    },
-    {
-      key: 'understay',
-      label: 'Understay',
+      key: 'short',
+      label: 'Short visit',
       count: understay,
       percent: pct(understay, total),
       color: '#dc2626',
       textClass: 'text-red-700 dark:text-red-300',
     },
+    {
+      key: 'long',
+      label: 'Long / overrun',
+      count: overstay,
+      percent: pct(overstay, total),
+      color: '#ea580c',
+      textClass: 'text-orange-700 dark:text-orange-300',
+    },
   ]
 
-  if (other > 0 && assessed === 0) {
+  if (other > 0) {
     bands.push({
-      key: 'not-assessed',
+      key: 'not_assessed',
       label: 'Not assessed',
       count: other,
-      percent: pct(other, rows.length || 1),
+      percent: pct(other, total || 1),
       color: '#94a3b8',
       textClass: 'text-muted-foreground',
     })
@@ -100,28 +104,33 @@ export function buildDurationComplianceBands(
   return bands
 }
 
+/**
+ * Punctuality bands from arrivalClassification (same enum SSOT as
+ * graph-dashboard arrivalPunctuality). Late and very-late are split to match Graphs.
+ */
 export function buildPunctualityComplianceBands(
   rows: EcmDailyOpsReport['rows'],
 ): ComplianceBandRow[] {
   let onTime = 0
   let early = 0
   let late = 0
-  let other = 0
+  let veryLate = 0
+  let notAssessed = 0
 
   for (const row of rows) {
     const code = String(row.arrivalClassification ?? '').toUpperCase()
     if (code === 'ON_TIME') onTime += 1
     else if (code === 'EARLY_ARRIVAL') early += 1
-    else if (code === 'LATE_ARRIVAL' || code === 'VERY_LATE_ARRIVAL') late += 1
-    else other += 1
+    else if (code === 'LATE_ARRIVAL') late += 1
+    else if (code === 'VERY_LATE_ARRIVAL') veryLate += 1
+    else notAssessed += 1
   }
 
-  const assessed = onTime + early + late
-  const total = assessed > 0 ? assessed : onTime + early + late + other
+  const total = onTime + early + late + veryLate + notAssessed
 
   const bands: ComplianceBandRow[] = [
     {
-      key: 'on-time',
+      key: 'on_time',
       label: 'On Time',
       count: onTime,
       percent: pct(onTime, total),
@@ -133,25 +142,33 @@ export function buildPunctualityComplianceBands(
       label: 'Early',
       count: early,
       percent: pct(early, total),
-      color: '#ea580c',
-      textClass: 'text-orange-700 dark:text-orange-300',
+      color: '#0ea5e9',
+      textClass: 'text-sky-700 dark:text-sky-300',
     },
     {
       key: 'late',
       label: 'Late',
       count: late,
       percent: pct(late, total),
+      color: '#f97316',
+      textClass: 'text-orange-700 dark:text-orange-300',
+    },
+    {
+      key: 'very_late',
+      label: 'Very late',
+      count: veryLate,
+      percent: pct(veryLate, total),
       color: '#dc2626',
       textClass: 'text-red-700 dark:text-red-300',
     },
   ]
 
-  if (other > 0 && assessed === 0) {
+  if (notAssessed > 0) {
     bands.push({
-      key: 'not-assessed',
+      key: 'not_assessed',
       label: 'Not assessed',
-      count: other,
-      percent: pct(other, rows.length || 1),
+      count: notAssessed,
+      percent: pct(notAssessed, total || 1),
       color: '#94a3b8',
       textClass: 'text-muted-foreground',
     })

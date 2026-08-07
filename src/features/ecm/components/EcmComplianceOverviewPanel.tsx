@@ -11,10 +11,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Home, Info, Loader2, RefreshCw } from 'lucide-react'
+import { FileBarChart2, Info, Loader2, RefreshCw } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { fetchEcmDailyOpsReport } from '@/features/ecm/api/ecm.api'
@@ -23,13 +22,10 @@ import { useEcmDailyOpsReport } from '@/features/ecm/hooks/useEcm'
 import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
-  buildDurationComplianceBands,
   buildEcmMethodBreakdown,
-  buildPunctualityComplianceBands,
   formatPct,
   formatTrendDayLabel,
   lastNDatesInclusive,
-  type ComplianceBandRow,
 } from '@/features/ecm/utils/ecm-compliance-overview.util'
 import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
 import { buildEcmPeriodSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
@@ -52,123 +48,6 @@ function electronicRateColor(rate: number): string {
   return '#dc2626'
 }
 
-function BandTable({
-  title,
-  bandHeader,
-  bands,
-}: {
-  title: string
-  bandHeader: string
-  bands: ComplianceBandRow[]
-}) {
-  return (
-    <ContentCard className="space-y-3 p-4">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th className="pb-2 pr-2 font-medium">{bandHeader}</th>
-              <th className="pb-2 pr-2 font-medium">Visits</th>
-              <th className="pb-2 font-medium">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bands.map((band) => (
-              <tr key={band.key} className="border-b border-border/60 last:border-0">
-                <td className={cn('py-2 pr-2 font-medium', band.textClass)}>{band.label}</td>
-                <td className="py-2 pr-2 tabular-nums">{band.count.toLocaleString()}</td>
-                <td className="py-2 tabular-nums text-muted-foreground">
-                  {formatPct(band.percent)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </ContentCard>
-  )
-}
-
-function BandHorizontalChart({
-  title,
-  bands,
-}: {
-  title: string
-  bands: ComplianceBandRow[]
-}) {
-  const chartData = bands.map((b) => ({
-    ...b,
-    label: `${b.count.toLocaleString()} | ${formatPct(b.percent)}`,
-  }))
-  const max = Math.max(...bands.map((b) => b.count), 1)
-
-  return (
-    <ContentCard className="space-y-3 p-4">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      {bands.every((b) => b.count === 0) ? (
-        <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
-          No assessed visits for this period.
-        </p>
-      ) : (
-        <>
-          <div className="h-[200px] w-full min-w-0 overflow-hidden">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 4, right: 88, left: 8, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" domain={[0, max]} hide />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  width={0}
-                  tick={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  formatter={(value, _name, item) => {
-                    const n = typeof value === 'number' ? value : Number(value)
-                    const row = item?.payload as ComplianceBandRow | undefined
-                    return [
-                      `${Number.isFinite(n) ? n.toLocaleString() : 0} (${formatPct(row?.percent ?? 0)})`,
-                      row?.label ?? 'Visits',
-                    ]
-                  }}
-                  contentStyle={{ fontSize: 12 }}
-                />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={28}>
-                  {chartData.map((entry) => (
-                    <Cell key={entry.key} fill={entry.color} />
-                  ))}
-                  <LabelList
-                    dataKey="label"
-                    position="right"
-                    style={{ fill: 'var(--foreground)', fontSize: 11 }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-            {bands.map((b) => (
-              <span key={b.key} className="inline-flex items-center gap-1.5">
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-sm"
-                  style={{ background: b.color }}
-                />
-                {b.label}
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-    </ContentCard>
-  )
-}
-
 type EcmUsedFilter = 'all' | 'yes' | 'no'
 
 export type EcmComplianceOverviewPanelProps = {
@@ -177,17 +56,14 @@ export type EcmComplianceOverviewPanelProps = {
 }
 
 /**
- * Compliance Overview consumes the shared ECM operational period + global location SSOT
- * (same URL/store as Live / Graphs / Reports). No parallel date picker.
- * Schedule area is owned by the Graph page period card (not duplicated here).
- * Daily-ops API already supports dateFrom–dateTo ranges; trend chart still ends on dateTo.
+ * Slim compliance strip on the Graph page: electronic vs manual + geofence.
+ * Arrival/duration band charts live on Graphs (classification SSOT) — not duplicated here.
+ * Period/location SSOT matches Live / Graphs / Reports.
  */
 export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOverviewPanelProps) {
   const { locationId: globalLocationId } = useGlobalLocationScope()
-  // Default matches Live/Reports; shared store/URL wins when already set.
   const { dateFrom, dateTo, periodLabel, period, multiDay } = useEcmOperationalPeriod('today')
   const [ecmUsed, setEcmUsed] = React.useState<EcmUsedFilter>('all')
-  const [serviceUserQuery, setServiceUserQuery] = React.useState('')
 
   const reportQuery = useEcmDailyOpsReport(
     { dateFrom, dateTo },
@@ -218,12 +94,7 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
 
   const rows = React.useMemo(() => {
     const all = reportQuery.data?.rows ?? []
-    const q = serviceUserQuery.trim().toLowerCase()
     return all.filter((row) => {
-      if (q) {
-        const hay = `${row.serviceUserName} ${row.jobName}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
       if (ecmUsed === 'yes') {
         return !(row.operationalExceptionCodes ?? []).includes('MANUAL_ATTENDANCE')
       }
@@ -232,12 +103,12 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
       }
       return true
     })
-  }, [ecmUsed, reportQuery.data?.rows, serviceUserQuery])
+  }, [ecmUsed, reportQuery.data?.rows])
 
   const filteredKpis = React.useMemo(() => {
     const base = reportQuery.data?.kpis
     if (!base) return null
-    if (ecmUsed === 'all' && !serviceUserQuery.trim()) return base
+    if (ecmUsed === 'all') return base
 
     const manual = rows.filter((r) =>
       (r.operationalExceptionCodes ?? []).includes('MANUAL_ATTENDANCE'),
@@ -254,11 +125,9 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
       electronicAttendance: electronic,
       geofenceBreaches: geofence,
     }
-  }, [ecmUsed, reportQuery.data?.kpis, rows, serviceUserQuery])
+  }, [ecmUsed, reportQuery.data?.kpis, rows])
 
   const method = filteredKpis ? buildEcmMethodBreakdown(filteredKpis) : null
-  const durationBands = buildDurationComplianceBands(rows)
-  const punctualityBands = buildPunctualityComplianceBands(rows)
   const geofenceBreaches = React.useMemo(() => {
     if (!filteredKpis) return 0
     if (typeof filteredKpis.geofenceBreaches === 'number') return filteredKpis.geofenceBreaches
@@ -304,14 +173,14 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
         <div>
           <h2 className="text-base font-semibold text-foreground">ECM Compliance Overview</h2>
           <p className="text-xs text-muted-foreground">
-            Electronic vs manual attendance, duration and punctuality compliance, geofence
-            breaches, and daily electronic %.
+            Electronic vs manual attendance and geofence breaches. Arrival and duration
+            distributions are on Graphs above (same classification SSOT).
           </p>
         </div>
         <Button type="button" size="sm" variant="outline" className="h-9" asChild>
-          <Link to="/ecm/live" search={buildEcmPeriodSearch(period)}>
-            <Home className="h-4 w-4" />
-            <span className="sr-only">Live monitoring</span>
+          <Link to="/ecm/reports" search={buildEcmPeriodSearch(period)}>
+            <FileBarChart2 className="h-4 w-4" />
+            Reports
           </Link>
         </Button>
       </div>
@@ -328,8 +197,6 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
           Same period and location as Graphs / Live / Reports
           {multiDay ? ` · ${periodLabel}` : ''}
           {' · '}
-          Cards and duration/punctuality tables use the full period
-          {' · '}
           Electronic % trend: last 7 days ending {formatPeriodDayShort(dateTo)}
           {' · '}
           ISO {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
@@ -337,15 +204,6 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/20 p-3">
-        <label className="space-y-1 text-xs">
-          <span className="text-muted-foreground">Service user</span>
-          <Input
-            value={serviceUserQuery}
-            onChange={(e) => setServiceUserQuery(e.target.value)}
-            placeholder="Search…"
-            className="h-9 w-[11rem]"
-          />
-        </label>
         <label className="space-y-1 text-xs">
           <span className="text-muted-foreground">ECM used?</span>
           <select
@@ -438,69 +296,42 @@ export function EcmComplianceOverviewPanel({ scheduleAreaId }: EcmComplianceOver
             </ContentCard>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-2">
-            <BandTable
-              title="ECM Compliance by Duration"
-              bandHeader="Duration Band"
-              bands={durationBands}
-            />
-            <BandTable
-              title="ECM Compliance by Punctuality"
-              bandHeader="Punctuality Band"
-              bands={punctualityBands}
-            />
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-3">
-            <ContentCard className="space-y-3 p-4 lg:col-span-1">
-              <h3 className="text-sm font-semibold text-foreground">Electronic % Trend</h3>
-              <p className="text-xs text-muted-foreground">
-                Last 7 days ending {formatPeriodDay(dateTo)} ({trendDates[0]} → {dateTo})
-              </p>
-              <div className="h-[220px] w-full min-w-0 overflow-hidden">
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={trendData}
-                    margin={{ top: 24, right: 8, left: 0, bottom: 8 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" width={36} />
-                    <Tooltip
-                      formatter={(value) => {
-                        const n = typeof value === 'number' ? value : Number(value)
-                        return [`${Number.isFinite(n) ? n.toFixed(1) : 0}%`, 'Electronic']
+          <ContentCard className="space-y-3 p-4 max-w-2xl">
+            <h3 className="text-sm font-semibold text-foreground">Electronic % Trend</h3>
+            <p className="text-xs text-muted-foreground">
+              Last 7 days ending {formatPeriodDay(dateTo)} ({trendDates[0]} → {dateTo})
+            </p>
+            <div className="h-[220px] w-full min-w-0 overflow-hidden">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={trendData} margin={{ top: 24, right: 8, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" width={36} />
+                  <Tooltip
+                    formatter={(value) => {
+                      const n = typeof value === 'number' ? value : Number(value)
+                      return [`${Number.isFinite(n) ? n.toFixed(1) : 0}%`, 'Electronic']
+                    }}
+                    contentStyle={{ fontSize: 12 }}
+                  />
+                  <Bar dataKey="rate" radius={[4, 4, 0, 0]} maxBarSize={36}>
+                    {trendData.map((entry) => (
+                      <Cell key={entry.date} fill={entry.color} />
+                    ))}
+                    <LabelList
+                      dataKey="rate"
+                      position="top"
+                      formatter={(v: unknown) => {
+                        const n = typeof v === 'number' ? v : Number(v)
+                        return Number.isFinite(n) ? `${n.toFixed(1)}%` : ''
                       }}
-                      contentStyle={{ fontSize: 12 }}
+                      style={{ fill: 'var(--foreground)', fontSize: 10 }}
                     />
-                    <Bar dataKey="rate" radius={[4, 4, 0, 0]} maxBarSize={36}>
-                      {trendData.map((entry) => (
-                        <Cell key={entry.date} fill={entry.color} />
-                      ))}
-                      <LabelList
-                        dataKey="rate"
-                        position="top"
-                        formatter={(v: unknown) => {
-                          const n = typeof v === 'number' ? v : Number(v)
-                          return Number.isFinite(n) ? `${n.toFixed(1)}%` : ''
-                        }}
-                        style={{ fill: 'var(--foreground)', fontSize: 10 }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </ContentCard>
-
-            <BandHorizontalChart
-              title="ECM Compliance by Duration Graph"
-              bands={durationBands}
-            />
-            <BandHorizontalChart
-              title="ECM Compliance by Punctuality Graph"
-              bands={punctualityBands}
-            />
-          </div>
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ContentCard>
         </>
       ) : null}
     </div>

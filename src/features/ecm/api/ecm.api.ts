@@ -226,6 +226,8 @@ export type EcmGraphDrillVisit = {
   arrivalBand: string
   durationBand: string
   branchName: string | null
+  /** Distinct reason codes (exceptions ∪ operationalExceptionCodes). */
+  reasonCodes?: string[]
 }
 
 export type EcmGraphDashboardData = {
@@ -233,6 +235,11 @@ export type EcmGraphDashboardData = {
   dateTo: string
   refreshedAt: string
   visitCount: number
+  /** Total evaluations matching filters before row cap (when API supports it). */
+  totalMatching?: number
+  /** True when visitCount is limited by rowCap. */
+  truncated?: boolean
+  rowCap?: number
   visitStatusByHour: {
     hours: string[]
     series: Array<{ key: string; label: string; data: number[] }>
@@ -249,7 +256,9 @@ export type EcmGraphDashboardData = {
     }
   }
   manualTrend: { dates: string[]; manual: number[] }
+  /** Classification SSOT bands: early | on_time | late | very_late | not_assessed */
   arrivalPunctuality: Array<{ key: string; count: number }>
+  /** Classification SSOT bands: short | on_time | long | excessive | not_assessed */
   durationVariance: Array<{ key: string; count: number }>
   heatmap: {
     weekdays: string[]
@@ -274,6 +283,7 @@ export type EcmGraphDashboardData = {
     verifiedPct: number
   }>
   exceptionReasons: Array<{ code: string; label: string; count: number }>
+  /** Attendance confidence histogram (not check-in channel). */
   verificationMethod: Array<{ code: string; label: string; value: number }>
   drillVisits: EcmGraphDrillVisit[]
 }

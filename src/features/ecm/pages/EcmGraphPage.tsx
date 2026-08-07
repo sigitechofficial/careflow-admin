@@ -30,7 +30,7 @@ export default function EcmGraphPage() {
       <PageHeader
         className="shrink-0"
         title="ECM graphs"
-        description="Graph-first monitoring with the same operational period and location as Live and Reports. Visit tables appear only after you click a series."
+        description="Exception trends and branch comparison first. Same operational period and location as Live and Reports — click a series to list visits."
         icon={<BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },
