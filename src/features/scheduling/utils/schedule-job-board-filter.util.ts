@@ -204,6 +204,23 @@ export function isScheduleJobOperationalVisible(
   )
 }
 
+export function filterTimelineJobsByOutcome(
+  jobs: TimelineJob[],
+  enabled: ReadonlySet<ScheduleJobOutcomeFilter>,
+): TimelineJob[] {
+  if (enabled.size === SCHEDULE_JOB_OUTCOME_FILTERS.length) return jobs
+  return jobs.filter((job) => isScheduleJobOutcomeVisible(job, enabled))
+}
+
+export function filterTimelineJobsByOperational(
+  jobs: TimelineJob[],
+  enabled: ReadonlySet<ScheduleJobOperationalFilter>,
+  outsidePatternJobIds?: Set<string>,
+): TimelineJob[] {
+  if (!enabled.size) return jobs
+  return jobs.filter((job) => isScheduleJobOperationalVisible(job, enabled, outsidePatternJobIds))
+}
+
 export function applyScheduleOperationalFilters(
   board: ScheduleJobsBoard,
   jobFilters: ReadonlySet<ScheduleJobOperationalFilter>,

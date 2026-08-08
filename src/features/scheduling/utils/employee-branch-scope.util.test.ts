@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { describeEmployeeBranchScope } from './employee-branch-scope.util'
+import {
+  collectJobServiceUserLocationIds,
+  describeEmployeeBranchScope,
+  employeeListRowMatchesBranches,
+  filterEmployeesByBranchLocations,
+} from './employee-branch-scope.util'
 
 describe('describeEmployeeBranchScope', () => {
   const locationNames = new Map([
@@ -53,5 +58,56 @@ describe('describeEmployeeBranchScope', () => {
     expect(result.kind).toBe('multiple')
     expect(result.summary).toBe('Multiple branches (2)')
     expect(result.branches).toHaveLength(2)
+  })
+})
+
+describe('employeeListRowMatchesBranches', () => {
+  it('matches all-zones, primary, and floor locations', () => {
+    expect(
+      employeeListRowMatchesBranches(
+        { accessAllZones: true, locationId: 'loc-x', baseLocationIds: [] },
+        ['loc-a'],
+      ),
+    ).toBe(true)
+    expect(
+      employeeListRowMatchesBranches(
+        { accessAllZones: false, locationId: 'loc-a', baseLocationIds: [] },
+        ['loc-a'],
+      ),
+    ).toBe(true)
+    expect(
+      employeeListRowMatchesBranches(
+        { accessAllZones: false, locationId: 'loc-x', baseLocationIds: ['loc-a'] },
+        ['loc-a'],
+      ),
+    ).toBe(true)
+    expect(
+      employeeListRowMatchesBranches(
+        { accessAllZones: false, locationId: 'loc-x', baseLocationIds: ['loc-y'] },
+        ['loc-a'],
+      ),
+    ).toBe(false)
+  })
+
+  it('returns all employees when no location filter', () => {
+    const rows = [
+      { id: '1', accessAllZones: false, locationId: 'loc-a', baseLocationIds: [] as string[] },
+      { id: '2', accessAllZones: false, locationId: 'loc-b', baseLocationIds: [] as string[] },
+    ]
+    expect(filterEmployeesByBranchLocations(rows, [])).toHaveLength(2)
+  })
+})
+
+describe('collectJobServiceUserLocationIds', () => {
+  it('dedupes service user location ids from jobs', () => {
+    expect(
+      collectJobServiceUserLocationIds([
+        { serviceUser: { locationId: 'loc-a' } },
+        { serviceUser: { locationId: 'loc-a' } },
+        { serviceUser: { locationId: 'loc-b' } },
+        { serviceUser: { locationId: null } },
+        null,
+      ]),
+    ).toEqual(['loc-a', 'loc-b'])
   })
 })

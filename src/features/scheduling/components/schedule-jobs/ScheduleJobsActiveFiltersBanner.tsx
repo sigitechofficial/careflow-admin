@@ -10,6 +10,7 @@ import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
 type Props = {
   locationFilterIds: string[]
   serviceUserFilterIds: string[]
+  employeeFilterIds?: string[]
   requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
   branchFilterOptions: BranchFilterOption[]
   boardJobs: TimelineJob[]
@@ -18,6 +19,7 @@ type Props = {
 export function ScheduleJobsActiveFiltersBanner({
   locationFilterIds,
   serviceUserFilterIds,
+  employeeFilterIds = [],
   requiredCarersFilters,
   branchFilterOptions,
   boardJobs,
@@ -25,6 +27,7 @@ export function ScheduleJobsActiveFiltersBanner({
   if (
     locationFilterIds.length === 0 &&
     serviceUserFilterIds.length === 0 &&
+    employeeFilterIds.length === 0 &&
     requiredCarersFilters.length === 0
   ) {
     return null
@@ -41,7 +44,11 @@ export function ScheduleJobsActiveFiltersBanner({
               .map((option) => option.displayLabel)
               .join(' · ') || 'selected branches'}
           </span>
-          {serviceUserFilterIds.length > 0 || requiredCarersFilters.length > 0 ? '. ' : '.'}
+          {serviceUserFilterIds.length > 0 ||
+          employeeFilterIds.length > 0 ||
+          requiredCarersFilters.length > 0
+            ? '. '
+            : '.'}
         </>
       ) : null}
       {serviceUserFilterIds.length > 0 ? (
@@ -59,6 +66,15 @@ export function ScheduleJobsActiveFiltersBanner({
                 return serviceUserLabel(su)
               })
               .join(' · ')}
+          </span>
+          {employeeFilterIds.length > 0 || requiredCarersFilters.length > 0 ? '. ' : '.'}
+        </>
+      ) : null}
+      {employeeFilterIds.length > 0 ? (
+        <>
+          Showing visits allocated to{' '}
+          <span className="font-medium text-foreground">
+            {employeeFilterIds.length === 1 ? '1 selected carer' : `${employeeFilterIds.length} selected carers`}
           </span>
           {requiredCarersFilters.length > 0 ? '. ' : '.'}
         </>

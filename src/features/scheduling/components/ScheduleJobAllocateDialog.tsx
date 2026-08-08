@@ -18,6 +18,7 @@ import {
 } from '@/shared/ui/dialog'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import {
   useAllocateJob,
   useConfirmJobAllocation,
@@ -104,6 +105,7 @@ export function ScheduleJobAllocateDialog({
   const displayFormat = useScheduleJobsDisplayFormat()
   const timePanelRef = React.useRef<HTMLElement>(null)
   const assignedPanelRef = React.useRef<HTMLElement>(null)
+  const carersPickPanelRef = React.useRef<HTMLDivElement>(null)
   const [search, setSearch] = React.useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = React.useState<string | null>(null)
   const [replacingEmployeeId, setReplacingEmployeeId] = React.useState<string | null>(null)
@@ -128,7 +130,14 @@ export function ScheduleJobAllocateDialog({
   const updateJob = useUpdateScheduledJob()
   const updateAllocationTiming = useUpdateJobAllocationTiming()
 
-  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
+  const serviceUserLocationIds = React.useMemo(
+    () => (job ? collectJobServiceUserLocationIds([job]) : []),
+    [job],
+  )
+  const employeesQuery = useScheduleEmployeesCatalog({
+    enabled: open,
+    locationIds: serviceUserLocationIds,
+  })
 
   React.useEffect(() => {
     if (!open) {
@@ -214,6 +223,15 @@ export function ScheduleJobAllocateDialog({
     }, 50)
     return () => window.clearTimeout(timer)
   }, [open, job?.id, initialPanel])
+
+  React.useEffect(() => {
+    if (!open || !replacingEmployeeId) return
+    const timer = window.setTimeout(() => {
+      carersPickPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('allocate-employee-search')?.focus()
+    }, 50)
+    return () => window.clearTimeout(timer)
+  }, [open, replacingEmployeeId])
 
   const allocatedCount = job ? activeJobAllocationCount(job) : 0
   const slotsRemaining = job ? Math.max(0, job.requiredCarers - allocatedCount) : 0
@@ -928,6 +946,7 @@ export function ScheduleJobAllocateDialog({
           </section>
 
           {!readOnly && canAddOrReplaceCarer ? (
+          <div ref={carersPickPanelRef} className="space-y-4">
             <ScheduleJobRecommendedCarers
               job={job}
               allocatedEmployeeIds={allocatedEmployeeIds}
@@ -936,9 +955,7 @@ export function ScheduleJobAllocateDialog({
               onAssign={(employeeId) => handlePickEmployee(employeeId)}
               onCandidatesChange={setSuggestCandidates}
             />
-          ) : null}
 
-          {!readOnly && canAddOrReplaceCarer ? (
           <section className="space-y-3 border-t border-border pt-4">
             <h4 className="text-sm font-semibold text-foreground">{manualSectionTitle}</h4>
             {rotaBookedEmployeeIds.size > 0 || (!showBlockedCarers && blockedEmployeeIds.size > 0) ? (
@@ -985,7 +1002,9 @@ export function ScheduleJobAllocateDialog({
               <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border p-1">
                 {filteredEmployees.length === 0 ? (
                   <li className="px-2 py-3 text-center text-sm text-muted-foreground">
-                    No employees match your search.
+                    {employeesQuery.locationFilterApplied
+                      ? 'No carers for this service user’s branch match your search.'
+                      : 'No employees match your search.'}
                   </li>
                 ) : (
                   filteredEmployees.map((row) => (
@@ -1034,6 +1053,7 @@ export function ScheduleJobAllocateDialog({
               </div>
             ) : null}
           </section>
+          </div>
           ) : null}
 
           {!readOnly && !canAddOrReplaceCarer ? (

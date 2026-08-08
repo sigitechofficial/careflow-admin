@@ -5,6 +5,7 @@ import {
   useScheduleRunsList,
 } from '@/features/scheduling/hooks/useScheduleRuns'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import type { ScheduleRunRow, ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { ScheduleRunEditDialog } from '@/features/scheduling/components/ScheduleRunEditDialog'
 import { ScheduleRunsTable } from '@/features/scheduling/components/ScheduleRunsTable'
@@ -91,7 +92,25 @@ export function ScheduleRunsPanel({
   const [editEmployeeId, setEditEmployeeId] = React.useState('')
   const [editNotes, setEditNotes] = React.useState('')
 
-  const employeesQuery = useScheduleEmployeesCatalog()
+  const serviceUserLocationIds = React.useMemo(() => {
+    if (editRun) return collectJobServiceUserLocationIds(editRun.jobs ?? [])
+    if (createOpen) {
+      const selectedJobs = unassignedJobs.filter((job) => selectedJobIds.includes(job.id))
+      return collectJobServiceUserLocationIds(selectedJobs)
+    }
+    return []
+  }, [editRun, createOpen, unassignedJobs, selectedJobIds])
+
+  const includeEmployeeIds = React.useMemo(() => {
+    if (editRun && editEmployeeId) return [editEmployeeId]
+    if (createOpen && employeeId) return [employeeId]
+    return []
+  }, [editRun, editEmployeeId, createOpen, employeeId])
+
+  const employeesQuery = useScheduleEmployeesCatalog({
+    locationIds: serviceUserLocationIds,
+    includeEmployeeIds,
+  })
 
   const carerComboboxOptions = React.useMemo(
     () => [

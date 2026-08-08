@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useScheduleRunMutations } from '@/features/scheduling/hooks/useScheduleRuns'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { ScheduleRunStatus, TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 
 export type ScheduleRunBulkAssignBundle = {
@@ -30,10 +31,6 @@ export function useScheduleRunsBulkAssignDialog({ date, runs, onChanged }: HookO
   const [selectedRunIds, setSelectedRunIds] = React.useState<Set<string>>(new Set())
   const [employeeId, setEmployeeId] = React.useState('')
 
-  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
-
-  const carerOptions = employeesQuery.comboboxOptions
-
   const selectedBundles = React.useMemo(
     () => runs.filter((entry) => selectedRunIds.has(entry.run.id)),
     [runs, selectedRunIds],
@@ -43,6 +40,32 @@ export function useScheduleRunsBulkAssignDialog({ date, runs, onChanged }: HookO
     () => selectedBundles.filter((entry) => runIsAssignable(entry.run.status)),
     [selectedBundles],
   )
+
+  const serviceUserLocationIds = React.useMemo(
+    () =>
+      collectJobServiceUserLocationIds(
+        assignableSelectedBundles.flatMap((entry) => entry.jobs),
+      ),
+    [assignableSelectedBundles],
+  )
+  const includeEmployeeIds = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          assignableSelectedBundles
+            .map((entry) => entry.run.employeeId?.trim())
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ],
+    [assignableSelectedBundles],
+  )
+  const employeesQuery = useScheduleEmployeesCatalog({
+    enabled: open,
+    locationIds: serviceUserLocationIds,
+    includeEmployeeIds,
+  })
+
+  const carerOptions = employeesQuery.comboboxOptions
 
   const toggleRunId = React.useCallback(
     (runId: string) => {

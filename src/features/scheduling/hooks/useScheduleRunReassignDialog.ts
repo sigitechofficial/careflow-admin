@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useScheduleRunMutations } from '@/features/scheduling/hooks/useScheduleRuns'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { JobsDayRunsResponse } from '@/features/scheduling/types/scheduling.types'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { scheduleRunCarerLabelFromJobs } from '@/features/scheduling/components/ScheduleRunReassignDialog'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 
@@ -28,7 +29,15 @@ export function useScheduleRunReassignDialog({
     [runId, runs],
   )
 
-  const employeesQuery = useScheduleEmployeesCatalog({ enabled: Boolean(runId) })
+  const serviceUserLocationIds = React.useMemo(
+    () => collectJobServiceUserLocationIds(bundle?.jobs ?? []),
+    [bundle?.jobs],
+  )
+  const employeesQuery = useScheduleEmployeesCatalog({
+    enabled: Boolean(runId),
+    locationIds: serviceUserLocationIds,
+    includeEmployeeIds: previousEmployeeId ? [previousEmployeeId] : [],
+  })
 
   const carerOptions = employeesQuery.comboboxOptions
 

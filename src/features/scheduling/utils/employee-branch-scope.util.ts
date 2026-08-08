@@ -1,6 +1,11 @@
 import type { EmployeeListRow } from '@/features/employees/api/employees.api'
 import { formatServiceUserBranchLabel } from '@/features/settings/location-management/format-service-user-branch-label'
 
+export type EmployeeBranchEmploymentSlice = Pick<
+  EmployeeListRow,
+  'accessAllZones' | 'locationId' | 'baseLocationIds'
+>
+
 export type EmployeeBranchScopeKind = 'all-zones' | 'multiple' | 'single' | 'none'
 
 export type EmployeeBranchScope = {
@@ -80,4 +85,45 @@ export function staffListBranchScopeLabel(scope: EmployeeBranchScope): string {
     default:
       return '—'
   }
+}
+
+/** Collect unique service-user branch ids from timeline jobs (primary/assignment already resolved on the job). */
+export function collectJobServiceUserLocationIds(
+  jobs: Array<{ serviceUser?: { locationId?: string | null } | null } | null | undefined>,
+): string[] {
+  const ids = new Set<string>()
+  for (const job of jobs) {
+    const locationId = job?.serviceUser?.locationId?.trim()
+    if (locationId) ids.add(locationId)
+  }
+  return [...ids]
+}
+
+/**
+ * Mirrors API visit-plan / employee-list branch matching:
+ * all-zones, primary location, or extra floor/base locations.
+ * When `locationIds` is empty, every employee matches (no branch filter).
+ */
+export function employeeListRowMatchesBranches(
+  employee: EmployeeBranchEmploymentSlice | null | undefined,
+  locationIds: string[],
+): boolean {
+  if (!locationIds.length) return true
+  if (!employee) return false
+  if (employee.accessAllZones) return true
+  const wanted = new Set(locationIds)
+  if (employee.locationId && wanted.has(employee.locationId)) return true
+  for (const locationId of employee.baseLocationIds ?? []) {
+    if (wanted.has(locationId)) return true
+  }
+  return false
+}
+
+export function filterEmployeesByBranchLocations<T extends EmployeeBranchEmploymentSlice>(
+  employees: T[],
+  locationIds: string[] | null | undefined,
+): T[] {
+  const ids = (locationIds ?? []).map((id) => id.trim()).filter(Boolean)
+  if (!ids.length) return employees
+  return employees.filter((employee) => employeeListRowMatchesBranches(employee, ids))
 }

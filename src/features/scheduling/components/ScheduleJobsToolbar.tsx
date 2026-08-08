@@ -18,7 +18,6 @@ import {
   type ScheduleJobsBoardRowAxis,
 } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { Button } from '@/shared/ui/button'
-import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   formatHoursMinutes,
   jobBlockCompletedSurfaceStyle,
@@ -38,16 +37,13 @@ import {
   type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
 import {
-  isScheduleJobsFilterAllOptionSelected,
-  normalizeScheduleJobsFilterChange,
-  SCHEDULE_JOBS_FILTER_ALL_VALUE,
-  withScheduleJobsFilterAllOption,
-} from '@/features/scheduling/utils/schedule-jobs-multi-filter.util'
-import {
   ROTA_GAP_DISPLAY_MODES,
   rotaGapDisplayModeLabel,
   type RotaGapDisplayMode,
 } from '@/features/scheduling/utils/schedule-job-rota-gap.util'
+import { ScheduleFilterBar } from '@/features/scheduling/components/schedule-filters/ScheduleFilterBar'
+import type { ScheduleFilterBarPeriodProps } from '@/features/scheduling/components/schedule-filters/ScheduleFilterBar'
+import type { ScheduleSharedFilterSearch } from '@/features/scheduling/utils/schedule-jobs-url-state.util'
 
 const SCHEDULE_JOBS_TOGGLE_SELECTED_CLASS =
   'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-inset ring-emerald-300/70 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-700'
@@ -84,18 +80,27 @@ function StatChip({ label, value, accent = 'default', title }: StatChipProps) {
 
 type Props = {
   date: string
+  onDateChange: (isoDate: string) => void
+  period: ScheduleFilterBarPeriodProps
   locationIds: string[]
   branchFilterOptions: Array<{ id: string; label: string; displayLabel: string }>
   allBranchesLabel: string
   onLocationChange: (locationIds: string[]) => void
+  locationFilterDisabled?: boolean
   serviceUserIds: string[]
   serviceUsers: Array<{ id: string; label: string }>
   allServiceUsersLabel: string
   onServiceUserChange: (serviceUserIds: string[]) => void
+  employeeIds: string[]
+  carers: Array<{ id: string; label: string }>
+  allCarersLabel: string
+  onEmployeeChange: (employeeIds: string[]) => void
   requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
   requiredCarersOptions: Array<{ value: string; label: string; description?: string }>
   onRequiredCarersFiltersChange: (filters: ScheduleJobsRequiredCarersFilterValue[]) => void
   allVisitsLabel: string
+  onClearSharedFilters?: () => void
+  listLinkSearch: ScheduleSharedFilterSearch
   onRefresh: () => void
   isLoading?: boolean
   hasError?: boolean
@@ -197,18 +202,27 @@ function JobOutcomeFilterChip({
 
 export function ScheduleJobsToolbar({
   date,
+  onDateChange,
+  period,
   locationIds,
   branchFilterOptions,
   allBranchesLabel,
   onLocationChange,
+  locationFilterDisabled = false,
   serviceUserIds,
   serviceUsers,
   allServiceUsersLabel,
   onServiceUserChange,
+  employeeIds,
+  carers,
+  allCarersLabel,
+  onEmployeeChange,
   requiredCarersFilters,
   requiredCarersOptions,
   onRequiredCarersFiltersChange,
   allVisitsLabel,
+  onClearSharedFilters,
+  listLinkSearch,
   onRefresh,
   isLoading,
   hasError,
@@ -242,83 +256,10 @@ export function ScheduleJobsToolbar({
   onRotaGapDisplayChange,
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
-  const branchComboboxOptions = React.useMemo(
-    () =>
-      withScheduleJobsFilterAllOption(
-        allBranchesLabel,
-        branchFilterOptions.map((option) => ({ value: option.id, label: option.label })),
-      ),
-    [allBranchesLabel, branchFilterOptions],
-  )
-  const formatBranchTriggerOptions = React.useCallback(
-    (selected: Array<{ value: string; label: string }>) => {
-      if (selected.length <= 1) return selected
-      return [{ value: '__branch_summary__', label: `${selected.length} branches` }]
-    },
-    [],
-  )
-  const onRemoveBranchOption = React.useCallback(
-    (option: { value: string; label: string }, current: string[]) => {
-      if (option.value === '__branch_summary__' || option.value === SCHEDULE_JOBS_FILTER_ALL_VALUE) {
-        return []
-      }
-      return current.filter((id) => id !== option.value)
-    },
-    [],
-  )
-  const formatMultiTriggerSummary = React.useCallback(
-    (selected: Array<{ value: string; label: string }>, summaryLabel: string) => {
-      if (selected.length <= 1) return selected
-      return [{ value: '__summary__', label: `${selected.length} ${summaryLabel}` }]
-    },
-    [],
-  )
-  const onRemoveMultiSummary = React.useCallback(
-    (option: { value: string }, current: string[]) => {
-      if (option.value === '__summary__' || option.value === SCHEDULE_JOBS_FILTER_ALL_VALUE) return []
-      return current.filter((id) => id !== option.value)
-    },
-    [],
-  )
-  const serviceUserMultiOptions = React.useMemo(
-    () =>
-      withScheduleJobsFilterAllOption(
-        allServiceUsersLabel,
-        serviceUsers.map((su) => ({ value: su.id, label: su.label })),
-      ),
-    [allServiceUsersLabel, serviceUsers],
-  )
-  const requiredCarersMultiOptions = React.useMemo(
-    () =>
-      withScheduleJobsFilterAllOption(
-        allVisitsLabel,
-        requiredCarersOptions.map((option) => ({
-          value: option.value,
-          label: option.description ? `${option.label} (${option.description})` : option.label,
-        })),
-      ),
-    [allVisitsLabel, requiredCarersOptions],
-  )
-  const filterFieldClassName =
-    'flex min-h-11 items-center gap-3 rounded-lg border border-border bg-background px-3 py-2'
-  const filterLabelClassName =
-    'text-xs font-semibold uppercase tracking-wide text-muted-foreground shrink-0'
-  const filterComboboxClassName =
-    'h-10 min-w-[min(18rem,52vw)] border-0 bg-transparent px-1 text-sm shadow-none'
-
-  const activeBranchLabels =
-    locationIds.length > 0
-      ? branchFilterOptions
-          .filter((option) => locationIds.includes(option.id))
-          .map((option) => option.displayLabel)
-      : []
-  const activeServiceUserLabels =
-    serviceUserIds.length > 0
-      ? serviceUsers.filter((su) => serviceUserIds.includes(su.id)).map((su) => su.label)
-      : []
   const hasActiveFilters =
-    activeBranchLabels.length > 0 ||
-    activeServiceUserLabels.length > 0 ||
+    locationIds.length > 0 ||
+    serviceUserIds.length > 0 ||
+    employeeIds.length > 0 ||
     (layout === 'board' && requiredCarersFilters.length > 0)
 
   const accordionSummaryParts = [
@@ -458,7 +399,7 @@ export function ScheduleJobsToolbar({
           </Button>
 
           <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs" asChild>
-            <Link to="/scheduling/list" search={{ date }}>
+            <Link to="/scheduling/list" search={listLinkSearch}>
               <LayoutList className="h-3.5 w-3.5" />
               List
             </Link>
@@ -492,76 +433,32 @@ export function ScheduleJobsToolbar({
         </summary>
 
         <div className="space-y-3 border-t border-border/60 bg-muted/10 px-4 py-3">
-          <div className="flex flex-wrap items-stretch gap-3">
-            <div className={filterFieldClassName}>
-              <span className={filterLabelClassName}>Branch</span>
-              <div data-testid="schedule-jobs-location-filter" className="min-w-0 flex-1">
-                <MultiSelect
-                  options={branchComboboxOptions}
-                  value={locationIds}
-                  onChange={(next) => onLocationChange(normalizeScheduleJobsFilterChange(next))}
-                  placeholder={allBranchesLabel}
-                  searchPlaceholder="Search branches…"
-                  disabled={branchFilterOptions.length === 0}
-                  checkPosition="right"
-                  isOptionSelected={isScheduleJobsFilterAllOptionSelected}
-                  formatSelectedOptions={formatBranchTriggerOptions}
-                  onRemoveOption={onRemoveBranchOption}
-                  className={filterComboboxClassName}
-                />
-              </div>
-            </div>
-
-            <div className={filterFieldClassName}>
-              <span className={filterLabelClassName}>Service user</span>
-              <div data-testid="schedule-jobs-service-user-filter" className="min-w-0 flex-1">
-                <MultiSelect
-                  options={serviceUserMultiOptions}
-                  value={serviceUserIds}
-                  onChange={(next) => onServiceUserChange(normalizeScheduleJobsFilterChange(next))}
-                  placeholder={allServiceUsersLabel}
-                  searchPlaceholder="Search service users…"
-                  disabled={serviceUsers.length === 0}
-                  checkPosition="right"
-                  isOptionSelected={isScheduleJobsFilterAllOptionSelected}
-                  formatSelectedOptions={(selected) =>
-                    formatMultiTriggerSummary(selected, 'service users')
-                  }
-                  onRemoveOption={onRemoveMultiSummary}
-                  className={filterComboboxClassName}
-                />
-              </div>
-            </div>
-
-            {layout === 'board' ? (
-              <div className={filterFieldClassName}>
-                <span className={filterLabelClassName}>Carers required</span>
-                <div data-testid="schedule-jobs-required-carers-filter" className="min-w-0 flex-1">
-                  <MultiSelect
-                    options={requiredCarersMultiOptions}
-                    value={requiredCarersFilters}
-                    onChange={(next) =>
-                      onRequiredCarersFiltersChange(
-                        normalizeScheduleJobsFilterChange(next).filter(
-                          (value): value is ScheduleJobsRequiredCarersFilterValue =>
-                            value === '1' || value === '2' || value === '3plus',
-                        ),
-                      )
-                    }
-                    placeholder={allVisitsLabel}
-                    searchPlaceholder="Filter by carers required…"
-                    checkPosition="right"
-                    isOptionSelected={isScheduleJobsFilterAllOptionSelected}
-                    formatSelectedOptions={(selected) =>
-                      formatMultiTriggerSummary(selected, 'carer types')
-                    }
-                    onRemoveOption={onRemoveMultiSummary}
-                    className={filterComboboxClassName}
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
+          <ScheduleFilterBar
+            date={date}
+            onDateChange={onDateChange}
+            period={period}
+            showDateControls
+            locationIds={locationIds}
+            branchFilterOptions={branchFilterOptions}
+            allBranchesLabel={allBranchesLabel}
+            onLocationChange={onLocationChange}
+            locationFilterDisabled={locationFilterDisabled}
+            serviceUserIds={serviceUserIds}
+            serviceUsers={serviceUsers}
+            allServiceUsersLabel={allServiceUsersLabel}
+            onServiceUserChange={onServiceUserChange}
+            employeeIds={employeeIds}
+            carers={carers}
+            allCarersLabel={allCarersLabel}
+            onEmployeeChange={onEmployeeChange}
+            requiredCarersFilters={requiredCarersFilters}
+            requiredCarersOptions={requiredCarersOptions}
+            allVisitsLabel={allVisitsLabel}
+            onRequiredCarersFiltersChange={onRequiredCarersFiltersChange}
+            showRequiredCarersFilter={layout === 'board'}
+            onClearFilters={onClearSharedFilters}
+            className="border-0 bg-transparent p-0 shadow-none"
+          />
 
           {layout === 'board' ? (
             <>
@@ -699,36 +596,16 @@ export function ScheduleJobsToolbar({
 
           {hasActiveFilters ? (
             <p className="text-xs text-muted-foreground">
-              {activeBranchLabels.length > 0 ? (
-                <>
-                  Branch{activeBranchLabels.length > 1 ? 'es' : ''}:{' '}
-                  <span className="font-medium text-foreground">
-                    {activeBranchLabels.join(' · ')}
-                  </span>
-                  {activeServiceUserLabels.length > 0 || (layout === 'board' && requiredCarersFilters.length > 0)
-                    ? ' · '
-                    : ''}
-                </>
-              ) : null}
-              {activeServiceUserLabels.length > 0 ? (
-                <>
-                  Service user{activeServiceUserLabels.length > 1 ? 's' : ''}:{' '}
-                  <span className="font-medium text-foreground">
-                    {activeServiceUserLabels.join(' · ')}
-                  </span>
-                  {layout === 'board' && requiredCarersFilters.length > 0 ? ' · ' : ''}
-                </>
-              ) : null}
-              {layout === 'board' && requiredCarersFilters.length > 0 ? (
-                <>
-                  Carers required:{' '}
-                  <span className="font-medium text-foreground">
-                    {scheduleJobsRequiredCarersFiltersLabel(
-                      requiredCarersFilters as ScheduleJobsRequiredCarersFilterValue[],
-                    )}
-                  </span>
-                </>
-              ) : null}
+              {[
+                locationIds.length ? `${locationIds.length} branch(es)` : null,
+                serviceUserIds.length ? `${serviceUserIds.length} service user(s)` : null,
+                employeeIds.length ? `${employeeIds.length} carer(s)` : null,
+                layout === 'board' && requiredCarersFilters.length
+                  ? `Carers required: ${scheduleJobsRequiredCarersFiltersLabel(requiredCarersFilters)}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           ) : null}
         </div>

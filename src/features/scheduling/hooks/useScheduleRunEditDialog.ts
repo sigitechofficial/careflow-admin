@@ -6,6 +6,7 @@ import {
 } from '@/features/scheduling/hooks/useScheduleRuns'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
 import type { ScheduleRunRow } from '@/features/scheduling/types/scheduling.types'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 
@@ -34,7 +35,14 @@ export function useScheduleRunEditDialog({
 
   const pendingRunQuery = useScheduleRunDetail(pendingRunId, Boolean(pendingRunId))
 
-  const employeesQuery = useScheduleEmployeesCatalog()
+  const serviceUserLocationIds = React.useMemo(
+    () => collectJobServiceUserLocationIds(editRun?.jobs ?? []),
+    [editRun?.jobs],
+  )
+  const employeesQuery = useScheduleEmployeesCatalog({
+    locationIds: serviceUserLocationIds,
+    includeEmployeeIds: editEmployeeId ? [editEmployeeId] : [],
+  })
 
   const carerComboboxOptions = React.useMemo(
     () => [

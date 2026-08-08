@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import { useScheduleRunMutations } from '@/features/scheduling/hooks/useScheduleRuns'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { computeScheduleRunStats } from '@/features/scheduling/utils/schedule-run-stats.util'
 import { sortJobsByStartTime } from '@/features/scheduling/utils/schedule-job-travel-distance.util'
@@ -65,7 +66,15 @@ export function ScheduleRunCreateDialog({
     [sortedJobs, travelBufferMinutes],
   )
 
-  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
+  const serviceUserLocationIds = React.useMemo(
+    () => collectJobServiceUserLocationIds(sortedJobs),
+    [sortedJobs],
+  )
+  const employeesQuery = useScheduleEmployeesCatalog({
+    enabled: open,
+    locationIds: serviceUserLocationIds,
+    includeEmployeeIds: employeeId ? [employeeId] : [],
+  })
 
   const carerOptions = React.useMemo(
     () => [

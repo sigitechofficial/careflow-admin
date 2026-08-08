@@ -25,8 +25,6 @@ import { useScheduleJobsPageDialogs } from '@/features/scheduling/hooks/useSched
 import { useScheduleJobsUrlState } from '@/features/scheduling/hooks/useScheduleJobsUrlState'
 import { jobScheduleDateIso, scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import { scrollScheduleJobsBoardToRow } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
-import { shiftIsoDate } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
-import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 
 export function ScheduleJobsPageContent() {
   const hasApi = !!getApiBaseUrl()
@@ -39,6 +37,7 @@ export function ScheduleJobsPageContent() {
     date: url.date,
     locationFilterIds: url.locationFilterIds,
     serviceUserFilterIds: url.serviceUserFilterIds,
+    employeeFilterIds: url.employeeFilterIds,
     requiredCarersFilters: url.requiredCarersFilters,
     jobOutcomeFilters: url.jobOutcomeFilters,
     jobOperationalFilters: url.jobOperationalFilters,
@@ -123,29 +122,31 @@ export function ScheduleJobsPageContent() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 md:p-5">
-      <ScheduleJobsPageHeaderCard
-        layout={url.layout}
-        date={url.date}
-        onPrevDay={() => url.setScheduleDate(shiftIsoDate(url.date, -1))}
-        onNextDay={() => url.setScheduleDate(shiftIsoDate(url.date, 1))}
-        onToday={() => url.setScheduleDate(todayIso())}
-        onDateChange={url.setScheduleDate}
-      />
+      <ScheduleJobsPageHeaderCard layout={url.layout} />
 
       <ScheduleJobsToolbar
         date={url.date}
+        onDateChange={url.setScheduleDate}
+        period={url.periodControls}
         locationIds={url.locationFilterIds}
         branchFilterOptions={board.branchFilterOptions}
         allBranchesLabel={`All branches (${board.allDayJobs.length})`}
         onLocationChange={url.setScheduleLocationFilter}
+        locationFilterDisabled={url.locationFilterDisabled}
         serviceUserIds={url.serviceUserFilterIds}
         serviceUsers={board.serviceUserOptions}
         allServiceUsersLabel={`All service users (${board.serviceUserOptions.length})`}
         onServiceUserChange={url.setScheduleServiceUserFilter}
+        employeeIds={url.employeeFilterIds}
+        carers={board.carerFilterOptions}
+        allCarersLabel={`All carers (${board.carerFilterOptions.length})`}
+        onEmployeeChange={url.setScheduleEmployeeFilter}
         requiredCarersFilters={url.requiredCarersFilters}
         requiredCarersOptions={board.requiredCarersOptions}
         onRequiredCarersFiltersChange={url.setScheduleRequiredCarersFilters}
         allVisitsLabel={`All visits (${board.boardAfterServiceUser.allJobs.length})`}
+        onClearSharedFilters={url.clearSharedFilters}
+        listLinkSearch={url.listLinkSearch}
         onRefresh={board.handleRefresh}
         isLoading={board.isLoading}
         hasError={board.employeesError || board.dayRunsError}
@@ -184,6 +185,7 @@ export function ScheduleJobsPageContent() {
           <ScheduleJobsActiveFiltersBanner
             locationFilterIds={url.locationFilterIds}
             serviceUserFilterIds={url.serviceUserFilterIds}
+            employeeFilterIds={url.employeeFilterIds}
             requiredCarersFilters={url.requiredCarersFilters}
             branchFilterOptions={board.branchFilterOptions}
             boardJobs={board.board.allJobs}

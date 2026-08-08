@@ -8,6 +8,7 @@ import { Input } from '@/shared/ui/input'
 import { employeeListRowDisplayName } from '@/features/employees/lib/employee-display-name'
 import { useAllocateJob } from '@/features/scheduling/hooks/useSchedulingMutations'
 import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useScheduleEmployeesCatalog'
+import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
@@ -41,7 +42,13 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
   const [assignAsLead, setAssignAsLead] = React.useState(false)
 
   const allocate = useAllocateJob()
-  const employeesQuery = useScheduleEmployeesCatalog()
+  const serviceUserLocationIds = React.useMemo(
+    () => collectJobServiceUserLocationIds([job]),
+    [job],
+  )
+  const employeesQuery = useScheduleEmployeesCatalog({
+    locationIds: serviceUserLocationIds,
+  })
 
   const allocatedCount = activeJobAllocationCount(job)
   const slotsRemaining = Math.max(0, job.requiredCarers - allocatedCount)
@@ -210,7 +217,9 @@ export function ScheduleJobCompleteCarerSection({ job, disabled, onAllocated }: 
           <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-1">
             {filteredEmployees.length === 0 ? (
               <li className="px-2 py-3 text-center text-sm text-muted-foreground">
-                No employees match your search.
+                {employeesQuery.locationFilterApplied
+                  ? 'No carers for this service user’s branch match your search.'
+                  : 'No employees match your search.'}
               </li>
             ) : (
               filteredEmployees.map((row) => (

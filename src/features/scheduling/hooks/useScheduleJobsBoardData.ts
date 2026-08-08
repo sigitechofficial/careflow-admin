@@ -58,6 +58,10 @@ import {
   countScheduleJobsByRequiredCarers,
   type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
+import {
+  applyScheduleJobsEmployeeFilter,
+  buildCarerFilterOptionsFromJobs,
+} from '@/features/scheduling/utils/schedule-shared-job-filters.util'
 import { buildScheduleJobsServiceUserRows } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import type { ScheduleJobsLayout } from '@/features/scheduling/utils/schedule-jobs-layout.util'
@@ -67,6 +71,7 @@ export type ScheduleJobsUrlUpdatePartial = {
   date?: string
   locationIds?: string[]
   serviceUserIds?: string[]
+  employeeIds?: string[]
   requiredCarersFilters?: ScheduleJobsRequiredCarersFilterValue[]
   jobOperationalFilters?: ScheduleJobOperationalFilter[]
   carerOperationalFilters?: ScheduleCarerOperationalFilter[]
@@ -79,6 +84,7 @@ export type UseScheduleJobsBoardDataParams = {
   date: string
   locationFilterIds: string[]
   serviceUserFilterIds: string[]
+  employeeFilterIds: string[]
   requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
   jobOutcomeFilters: Set<ScheduleJobOutcomeFilter>
   jobOperationalFilters: ScheduleJobOperationalFilter[]
@@ -92,6 +98,7 @@ export function useScheduleJobsBoardData({
   date,
   locationFilterIds,
   serviceUserFilterIds,
+  employeeFilterIds,
   requiredCarersFilters,
   jobOutcomeFilters,
   jobOperationalFilters,
@@ -253,33 +260,43 @@ export function useScheduleJobsBoardData({
     [boardAfterServiceUser, requiredCarersFilters],
   )
 
-  const jobOutcomeCounts = React.useMemo(
-    () => countScheduleJobsByOutcome(boardAfterRequiredCarers.allJobs),
+  const carerFilterOptions = React.useMemo(
+    () => buildCarerFilterOptionsFromJobs(boardAfterRequiredCarers.allJobs),
     [boardAfterRequiredCarers.allJobs],
+  )
+
+  const boardAfterEmployees = React.useMemo(
+    () => applyScheduleJobsEmployeeFilter(boardAfterRequiredCarers, employeeFilterIds),
+    [boardAfterRequiredCarers, employeeFilterIds],
+  )
+
+  const jobOutcomeCounts = React.useMemo(
+    () => countScheduleJobsByOutcome(boardAfterEmployees.allJobs),
+    [boardAfterEmployees.allJobs],
   )
 
   const outsidePatternJobIds = React.useMemo(
-    () => collectOutsidePatternJobIds(boardAfterRequiredCarers.employeeRows),
-    [boardAfterRequiredCarers.employeeRows],
+    () => collectOutsidePatternJobIds(boardAfterEmployees.employeeRows),
+    [boardAfterEmployees.employeeRows],
   )
 
   const jobOperationalCounts = React.useMemo(
-    () => countScheduleJobsByOperationalFilter(boardAfterRequiredCarers.allJobs, outsidePatternJobIds),
-    [boardAfterRequiredCarers.allJobs, outsidePatternJobIds],
+    () => countScheduleJobsByOperationalFilter(boardAfterEmployees.allJobs, outsidePatternJobIds),
+    [boardAfterEmployees.allJobs, outsidePatternJobIds],
   )
 
   const carerOnLeaveTodayCount = React.useMemo(
-    () => countScheduleCarersOnLeaveToday(boardAfterRequiredCarers.employeeRows),
-    [boardAfterRequiredCarers.employeeRows],
+    () => countScheduleCarersOnLeaveToday(boardAfterEmployees.employeeRows),
+    [boardAfterEmployees.employeeRows],
   )
 
   const operationalIssuesCount = React.useMemo(
-    () => countScheduleJobsWithOperationalIssues(boardAfterRequiredCarers.allJobs),
-    [boardAfterRequiredCarers.allJobs],
+    () => countScheduleJobsWithOperationalIssues(boardAfterEmployees.allJobs),
+    [boardAfterEmployees.allJobs],
   )
 
   const filteredBoard = React.useMemo(() => {
-    const afterOutcome = applyScheduleJobOutcomeFilters(boardAfterRequiredCarers, jobOutcomeFilters)
+    const afterOutcome = applyScheduleJobOutcomeFilters(boardAfterEmployees, jobOutcomeFilters)
     return applyScheduleOperationalFilters(
       afterOutcome,
       new Set(jobOperationalFilters),
@@ -287,7 +304,7 @@ export function useScheduleJobsBoardData({
       outsidePatternJobIds,
     )
   }, [
-    boardAfterRequiredCarers,
+    boardAfterEmployees,
     jobOutcomeFilters,
     jobOperationalFilters,
     carerOperationalFilters,
@@ -447,9 +464,11 @@ export function useScheduleJobsBoardData({
     carerOnLeaveTodayCount,
     operationalIssuesCount,
     requiredCarersOptions,
+    carerFilterOptions,
     serviceUserOptions,
     outsidePatternJobIds,
     boardAfterRequiredCarers,
+    boardAfterEmployees,
     weekJobs,
     excessContractedJobIds,
     overAllocatedJobIds,
