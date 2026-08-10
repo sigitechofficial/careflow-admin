@@ -390,6 +390,32 @@ export async function fetchUkPayrollRunFps(id: string) {
   return res.data
 }
 
+export async function downloadUkPayrollRunFpsExcel(runId: string): Promise<Blob> {
+  const { getApiBaseUrl } = await import('@/shared/lib/api-base')
+  const { useAuthStore } = await import('@/features/auth/store')
+  const base = getApiBaseUrl()
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetch(`${base}/payroll/runs/${runId}/fps/export`, {
+    method: 'GET',
+    headers,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let message = text || `Export failed (${res.status})`
+    try {
+      const json = JSON.parse(text) as { message?: string; errors?: string[] }
+      if (json.errors?.length) message = json.errors.join('; ')
+      else if (json.message) message = json.message
+    } catch {
+      /* plain text */
+    }
+    throw new Error(message)
+  }
+  return res.blob()
+}
+
 export async function fetchUkPayrollRunHmrcSubmissions(id: string) {
   const res = await apiJson<ApiEnvelope<PayrollHmrcSubmission[]>>(
     `/payroll/runs/${id}/hmrc-submissions`,

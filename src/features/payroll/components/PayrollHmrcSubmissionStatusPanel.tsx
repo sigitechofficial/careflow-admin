@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Download, Loader2, RotateCcw, ScrollText } from 'lucide-react'
+import { Download, FileSpreadsheet, Loader2, RotateCcw, ScrollText } from 'lucide-react'
 import type {
   PayrollHmrcSubmission,
   PayrollHmrcSubmissionAuditEvent,
@@ -21,6 +21,9 @@ type Props = {
   currentUserId: string | null
   /** Load full detail (includes redacted XML + audit events). */
   onDownload: (submission: PayrollHmrcSubmission) => Promise<PayrollHmrcSubmission>
+  /** FPS run workbook (.xlsx) — shown next to XML for FPS only. */
+  onDownloadFpsExcel?: () => void
+  fpsExcelDownloading?: boolean
   onRetry?: (submission: PayrollHmrcSubmission) => void
   onApproveLive?: (submissionId: string) => void
   onRejectLive?: (submissionId: string, reason?: string) => void
@@ -71,6 +74,8 @@ export function PayrollHmrcSubmissionStatusPanel({
   canManage,
   currentUserId,
   onDownload,
+  onDownloadFpsExcel,
+  fpsExcelDownloading,
   onRetry,
   onApproveLive,
   onRejectLive,
@@ -276,22 +281,38 @@ export function PayrollHmrcSubmissionStatusPanel({
                             )}
                             Audit
                           </Button>
-                          {(s.canDownloadPayload ?? s.hasRequestXml) ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 gap-1 px-2 text-[11px]"
-                              disabled={downloadingId === s.id}
-                              onClick={() => void handleDownload(s)}
-                            >
-                              {downloadingId === s.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                              ) : (
-                                <Download className="h-3 w-3" aria-hidden />
-                              )}
-                              XML
-                            </Button>
-                          ) : null}
+                        {(s.canDownloadPayload ?? s.hasRequestXml) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 px-2 text-[11px]"
+                            disabled={downloadingId === s.id}
+                            onClick={() => void handleDownload(s)}
+                          >
+                            {downloadingId === s.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                            ) : (
+                              <Download className="h-3 w-3" aria-hidden />
+                            )}
+                            XML
+                          </Button>
+                        ) : null}
+                        {documentLabel === 'FPS' && onDownloadFpsExcel ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 px-2 text-[11px]"
+                            disabled={fpsExcelDownloading}
+                            onClick={() => onDownloadFpsExcel()}
+                          >
+                            {fpsExcelDownloading ? (
+                              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                            ) : (
+                              <FileSpreadsheet className="h-3 w-3" aria-hidden />
+                            )}
+                            Excel
+                          </Button>
+                        ) : null}
                           {canRetryRow ? (
                             <Button
                               size="sm"

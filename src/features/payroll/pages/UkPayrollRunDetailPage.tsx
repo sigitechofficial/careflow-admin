@@ -12,6 +12,7 @@ import {
   Info,
   Loader2,
   FileJson,
+  FileSpreadsheet,
   Receipt,
   RotateCcw,
   Send,
@@ -25,6 +26,7 @@ import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSecti
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
 import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
 import {
+  downloadUkPayrollRunFpsExcel,
   fetchUkPayrollRunHmrcSubmission,
 } from '@/features/payroll/api/payroll.api'
 import {
@@ -77,6 +79,7 @@ export default function UkPayrollRunDetailPage() {
   const reactivateMut = useReactivateUkPayrollRun(runId)
   const createPayout = useCreateEmployeePayoutBatch()
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
+  const [fpsExcelDownloading, setFpsExcelDownloading] = React.useState(false)
 
   const open =
     data?.status === 'DRAFT' ||
@@ -119,6 +122,24 @@ export default function UkPayrollRunDetailPage() {
     a.download = `fps-preview-${runId.slice(0, 8)}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadFpsExcel = async () => {
+    setFpsExcelDownloading(true)
+    try {
+      const blob = await downloadUkPayrollRunFpsExcel(runId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `care-fps-${runId.slice(0, 8)}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+      toastSuccess('Downloaded FPS Excel workbook')
+    } catch (err) {
+      toastApiError(err, 'Could not download FPS Excel')
+    } finally {
+      setFpsExcelDownloading(false)
+    }
   }
 
   return (
@@ -682,6 +703,28 @@ export default function UkPayrollRunDetailPage() {
                       ) : null}
                     </div>
 
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={!fpsQuery.data || fpsExcelDownloading}
+                        onClick={() => void handleDownloadFpsExcel()}
+                        data-testid="payroll-fps-download-excel"
+                      >
+                        {fpsExcelDownloading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        Download FPS Excel
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        Human-readable workbook (Summary + Employees). GovTalk XML is on each
+                        submission row below.
+                      </span>
+                    </div>
+
                     <PayrollHmrcSubmissionStatusPanel
                       documentLabel="FPS"
                       isValidated={Boolean(fpsQuery.data.validation?.isReadyToSubmit)}
@@ -690,6 +733,8 @@ export default function UkPayrollRunDetailPage() {
                       canManage={canManage}
                       currentUserId={currentUserId}
                       onDownload={(s) => fetchUkPayrollRunHmrcSubmission(runId, s.id)}
+                      onDownloadFpsExcel={() => void handleDownloadFpsExcel()}
+                      fpsExcelDownloading={fpsExcelDownloading}
                       onRetry={(s) => {
                         const env = s.environment === 'LIVE' ? 'LIVE' : 'TEST'
                         if (

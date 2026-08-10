@@ -19,10 +19,8 @@ import {
   ClipboardList,
   UserRoundPlus,
   LayoutGrid,
-  Smartphone,
   FileText,
   List,
-  Hammer,
   CalendarDays,
   PlusCircle,
   Eye,
@@ -188,11 +186,10 @@ const navItems: NavItem[] = [
   {
     label: 'Scheduling',
     icon: <Calendar className="h-5 w-5" />,
-    href: '/scheduling/view',
+    href: '/scheduling/schedule-jobs',
     badge: '3',
     badgeVariant: 'warning',
     children: [
-      { label: 'View Schedule',          icon: <Eye className="h-4 w-4" />,        href: '/scheduling/view' },
       { label: 'Schedule Jobs',          icon: <Calendar className="h-4 w-4" />,   href: '/scheduling/schedule-jobs' },
       {
         label: 'Bulk generate rota',
@@ -204,12 +201,10 @@ const navItems: NavItem[] = [
           'scheduled_visits.create',
         ],
       },
-      { label: 'View Schedule (Mobile)', icon: <Smartphone className="h-4 w-4" />, href: '/in-progress', ready: false },
-      { label: 'Schedule Templates',     icon: <LayoutGrid className="h-4 w-4" />, href: '/scheduling/templates' },
       { label: 'Report',                 icon: <FileText className="h-4 w-4" />,   href: '/scheduling/report' },
       { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-4 w-4" />,  href: '/scheduling/jobs' },
       { label: 'List View of Schedule',  icon: <List className="h-4 w-4" />,       href: '/scheduling/list' },
-      { label: 'Build Schedule',         icon: <Hammer className="h-4 w-4" />,     href: '/scheduling/build' },
+      // View Schedule, View Schedule (Mobile), Schedule Templates, Build Schedule: hidden; URLs still work.
     ],
   },
   {
