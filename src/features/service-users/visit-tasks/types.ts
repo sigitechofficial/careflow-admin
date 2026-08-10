@@ -7,6 +7,7 @@ export type TaskCatalogueTask = {
   competencyGated: boolean
   competency: string | null
   outOfScope: boolean
+  requiresMultipleCarers?: boolean
   flagsJson: Record<string, unknown> | null
 }
 
@@ -44,6 +45,7 @@ export type VisitTaskAssignment = {
     competencyGated: boolean
     competency: string | null
     outOfScope: boolean
+    requiresMultipleCarers?: boolean
     flagsJson: Record<string, unknown> | null
   }
 }

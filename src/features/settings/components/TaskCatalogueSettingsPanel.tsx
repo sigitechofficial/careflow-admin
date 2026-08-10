@@ -52,6 +52,7 @@ type TaskFormState = {
   competencyGated: boolean
   competency: string
   outOfScope: boolean
+  requiresMultipleCarers: boolean
   isActive: boolean
 }
 
@@ -63,6 +64,7 @@ const EMPTY_FORM: TaskFormState = {
   competencyGated: false,
   competency: '',
   outOfScope: false,
+  requiresMultipleCarers: false,
   isActive: true,
 }
 
@@ -133,6 +135,7 @@ export function TaskCatalogueSettingsPanel() {
       competencyGated: task.competencyGated,
       competency: task.competency ?? '',
       outOfScope: task.outOfScope,
+      requiresMultipleCarers: task.requiresMultipleCarers,
       isActive: task.isActive,
     })
     setActionError(null)
@@ -157,6 +160,7 @@ export function TaskCatalogueSettingsPanel() {
         competencyGated: addForm.competencyGated,
         competency: addForm.competencyGated ? addForm.competency.trim() || undefined : undefined,
         outOfScope: addForm.outOfScope,
+        requiresMultipleCarers: addForm.requiresMultipleCarers,
       })
       setAddForm((prev) => ({ ...EMPTY_FORM, categoryId: prev.categoryId }))
     } catch (error) {
@@ -180,6 +184,7 @@ export function TaskCatalogueSettingsPanel() {
           competencyGated: editForm.competencyGated,
           competency: editForm.competencyGated ? editForm.competency.trim() || null : null,
           outOfScope: editForm.outOfScope,
+          requiresMultipleCarers: editForm.requiresMultipleCarers,
           isActive: editForm.isActive,
         },
       })
@@ -198,6 +203,27 @@ export function TaskCatalogueSettingsPanel() {
       if (editTask?.id === task.id) closeEdit()
     } catch (error) {
       setActionError(error instanceof ApiError ? error.message : 'Could not remove task.')
+    }
+  }
+
+  const onToggleRequiresMultipleCarers = async (
+    task: TaskCatalogueAdminTask,
+    requiresMultipleCarers: boolean,
+  ) => {
+    if (!canManage) return
+    setActionError(null)
+    try {
+      await updateMutation.mutateAsync({
+        id: task.id,
+        body: { requiresMultipleCarers },
+      })
+      if (editTask?.id === task.id) {
+        setEditForm((prev) => ({ ...prev, requiresMultipleCarers }))
+      }
+    } catch (error) {
+      setActionError(
+        error instanceof ApiError ? error.message : 'Could not update multi-carer requirement.',
+      )
     }
   }
 
@@ -319,6 +345,9 @@ export function TaskCatalogueSettingsPanel() {
               saving={saving}
               onEdit={openEdit}
               onDelete={(task) => void onDelete(task)}
+              onToggleRequiresMultipleCarers={(task, value) =>
+                void onToggleRequiresMultipleCarers(task, value)
+              }
             />
           ))
         )}
@@ -431,6 +460,14 @@ function TaskOptionCheckboxes({
         />
         Out of scope for carer
       </label>
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox
+          checked={form.requiresMultipleCarers}
+          disabled={disabled}
+          onCheckedChange={(value) => onChange({ requiresMultipleCarers: value === true })}
+        />
+        Requires more than 1 carer
+      </label>
       {showActive ? (
         <label className="flex items-center gap-2 text-sm">
           <Checkbox
@@ -460,12 +497,17 @@ function TaskGroupSection({
   saving,
   onEdit,
   onDelete,
+  onToggleRequiresMultipleCarers,
 }: {
   group: TaskCatalogueAdminGroup
   canManage: boolean
   saving: boolean
   onEdit: (task: TaskCatalogueAdminTask, categoryId: string) => void
   onDelete: (task: TaskCatalogueAdminTask) => void
+  onToggleRequiresMultipleCarers: (
+    task: TaskCatalogueAdminTask,
+    requiresMultipleCarers: boolean,
+  ) => void
 }) {
   return (
     <section className="space-y-3">
@@ -487,7 +529,7 @@ function TaskGroupSection({
                     !task.isActive && 'bg-muted/20 opacity-70',
                   )}
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{task.name}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {!task.isActive ? (
@@ -500,12 +542,28 @@ function TaskGroupSection({
                           Consent
                         </span>
                       ) : null}
+                      {task.requiresMultipleCarers ? (
+                        <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">
+                          2+ carers
+                        </span>
+                      ) : null}
                       {task.competencyGated && task.competency ? (
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                           {task.competency.replace(/_/g, ' ')}
                         </span>
                       ) : null}
                     </div>
+                    <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Checkbox
+                        checked={task.requiresMultipleCarers}
+                        disabled={!canManage || saving}
+                        aria-label={`${task.name} requires more than 1 carer`}
+                        onCheckedChange={(value) =>
+                          onToggleRequiresMultipleCarers(task, value === true)
+                        }
+                      />
+                      Requires more than 1 carer
+                    </label>
                   </div>
                   {canManage ? (
                     <div className="flex shrink-0 gap-1">

@@ -10,9 +10,11 @@ import {
 } from '@/features/payroll/hooks/usePayroll'
 import { fetchPayrollEpsSubmission } from '@/features/payroll/api/payroll.api'
 import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
+import { PayrollFieldLabel } from '@/features/payroll/components/PayrollFieldLabel'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 
 type Props = {
@@ -84,6 +86,7 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
         : 'border-emerald-200 bg-emerald-50/80 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100'
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-3 rounded-xl border border-border p-4" data-testid="payroll-eps-preview">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -117,7 +120,10 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground">Tax year</span>
+          <PayrollFieldLabel
+            label="Tax year"
+            info="What it is for: which UK tax year (6 April–5 April) this monthly EPS belongs to. Usually keep the current year."
+          />
           <select
             className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             value={taxYearId}
@@ -132,7 +138,10 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
           </select>
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground">Tax month (1–12)</span>
+          <PayrollFieldLabel
+            label="Tax month (1–12)"
+            info="What it is for: which month inside the tax year you are reporting (1 = April, 12 = March). EPS is filed monthly, not per payroll run."
+          />
           <Input
             type="number"
             min={1}
@@ -142,7 +151,10 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground">Nil payment</span>
+          <PayrollFieldLabel
+            label="Nil payment"
+            info="What it is for: tell HMRC whether you paid employees in this tax month. Auto uses closed UK payroll runs; Yes means no pay this month; No means you did pay."
+          />
           <select
             className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             value={nilPayment === 'auto' ? 'auto' : nilPayment ? 'yes' : 'no'}
@@ -157,7 +169,10 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
           </select>
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground">SMP recovered (£)</span>
+          <PayrollFieldLabel
+            label="SMP recovered (£)"
+            info="What it is for: Statutory Maternity Pay you can reclaim from HMRC for this month. Enter pounds (0 if none). Other statutory recoveries can be added later."
+          />
           <Input value={smp} onChange={(e) => setSmp(e.target.value)} />
         </label>
       </div>
@@ -169,7 +184,10 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
           onChange={(e) => setEaClaimed(e.target.checked)}
           className="h-4 w-4 rounded border-input"
         />
-        Claim Employment Allowance on this EPS preview
+        <PayrollFieldLabel
+          label="Claim Employment Allowance on this EPS preview"
+          info="What it is for: includes Employment Allowance on this month’s EPS preview/send. Defaults from the employer setting above, but you can change it for this preview only."
+        />
       </label>
 
       {epsQuery.isLoading ? (
@@ -383,5 +401,6 @@ export function PayrollEpsPreviewPanel({ employmentAllowanceClaimedDefault }: Pr
         </div>
       ) : null}
     </div>
+    </TooltipProvider>
   )
 }

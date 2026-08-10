@@ -10,6 +10,7 @@ export type TaskCatalogueAdminTask = {
   competencyGated: boolean
   competency: string | null
   outOfScope: boolean
+  requiresMultipleCarers: boolean
   flagsJson: Record<string, unknown> | null
   isActive: boolean
 }
@@ -45,6 +46,7 @@ export type CreateTaskCatalogueTaskPayload = {
   competencyGated?: boolean
   competency?: string
   outOfScope?: boolean
+  requiresMultipleCarers?: boolean
 }
 
 export type UpdateTaskCatalogueTaskPayload = {
@@ -55,6 +57,7 @@ export type UpdateTaskCatalogueTaskPayload = {
   competencyGated?: boolean
   competency?: string | null
   outOfScope?: boolean
+  requiresMultipleCarers?: boolean
   isActive?: boolean
 }
 

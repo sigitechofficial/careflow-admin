@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { Info } from 'lucide-react'
 import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSectionLayout'
+import { PayrollFieldLabel } from '@/features/payroll/components/PayrollFieldLabel'
 import { PayrollEpsPreviewPanel } from '@/features/payroll/components/PayrollEpsPreviewPanel'
+import { PAYROLL_SECTION_GUIDANCE } from '@/features/payroll/data/payroll-section-guidance'
 import {
   usePayrollEmployerSettings,
   useUpdatePayrollEmployerSettings,
@@ -9,7 +10,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 
 type FormState = {
@@ -124,8 +125,9 @@ export default function PayrollEmployerSettingsPage() {
   return (
     <PayrollSectionLayout
       title="Employer PAYE"
-      description="Your company HMRC employer identity and Gateway login for future filing. Passwords are stored encrypted and never shown again after save."
+      description="Your company’s HMRC employer details and Gateway login for FPS/EPS filing. Hover (i) on any field for what it is for. Passwords are encrypted and never shown again after save."
       testId="payroll-employer-settings-page"
+      guidance={PAYROLL_SECTION_GUIDANCE.employer}
     >
       <TooltipProvider delayDuration={200}>
         <div className="space-y-4">
@@ -143,7 +145,7 @@ export default function PayrollEmployerSettingsPage() {
                 <span className="font-semibold tabular-nums">{data.fullPayeReference}</span>.
                 {data.gatewayCredentialsReady
                   ? ' Gateway login for the selected environment is also ready.'
-                  : ' Add Gateway user ID + password below when you are ready to file (later step).'}
+                  : ' Add Gateway user ID + password below when you are ready to file.'}
               </p>
             ) : (
               <p>
@@ -162,9 +164,9 @@ export default function PayrollEmployerSettingsPage() {
                   Employer identity
                 </p>
                 <label className="block space-y-1 text-sm">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="HMRC office number"
-                    info="First 3 digits of your Employer PAYE reference (for example 123 from 123/AB45678)."
+                    info="What it is for: the first 3 digits of your Employer PAYE reference. Example: from 123/AB45678, enter 123. HMRC uses this with the reference below to know which tax office you belong to."
                   />
                   <Input
                     value={form.hmrcOfficeNumber}
@@ -180,9 +182,9 @@ export default function PayrollEmployerSettingsPage() {
                 </label>
 
                 <label className="block space-y-1 text-sm">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Employer PAYE reference"
-                    info="The part after the slash on your PAYE reference (for example AB45678)."
+                    info="What it is for: the part after the slash on your PAYE reference. Example: from 123/AB45678, enter AB45678. Together with the office number, this is your company’s unique PAYE ID on FPS filings."
                   />
                   <Input
                     value={form.employerPayeReference}
@@ -194,9 +196,9 @@ export default function PayrollEmployerSettingsPage() {
                 </label>
 
                 <label className="block space-y-1 text-sm sm:col-span-2">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Full PAYE reference (preview)"
-                    info="Shown as office/reference — this is what HMRC and FPS use together."
+                    info="What it is for: a read-only check that Care will send office/reference together (for example 123/AB45678). You do not type this — it builds from the two fields above."
                   />
                   <Input
                     value={fullPaye ?? ''}
@@ -207,9 +209,9 @@ export default function PayrollEmployerSettingsPage() {
                 </label>
 
                 <label className="block space-y-1 text-sm sm:col-span-2">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Accounts Office reference"
-                    info="From your HMRC registration letter. Format like 123PA00012345. Needed on every FPS/EPS."
+                    info="What it is for: your HMRC Accounts Office number (often looks like 123PA00012345). It comes from your employer registration letter and must go on every FPS and EPS file so HMRC can match payments to your account."
                   />
                   <Input
                     value={form.accountsOfficeReference}
@@ -223,9 +225,9 @@ export default function PayrollEmployerSettingsPage() {
                 </label>
 
                 <label className="block space-y-1 text-sm">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Tax district (optional)"
-                    info="Optional office or district name for your team. Not a substitute for the office number."
+                    info="What it is for: a friendly name your team can use (for example London). It is for your notes only — it does not replace the office number and is not sent instead of official PAYE details."
                   />
                   <Input
                     value={form.taxDistrict}
@@ -236,9 +238,9 @@ export default function PayrollEmployerSettingsPage() {
                 </label>
 
                 <label className="block space-y-1 text-sm">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Employer trading name (optional)"
-                    info="Legal or trading name to use on payroll filings later."
+                    info="What it is for: the company name you want to show on payroll filings and documents. Use your legal or trading name as staff and HMRC would recognise it."
                   />
                   <Input
                     value={form.employerTradingName}
@@ -249,9 +251,9 @@ export default function PayrollEmployerSettingsPage() {
                 </label>
 
                 <label className="block space-y-1 text-sm sm:col-span-2">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Notes (optional)"
-                    info="Internal note — where these references came from."
+                    info="What it is for: an internal reminder for your team — for example where you found these numbers, or who last updated Gateway. Not sent to HMRC."
                   />
                   <Input
                     value={form.notes}
@@ -266,16 +268,15 @@ export default function PayrollEmployerSettingsPage() {
                 <div className="space-y-1 sm:col-span-2">
                   <p className="text-sm font-semibold text-foreground">HMRC Gateway login</p>
                   <p className="text-xs text-muted-foreground">
-                    PAYE Online credentials for Care FPS test and live sends. Live send also needs a
-                    second approver and HMRC_RTI_LIVE_ENABLED on the server. Leave password blank to
-                    keep the current one. Passwords are never shown after save.
+                    These are the PAYE Online usernames and passwords Care uses to send FPS and EPS
+                    to HMRC. Start with Test. Leave a password blank to keep the one already saved.
                   </p>
                 </div>
 
                 <label className="block space-y-1 text-sm sm:col-span-2">
-                  <FieldLabel
+                  <PayrollFieldLabel
                     label="Active environment"
-                    info="Test = HMRC sandbox practice filing. Live = real filings to HMRC. Keep Test until you are ready."
+                    info="What it is for: chooses which login Care uses. Test = practice with HMRC’s sandbox (safe for training). Live = real filings to HMRC. Keep Test until your process and dual-control are ready."
                   />
                   <select
                     className="flex h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm"
@@ -304,9 +305,9 @@ export default function PayrollEmployerSettingsPage() {
                     )}
                   </p>
                   <label className="block space-y-1 text-sm">
-                    <FieldLabel
+                    <PayrollFieldLabel
                       label="Test Gateway user ID"
-                      info="The user ID from your HMRC PAYE Online / Government Gateway enrolment for the test service."
+                      info="What it is for: the username HMRC gave you for PAYE Online testing. Care uses it to log in when you send a test FPS or EPS (not real filings)."
                     />
                     <Input
                       value={form.gatewayTestUserId}
@@ -317,9 +318,9 @@ export default function PayrollEmployerSettingsPage() {
                     />
                   </label>
                   <label className="block space-y-1 text-sm">
-                    <FieldLabel
+                    <PayrollFieldLabel
                       label="Test Gateway password"
-                      info="Leave blank to keep the saved password. Tick clear below to remove it."
+                      info="What it is for: the password for the Test Gateway user ID. Leave blank to keep the saved password. Tick “Clear saved test password” only if you want to remove it."
                     />
                     <Input
                       type="password"
@@ -342,7 +343,11 @@ export default function PayrollEmployerSettingsPage() {
                             if (e.target.checked) setField('gatewayTestPassword', '')
                           }}
                         />
-                        Clear saved test password
+                        <PayrollFieldLabel
+                          label="Clear saved test password"
+                          info="What it is for: removes the stored Test Gateway password on the next Save. Use this if the password was wrong or must be rotated."
+                          className="text-xs font-normal text-muted-foreground"
+                        />
                       </label>
                     ) : null}
                   </label>
@@ -362,9 +367,9 @@ export default function PayrollEmployerSettingsPage() {
                     )}
                   </p>
                   <label className="block space-y-1 text-sm">
-                    <FieldLabel
+                    <PayrollFieldLabel
                       label="Live Gateway user ID"
-                      info="Gateway user ID for real HMRC PAYE Online filings. Keep this empty until you are ready for live."
+                      info="What it is for: the username for real HMRC PAYE Online filings. Only fill this when you are ready for live. Real sends still need a second approver."
                     />
                     <Input
                       value={form.gatewayLiveUserId}
@@ -375,9 +380,9 @@ export default function PayrollEmployerSettingsPage() {
                     />
                   </label>
                   <label className="block space-y-1 text-sm">
-                    <FieldLabel
+                    <PayrollFieldLabel
                       label="Live Gateway password"
-                      info="Leave blank to keep the saved password. Tick clear below to remove it."
+                      info="What it is for: the password for real HMRC filings. Leave blank to keep the saved password. Treat this like production access — only trusted payroll admins should change it."
                     />
                     <Input
                       type="password"
@@ -400,7 +405,11 @@ export default function PayrollEmployerSettingsPage() {
                             if (e.target.checked) setField('gatewayLivePassword', '')
                           }}
                         />
-                        Clear saved live password
+                        <PayrollFieldLabel
+                          label="Clear saved live password"
+                          info="What it is for: removes the stored Live Gateway password on the next Save. Use only when rotating credentials or stopping live filing."
+                          className="text-xs font-normal text-muted-foreground"
+                        />
                       </label>
                     ) : null}
                   </label>
@@ -411,8 +420,8 @@ export default function PayrollEmployerSettingsPage() {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Employment Allowance</p>
                   <p className="text-xs text-muted-foreground">
-                    If your organisation can claim Employment Allowance, tick this so EPS previews
-                    include the claim (you are responsible for eligibility).
+                    Optional HMRC relief that can reduce employer National Insurance. Only tick if
+                    your organisation is eligible — Care does not decide eligibility for you.
                   </p>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-foreground">
@@ -422,7 +431,10 @@ export default function PayrollEmployerSettingsPage() {
                     disabled={!canManage}
                     onChange={(e) => setField('employmentAllowanceClaimed', e.target.checked)}
                   />
-                  Claim Employment Allowance on EPS
+                  <PayrollFieldLabel
+                    label="Claim Employment Allowance on EPS"
+                    info="What it is for: tells EPS previews and EPS submissions that you intend to claim Employment Allowance for this employer. Wrong claims can cause HMRC problems — confirm with your accountant if unsure."
+                  />
                 </label>
               </div>
 
@@ -446,28 +458,5 @@ export default function PayrollEmployerSettingsPage() {
         </div>
       </TooltipProvider>
     </PayrollSectionLayout>
-  )
-}
-
-function FieldLabel({ label, info }: { label: string; info: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-      {label}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex shrink-0 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`About ${label}`}
-            onClick={(e) => e.preventDefault()}
-          >
-            <Info className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="z-[110] max-w-sm text-left text-xs leading-snug">
-          {info}
-        </TooltipContent>
-      </Tooltip>
-    </span>
   )
 }

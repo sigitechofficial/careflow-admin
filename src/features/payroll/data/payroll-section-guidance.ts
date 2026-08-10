@@ -1,7 +1,34 @@
 import type { UkPayrollItemKind } from '@/features/payroll/data/uk-payroll-2026-27.catalog'
 
 /** Short purpose text for payroll setup section headings (shown via info icons). */
+export type PayrollPageGuidance = {
+  title: string
+  purpose: string
+  /** Ordered steps for the Guidance dialog. */
+  flow?: readonly string[]
+  tips?: readonly string[]
+}
+
 export const PAYROLL_SECTION_GUIDANCE = {
+  employer: {
+    title: 'Employer PAYE',
+    purpose:
+      'This page tells Care who your care organisation is to HMRC, and how Care should log in to send payroll files (FPS and EPS). Fill it in once before you run payroll and file with HMRC.',
+    flow: [
+      'Save your employer identity (office number, PAYE reference after the slash, and Accounts Office reference) from your HMRC employer registration letter.',
+      'Add HMRC Gateway logins — start with Test only. Passwords are encrypted and never shown again after you save.',
+      'Keep Active environment on Test until you are ready for real filings.',
+      'Tick Employment Allowance only if your organisation is allowed to claim it (you are responsible for eligibility).',
+      'Use EPS preview lower on the page for each tax month: dry-run first, then HMRC test send, then live send only with a second approver.',
+      'After this page is complete, set up employees (tax code, NI, hours band), create a UK payroll run, calculate tax & NI, close the run, then send FPS from the run detail screen.',
+    ],
+    tips: [
+      'Hover the (i) icon next to any field for a short plain-English purpose.',
+      'Test Gateway is for practice with HMRC’s sandbox. Live Gateway is for real money and real filings — treat it carefully.',
+      'Live FPS/EPS also need a second user to approve, plus server flags switched on by ops.',
+      'This page is not where you calculate pay — that happens on UK payroll runs.',
+    ],
+  },
   runs: {
     title: 'UK payroll runs',
     purpose:
