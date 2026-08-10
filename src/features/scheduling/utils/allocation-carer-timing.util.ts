@@ -2,6 +2,11 @@
  * Helpers for per-carer assignment timing vs the main visit window.
  */
 
+/** HH:mm from `<input type="time" />` — rejects empty/partial mid-edit values. */
+export function isValidTimeHm(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
+}
+
 export function allocationTimingWithinVisit(params: {
   assignmentStartHm: string
   assignmentEndHm: string
@@ -48,6 +53,14 @@ export function propagateVisitWindowToInheritedDrafts(params: {
   nextStartHm: string
   nextEndHm: string
 }): CarerTimingDraft[] {
+  if (
+    !isValidTimeHm(params.previousStartHm) ||
+    !isValidTimeHm(params.previousEndHm) ||
+    !isValidTimeHm(params.nextStartHm) ||
+    !isValidTimeHm(params.nextEndHm)
+  ) {
+    return params.drafts
+  }
   return params.drafts.map(draft => {
     const inherited = isInheritedHmTiming({
       assignmentStartHm: draft.startHm,
@@ -58,4 +71,20 @@ export function propagateVisitWindowToInheritedDrafts(params: {
     if (!inherited) return draft
     return { ...draft, startHm: params.nextStartHm, endHm: params.nextEndHm }
   })
+}
+
+/** Incomplete drafts (e.g. cleared by a mid-edit time input) snap back to the visit window. */
+export function healIncompleteCarerTimingDrafts(
+  drafts: CarerTimingDraft[],
+  visitStartHm: string,
+  visitEndHm: string,
+): CarerTimingDraft[] {
+  if (!isValidTimeHm(visitStartHm) || !isValidTimeHm(visitEndHm)) return drafts
+  let changed = false
+  const next = drafts.map(draft => {
+    if (isValidTimeHm(draft.startHm) && isValidTimeHm(draft.endHm)) return draft
+    changed = true
+    return { ...draft, startHm: visitStartHm, endHm: visitEndHm }
+  })
+  return changed ? next : drafts
 }

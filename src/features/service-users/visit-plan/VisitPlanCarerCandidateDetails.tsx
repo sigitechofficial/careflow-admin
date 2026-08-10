@@ -14,6 +14,7 @@ import type { VisitPlanCarerCandidate, VisitPlanCarerFit } from '@/features/serv
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { buildCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/visit-plan-carer-availability-display.util'
 import { VisitPlanCarerAvailabilityBreakdown } from '@/features/service-users/visit-plan/VisitPlanCarerAvailabilityBreakdown'
+import { formatVisitPlanCarerRoleLine } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 
 function fitStyles(fit: VisitPlanCarerFit) {
   if (fit === 'good') {
@@ -182,7 +183,7 @@ export function VisitPlanCarerCandidateDetails({
             ) : null}
           </div>
           <p className={contentHelperClass}>
-            {[c.role, c.jobTitle].filter(Boolean).join(' · ') || 'Employee'}
+            {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
           </p>
         </div>
       ) : null}

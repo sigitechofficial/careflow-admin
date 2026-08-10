@@ -12,6 +12,8 @@ type Props = {
   replacingEmployeeId?: string | null
   onAssign: (employeeId: string) => void
   onCandidatesChange?: (candidates: VisitPlanCarerCandidate[]) => void
+  hideHeader?: boolean
+  searchQuery?: string
 }
 
 export function ScheduleJobRecommendedCarers(props: Props) {

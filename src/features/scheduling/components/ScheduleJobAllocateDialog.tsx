@@ -33,17 +33,14 @@ import {
   activeJobAllocationCount,
   allocationStatusLabel,
   employeesLabel,
-  formatJobTimeRange,
   isAllocationPendingConfirmation,
   jobIsOverAllocated,
   jobNeedsCarerAssignment,
   jobStatusLabel,
   serviceUserLabel,
 } from '@/features/scheduling/utils/scheduling-format'
-import {
-  jobAttentionReason,
-  timelineJobVisitPlanSlot,
-} from '@/features/scheduling/utils/scheduling-visit-plan.util'
+import { jobAttentionReason } from '@/features/scheduling/utils/scheduling-visit-plan.util'
+import { scheduleVisitSlotVisual } from '@/features/scheduling/utils/schedule-visit-slot-icon.util'
 import { ScheduleJobRecommendedCarers } from '@/features/scheduling/components/ScheduleJobRecommendedCarers'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
@@ -70,6 +67,9 @@ import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-pla
 import type { ScheduleJobAllocateDialogPanel } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
   allocationTimingWithinVisit,
+  healIncompleteCarerTimingDrafts,
+  isInheritedHmTiming,
+  isValidTimeHm,
   propagateVisitWindowToInheritedDrafts,
   type CarerTimingDraft,
 } from '@/features/scheduling/utils/allocation-carer-timing.util'
@@ -156,6 +156,58 @@ export function ScheduleJobAllocateDialog({
     }
   }, [open])
 
+  /** Keep carer drafts that still match the visit window in lockstep with visit edits. */
+  const applyVisitWindowHm = React.useCallback(
+    (patch: { startHm?: string; endHm?: string }) => {
+      setStartTime(prevStart => {
+        // Ignore empty/partial `<input type="time" />` mid-edit values so inherited
+        // carer drafts are never wiped to `--:--`.
+        const nextStart =
+          patch.startHm === undefined
+            ? prevStart
+            : isValidTimeHm(patch.startHm)
+              ? patch.startHm
+              : prevStart
+        setEndTime(prevEnd => {
+          const nextEnd =
+            patch.endHm === undefined
+              ? prevEnd
+              : isValidTimeHm(patch.endHm)
+                ? patch.endHm
+                : prevEnd
+          if (
+            isValidTimeHm(prevStart) &&
+            isValidTimeHm(prevEnd) &&
+            isValidTimeHm(nextStart) &&
+            isValidTimeHm(nextEnd) &&
+            (prevStart !== nextStart || prevEnd !== nextEnd)
+          ) {
+            setCarerTimings(drafts =>
+              healIncompleteCarerTimingDrafts(
+                propagateVisitWindowToInheritedDrafts({
+                  drafts,
+                  previousStartHm: prevStart,
+                  previousEndHm: prevEnd,
+                  nextStartHm: nextStart,
+                  nextEndHm: nextEnd,
+                }),
+                nextStart,
+                nextEnd,
+              ),
+            )
+          } else if (isValidTimeHm(nextStart) && isValidTimeHm(nextEnd)) {
+            setCarerTimings(drafts =>
+              healIncompleteCarerTimingDrafts(drafts, nextStart, nextEnd),
+            )
+          }
+          return nextEnd
+        })
+        return nextStart
+      })
+    },
+    [],
+  )
+
   React.useEffect(() => {
     if (!open || !job) return
     const nextStart = isoToLocalTimeInput(job.scheduledStartDateTime)
@@ -166,49 +218,50 @@ export function ScheduleJobAllocateDialog({
           new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
         ).toISOString(),
       )
-    setStartTime(prevStart => {
-      setEndTime(prevEnd => {
-        if (prevStart && prevEnd && (prevStart !== nextStart || prevEnd !== nextEnd)) {
-          setCarerTimings(drafts =>
-            propagateVisitWindowToInheritedDrafts({
-              drafts,
-              previousStartHm: prevStart,
-              previousEndHm: prevEnd,
-              nextStartHm: nextStart,
-              nextEndHm: nextEnd,
-            }),
-          )
-        }
-        return nextEnd
-      })
-      return nextStart
-    })
-  }, [open, job?.id, job?.scheduledStartDateTime, job?.scheduledEndDateTime])
+    applyVisitWindowHm({ startHm: nextStart, endHm: nextEnd })
+  }, [open, job?.id, job?.scheduledStartDateTime, job?.scheduledEndDateTime, applyVisitWindowHm])
 
   React.useEffect(() => {
     if (!open || !job) return
-    const visitStart = isoToLocalTimeInput(job.scheduledStartDateTime)
-    const visitEnd =
+    const jobStart = isoToLocalTimeInput(job.scheduledStartDateTime)
+    const jobEnd =
       isoToLocalTimeInput(job.scheduledEndDateTime) ||
       isoToLocalTimeInput(
         new Date(
           new Date(job.scheduledStartDateTime).getTime() + jobDurationMinutes(job) * 60_000,
         ).toISOString(),
       )
-    setCarerTimings(
-      (job.allocations ?? []).map(a => ({
-        allocationId: a.id,
-        employeeId: a.employeeId,
-        startHm: isoToLocalTimeInput(
-          a.resolvedStartDateTime ?? a.scheduledStartDateTime ?? job.scheduledStartDateTime,
-        ) || visitStart,
-        endHm:
+    const visitStart = startTime || jobStart
+    const visitEnd = endTime || jobEnd
+    setCarerTimings(prev => {
+      const prevById = new Map(prev.map(d => [d.allocationId, d]))
+      const mapped = (job.allocations ?? []).map(a => {
+        const existing = prevById.get(a.id)
+        if (existing) return existing
+        const resolvedStart =
+          isoToLocalTimeInput(
+            a.resolvedStartDateTime ?? a.scheduledStartDateTime ?? job.scheduledStartDateTime,
+          ) || jobStart
+        const resolvedEnd =
           isoToLocalTimeInput(
             a.resolvedEndDateTime ?? a.scheduledEndDateTime ?? job.scheduledEndDateTime ?? undefined,
-          ) || visitEnd,
-      })),
-    )
-  }, [open, job?.id, job?.allocations])
+          ) || jobEnd
+        const inherited = isInheritedHmTiming({
+          assignmentStartHm: resolvedStart,
+          assignmentEndHm: resolvedEnd,
+          visitStartHm: jobStart,
+          visitEndHm: jobEnd,
+        })
+        return {
+          allocationId: a.id,
+          employeeId: a.employeeId,
+          startHm: inherited ? visitStart : resolvedStart,
+          endHm: inherited ? visitEnd : resolvedEnd,
+        }
+      })
+      return healIncompleteCarerTimingDrafts(mapped, visitStart, visitEnd)
+    })
+  }, [open, job?.id, job?.allocations, startTime, endTime])
 
   React.useEffect(() => {
     if (!open || !job) return
@@ -217,10 +270,9 @@ export function ScheduleJobAllocateDialog({
     const timer = window.setTimeout(() => {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' })
       if (initialPanel === 'time') {
-        const input = target.querySelector<HTMLInputElement>('input[type="time"]')
-        input?.focus()
+        target.querySelector<HTMLInputElement>('input[type="time"]')?.focus()
       }
-    }, 50)
+    }, 80)
     return () => window.clearTimeout(timer)
   }, [open, job?.id, initialPanel])
 
@@ -585,21 +637,77 @@ export function ScheduleJobAllocateDialog({
     : needsMoreCarers
       ? 'Assign carers'
       : 'Manage job carers'
-  const manualSectionTitle = replacingEmployeeId
-    ? 'Choose replacement manually'
-    : needsMoreCarers
-      ? 'Add carer manually'
-      : 'Change carer manually'
+  const pickSectionTitle = replacingEmployeeId ? 'Choose replacement' : 'Choose carer'
+  const isSearchingCarers = search.trim().length > 0
+  const allocationStatusText = readOnly
+    ? 'Read-only'
+    : pendingConfirmationCount > 0
+      ? 'Needs confirmation'
+      : overAllocated
+        ? 'Over allocated'
+        : needsMoreCarers
+          ? 'Needs carer'
+          : 'Fully allocated'
+  const allocationStatusClass = readOnly
+    ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
+    : pendingConfirmationCount > 0 || needsMoreCarers
+      ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+      : overAllocated
+        ? 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200'
+        : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+  const canSubmitAllocate = Boolean(selectedEmployeeId && canAddOrReplaceCarer)
+  const showSaveTimesPrimary = Boolean(timesChanged && nextScheduleTimes && !canSubmitAllocate)
+  const showAllocatePrimary = canSubmitAllocate
+  const visitSlotVisual = scheduleVisitSlotVisual(job)
+  const SlotIcon = visitSlotVisual.Icon
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-h-[90vh] overflow-hidden p-0">
         <DialogHeader>
-          <DialogTitle>{dialogTitle}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg font-semibold tracking-tight">
             {serviceUserLabel(job.serviceUser)}
-            {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
-            {formatJobTimeRange(job)}
+          </DialogTitle>
+          <DialogDescription asChild>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm text-muted-foreground">
+              <span>{dialogTitle}</span>
+              <span className="text-border" aria-hidden>
+                ·
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <SlotIcon
+                  className={cn('h-3.5 w-3.5 shrink-0', visitSlotVisual.iconClassName)}
+                  aria-hidden
+                />
+                <span>{visitSlotVisual.label}</span>
+              </span>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                  allocationStatusClass,
+                )}
+              >
+                {allocationStatusText}
+              </span>
+              <span>
+                <strong className="text-foreground">{allocatedCount}</strong> / {job.requiredCarers}{' '}
+                carers
+              </span>
+              {overAllocated ? (
+                <span className="font-medium text-rose-700 dark:text-rose-300">
+                  Remove {allocatedCount - job.requiredCarers}
+                </span>
+              ) : slotsRemaining > 0 ? (
+                <span className="font-medium text-amber-800 dark:text-amber-200">
+                  {slotsRemaining} more required
+                </span>
+              ) : null}
+              {timesChanged ? (
+                <span className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                  Unsaved time changes
+                </span>
+              ) : null}
+            </div>
           </DialogDescription>
         </DialogHeader>
 
@@ -618,33 +726,13 @@ export function ScheduleJobAllocateDialog({
             </section>
           ) : null}
 
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
-            <span>
-              <strong>{allocatedCount}</strong> / {job.requiredCarers} carers assigned
-            </span>
-            {overAllocated ? (
-              <span className="font-medium text-rose-700 dark:text-rose-300">
-                Over allocated — remove {allocatedCount - job.requiredCarers} carer
-                {allocatedCount - job.requiredCarers === 1 ? '' : 's'}
-              </span>
-            ) : slotsRemaining > 0 ? (
-              <span className="text-amber-800 dark:text-amber-200">
-                {slotsRemaining} more required
-              </span>
-            ) : (
-              <span className="text-emerald-700 dark:text-emerald-300">Fully allocated</span>
-            )}
-            {multiCarerJob ? (
-              <span className="text-muted-foreground">
-                One carer is the <strong className="text-foreground">lead</strong> for this visit
-              </span>
-            ) : null}
-          </div>
-
           {attention && !readOnly ? (
             <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <p>{attention}</p>
+              <p>
+                {attention}
+                {needsMoreCarers ? ' Add or Change a carer below.' : null}
+              </p>
             </div>
           ) : null}
 
@@ -676,11 +764,6 @@ export function ScheduleJobAllocateDialog({
                 </div>
               </div>
             ) : null}
-            {callPatternLabel ? (
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Rota time
-              </p>
-            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="job-start-time" className="text-xs text-muted-foreground">
@@ -691,7 +774,7 @@ export function ScheduleJobAllocateDialog({
                   type="time"
                   className="mt-1"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => applyVisitWindowHm({ startHm: e.target.value })}
                   disabled={readOnly}
                 />
               </div>
@@ -704,7 +787,7 @@ export function ScheduleJobAllocateDialog({
                   type="time"
                   className="mt-1"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={(e) => applyVisitWindowHm({ endHm: e.target.value })}
                   disabled={readOnly}
                 />
               </div>
@@ -724,11 +807,14 @@ export function ScheduleJobAllocateDialog({
           {replacingEmployeeId && !readOnly ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100">
               <p>
+                <span className="mr-1.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-300">
+                  Step 2 — Choose replacement
+                </span>
                 Replacing{' '}
                 <strong>
                   {replacingName ? employeeNameFromAllocation(replacingName) : 'selected carer'}
-                </strong>{' '}
-                — pick a recommended carer or search below.
+                </strong>
+                . Pick a recommended carer or search below.
               </p>
               <Button
                 type="button"
@@ -737,6 +823,7 @@ export function ScheduleJobAllocateDialog({
                 onClick={() => {
                   setReplacingEmployeeId(null)
                   setSelectedEmployeeId(null)
+                  setSearch('')
                   setPendingWarnings([])
                   setPendingEmployeeId(null)
                 }}
@@ -747,7 +834,14 @@ export function ScheduleJobAllocateDialog({
           ) : null}
 
           <section ref={assignedPanelRef} className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground">Assigned carers</h4>
+            <div>
+              <h4 className="text-base font-semibold text-foreground">Assigned carers</h4>
+              {multiCarerJob ? (
+                <p className="text-xs text-muted-foreground">
+                  One carer is the lead for this visit.
+                </p>
+              ) : null}
+            </div>
             {pendingConfirmationCount > 0 ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
                 <p className="font-medium">
@@ -756,7 +850,7 @@ export function ScheduleJobAllocateDialog({
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-900/90 dark:text-amber-200/90">
                   {canConfirmAllocation
-                    ? 'Review the warnings below and confirm each carer to finalise the rota assignment.'
+                    ? 'Confirm each carer below to finalise the rota assignment.'
                     : 'A scheduler with confirmation permission must approve these assignments.'}
                 </p>
               </div>
@@ -852,6 +946,7 @@ export function ScheduleJobAllocateDialog({
                             onClick={() => {
                               setReplacingEmployeeId(allocation.employeeId)
                               setSelectedEmployeeId(null)
+                              setSearch('')
                               setPendingWarnings([])
                               setPendingEmployeeId(null)
                             }}
@@ -946,27 +1041,32 @@ export function ScheduleJobAllocateDialog({
           </section>
 
           {!readOnly && canAddOrReplaceCarer ? (
-          <div ref={carersPickPanelRef} className="space-y-4">
-            <ScheduleJobRecommendedCarers
-              job={job}
-              allocatedEmployeeIds={allocatedEmployeeIds}
-              allocatingEmployeeId={allocatingEmployeeId}
-              replacingEmployeeId={replacingEmployeeId}
-              onAssign={(employeeId) => handlePickEmployee(employeeId)}
-              onCandidatesChange={setSuggestCandidates}
-            />
-
-          <section className="space-y-3 border-t border-border pt-4">
-            <h4 className="text-sm font-semibold text-foreground">{manualSectionTitle}</h4>
-            {rotaBookedEmployeeIds.size > 0 || (!showBlockedCarers && blockedEmployeeIds.size > 0) ? (
+          <section ref={carersPickPanelRef} className="space-y-3 border-t border-border pt-4">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">{pickSectionTitle}</h4>
               <p className="text-xs text-muted-foreground">
-                {rotaBookedEmployeeIds.size > 0
-                  ? 'Carers already booked at this time are hidden from search.'
-                  : null}
-                {rotaBookedEmployeeIds.size > 0 && !showBlockedCarers && blockedEmployeeIds.size > 0 ? ' ' : null}
-                {!showBlockedCarers && blockedEmployeeIds.size > 0
-                  ? 'Blocked carers for this service user are excluded.'
-                  : null}
+                {isSearchingCarers
+                  ? 'Matching carers for this branch.'
+                  : 'Recommended carers below — type a name to search all carers available for this branch.'}
+              </p>
+            </div>
+            {employeesQuery.locationFilterApplied ||
+            rotaBookedEmployeeIds.size > 0 ||
+            (!showBlockedCarers && blockedEmployeeIds.size > 0) ? (
+              <p className="text-xs text-muted-foreground">
+                {[
+                  employeesQuery.locationFilterApplied
+                    ? 'Showing carers for this service user’s branch (including multi-branch and all-zones staff).'
+                    : null,
+                  rotaBookedEmployeeIds.size > 0
+                    ? 'Carers already booked at this time are hidden.'
+                    : null,
+                  !showBlockedCarers && blockedEmployeeIds.size > 0
+                    ? 'Blocked carers for this service user are excluded.'
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               </p>
             ) : null}
             {multiCarerJob && (needsMoreCarers || replacingEmployeeId) ? (
@@ -982,7 +1082,7 @@ export function ScheduleJobAllocateDialog({
             ) : null}
             <div>
               <Label htmlFor="allocate-employee-search" className="text-xs text-muted-foreground">
-                Search employees
+                Search carers
               </Label>
               <Input
                 id="allocate-employee-search"
@@ -993,40 +1093,78 @@ export function ScheduleJobAllocateDialog({
               />
             </div>
 
-            {employeesQuery.isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Loading employees…
-              </div>
-            ) : (
-              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border p-1">
-                {filteredEmployees.length === 0 ? (
-                  <li className="px-2 py-3 text-center text-sm text-muted-foreground">
-                    {employeesQuery.locationFilterApplied
-                      ? 'No carers for this service user’s branch match your search.'
-                      : 'No employees match your search.'}
-                  </li>
-                ) : (
-                  filteredEmployees.map((row) => (
-                    <li key={row.id}>
-                      <button
-                        type="button"
-                        className={cn(
-                          'flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm hover:bg-muted/60',
-                          selectedEmployeeId === row.id && 'bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950/40',
-                        )}
-                        onClick={() => setSelectedEmployeeId(row.id)}
-                      >
-                        <span className="font-medium">{employeeListRowDisplayName(row)}</span>
-                        {selectedEmployeeId === row.id ? (
-                          <span className="text-xs text-sky-700 dark:text-sky-300">Selected</span>
-                        ) : null}
-                      </button>
+            {/* Keep mounted while searching so rota/blocked filters stay available. */}
+            <div className={isSearchingCarers ? 'hidden' : undefined}>
+              <ScheduleJobRecommendedCarers
+                job={job}
+                allocatedEmployeeIds={allocatedEmployeeIds}
+                allocatingEmployeeId={allocatingEmployeeId}
+                replacingEmployeeId={replacingEmployeeId}
+                hideHeader
+                onAssign={(employeeId) => handlePickEmployee(employeeId)}
+                onCandidatesChange={setSuggestCandidates}
+              />
+            </div>
+            {isSearchingCarers ? (
+              employeesQuery.isLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Loading employees…
+                </div>
+              ) : (
+                <ul className="max-h-56 space-y-2 overflow-y-auto">
+                  {filteredEmployees.length === 0 ? (
+                    <li className="rounded-md border border-border px-3 py-3 text-center text-sm text-muted-foreground">
+                      {employeesQuery.locationFilterApplied
+                        ? 'No carers for this service user’s branch match your search.'
+                        : 'No employees match your search.'}
                     </li>
-                  ))
-                )}
-              </ul>
-            )}
+                  ) : (
+                    filteredEmployees.map((row) => {
+                      const assigning = allocatingEmployeeId === row.id
+                      return (
+                        <li
+                          key={row.id}
+                          className={cn(
+                            'flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2',
+                            selectedEmployeeId === row.id && 'ring-1 ring-sky-300',
+                          )}
+                        >
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => setSelectedEmployeeId(row.id)}
+                          >
+                            <span className="text-sm font-medium">
+                              {employeeListRowDisplayName(row)}
+                            </span>
+                          </button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            disabled={
+                              !!allocatingEmployeeId || allocate.isPending || unallocate.isPending
+                            }
+                            onClick={() => {
+                              setSelectedEmployeeId(row.id)
+                              handlePickEmployee(row.id)
+                            }}
+                          >
+                            {assigning ? (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <UserPlus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                            )}
+                            {replacingEmployeeId ? 'Change to' : 'Assign'}
+                          </Button>
+                        </li>
+                      )
+                    })
+                  )}
+                </ul>
+              )
+            ) : null}
 
             {pendingWarnings.length > 0 ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30">
@@ -1053,7 +1191,6 @@ export function ScheduleJobAllocateDialog({
               </div>
             ) : null}
           </section>
-          </div>
           ) : null}
 
           {!readOnly && !canAddOrReplaceCarer ? (
@@ -1083,39 +1220,43 @@ export function ScheduleJobAllocateDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {!readOnly ? (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!timesChanged || !nextScheduleTimes || savingTimes || updateJob.isPending}
-                onClick={() => void handleSaveTimes()}
-              >
-                {savingTimes || updateJob.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Clock className="mr-2 h-4 w-4" aria-hidden />
-                )}
-                Save times
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  !selectedEmployeeId ||
-                  !canAddOrReplaceCarer ||
-                  allocate.isPending ||
-                  unallocate.isPending
-                }
-                onClick={handleAllocate}
-              >
-                {allocate.isPending || unallocate.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <UserPlus className="mr-2 h-4 w-4" aria-hidden />
-                )}
-                {replacingEmployeeId ? 'Change carer' : needsMoreCarers ? 'Allocate carer' : 'Assign carer'}
-              </Button>
-            </>
+          {!readOnly && (timesChanged || showSaveTimesPrimary) ? (
+            <Button
+              type="button"
+              variant={showSaveTimesPrimary ? 'default' : 'secondary'}
+              disabled={!timesChanged || !nextScheduleTimes || savingTimes || updateJob.isPending}
+              onClick={() => void handleSaveTimes()}
+            >
+              {savingTimes || updateJob.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Clock className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              Save times
+            </Button>
+          ) : null}
+          {!readOnly && (showAllocatePrimary || canAddOrReplaceCarer) ? (
+            <Button
+              type="button"
+              variant={showAllocatePrimary ? 'default' : 'secondary'}
+              disabled={
+                !canSubmitAllocate ||
+                allocate.isPending ||
+                unallocate.isPending
+              }
+              onClick={handleAllocate}
+            >
+              {allocate.isPending || unallocate.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <UserPlus className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {replacingEmployeeId
+                ? 'Change carer'
+                : needsMoreCarers
+                  ? 'Allocate carer'
+                  : 'Assign carer'}
+            </Button>
           ) : null}
         </DialogFooter>
       </DialogContent>

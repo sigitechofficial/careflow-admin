@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   allocationTimingWithinVisit,
+  healIncompleteCarerTimingDrafts,
   isInheritedHmTiming,
+  isValidTimeHm,
   propagateVisitWindowToInheritedDrafts,
 } from './allocation-carer-timing.util'
 
@@ -64,5 +66,38 @@ describe('allocation-carer-timing.util', () => {
         visitEndHm: '12:30',
       }),
     ).toBe(true)
+  })
+
+  it('does not propagate empty or partial time values', () => {
+    const drafts = [
+      { allocationId: 'a1', employeeId: 'e1', startHm: '07:30', endHm: '09:00' },
+    ]
+    expect(
+      propagateVisitWindowToInheritedDrafts({
+        drafts,
+        previousStartHm: '07:30',
+        previousEndHm: '09:00',
+        nextStartHm: '',
+        nextEndHm: '09:00',
+      }),
+    ).toEqual(drafts)
+    expect(isValidTimeHm('02:30')).toBe(true)
+    expect(isValidTimeHm('')).toBe(false)
+  })
+
+  it('heals incomplete carer drafts onto the visit window', () => {
+    expect(
+      healIncompleteCarerTimingDrafts(
+        [
+          { allocationId: 'a1', employeeId: 'e1', startHm: '', endHm: '09:00' },
+          { allocationId: 'a2', employeeId: 'e2', startHm: '07:30', endHm: '08:15' },
+        ],
+        '02:30',
+        '09:00',
+      ),
+    ).toEqual([
+      { allocationId: 'a1', employeeId: 'e1', startHm: '02:30', endHm: '09:00' },
+      { allocationId: 'a2', employeeId: 'e2', startHm: '07:30', endHm: '08:15' },
+    ])
   })
 })

@@ -3,8 +3,10 @@ import {
   buildRotaBookedEmployeeIds,
   filterScheduleJobRecommendCarers,
   filterScheduleRunRecommendCarers,
+  formatVisitPlanCarerRoleLine,
   scheduleRecommendCarersEmptyMessage,
   visitPlanCarerFitLabel,
+  visitPlanCarerListWarnings,
 } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
 
@@ -64,5 +66,26 @@ describe('schedule-carer-suggest.util', () => {
       ),
     ).toContain('already booked')
     expect(visitPlanCarerFitLabel('partial')).toBe('Partial match')
+  })
+
+  it('dedupes role and job title that only differ by case', () => {
+    expect(formatVisitPlanCarerRoleLine('Senior Carer', 'senior carer')).toBe('Senior Carer')
+    expect(formatVisitPlanCarerRoleLine('Carer', 'Senior Carer')).toBe('Carer · Senior Carer')
+  })
+
+  it('drops warnings already shown as badges or availability summary', () => {
+    expect(
+      visitPlanCarerListWarnings(
+        candidate({
+          isPreferred: true,
+          availability: { summary: 'Unavailable Sat' } as VisitPlanCarerCandidate['availability'],
+          warnings: [
+            'Preferred carer',
+            'Unavailable Sat',
+            '28 compliance item(s) need attention',
+          ],
+        }),
+      ),
+    ).toEqual(['28 compliance item(s) need attention'])
   })
 })

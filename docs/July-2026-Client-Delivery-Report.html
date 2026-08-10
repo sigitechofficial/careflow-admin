@@ -1,0 +1,2365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareFlow — July 2026 Client Delivery Report</title>
+<meta name="description" content="CareFlow July 2026 client delivery report for stakeholder review.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:wght@500;600&display=swap');
+
+:root {
+  --ink: #15202b;
+  --text: #243447;
+  --muted: #5b6b7c;
+  --line: #d7dee7;
+  --soft: #f5f7fa;
+  --brand: #123a56;
+  --accent: #0f6e66;
+  --ready: #0f6b4c;
+  --ready-bg: #eaf7f1;
+  --gaps: #9a6700;
+  --gaps-bg: #fff8e8;
+  --limited: #a12622;
+  --limited-bg: #fdeceb;
+  --later: #185fa5;
+  --later-bg: #eaf2fb;
+  --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --serif: "IBM Plex Serif", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --page: 820px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--text);
+  background: #fff;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+strong { color: var(--ink); font-weight: 600; }
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+}
+pre {
+  background: #102433;
+  color: #e8eef4;
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow: auto;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+pre code { background: none; border: 0; color: inherit; padding: 0; }
+
+.page {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 40px 28px 64px;
+}
+
+/* Cover — compact, print-friendly */
+.cover {
+  border-bottom: 2px solid var(--brand);
+  padding-bottom: 18px;
+  margin-bottom: 28px;
+}
+.cover-kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+.cover h1 {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 1.85rem;
+  line-height: 1.2;
+  color: var(--brand);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.cover-sub {
+  margin: 0 0 14px;
+  color: var(--muted);
+  max-width: 62ch;
+  font-size: 0.98rem;
+}
+.cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+.cover-meta li::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* Screen TOC — compact, collapses for print */
+.toc {
+  margin: 0 0 28px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  border-radius: 6px;
+}
+.toc h2 {
+  margin: 0 0 8px;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--font);
+  font-weight: 600;
+}
+.toc ol {
+  margin: 0;
+  padding-left: 1.2em;
+  columns: 2;
+  column-gap: 28px;
+}
+.toc li { margin: 0.2em 0; break-inside: avoid; }
+.toc a { color: var(--text); font-size: 13px; }
+.toc .toc-sub { columns: 1; margin: 4px 0 6px; padding-left: 1.1em; }
+.toc .toc-sub a { color: var(--muted); font-size: 12px; }
+
+/* Typography — document flow */
+h2 {
+  margin: 2em 0 0.7em;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--brand);
+  color: var(--brand);
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  scroll-margin-top: 16px;
+  page-break-after: avoid;
+}
+h3 {
+  margin: 1.6em 0 0.55em;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.12rem;
+  font-weight: 600;
+  scroll-margin-top: 16px;
+  page-break-after: avoid;
+}
+h4 {
+  margin: 1.35em 0 0.45em;
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 650;
+  scroll-margin-top: 16px;
+  page-break-after: avoid;
+}
+p { margin: 0.65em 0; }
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.4em 0;
+}
+blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--soft);
+  color: var(--text);
+}
+
+.callout {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  background: #f8fafc;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: normal;
+}
+.st-ready { background: var(--ready-bg); color: var(--ready); border-color: #b7e4cd; }
+.st-gaps { background: var(--gaps-bg); color: var(--gaps); border-color: #f0d48a; }
+.st-limited { background: var(--limited-bg); color: var(--limited); border-color: #f0b8b5; }
+.st-later { background: var(--later-bg); color: var(--later); border-color: #bcd3ef; }
+.st-neutral { background: var(--soft); color: var(--muted); border-color: var(--line); }
+
+/* Features — light document blocks, good for print */
+.feature {
+  margin: 1.1em 0 1.35em;
+  padding: 0 0 0.2em;
+  border-top: 1px solid var(--line);
+  page-break-inside: avoid;
+}
+.feature-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0.85em 0 0.55em;
+  page-break-after: avoid;
+}
+.feature-title h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.feature-title .n {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.92rem;
+  margin-right: 6px;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 6px 14px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 13.5px;
+}
+.meta > div { display: contents; }
+.meta dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 2px;
+}
+.meta dd { margin: 0; color: var(--ink); }
+
+.task-label {
+  margin: 12px 0 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  page-break-after: avoid;
+}
+.task-label.fe { color: #0b6e75; }
+.task-label.be { color: #1f4e8c; }
+.task-label.rem { color: #8a5a00; }
+
+ul.tasks {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+ul.tasks li {
+  position: relative;
+  padding: 3px 0 3px 1.35em;
+  font-size: 13.5px;
+  color: var(--text);
+  page-break-inside: avoid;
+}
+ul.tasks li::before {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  font-size: 12px;
+  font-weight: 700;
+}
+ul.tasks li.done::before { content: "✓"; color: var(--ready); }
+ul.tasks li.todo::before { content: "○"; color: var(--gaps); }
+ul.tasks li.todo { color: #6b5420; }
+
+ul.bullets, ol.bullets {
+  margin: 0.4em 0 0.8em;
+  padding-left: 1.25em;
+}
+ul.bullets li, ol.bullets li { margin: 0.25em 0; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0 16px;
+  font-size: 13px;
+  page-break-inside: auto;
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+tr { page-break-inside: avoid; }
+
+.footer-note {
+  margin-top: 36px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .page { padding: 24px 16px 48px; }
+  .toc ol { columns: 1; }
+  .meta { grid-template-columns: 1fr; }
+  .meta dt { margin-top: 6px; }
+  .feature-title { flex-direction: column; align-items: flex-start; }
+}
+
+/* Print: earlier linear format wins — no sidebar chrome, tight A4 flow */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm 18mm;
+  }
+  body {
+    background: #fff;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #000;
+  }
+  .page { max-width: none; margin: 0; padding: 0; }
+  .toc { display: none !important; }
+  .cover {
+    border-bottom-width: 1.5pt;
+    margin-bottom: 14pt;
+    padding-bottom: 10pt;
+  }
+  .cover h1 { font-size: 18pt; }
+  .cover-sub, .cover-meta { font-size: 9.5pt; }
+  h2 {
+    font-size: 13.5pt;
+    margin-top: 16pt;
+    border-bottom-width: 1pt;
+  }
+  h3 { font-size: 11.5pt; margin-top: 12pt; }
+  h4, .feature-title h4 { font-size: 11pt; }
+  .feature {
+    border-top: 0.5pt solid #bbb;
+    margin: 8pt 0 10pt;
+  }
+  .meta {
+    background: #f7f7f7 !important;
+    border-color: #ccc;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .status, th, ul.tasks li.done::before, ul.tasks li.todo::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  a { color: inherit; text-decoration: none; }
+  .callout, blockquote { break-inside: avoid; }
+  pre { white-space: pre-wrap; font-size: 8.5pt; }
+  table { font-size: 9pt; }
+  .footer-note { font-size: 8.5pt; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="cover">
+    <p class="cover-kicker">CareFlow · Client Delivery Report</p>
+    <h1>July 2026 Delivery Report</h1>
+    <p class="cover-sub">Functional capabilities with frontend/admin tasks, backend/API tasks, and remaining work — prepared for stakeholder review.</p>
+    <ul class="cover-meta">
+      <li>Period: 1–31 July 2026</li>
+      <li>Repos: careflow-admin · careflow-api</li>
+      <li>65 features detailed</li>
+    </ul>
+  </header>
+  <nav class="toc" aria-label="Contents"><h2>Contents</h2><ol><li><a href="#1-executive-summary">1. Executive summary</a></li><li><a href="#2-functional-features-detailed-delivery-client-fe-be-tasks">2. Functional features — detailed delivery (client + FE/BE tasks)</a><ol class="toc-sub"><li><a href="#2-1-care-delivery-monitoring-ecm">2.1 Care delivery &amp; monitoring (ECM)</a></li><li><a href="#2-2-carer-mobile-field-app-apis-office-hub">2.2 Carer mobile / field app (APIs + office hub)</a></li><li><a href="#2-3-scheduling-rota">2.3 Scheduling &amp; rota</a></li><li><a href="#2-4-service-users-assessment-portal">2.4 Service users, assessment &amp; portal</a></li><li><a href="#2-5-workforce-employees">2.5 Workforce (employees)</a></li><li><a href="#2-6-billing-finance">2.6 Billing &amp; finance</a></li><li><a href="#2-7-uk-payroll">2.7 UK Payroll</a></li><li><a href="#2-8-learning-compliance-training">2.8 Learning &amp; compliance training</a></li><li><a href="#2-9-one-page-july-outcomes-for-the-client">2.9 One-page “July outcomes” for the client</a></li></ol></li><li><a href="#3-careadmin-frontend-admin-ui-screens-delivered">3. CareAdmin frontend / admin UI (screens delivered)</a></li><li><a href="#4-backend-api-volume-supports-the-admin-ui">4. Backend / API volume (supports the admin UI)</a></li><li><a href="#5-week-by-week-narrative-july-2026">5. Week-by-week narrative (July 2026)</a></li><li><a href="#6-module-by-module-delivered-vs-pending-fe-be-together">6. Module-by-module: delivered vs pending (FE + BE together)</a></li><li><a href="#7-database-platform-work-july">7. Database / platform work (July)</a></li><li><a href="#8-consolidated-still-pending-backlog-client-visible">8. Consolidated &quot;still pending&quot; backlog (client-visible)</a></li><li><a href="#9-what-july-proves-for-the-client">9. What July proves for the client</a></li><li><a href="#10-august-note-out-of-july-scope-for-fairness">10. August note (out of July scope, for fairness)</a></li></ol></nav>
+  <main>
+    <p> CareFlow - July 2026 Client Delivery Report</p>
+<p><strong>Period covered:</strong> 1 July 2026 - 31 July 2026  </p>
+<p><strong>Repositories:</strong> <code>careflow-admin</code> (frontend), <code>careflow-api</code> (backend + carer/employee app APIs)  </p>
+<p><strong>How this was measured:</strong> Git history with  </p>
+<p><code>git log --since=&quot;2026-07-01&quot; --until=&quot;2026-08-01&quot;</code>  </p>
+<p>plus a current code audit of what is finished vs still pending.</p>
+<blockquote><strong>Note:</strong> Work continued in <strong>August 2026</strong> (ECM CQC report pack, graph chart pack, HMRC RTI submissions, etc.). That is called out separately so July delivery is not overstated.</blockquote>
+<hr>
+<h2 id="1-executive-summary">1. Executive summary</h2>
+<p>In July 2026 the team delivered a large, multi-module release:</p>
+<table><tr><th>Metric</th><th>Volume</th></tr><tr><td>Frontend commits (<code>careflow-admin</code>)</td><td><strong>53</strong></td></tr><tr><td>Backend commits (<code>careflow-api</code>)</td><td><strong>37</strong></td></tr><tr><td>Approx. frontend lines added (feature folders)</td><td><strong>~50,000+</strong> across major modules</td></tr><tr><td>Database migrations introduced in July commits</td><td><strong>~35+</strong> (billing, payroll, learning, ECM attendance, hours, absences, payouts, ...)</td></tr></table>
+<p><strong>Contributors</strong></p>
+<table><tr><th>Role</th><th>Name</th></tr><tr><td>Project Manager</td><td>Zeeshan Nawaz</td></tr><tr><td>Frontend</td><td>Hamza</td></tr><tr><td>Backend</td><td>Tufail Khan</td></tr><tr><td>App Developer</td><td>Saqib</td></tr><tr><td>Mobile App Designer</td><td>Arfa</td></tr><tr><td>QA</td><td>Abeeha Ali</td></tr><tr><td>DevOps</td><td>Ali</td></tr></table>
+<p class="task-label ">Largest July themes (by commit density):</p>
+<ol class="bullets">
+<li><strong>Billing &amp; finance</strong> (charge/pay cards, invoices, reconciliation, payments)  </li>
+<li><strong>Employees</strong> (hours, absences, pay cards, salary UI)  </li>
+<li><strong>Service users</strong> (portal, initial assessment, tasks planner, visit plan)  </li>
+<li><strong>ECM + Carer app APIs</strong> (live monitoring, graphs, exceptions, mobile visit APIs)  </li>
+<li><strong>UK Payroll core</strong> (employer/runs/calc - HMRC filing mainly August)  </li>
+<li><strong>Learning (LMS)</strong>  </li>
+<li><strong>Scheduling / double-up visits</strong>  </li>
+<li><strong>Employee payouts</strong></li>
+</ol>
+<div class="callout"><strong>Bottom line for the client:</strong> July established the commercial and operational backbone (billing, payroll foundation, workforce hours, learning, ECM/carer monitoring). Several modules are <strong>ops-ready</strong>; several still need <strong>exports, PDF/email delivery, and &quot;coming soon&quot; UI</strong> completed before calling the whole product &quot;finished.&quot;</div>
+<div class="callout"><strong>Start here for the client:</strong> <strong>Section 2</strong> is the detailed feature register — for each feature: who/what/status, <strong>Frontend/Admin tasks done</strong>, <strong>Backend/API tasks done</strong>, and <strong>Remaining</strong> (broken into small tasks). Later sections are screens, commit volume, and a short module rollup.</div>
+<div class="callout"><strong>Important:</strong> Most of what managers and office staff use daily is the <strong>CareAdmin frontend</strong> (<code>careflow-admin</code>). July delivered <strong>53 frontend commits</strong> and large new UI surfaces (screens, dialogs, sidebars, dashboards)-not only APIs.</div>
+<hr>
+<h2 id="2-functional-features-detailed-delivery-client-fe-be-tasks">2. Functional features — detailed delivery (client + FE/BE tasks)</h2>
+<p>This is the <strong>main client section</strong>. For every feature you get:</p>
+<ol class="bullets">
+<li><strong>Who / what / status</strong> (business view)  </li>
+<li><strong>Frontend / Admin tasks done</strong> (small tasks staff can click)  </li>
+<li><strong>Backend / API tasks done</strong> (small tasks that power it)  </li>
+<li><strong>Remaining</strong> (small tasks still open)</li>
+</ol>
+<div class="legend">
+<span class="status st-ready">Ready to use</span>
+<span class="status st-gaps">Usable with gaps</span>
+<span class="status st-limited">Started / limited</span>
+</div>
+<p><strong>Note on carer mobile:</strong> This workspace ships <strong>APIs + CareAdmin</strong>. Native carer app UI QA is outside these repos (called out under Remaining where relevant).</p>
+<hr>
+<h3 id="2-1-care-delivery-monitoring-ecm">2.1 Care delivery &amp; monitoring (ECM)</h3>
+<section class="feature" id="feature-live-visit-monitoring">
+<div class="feature-title">
+<h4><span class="n">1.</span>Live visit monitoring</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators / on-call</dd></div><div><dt>What they can do</dt><dd>See planned visits for a day/period; spot missing check-ins, late/outstanding visits; open a visit and act</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Live monitoring page (<code>/ecm/live</code>)</li>
+<li class="done">Operational period control (day / week / custom)</li>
+<li class="done">Location / org scope on the board</li>
+<li class="done">Summary tiles (counts for late, missed, outstanding, etc.)</li>
+<li class="done">Visit list / queue table with refresh</li>
+<li class="done">Open visit detail from a row</li>
+<li class="done">Health / monitoring banner on the page</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Live dashboard endpoint (visits + summary for period)</li>
+<li class="done">Visit detail endpoint for a single visit</li>
+<li class="done">Health / status payload for the board</li>
+<li class="done">Evaluate / re-evaluate visit against ECM rules (on demand)</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Optional dedicated exceptions-only page (queue already lives on Live)</li>
+<li class="todo">Deeper “identity / continuity” analytics (not required for day ops)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-exception-handling">
+<div class="feature-title">
+<h4><span class="n">2.</span>Exception handling</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators / quality</dd></div><div><dt>What they can do</dt><dd>Work a queue of problem visits (late, missed, short, etc.); open detail and act</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Exception queue panel on Live</li>
+<li class="done">Filter / triage problem visits from the queue</li>
+<li class="done">Open visit detail from an exception row</li>
+<li class="done">Ops actions UI (acknowledge / resolve / close style actions)</li>
+<li class="done">Reason-code selection in ops flows where required</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">List exceptions API</li>
+<li class="done">Acknowledge exception API</li>
+<li class="done">Resolve / close exception API</li>
+<li class="done">Reason-code catalog / lookup for exceptions</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Optional standalone <code>/ecm/exceptions</code> route (nice-to-have; not blocking)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-visit-punctuality-duration-assessment">
+<div class="feature-title">
+<h4><span class="n">3.</span>Visit punctuality &amp; duration assessment</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>System + office</dd></div><div><dt>What they can do</dt><dd>Automatically classify arrival/duration against plan using ECM rules/thresholds</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Show punctuality / duration classification on visit detail</li>
+<li class="done">Show applied settings / threshold badge where relevant</li>
+<li class="done">Surface late / early / short outcomes on Live tiles &amp; rows</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Evaluation engine (arrival vs plan)</li>
+<li class="done">Evaluation engine (duration vs plan)</li>
+<li class="done">Persist evaluation / attendance classification</li>
+<li class="done">Resolve org thresholds when evaluating</li>
+<li class="done">Schedule version awareness for “what was planned”</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core assessment path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-missed-visit-detection">
+<div class="feature-title">
+<h4><span class="n">4.</span>Missed-visit detection</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>System (+ office triage)</dd></div><div><dt>What they can do</dt><dd>Background check flags visits that look missed so office can triage</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Show missed / outstanding visits on Live</li>
+<li class="done">Missed-triage actions on visit ops UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Missed-visit detection job (scheduled)</li>
+<li class="done">Missed-triage update API</li>
+<li class="done">Feed missed outcomes into exceptions / live dashboard</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core detection path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-manual-attendance-office-completion">
+<div class="feature-title">
+<h4><span class="n">5.</span>Manual attendance / office completion</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Office</dd></div><div><dt>What they can do</dt><dd>Record attendance when the carer could not use the app normally</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Manual attendance action in visit ops</li>
+<li class="done">Amend attendance action where supported</li>
+<li class="done">Capture reason / evidence fields in the form</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Manual attendance create API</li>
+<li class="done">Amend attendance API</li>
+<li class="done">Store notification / evidence linkage for office-recorded attendance</li>
+<li class="done">Re-run evaluation after manual attendance</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core office path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-ecm-graphs-trends">
+<div class="feature-title">
+<h4><span class="n">6.</span>ECM graphs &amp; trends</h4>
+<span class="status st-ready">Ready to use *(chart pack strengthened further in Aug)*</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Managers</dd></div><div><dt>What they can do</dt><dd>See late/missed/short rates, branch comparison, arrival/duration mixes, reasons, heatmaps</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use *(chart pack strengthened further in Aug)*</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Graphs page (<code>/ecm/graph</code>)</li>
+<li class="done">Shared operational period + schedule-area filters</li>
+<li class="done">Rate-based exception trend charts</li>
+<li class="done">Branch risk / compare board</li>
+<li class="done">Arrival band mix chart</li>
+<li class="done">Duration band mix chart</li>
+<li class="done">Reasons breakdown</li>
+<li class="done">Heatmap + drill into supporting detail</li>
+<li class="done">Status-by-hour (single-day view where applicable)</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Graph dashboard aggregate API</li>
+<li class="done">Analytics for exception rates over period</li>
+<li class="done">Branch / area aggregation for risk compare</li>
+<li class="done">Arrival / duration band aggregates</li>
+<li class="done">Reason aggregates</li>
+<li class="done">Heatmap aggregates</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Deeper continuity / identity analytics beyond current chart set</li>
+<li class="todo">When a single schedule area is selected, clarify “select All areas” for branch compare (UX edge)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-ecm-compliance-snapshot">
+<div class="feature-title">
+<h4><span class="n">7.</span>ECM compliance snapshot</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Managers / quality</dd></div><div><dt>What they can do</dt><dd>See electronic vs manual attendance and geofence breach counts</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Compliance overview panel (method cards / KPIs)</li>
+<li class="done">Wire panel to shared ECM period filters</li>
+<li class="done">Link users toward Reports for period pack detail</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Compliance report API (electronic vs manual)</li>
+<li class="done">Geofence breach counts in compliance payload</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for snapshot KPIs (full pack = Reports feature)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-ecm-period-reports-export">
+<div class="feature-title">
+<h4><span class="n">8.</span>ECM period reports / export</h4>
+<span class="status st-gaps">Usable with gaps</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Quality / commissioners</dd></div><div><dt>What they can do</dt><dd>Produce a period pack with n/d rates and CSV (PDF pack still pending)</dd></div><div><dt>Status</dt><dd><span class="status st-gaps">Usable with gaps</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Reports page (<code>/ecm/reports</code>)</li>
+<li class="done">Period / location / schedule-area header context</li>
+<li class="done">n/d summary tiles for the period</li>
+<li class="done">Classification tables</li>
+<li class="done">Verification mix display</li>
+<li class="done">Exception register table</li>
+<li class="done">CSV download (permission-gated)</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Daily / period operations report API</li>
+<li class="done">Compliance KPI feed for the pack</li>
+<li class="done">Exception register data for export</li>
+<li class="done">CSV generation path for summary / register</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">PDF inspection pack generation</li>
+<li class="todo">Branded PDF layout for commissioners / CQC-style pack</li>
+<li class="todo">Optional email / download-of-PDF delivery</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-configure-ecm-thresholds">
+<div class="feature-title">
+<h4><span class="n">9.</span>Configure ECM thresholds</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Admin</dd></div><div><dt>What they can do</dt><dd>Set organisation rules for late/early/short windows used in assessment</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">ECM threshold lookups settings panel</li>
+<li class="done">Edit late / early / short window values</li>
+<li class="done">Save thresholds from Settings</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Get threshold lookups API</li>
+<li class="done">Patch threshold lookups API</li>
+<li class="done">Settings resolver used by evaluation</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core threshold config</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-2-carer-mobile-field-app-apis-office-hub">2.2 Carer mobile / field app (APIs + office hub)</h3>
+<blockquote>Native mobile UI is <strong>not</strong> in this monorepo. July delivered the <strong>APIs</strong> carers need, plus the <strong>CareAdmin Carer Visit Hub</strong>.</blockquote>
+<section class="feature" id="feature-carer-login-session">
+<div class="feature-title">
+<h4><span class="n">10.</span>Carer login &amp; session</h4>
+<span class="status st-ready">Ready to use (API)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers</dd></div><div><dt>What they can do</dt><dd>Sign in / refresh / sign out securely</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">N/A for mobile login (mobile app outside repo)</li>
+<li class="done">Office staff continue to use CareAdmin auth separately</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Carer login endpoint</li>
+<li class="done">Token refresh endpoint</li>
+<li class="done">Logout endpoint</li>
+<li class="done"><code>me</code> / current-user endpoint</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT / sign-off against these APIs (outside repo)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-today-s-schedule">
+<div class="feature-title">
+<h4><span class="n">11.</span>Today&#x27;s schedule</h4>
+<span class="status st-ready">Ready to use (API)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers</dd></div><div><dt>What they can do</dt><dd>See their visits for the day</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Office can view related jobs on schedule board / visit hub</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Carer schedule list API</li>
+<li class="done">Carer “my visits” list API</li>
+<li class="done">Home feed API (today context)</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT for schedule screens</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-client-information-at-point-of-care">
+<div class="feature-title">
+<h4><span class="n">12.</span>Client information at point of care</h4>
+<span class="status st-ready">Ready to use (API)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers</dd></div><div><dt>What they can do</dt><dd>Open client profile, care plan, meds, documents, consent/capacity context</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Carer Visit Hub shows client context for the open visit</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Client list / detail APIs</li>
+<li class="done">Client documents API</li>
+<li class="done">Client medications API</li>
+<li class="done">Assessments / history APIs</li>
+<li class="done">Consent / capacity context APIs</li>
+<li class="done">Care plan read APIs for carer</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT for client dossier screens</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-check-in-to-a-visit">
+<div class="feature-title">
+<h4><span class="n">13.</span>Check in to a visit</h4>
+<span class="status st-ready">Ready to use (API)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers</dd></div><div><dt>What they can do</dt><dd>Start a visit (with location/attendance evidence where configured)</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Office can see check-in outcome on Live / visit detail after carer starts</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Check-in API</li>
+<li class="done">Arrival reason support on check-in</li>
+<li class="done">Location / attendance evidence capture on check-in path</li>
+<li class="done">Trigger ECM evaluation after check-in</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile geofence / device edge-case hardening (ops)</li>
+<li class="todo">Mobile client UAT</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-unable-to-start-visit">
+<div class="feature-title">
+<h4><span class="n">14.</span>Unable to start visit</h4>
+<span class="status st-ready">Ready to use (API)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers</dd></div><div><dt>What they can do</dt><dd>Record that a visit could not be started, with reason</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Office complete / outcomes UI can reflect unable-to-start style outcomes</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Unable-to-start API</li>
+<li class="done">Reason capture on unable-to-start</li>
+<li class="done">Feed outcome into visit / ECM state</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-complete-care-tasks-on-visit">
+<div class="feature-title">
+<h4><span class="n">15.</span>Complete care tasks on visit</h4>
+<span class="status st-ready">Ready to use (API + admin checklist)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers (+ office oversight)</dd></div><div><dt>What they can do</dt><dd>View/update visit tasks</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API + admin checklist)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Visit job tasks checklist on visit workspace / hub</li>
+<li class="done">Update task completion from admin where supported</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">List visit tasks API</li>
+<li class="done">Patch visit tasks API</li>
+<li class="done">Update single task API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Harden multi-carer / partial-save edge cases</li>
+<li class="todo">Mobile client UAT</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-medication-administration-on-visit">
+<div class="feature-title">
+<h4><span class="n">16.</span>Medication administration on visit</h4>
+<span class="status st-ready">Ready to use (API + admin panels)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers (+ office oversight)</dd></div><div><dt>What they can do</dt><dd>Record medication administrations</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API + admin panels)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Medication panels on visit workspace / hub</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Visit medication list API</li>
+<li class="done">Record administration API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT</li>
+<li class="todo">Schedule “Meds Administration” report type still unsupported (separate Scheduling reports feature)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-observations">
+<div class="feature-title">
+<h4><span class="n">17.</span>Observations</h4>
+<span class="status st-ready">Ready to use (API + admin panel)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers (+ office oversight)</dd></div><div><dt>What they can do</dt><dd>Capture observations during the visit</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API + admin panel)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Visit observations panel on workspace / hub</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">List / create / patch observations APIs</li>
+<li class="done">Observations catalog API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-notes-handover-concerns-incidents">
+<div class="feature-title">
+<h4><span class="n">18.</span>Notes, handover, concerns, incidents</h4>
+<span class="status st-ready">Ready to use (API + admin panels)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers (+ office oversight)</dd></div><div><dt>What they can do</dt><dd>Log notes; raise concerns/incidents with attachments</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API + admin panels)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Visit log / notes panels on hub / workspace</li>
+<li class="done">Concerns / incidents surfaces on visit workspace</li>
+<li class="done">Attachment handling in admin visit flows where wired</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Notes APIs</li>
+<li class="done">Handover APIs</li>
+<li class="done">Concerns APIs</li>
+<li class="done">Incidents APIs + attachments</li>
+<li class="done">Identity / body-map related visit APIs (as shipped in visit workspace)</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT for attachments / offline edge cases</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-complete-the-visit">
+<div class="feature-title">
+<h4><span class="n">19.</span>Complete the visit</h4>
+<span class="status st-ready">Ready to use (API + admin complete dialog)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers (+ office)</dd></div><div><dt>What they can do</dt><dd>Finish the visit with completion options</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API + admin complete dialog)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Schedule job complete dialog</li>
+<li class="done">Completion options UI</li>
+<li class="done">Double-up completion guards in dialog</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Completion options API</li>
+<li class="done">Complete visit API</li>
+<li class="done">Co-carer / multi-carer awareness on complete path</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT for complete flow</li>
+<li class="todo">Ops edge cases only</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-view-own-salary-info-carer">
+<div class="feature-title">
+<h4><span class="n">20.</span>View own salary info (carer)</h4>
+<span class="status st-ready">Ready to use (API)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Carers</dd></div><div><dt>What they can do</dt><dd>See salary-related information in-app</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (API)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Office salary overview under Billing (separate office feature)</li>
+<li class="done">N/A carer mobile salary screen in this repo</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done"><code>me/salary</code> API for carer app</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Mobile client UAT for salary screen</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-office-carer-visit-hub">
+<div class="feature-title">
+<h4><span class="n">21.</span>Office Carer Visit Hub</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Office</dd></div><div><dt>What they can do</dt><dd>Open the same visit from CareAdmin for support/oversight</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Carer Visit Hub page (<code>/scheduling/visits/$jobId</code>)</li>
+<li class="done">Client context, tasks, meds, obs, notes on one office screen</li>
+<li class="done">Link from schedule board into the hub</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Job detail / visit APIs used by hub</li>
+<li class="done">Reuse employee-app / scheduling visit endpoints for office oversight</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for hub core path</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-3-scheduling-rota">2.3 Scheduling &amp; rota</h3>
+<section class="feature" id="feature-schedule-board-gantt">
+<div class="feature-title">
+<h4><span class="n">22.</span>Schedule board / Gantt</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators</dd></div><div><dt>What they can do</dt><dd>Plan and view jobs across carers and time</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Schedule jobs board page</li>
+<li class="done">Gantt visualisation</li>
+<li class="done">Filters (area / carer / status as shipped)</li>
+<li class="done">Hover / drill into job workspace</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Scheduled jobs list / timeline APIs</li>
+<li class="done">Job detail APIs for board drill-in</li>
+<li class="done">Housekeeping / sync jobs supporting the board</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core board</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-allocate-carers-to-jobs">
+<div class="feature-title">
+<h4><span class="n">23.</span>Allocate carers to jobs</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators</dd></div><div><dt>What they can do</dt><dd>Assign staff to visits</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Allocate carer actions on board / workspace</li>
+<li class="done">Show current allocations on job</li>
+<li class="done">Lead-carer selection where multi-carer</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Create / update job allocations API</li>
+<li class="done">Set lead carer API</li>
+<li class="done">Allocation actual-time fields where used by ECM/billing</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core allocate path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-double-up-2-carer-visits">
+<div class="feature-title">
+<h4><span class="n">24.</span>Double-up (2+ carer) visits</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators</dd></div><div><dt>What they can do</dt><dd>Plan visits needing more than one carer; see under/over allocation; lead carer; Gantt cues</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Required-carers field / display</li>
+<li class="done">Under-allocation / over-allocation cues on Gantt</li>
+<li class="done">Lead carer label on multi-carer jobs</li>
+<li class="done">Filters for double-up style jobs</li>
+<li class="done">Complete-dialog guards when allocation incomplete</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Multi-carer allocation model / APIs</li>
+<li class="done">Lead carer persistence</li>
+<li class="done">Employee-app co-carer awareness</li>
+<li class="done">Multi-carer funder / charge mode support (where migrated)</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material as a stub; ops edge UAT only</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-complete-manage-job-outcomes-from-office">
+<div class="feature-title">
+<h4><span class="n">25.</span>Complete / manage job outcomes from office</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators</dd></div><div><dt>What they can do</dt><dd>Complete or adjust visit delivery from admin</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Complete job dialog</li>
+<li class="done">Visit delivery status panel</li>
+<li class="done">Office outcome / completion options</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Job complete endpoints</li>
+<li class="done">Delivery assessment / outcome APIs</li>
+<li class="done">Guards for double-up completion rules</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core office complete path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-service-user-visit-plan">
+<div class="feature-title">
+<h4><span class="n">26.</span>Service user visit plan</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Coordinators / care planners</dd></div><div><dt>What they can do</dt><dd>Maintain the planned pattern of visits for a service user</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Visit plan page on service user (<code>/service-users/$id/visit-plan</code>)</li>
+<li class="done">Edit planned visits / pattern UI</li>
+<li class="done">Generate-rota style actions where shipped</li>
+<li class="done">Carer suggest UX where shipped</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Visit plans CRUD / list APIs</li>
+<li class="done">Generate / apply plan support APIs</li>
+<li class="done">Carer suggest support APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core visit plan</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-schedule-reports-file-export">
+<div class="feature-title">
+<h4><span class="n">27.</span>Schedule reports (file export)</h4>
+<span class="status st-gaps">Usable with gaps</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Managers</dd></div><div><dt>What they can do</dt><dd>Run/export some schedule reports</dd></div><div><dt>Status</dt><dd><span class="status st-gaps">Usable with gaps</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Schedule reports page (<code>/scheduling/report</code>)</li>
+<li class="done">Report type picker</li>
+<li class="done">Generate supported reports (on-screen / JSON path)</li>
+<li class="done">Show “coming soon” for unsupported types</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Supported generators: call-off, daily allocation, time analysis, SU visit, visit detail, capacity, jobs status</li>
+<li class="done">Report catalog marking supported vs unsupported</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Implement unsupported types: Adjustment, GeoFence, Housepack, Meds Administration, Template schedule, Spoof, etc.</li>
+<li class="todo">File export hook for generated report files (still TODO)</li>
+<li class="todo">Long-running “report ready” notifications (currently stubbed)</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-4-service-users-assessment-portal">2.4 Service users, assessment &amp; portal</h3>
+<section class="feature" id="feature-initial-assessment-enterprise">
+<div class="feature-title">
+<h4><span class="n">28.</span>Initial Assessment (enterprise)</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Assessors / care managers</dd></div><div><dt>What they can do</dt><dd>Capture a structured initial assessment (incl. social history / secure fields)</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Initial Assessment enterprise page</li>
+<li class="done">Holistic / enterprise section panels</li>
+<li class="done">Social history fields</li>
+<li class="done">Secure-field capture UI</li>
+<li class="done">Submit / review actions in UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Create / update / submit IA APIs</li>
+<li class="done">Review workflow APIs</li>
+<li class="done">Secure fields storage</li>
+<li class="done">Social history persistence</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Wire IA review notification hooks fully (flash / reminders)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-export-assessment-html-pdf">
+<div class="feature-title">
+<h4><span class="n">29.</span>Export assessment (HTML/PDF)</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Assessors</dd></div><div><dt>What they can do</dt><dd>Produce assessment output for records</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Export actions on IA UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">HTML export util / endpoint</li>
+<li class="done">PDF export util / endpoint</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core export path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-tasks-planner">
+<div class="feature-title">
+<h4><span class="n">30.</span>Tasks planner</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Care planners</dd></div><div><dt>What they can do</dt><dd>Plan care tasks for a service user</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Tasks planner page (<code>/service-users/$id/tasks-planner</code>)</li>
+<li class="done">Add / edit / order care tasks UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Service-user visit tasks APIs</li>
+<li class="done">Seeder support for demo / setup data</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core planner</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-enable-service-user-portal">
+<div class="feature-title">
+<h4><span class="n">31.</span>Enable Service User Portal</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Admin</dd></div><div><dt>What they can do</dt><dd>Turn on portal access for a service user</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Service User Portal admin enablement UI</li>
+<li class="done">Link portal access from service-user record / admin section</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Portal account create / enable APIs</li>
+<li class="done">Portal account status on service user</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for enablement path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-service-user-portal-login">
+<div class="feature-title">
+<h4><span class="n">32.</span>Service User Portal login</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Service user / family</dd></div><div><dt>What they can do</dt><dd>Sign in to their portal</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Portal login page</li>
+<li class="done">Post-login dashboard entry</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Portal auth / session endpoints</li>
+<li class="done">Portal auth guard</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for login path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-portal-profile-about-me-contacts-allergies-meds">
+<div class="feature-title">
+<h4><span class="n">33.</span>Portal — profile, about me, contacts, allergies, meds</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Service user / family</dd></div><div><dt>What they can do</dt><dd>View/maintain personal care information (within portal permissions)</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Portal profile page</li>
+<li class="done">About me page</li>
+<li class="done">Contacts page</li>
+<li class="done">Allergies page</li>
+<li class="done">Medications page</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">GET/PATCH profile</li>
+<li class="done">GET/PATCH about-me</li>
+<li class="done">GET/PATCH contacts</li>
+<li class="done">GET/PATCH allergies</li>
+<li class="done">GET/PATCH medications</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Expand write scope if client wants full care management in portal (currently limited)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-portal-calendar-visit-plans-completed-visits-photos">
+<div class="feature-title">
+<h4><span class="n">34.</span>Portal — calendar, visit plans, completed visits, photos</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Service user / family</dd></div><div><dt>What they can do</dt><dd>See schedule/history and photos</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Portal calendar page</li>
+<li class="done">Portal visit plans page</li>
+<li class="done">Portal completed visits page</li>
+<li class="done">Portal photos page</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Calendar API</li>
+<li class="done">Visit plans API for portal</li>
+<li class="done">Completed visits API</li>
+<li class="done">Photos upload / list API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Calendar reminder notifications not fully wired</li>
+<li class="todo">Keep portal scope honest (not full care management)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-care-plan-comms-alerts-modules">
+<div class="feature-title">
+<h4><span class="n">35.</span>Care Plan / Comms / Alerts modules</h4>
+<span class="status st-limited">Started / limited</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Office</dd></div><div><dt>What they can do</dt><dd>Full care-plan &amp; messaging workspace *(intended)*</dd></div><div><dt>Status</dt><dd><span class="status st-limited">Started / limited</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Care Plan route shell exists</li>
+<li class="done">Nav tabs visible for Comms / Alerts (placeholders)</li>
+<li class="done">Dashboard tiles exist (some disabled)</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Partial care-plan rules from IA exist</li>
+<li class="done">No full Comms / Alerts product API surface for office workspace</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Implement Comms module (real routes + APIs)</li>
+<li class="todo">Implement Alerts module (real routes + APIs)</li>
+<li class="todo">Finish Care Plan “Add” + Consent/MCA / Risk / Monitor accordions</li>
+<li class="todo">Remove or implement fake CTAs (<code>/in-progress</code>: Create Session, Care summary, Detailed Care report, House pack history)</li>
+<li class="todo">Enable History tile on dashboard when backed by real data</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-5-workforce-employees">2.5 Workforce (employees)</h3>
+<section class="feature" id="feature-employee-hours-weekly-monthly">
+<div class="feature-title">
+<h4><span class="n">36.</span>Employee hours (weekly/monthly)</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Managers / payroll prep</dd></div><div><dt>What they can do</dt><dd>Review worked hours; monthly review workflow</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Employee hours page (<code>/employee/hours</code>)</li>
+<li class="done">Weekly summary view</li>
+<li class="done">Monthly panel</li>
+<li class="done">Hours detail dialog</li>
+<li class="done">Monthly review action in UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Weekly summary API</li>
+<li class="done">Monthly summary API</li>
+<li class="done">Hours detail API</li>
+<li class="done">Monthly-review patch API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core hours path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-record-absences">
+<div class="feature-title">
+<h4><span class="n">37.</span>Record absences</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Managers / HR</dd></div><div><dt>What they can do</dt><dd>Create and manage absence records</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Absences page (<code>/employee/absences</code>)</li>
+<li class="done">Create / edit absence form dialog</li>
+<li class="done">List / filter absences</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Absences create API</li>
+<li class="done">Absences update API</li>
+<li class="done">Absences list / get APIs</li>
+<li class="done">Absences delete / cancel where shipped</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core absences path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-assign-pay-cards-to-staff">
+<div class="feature-title">
+<h4><span class="n">38.</span>Assign pay cards to staff</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance / HR</dd></div><div><dt>What they can do</dt><dd>Link employees to pay rate cards</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Pay card panel on employee edit</li>
+<li class="done">Assign / change pay card UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Pay-card assign APIs</li>
+<li class="done">Resolve employee → pay card for calculations</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for assign path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-edit-salary-visit-learning-holidays-on-employee">
+<div class="feature-title">
+<h4><span class="n">39.</span>Edit salary / visit / learning / holidays on employee</h4>
+<span class="status st-ready">Ready to use *(some unused sections still placeholders)*</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>HR / managers</dd></div><div><dt>What they can do</dt><dd>Maintain staff pay and related panels in one place</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use *(some unused sections still placeholders)*</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Employee edit salary panel</li>
+<li class="done">Employee edit visits panel</li>
+<li class="done">Employee edit learning panel</li>
+<li class="done">Employee edit holidays panel</li>
+<li class="done">Staff list filters / branch cell UX</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Salary / deduction related APIs</li>
+<li class="done">Visits-related employee APIs used by panel</li>
+<li class="done">Learning assignment hooks used by panel</li>
+<li class="done">Holidays related APIs used by panel</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Replace remaining <code>EmployeeEditPlaceholderPanel</code> sections with real panels or hide them</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-carer-app-access-on-employee-record">
+<div class="feature-title">
+<h4><span class="n">40.</span>Carer app access on employee record</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Admin</dd></div><div><dt>What they can do</dt><dd>Control whether staff can use the carer app</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Employee app access section on employee edit</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Employee portal / app account enable APIs</li>
+<li class="done">Persist app access flag / account state</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for access control path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-employee-management-reports">
+<div class="feature-title">
+<h4><span class="n">41.</span>Employee management reports</h4>
+<span class="status st-limited">Started / limited</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>HR / managers</dd></div><div><dt>What they can do</dt><dd>Run staff analysis / compliance / holiday reports from Employee → Reports</dd></div><div><dt>Status</dt><dd><span class="status st-limited">Started / limited</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Reports tab listing report titles</li>
+<li class="done">Buttons rendered for each report name</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Partial dashboard / staff-summary only</li>
+<li class="done">Several report endpoints still return “Not implemented yet”</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Wire FE buttons to real handlers</li>
+<li class="todo">Implement analysis report API</li>
+<li class="todo">Implement compliance report API</li>
+<li class="todo">Implement leaving / details / holidays report APIs</li>
+<li class="todo">Or hide the Reports tab until ready</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-6-billing-finance">2.6 Billing &amp; finance</h3>
+<section class="feature" id="feature-configure-pay-cards-charge-cards">
+<div class="feature-title">
+<h4><span class="n">42.</span>Configure pay cards &amp; charge cards</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Define rate/charge rules and assign them</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Pay cards panel + form dialog</li>
+<li class="done">Charge cards panel + form dialog</li>
+<li class="done">Assign-to-target dialogs</li>
+<li class="done">Billing section navigation / home layout</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Pay cards CRUD</li>
+<li class="done">Charge cards CRUD</li>
+<li class="done">Assignment / matching APIs</li>
+<li class="done">Rate framework migrations supporting cards</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core card config</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-funding-contract-billing-fields">
+<div class="feature-title">
+<h4><span class="n">43.</span>Funding contract billing fields</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Capture contract fields that drive charging</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Funding contracts billing panel</li>
+<li class="done">Contract fields on service-user finance area where shipped</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Funding contracts list / summary APIs</li>
+<li class="done">Persist billing fields used by invoice / charge calc</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core contract fields</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-visit-reconciliation">
+<div class="feature-title">
+<h4><span class="n">44.</span>Visit reconciliation</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance / ops</dd></div><div><dt>What they can do</dt><dd>Review visit exceptions, approve/reject, handle overruns, set payable amounts</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Visit reconciliation page</li>
+<li class="done">Exception queue for finance visits</li>
+<li class="done">Detail dialog (approve / reject / overrun / payable)</li>
+<li class="done">Refresh / filter reconciled vs open items</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Reconciliation exception queue API</li>
+<li class="done">Approve / reject APIs</li>
+<li class="done">Overrun handling API</li>
+<li class="done">Set payable amount API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core reconciliation path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-visit-pay-runs">
+<div class="feature-title">
+<h4><span class="n">45.</span>Visit pay runs</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Calculate visit-based pay for a period (with export path)</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Visit pay runs (payroll-runs) list page</li>
+<li class="done">Create / open run detail dialog</li>
+<li class="done">Calculate / approve / lock actions in UI</li>
+<li class="done">Export action wired to API path</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Create pay run API</li>
+<li class="done">Calculate pay run API</li>
+<li class="done">Approve / lock APIs</li>
+<li class="done">Export endpoint for run results</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core pay-run path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-invoice-templates">
+<div class="feature-title">
+<h4><span class="n">46.</span>Invoice templates</h4>
+<span class="status st-gaps">Usable with gaps</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Design/validate/preview invoice layouts</dd></div><div><dt>Status</dt><dd><span class="status st-gaps">Usable with gaps</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Invoice templates panel</li>
+<li class="done">Layout preset selection</li>
+<li class="done">Validate action UI</li>
+<li class="done">Preview UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Templates CRUD</li>
+<li class="done">Layout presets</li>
+<li class="done">Validate template API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Preview should use live calculated invoice data (currently often placeholders)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-invoice-runs">
+<div class="feature-title">
+<h4><span class="n">47.</span>Invoice runs</h4>
+<span class="status st-gaps">Usable with gaps</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Create, calculate, approve, lock invoice runs; mark sent</dd></div><div><dt>Status</dt><dd><span class="status st-gaps">Usable with gaps</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Invoice runs list page</li>
+<li class="done">Invoice run detail page</li>
+<li class="done">Create / calculate / approve / lock actions</li>
+<li class="done">Mark-sent / send action in UI</li>
+<li class="done">Preview invoice from run</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Create / calculate invoice run APIs</li>
+<li class="done">Approve / lock APIs</li>
+<li class="done"><code>send</code> endpoint currently <strong>marks status SENT</strong> (status flip)</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">True invoice PDF generation</li>
+<li class="todo">Email delivery pipeline (not status-only)</li>
+<li class="todo">Confirm preview uses calculated line items end-to-end</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-record-match-payments">
+<div class="feature-title">
+<h4><span class="n">48.</span>Record &amp; match payments</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Post payments and allocate to invoices</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Payments page</li>
+<li class="done">Record payment dialog</li>
+<li class="done">Match / allocate payment dialog</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Payments create API</li>
+<li class="done">Payment allocations APIs</li>
+<li class="done">List / get payments</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core payments path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-travel-time-mileage-distance-rules">
+<div class="feature-title">
+<h4><span class="n">49.</span>Travel time / mileage / distance rules</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Apply travel and distance calculations to pay/charge logic</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Travel / mileage fields on rate / card configuration</li>
+<li class="done">Surface travel impacts in reconciliation / pay where applicable</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Inter-visit travel calculation</li>
+<li class="done">Mileage utilities</li>
+<li class="done">Pay-policy travel mode rules</li>
+<li class="done">Distance rule persistence / use in calc</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material as a stub</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-salary-overview">
+<div class="feature-title">
+<h4><span class="n">50.</span>Salary overview</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance / managers</dd></div><div><dt>What they can do</dt><dd>See salary-oriented overview</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Billing salary overview page (<code>/billing/salary</code>)</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Employee salaries / earnings feeds from payroll-runs / billing APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for overview path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-employee-payout-batches">
+<div class="feature-title">
+<h4><span class="n">51.</span>Employee payout batches</h4>
+<span class="status st-gaps">Usable with gaps</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance</dd></div><div><dt>What they can do</dt><dd>Create/approve/mark-paid payout batches (e.g. net pay runs)</dd></div><div><dt>Status</dt><dd><span class="status st-gaps">Usable with gaps</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Employee payouts page</li>
+<li class="done">Create batch UI</li>
+<li class="done">Batch detail dialog</li>
+<li class="done">Approve / mark-paid / cancel actions</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Create payout batch API</li>
+<li class="done">Approve / mark-paid / cancel APIs</li>
+<li class="done">Eligible UK net-run tie-in</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">BACS / bank-file export</li>
+<li class="todo">Downloadable payment file for bank upload</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-billing-audit-export">
+<div class="feature-title">
+<h4><span class="n">52.</span>Billing audit export</h4>
+<span class="status st-limited">Started / limited</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Finance / audit</dd></div><div><dt>What they can do</dt><dd>Export audit job packs *(intended)*</dd></div><div><dt>Status</dt><dd><span class="status st-limited">Started / limited</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Audit export page shell</li>
+<li class="done">List UI for export jobs (currently mock-backed)</li>
+<li class="done">New export job / Download buttons present</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">No real billing audit-export job controller found</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Remove mock data (<code>MOCK_AUDIT_EXPORTS</code>)</li>
+<li class="todo">Implement create-export-job API</li>
+<li class="todo">Implement list-export-jobs API</li>
+<li class="todo">Implement download-export API</li>
+<li class="todo">Or hide the page until wired</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-7-uk-payroll">2.7 UK Payroll</h3>
+<section class="feature" id="feature-set-up-employer-payroll">
+<div class="feature-title">
+<h4><span class="n">53.</span>Set up employer payroll</h4>
+<span class="status st-ready">Ready to use (July core)</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Payroll admin</dd></div><div><dt>What they can do</dt><dd>Employer settings, tax years, schedules</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use (July core)</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Payroll overview page</li>
+<li class="done">Employer settings page</li>
+<li class="done">Tax years page</li>
+<li class="done">Schedules page</li>
+<li class="done">Taxes / statutory rates UI where shipped</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Employer settings APIs</li>
+<li class="done">Tax years APIs</li>
+<li class="done">Schedules / periods APIs</li>
+<li class="done">Statutory rates foundation</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Production gateway credentials / env for live filing (see HMRC feature)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-maintain-payroll-employees-agreements">
+<div class="feature-title">
+<h4><span class="n">54.</span>Maintain payroll employees / agreements</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Payroll admin</dd></div><div><dt>What they can do</dt><dd>Enrol staff into payroll setup</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Payroll employees page</li>
+<li class="done">Employee payroll profile UI</li>
+<li class="done">Pay agreement UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Payroll employee profile APIs</li>
+<li class="done">Pay agreements APIs</li>
+<li class="done">YTD support APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core enrolment path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-run-payroll-calculate-close">
+<div class="feature-title">
+<h4><span class="n">55.</span>Run payroll calculate &amp; close</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Payroll admin</dd></div><div><dt>What they can do</dt><dd>Create a run, calculate gross/statutory foundations, close</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Payroll runs list</li>
+<li class="done">Run detail page</li>
+<li class="done">Enrol employees into run</li>
+<li class="done">Calculate actions in UI</li>
+<li class="done">Close / cancel / reactivate actions</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Create run API</li>
+<li class="done">Enrol API</li>
+<li class="done">Calculate gross API</li>
+<li class="done">Calculate statutory API</li>
+<li class="done">Close / cancel / reactivate APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Broader UAT of statutory edge cases</li>
+<li class="todo">Ops sign-off on closed-run corrections process</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-deduction-elections-catalogs">
+<div class="feature-title">
+<h4><span class="n">56.</span>Deduction elections / catalogs</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Payroll admin</dd></div><div><dt>What they can do</dt><dd>Configure deductions</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Deductions catalog / elections UI in payroll area</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Deduction elections APIs</li>
+<li class="done">Employee salary deduction APIs (payroll + billing salary linkage)</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core deductions path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-submit-fps-eps-to-hmrc">
+<div class="feature-title">
+<h4><span class="n">57.</span>Submit FPS/EPS to HMRC</h4>
+<span class="status st-later">Mostly <strong>August</strong> (not July); needs config/UAT</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Payroll admin</dd></div><div><dt>What they can do</dt><dd>Electronic filing to HMRC</dd></div><div><dt>Status</dt><dd><span class="status st-later">Mostly <strong>August</strong> (not July); needs config/UAT</span></dd></div></dl>
+<p><strong>Frontend / Admin — done</strong> *(mainly Aug)*</p>
+<ul class="tasks">
+<li class="done">FPS submission panels</li>
+<li class="done">EPS submission panels</li>
+<li class="done">Dual-control approve / reject UI</li>
+</ul>
+<p><strong>Backend / API — done</strong> *(mainly Aug)*</p>
+<ul class="tasks">
+<li class="done">FPS submit API</li>
+<li class="done">EPS submit API</li>
+<li class="done">Submissions approve / reject APIs</li>
+<li class="done">GovTalk / dry-run / LIVE dual-control foundations</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Enable <code>HMRC_RTI_HTTP_ENABLED</code> (and related flags) per environment</li>
+<li class="todo">Configure Test vs Live gateway credentials</li>
+<li class="todo">Complete sandbox UAT</li>
+<li class="todo">Complete live UAT with dual-control process</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-8-learning-compliance-training">2.8 Learning &amp; compliance training</h3>
+<section class="feature" id="feature-learning-dashboard">
+<div class="feature-title">
+<h4><span class="n">58.</span>Learning dashboard</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Training lead</dd></div><div><dt>What they can do</dt><dd>See training overview</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Learning dashboard page (<code>/learning/dashboard</code>)</li>
+<li class="done">Learning section layout / nav</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Learning dashboard API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for dashboard</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-build-courses-sections-content-assessments">
+<div class="feature-title">
+<h4><span class="n">59.</span>Build courses (sections, content, assessments)</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Training lead</dd></div><div><dt>What they can do</dt><dd>Create and version training content</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Courses list / new / detail pages</li>
+<li class="done">Course builder (sections)</li>
+<li class="done">Content editor</li>
+<li class="done">Assessment builder</li>
+<li class="done">Categories management</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Courses CRUD + versions</li>
+<li class="done">Sections / content APIs</li>
+<li class="done">Assessments APIs</li>
+<li class="done">Categories APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for admin builder</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-assign-training-including-bulk">
+<div class="feature-title">
+<h4><span class="n">60.</span>Assign training (including bulk)</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Training lead / managers</dd></div><div><dt>What they can do</dt><dd>Assign courses to staff</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Assignments page</li>
+<li class="done">Assignment wizard</li>
+<li class="done">Bulk assign flow</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Assignments create API</li>
+<li class="done">Bulk assignment API</li>
+<li class="done">List / manage assignments</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for assign path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-compliance-matrix">
+<div class="feature-title">
+<h4><span class="n">61.</span>Compliance matrix</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Managers / CQC prep</dd></div><div><dt>What they can do</dt><dd>See who is compliant; export CSV</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Compliance matrix page</li>
+<li class="done">CSV export button</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Compliance list API</li>
+<li class="done">Compliance CSV export API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for matrix path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-issue-revoke-print-certificates">
+<div class="feature-title">
+<h4><span class="n">62.</span>Issue / revoke / print certificates</h4>
+<span class="status st-gaps">Usable with gaps</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Training lead</dd></div><div><dt>What they can do</dt><dd>Manage certificates</dd></div><div><dt>Status</dt><dd><span class="status st-gaps">Usable with gaps</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Certificates page</li>
+<li class="done">Issue certificate dialog</li>
+<li class="done">View certificate dialog</li>
+<li class="done">Browser print (<code>window.print</code>)</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Issue certificate API</li>
+<li class="done">Verify certificate API</li>
+<li class="done">Revoke certificate API</li>
+<li class="done">Get certificate API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Server-generated PDF file service (not browser-print only)</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-training-events-external-training">
+<div class="feature-title">
+<h4><span class="n">63.</span>Training events &amp; external training</h4>
+<span class="status st-ready">Ready to use</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Training lead</dd></div><div><dt>What they can do</dt><dd>Classroom events; verify external evidence</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Training events page</li>
+<li class="done">External training page</li>
+<li class="done">Verify / reject external evidence UI</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Training events APIs</li>
+<li class="done">External training verify / reject APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">None material for core events / external path</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-staff-take-course-in-careadmin">
+<div class="feature-title">
+<h4><span class="n">64.</span>Staff take course in CareAdmin</h4>
+<span class="status st-limited">Started / limited</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Learners</dd></div><div><dt>What they can do</dt><dd>Complete modules inside CareAdmin *(intended)*</dd></div><div><dt>Status</dt><dd><span class="status st-limited">Started / limited</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Admin LMS only (no full learner take-course UI under CareAdmin learning)</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done"><code>learning/me/*</code> progress APIs</li>
+<li class="done">Complete content API</li>
+<li class="done">Start / submit assessment APIs</li>
+<li class="done">Learner certificates API</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Build learner take-course UI in CareAdmin (or mobile) against existing APIs</li>
+<li class="todo">Wire assessment submit UX end-to-end in that surface</li>
+<li class="todo">Wire learner progress screens</li>
+</ul>
+</section>
+<hr>
+<section class="feature" id="feature-learning-reports-settings">
+<div class="feature-title">
+<h4><span class="n">65.</span>Learning reports &amp; settings</h4>
+<span class="status st-ready">Ready to use *(some CSV paths may still be incomplete)*</span>
+</div>
+<dl class="meta"><div><dt>Who</dt><dd>Training lead</dd></div><div><dt>What they can do</dt><dd>View learning reports and configure LMS settings</dd></div><div><dt>Status</dt><dd><span class="status st-ready">Ready to use *(some CSV paths may still be incomplete)*</span></dd></div></dl>
+<p class="task-label fe">Frontend / Admin — done</p>
+<ul class="tasks">
+<li class="done">Learning reports page</li>
+<li class="done">Learning settings page</li>
+</ul>
+<p class="task-label be">Backend / API — done</p>
+<ul class="tasks">
+<li class="done">Learning reports APIs</li>
+<li class="done">Learning settings APIs</li>
+</ul>
+<p class="task-label rem">Remaining</p>
+<ul class="tasks">
+<li class="todo">Wire every on-screen report table to CSV export where promised</li>
+</ul>
+</section>
+<hr>
+<h3 id="2-9-one-page-july-outcomes-for-the-client">2.9 One-page “July outcomes” for the client</h3>
+<p>By end of July, CareFlow could support this end-to-end story:</p>
+<ol class="bullets">
+<li><strong>Plan care</strong> — visit plans, tasks planner, double-up scheduling  </li>
+<li><strong>Deliver care in the field</strong> — carer app check-in, tasks, meds, observations, complete  </li>
+<li><strong>Monitor quality</strong> — ECM live board, exceptions, graphs, thresholds  </li>
+<li><strong>Engage the service user</strong> — portal for profile/schedule/history  </li>
+<li><strong>Assess &amp; onboard</strong> — initial assessment capture/export  </li>
+<li><strong>Pay carers &amp; invoice funders</strong> — reconciliation, pay runs, invoice runs, payments, payouts  </li>
+<li><strong>Run UK payroll calculations</strong> — employer/run lifecycle (HMRC submit mainly Aug)  </li>
+<li><strong>Train &amp; prove compliance</strong> — LMS courses, assignments, matrix, certificates  </li>
+</ol>
+<p class="task-label ">How to read the rest of this document</p>
+<ul class="bullets">
+<li><strong>Section 3</strong> = screen inventory / demo path  </li>
+<li><strong>Section 4–5</strong> = API volume + week narrative  </li>
+<li><strong>Section 6</strong> = short module rollup (points back here for task detail)  </li>
+<li><strong>Section 8</strong> = consolidated remaining backlog  </li>
+</ul>
+<hr>
+<h2 id="3-careadmin-frontend-admin-ui-screens-delivered">3. CareAdmin frontend / admin UI (screens delivered)</h2>
+<p><strong>Repository:</strong> <code>careflow-admin</code>  </p>
+<p><strong>July commits:</strong> <strong>53</strong>  </p>
+<p><strong>Approx. UI code added in feature folders:</strong> <strong>~50,000+ lines</strong>  </p>
+<p>This is the <strong>web admin application</strong> used by office staff, coordinators, finance, and quality. Below is what was built or substantially extended in July, organised by menu area.</p>
+<h3 id="3-1-frontend-volume-by-module">3.1 Frontend volume by module</h3>
+<table><tr><th>Admin module</th><th>July commits (approx.)</th><th>Approx. lines added</th><th>What the client sees</th></tr><tr><td><strong>Billing</strong></td><td>29</td><td>~19,600</td><td>Full finance workspace: cards, reconciliation, invoice/pay runs, payments, payouts, salary</td></tr><tr><td><strong>Employees</strong></td><td>21</td><td>~10,200</td><td>Hours, absences, pay card, salary/visits panels, app access, staff list UX</td></tr><tr><td><strong>Service users</strong></td><td>14</td><td>~5,000</td><td>Portal admin, IA enterprise UI, visit plan, hours, funding/charge/invoice panels</td></tr><tr><td><strong>ECM</strong></td><td>7</td><td>~5,400</td><td>Live monitoring, exceptions, visit detail, Graphs, Reports, Compliance</td></tr><tr><td><strong>Learning</strong></td><td>4</td><td>~5,400</td><td>Entire LMS admin area (dashboard → courses → compliance → certificates...)</td></tr><tr><td><strong>Payroll (UK)</strong></td><td>6</td><td>~5,100</td><td>Payroll overview, tax years, schedules, employees, runs + run detail</td></tr><tr><td><strong>Scheduling</strong></td><td>8</td><td>~2,600</td><td>Job board/Gantt/double-up, visit workspace, carer visit hub, complete dialog</td></tr><tr><td><strong>Service User Portal (FE)</strong></td><td>(within SU / portal feature)</td><td>large early-July drop</td><td>Login + portal pages for the service user</td></tr><tr><td><strong>Auth / nav</strong></td><td>8</td><td>~300</td><td>Permissions + sidebar entries for new modules</td></tr></table>
+<h3 id="3-2-new-major-admin-screens-delivered-in-july">3.2 New / major admin screens delivered in July</h3>
+<h4 id="a-ecm-electronic-call-monitoring-office-monitoring-ui">A) ECM (Electronic Call Monitoring) - office monitoring UI</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td><strong>Live monitoring</strong> page</td><td>Day/period visit board, summary tiles, exception queue, refresh</td></tr><tr><td><strong>Visit detail</strong> dialog/panel</td><td>Drill into a visit; ops actions (e.g. outcomes / triage)</td></tr><tr><td><strong>Graphs</strong> page</td><td>Chart-first dashboard + compliance overview on the same journey</td></tr><tr><td><strong>Reports</strong> page</td><td>Period reporting entry (later hardened in Aug as audit pack)</td></tr><tr><td>Supporting UI</td><td>Status badges, health banner, applied settings badge, schedule history, audit trail</td></tr></table>
+<h4 id="b-billing-finance-largest-admin-ui-delivery">B) Billing &amp; finance - largest admin UI delivery</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td><strong>Billing management</strong> dashboard</td><td>Finance home / section layout</td></tr><tr><td><strong>Pay cards</strong> &amp; <strong>Charge cards</strong> panels + assign/form dialogs</td><td>Rate card configuration &amp; assignment</td></tr><tr><td><strong>Funding contracts</strong> panel</td><td>Contract billing fields</td></tr><tr><td><strong>Visit reconciliation</strong> page + detail dialog</td><td>Approve/reject / overrun / payable amounts</td></tr><tr><td><strong>Visit pay runs (payroll-runs)</strong> page + detail dialog</td><td>Calculate / export path for visit pay</td></tr><tr><td><strong>Invoice templates</strong> + validate/preview/branded document UI</td><td>Template design &amp; check</td></tr><tr><td><strong>Invoice runs</strong> list + <strong>invoice run detail</strong> + preview</td><td>Run invoices for a period</td></tr><tr><td><strong>Payments</strong> + record/match payment dialogs</td><td>Cash allocation</td></tr><tr><td><strong>Salary overview</strong></td><td>Staff cost / salary view</td></tr><tr><td><strong>Employee payouts</strong> page + batch detail dialog</td><td>Batch approve / mark paid</td></tr><tr><td><strong>Audit export</strong> page</td><td>Intended audit jobs UI (<strong>still mock-backed - pending</strong>)</td></tr></table>
+<h4 id="c-uk-payroll-admin-payroll-workspace">C) UK Payroll - admin payroll workspace</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td>Payroll <strong>overview</strong></td><td>Entry &amp; navigation</td></tr><tr><td><strong>Tax years</strong>, <strong>schedules</strong>, <strong>employees</strong></td><td>Setup</td></tr><tr><td><strong>UK payroll runs</strong> list + <strong>run detail</strong></td><td>Enrol / calculate / close run lifecycle</td></tr><tr><td>Deductions catalog panel</td><td>Statutory/deduction configuration UI</td></tr></table>
+<p>*(HMRC submission panels were extended further in August.)*</p>
+<h4 id="d-employees-workforce-admin-ui">D) Employees - workforce admin UI</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td><strong>Employee hours</strong> page + monthly panel + detail dialog</td><td>Hours review</td></tr><tr><td><strong>Employee absences</strong> page + form dialog</td><td>Absence recording</td></tr><tr><td>Employee edit: <strong>salary</strong>, <strong>visits</strong>, <strong>pay card</strong>, <strong>learning</strong>, <strong>holidays</strong>, <strong>app access</strong></td><td>Full staff edit experience</td></tr><tr><td>Staff list filters / branches cell</td><td>Faster staff ops</td></tr><tr><td>Employee <strong>Reports</strong> tab</td><td>Listed (<strong>buttons still stub - pending</strong>)</td></tr></table>
+<h4 id="e-learning-full-lms-admin-ui-late-july">E) Learning - full LMS admin UI (late July)</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td>Learning <strong>dashboard</strong></td><td>Overview</td></tr><tr><td><strong>Courses</strong> list / new / detail + <strong>course builder</strong></td><td>Build training content</td></tr><tr><td><strong>Assignments</strong> + wizard</td><td>Assign training</td></tr><tr><td><strong>Compliance matrix</strong></td><td>Who is compliant (+ CSV)</td></tr><tr><td><strong>Certificates</strong> + issue/view dialogs</td><td>Issue / revoke / print</td></tr><tr><td><strong>Training events</strong>, <strong>external training</strong></td><td>Classroom / external evidence</td></tr><tr><td><strong>Learning reports</strong> &amp; <strong>settings</strong></td><td>Reporting &amp; config</td></tr></table>
+<h4 id="f-scheduling-visit-delivery-coordinator-ui">F) Scheduling &amp; visit delivery - coordinator UI</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td>Schedule jobs board / <strong>Gantt</strong> (incl. double-up cues)</td><td>Rota visualisation</td></tr><tr><td>Allocate / complete / hover / visit workspace</td><td>Day-to-day job control</td></tr><tr><td><strong>Carer Visit Hub</strong> page</td><td>Office view of a carer&#x27;s visit</td></tr><tr><td>Visit delivery status panel + task checklist / extra tasks</td><td>Delivery quality on the board</td></tr><tr><td>Visit plan page updates (service user)</td><td>Plan editing UX</td></tr></table>
+<h4 id="g-service-users-portal-care-office-family-facing-ui">G) Service users &amp; portal - care office + family-facing UI</h4>
+<table><tr><th>Screen / UI</th><th>Role for the client</th></tr><tr><td><strong>Initial Assessment (enterprise)</strong> page</td><td>Structured IA capture</td></tr><tr><td><strong>Tasks planner</strong> (service user)</td><td>Plan care tasks</td></tr><tr><td><strong>Visit plan</strong> page</td><td>Planned visits / carers</td></tr><tr><td>Service user <strong>hours</strong>, funding, charge card, invoices panels</td><td>Care + finance on the SU record</td></tr><tr><td><strong>Portal access</strong> admin section</td><td>Enable portal for a SU</td></tr><tr><td><strong>Service User Portal</strong> pages: login, dashboard, profile, about me, contacts, allergies, medications, calendar, photos, visit plans, completed visits</td><td>What the service user / family can open</td></tr></table>
+<h3 id="3-3-frontend-ux-product-shell-work-july">3.3 Frontend UX / product shell work (July)</h3>
+<ul class="bullets">
+<li>Sidebar &amp; routing for <strong>ECM</strong>, <strong>Billing</strong>, <strong>Learning</strong>, <strong>Payroll</strong>, <strong>Employee hours/absences</strong>, <strong>Portal</strong>, <strong>Payouts</strong></li>
+<li>Permission gates (<code>requirePermission</code> / roles) for new finance and learning areas</li>
+<li>Shared layouts (billing section layout, learning section layout, payroll section layout)</li>
+<li>Design / icons / double-up visit presentation polish (late July)</li>
+</ul>
+<h3 id="3-4-how-to-demo-admin-work-to-the-client">3.4 How to demo admin work to the client</h3>
+<p>Walk the <strong>CareAdmin sidebar</strong> in this order (July story):</p>
+<ol class="bullets">
+<li><strong>Service Users</strong> → Initial Assessment, Tasks planner, Visit plan, Portal access  </li>
+<li><strong>Service User Portal</strong> (login as portal user) → dashboard &amp; profile areas  </li>
+<li><strong>Scheduling</strong> → jobs/Gantt double-up, open a visit workspace / Carer Visit Hub  </li>
+<li><strong>ECM</strong> → Live → Graphs → Reports  </li>
+<li><strong>Employee</strong> → Hours, Absences, edit Pay card / Salary / App access  </li>
+<li><strong>Billing</strong> → Pay/Charge cards → Visit reconciliation → Pay runs → Invoice runs → Payments → Payouts  </li>
+<li><strong>UK Payroll</strong> → Runs  </li>
+<li><strong>Learning</strong> → Courses → Assignments → Compliance → Certificates  </li>
+</ol>
+<hr>
+<h2 id="4-backend-api-volume-supports-the-admin-ui">4. Backend / API volume (supports the admin UI)</h2>
+<p>Backend July path activity (commit counts) - these <strong>power</strong> the screens above:</p>
+<table><tr><th>API area</th><th>July commits (approx.)</th></tr><tr><td>Billing</td><td>17</td></tr><tr><td>Employee-app (carer APIs)</td><td>7</td></tr><tr><td>Scheduled-jobs housekeeping</td><td>7</td></tr><tr><td>Employees</td><td>6</td></tr><tr><td>ECM</td><td>4</td></tr><tr><td>Learning</td><td>3</td></tr><tr><td>Payroll</td><td>3</td></tr><tr><td>Service users</td><td>3</td></tr><tr><td>Migrations</td><td>16 commits touching migrations</td></tr></table>
+<blockquote>Client messaging tip: <strong>Admin UI = what staff click; APIs = what makes those screens work.</strong> July delivered <strong>both</strong>, with the heaviest visible surface area on <strong>CareAdmin</strong>.</blockquote>
+<hr>
+<h2 id="5-week-by-week-narrative-july-2026">5. Week-by-week narrative (July 2026)</h2>
+<table><tr><th>Week</th><th>Dates</th><th>What was delivered</th></tr><tr><td><strong>W27</strong></td><td>1-3 Jul</td><td>Initial Assessment + Tasks planner; Service User Portal; Employee + Service Portal; access-zone fix</td></tr><tr><td><strong>W28</strong></td><td>8-14 Jul</td><td>Bill management foundation; invoice templates &amp; runs; visit reconciliation &amp; payroll-run hooks; travel time / mileage / distance rules; bill management polish</td></tr><tr><td><strong>W29</strong></td><td>15-21 Jul</td><td><strong>ECM + Carer app + Graph</strong> (major); employee hours &amp; absence records; pay cards &amp; carer pay calculations; visit reconciliation refinements</td></tr><tr><td><strong>W30</strong></td><td>22-24 Jul</td><td>Native UK payroll UI/API foundation; employee hours detail; schedule job &amp; visit plan UX; pay card corrections; design/icons</td></tr><tr><td><strong>W31</strong></td><td>27-31 Jul</td><td>Full <strong>Learning</strong> module; PayCard + Learning; <strong>double-up visit</strong> design/behaviour; <strong>employee payout</strong> batches</td></tr></table>
+<hr>
+<h2 id="6-module-by-module-delivered-vs-pending-fe-be-together">6. Module-by-module: delivered vs pending (FE + BE together)</h2>
+<blockquote>Per-feature small-task checklists live in <strong>Section 2</strong>. This section is a short module rollup only.</blockquote>
+<h3 id="6-1-electronic-call-monitoring-ecm">6.1 Electronic Call Monitoring (ECM)</h3>
+<p class="task-label ">Delivered in July</p>
+<ul class="bullets">
+<li>Admin: Live monitoring, exception queue, visit detail / ops actions, health banner, audit/schedule history, Reports page, Graph page + graph-first dashboard, Compliance overview.</li>
+<li>API: ECM module - evaluation, exceptions, visits, graph analytics, reports, missed-visit detection job, manual attendance, alerts, audit, schedule versioning, threshold/settings resolution, reason codes.</li>
+<li>Migrations for visit attendance / ECM evaluation family (named late July → early Aug migration files in the same delivery wave).</li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Strong / ops-ready</strong> for day-to-day monitoring. Commissioner <strong>PDF pack</strong> still not in product (CSV report pack strengthened in August).</p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>PDF export for inspection packs (CSV exists; PDF does not).</li>
+<li>Some deeper continuity/identity analytics beyond current graphs/reports.</li>
+<li>Standalone <code>/ecm/exceptions</code> route optional (exceptions currently live on Live page).</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>careflow-admin/src/features/ecm/**</code> - routes <code>/ecm/live</code>, <code>/ecm/graph</code>, <code>/ecm/reports</code></li>
+<li>BE: <code>careflow-api/src/ecm/**</code> - <code>ecm/visits/*</code>, <code>ecm/exceptions</code>, <code>ecm/reports/*</code>, threshold lookups</li>
+</ul>
+<hr>
+<h3 id="6-2-carer-employee-app-apis">6.2 Carer / Employee App APIs</h3>
+<p><strong>Delivered in July</strong></p>
+<p>Full Nest <code>employee-app</code> surface for the carer mobile/app client:</p>
+<table><tr><th>Capability</th><th>Examples</th></tr><tr><td>Auth</td><td>login, refresh, logout, me</td></tr><tr><td>Home</td><td>home feed</td></tr><tr><td>Clients</td><td>list/detail, documents, medications, assessments, history, consent, care plan</td></tr><tr><td>Schedule</td><td>schedule + visit list</td></tr><tr><td>Visit workspace</td><td>check-in, unable-to-start, tasks, medication admin, observations, notes/handover/concerns, incidents + attachments, identity, body map, complete</td></tr><tr><td>Salary</td><td>me/salary</td></tr></table>
+<p><strong>Maturity today:</strong> <strong>API production-ready</strong> for the surfaces above. This monorepo does <strong>not</strong> contain the native mobile UI - only the APIs (+ admin Carer Visit Hub).</p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>Mobile client QA/sign-off lives outside this repo.</li>
+<li>Edge-case hardening of multi-carer / partial task saves (ops edge cases).</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>BE: <code>careflow-api/src/employee-app/**</code></li>
+<li>Admin hub: <code>careflow-admin/.../CarerVisitHubPage.tsx</code> - <code>/scheduling/visits/$jobId</code></li>
+</ul>
+<hr>
+<h3 id="6-3-billing-largest-july-delivery">6.3 Billing (largest July delivery)</h3>
+<p class="task-label ">Delivered in July</p>
+<ul class="bullets">
+<li>Pay cards &amp; charge cards (templates, assignment targets, employee assignment)</li>
+<li>Funding contract billing fields</li>
+<li>Invoice templates (incl. layout presets) + validate/preview</li>
+<li>Invoice runs (create / calculate / approve / lock / send-status)</li>
+<li>Visit reconciliation (exceptions, approve/reject, overrun, payable amounts)</li>
+<li>Billing payments + allocations</li>
+<li>Payroll-runs (finance pay calculation / CSV export path)</li>
+<li>Travel time, mileage, distance rules &amp; calculations</li>
+<li>Employee payout batches (end of July)</li>
+<li>Salary overview UI under billing</li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Partial - strong operational finance pipeline</strong>, weaker on true document delivery and audit export.</p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li><strong>Billing Audit Export:</strong> UI still driven by <strong>mock data</strong>; &quot;New export job&quot; / Download not wired to real APIs.</li>
+<li><strong>Invoice &quot;send&quot;:</strong> status flip toward SENT - <strong>not</strong> full email/PDF generation pipeline.</li>
+<li>Template preview uses placeholders - not always live calculated invoice data.</li>
+<li>Dashboard still can fall back to hardcoded stats when APIs lag.</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>/billing</code>, visit-reconciliation, payroll-runs, invoice-runs, payments, audit-export, employee-payouts, salary</li>
+<li>BE: <code>careflow-api/src/billing/**</code></li>
+</ul>
+<hr>
+<h3 id="6-4-uk-payroll">6.4 UK Payroll</h3>
+<p class="task-label ">Delivered in July</p>
+<ul class="bullets">
+<li>Native UK payroll foundation (employer settings, tax years, schedules, employees, runs)</li>
+<li>Gross / statutory calculation foundations (phases 2-3 migrations)</li>
+<li>Deduction elections, salary calculation basis, employee salary deductions</li>
+<li>Admin payroll pages for setup and run lifecycle (enrol / calculate / close)</li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Partial.</strong> July = <strong>payroll core</strong>. <strong>HMRC FPS/EPS RTI</strong> (GovTalk, dry-run, LIVE dual-control, fraud headers) landed mainly in <strong>early August</strong>, not July.</p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>Production live filing depends on environment flags and credentials (<code>HMRC_RTI_HTTP_ENABLED</code>, Test vs Live gateway).</li>
+<li>LIVE submit uses dual-control approval - correct for compliance, but not &quot;one-click filed.&quot;</li>
+<li>Ongoing UAT with real HMRC sandbox/live.</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>careflow-admin/src/features/payroll/**</code> - <code>/payroll/*</code></li>
+<li>BE: <code>careflow-api/src/payroll/**</code></li>
+</ul>
+<hr>
+<h3 id="6-5-learning-lms">6.5 Learning (LMS)</h3>
+<p class="task-label ">Delivered in July (27-28 Jul)</p>
+<ul class="bullets">
+<li>Categories, course builder (versions/sections/content/assessments)</li>
+<li>Assignments (incl. bulk)</li>
+<li>Compliance matrix + CSV export (API + FE)</li>
+<li>Certificates (issue/revoke/verify; print in browser)</li>
+<li>Training events, external training verify/reject</li>
+<li>Learning reports &amp; settings &amp; dashboard</li>
+<li>Learner APIs under <code>learning/me/*</code></li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Partial - admin LMS strong; in-app learner take-course UX not in CareAdmin.</strong></p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>CareAdmin does not fully host the learner &quot;take course / submit assessment&quot; experience (APIs exist).</li>
+<li>Certificates = browser print, not server-generated PDF files.</li>
+<li>Some report panels are on-screen tables without every CSV wired in FE.</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>/learning/*</code></li>
+<li>BE: <code>careflow-api/src/learning/**</code></li>
+</ul>
+<hr>
+<h3 id="6-6-scheduling-visit-plan-double-up">6.6 Scheduling / Visit plan / Double-up</h3>
+<p class="task-label ">Delivered in July</p>
+<ul class="bullets">
+<li>Schedule job UX improvements</li>
+<li>Visit plan page changes</li>
+<li><strong>Double-up visits:</strong> required carers, under/over allocation, lead carer, Gantt cues, filters, complete-dialog guards, employee-app co-carer awareness</li>
+<li>Broader visit workspace (medication/obs/tasks) continued alongside ECM</li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Strong for scheduling + double-up.</strong> <strong>Schedule report file export</strong> still incomplete.</p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>Several schedule report types still &quot;coming soon&quot; / unsupported (e.g. Adjustment, GeoFence, Housepack, Meds Administration, Spoof, etc.).</li>
+<li>File export hook for schedule reports still reports <strong>not yet implemented</strong> for generated files.</li>
+<li>Long-running report ready notifications stubbed.</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>/scheduling/*</code>, <code>/service-users/$id/visit-plan</code></li>
+<li>BE: scheduled-jobs, job-allocations, schedule-reports, visit-plans, housekeeping</li>
+</ul>
+<hr>
+<h3 id="6-7-employee-hours-absences-payouts">6.7 Employee hours, absences, payouts</h3>
+<p class="task-label ">Delivered in July</p>
+<ul class="bullets">
+<li>Weekly/monthly hours summaries + detail + monthly review</li>
+<li>Absence records CRUD</li>
+<li>Employee payout batches (create / approve / mark-paid / cancel; tie-in to UK net runs)</li>
+<li>Pay-card assignment UI on employees; salary overview</li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Hours &amp; absences ops-ready.</strong> <strong>Payouts usable as batch workflow.</strong> <strong>Employee Reports tab still stub.</strong></p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>Employee <strong>Reports</strong> page: static list of report titles with <strong>non-functional buttons</strong>; several BE report endpoints still &quot;Not implemented yet.&quot;</li>
+<li>No BACS / bank-file export found for payouts.</li>
+<li>Some employee profile sections still use placeholder panels.</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>/employee/hours</code>, <code>/employee/absences</code>, <code>/employee/reports</code> (stub), <code>/billing/employee-payouts</code></li>
+<li>BE: <code>employee-hours</code>, <code>employee-absences</code>, <code>billing/employee-payouts</code>, stubbed <code>employee-reports</code></li>
+</ul>
+<hr>
+<h3 id="6-8-service-user-portal-initial-assessment-tasks-planner">6.8 Service User Portal, Initial Assessment, Tasks Planner</h3>
+<p class="task-label ">Delivered in July</p>
+<ul class="bullets">
+<li>Service User Portal (login + dashboard areas: profile, about me, contacts, allergies, meds, calendar, photos, visit plans, completed visits) + admin enablement</li>
+<li>Initial Assessment (enterprise/holistic sections, social history, secure fields) + HTML/PDF export APIs</li>
+<li>Tasks planner + seeder support</li>
+<li>Visit-plan / carer suggest work continued</li>
+</ul>
+<p><strong>Maturity today:</strong> <strong>Partial MVP</strong> - usable portals/IA, with several adjacent SU modules still placeholders.</p>
+<p class="task-label ">Still pending / gaps</p>
+<ul class="bullets">
+<li>SU module tabs still &quot;coming soon&quot;: Comms, Alerts (+ History tile disabled on dashboard).</li>
+<li>Fake CTAs → <code>/in-progress</code>: Create Session, Care summary, Detailed Care report, House pack history.</li>
+<li>Care Plan page: &quot;Add (coming soon)&quot; and empty accordions for Consent/MCA, Risk Profile, Monitor Care Plans.</li>
+<li>Notification hooks (flash, calendar reminders, IA review) not fully configured.</li>
+<li>Portal is primarily read + limited write - not full care management.</li>
+</ul>
+<p class="task-label ">Key paths</p>
+<ul class="bullets">
+<li>FE: <code>/portal/*</code>, <code>/service-users/initial-assessment</code>, <code>/service-users/$id/tasks-planner</code></li>
+<li>BE: <code>service-user-portal</code>, <code>initial-assessments</code>, <code>service-user-visit-tasks</code>, visit-plans</li>
+</ul>
+<hr>
+<h2 id="7-database-platform-work-july">7. Database / platform work (July)</h2>
+<p>Representative migrations introduced in the July delivery window include:</p>
+<ul class="bullets">
+<li>Billing: pay/charge cards, assignments, invoice templates, visit reconciliations, invoice/payroll runs, payments, travel/mileage, pay rate framework, enhancements  </li>
+<li>Payroll: native UK payroll foundation + gross/statutory phases, deduction elections  </li>
+<li>Workforce: employee portal account, salary deductions, ethnicity, hours monthly review, absence records, payout batches  </li>
+<li>Learning: LMS foundation + manual certificates  </li>
+<li>Scheduling/ECM: visit task priority, allocation actual times, visit attendance ECM, multi-carer funder charge mode, double-up related restores  </li>
+<li>ECM evaluation / exceptions / schedule audit / notification evidence (migration files dated around end-July / 1-2 Aug in the same wave)</li>
+</ul>
+<hr>
+<h2 id="8-consolidated-still-pending-backlog-client-visible">8. Consolidated &quot;still pending&quot; backlog (client-visible)</h2>
+<table><tr><th>Priority</th><th>Item</th><th>Module</th></tr><tr><td>High</td><td>Wire or remove <strong>Billing Audit Export</strong> mocks</td><td>Billing</td></tr><tr><td>High</td><td>True <strong>invoice PDF + email send</strong> (not status-only)</td><td>Billing</td></tr><tr><td>High</td><td>Finish <strong>Employee Reports</strong> (UI + API) or hide stub tab</td><td>Employees</td></tr><tr><td>High</td><td><strong>Schedule report file export</strong> + remaining report types</td><td>Scheduling</td></tr><tr><td>Medium</td><td>ECM <strong>PDF</strong> inspection pack (CSV done)</td><td>ECM</td></tr><tr><td>Medium</td><td>Learning <strong>learner take-course UX</strong> in product surface</td><td>Learning</td></tr><tr><td>Medium</td><td>SU <strong>Comms / Alerts / Care Plan</strong> placeholders</td><td>Service users</td></tr><tr><td>Medium</td><td>Remove SU fake CTAs (<code>/in-progress</code>) or implement</td><td>Service users</td></tr><tr><td>Medium</td><td>Payouts <strong>BACS/bank file</strong> export</td><td>Billing / Payroll</td></tr><tr><td>Medium</td><td>Notifications cron wiring (flash, calendar, IA)</td><td>Cross-cutting</td></tr><tr><td>Ops</td><td>HMRC live filing config + UAT (mostly Aug code)</td><td>UK Payroll</td></tr><tr><td>Ops</td><td>Carer <strong>mobile app</strong> UAT against July APIs</td><td>Employee-app</td></tr></table>
+<hr>
+<h2 id="9-what-july-proves-for-the-client">9. What July proves for the client</h2>
+<ol class="bullets">
+<li><strong>CareAdmin UI scale:</strong> dozens of new/extended <strong>screens and dialogs</strong> across Billing, ECM, Learning, Payroll, Employees, Scheduling, Portal - this is the office product the client can click through.  </li>
+<li><strong>Commercial stack stood up in the UI:</strong> pay/charge cards → reconciliation → invoice &amp; pay runs → payments → payouts.  </li>
+<li><strong>Workforce ops in the UI:</strong> hours, absences, LMS admin, payroll runs.  </li>
+<li><strong>Care delivery visibility in the UI:</strong> ECM Live / Graphs / Reports + scheduling visit workspace / carer hub (backed by carer app APIs).  </li>
+<li><strong>Service-user engagement in the UI:</strong> portal pages + initial assessment + tasks planner.  </li>
+<li><strong>Honest gaps remain</strong> in exports, PDF/email, stub report screens, and some SU &quot;coming soon&quot; modules - next priorities.</li>
+</ol>
+<hr>
+<h2 id="10-august-note-out-of-july-scope-for-fairness">10. August note (out of July scope, for fairness)</h2>
+<p>After July, additional work landed (examples): ECM operational-period SSOT, CQC-style Reports pack + CSV, graph chart pack / branch risk fixes, Compliance slim-down, HMRC FPS/EPS submission UI/API, further payroll gateway credentials.  </p>
+<p>To list August only:</p>
+<pre><code>
+git log --since=&quot;2026-08-01&quot; --pretty=format:&quot;%h %ad %s&quot; --date=short
+
+</code></pre>
+<hr>
+<p>*Prepared from git history and codebase audit of <code>careflow-admin</code> and <code>careflow-api</code>. Maturity labels are engineering assessments of wiring completeness, not formal UAT sign-off.*</p>
+    <p class="footer-note">Prepared from git history and codebase audit of <code>careflow-admin</code> and <code>careflow-api</code>. Maturity labels are engineering assessments of wiring completeness, not formal UAT sign-off.</p>
+  </main>
+</div>
+</body>
+</html>

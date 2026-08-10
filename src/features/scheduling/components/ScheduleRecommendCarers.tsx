@@ -10,9 +10,11 @@ import { buildScheduleJobSuggestCarersRequest } from '@/features/scheduling/util
 import {
   filterScheduleJobRecommendCarers,
   filterScheduleRunRecommendCarers,
+  formatVisitPlanCarerRoleLine,
   scheduleRecommendCarersEmptyMessage,
   visitPlanCarerFitLabel,
   visitPlanCarerFitStyles,
+  visitPlanCarerListWarnings,
 } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 
 type JobAssignVariant = {
@@ -23,6 +25,10 @@ type JobAssignVariant = {
   replacingEmployeeId?: string | null
   onAssign: (employeeId: string) => void
   onCandidatesChange?: (candidates: VisitPlanCarerCandidate[]) => void
+  /** Hide title/hint chrome when parent owns search + heading. */
+  hideHeader?: boolean
+  /** Filter recommended rows by name (used with a parent search field). */
+  searchQuery?: string
 }
 
 type RunSelectVariant = {
@@ -57,6 +63,10 @@ function ScheduleRecommendCarersListItem({
   showEmployeeRole?: boolean
   onAction: () => void
 }) {
+  const roleLine = formatVisitPlanCarerRoleLine(candidate.role, candidate.jobTitle)
+  const listWarnings = visitPlanCarerListWarnings(candidate)
+  const availabilitySummary = candidate.availability.summary?.trim() || ''
+
   return (
     <li
       className={cn(
@@ -89,15 +99,15 @@ function ScheduleRecommendCarersListItem({
             </span>
           ) : null}
         </div>
-        {candidate.role || candidate.jobTitle || showEmployeeRole ? (
-          <p className="text-xs text-muted-foreground">
-            {[candidate.role, candidate.jobTitle].filter(Boolean).join(' · ') || 'Employee'}
-          </p>
+        {roleLine || showEmployeeRole ? (
+          <p className="text-xs text-muted-foreground">{roleLine || 'Employee'}</p>
         ) : null}
-        <p className="mt-0.5 text-xs text-muted-foreground">{candidate.availability.summary}</p>
-        {candidate.warnings.length > 0 ? (
+        {availabilitySummary ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">{availabilitySummary}</p>
+        ) : null}
+        {listWarnings.length > 0 ? (
           <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">
-            {candidate.warnings.slice(0, 2).join(' · ')}
+            {listWarnings.join(' · ')}
           </p>
         ) : null}
       </div>
@@ -158,14 +168,25 @@ export function ScheduleRecommendCarers(props: ScheduleRecommendCarersProps) {
   }, [candidates, props])
 
   const recommendations = React.useMemo(() => {
-    if (props.variant === 'job-assign') {
-      return filterScheduleJobRecommendCarers(candidates, {
-        showBlockedCarers,
-        allocatedEmployeeIds: props.allocatedEmployeeIds,
-        replacingEmployeeId: props.replacingEmployeeId,
-      })
-    }
-    return filterScheduleRunRecommendCarers(candidates, showBlockedCarers)
+    const base =
+      props.variant === 'job-assign'
+        ? filterScheduleJobRecommendCarers(candidates, {
+            showBlockedCarers,
+            allocatedEmployeeIds: props.allocatedEmployeeIds,
+            replacingEmployeeId: props.replacingEmployeeId,
+          })
+        : filterScheduleRunRecommendCarers(candidates, showBlockedCarers)
+
+    if (props.variant !== 'job-assign') return base
+    const q = props.searchQuery?.trim().toLowerCase()
+    if (!q) return base
+    return base.filter((candidate) => {
+      const haystack = [candidate.displayName, candidate.role, candidate.jobTitle]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(q) || candidate.employeeId.toLowerCase().includes(q)
+    })
   }, [candidates, props, showBlockedCarers])
 
   if (isRunSelect && !props.open) return null
@@ -192,16 +213,38 @@ export function ScheduleRecommendCarers(props: ScheduleRecommendCarersProps) {
       ? 'No recommendations available.'
       : 'No recommendations available for this job.'
 
+  const hideHeader = props.variant === 'job-assign' && props.hideHeader
+
   const wrapperClassName =
     props.variant === 'run-select'
       ? 'rounded-lg border border-border bg-muted/20 p-3 space-y-3'
-      : 'space-y-3 border-t border-border pt-4'
+      : hideHeader
+        ? 'space-y-3'
+        : 'space-y-3 border-t border-border pt-4'
 
   const listClassName =
     props.variant === 'run-select' ? 'max-h-56 space-y-2 overflow-y-auto' : 'space-y-2'
 
   return (
     <div className={wrapperClassName}>
+      {hideHeader ? (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={loading || !job}
+            onClick={() => void loadRecommendations()}
+          >
+            {loading ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            )}
+            Refresh
+          </Button>
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           {props.variant === 'job-assign' ? (
@@ -233,6 +276,7 @@ export function ScheduleRecommendCarers(props: ScheduleRecommendCarersProps) {
           ) : null}
         </div>
       </div>
+      )}
 
       {props.variant === 'run-select' && !job ? (
         <p className="text-sm text-muted-foreground">No visits in this run yet.</p>

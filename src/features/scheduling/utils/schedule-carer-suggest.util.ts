@@ -79,3 +79,52 @@ export function scheduleRecommendCarersEmptyMessage(
     ? SCHEDULE_CARERS_BOOKED_AT_TIME_MESSAGE
     : fallbackMessage
 }
+
+function normalizeLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** Role · job title, omitting duplicates that differ only by case/spacing. */
+export function formatVisitPlanCarerRoleLine(
+  role: string | null | undefined,
+  jobTitle: string | null | undefined,
+): string | null {
+  const roleLabel = role?.trim() || null
+  const titleLabel = jobTitle?.trim() || null
+  if (roleLabel && titleLabel && normalizeLabel(roleLabel) !== normalizeLabel(titleLabel)) {
+    return `${roleLabel} · ${titleLabel}`
+  }
+  return roleLabel ?? titleLabel
+}
+
+/**
+ * Warnings for list display — drops items already shown as badges or in availability.summary
+ * (API often re-pushes the summary into warnings).
+ */
+export function visitPlanCarerListWarnings(
+  candidate: Pick<
+    VisitPlanCarerCandidate,
+    'warnings' | 'availability' | 'isPreferred' | 'isBlocked'
+  >,
+  limit = 2,
+): string[] {
+  const summaryNorm = normalizeLabel(candidate.availability.summary ?? '')
+  const out: string[] = []
+  const seen = new Set<string>()
+
+  for (const warning of candidate.warnings) {
+    const trimmed = warning.trim()
+    if (!trimmed) continue
+    const norm = normalizeLabel(trimmed)
+    if (seen.has(norm)) continue
+    if (candidate.isPreferred && norm === 'preferred carer') continue
+    if (candidate.isBlocked && norm.includes('blocked for this service user')) continue
+    if (summaryNorm && (norm === summaryNorm || summaryNorm.includes(norm) || norm.includes(summaryNorm))) {
+      continue
+    }
+    seen.add(norm)
+    out.push(trimmed)
+    if (out.length >= limit) break
+  }
+  return out
+}
