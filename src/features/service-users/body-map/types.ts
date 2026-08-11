@@ -73,6 +73,8 @@ export type BodyMapRecordRow = {
   links?: BodyMapLink[]
   medicationSite?: BodyMapMedicationSite | null
   serviceUserName?: string | null
+  /** Global pin number on body map canvas (1…n across active client chart). */
+  canvasDisplayNumber?: number | null
 }
 
 export type BodyMapEmollientFireRisk =
@@ -357,4 +359,17 @@ export type BodyMapPressureAssessmentPayload = {
 export type CloseBodyMapRecordPayload = {
   closureNote: string
   managerSignOff?: boolean
+}
+
+/** Observation payload pins (API-13) overlaid on visit workspace body map — not clinical chart rows. */
+export type BodyMapOverlayMarker = {
+  id: string
+  recordView: string
+  canvasView?: string
+  x: number
+  y: number
+  label: string
+  markerColor?: string
+  /** Continues chart numbering after last canvasDisplayNumber. */
+  displayNumber?: number
 }

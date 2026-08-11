@@ -615,12 +615,22 @@
   function markerPosition(record, canvasView) {
     var x = record.x;
     var y = record.y;
+    var view = String(record.view || '').toLowerCase();
     if (canvasView === 'dual') {
-      if (record.view === 'back') return { left: (50 + x * 0.5) + '%', top: y + '%' };
-      if (record.view === 'front') return { left: (x * 0.5) + '%', top: y + '%' };
+      if (view === 'back' || view === 'head_back' || view === 'occiput') {
+        return { left: (50 + x * 0.5) + '%', top: y + '%' };
+      }
+      if (
+        view === 'front' ||
+        view === 'face' ||
+        view === 'head' ||
+        view === 'forehead'
+      ) {
+        return { left: (x * 0.5) + '%', top: y + '%' };
+      }
       return { left: x + '%', top: y + '%' };
     }
-    if (canvasView === record.view) return { left: x + '%', top: y + '%' };
+    if (canvasView === view) return { left: x + '%', top: y + '%' };
     return null;
   }
 

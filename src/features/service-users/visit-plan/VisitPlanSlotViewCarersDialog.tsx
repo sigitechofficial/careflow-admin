@@ -13,7 +13,8 @@ import { Button } from '@/shared/ui/button'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import { slotAssignedEmployeeIds, slotCarerRoleForEmployee } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
 import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 
@@ -48,7 +49,8 @@ export function VisitPlanSlotViewCarersDialog({
           <DialogTitle>Assigned carers — {slot.label}</DialogTitle>
           <DialogDescription>
             Carers assigned to {slot.label.toLowerCase()} visits ({start}–{end}).{' '}
-            {slot.requiredCarers} carer{slot.requiredCarers === 1 ? '' : 's'} required per visit.
+            {slot.requiredCarers} carer{slot.requiredCarers === 1 ? '' : 's'} required per visit
+            {slot.requiredCarers > 1 ? ' — mark Lead and Secondary clearly when assigning.' : '.'}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
@@ -71,7 +73,10 @@ export function VisitPlanSlotViewCarersDialog({
             />
           ) : (
             <ul className="space-y-2">
-              {assignedIds.map((id, index) => (
+              {assignedIds.map((id) => {
+                const role = slotCarerRoleForEmployee(slot, id)
+                const showRoles = slot.requiredCarers > 1 || assignedIds.length > 1
+                return (
                 <li
                   key={id}
                   className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50/60 px-2 py-2 dark:border-sky-800 dark:bg-sky-950/30"
@@ -86,12 +91,18 @@ export function VisitPlanSlotViewCarersDialog({
                       <User className="h-4 w-4" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
-                        {resolveEmployeeDisplayName(employeeNameById, id)}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
+                          {resolveEmployeeDisplayName(employeeNameById, id)}
+                        </p>
+                        {showRoles ? <VisitPlanCarerRoleBadge role={role} /> : null}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        {assignedIds.length > 1 ? `Carer ${index + 1} · ` : ''}
-                        View employee profile
+                        {showRoles
+                          ? role === 'LEAD'
+                            ? 'Lead carer for this visit · View employee profile'
+                            : 'Secondary carer for this visit · View employee profile'
+                          : 'View employee profile'}
                       </p>
                     </div>
                     <ExternalLink
@@ -112,7 +123,8 @@ export function VisitPlanSlotViewCarersDialog({
                     </Button>
                   ) : null}
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
 

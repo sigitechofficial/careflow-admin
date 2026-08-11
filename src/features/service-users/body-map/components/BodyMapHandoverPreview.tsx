@@ -11,13 +11,17 @@ type Props = {
   serviceUserId: string
   /** Compact strip for MAR / other modules */
   compact?: boolean
+  /** Visit workspace: always pull latest after mobile carer writes */
+  refreshOnMount?: boolean
 }
 
-export function BodyMapHandoverPreview({ serviceUserId, compact }: Props) {
+export function BodyMapHandoverPreview({ serviceUserId, compact, refreshOnMount }: Props) {
   const query = useQuery({
     queryKey: [...bodyMapKeys.all, 'handover', serviceUserId] as const,
     queryFn: ({ signal }) => fetchBodyMapHandover(serviceUserId, signal),
     enabled: Boolean(serviceUserId),
+    refetchOnMount: refreshOnMount ? 'always' : undefined,
+    staleTime: refreshOnMount ? 0 : undefined,
   })
 
   if (query.isLoading) {

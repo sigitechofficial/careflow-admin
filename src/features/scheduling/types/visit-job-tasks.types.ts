@@ -31,6 +31,8 @@ export type VisitJobTaskRow = {
   groupCode: string
   consentRequired: boolean
   supportLevelApplicable: boolean
+  /** When true, this task typically needs more than one carer (double-up). */
+  requiresMultipleCarers?: boolean
   completionInput: VisitTaskCompletionInputSpec
   carerInstructions: string | null
   priority: string

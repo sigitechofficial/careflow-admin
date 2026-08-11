@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ExternalLink, Loader2 } from 'lucide-react'
+import { Activity, ExternalLink, Loader2, MapPin } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
@@ -354,6 +354,24 @@ export function VisitObservationsPanel({
                     {formatOrganisationDateTime(row.recordedAt)}
                   </p>
                 </div>
+                {row.bodyMapPins && row.bodyMapPins.length > 0 ? (
+                  <div className="mt-2 rounded-md border border-sky-200 bg-sky-50/60 px-2.5 py-2 dark:border-sky-900 dark:bg-sky-950/30">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-sky-800 dark:text-sky-200">
+                      <MapPin className="h-3 w-3" aria-hidden />
+                      Body map — {row.bodyMapPins.length} location{row.bodyMapPins.length === 1 ? '' : 's'} marked
+                    </p>
+                    <ul className="mt-1 space-y-0.5">
+                      {row.bodyMapPins.map((pin, idx) => (
+                        <li key={idx} className="text-xs text-sky-700 dark:text-sky-300">
+                          {pin.part}
+                          <span className="ml-1 text-sky-500">
+                            ({pin.recordView ?? pin.view} · {pin.x.toFixed(1)}, {pin.y.toFixed(1)})
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

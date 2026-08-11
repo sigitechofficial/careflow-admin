@@ -18,7 +18,7 @@ import {
   getPostureSvg,
   viewBoxPercentToOverlayPercent,
 } from '@/features/service-users/body-map/utils/posture-svg-coords'
-import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
+import type { BodyMapOverlayMarker, BodyMapRecordRow } from '@/features/service-users/body-map/types'
 
 function isVisibleOnMap(
   record: BodyMapRecordRow,
@@ -75,6 +75,7 @@ function MapFilterChip({
 type Props = {
   posture: BodyMapPostureView
   records: BodyMapRecordRow[]
+  overlayMarkers?: BodyMapOverlayMarker[]
   pendingMarker: PlaceMarkerPayload | null
   selectedRecordId: string | null
   markMode: boolean
@@ -92,6 +93,7 @@ type Props = {
 export function BodyMapPostureCanvas({
   posture,
   records,
+  overlayMarkers = [],
   pendingMarker,
   selectedRecordId,
   markMode,
@@ -209,6 +211,7 @@ export function BodyMapPostureCanvas({
       faded: boolean
       selected: boolean
       number: number
+      isOverlay?: boolean
     }[] = []
 
     const visible = records
@@ -219,10 +222,10 @@ export function BodyMapPostureCanvas({
           new Date(b.firstNoticedAt ?? b.createdAt).getTime(),
       )
 
-    let displayIndex = 0
+    let fallbackIndex = 0
     for (const record of visible) {
       const marker = record.markers[0]!
-      displayIndex++
+      const number = record.canvasDisplayNumber ?? ++fallbackIndex
       const pos = overlayPosForViewBoxPercent(host, marker.xCoordinate, marker.yCoordinate)
       pins.push({
         key: record.id,
@@ -238,11 +241,32 @@ export function BodyMapPostureCanvas({
         pulse: record.safeguardingTriggered || record.recordType === 'SAFEGUARDING',
         faded: marker.status === 'CLOSED' || marker.status === 'RESOLVED',
         selected: selectedRecordId === record.id,
-        number: displayIndex,
+        number,
       })
     }
+
+    for (const overlay of overlayMarkers) {
+      const canvasView = overlay.canvasView ?? overlay.recordView
+      if (canvasView !== posture) continue
+      const number = overlay.displayNumber ?? ++fallbackIndex
+      const pos = overlayPosForViewBoxPercent(host, overlay.x, overlay.y)
+      pins.push({
+        key: overlay.id,
+        left: pos.left,
+        top: pos.top,
+        label: `${overlay.label} (observation)`,
+        recordId: overlay.id,
+        markerColor: overlay.markerColor ?? '#0284c7',
+        pulse: false,
+        faded: false,
+        selected: false,
+        number,
+        isOverlay: true,
+      })
+    }
+
     return pins
-  }, [records, posture, showCleared, showMeds, selectedRecordId, layoutRevision, host, markerColorCatalog])
+  }, [records, overlayMarkers, posture, showCleared, showMeds, selectedRecordId, layoutRevision, host, markerColorCatalog])
 
   const pendingPinPos =
     pendingMarker && pendingMarker.canvasView === posture
@@ -357,9 +381,11 @@ export function BodyMapPostureCanvas({
                     pin.pulse && 'animate-pulse',
                     pin.selected && 'ring-2 ring-indigo-500 ring-offset-2',
                     pin.faded && 'opacity-45',
+                    pin.isOverlay && 'ring-2 ring-sky-300 ring-offset-1',
                   )}
                   onClick={ev => {
                     ev.stopPropagation()
+                    if (pin.isOverlay) return
                     onSelectRecord(pin.recordId)
                   }}
                 >

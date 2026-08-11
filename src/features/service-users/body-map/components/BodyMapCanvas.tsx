@@ -15,8 +15,8 @@ import {
 } from '@/features/service-users/body-map/catalog/body-map-views'
 import { loadBodyMapPrototype } from '@/features/service-users/body-map/prototype/load-body-map-prototype'
 import type { PrototypeMarkerCoords } from '@/features/service-users/body-map/utils/body-map-coords'
-import { markerToPrototypeRecord } from '@/features/service-users/body-map/utils/body-map-coords'
-import type { BodyMapMarkerRow } from '@/features/service-users/body-map/types'
+import { readMarkerPlacement } from '@/features/service-users/body-map/utils/body-map-coords'
+import type { BodyMapOverlayMarker, BodyMapRecordRow } from '@/features/service-users/body-map/types'
 import { medicationSiteMarkerLabel } from '@/features/service-users/body-map/components/BodyMapMedicationSiteDetail'
 import { BodyMapMarkerLegend } from '@/features/service-users/body-map/components/BodyMapMarkerLegend'
 import { BodyMapRegionPicker } from '@/features/service-users/body-map/components/BodyMapRegionPicker'
@@ -25,8 +25,8 @@ import {
   buildBodyMapMarkerColorCatalog,
   resolveBodyMapMarkerColor,
 } from '@/features/service-users/body-map/utils/body-map-marker-colors'
+import { markerPositionInput } from '@/features/service-users/body-map/utils/body-map-marker-position.util'
 import { placeMarkerPayloadFromRegion } from '@/features/service-users/body-map/utils/place-marker-from-region'
-import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
 
 export type PlaceMarkerPayload = PrototypeMarkerCoords
 
@@ -34,6 +34,8 @@ const ZOOM_VIEW_TABS = BODY_MAP_VIEW_TABS.filter(t => t.zoom)
 
 type Props = {
   records: BodyMapRecordRow[]
+  /** Pins from visit observations (payload.bodyMapPins) — shown alongside chart records. */
+  overlayMarkers?: BodyMapOverlayMarker[]
   pendingMarker: PlaceMarkerPayload | null
   selectedRecordId: string | null
   markMode: boolean
@@ -88,6 +90,7 @@ function MapFilterChip({
 
 export function BodyMapCanvas({
   records,
+  overlayMarkers = [],
   pendingMarker,
   selectedRecordId,
   markMode,
@@ -282,6 +285,7 @@ export function BodyMapCanvas({
       faded: boolean
       selected: boolean
       number: number
+      isOverlay?: boolean
     }[] = []
 
     const visible = records
@@ -292,23 +296,28 @@ export function BodyMapCanvas({
           new Date(b.firstNoticedAt ?? b.createdAt).getTime(),
       )
 
-    let displayIndex = 0
+    let fallbackIndex = 0
     for (const record of visible) {
       const marker = record.markers[0]!
-      const proto = markerToPrototypeRecord(record, marker)
-      const pos = A.markerPosition(proto, currentView === 'dual' ? 'dual' : currentView)
-      const resolvedPos =
-        pos ??
-        (currentView === 'dual' && (proto.view === 'front' || proto.view === 'back')
-          ? A.markerPosition(proto, 'dual')
-          : null)
-      if (!resolvedPos) continue
+      const { recordView, canvasView } = readMarkerPlacement(record, marker)
+      const posInput = markerPositionInput(
+        recordView,
+        canvasView,
+        marker.xCoordinate,
+        marker.yCoordinate,
+        currentView === 'dual' ? 'dual' : currentView,
+      )
+      const pos = A.markerPosition(
+        { view: posInput.view, x: posInput.x, y: posInput.y },
+        posInput.canvasView,
+      )
+      if (!pos) continue
 
-      displayIndex++
+      const number = record.canvasDisplayNumber ?? ++fallbackIndex
       pins.push({
         key: record.id,
-        left: resolvedPos.left,
-        top: resolvedPos.top,
+        left: pos.left,
+        top: pos.top,
         label: medicationSiteMarkerLabel(
           record,
           record.subType ?? record.recordType,
@@ -317,13 +326,51 @@ export function BodyMapCanvas({
         recordId: record.id,
         markerColor: resolveBodyMapMarkerColor(markerColorCatalog, record),
         pulse: record.safeguardingTriggered || record.recordType === 'SAFEGUARDING',
-        faded: proto.status === 'resolved',
+        faded: marker.status === 'CLOSED' || marker.status === 'RESOLVED',
         selected: selectedRecordId === record.id,
-        number: displayIndex,
+        number,
       })
     }
+
+    for (const overlay of overlayMarkers) {
+      const canvasView = overlay.canvasView ?? 'dual'
+      if (currentView === 'dual') {
+        if (canvasView === 'sitting' || canvasView === 'leaning') continue
+      } else if (canvasView !== currentView && overlay.recordView !== currentView) {
+        continue
+      }
+
+      const posInput = markerPositionInput(
+        overlay.recordView,
+        overlay.canvasView,
+        overlay.x,
+        overlay.y,
+        currentView === 'dual' ? 'dual' : currentView,
+      )
+      const pos = A.markerPosition(
+        { view: posInput.view, x: posInput.x, y: posInput.y },
+        posInput.canvasView,
+      )
+      if (!pos) continue
+
+      const number = overlay.displayNumber ?? ++fallbackIndex
+      pins.push({
+        key: overlay.id,
+        left: pos.left,
+        top: pos.top,
+        label: `${overlay.label} (observation)`,
+        recordId: overlay.id,
+        markerColor: overlay.markerColor ?? '#0284c7',
+        pulse: false,
+        faded: false,
+        selected: false,
+        number,
+        isOverlay: true,
+      })
+    }
+
     return pins
-  }, [records, currentView, showCleared, showMeds, selectedRecordId, ready, markerColorCatalog])
+  }, [records, overlayMarkers, currentView, showCleared, showMeds, selectedRecordId, ready, markerColorCatalog])
 
   const pendingPinPos = React.useMemo(() => {
     const A = window.BodyMapAnatomy
@@ -501,9 +548,11 @@ export function BodyMapCanvas({
                     pin.pulse && 'animate-pulse',
                     pin.selected && 'ring-2 ring-indigo-500 ring-offset-2',
                     pin.faded && 'opacity-45',
+                    pin.isOverlay && 'ring-2 ring-sky-300 ring-offset-1',
                   )}
                   onClick={ev => {
                     ev.stopPropagation()
+                    if (pin.isOverlay) return
                     onSelectRecord(pin.recordId)
                   }}
                 >

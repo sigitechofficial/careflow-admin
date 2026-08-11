@@ -15,13 +15,19 @@ import type {
 export function useServiceUserBodyMap(
   serviceUserId: string,
   includeResolved = false,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean
+    refetchOnMount?: boolean | 'always'
+    staleTime?: number
+  },
 ) {
   return useQuery({
     queryKey: bodyMapKeys.list(serviceUserId, includeResolved),
     queryFn: ({ signal }) =>
       fetchServiceUserBodyMap(serviceUserId, { includeResolved, signal }),
     enabled: Boolean(serviceUserId) && (options?.enabled ?? true),
+    refetchOnMount: options?.refetchOnMount,
+    staleTime: options?.staleTime,
   })
 }
 

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import {
   CheckCircle2,
   CheckSquare,
@@ -15,13 +16,21 @@ import {
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import { BodyMapHandoverPreview } from '@/features/service-users/body-map/components/BodyMapHandoverPreview'
 import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
+import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
+import { recordTypeLabel } from '@/features/service-users/body-map/catalog/record-types'
+import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { VisitBodyMapCapture } from '@/features/scheduling/components/VisitBodyMapCapture'
 import { VisitJobTasksPanel } from '@/features/scheduling/components/VisitJobTasksPanel'
 import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedicationPanel'
 import { VisitObservationsPanel } from '@/features/scheduling/components/VisitObservationsPanel'
+import {
+  fetchVisitObservations,
+  type VisitObservationRecordedRow,
+} from '@/features/scheduling/api/scheduling.api'
 import {
   buildScheduleVisitContext,
   type ScheduleVisitContext,
@@ -81,6 +90,30 @@ export function ScheduleVisitWorkspaceContent({
     scheduledVisitId: visitContext.scheduledVisitId,
     returnTo,
   })
+
+  const obsQuery = useQuery({
+    queryKey: ['visit-observations', job.id],
+    queryFn: ({ signal }) => fetchVisitObservations(job.id, { signal }),
+    enabled: Boolean(job.id),
+    refetchOnMount: 'always',
+    staleTime: 0,
+  })
+
+  const bodyMapQuery = useServiceUserBodyMap(job.serviceUserId, false, {
+    refetchOnMount: 'always',
+    staleTime: 0,
+  })
+
+  const visitBodyMapRecords = React.useMemo(() => {
+    return (bodyMapQuery.data?.records ?? []).filter((r) => r.scheduledJobId === job.id)
+  }, [bodyMapQuery.data?.records, job.id])
+
+  const bodyMapObservations = React.useMemo<VisitObservationRecordedRow[]>(() => {
+    if (!obsQuery.data?.recordedThisVisit) return []
+    return obsQuery.data.recordedThisVisit.filter(
+      (row) => row.bodyMapPins && row.bodyMapPins.length > 0,
+    )
+  }, [obsQuery.data?.recordedThisVisit])
 
   const visitSlot = timelineJobVisitPlanSlot(job)
   const deliveryAssessment = React.useMemo(
@@ -163,8 +196,90 @@ export function ScheduleVisitWorkspaceContent({
 
           <section>
             <h3 className="mb-2 text-sm font-semibold text-foreground">Handover — body map</h3>
-            <BodyMapHandoverPreview serviceUserId={job.serviceUserId} />
+            <BodyMapHandoverPreview serviceUserId={job.serviceUserId} refreshOnMount />
           </section>
+
+          {visitBodyMapRecords.length > 0 ? (
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                Body map records from this visit
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Saved via the carer mobile app (clinical body map chart).
+              </p>
+              <ul className="space-y-2">
+                {visitBodyMapRecords.map((record) => {
+                  const marker = record.markers[0]
+                  return (
+                    <li
+                      key={record.id}
+                      className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 dark:border-emerald-900 dark:bg-emerald-950/30"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                          {recordTypeLabel(record.recordType as BodyMapRecordTypeCode)}
+                          {marker?.bodyPart ? ` — ${marker.bodyPart}` : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatOrganisationDateTime(record.createdAt)}
+                        </p>
+                      </div>
+                      {record.description ? (
+                        <p className="mt-0.5 text-sm text-foreground">{record.description}</p>
+                      ) : null}
+                      {record.riskLevel ? (
+                        <p className="mt-1 text-xs text-muted-foreground">Risk: {record.riskLevel}</p>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ) : null}
+
+          {bodyMapObservations.length > 0 ? (
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                Body map recorded during visit
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Marked by the carer via the mobile app during this visit.
+              </p>
+              <ul className="space-y-2">
+                {bodyMapObservations.map((obs) => (
+                  <li
+                    key={obs.id}
+                    className="rounded-lg border border-sky-200 bg-sky-50/60 px-3 py-2.5 dark:border-sky-900 dark:bg-sky-950/30"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        <MapPin className="h-3.5 w-3.5 text-sky-600" aria-hidden />
+                        {obs.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatOrganisationDateTime(obs.recordedAt)}
+                      </p>
+                    </div>
+                    {obs.valueLabel ? (
+                      <p className="mt-0.5 text-sm text-foreground">{obs.valueLabel}</p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {obs.bodyMapPins!.map((pin, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-900 dark:text-sky-200"
+                        >
+                          <MapPin className="h-2.5 w-2.5" aria-hidden />
+                          {pin.part}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <section className="space-y-2">
             <h3 className="text-sm font-semibold text-foreground">Visit actions</h3>

@@ -9,9 +9,9 @@ import { carerAssignmentCoversSlotDays } from '@/features/service-users/visit-pl
 import {
   formatCarerAssignmentDurationLabel,
   formatCarerAssignmentGroupDaysLabel,
-  formatCarerAssignmentRoleLabel,
   groupCarerAssignments,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
+import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 
 type Props = {
   slot: VisitPlanSlot
@@ -51,7 +51,6 @@ export function VisitPlanSlotCarerByDaySummaryList({
           ? resolveEmployeeDisplayName(employeeNameById, employeeId)
           : 'No carer selected'
         const daysLabel = formatCarerAssignmentGroupDaysLabel(group.days)
-        const roleLabel = formatCarerAssignmentRoleLabel(group.template.role)
         const durationLabel = formatCarerAssignmentDurationLabel(group.template, slot)
         const candidate = employeeId ? carerCandidatesByEmployeeId?.get(employeeId) : undefined
         const coveredDays = carerAssignmentCoversSlotDays(group.days, slot.daysOfWeek)
@@ -65,7 +64,7 @@ export function VisitPlanSlotCarerByDaySummaryList({
           >
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1 space-y-2">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {employeeId ? (
                     <Link
                       to="/employee/$employeeId/edit"
@@ -78,10 +77,11 @@ export function VisitPlanSlotCarerByDaySummaryList({
                   ) : (
                     <p className={cn(contentTitleClass, 'text-muted-foreground')}>{name}</p>
                   )}
+                  <VisitPlanCarerRoleBadge role={group.template.role} />
                   <span className={contentHelperClass}>· {daysLabel}</span>
                 </div>
                 <p className={contentHelperClass}>
-                  {roleLabel} · {durationLabel} · Visit {visitStart}–{visitEnd}
+                  {durationLabel} · Visit {visitStart}–{visitEnd}
                 </p>
                 {candidate ? (
                   <VisitPlanCarerCandidateDetails

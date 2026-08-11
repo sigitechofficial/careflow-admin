@@ -1,7 +1,10 @@
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { toastApiError, toastInfo, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
+import { fetchVisitObservations } from '@/features/scheduling/api/scheduling.api'
+import { flattenVisitObservationBodyMapPins } from '@/features/scheduling/utils/visit-observation-body-map-pins.util'
 import {
   AddBodyMapRecordWizard,
   type PendingMarker,
@@ -26,9 +29,36 @@ type Props = {
 }
 
 export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
-  const { serviceUserId } = visitContext
-  const { data, isLoading } = useServiceUserBodyMap(serviceUserId, false)
+  const { serviceUserId, scheduledJobId } = visitContext
+  const { data, isLoading } = useServiceUserBodyMap(serviceUserId, false, {
+    refetchOnMount: 'always',
+    staleTime: 0,
+  })
   const { create } = useBodyMapMutations(serviceUserId)
+
+  const obsQuery = useQuery({
+    queryKey: ['visit-observations', scheduledJobId],
+    queryFn: ({ signal }) => fetchVisitObservations(scheduledJobId, { signal }),
+    refetchOnMount: 'always',
+    staleTime: 0,
+  })
+
+  const records = data?.records ?? []
+  const visitRecords = React.useMemo(
+    () => records.filter((r) => r.scheduledJobId === scheduledJobId),
+    [records, scheduledJobId],
+  )
+  const chartMaxNumber = React.useMemo(
+    () => records.reduce((max, r) => Math.max(max, r.canvasDisplayNumber ?? 0), 0),
+    [records],
+  )
+  const [showFullClientChart, setShowFullClientChart] = React.useState(false)
+  const canvasRecords = showFullClientChart ? records : visitRecords
+
+  const observationOverlayPins = React.useMemo(
+    () => flattenVisitObservationBodyMapPins(obsQuery.data?.recordedThisVisit ?? [], chartMaxNumber),
+    [obsQuery.data?.recordedThisVisit, chartMaxNumber],
+  )
 
   const [markMode, setMarkMode] = React.useState(true)
   const [diagramTab, setDiagramTab] = React.useState<BodyMapDiagramTab>('standard')
@@ -36,8 +66,6 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
   const [addOpen, setAddOpen] = React.useState(false)
   const [sgOpen, setSgOpen] = React.useState(false)
   const [pendingSubmit, setPendingSubmit] = React.useState<WizardSubmitValues | null>(null)
-
-  const records = data?.records ?? []
 
   const handlePlaceMarker = (coords: PlaceMarkerPayload) => {
     setMarkMode(true)
@@ -130,8 +158,29 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Tap the diagram to place a marker, then complete the observation form. Records are linked to
-        this scheduled visit.
+        Tap the diagram to place a marker, then complete the observation form. By default only markers
+        from this visit are shown.
+        {visitRecords.length > 0 ? (
+          <span className="ml-1 font-medium text-foreground">
+            {visitRecords.length} chart record{visitRecords.length === 1 ? '' : 's'} on this visit
+          </span>
+        ) : (
+          <span className="ml-1">No chart records on this visit yet.</span>
+        )}
+        {observationOverlayPins.length > 0 ? (
+          <span className="ml-1 font-medium text-sky-700">
+            {observationOverlayPins.length} observation pin
+            {observationOverlayPins.length === 1 ? '' : 's'} (blue)
+          </span>
+        ) : null}
+        {records.length > visitRecords.length ? (
+          <span className="ml-1">
+            ({records.length - visitRecords.length} older active marker
+            {records.length - visitRecords.length === 1 ? '' : 's'} on client chart — toggle below
+            to show.)
+          </span>
+        ) : null}
+        .
       </p>
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="flex flex-wrap gap-1 border-b border-border px-2 py-1.5">
@@ -151,7 +200,8 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
         {diagramTab === 'standard' ? (
           <BodyMapCanvas
             embedded
-            records={records}
+            records={canvasRecords}
+            overlayMarkers={observationOverlayPins}
             pendingMarker={pendingMarker}
             selectedRecordId={null}
             markMode={markMode}
@@ -165,7 +215,8 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
           <BodyMapPostureCanvas
             embedded
             posture={diagramTab}
-            records={records}
+            records={canvasRecords}
+            overlayMarkers={observationOverlayPins}
             pendingMarker={pendingMarker}
             selectedRecordId={null}
             markMode={markMode}
@@ -178,6 +229,16 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
         )}
       </div>
       <div className="flex flex-wrap gap-2">
+        {records.length > visitRecords.length ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={showFullClientChart ? 'default' : 'outline'}
+            onClick={() => setShowFullClientChart((v) => !v)}
+          >
+            {showFullClientChart ? 'This visit only' : 'Show full client chart'}
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"

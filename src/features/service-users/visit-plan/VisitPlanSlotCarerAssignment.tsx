@@ -17,8 +17,13 @@ import { visitPlanCarerCandidateCardClass } from '@/features/service-users/visit
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type { VisitPlanCarerCandidate, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
-import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import {
+  promoteEmployeeToLeadOrder,
+  slotAssignedEmployeeIds,
+  slotCarerRoleForEmployee,
+} from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import { VisitPlanCarerCandidateDetails } from '@/features/service-users/visit-plan/VisitPlanCarerCandidateDetails'
+import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
 import {
   carerCandidatesByEmployeeId,
@@ -119,6 +124,13 @@ export function VisitPlanSlotCarerAssignment({
     if (disabled) return
     onChange([])
   }
+
+  const makeLead = (employeeId: string) => {
+    if (disabled || maxCarers <= 1) return
+    onChange(promoteEmployeeToLeadOrder(assignedIds, employeeId))
+  }
+
+  const showRoles = maxCarers > 1
 
   const notifyRotaConflict = React.useCallback(() => {
     showCarerNotAssignedRotaConflictToast()
@@ -256,6 +268,7 @@ export function VisitPlanSlotCarerAssignment({
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" aria-hidden />
                 {maxCarers} carer{maxCarers === 1 ? '' : 's'} required
+                {showRoles ? ' · Lead + Secondary' : ''}
               </span>
             </div>
             {slot.daysOfWeek.length > 0 ? (
@@ -333,6 +346,7 @@ export function VisitPlanSlotCarerAssignment({
                 {assignedIds.map((id) => {
                   const candidate = assignedCarerCandidatesByEmployeeId.get(id)
                   const justAssigned = justAssignedIds.has(id)
+                  const role = slotCarerRoleForEmployee(slot, id)
                   return (
                     <li
                       key={id}
@@ -342,16 +356,32 @@ export function VisitPlanSlotCarerAssignment({
                           'animate-assign-pop border-emerald-300 ring-2 ring-emerald-200/80 dark:border-emerald-700 dark:ring-emerald-900',
                       )}
                     >
-                      {candidate ? (
-                        <VisitPlanCarerCandidateDetails
-                          candidate={candidate}
-                          slotDaysOfWeek={slot.daysOfWeek}
-                          showSkills={false}
-                          isAssigned
-                          justAssigned={justAssigned}
-                        />
-                      ) : (
-                        <div className="min-w-0 flex-1 space-y-1">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        {showRoles ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <VisitPlanCarerRoleBadge role={role} />
+                            {role === 'SECONDARY' && !disabled ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => makeLead(id)}
+                              >
+                                Make lead
+                              </Button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {candidate ? (
+                          <VisitPlanCarerCandidateDetails
+                            candidate={candidate}
+                            slotDaysOfWeek={slot.daysOfWeek}
+                            showSkills={false}
+                            isAssigned
+                            justAssigned={justAssigned}
+                          />
+                        ) : (
                           <p className="inline-flex flex-wrap items-center gap-2 text-sm font-medium">
                             {resolveEmployeeDisplayName(employeeNameById, id)}
                             <span
@@ -364,8 +394,8 @@ export function VisitPlanSlotCarerAssignment({
                               Assigned
                             </span>
                           </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                       {!disabled ? (
                         <button
                           type="button"
@@ -384,7 +414,9 @@ export function VisitPlanSlotCarerAssignment({
             <p className={cn('mt-3 leading-relaxed', contentHelperClass)}>
               {hasCarerByDay
                 ? 'Day-specific rules from advanced settings. Availability reflects working pattern and existing rota bookings.'
-                : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then generate rota to apply.`}
+                : showRoles
+                  ? `First assigned carer is Lead; others are Secondary. Use “Make lead” to change. Assigned for ${slotDayLabels || 'selected days'}.`
+                  : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then generate rota to apply.`}
             </p>
           </div>
         </section>

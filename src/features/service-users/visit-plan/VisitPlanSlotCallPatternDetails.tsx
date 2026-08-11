@@ -27,6 +27,11 @@ import {
 import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import { VisitPlanSlotCarerByDayDetails } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDayDetails'
 import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
+import {
+  slotAssignedEmployeeIds,
+  slotCarerRoleForEmployee,
+} from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 
 function DetailSection({
   title,
@@ -78,7 +83,7 @@ export function VisitPlanSlotCallPatternDetails({
   onClose,
 }: Props) {
   const linkedPlans = resolveCarePlansForSlot(slot, acceptedCarePlans)
-  const assignedIds = slot.assignedEmployeeIds ?? []
+  const assignedIds = slotAssignedEmployeeIds(slot)
   const hasCarerByDay = slotHasCarerByDayAssignments(slot)
   const start = normalizeTimeForInput(slot.plannedStartTime)
   const end = normalizeTimeForInput(slot.plannedEndTime)
@@ -223,8 +228,10 @@ export function VisitPlanSlotCallPatternDetails({
           <p className="text-sm text-muted-foreground">No carers assigned to this call yet.</p>
         ) : (
           <ul className="space-y-2">
-            {assignedIds.map((id, index) => {
+            {assignedIds.map((id) => {
               const name = resolveEmployeeDisplayName(employeeNameById, id)
+              const role = slotCarerRoleForEmployee(slot, id)
+              const showRoles = slot.requiredCarers > 1 || assignedIds.length > 1
               return (
                 <li key={id}>
                   <Link
@@ -237,12 +244,18 @@ export function VisitPlanSlotCallPatternDetails({
                       <User className="h-5 w-5" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
-                        {name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
+                          {name}
+                        </p>
+                        {showRoles ? <VisitPlanCarerRoleBadge role={role} /> : null}
+                      </div>
                       <p className={contentHelperClass}>
-                        {assignedIds.length > 1 ? `Carer ${index + 1} · ` : ''}
-                        View employee profile
+                        {showRoles
+                          ? role === 'LEAD'
+                            ? 'Lead carer · View employee profile'
+                            : 'Secondary carer · View employee profile'
+                          : 'View employee profile'}
                       </p>
                     </div>
                     <ExternalLink

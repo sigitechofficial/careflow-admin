@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckSquare, Flag, ListChecks, Loader2, X } from 'lucide-react'
+import { AlertTriangle, CheckSquare, Flag, ListChecks, Loader2, Users, X } from 'lucide-react'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
@@ -136,6 +136,7 @@ export function VisitJobTasksChecklist({
   const criticalCount = sortedTasks.filter(
     (task) => !task.isExtra && normalizeVisitTaskPriority(task.priority) === 'critical',
   ).length
+  const multiCarerCount = sortedTasks.filter((task) => task.requiresMultipleCarers).length
 
   return (
     <div className={cn(fillHeight ? 'flex min-h-0 flex-1 flex-col gap-3' : 'space-y-3')}>
@@ -160,6 +161,13 @@ export function VisitJobTasksChecklist({
               <span className="font-medium text-red-700 dark:text-red-300">
                 {' '}
                 {criticalCount} critical task{criticalCount === 1 ? '' : 's'} on this visit.
+              </span>
+            ) : null}
+            {multiCarerCount > 0 ? (
+              <span className="font-medium text-sky-700 dark:text-sky-300">
+                {' '}
+                {multiCarerCount} task{multiCarerCount === 1 ? '' : 's'} need{multiCarerCount === 1 ? 's' : ''} more
+                than 1 carer.
               </span>
             ) : null}
           </p>
@@ -238,6 +246,15 @@ export function VisitJobTasksChecklist({
                             {task.observationTypeCode ? (
                               <span className="rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
                                 Records observation
+                              </span>
+                            ) : null}
+                            {task.requiresMultipleCarers ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+                                title="This task requires more than one carer"
+                              >
+                                <Users className="h-3 w-3" aria-hidden />
+                                2+ carers
                               </span>
                             ) : null}
                           </span>

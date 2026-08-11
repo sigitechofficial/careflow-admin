@@ -273,6 +273,15 @@ export type VisitObservationDefinition = {
   }
 }
 
+export type VisitObservationBodyMapPin = {
+  view: string
+  x: number
+  y: number
+  part: string
+  canvasView?: string
+  recordView?: string
+}
+
 export type VisitObservationRecordedRow = {
   id: string
   title: string
@@ -280,6 +289,7 @@ export type VisitObservationRecordedRow = {
   valueLabel: string | null
   recordedAt: string
   statusLabel?: string | null
+  bodyMapPins?: VisitObservationBodyMapPin[]
 }
 
 export type VisitObservationsResponse = {

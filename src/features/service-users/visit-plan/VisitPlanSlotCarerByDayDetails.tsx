@@ -2,10 +2,10 @@ import { Link } from '@tanstack/react-router'
 import { CalendarDays, Clock, ExternalLink, User } from 'lucide-react'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 import {
   formatCarerAssignmentDurationLabel,
   formatCarerAssignmentGroupDaysLabel,
-  formatCarerAssignmentRoleLabel,
   formatCarerAssignmentTimeOverrideLabel,
   groupCarerAssignments,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
@@ -71,8 +71,8 @@ export function VisitPlanSlotCarerByDayDetails({ slot, employeeNameById, onClose
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Role</dt>
-                    <dd className="font-medium text-foreground">
-                      {formatCarerAssignmentRoleLabel(group.template.role)}
+                    <dd className="mt-0.5">
+                      <VisitPlanCarerRoleBadge role={group.template.role} />
                     </dd>
                   </div>
                   <div className="flex items-start gap-1.5">
