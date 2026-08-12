@@ -51,6 +51,16 @@ export function isHourlyLongChargeRule(
   return rule.rateType === 'HOURLY' || rule.chargeMethod === 'HOURLY_PRO_RATA'
 }
 
+/** Hourly charge (pro-rata or time-banded clock window). */
+export function isHourlyChargePeriodRule(
+  rule: Pick<ChargeCardRule, 'rateType' | 'chargeMethod' | 'startTime' | 'endTime'>,
+): boolean {
+  if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return false
+  if (rule.rateType === 'HOURLY' || rule.rateType === 'BANDED') return true
+  if (rule.chargeMethod === 'HOURLY_PRO_RATA') return true
+  return isTimeBandRule(rule)
+}
+
 export function isMileageRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
   return rule.rateType === 'MILEAGE'
 }
@@ -92,7 +102,12 @@ export function resolveRuleChargeMethod(
   ) {
     return rule.chargeMethod
   }
-  if (isHourlyLongChargeRule(rule)) return 'HOURLY_PRO_RATA'
+  if (isMileageRule(rule) || isTravelOrWaitingRule(rule)) {
+    return rule.chargeMethod === 'HOURLY_PRO_RATA' ? 'HOURLY_PRO_RATA' : 'FIXED_VISIT'
+  }
+  if (isHourlyChargePeriodRule(rule) || isHourlyLongChargeRule(rule) || isTimeBandRule(rule)) {
+    return 'HOURLY_PRO_RATA'
+  }
   return 'FIXED_VISIT'
 }
 
@@ -108,7 +123,10 @@ export function getRuleRateTypeLabel(rule: Pick<PayCardRule, 'minimumMinutes' | 
 
 export function getRuleChargeMethodLabel(rule: Pick<ChargeCardRule, 'minimumMinutes' | 'rateType' | 'chargeMethod' | 'startTime' | 'endTime'>): string {
   if (isMileageRule(rule)) return 'Mileage recharge'
-  if (isHourlyLongChargeRule(rule)) return 'Hourly (visits over 1 hour)'
+  if (isTravelTimeRule(rule)) return 'Travel time recharge'
+  if (isWaitingTimeRule(rule)) return 'Waiting time recharge'
+  if (isTimeBandRule(rule)) return 'Time band (£/hr)'
+  if (isHourlyLongChargeRule(rule) || isHourlyChargePeriodRule(rule)) return 'Hourly (pro-rata)'
   return 'Fixed visit charge'
 }
 
@@ -141,15 +159,25 @@ export function normalizePayCardRuleForEditor(rule: PayCardRule): PayCardRule {
 
 export function normalizeChargeCardRuleForEditor(rule: ChargeCardRule): ChargeCardRule {
   if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return rule
-  if (isHourlyLongChargeRule(rule)) {
-    return { ...rule, rateType: 'HOURLY', chargeMethod: 'HOURLY_PRO_RATA', minimumMinutes: null }
+  if (rule.rateType === 'HOURLY' || isHourlyLongChargeRule(rule) || isTimeBandRule(rule)) {
+    return {
+      ...rule,
+      rateType: 'HOURLY',
+      chargeMethod: 'HOURLY_PRO_RATA',
+      minimumMinutes: null,
+      startTime: rule.startTime?.trim() || '00:00',
+      endTime: rule.endTime?.trim() || '23:59',
+      enhancementMethod: rule.enhancementMethod ?? 'ABSOLUTE_HOURLY',
+    }
   }
 
   const pay = normalizePayCardRuleForEditor(rule)
   return {
     ...rule,
     ...pay,
-    chargeMethod: resolveRuleChargeMethod(rule),
+    chargeMethod: 'FIXED_VISIT',
+    startTime: pay.startTime?.trim() || '00:00',
+    endTime: pay.endTime?.trim() || '23:59',
   }
 }
 

@@ -1,5 +1,16 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  CalendarDays,
+  CreditCard,
+  FileText,
+  Hash,
+  Pencil,
+  PoundSterling,
+  Save,
+  Target,
+  Users,
+} from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -34,6 +45,54 @@ type ChargeCardFormDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   card?: ChargeCard | null
+}
+
+const fieldLabel = 'text-xs font-medium text-foreground/90'
+
+function FieldLabel({
+  icon,
+  children,
+  required,
+}: {
+  icon?: React.ReactNode
+  children: React.ReactNode
+  required?: boolean
+}) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${fieldLabel}`}>
+      {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+      {children}
+      {required ? <span className="text-destructive" aria-hidden>*</span> : null}
+    </span>
+  )
+}
+
+function SectionTitle({
+  icon,
+  iconClassName,
+  title,
+  description,
+}: {
+  icon: React.ReactNode
+  iconClassName: string
+  title: string
+  description?: string
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span
+        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 pt-0.5">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 function toFormState(card?: ChargeCard | null): ChargeCardInput {
@@ -86,6 +145,7 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
 
   const [form, setForm] = React.useState<ChargeCardInput>(() => toFormState(card))
   const [error, setError] = React.useState<string | null>(null)
+  const editorKey = card?.id ?? 'new-charge-card'
 
   React.useEffect(() => {
     if (open) {
@@ -147,6 +207,29 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
       setError('Select who this charge card attaches to.')
       return
     }
+
+    const rules = form.rules ?? []
+    if (rules.length === 0) {
+      setError('Add at least one charge rate rule.')
+      return
+    }
+    for (const rule of rules) {
+      const isSupplement =
+        rule.rateType === 'MILEAGE'
+        || rule.rateType === 'TRAVEL_TIME'
+        || rule.rateType === 'WAITING_TIME'
+      if (!(Number(rule.amount) > 0)) {
+        setError('Every rate rule needs an amount greater than zero.')
+        return
+      }
+      if (!isSupplement) {
+        if (!rule.startTime?.trim() || !rule.endTime?.trim()) {
+          setError('Every visit rate rule needs From and Until times.')
+          return
+        }
+      }
+    }
+
     setError(null)
     const payload: ChargeCardInput = {
       ...form,
@@ -179,223 +262,286 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-w-3xl">
+      <DialogContent size="full" className="h-[min(90dvh,90vh)] max-w-6xl">
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle>{isEdit ? 'Edit charge card' : 'New charge card'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                {isEdit
+                  ? <Pencil className="h-4 w-4" aria-hidden />
+                  : <CreditCard className="h-4 w-4" aria-hidden />}
+              </span>
+              {isEdit ? 'Edit charge card' : 'New charge card'}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Set who this invoice template is for, then add charge rates on the right.
+            </p>
           </DialogHeader>
 
-          <DialogBody className="space-y-5">
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <DialogBody className="flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:overflow-hidden">
+            {error ? (
+              <p className="shrink-0 border-b border-border px-5 py-3 text-sm text-destructive">{error}</p>
+            ) : null}
 
-            <p className="text-sm text-muted-foreground">
-              Reusable invoice rate templates like Birdie and Access. Attach to a funder, service user,
-              branch, or contract — then bulk-assign or override on individual records.
-            </p>
+            <div className="grid min-h-0 flex-1 lg:grid-cols-2 lg:overflow-hidden">
+              <section className="space-y-4 border-b border-border p-5 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+                <SectionTitle
+                  icon={<FileText className="h-4 w-4" aria-hidden />}
+                  iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
+                  title="Card details"
+                  description="Attach this template to a funder, service user, branch, or organisation default."
+                />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className="text-xs text-muted-foreground">Card name</span>
-              <Input
-                value={form.name}
-                onChange={e => {
-                  const name = e.target.value
-                  patch({
-                    name,
-                    code: !isEdit && !form.code ? slugBillingCode(name) : form.code,
-                  })
-                }}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Code</span>
-              <Input
-                value={form.code}
-                onChange={e => patch({ code: e.target.value.toUpperCase() })}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Status</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.status}
-                onChange={e => patch({ status: e.target.value as ChargeCardInput['status'] })}
-                disabled={saving}
-              >
-                {BILLING_CARD_STATUS_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Attach to</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.assignmentLevel}
-                onChange={e =>
-                  onAssignmentLevelChange(e.target.value as ChargeCardInput['assignmentLevel'])
-                }
-                disabled={saving}
-              >
-                {CHARGE_CARD_ASSIGNMENT_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-1 text-sm sm:col-span-2">
+                    <FieldLabel icon={<CreditCard className="h-3.5 w-3.5" aria-hidden />} required>
+                      Name
+                    </FieldLabel>
+                    <Input
+                      value={form.name}
+                      onChange={e => {
+                        const name = e.target.value
+                        patch({
+                          name,
+                          code: !isEdit && !form.code ? slugBillingCode(name) : form.code,
+                        })
+                      }}
+                      placeholder="e.g. Private client default"
+                      disabled={saving}
+                      required
+                    />
+                  </label>
 
-            {needsTargetKey ? (
-              <label className="space-y-1 text-sm">
-                <span className="text-xs text-muted-foreground">{keyTargetLabel(form.assignmentLevel)}</span>
-                <Input
-                  value={form.assignmentTargetKey ?? ''}
-                  onChange={e => patch({ assignmentTargetKey: e.target.value, assignmentLabel: '' })}
-                  placeholder={
-                    form.assignmentLevel === 'SERVICE_TYPE' ? 'e.g. Personal care' : 'Exact match value'
-                  }
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel icon={<Hash className="h-3.5 w-3.5" aria-hidden />} required>
+                      Code
+                    </FieldLabel>
+                    <Input
+                      value={form.code}
+                      onChange={e => patch({ code: e.target.value.toUpperCase() })}
+                      disabled={saving}
+                      required
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel required>Status</FieldLabel>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.status}
+                      onChange={e => patch({ status: e.target.value as ChargeCardInput['status'] })}
+                      disabled={saving}
+                      required
+                    >
+                      {BILLING_CARD_STATUS_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel icon={<Target className="h-3.5 w-3.5" aria-hidden />} required>
+                      Attach to
+                    </FieldLabel>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.assignmentLevel}
+                      onChange={e =>
+                        onAssignmentLevelChange(e.target.value as ChargeCardInput['assignmentLevel'])
+                      }
+                      disabled={saving}
+                      required
+                    >
+                      {CHARGE_CARD_ASSIGNMENT_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel required>Billing frequency</FieldLabel>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.billingFrequency}
+                      onChange={e =>
+                        patch({ billingFrequency: e.target.value as ChargeCardInput['billingFrequency'] })
+                      }
+                      disabled={saving}
+                    >
+                      {BILLING_FREQUENCY_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {needsTargetKey ? (
+                    <label className="space-y-1 text-sm sm:col-span-2">
+                      <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />} required>
+                        {keyTargetLabel(form.assignmentLevel)}
+                      </FieldLabel>
+                      <Input
+                        value={form.assignmentTargetKey ?? ''}
+                        onChange={e => patch({ assignmentTargetKey: e.target.value, assignmentLabel: '' })}
+                        placeholder={
+                          form.assignmentLevel === 'SERVICE_TYPE' ? 'e.g. Personal care' : 'Exact match value'
+                        }
+                        disabled={saving}
+                      />
+                    </label>
+                  ) : null}
+
+                  {needsTargetId ? (
+                    <label className="space-y-1 text-sm sm:col-span-2">
+                      <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />} required>
+                        {form.assignmentLevel === 'FUNDER'
+                          ? 'Funder / payer'
+                          : form.assignmentLevel === 'SERVICE_USER'
+                            ? 'Service user'
+                            : form.assignmentLevel === 'FUNDING_CONTRACT'
+                              ? 'Funding contract'
+                              : 'Branch / region'}
+                      </FieldLabel>
+                      {form.assignmentLevel === 'FUNDING_CONTRACT' ? (
+                        <Input
+                          value={form.assignmentTargetId ?? ''}
+                          onChange={e => patch({ assignmentTargetId: e.target.value, assignmentLabel: '' })}
+                          placeholder="Funding contract ID from service user Funding tab"
+                          disabled={saving}
+                        />
+                      ) : (
+                        <Combobox
+                          options={targetOptions}
+                          value={form.assignmentTargetId ?? ''}
+                          onChange={value => patch({ assignmentTargetId: value, assignmentLabel: '' })}
+                          placeholder="Select target"
+                          disabled={saving || fundersQuery.isLoading || serviceUsersQuery.isLoading || lookupsQuery.isLoading}
+                        />
+                      )}
+                    </label>
+                  ) : null}
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel>Default charge method</FieldLabel>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.defaultChargeMethod}
+                      onChange={e =>
+                        patch({ defaultChargeMethod: e.target.value as ChargeCardInput['defaultChargeMethod'] })
+                      }
+                      disabled={saving}
+                    >
+                      {BILLING_CHARGE_METHOD_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel>Display label</FieldLabel>
+                    <Input
+                      value={form.assignmentLabel ?? ''}
+                      onChange={e => patch({ assignmentLabel: e.target.value })}
+                      placeholder="Auto-filled from selection if left blank"
+                      disabled={saving}
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel>Payment terms</FieldLabel>
+                    <Input
+                      value={form.paymentTerms ?? ''}
+                      onChange={e => patch({ paymentTerms: e.target.value })}
+                      placeholder="Net 30"
+                      disabled={saving}
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel>Tax / VAT treatment</FieldLabel>
+                    <Input
+                      value={form.taxTreatment ?? ''}
+                      onChange={e => patch({ taxTreatment: e.target.value })}
+                      placeholder="VAT exempt"
+                      disabled={saving}
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm sm:col-span-2">
+                    <FieldLabel>Invoice grouping rule</FieldLabel>
+                    <Input
+                      value={form.invoiceGroupingRule ?? ''}
+                      onChange={e => patch({ invoiceGroupingRule: e.target.value })}
+                      placeholder="One invoice per service user"
+                      disabled={saving}
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />} required>
+                      Starts from
+                    </FieldLabel>
+                    <Input
+                      type="date"
+                      value={form.effectiveFrom}
+                      onChange={e => patch({ effectiveFrom: e.target.value })}
+                      disabled={saving}
+                      required
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm">
+                    <FieldLabel icon={<CalendarDays className="h-3.5 w-3.5" aria-hidden />}>
+                      Ends on
+                    </FieldLabel>
+                    <Input
+                      type="date"
+                      value={form.effectiveTo ?? ''}
+                      onChange={e => patch({ effectiveTo: e.target.value })}
+                      disabled={saving}
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-sm sm:col-span-2">
+                    <FieldLabel icon={<FileText className="h-3.5 w-3.5" aria-hidden />}>
+                      Notes
+                    </FieldLabel>
+                    <Input
+                      value={form.notes ?? ''}
+                      onChange={e => patch({ notes: e.target.value })}
+                      placeholder="Describe when this card should be used"
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="space-y-3 bg-muted/5 p-5 lg:min-h-0 lg:overflow-y-auto">
+                <SectionTitle
+                  icon={<PoundSterling className="h-4 w-4" aria-hidden />}
+                  iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  title="Charge rates"
+                  description="Add at least one rate. Every visit rule needs an amount and From / Until times."
+                />
+                <BillingCardRulesEditor
+                  key={editorKey}
+                  mode="charge"
+                  rules={form.rules ?? []}
+                  onChange={rules => patch({ rules: rules as ChargeCardRule[] })}
                   disabled={saving}
                 />
-              </label>
-            ) : null}
-
-            {needsTargetId ? (
-              <label className="space-y-1 text-sm">
-                <span className="text-xs text-muted-foreground">
-                  {form.assignmentLevel === 'FUNDER'
-                    ? 'Funder / payer'
-                    : form.assignmentLevel === 'SERVICE_USER'
-                      ? 'Service user'
-                      : form.assignmentLevel === 'FUNDING_CONTRACT'
-                        ? 'Funding contract'
-                        : 'Branch / region'}
-                </span>
-                {form.assignmentLevel === 'FUNDING_CONTRACT' ? (
-                  <Input
-                    value={form.assignmentTargetId ?? ''}
-                    onChange={e => patch({ assignmentTargetId: e.target.value, assignmentLabel: '' })}
-                    placeholder="Funding contract ID from service user Funding tab"
-                    disabled={saving}
-                  />
-                ) : (
-                  <Combobox
-                    options={targetOptions}
-                    value={form.assignmentTargetId ?? ''}
-                    onChange={value => patch({ assignmentTargetId: value, assignmentLabel: '' })}
-                    placeholder="Select target"
-                    disabled={saving || fundersQuery.isLoading || serviceUsersQuery.isLoading || lookupsQuery.isLoading}
-                  />
-                )}
-              </label>
-            ) : null}
-
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Display label (optional)</span>
-              <Input
-                value={form.assignmentLabel ?? ''}
-                onChange={e => patch({ assignmentLabel: e.target.value })}
-                placeholder="Auto-filled from selection if left blank"
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Billing frequency</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.billingFrequency}
-                onChange={e =>
-                  patch({ billingFrequency: e.target.value as ChargeCardInput['billingFrequency'] })
-                }
-                disabled={saving}
-              >
-                {BILLING_FREQUENCY_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Default charge method</span>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.defaultChargeMethod}
-                onChange={e =>
-                  patch({ defaultChargeMethod: e.target.value as ChargeCardInput['defaultChargeMethod'] })
-                }
-                disabled={saving}
-              >
-                {BILLING_CHARGE_METHOD_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Payment terms</span>
-              <Input
-                value={form.paymentTerms ?? ''}
-                onChange={e => patch({ paymentTerms: e.target.value })}
-                placeholder="Net 30"
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Tax / VAT treatment</span>
-              <Input
-                value={form.taxTreatment ?? ''}
-                onChange={e => patch({ taxTreatment: e.target.value })}
-                placeholder="VAT exempt"
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className="text-xs text-muted-foreground">Invoice grouping rule</span>
-              <Input
-                value={form.invoiceGroupingRule ?? ''}
-                onChange={e => patch({ invoiceGroupingRule: e.target.value })}
-                placeholder="One invoice per service user"
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Effective from</span>
-              <Input
-                type="date"
-                value={form.effectiveFrom}
-                onChange={e => patch({ effectiveFrom: e.target.value })}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">Effective to</span>
-              <Input
-                type="date"
-                value={form.effectiveTo ?? ''}
-                onChange={e => patch({ effectiveTo: e.target.value })}
-                disabled={saving}
-              />
-            </label>
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className="text-xs text-muted-foreground">Notes</span>
-              <Input
-                value={form.notes ?? ''}
-                onChange={e => patch({ notes: e.target.value })}
-                disabled={saving}
-              />
-            </label>
-          </div>
-
-          <BillingCardRulesEditor
-            mode="charge"
-            rules={form.rules ?? []}
-            onChange={rules => patch({ rules: rules as ChargeCardRule[] })}
-            disabled={saving}
-          />
+              </section>
+            </div>
           </DialogBody>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button
+              type="submit"
+              disabled={saving}
+              leftIcon={isEdit ? <Save className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+            >
               {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create charge card'}
             </Button>
           </DialogFooter>

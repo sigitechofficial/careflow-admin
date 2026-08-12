@@ -202,6 +202,21 @@ export async function backfillVisitReconciliations(body?: {
   return res.data
 }
 
+export async function recalculateVisitReconciliationAmounts(body?: {
+  ids?: string[]
+  dateFrom?: string
+  dateTo?: string
+}): Promise<{ reEvaluated: number; ids: string[] }> {
+  const res = await apiJson<ApiEnvelope<{ reEvaluated: number; ids: string[] }>>(
+    '/billing/visit-reconciliations/recalculate-amounts',
+    {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    },
+  )
+  return res.data
+}
+
 export async function clearAllVisitReconciliations(): Promise<{
   before: number
   visitReconciliations: number

@@ -9,6 +9,7 @@ import {
   fetchVisitReconciliationExceptionQueue,
   fetchVisitReconciliations,
   fetchVisitReconciliationsSummary,
+  recalculateVisitReconciliationAmounts,
   rejectVisitOverrun,
   rejectVisitReconciliation,
   setVisitPayableAmount,
@@ -166,6 +167,17 @@ export function useBackfillVisitReconciliations() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body?: { dateFrom?: string; dateTo?: string }) => backfillVisitReconciliations(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useRecalculateVisitReconciliationAmounts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body?: { ids?: string[]; dateFrom?: string; dateTo?: string }) =>
+      recalculateVisitReconciliationAmounts(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },

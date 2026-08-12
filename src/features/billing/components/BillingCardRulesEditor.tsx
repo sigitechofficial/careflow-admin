@@ -36,7 +36,7 @@ import {
   getRuleAmountFieldLabel,
   getRuleChargeMethodLabel,
   getRuleRateTypeLabel,
-  isHourlyLongChargeRule,
+  isHourlyChargePeriodRule,
   isHourlyLongVisitRule,
   isMileageRule,
   isTimeBandRule,
@@ -70,9 +70,9 @@ function emptyFixedPayRule(minutes = DEFAULT_VISIT_DURATION_MINUTES): PayCardRul
   }
 }
 
-function emptyFixedChargeRule(): ChargeCardRule {
+function emptyFixedChargeRule(minutes = DEFAULT_VISIT_DURATION_MINUTES): ChargeCardRule {
   return {
-    ...emptyFixedPayRule(),
+    ...emptyFixedPayRule(minutes),
     chargeMethod: 'FIXED_VISIT',
     chargeableFlag: true,
   }
@@ -123,16 +123,11 @@ function isFixedVisitRule(rule: PayCardRule): boolean {
   return rule.rateType === 'FIXED'
 }
 
-function emptyHourlyChargeRule(): ChargeCardRule {
+function emptyHourlyChargeRule(periodCode: PayTimePeriodCode = 'WEEKDAY_DAYTIME'): ChargeCardRule {
   return {
-    label: 'Hourly (over 1 hour)',
-    dayType: 'WEEKDAY',
-    rateType: 'HOURLY',
-    amount: 0,
-    enhancementMethod: 'ABSOLUTE_HOURLY',
+    ...emptyHourlyPayRule(periodCode),
     chargeMethod: 'HOURLY_PRO_RATA',
     chargeableFlag: true,
-    sortOrder: 0,
   }
 }
 
@@ -175,6 +170,24 @@ function emptyMileageChargeRule(): ChargeCardRule {
   }
 }
 
+function emptyTravelTimeChargeRule(): ChargeCardRule {
+  return {
+    ...emptyTravelTimePayRule(),
+    label: 'Travel time recharge',
+    chargeMethod: 'HOURLY_PRO_RATA',
+    chargeableFlag: true,
+  }
+}
+
+function emptyWaitingTimeChargeRule(): ChargeCardRule {
+  return {
+    ...emptyWaitingTimePayRule(),
+    label: 'Waiting time recharge',
+    chargeMethod: 'HOURLY_PRO_RATA',
+    chargeableFlag: true,
+  }
+}
+
 function ruleDurationMinutes(rule: PayCardRule): number {
   return rule.minimumMinutes && rule.minimumMinutes > 0
     ? rule.minimumMinutes
@@ -183,7 +196,7 @@ function ruleDurationMinutes(rule: PayCardRule): number {
 
 function isHourlyRule(rule: PayCardRule, mode: RuleMode): boolean {
   return mode === 'charge'
-    ? isHourlyLongChargeRule(rule as ChargeCardRule)
+    ? isHourlyChargePeriodRule(rule as ChargeCardRule)
     : isHourlyLongVisitRule(rule) || isTimeBandRule(rule)
 }
 
@@ -231,6 +244,33 @@ function applyVisitPayMethod(rules: PayCardRule[], method: VisitPayMethod): PayC
   return [...ensureHourly(), ...supplements, ...other]
 }
 
+function applyVisitChargeMethod(rules: ChargeCardRule[], method: VisitPayMethod): ChargeCardRule[] {
+  const supplements = rules.filter(isSupplementRule) as ChargeCardRule[]
+  const fixed = rules.filter(isFixedVisitRule) as ChargeCardRule[]
+  const hourly = rules.filter(isHourlyPeriodRule) as ChargeCardRule[]
+  const other = rules.filter(
+    r => !isSupplementRule(r) && !isFixedVisitRule(r) && !isHourlyPeriodRule(r),
+  ) as ChargeCardRule[]
+
+  const ensureFixed = (): ChargeCardRule[] => {
+    if (fixed.length > 0) return fixed
+    return BILLING_VISIT_DURATION_OPTIONS.map(opt => emptyFixedChargeRule(opt.value))
+  }
+
+  const ensureHourly = (): ChargeCardRule[] => {
+    if (hourly.length > 0) return hourly
+    return [emptyHourlyChargeRule('WEEKDAY_DAYTIME')]
+  }
+
+  if (method === 'FIXED_BY_DURATION') {
+    return [...ensureFixed(), ...supplements, ...other]
+  }
+  if (method === 'BOTH') {
+    return [...ensureHourly(), ...ensureFixed(), ...supplements, ...other]
+  }
+  return [...ensureHourly(), ...supplements, ...other]
+}
+
 function ruleTitle(rule: PayCardRule, index: number): string {
   if (rule.label?.trim()) return rule.label.trim()
   const day = formatPayCardRuleDayType(rule.dayType)
@@ -245,11 +285,9 @@ function ruleTitle(rule: PayCardRule, index: number): string {
 export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: BillingCardRulesEditorProps) {
   const payRules = rules as PayCardRule[]
   const [visitPayMethod, setVisitPayMethod] = React.useState<VisitPayMethod>(() =>
-    mode === 'pay' ? deriveVisitPayMethod(payRules) : 'PRO_RATA_HOURLY',
+    deriveVisitPayMethod(payRules),
   )
-  const [travelOpen, setTravelOpen] = React.useState(() =>
-    mode === 'pay' && payRules.some(r => isSupplementRule(r)),
-  )
+  const [travelOpen, setTravelOpen] = React.useState(() => payRules.some(r => isSupplementRule(r)))
   const [advancedOpen, setAdvancedOpen] = React.useState<Record<number, boolean>>({})
   const [forceCustomPeriod, setForceCustomPeriod] = React.useState<Record<number, boolean>>({})
   const [flashIndices, setFlashIndices] = React.useState<Set<number>>(() => new Set())
@@ -281,21 +319,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   }, [])
 
   React.useEffect(() => {
-    if (mode === 'pay' && (rules as PayCardRule[]).some(r => isSupplementRule(r))) {
+    if ((rules as PayCardRule[]).some(r => isSupplementRule(r))) {
       setTravelOpen(true)
     }
-  }, [mode, rules])
+  }, [rules])
 
   // Keep radio in sync when rules are loaded/remounted (source of truth is the rule set).
   React.useEffect(() => {
-    if (mode !== 'pay') return
     setVisitPayMethod(deriveVisitPayMethod(rules as PayCardRule[]))
-  }, [mode, rules])
+  }, [rules])
 
   const onVisitPayMethodChange = (method: VisitPayMethod) => {
-    if (mode !== 'pay' || method === visitPayMethod) return
+    if (method === visitPayMethod) return
     setVisitPayMethod(method)
-    onChange(applyVisitPayMethod(payRules, method))
+    if (mode === 'charge') {
+      onChange(applyVisitChargeMethod(rules as ChargeCardRule[], method))
+    } else {
+      onChange(applyVisitPayMethod(payRules, method))
+    }
     if (method === 'FIXED_BY_DURATION' || method === 'BOTH') {
       const hadFixed = payRules.some(isFixedVisitRule)
       if (!hadFixed) flashNewRules(BILLING_VISIT_DURATION_OPTIONS.length)
@@ -313,7 +354,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   const addFixedRule = (minutes?: number) => {
     onChange(
       mode === 'charge'
-        ? [emptyFixedChargeRule(), ...rules]
+        ? [emptyFixedChargeRule(minutes), ...rules]
         : [emptyFixedPayRule(minutes), ...rules],
     )
     flashNewRules(1)
@@ -325,6 +366,15 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         .filter(r => r.rateType === 'FIXED' && r.minimumMinutes)
         .map(r => r.minimumMinutes),
     )
+    if (mode === 'charge') {
+      const added: ChargeCardRule[] = []
+      for (const opt of BILLING_VISIT_DURATION_OPTIONS) {
+        if (!existing.has(opt.value)) added.push(emptyFixedChargeRule(opt.value))
+      }
+      onChange([...added, ...(rules as ChargeCardRule[])])
+      flashNewRules(added.length)
+      return
+    }
     const added: PayCardRule[] = []
     for (const opt of BILLING_VISIT_DURATION_OPTIONS) {
       if (!existing.has(opt.value)) added.push(emptyFixedPayRule(opt.value))
@@ -334,12 +384,6 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   }
 
   const addHourlyRule = () => {
-    if (mode === 'charge') {
-      onChange([emptyHourlyChargeRule(), ...rules])
-      flashNewRules(1)
-      return
-    }
-
     const existing = rules as PayCardRule[]
     const nextPeriod = PAY_TIME_PERIOD_LOOKUP.find(period => {
       const candidate = {
@@ -360,7 +404,11 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       return
     }
 
-    onChange([emptyHourlyPayRule(nextPeriod.code), ...existing])
+    onChange(
+      mode === 'charge'
+        ? [emptyHourlyChargeRule(nextPeriod.code), ...(rules as ChargeCardRule[])]
+        : [emptyHourlyPayRule(nextPeriod.code), ...existing],
+    )
     flashNewRules(1)
   }
 
@@ -390,6 +438,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       priority: period.priority,
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
+      ...(mode === 'charge'
+        ? { chargeMethod: 'HOURLY_PRO_RATA' as const, chargeableFlag: true }
+        : {}),
     })
     return true
   }
@@ -419,13 +470,21 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   }
 
   const addTravelTimeRule = () => {
-    onChange([emptyTravelTimePayRule(), ...rules])
+    onChange(
+      mode === 'charge'
+        ? [emptyTravelTimeChargeRule(), ...(rules as ChargeCardRule[])]
+        : [emptyTravelTimePayRule(), ...rules],
+    )
     setTravelOpen(true)
     flashNewRules(1)
   }
 
   const addWaitingTimeRule = () => {
-    onChange([emptyWaitingTimePayRule(), ...rules])
+    onChange(
+      mode === 'charge'
+        ? [emptyWaitingTimeChargeRule(), ...(rules as ChargeCardRule[])]
+        : [emptyWaitingTimePayRule(), ...rules],
+    )
     setTravelOpen(true)
     flashNewRules(1)
   }
@@ -446,11 +505,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     setAdvancedOpen(prev => ({ ...prev, [index]: !prev[index] }))
   }
 
-  const showAddHourly = mode === 'charge' || visitPayMethod === 'PRO_RATA_HOURLY' || visitPayMethod === 'BOTH'
-  const showAddFixed = mode === 'charge' || visitPayMethod === 'FIXED_BY_DURATION' || visitPayMethod === 'BOTH'
+  const showAddHourly = visitPayMethod === 'PRO_RATA_HOURLY' || visitPayMethod === 'BOTH'
+  const showAddFixed = visitPayMethod === 'FIXED_BY_DURATION' || visitPayMethod === 'BOTH'
 
   const hasAvailableHourlyPeriod = React.useMemo(() => {
-    if (mode !== 'pay') return true
     const existing = rules as PayCardRule[]
     return PAY_TIME_PERIOD_LOOKUP.some(period =>
       !findOverlappingHourlyPayRule(existing, {
@@ -461,10 +519,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         rateType: 'HOURLY',
       }),
     )
-  }, [mode, rules])
+  }, [rules])
 
   const groupedPayRules = React.useMemo(() => {
-    if (mode !== 'pay') return null
     const indexed = (rules as PayCardRule[]).map((rule, index) => ({ rule, index }))
     const map = new Map<PayCardRuleCategory, { rule: PayCardRule; index: number }[]>()
     for (const cat of PAY_CARD_RULE_CATEGORY_ORDER) map.set(cat, [])
@@ -475,14 +532,14 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       map.set(cat, list)
     }
     return map
-  }, [mode, rules])
+  }, [rules])
 
   const renderRuleCard = (rule: PayCardRule, index: number) => {
     const hourly = isHourlyRule(rule, mode)
     const mileage = isMileageRule(rule)
     const travelTime = isTravelTimeRule(rule)
     const waitingTime = isWaitingTimeRule(rule)
-    const timeBand = mode === 'pay' && isTimeBandRule(rule)
+    const timeBand = isTimeBandRule(rule)
     const plainHourly = hourly && !timeBand
     const supplement = isSupplementRule(rule)
     const durationMinutes = ruleDurationMinutes(rule)
@@ -890,6 +947,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   amount: value,
                   enhancementMethod: 'ABSOLUTE_HOURLY',
                   rateType: 'HOURLY',
+                  ...(mode === 'charge'
+                    ? { chargeMethod: 'HOURLY_PRO_RATA' as const, chargeableFlag: true }
+                    : {}),
                 })
               }}
               disabled={disabled}
@@ -1040,6 +1100,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   amount,
                   rateType: 'FIXED',
                   minimumMinutes: durationMinutes,
+                  ...(mode === 'charge'
+                    ? { chargeMethod: 'FIXED_VISIT' as const, chargeableFlag: true }
+                    : {}),
                 })
               }}
               disabled={disabled}
@@ -1092,47 +1155,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     )
   }
 
-  // —— Charge mode: keep simpler flat layout ——
-  if (mode === 'charge') {
-    return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-sm font-semibold text-foreground">Rate rules</h4>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={() => addFixedRule()} disabled={disabled}>
-              Add fixed visit rule
-            </Button>
-            <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={addHourlyRule} disabled={disabled}>
-              Add hourly rule
-            </Button>
-            <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={addMileageRule} disabled={disabled}>
-              Add mileage recharge
-            </Button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Fixed rates apply to visits up to 1 hour. Longer visits use hourly × duration. Mileage recharge bills the client/funder per mile when the contract allows it.
-        </p>
-        {rules.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-            No rules yet. Add at least one rate rule before activating this card.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {(rules as ChargeCardRule[]).map((rule, index) => renderRuleCard(rule, index))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // —— Pay mode: simple layout ——
+  // —— Shared pay/charge layout (same rule definition UX) ——
   return (
     <TooltipProvider delayDuration={200}>
     <div className="space-y-5">
       <fieldset className="space-y-2" disabled={disabled}>
         <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Visit pay method
+          {mode === 'charge' ? 'Visit charge method' : 'Visit pay method'}
         </legend>
         <div className="grid gap-2 sm:grid-cols-2">
           <label
@@ -1144,7 +1173,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           >
             <input
               type="radio"
-              name="visit-pay-method"
+              name={`${mode}-visit-rate-method`}
               className="shrink-0"
               checked={visitPayMethod === 'PRO_RATA_HOURLY'}
               onChange={() => onVisitPayMethodChange('PRO_RATA_HOURLY')}
@@ -1152,7 +1181,11 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             />
             <BillingFieldLabel
               label="Pro-rata (hourly)"
-              tooltip="Pay by £/hr for each day and time window. Visit length is pro-rated from the hourly rate."
+              tooltip={
+                mode === 'charge'
+                  ? 'Charge by £/hr for each day and time window. Visit length is pro-rated from the hourly rate.'
+                  : 'Pay by £/hr for each day and time window. Visit length is pro-rated from the hourly rate.'
+              }
               className="font-medium text-foreground"
             />
           </label>
@@ -1166,7 +1199,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           >
             <input
               type="radio"
-              name="visit-pay-method"
+              name={`${mode}-visit-rate-method`}
               className="shrink-0"
               checked={visitPayMethod === 'BOTH' || visitPayMethod === 'FIXED_BY_DURATION'}
               onChange={() => onVisitPayMethodChange('BOTH')}
@@ -1190,7 +1223,11 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </span>
               <BillingFieldLabel
                 label="Hourly rates"
-                tooltip="Add £/hr for weekdays, weekends, and bank / org / public holidays. Used for visits over 1 hour, and for shorter visits when no exact fixed duration slot exists. On special dates the matching holiday rate is used first."
+                tooltip={
+                  mode === 'charge'
+                    ? 'Add £/hr for weekdays, weekends, and bank / org / public holidays. Used for visits over 1 hour, and for shorter visits when no exact fixed duration slot exists.'
+                    : 'Add £/hr for weekdays, weekends, and bank / org / public holidays. Used for visits over 1 hour, and for shorter visits when no exact fixed duration slot exists. On special dates the matching holiday rate is used first.'
+                }
                 className="text-sm font-semibold text-foreground"
               />
             </div>
@@ -1296,8 +1333,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               <Car className="h-4 w-4" aria-hidden />
             </span>
             <BillingFieldLabel
-              label="Travel & expenses"
-              tooltip="Optional mileage (£/mile) and travel or waiting time (£/hr)."
+              label={mode === 'charge' ? 'Travel & expenses (recharge)' : 'Travel & expenses'}
+              tooltip={
+                mode === 'charge'
+                  ? 'Optional mileage (£/mile) and travel or waiting time (£/hr) recharged to the client/funder.'
+                  : 'Optional mileage (£/mile) and travel or waiting time (£/hr).'
+              }
               className="text-sm font-semibold text-foreground"
             />
           </div>
@@ -1307,7 +1348,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
           <>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={addMileageRule} disabled={disabled}>
-                Add mileage
+                {mode === 'charge' ? 'Add mileage recharge' : 'Add mileage'}
               </Button>
               <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={addTravelTimeRule} disabled={disabled}>
                 Add travel time
@@ -1317,11 +1358,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </Button>
             </div>
             {(() => {
-              const items = groupedPayRules?.get('Travel & expenses') ?? []
+              const items = groupedPayRules.get('Travel & expenses') ?? []
               if (items.length === 0) {
                 return (
                   <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3 text-sm text-muted-foreground">
-                    Optional — add only if this card pays mileage or travel time.
+                    {mode === 'charge'
+                      ? 'Optional — add only if this card recharges mileage or travel time.'
+                      : 'Optional — add only if this card pays mileage or travel time.'}
                   </p>
                 )
               }

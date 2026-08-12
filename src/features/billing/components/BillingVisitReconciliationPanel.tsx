@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Eye, Filter, Loader2, RefreshCw, Search, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, Calculator, CheckCircle2, ClipboardCheck, Eye, Filter, Loader2, RefreshCw, Search, Trash2, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import { Input } from '@/shared/ui/input'
@@ -11,6 +11,7 @@ import {
   useBackfillVisitReconciliations,
   useBulkApproveVisitReconciliations,
   useClearAllVisitReconciliations,
+  useRecalculateVisitReconciliationAmounts,
   useRejectVisitReconciliation,
   useVisitReconciliations,
 } from '@/features/billing/hooks/useVisitReconciliations'
@@ -126,6 +127,7 @@ export function BillingVisitReconciliationPanel({
   const rejectMutation = useRejectVisitReconciliation()
   const bulkApproveMutation = useBulkApproveVisitReconciliations()
   const backfillMutation = useBackfillVisitReconciliations()
+  const recalculateMutation = useRecalculateVisitReconciliationAmounts()
   const clearAllMutation = useClearAllVisitReconciliations()
 
   // Newest entries on top (createdAt), then latest visit date/time.
@@ -144,6 +146,7 @@ export function BillingVisitReconciliationPanel({
     rejectMutation.isPending ||
     bulkApproveMutation.isPending ||
     backfillMutation.isPending ||
+    recalculateMutation.isPending ||
     clearAllMutation.isPending
 
   const selectableIds = React.useMemo(() => rows.map(r => r.id), [rows])
@@ -202,6 +205,20 @@ export function BillingVisitReconciliationPanel({
       )
     } catch (err) {
       toastApiError(err, 'Could not sync completed visits.')
+    }
+  }
+
+  const handleRecalculateAmounts = async () => {
+    try {
+      const ids = selectedIds.size ? [...selectedIds] : undefined
+      const data = await recalculateMutation.mutateAsync(ids ? { ids } : {})
+      toastSuccess(
+        data.reEvaluated > 0
+          ? `Recalculated amounts for ${data.reEvaluated} reconciliation(s).`
+          : 'No unlocked reconciliations to recalculate.',
+      )
+    } catch (err) {
+      toastApiError(err, 'Could not recalculate amounts.')
     }
   }
 
@@ -300,6 +317,24 @@ export function BillingVisitReconciliationPanel({
               disabled={isMutating}
             >
               Sync completed visits
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={
+                <Calculator
+                  className={`h-3.5 w-3.5 ${recalculateMutation.isPending ? 'animate-pulse' : ''}`}
+                />
+              }
+              onClick={() => void handleRecalculateAmounts()}
+              disabled={isMutating || !rows.length}
+              data-testid="visit-recon-recalculate-amounts"
+            >
+              {recalculateMutation.isPending
+                ? 'Recalculating…'
+                : selectedIds.size
+                  ? `Recalculate amounts (${selectedIds.size})`
+                  : 'Recalculate amounts'}
             </Button>
             <Button
               variant="outline"
