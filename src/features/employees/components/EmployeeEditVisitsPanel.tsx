@@ -582,84 +582,84 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
             ) : (
               <div
                 ref={tableScrollRef}
-                className="overflow-x-auto rounded-lg border border-border"
+                className="max-h-[min(70vh,40rem)] overflow-auto rounded-lg border border-border"
               >
                 <table className="w-full min-w-[1880px] border-separate border-spacing-0 text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="sticky left-0 z-30 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-0 top-0 z-40 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarDays className="h-3.5 w-3.5" aria-hidden />
                           Date
                         </span>
                       </th>
-                      <th className="sticky left-[8.5rem] z-30 w-[5.5rem] min-w-[5.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-[8.5rem] top-0 z-40 w-[5.5rem] min-w-[5.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Slot
                       </th>
                       <th
                         className={cn(
-                          'sticky left-[14rem] z-30 min-w-[9rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground',
+                          'sticky left-[14rem] top-0 z-40 min-w-[9rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground',
                           isScrolledX &&
                             'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
                         )}
                       >
                         Service user
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Planned start
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Planned end
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual start
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual end
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-right font-medium text-muted-foreground">
                         Start variance (min)
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Start punctuality
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-right font-medium text-muted-foreground">
                         End variance (min)
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         End punctuality
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5" aria-hidden />
                           Planned duration
                         </span>
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual duration
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Duration variance
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-right font-medium text-muted-foreground">
                         Variance (min)
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Status
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                           Exceptions
                         </span>
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <MapPin className="h-3.5 w-3.5" aria-hidden />
                           Address
                         </span>
                       </th>
-                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Action
                       </th>
                     </tr>
