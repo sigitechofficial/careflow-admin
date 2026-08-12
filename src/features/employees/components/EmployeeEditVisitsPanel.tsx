@@ -174,6 +174,8 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [codeFilter, setCodeFilter] = React.useState<CodeFilter>({ kind: 'none' })
   const [showStatusSamples, setShowStatusSamples] = React.useState(true)
+  const tableScrollRef = React.useRef<HTMLDivElement>(null)
+  const [isScrolledX, setIsScrolledX] = React.useState(false)
 
   const settingsQuery = useGeneralSettings(canRead)
   const query = useEmployeeVisits(employeeId, month, canRead)
@@ -266,6 +268,19 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
       return next
     })
   }, [])
+
+  React.useEffect(() => {
+    const el = tableScrollRef.current
+    if (!el) return
+    const update = () => setIsScrolledX(el.scrollLeft > 0)
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      el.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [visible.length])
 
   if (!canRead) {
     return (
@@ -565,77 +580,86 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[1880px] text-sm">
+              <div
+                ref={tableScrollRef}
+                className="overflow-x-auto rounded-lg border border-border"
+              >
+                <table className="w-full min-w-[1880px] border-separate border-spacing-0 text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-0 z-30 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarDays className="h-3.5 w-3.5" aria-hidden />
                           Date
                         </span>
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-[8.5rem] z-30 w-[5.5rem] min-w-[5.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Slot
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th
+                        className={cn(
+                          'sticky left-[14rem] z-30 min-w-[9rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground',
+                          isScrolledX &&
+                            'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
+                        )}
+                      >
                         Service user
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Planned start
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Planned end
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual start
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual end
                       </th>
-                      <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-right font-medium text-muted-foreground">
                         Start variance (min)
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Start punctuality
                       </th>
-                      <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-right font-medium text-muted-foreground">
                         End variance (min)
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         End punctuality
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5" aria-hidden />
                           Planned duration
                         </span>
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actual duration
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Duration variance
                       </th>
-                      <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-right font-medium text-muted-foreground">
                         Variance (min)
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Status
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                           Exceptions
                         </span>
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <MapPin className="h-3.5 w-3.5" aria-hidden />
                           Address
                         </span>
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Action
                       </th>
                     </tr>
@@ -663,16 +687,26 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         actualEnd,
                         toleranceMinutes,
                       )
+                      const stickyBg = isSample
+                        ? 'bg-amber-50 dark:bg-amber-950/20'
+                        : 'bg-card'
+                      const stickyHover = 'group-hover:bg-muted'
 
                       return (
                         <tr
                           key={job.id}
                           className={cn(
-                            'border-b border-border last:border-0 hover:bg-muted/20',
+                            'group border-b border-border last:border-0 hover:bg-muted/20',
                             isSample && 'bg-amber-500/5',
                           )}
                         >
-                          <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                          <td
+                            className={cn(
+                              'sticky left-0 z-20 w-[8.5rem] min-w-[8.5rem] border-b border-border px-3 py-2.5 whitespace-nowrap text-muted-foreground',
+                              stickyBg,
+                              stickyHover,
+                            )}
+                          >
                             {formatVisitDate(job.scheduledStartDateTime)}
                             {isSample ? (
                               <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
@@ -680,26 +714,42 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               </span>
                             ) : null}
                           </td>
-                          <td className="px-3 py-2.5 font-medium">
+                          <td
+                            className={cn(
+                              'sticky left-[8.5rem] z-20 w-[5.5rem] min-w-[5.5rem] border-b border-border px-3 py-2.5 font-medium',
+                              stickyBg,
+                              stickyHover,
+                            )}
+                          >
                             {employeeVisitSlotLabel(job)}
                           </td>
-                          <td className="px-3 py-2.5">{serviceUserLabel(job.serviceUser)}</td>
-                          <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
+                          <td
+                            className={cn(
+                              'sticky left-[14rem] z-20 min-w-[9rem] border-b border-border px-3 py-2.5',
+                              stickyBg,
+                              stickyHover,
+                              isScrolledX &&
+                                'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
+                            )}
+                          >
+                            {serviceUserLabel(job.serviceUser)}
+                          </td>
+                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
                             {formatClockTime(job.scheduledStartDateTime)}
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
+                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
                             {formatClockTime(job.scheduledEndDateTime)}
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
+                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
                             {formatClockTime(actualStart)}
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
+                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
                             {formatClockTime(actualEnd)}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
+                          <td className="border-b border-border px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
                             {startPunctuality.varianceMinutes || '—'}
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5">
                             {startPunctuality.kind === 'unknown' ? (
                               <span className="text-muted-foreground">Not assessed</span>
                             ) : (
@@ -715,10 +765,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               </Badge>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
+                          <td className="border-b border-border px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
                             {endPunctuality.varianceMinutes || '—'}
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5">
                             {endPunctuality.kind === 'unknown' ? (
                               <span className="text-muted-foreground">Not assessed</span>
                             ) : (
@@ -734,13 +784,13 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               </Badge>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap tabular-nums">
+                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums">
                             {formatDurationMinutes(plannedDurationMins)}
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap tabular-nums">
+                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums">
                             {formatDurationMinutes(actualDurationMins)}
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5">
                             {variance.kind === 'unknown' ? (
                               <span className="text-muted-foreground">Not assessed</span>
                             ) : (
@@ -755,10 +805,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               </Badge>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
+                          <td className="border-b border-border px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
                             {varianceExport.varianceMinutes || '—'}
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5">
                             <div className="flex flex-col gap-1">
                               <Badge
                                 variant="outline"
@@ -783,7 +833,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               </button>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5">
                             <div className="flex max-w-[220px] flex-wrap gap-1">
                               {delivery.flags.length === 0 ? (
                                 <span className="text-muted-foreground">—</span>
@@ -827,10 +877,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               )}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-muted-foreground">
+                          <td className="border-b border-border px-3 py-2.5 text-muted-foreground">
                             {[job.address, job.postcode].filter(Boolean).join(', ') || '—'}
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5">
                             {isSample ? (
                               <span className="text-xs text-muted-foreground">Verify only</span>
                             ) : canOpenSchedule ? (
