@@ -21,6 +21,7 @@ import { Button } from '@/shared/ui/button'
 import {
   formatHoursMinutes,
   jobBlockCompletedSurfaceStyle,
+  shiftIsoDate,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import type { ScheduleJobOutcomeFilter } from '@/features/scheduling/utils/schedule-job-board-filter.util'
@@ -43,7 +44,9 @@ import {
 } from '@/features/scheduling/utils/schedule-job-rota-gap.util'
 import { ScheduleFilterBar } from '@/features/scheduling/components/schedule-filters/ScheduleFilterBar'
 import type { ScheduleFilterBarPeriodProps } from '@/features/scheduling/components/schedule-filters/ScheduleFilterBar'
+import { SchedulePeriodDayToolbar } from '@/features/scheduling/components/schedule-filters/SchedulePeriodDayToolbar'
 import type { ScheduleSharedFilterSearch } from '@/features/scheduling/utils/schedule-jobs-url-state.util'
+import { todayIso } from '@/features/scheduling/utils/scheduling-format'
 
 const SCHEDULE_JOBS_TOGGLE_SELECTED_CLASS =
   'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-inset ring-emerald-300/70 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-700'
@@ -418,6 +421,17 @@ export function ScheduleJobsToolbar({
         </div>
       ) : null}
 
+      <div className="border-b border-border/60 px-4 py-3">
+        <SchedulePeriodDayToolbar
+          {...period}
+          date={date}
+          onDateChange={onDateChange}
+          onPrevDay={() => onDateChange(shiftIsoDate(date, -1))}
+          onNextDay={() => onDateChange(shiftIsoDate(date, 1))}
+          onToday={() => onDateChange(todayIso())}
+        />
+      </div>
+
       <details className="group">
         <summary
           className={cn(
@@ -436,8 +450,7 @@ export function ScheduleJobsToolbar({
           <ScheduleFilterBar
             date={date}
             onDateChange={onDateChange}
-            period={period}
-            showDateControls
+            showDateControls={false}
             locationIds={locationIds}
             branchFilterOptions={branchFilterOptions}
             allBranchesLabel={allBranchesLabel}
