@@ -5,6 +5,7 @@ import {
   scheduleJobsPeriodBandForHour,
   type ScheduleJobsDayPeriod,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import { formatOpsHm } from '@/shared/lib/operational-day.util'
 
 export type ScheduleVisitSlotVisual = {
   period: ScheduleJobsDayPeriod
@@ -89,7 +90,7 @@ export function resolveScheduleVisitSlotPeriod(
   const fromJobName = periodFromText(job.jobName ?? '')
   if (fromJobName) return fromJobName
 
-  const hour = new Date(job.scheduledStartDateTime).getUTCHours()
+  const hour = Number(formatOpsHm(job.scheduledStartDateTime).slice(0, 2)) || 0
   return scheduleJobsPeriodBandForHour(hour).period
 }
 

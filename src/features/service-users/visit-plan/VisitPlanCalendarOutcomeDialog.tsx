@@ -42,7 +42,8 @@ import {
   contentOverlineClass,
   contentTitleClass,
 } from '@/shared/ui/content-section'
-import { formatOrganisationIsoDateLong, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationIsoDateLong, formatOrganisationTimeHm } from '@/shared/lib/organisation-display-format.store'
+import { dayKeyFromInstant, formatOpsHm } from '@/shared/lib/operational-day.util'
 
 export type VisitPlanCalendarSelection = {
   iso: string
@@ -68,12 +69,14 @@ type Props = {
 
 function formatIsoTime(iso: string | null | undefined): string | null {
   if (!iso) return null
-  const formatted = formatOrganisationTime(iso)
-  return formatted === '—' ? null : formatted
+  const hm = formatOpsHm(iso)
+  if (!hm) return null
+  return formatOrganisationTimeHm(hm)
 }
 
 function formatVisitDate(iso: string): string {
-  return formatOrganisationIsoDateLong(iso)
+  const day = dayKeyFromInstant(iso) || iso.slice(0, 10)
+  return formatOrganisationIsoDateLong(day)
 }
 
 function DetailRow({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {

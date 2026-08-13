@@ -36,6 +36,8 @@ export type VisitJobTaskRow = {
   completionInput: VisitTaskCompletionInputSpec
   carerInstructions: string | null
   priority: string
+  /** Matches carer-app required vs optional split. */
+  isRequired?: boolean
   isExtra?: boolean
   isCompleted: boolean
   /** Present when the task has been addressed (completed / partial / declined). */
@@ -46,6 +48,8 @@ export type VisitJobTaskRow = {
   recordedValue: string | null
   notes: string | null
   completedAt: string | null
+  completedById?: string | null
+  completedByName?: string | null
 }
 
 export type VisitJobTasksResponse = {
@@ -210,17 +214,34 @@ export function sortVisitJobTasksForCarer(tasks: VisitJobTaskRow[]): VisitJobTas
   })
 }
 
+const OPTIONAL_TASK_PRIORITIES = new Set(['optional', 'low', 'nice_to_have'])
+
+/** Same required/optional split as carer app Tasks tab. */
+export function visitJobTaskIsRequired(task: Pick<VisitJobTaskRow, 'priority' | 'isRequired' | 'isExtra'>): boolean {
+  if (typeof task.isRequired === 'boolean') return task.isRequired
+  if (task.isExtra) return true
+  return !OPTIONAL_TASK_PRIORITIES.has(String(task.priority ?? 'routine').toLowerCase())
+}
+
+export function visitJobTaskOutcomeLabel(outcome: VisitJobTaskOutcome | null | undefined): string {
+  if (!outcome) return 'Not addressed'
+  return VISIT_JOB_TASK_OUTCOMES.find((o) => o.value === outcome)?.label ?? outcome
+}
+
 /** Normalize API rows for admin editing (outcome + clean notes/value). */
 export function hydrateVisitJobTaskRow(task: VisitJobTaskRow): VisitJobTaskRow {
   const outcome = inferVisitJobTaskOutcome(task)
   return {
     ...task,
     outcome,
+    isRequired: visitJobTaskIsRequired(task),
     isCompleted: Boolean(task.isCompleted || outcome),
     notes: stripVisitTaskOutcomeNotes(task.notes),
     recordedValue: isVisitTaskOutcomeSentinel(task.recordedValue)
       ? null
       : task.recordedValue,
+    completedById: task.completedById ?? null,
+    completedByName: task.completedByName ?? null,
   }
 }
 

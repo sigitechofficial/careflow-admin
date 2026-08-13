@@ -1,3 +1,5 @@
+import { formatOpsHm } from '@/shared/lib/operational-day.util'
+
 /** Normalise stored time strings to HH:mm for `<input type="time">`. */
 export function normalizeTimeForInput(value: string): string {
   const trimmed = value?.trim() ?? ''
@@ -10,12 +12,10 @@ export function normalizeTimeForInput(value: string): string {
   return `${String(hours).padStart(2, '0')}:${minutes}`
 }
 
-/** Extract HH:mm from an ISO datetime (UTC). */
+/** Extract HH:mm from an ISO datetime in the organisation operational timezone. */
 export function isoDateTimeToTimeInput(iso: string | null | undefined): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+  return formatOpsHm(iso)
 }
 
 /** Minutes between two HH:mm times on the same calendar day (handles overnight end). */

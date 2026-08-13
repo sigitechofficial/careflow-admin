@@ -98,7 +98,12 @@ export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
   return (
     <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col gap-4' : 'space-y-4'}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">Planned visit tasks</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Visit tasks</h3>
+          <p className="text-xs text-muted-foreground">
+            Full carer-app details: required/optional, outcome, value, notes, and who recorded each task.
+          </p>
+        </div>
         {dirty ? (
           <Button
             type="button"

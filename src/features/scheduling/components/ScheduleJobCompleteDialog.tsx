@@ -54,6 +54,7 @@ import {
   isoToLocalTimeInput,
   jobScheduleDateIso,
 } from '@/features/scheduling/utils/schedule-jobs-drag.util'
+import { combineOperationalDateAndHm } from '@/shared/lib/operational-day.util'
 import {
   defaultScheduleJobVisitOutcome,
   SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS,
@@ -362,8 +363,8 @@ export function ScheduleJobCompleteDialog({
 
   const actualStartDateTime = React.useMemo(() => {
     if (!scheduleDateIso || !actualStartTime || !/^\d{2}:\d{2}$/.test(actualStartTime)) return undefined
-    const start = new Date(`${scheduleDateIso}T${actualStartTime}:00.000Z`)
-    return Number.isNaN(start.getTime()) ? undefined : start.toISOString()
+    const start = combineOperationalDateAndHm(scheduleDateIso, actualStartTime)
+    return start || undefined
   }, [actualStartTime, scheduleDateIso])
 
   const handleComplete = async () => {
@@ -468,12 +469,12 @@ export function ScheduleJobCompleteDialog({
         isStartedOutcome && multiCarerTiming && scheduleDateIso
           ? carerActualTimes.flatMap((row) => {
               if (!row.startHm || !/^\d{2}:\d{2}$/.test(row.startHm)) return []
-              const start = new Date(`${scheduleDateIso}T${row.startHm}:00.000Z`)
-              if (Number.isNaN(start.getTime())) return []
+              const startIso = combineOperationalDateAndHm(scheduleDateIso, row.startHm)
+              if (!startIso) return []
               return [
                 {
                   allocationId: row.allocationId,
-                  actualStartDateTime: start.toISOString(),
+                  actualStartDateTime: startIso,
                 },
               ]
             })

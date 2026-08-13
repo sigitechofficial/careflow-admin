@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, CalendarDays, ExternalLink, Layers, List, Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { formatOrganisationDate, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
+import { dayKeyFromInstant, formatOpsClockTime } from '@/shared/lib/operational-day.util'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -444,14 +445,14 @@ export default function ScheduleListPage() {
                           <td className="whitespace-nowrap px-3 py-2 align-top">
                             <div className="space-y-1">
                               <p className="font-medium tabular-nums">
-                                {formatOrganisationTime(job.scheduledStartDateTime, { utc: true })}
+                                {formatOpsClockTime(job.scheduledStartDateTime)}
                                 <span className="mx-1 text-muted-foreground">–</span>
-                                {formatOrganisationTime(endIso, { utc: true })}
+                                {formatOpsClockTime(endIso)}
                               </p>
                               <p className="text-[11px] text-muted-foreground">
                                 {multiDay ? (
                                   <>
-                                    {formatOrganisationDate(job.scheduledStartDateTime, {
+                                    {formatOrganisationDate(`${dayKeyFromInstant(job.scheduledStartDateTime)}T12:00:00.000Z`, {
                                       utc: true,
                                     })}
                                     {' · '}

@@ -7,6 +7,11 @@ import {
   SCHEDULE_JOBS_SNAP_MINUTES,
   SCHEDULE_JOBS_TIMELINE_MINUTES,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
+import {
+  combineOperationalDateAndHm,
+  dayKeyFromInstant,
+  formatOpsHm,
+} from '@/shared/lib/operational-day.util'
 
 export type ScheduleJobsRowRef =
   | { kind: 'unassigned' }
@@ -41,24 +46,16 @@ export function dateTimeFromScheduleMinutes(dateIso: string, minutesFromTimeline
   const h = Math.floor(totalMin / 60) % 24
   const m = totalMin % 60
   const pad = (n: number) => String(n).padStart(2, '0')
-  const d = new Date(`${dateIso}T${pad(h)}:${pad(m)}:00.000Z`)
-  return d.toISOString()
+  return combineOperationalDateAndHm(dateIso, `${pad(h)}:${pad(m)}`)
 }
 
 export function jobScheduleDateIso(job: Pick<TimelineJob, 'scheduledStartDateTime'>): string {
-  const d = new Date(job.scheduledStartDateTime)
-  if (Number.isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+  return dayKeyFromInstant(job.scheduledStartDateTime)
 }
 
-/** HH:mm from ISO using UTC wall clock (matches visit plan + backend schedule generation). */
+/** HH:mm from ISO using organisation operational timezone. */
 export function isoToLocalTimeInput(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+  return formatOpsHm(iso)
 }
 
 export function buildJobScheduleDateTimes(
@@ -67,8 +64,11 @@ export function buildJobScheduleDateTimes(
   endTime: string,
 ): { scheduledStartDateTime: string; scheduledEndDateTime: string } | null {
   if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return null
-  const start = new Date(`${dateIso}T${startTime}:00.000Z`)
-  let end = new Date(`${dateIso}T${endTime}:00.000Z`)
+  const startIso = combineOperationalDateAndHm(dateIso, startTime)
+  let endIso = combineOperationalDateAndHm(dateIso, endTime)
+  if (!startIso || !endIso) return null
+  const start = new Date(startIso)
+  let end = new Date(endIso)
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
   if (end <= start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000)
   if (end.getTime() - start.getTime() < 5 * 60 * 1000) return null

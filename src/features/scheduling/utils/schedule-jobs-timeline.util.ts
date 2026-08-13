@@ -6,11 +6,11 @@ import {
   formatDisplayDateShort,
   formatDisplayHourLabel,
   formatDisplayPeriodRange,
-  formatDisplayTimeFromIso,
   formatDisplayWeekdayShort,
   type DateDisplayFormat,
   type TimeDisplayFormat,
 } from '@/shared/lib/display-format.util'
+import { formatOpsHm, minutesFromOperationalDayStart } from '@/shared/lib/operational-day.util'
 
 export const SCHEDULE_JOBS_DAY_START_HOUR = 0
 export const SCHEDULE_JOBS_DAY_END_HOUR = 24
@@ -189,9 +189,7 @@ export function shiftIsoDate(isoDate: string, days: number): string {
 }
 
 export function minutesFromDayStart(iso: string, dayStartHour = SCHEDULE_JOBS_DAY_START_HOUR): number {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return 0
-  const minutes = (d.getUTCHours() - dayStartHour) * 60 + d.getUTCMinutes()
+  const minutes = minutesFromOperationalDayStart(iso, dayStartHour)
   return Math.max(0, Math.min(SCHEDULE_JOBS_TIMELINE_MINUTES, minutes))
 }
 
@@ -246,7 +244,10 @@ export function jobBlockPosition(
 }
 
 export function formatTimeHm(iso: string, timeFormat: TimeDisplayFormat = 'HH_MM'): string {
-  return formatDisplayTimeFromIso(iso, timeFormat)
+  const hm = formatOpsHm(iso)
+  if (!hm) return '—'
+  if (timeFormat === 'HH_XX') return String(Number(hm.slice(0, 2)))
+  return hm
 }
 
 export function formatDurationLabel(minutes: number): string {

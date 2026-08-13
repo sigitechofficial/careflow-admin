@@ -1,6 +1,14 @@
 import type { ServiceUserBrief, TimelineJob } from '../types/scheduling.types'
-import { formatOrganisationDateTime, formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
-import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+import {
+  formatOrganisationDate,
+  formatOrganisationTimeHm,
+} from '@/shared/lib/organisation-display-format.store'
+import {
+  dayKeyFromInstant,
+  formatOpsClockTime,
+  formatOpsHm,
+  operationalTodayIso,
+} from '@/shared/lib/operational-day.util'
 
 export function serviceUserLabel(su: ServiceUserBrief): string {
   const name = su.preferredName?.trim() || [su.firstName, su.lastName].filter(Boolean).join(' ')
@@ -15,7 +23,10 @@ export function serviceUserNameOnly(su: ServiceUserBrief): string {
 }
 
 export function formatDateTimeLocal(iso: string): string {
-  return formatOrganisationDateTime(iso, { utc: true })
+  const day = dayKeyFromInstant(iso)
+  const time = formatOpsHm(iso)
+  if (!day || !time) return '—'
+  return `${formatOrganisationDate(`${day}T12:00:00.000Z`, { utc: true })} ${formatOrganisationTimeHm(time)}`
 }
 
 export function formatJobTimeRange(job: Pick<TimelineJob, 'scheduledStartDateTime' | 'scheduledEndDateTime' | 'durationMinutes'>): string {
@@ -23,8 +34,8 @@ export function formatJobTimeRange(job: Pick<TimelineJob, 'scheduledStartDateTim
   const end = job.scheduledEndDateTime ? new Date(job.scheduledEndDateTime) : null
   const mins = job.durationMinutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60_000) : 60)
   const endDate = end ?? new Date(start.getTime() + mins * 60_000)
-  const startLabel = formatOrganisationTime(start, { utc: true })
-  const endLabel = formatOrganisationTime(endDate, { utc: true })
+  const startLabel = formatOpsClockTime(start.toISOString())
+  const endLabel = formatOpsClockTime(endDate.toISOString())
   return `${startLabel}/${mins}m/${endLabel}`
 }
 

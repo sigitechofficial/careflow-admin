@@ -53,7 +53,14 @@ import {
 } from '@/features/employees/utils/visit-status-sample-jobs.util'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
-import { formatOrganisationTime } from '@/shared/lib/organisation-display-format.store'
+import {
+  dayKeyFromInstant,
+  formatOpsCalendarDate,
+  formatOpsClockTime,
+  getSyncedOperationalTimeZone,
+  operationalTodayIso,
+  syncOrganisationOperationalTimezone,
+} from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
@@ -87,26 +94,16 @@ function shiftMonth(month: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-function currentUtcMonth(): string {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+function currentOrgMonth(): string {
+  return operationalTodayIso().slice(0, 7)
 }
 
 function formatVisitDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d)
+  return formatOpsCalendarDate(iso)
 }
 
 function formatClockTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return formatOrganisationTime(iso, { utc: true })
+  return formatOpsClockTime(iso)
 }
 
 function bucketLabel(bucket: EmployeeVisitBucket): string {
@@ -170,7 +167,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   )
   const canOpenSchedule = useAuthStore((s) => s.can('schedule_timelines.read' as never))
 
-  const [month, setMonth] = React.useState(currentUtcMonth)
+  const [month, setMonth] = React.useState(currentOrgMonth)
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [codeFilter, setCodeFilter] = React.useState<CodeFilter>({ kind: 'none' })
   const [showStatusSamples, setShowStatusSamples] = React.useState(true)
@@ -178,6 +175,13 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   const [isScrolledX, setIsScrolledX] = React.useState(false)
 
   const settingsQuery = useGeneralSettings(canRead)
+  React.useEffect(() => {
+    if (settingsQuery.data?.timezone) {
+      syncOrganisationOperationalTimezone(settingsQuery.data.timezone)
+    }
+  }, [settingsQuery.data?.timezone])
+  const organisationTimezone =
+    settingsQuery.data?.timezone?.trim() || getSyncedOperationalTimeZone()
   const query = useEmployeeVisits(employeeId, month, canRead)
   const liveJobs = query.data?.jobs ?? []
   const serverSummary = query.data?.summary
@@ -341,7 +345,9 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
             </Button>
             <div className="min-w-[10rem] text-center">
               <p className="text-sm font-semibold text-foreground">{utcMonthLabel(month)}</p>
-              <p className="text-xs text-muted-foreground">{month}</p>
+              <p className="text-xs text-muted-foreground">
+                {month} · {organisationTimezone}
+              </p>
             </div>
             <Button
               type="button"
@@ -889,7 +895,9 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                                   to="/scheduling/visits/$jobId"
                                   params={{ jobId: job.id }}
                                   search={{
-                                    date: job.scheduledStartDateTime.slice(0, 10),
+                                    date:
+                                      dayKeyFromInstant(job.scheduledStartDateTime) ||
+                                      job.scheduledStartDateTime.slice(0, 10),
                                     returnTo: `/employee/${employeeId}/edit?tab=visits`,
                                   }}
                                   className="inline-flex items-center gap-1.5"
