@@ -30,6 +30,10 @@ type ChargeCardDetailsViewProps = {
   card: ChargeCard
   resolveSource?: ChargeCardResolveSource | null
   matchedLevelLabel?: string | null
+  /** Extra badges: which funder / funding this card applies to. */
+  contextLabels?: string[]
+  /** Mark the card currently chosen by default billing resolve. */
+  isBillingDefault?: boolean
   loading?: boolean
   showManageLink?: boolean
   groupRules?: boolean
@@ -152,6 +156,8 @@ export function ChargeCardDetailsView({
   card,
   resolveSource,
   matchedLevelLabel,
+  contextLabels,
+  isBillingDefault,
   loading,
   showManageLink,
   groupRules = true,
@@ -159,9 +165,17 @@ export function ChargeCardDetailsView({
   const sourceLabel = resolveSourceLabel(resolveSource, matchedLevelLabel)
   const rules = [...(card.rules ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   const grouped = groupRules ? groupRulesByCategory(rules) : null
+  const contexts = (contextLabels ?? []).filter(Boolean)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-4" data-testid="charge-card-details">
+    <div
+      className={
+        isBillingDefault
+          ? 'rounded-xl border border-emerald-500/30 bg-card p-4 shadow-sm space-y-4 ring-1 ring-emerald-500/20'
+          : 'rounded-xl border border-border bg-card p-4 shadow-sm space-y-4'
+      }
+      data-testid="charge-card-details"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
@@ -170,11 +184,17 @@ export function ChargeCardDetailsView({
           <div className="space-y-1">
             <p className="font-semibold text-foreground">{card.name}</p>
             <p className="text-xs font-mono text-muted-foreground">{card.code}</p>
-            {sourceLabel ? (
-              <Badge variant="secondary" className="mt-1">
-                {sourceLabel}
-              </Badge>
-            ) : null}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {isBillingDefault ? (
+                <Badge variant="success">Default for billing</Badge>
+              ) : null}
+              {sourceLabel ? <Badge variant="secondary">{sourceLabel}</Badge> : null}
+              {contexts.map(label => (
+                <Badge key={label} variant="outline">
+                  {label}
+                </Badge>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
