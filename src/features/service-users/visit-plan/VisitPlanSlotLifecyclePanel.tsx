@@ -12,6 +12,7 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 function FieldHelp({ text }: { text: string }) {
   return (
@@ -29,7 +30,7 @@ function FieldHelp({ text }: { text: string }) {
 }
 
 function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return operationalTodayIso()
 }
 
 type Props = {

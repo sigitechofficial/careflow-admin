@@ -10,9 +10,10 @@ import {
 import type { VisitPlanSlot, VisitPlanSlotExceptionType } from '@/features/service-users/visit-plan/types'
 import { Button } from '@/shared/ui/button'
 import { contentHelperClass, contentOverlineClass, contentTitleClass } from '@/shared/ui/content-section'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return operationalTodayIso()
 }
 
 type Props = {

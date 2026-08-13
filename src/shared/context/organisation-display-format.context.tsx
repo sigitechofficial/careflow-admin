@@ -19,6 +19,10 @@ import {
   getOrganisationDisplayFormats,
   syncOrganisationDisplayFormats,
 } from '@/shared/lib/organisation-display-format.store'
+import {
+  DEFAULT_OPERATIONAL_TIMEZONE,
+  syncOrganisationOperationalTimezone,
+} from '@/shared/lib/operational-day.util'
 import type { ScheduleJobsDayPeriodBand } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 
 export type OrganisationDisplayFormatters = {
@@ -64,10 +68,15 @@ export function OrganisationDisplayFormatProvider({ children }: { children: Reac
   const { data } = useGeneralSettings(Boolean(accessToken))
   const dateDisplayFormat = data?.dateDisplayFormat ?? DEFAULT_DATE_DISPLAY_FORMAT
   const timeDisplayFormat = data?.timeDisplayFormat ?? DEFAULT_TIME_DISPLAY_FORMAT
+  const operationalTimezone = data?.timezone ?? DEFAULT_OPERATIONAL_TIMEZONE
 
   React.useEffect(() => {
     syncOrganisationDisplayFormats(dateDisplayFormat, timeDisplayFormat)
   }, [dateDisplayFormat, timeDisplayFormat])
+
+  React.useEffect(() => {
+    syncOrganisationOperationalTimezone(operationalTimezone)
+  }, [operationalTimezone])
 
   const value = React.useMemo(
     () => buildFormatters(dateDisplayFormat, timeDisplayFormat),

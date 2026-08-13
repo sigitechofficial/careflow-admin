@@ -199,7 +199,7 @@ export function formatOperationalPeriodLabel(period: EcmOperationalPeriod): stri
 /**
  * Normalize any date-ish value to YYYY-MM-DD for inclusive range compares.
  * Accepts already-normalized keys, ISO datetimes, or Date-parseable strings.
- * Datetimes use the ECM operational timezone (Europe/London), not the browser.
+ * Datetimes use the organisation operational timezone, not the browser.
  */
 export function normalizeToDayKey(value: string | null | undefined): string | null {
   if (!value) return null

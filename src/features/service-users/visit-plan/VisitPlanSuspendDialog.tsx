@@ -6,7 +6,8 @@ import { Loader2 } from 'lucide-react'
 import type { SuLookupRow } from '@/features/service-users/api/service-users.api'
 import type { SuspendVisitPlanPayload } from '@/features/service-users/visit-plan/api'
 import { previewVisitPlanSuspendScheduleImpact } from '@/features/service-users/visit-plan/api'
-import { visitPlanTodayUtc } from '@/features/service-users/visit-plan/visit-plan-version.util'
+import { addDaysToIsoDate } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Input } from '@/shared/ui/input'
@@ -30,13 +31,11 @@ import {
 type PauseReason = SuLookupRow & { suggestsUseAbsence?: boolean }
 
 function defaultReviewDueIso(): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() + 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysToIsoDate(operationalTodayIso(), 7)
 }
 
 function todayIso(): string {
-  return visitPlanTodayUtc().toISOString().slice(0, 10)
+  return operationalTodayIso()
 }
 
 type Props = {

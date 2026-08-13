@@ -6,6 +6,7 @@ import {
   type UpdateOrganisationGeneralSettingsPayload,
 } from '@/features/settings/api/general-settings-api'
 import { settingsKeys } from '@/features/settings/keys'
+import { syncOrganisationOperationalTimezone } from '@/shared/lib/operational-day.util'
 
 export function useGeneralSettings(enabled = true) {
   return useQuery({
@@ -22,6 +23,7 @@ export function useUpdateGeneralSettings() {
     mutationFn: (payload: UpdateOrganisationGeneralSettingsPayload) => updateGeneralSettings(payload),
     onSuccess: (data: OrganisationGeneralSettings) => {
       qc.setQueryData(settingsKeys.general(), data)
+      syncOrganisationOperationalTimezone(data.timezone)
     },
   })
 }

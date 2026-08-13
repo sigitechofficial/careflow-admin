@@ -6,7 +6,7 @@
  * - `from` / `to` — YYYY-MM-DD (required for `custom`; omitted for named presets)
  * - `date` — legacy single-day deep link (treated as custom from=to=date)
  *
- * Named presets re-resolve against Europe/London "today" on load (relative).
+ * Named presets re-resolve against organisation operational "today" on load (relative).
  * Custom (and legacy `date`) are absolute calendar ranges.
  * Location stays on the global location scope store (not duplicated in URL).
  */

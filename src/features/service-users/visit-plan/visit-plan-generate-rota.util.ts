@@ -47,7 +47,7 @@ export function resolveGenerateRotaToDate(
   return addDaysToIsoDate(from, horizonDays - 1)
 }
 
-/** Rota "today" = operational calendar (Europe/London P0), not UTC slice of now. */
+/** Rota "today" = organisation operational calendar, not UTC / browser. */
 export function todayIsoDate(): string {
   return operationalTodayIso()
 }

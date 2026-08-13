@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Loader2 } from 'lucide-react'
 import type { EndVisitPlanPayload } from '@/features/service-users/visit-plan/api'
 import { previewVisitPlanEndScheduleImpact } from '@/features/service-users/visit-plan/api'
-import { visitPlanTodayUtc } from '@/features/service-users/visit-plan/visit-plan-version.util'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Input } from '@/shared/ui/input'
@@ -19,7 +19,7 @@ import {
 } from '@/shared/ui/dialog'
 
 function todayIso(): string {
-  return visitPlanTodayUtc().toISOString().slice(0, 10)
+  return operationalTodayIso()
 }
 
 function isBackdatedEffectiveTo(effectiveTo: string): boolean {

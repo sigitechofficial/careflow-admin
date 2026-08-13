@@ -3,6 +3,7 @@ import {
   formatOrganisationIsoDateLong,
   formatOrganisationMonthYear,
 } from '@/shared/lib/organisation-display-format.store'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import {
   visitPlanDayDate,
   visitPlanDayOfWeekLetter,
@@ -17,12 +18,9 @@ export type VisitPlanCalendarDayCell = {
   iso: string
 }
 
-export function visitPlanTodayIsoDate(): string {
-  const now = new Date()
-  const y = now.getUTCFullYear()
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0')
-  const d = String(now.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+/** Calendar "today" in organisation operational timezone (not UTC / browser). */
+export function visitPlanTodayIsoDate(now = new Date()): string {
+  return operationalTodayIso(now)
 }
 
 export function visitPlanDayCell(month: string, day: number): VisitPlanCalendarDayCell {

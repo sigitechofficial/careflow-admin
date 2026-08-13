@@ -104,7 +104,7 @@ export function jobNeedsAlert(job: TimelineJob): boolean {
   )
 }
 
-/** Board / schedule "Today" = organisation operational calendar (Europe/London P0), not browser local. */
+/** Board / schedule "Today" = organisation operational calendar, not browser local. */
 export function todayIso(): string {
   return operationalTodayIso()
 }

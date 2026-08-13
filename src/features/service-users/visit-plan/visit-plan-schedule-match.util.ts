@@ -1,4 +1,5 @@
 import type { VisitPlanMonthlyOrdinal, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 export type VisitPlanSlotScheduleShape = Pick<
   VisitPlanSlot,
@@ -94,11 +95,9 @@ export function visitPlanLastDayOfMonth(month: string): number {
 }
 
 export function visitPlanTodayDayInMonth(month: string): number | null {
-  const now = new Date()
-  const y = now.getUTCFullYear()
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0')
-  if (`${y}-${m}` !== month) return null
-  return now.getUTCDate()
+  const today = operationalTodayIso()
+  if (!today.startsWith(`${month}-`)) return null
+  return Number(today.slice(8, 10)) || null
 }
 
 export function visitPlanDayOfWeekLetter(month: string, day: number): string {

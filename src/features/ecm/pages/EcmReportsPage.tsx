@@ -27,6 +27,7 @@ import {
   resolveExceptionRegister,
 } from '@/features/ecm/utils/ecm-reports-pack.util'
 import { cn } from '@/shared/lib/utils'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 function MetricCell({
   label,
@@ -144,7 +145,7 @@ export default function EcmReportsPage() {
   const method = kpis ? buildEcmMethodBreakdown(kpis) : null
   const integrity = data?.integrity ?? compliance.data?.integrity
   const openExceptions = compliance.data?.openExceptions
-  const timezone = data?.operationalTimezone ?? 'Europe/London'
+  const timezone = data?.operationalTimezone ?? getSyncedOperationalTimeZone()
   const thresholdVersion = data?.thresholdVersion ?? '—'
 
   const exceptionRows = React.useMemo(

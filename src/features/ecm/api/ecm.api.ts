@@ -310,7 +310,7 @@ export type EcmGraphDrillVisit = {
   jobName: string
   serviceUserName: string
   plannedStartDateTime: string
-  /** Operational calendar day YYYY-MM-DD (Europe/London). */
+  /** Operational calendar day YYYY-MM-DD (organisation timezone). */
   localVisitDate?: string
   hourKey: string
   statusKey: string

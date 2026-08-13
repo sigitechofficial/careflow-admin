@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   isVisitPlanCalendarSlotOverdue,
   visitPlanCalendarOutcomeNeedsAction,
 } from '@/features/service-users/visit-plan/visit-plan-calendar-overdue.util'
+import { visitPlanTodayIsoDate } from '@/features/service-users/visit-plan/visit-plan-calendar-view.util'
+import {
+  DEFAULT_OPERATIONAL_TIMEZONE,
+  syncOrganisationOperationalTimezone,
+} from '@/shared/lib/operational-day.util'
+
+afterEach(() => {
+  syncOrganisationOperationalTimezone(DEFAULT_OPERATIONAL_TIMEZONE)
+})
 
 describe('visitPlanCalendarOutcomeNeedsAction', () => {
   it('treats planned visits as needing action', () => {
@@ -23,7 +32,7 @@ describe('isVisitPlanCalendarSlotOverdue', () => {
         occurrenceIso: '2020-01-01',
         plannedEndTime: '10:00',
         outcomeStatus: 'PLANNED',
-        now: new Date('2026-05-22T12:00:00'),
+        now: new Date('2026-05-22T12:00:00.000Z'),
       }),
     ).toBe(true)
   })
@@ -34,33 +43,33 @@ describe('isVisitPlanCalendarSlotOverdue', () => {
         occurrenceIso: '2020-01-01',
         plannedEndTime: '10:00',
         outcomeStatus: 'COMPLETED',
-        now: new Date('2026-05-22T12:00:00'),
+        now: new Date('2026-05-22T12:00:00.000Z'),
       }),
     ).toBe(false)
   })
 
-  it('flags today only after the planned end time', () => {
-    const today = new Date()
-    const y = today.getUTCFullYear()
-    const m = String(today.getUTCMonth() + 1).padStart(2, '0')
-    const d = String(today.getUTCDate()).padStart(2, '0')
-    const iso = `${y}-${m}-${d}`
+  it('flags today only after the planned end time (org timezone)', () => {
+    syncOrganisationOperationalTimezone('Europe/London')
+    // 11:00 UTC = 12:00 BST in London on 22 May 2026
+    const now = new Date('2026-05-22T11:00:00.000Z')
+    const iso = visitPlanTodayIsoDate(now)
+    expect(iso).toBe('2026-05-22')
 
     expect(
       isVisitPlanCalendarSlotOverdue({
         occurrenceIso: iso,
-        plannedEndTime: '23:59',
+        plannedEndTime: '13:00',
         outcomeStatus: 'PLANNED',
-        now: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0, 0),
+        now,
       }),
     ).toBe(false)
 
     expect(
       isVisitPlanCalendarSlotOverdue({
         occurrenceIso: iso,
-        plannedEndTime: '08:00',
+        plannedEndTime: '10:00',
         outcomeStatus: 'PLANNED',
-        now: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0, 0),
+        now,
       }),
     ).toBe(true)
   })

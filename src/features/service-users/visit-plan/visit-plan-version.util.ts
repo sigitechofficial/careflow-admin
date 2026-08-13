@@ -1,5 +1,6 @@
 import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { visitPlanSlotMatchesDay } from '@/features/service-users/visit-plan/visit-plan-schedule-match.util'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { formatDate } from '@/shared/lib/utils'
 
 export function visitPlanEnabledSlots(slots: VisitPlanSlot[] | undefined): VisitPlanSlot[] {
@@ -23,7 +24,7 @@ export function visitPlanCallsOnWeekday(
 
 /** Human summary of how many calls run on typical weekdays (Mon–Fri). */
 export function summarizeVisitPlanDailyCalls(plan: ServiceUserVisitPlan): string {
-  const anchor = plan.effectiveFrom?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+  const anchor = plan.effectiveFrom?.slice(0, 10) ?? operationalTodayIso()
   const slots = plan.slots ?? []
   const enabled = visitPlanEnabledSlots(slots)
   if (enabled.length === 0) return 'No active calls'
@@ -46,10 +47,9 @@ export function visitPlanDateOnlyUtc(iso: string): Date {
   return new Date(`${iso.slice(0, 10)}T00:00:00.000Z`)
 }
 
+/** Operational calendar "today" as a UTC-midnight Date of the YYYY-MM-DD label. */
 export function visitPlanTodayUtc(): Date {
-  const d = new Date()
-  d.setUTCHours(0, 0, 0, 0)
-  return d
+  return visitPlanDateOnlyUtc(operationalTodayIso())
 }
 
 /** Active package with a future effectiveTo — visits continue until that date. */

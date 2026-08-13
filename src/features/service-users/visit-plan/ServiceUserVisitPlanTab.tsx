@@ -105,6 +105,7 @@ import {
   resolveGenerateRotaToDate,
   resolveRotaStartIsoDate,
   SHOW_GENERATE_ROTA_SECTION,
+  addDaysToIsoDate,
   todayIsoDate,
 } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 import type { VisitPlanScheduleGenerateMode } from '@/features/service-users/visit-plan/VisitPlanGeneratePreviewDialog'
@@ -1830,9 +1831,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         cancelLabel="Later"
         isPending={generateSchedule.isPending}
         onConfirm={async () => {
-          const tomorrow = new Date()
-          tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
-          const from = tomorrow.toISOString().slice(0, 10)
+          const from = addDaysToIsoDate(todayIsoDate(), 1)
           setGenerateFrom(from)
           setGenerateTo('')
           setPostReactivateGenerateOpen(false)

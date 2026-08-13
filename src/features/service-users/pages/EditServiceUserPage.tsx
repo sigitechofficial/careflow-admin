@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useParams, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
@@ -50,10 +50,27 @@ import { ServiceUserEditVisitsPanel } from '@/features/service-users/components/
 import { ServiceUserEditInvoicesPanel } from '@/features/service-users/components/ServiceUserEditInvoicesPanel'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
 import { ServiceUserCalendarTab } from '@/features/service-users/calendar/components/ServiceUserCalendarTab'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { Button } from '@/shared/ui/button'
 
-const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
+type ServiceUserEditTabId =
+  | 'personal'
+  | 'contacts'
+  | 'about'
+  | 'photos'
+  | 'inventory'
+  | 'allergies'
+  | 'absences'
+  | 'calendar'
+  | 'privacy'
+  | 'dom'
+  | 'assessment'
+  | 'funding'
+  | 'charge-card'
+  | 'visits'
+  | 'invoices'
+  | 'livein'
+
+const MAIN_TABS: { id: ServiceUserEditTabId; label: string; Icon: LucideIcon }[] = [
   { id: 'personal', label: 'Personal Details', Icon: UserCircle },
   { id: 'contacts', label: 'Contacts and Family', Icon: Users },
   { id: 'about', label: 'About Me', Icon: Heart },
@@ -107,17 +124,26 @@ function PlaceholderTab({ title }: { title: string }) {
 }
 
 export default function EditServiceUserPage() {
+  const navigate = useNavigate()
   const params = useParams({ strict: false }) as { serviceUserId?: string }
   const serviceUserId = resolveServiceUserIdFromParams(params.serviceUserId)
   const search = useSearch({ strict: false }) as { tab?: string }
-  const [mainTab, setMainTab] = React.useState<string>('personal')
+  const mainTab: ServiceUserEditTabId =
+    search.tab && MAIN_TABS.some(t => t.id === search.tab)
+      ? (search.tab as ServiceUserEditTabId)
+      : 'personal'
 
-  React.useEffect(() => {
-    const tab = search.tab
-    if (tab && MAIN_TABS.some((t) => t.id === tab)) {
-      setMainTab(tab)
-    }
-  }, [search.tab, serviceUserId])
+  const setMainTab = React.useCallback(
+    (tab: ServiceUserEditTabId) => {
+      if (!serviceUserId) return
+      void navigate({
+        to: '/service-users/$serviceUserId',
+        params: { serviceUserId },
+        search: { tab },
+      })
+    },
+    [navigate, serviceUserId],
+  )
 
   const { data: detail = null, isLoading: profileLoading, error: profileError } = useServiceUser(serviceUserId ?? '')
   const { data: lookups = null, isLoading: lookupsLoading } = useServiceUserLookups()
@@ -250,117 +276,130 @@ export default function EditServiceUserPage() {
 
       {!loading && detail && (
         <div className="flex-1 px-4 py-4 sm:px-6">
-          <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-            <div className="-mx-1 overflow-x-auto pb-1">
-              <TabsList
-                variant="underline"
-                className="h-auto min-h-10 min-w-max items-stretch border-b border-border bg-muted/30 px-1 py-0.5"
-              >
-                {MAIN_TABS.map((t) => {
-                  const Icon = t.Icon
-                  return (
-                    <TabsTrigger
-                      key={t.id}
-                      value={t.id}
-                      variant="underline"
-                      className="shrink-0 gap-2 px-3 py-2 text-xs sm:px-3.5 sm:text-sm"
-                    >
-                      <Icon className="h-3.5 w-3.5 shrink-0 opacity-80 sm:h-4 sm:w-4" strokeWidth={2} aria-hidden />
-                      <span className="whitespace-nowrap">{t.label}</span>
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-            </div>
+          <div
+            className="flex flex-col rounded-xl border border-border bg-card shadow-sm md:flex-row"
+            data-testid="service-user-edit-layout"
+          >
+            <nav
+              className={cn(
+                'flex shrink-0 gap-0.5 overflow-x-auto',
+                'border-b border-border bg-muted/30 p-2',
+                'md:sticky md:top-0 md:h-fit md:max-h-[calc(100dvh-5rem)] md:w-60 md:flex-col md:overflow-y-auto md:overflow-x-visible',
+                'md:border-b-0 md:border-r',
+              )}
+              aria-label="Service user sections"
+              data-testid="service-user-edit-tabs"
+            >
+              {MAIN_TABS.map(tab => {
+                const Icon = tab.Icon
+                const isActive = tab.id === mainTab
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    data-testid={`service-user-edit-tab-${tab.id}`}
+                    onClick={() => setMainTab(tab.id)}
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
+                      isActive
+                        ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
+                        : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
+                    <span className="whitespace-nowrap">{tab.label}</span>
+                  </button>
+                )
+              })}
+            </nav>
 
-            <TabsContent value="personal" className="mt-6 space-y-6">
-              {lookups ? (
-                <>
-                  <ServiceUserPersonalDetailsForm
+            <div className="min-w-0 flex-1 space-y-6 p-5">
+              {mainTab === 'personal' && (
+                lookups ? (
+                  <>
+                    <ServiceUserPersonalDetailsForm
+                      detail={detail}
+                      lookups={lookups}
+                      locations={locations}
+                      serviceUserId={serviceUserId}
+                      onSaved={invalidateProfile}
+                    />
+                    <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                )
+              )}
+
+              {mainTab === 'contacts' && (
+                lookups ? (
+                  <ServiceUserContactsTab
+                    serviceUserId={serviceUserId}
                     detail={detail}
                     lookups={lookups}
-                    locations={locations}
-                    serviceUserId={serviceUserId}
                     onSaved={invalidateProfile}
                   />
-                  <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                )
               )}
-            </TabsContent>
 
-            <TabsContent value="contacts" className="mt-6 space-y-8">
-              {lookups ? (
-                <ServiceUserContactsTab
+              {mainTab === 'about' && (
+                <ServiceUserAboutMeForm serviceUserId={serviceUserId} detail={detail} onSaved={invalidateProfile} />
+              )}
+
+              {mainTab === 'photos' && <ServiceUserPhotosTab detail={detail} />}
+
+              {mainTab === 'inventory' && <ServiceUserInventoryTab serviceUserId={serviceUserId} />}
+
+              {mainTab === 'allergies' && (
+                <ServiceUserAllergiesTab serviceUserId={serviceUserId} allergyCatalog={lookups?.allergies ?? []} />
+              )}
+
+              {mainTab === 'absences' && (
+                <ServiceUserAbsencesTab
                   serviceUserId={serviceUserId}
-                  detail={detail}
-                  lookups={lookups}
-                  onSaved={invalidateProfile}
+                  absenceReasons={lookups?.absenceReasons ?? []}
                 />
-              ) : (
-                <p className="text-sm text-muted-foreground">Loading…</p>
               )}
-            </TabsContent>
 
-            <TabsContent value="about" className="mt-6">
-              <ServiceUserAboutMeForm serviceUserId={serviceUserId} detail={detail} onSaved={invalidateProfile} />
-            </TabsContent>
+              {mainTab === 'calendar' && <ServiceUserCalendarTab serviceUserId={serviceUserId} />}
 
-            <TabsContent value="photos" className="mt-6">
-              <ServiceUserPhotosTab detail={detail} />
-            </TabsContent>
+              {mainTab === 'privacy' && <PlaceholderTab title="Privacy" />}
 
-            <TabsContent value="inventory" className="mt-6">
-              <ServiceUserInventoryTab serviceUserId={serviceUserId} />
-            </TabsContent>
-            <TabsContent value="allergies" className="mt-6">
-              <ServiceUserAllergiesTab serviceUserId={serviceUserId} allergyCatalog={lookups?.allergies ?? []} />
-            </TabsContent>
-            <TabsContent value="absences" className="mt-6">
-              <ServiceUserAbsencesTab
-                serviceUserId={serviceUserId}
-                absenceReasons={lookups?.absenceReasons ?? []}
-              />
-            </TabsContent>
-            <TabsContent value="calendar" className="mt-6">
-              <ServiceUserCalendarTab serviceUserId={serviceUserId} />
-            </TabsContent>
-            <TabsContent value="privacy" className="mt-6">
-              <PlaceholderTab title="Privacy" />
-            </TabsContent>
-            <TabsContent value="dom" className="mt-6">
-              <ServiceUserDomCareTab serviceUserId={serviceUserId} />
-            </TabsContent>
-            <TabsContent value="assessment" className="mt-6">
-              <ServiceUserInitialAssessmentEnterpriseTab
-                serviceUserId={serviceUserId}
-                displayName={(detail?.preferredName?.trim() || detail?.firstName || 'Client').trim()}
-              />
-            </TabsContent>
-            <TabsContent value="funding" className="mt-6">
-              <ServiceUserFundingTab
-                serviceUserId={serviceUserId}
-                displayName={(detail.preferredName?.trim() || [detail.firstName, detail.lastName].filter(Boolean).join(' ')).trim()}
-                contacts={detail.contacts}
-                initialNhsNumber={detail.nhsNumber}
-                initialSocialServicesRef={detail.socialServicesRef}
-                onDetailPatch={invalidateProfile}
-              />
-            </TabsContent>
-            <TabsContent value="charge-card" className="mt-6">
-              <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />
-            </TabsContent>
-            <TabsContent value="visits" className="mt-6">
-              <ServiceUserEditVisitsPanel serviceUserId={serviceUserId} />
-            </TabsContent>
-            <TabsContent value="invoices" className="mt-6">
-              <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />
-            </TabsContent>
-            <TabsContent value="livein" className="mt-6">
-              <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />
-            </TabsContent>
-          </Tabs>
+              {mainTab === 'dom' && <ServiceUserDomCareTab serviceUserId={serviceUserId} />}
+
+              {mainTab === 'assessment' && (
+                <ServiceUserInitialAssessmentEnterpriseTab
+                  serviceUserId={serviceUserId}
+                  displayName={(detail?.preferredName?.trim() || detail?.firstName || 'Client').trim()}
+                />
+              )}
+
+              {mainTab === 'funding' && (
+                <ServiceUserFundingTab
+                  serviceUserId={serviceUserId}
+                  displayName={(detail.preferredName?.trim() || [detail.firstName, detail.lastName].filter(Boolean).join(' ')).trim()}
+                  contacts={detail.contacts}
+                  initialNhsNumber={detail.nhsNumber}
+                  initialSocialServicesRef={detail.socialServicesRef}
+                  onDetailPatch={invalidateProfile}
+                />
+              )}
+
+              {mainTab === 'charge-card' && <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />}
+
+              {mainTab === 'visits' && <ServiceUserEditVisitsPanel serviceUserId={serviceUserId} />}
+
+              {mainTab === 'invoices' && <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />}
+
+              {mainTab === 'livein' && (
+                <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />
+              )}
+            </div>
+          </div>
         </div>
       )}
 

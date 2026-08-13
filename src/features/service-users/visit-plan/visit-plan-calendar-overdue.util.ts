@@ -6,6 +6,7 @@ import {
   type VisitPlanCalendarOutcomeStatus,
 } from '@/features/service-users/visit-plan/visit-plan-calendar-outcome.constants'
 import type { VisitPlanCalendarVisit } from '@/features/service-users/visit-plan/api'
+import { minutesInOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 /** Visit outcomes that mean staff have recorded what happened. */
 const RESOLVED_VISIT_OUTCOME_STATUSES = new Set<VisitPlanCalendarOutcomeStatus>([
@@ -28,10 +29,6 @@ function hmToMinutes(hm: string): number | null {
   return Number(match[1]) * 60 + Number(match[2])
 }
 
-function localMinutesNow(now: Date): number {
-  return now.getHours() * 60 + now.getMinutes()
-}
-
 function occurrenceEndMinutes(plannedEndTime: string): number | null {
   const normalized = normalizeTimeForInput(plannedEndTime)
   if (!normalized) return null
@@ -40,7 +37,7 @@ function occurrenceEndMinutes(plannedEndTime: string): number | null {
 
 /**
  * True when the visit window has passed and no carer outcome was recorded.
- * Uses UTC calendar dates (aligned with the visit plan grid) and local wall-clock end times.
+ * Uses organisation operational calendar day and clock (not browser / UTC).
  */
 export function isVisitPlanCalendarSlotOverdue(params: {
   occurrenceIso: string
@@ -54,7 +51,7 @@ export function isVisitPlanCalendarSlotOverdue(params: {
 
   if (!visitPlanCalendarOutcomeNeedsAction(outcomeStatus)) return false
 
-  const todayIso = visitPlanTodayIsoDate()
+  const todayIso = visitPlanTodayIsoDate(now)
   if (occurrenceIso < todayIso) return true
   if (occurrenceIso > todayIso) return false
 
@@ -64,7 +61,7 @@ export function isVisitPlanCalendarSlotOverdue(params: {
 
   const endMinutes = occurrenceEndMinutes(plannedEndTime)
   if (endMinutes == null) return false
-  return localMinutesNow(now) > endMinutes
+  return minutesInOperationalTimeZone(now) > endMinutes
 }
 
 export function visitPlanCalendarSlotPresentation(params: {

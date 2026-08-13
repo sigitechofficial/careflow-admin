@@ -1,6 +1,7 @@
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { visitPlanSlotMatchesDay } from '@/features/service-users/visit-plan/visit-plan-schedule-match.util'
 import { normalizeTimeForInput, visitDurationMinutes } from '@/features/service-users/visit-plan/visit-plan-time.util'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 export function parseWeeklyContractedHours(value: string | null | undefined): number | null {
   if (value == null || String(value).trim() === '') return null
@@ -51,7 +52,7 @@ export function visitPlanWeeklyPlannedMinutes(
   slots: VisitPlanSlot[],
   options?: { weekStartIso?: string; anchorIso?: string },
 ): number {
-  const weekStartIso = options?.weekStartIso ?? visitPlanWeekStartIso(new Date().toISOString().slice(0, 10))
+  const weekStartIso = options?.weekStartIso ?? visitPlanWeekStartIso(operationalTodayIso())
   const anchorIso = options?.anchorIso?.slice(0, 10) ?? weekStartIso
 
   return slots.reduce((sum, slot) => {

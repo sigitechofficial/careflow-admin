@@ -1,16 +1,27 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   DEFAULT_OPERATIONAL_TIMEZONE,
   dayKeyInTimeZone,
   operationalTodayIso,
+  syncOrganisationOperationalTimezone,
 } from './operational-day.util'
 
+afterEach(() => {
+  syncOrganisationOperationalTimezone(DEFAULT_OPERATIONAL_TIMEZONE)
+})
+
 describe('operationalTodayIso', () => {
-  it('uses Europe/London, not Asia/Karachi', () => {
+  it('uses Europe/London, not Asia/Karachi when passed explicitly', () => {
     // Still 6 Aug in London (BST); already 7 Aug in Karachi
     const now = new Date('2026-08-06T21:05:00.000Z')
     expect(operationalTodayIso(now, DEFAULT_OPERATIONAL_TIMEZONE)).toBe('2026-08-06')
     expect(operationalTodayIso(now, 'Asia/Karachi')).toBe('2026-08-07')
+  })
+
+  it('uses synced organisation timezone by default', () => {
+    const now = new Date('2026-08-06T21:05:00.000Z')
+    syncOrganisationOperationalTimezone('Asia/Karachi')
+    expect(operationalTodayIso(now)).toBe('2026-08-07')
   })
 })
 

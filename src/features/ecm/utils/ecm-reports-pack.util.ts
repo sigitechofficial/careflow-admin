@@ -5,6 +5,7 @@ import {
   buildPunctualityComplianceBands,
   pct,
 } from '@/features/ecm/utils/ecm-compliance-overview.util'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 export type ReportClassificationTableRow = {
   key: string
@@ -148,7 +149,7 @@ export function buildReportSummaryCsv(report: EcmDailyOpsReport): string {
     csvLine(['reportType', report.reportType]),
     csvLine(['dateFrom', report.dateFrom ?? report.date]),
     csvLine(['dateTo', report.dateTo ?? report.date]),
-    csvLine(['operationalTimezone', report.operationalTimezone ?? 'Europe/London']),
+    csvLine(['operationalTimezone', report.operationalTimezone ?? getSyncedOperationalTimeZone()]),
     csvLine(['thresholdVersion', report.thresholdVersion]),
     csvLine(['generatedAt', report.refreshedAt]),
     csvLine(['totalVisits', k.totalVisits]),
@@ -246,17 +247,20 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   URL.revokeObjectURL(url)
 }
 
-export function formatGeneratedAt(iso: string): string {
+export function formatGeneratedAt(iso: string, timeZone = getSyncedOperationalTimeZone()): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short',
-    timeZone: 'Europe/London',
+    timeZone,
   }).format(d)
 }
 
-export function formatPlannedStart(iso: string | undefined): string {
+export function formatPlannedStart(
+  iso: string | undefined,
+  timeZone = getSyncedOperationalTimeZone(),
+): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -265,6 +269,6 @@ export function formatPlannedStart(iso: string | undefined): string {
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'Europe/London',
+    timeZone,
   }).format(d)
 }

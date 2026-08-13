@@ -4,15 +4,12 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
 import { useScheduleReport, useScheduleReportTypes } from '@/features/scheduling/hooks/useScheduling'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
+import { addDaysToOperationalIso } from '@/shared/lib/operational-day.util'
 
 export default function SchedulingReportPage() {
   const hasApi = !!getApiBaseUrl()
   const [selectedType, setSelectedType] = React.useState('')
-  const [from, setFrom] = React.useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 7)
-    return d.toISOString().slice(0, 10)
-  })
+  const [from, setFrom] = React.useState(() => addDaysToOperationalIso(todayIso(), -7))
   const [to, setTo] = React.useState(todayIso())
   const [generate, setGenerate] = React.useState(false)
 
