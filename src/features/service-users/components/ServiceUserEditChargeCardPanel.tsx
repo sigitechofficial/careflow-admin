@@ -12,7 +12,9 @@ import {
 } from '@/features/billing/types/billing-cards.types'
 
 export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserId: string }) {
-  const canManageBilling = useAuthStore(s => s.can('billing.manage') || s.can('billing.read'))
+  const canManageBilling = useAuthStore(
+    s => s.can('billing.charge_cards.manage' as never) || s.can('billing.charge_cards.read' as never),
+  )
   const resolveQuery = useResolveServiceUserChargeCard(serviceUserId)
 
   const resolvedCardId = resolveQuery.data?.chargeCard?.id ?? null
