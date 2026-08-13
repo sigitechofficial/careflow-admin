@@ -28,8 +28,6 @@ import { serializeChargeCardRulesForApi, normalizeChargeCardRulesForEditor } fro
 import { useCreateChargeCard, useUpdateChargeCard } from '@/features/billing/hooks/useChargeCards'
 import {
   BILLING_CARD_STATUS_OPTIONS,
-  BILLING_CHARGE_METHOD_OPTIONS,
-  BILLING_FREQUENCY_OPTIONS,
   CHARGE_CARD_ASSIGNMENT_OPTIONS,
   CHARGE_CARD_KEY_TARGET_LEVELS,
   slugBillingCode,
@@ -289,7 +287,7 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
                   icon={<FileText className="h-4 w-4" aria-hidden />}
                   iconClassName="bg-slate-500/10 text-slate-700 dark:text-slate-300"
                   title="Card details"
-                  description="Attach this template to a funder, service user, branch, or organisation default."
+                  description="Who this rate card applies to. Invoice cadence, VAT, and grouping live on Invoice templates."
                 />
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -358,22 +356,6 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
                     </select>
                   </label>
 
-                  <label className="space-y-1 text-sm">
-                    <FieldLabel required>Billing frequency</FieldLabel>
-                    <select
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.billingFrequency}
-                      onChange={e =>
-                        patch({ billingFrequency: e.target.value as ChargeCardInput['billingFrequency'] })
-                      }
-                      disabled={saving}
-                    >
-                      {BILLING_FREQUENCY_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </label>
-
                   {needsTargetKey ? (
                     <label className="space-y-1 text-sm sm:col-span-2">
                       <FieldLabel icon={<Users className="h-3.5 w-3.5" aria-hidden />} required>
@@ -420,58 +402,12 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
                     </label>
                   ) : null}
 
-                  <label className="space-y-1 text-sm">
-                    <FieldLabel>Default charge method</FieldLabel>
-                    <select
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.defaultChargeMethod}
-                      onChange={e =>
-                        patch({ defaultChargeMethod: e.target.value as ChargeCardInput['defaultChargeMethod'] })
-                      }
-                      disabled={saving}
-                    >
-                      {BILLING_CHARGE_METHOD_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="space-y-1 text-sm">
+                  <label className="space-y-1 text-sm sm:col-span-2">
                     <FieldLabel>Display label</FieldLabel>
                     <Input
                       value={form.assignmentLabel ?? ''}
                       onChange={e => patch({ assignmentLabel: e.target.value })}
                       placeholder="Auto-filled from selection if left blank"
-                      disabled={saving}
-                    />
-                  </label>
-
-                  <label className="space-y-1 text-sm">
-                    <FieldLabel>Payment terms</FieldLabel>
-                    <Input
-                      value={form.paymentTerms ?? ''}
-                      onChange={e => patch({ paymentTerms: e.target.value })}
-                      placeholder="Net 30"
-                      disabled={saving}
-                    />
-                  </label>
-
-                  <label className="space-y-1 text-sm">
-                    <FieldLabel>Tax / VAT treatment</FieldLabel>
-                    <Input
-                      value={form.taxTreatment ?? ''}
-                      onChange={e => patch({ taxTreatment: e.target.value })}
-                      placeholder="VAT exempt"
-                      disabled={saving}
-                    />
-                  </label>
-
-                  <label className="space-y-1 text-sm sm:col-span-2">
-                    <FieldLabel>Invoice grouping rule</FieldLabel>
-                    <Input
-                      value={form.invoiceGroupingRule ?? ''}
-                      onChange={e => patch({ invoiceGroupingRule: e.target.value })}
-                      placeholder="One invoice per service user"
                       disabled={saving}
                     />
                   </label>

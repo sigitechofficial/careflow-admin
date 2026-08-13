@@ -17,6 +17,7 @@ import {
   Loader2,
   Package,
   Receipt,
+  ClipboardCheck,
   Shield,
   Sparkles,
   User,
@@ -45,6 +46,7 @@ import { ServiceUserDomCareTab } from '@/features/service-users/components/Servi
 import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
 import { ServiceUserEditChargeCardPanel } from '@/features/service-users/components/ServiceUserEditChargeCardPanel'
+import { ServiceUserEditVisitsPanel } from '@/features/service-users/components/ServiceUserEditVisitsPanel'
 import { ServiceUserEditInvoicesPanel } from '@/features/service-users/components/ServiceUserEditInvoicesPanel'
 import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
 import { ServiceUserCalendarTab } from '@/features/service-users/calendar/components/ServiceUserCalendarTab'
@@ -65,6 +67,7 @@ const MAIN_TABS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
   { id: 'funding', label: 'Funding', Icon: Landmark },
   { id: 'charge-card', label: 'Charge card', Icon: Receipt },
+  { id: 'visits', label: 'Visits', Icon: ClipboardCheck },
   { id: 'invoices', label: 'Invoices', Icon: FileText },
   { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
 ]
@@ -347,6 +350,9 @@ export default function EditServiceUserPage() {
             </TabsContent>
             <TabsContent value="charge-card" className="mt-6">
               <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />
+            </TabsContent>
+            <TabsContent value="visits" className="mt-6">
+              <ServiceUserEditVisitsPanel serviceUserId={serviceUserId} />
             </TabsContent>
             <TabsContent value="invoices" className="mt-6">
               <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />

@@ -7,6 +7,11 @@ import {
   type TimeDisplayFormat,
 } from '@/features/settings/types'
 import {
+  DEFAULT_ORGANISATION_TIMEZONE,
+  ORGANISATION_TIMEZONE_OPTIONS,
+  type OrganisationTimezone,
+} from '@/features/settings/organisation-timezone'
+import {
   useGeneralSettings,
   useUpdateGeneralSettings,
 } from '@/features/settings/hooks/useGeneralSettings'
@@ -15,6 +20,13 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
 import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard'
 import { dateDisplayFormatLabel } from '@/shared/lib/display-format.util'
 import { useAuthStore } from '@/features/auth/store'
@@ -25,6 +37,7 @@ const DEFAULTS = {
   archiveServiceUserAfterMonths: 3,
   timeDisplayFormat: 'HH_MM' as TimeDisplayFormat,
   dateDisplayFormat: 'DD_MM_YYYY' as DateDisplayFormat,
+  timezone: DEFAULT_ORGANISATION_TIMEZONE as OrganisationTimezone,
 }
 
 function NumericField({
@@ -67,12 +80,16 @@ function NumericField({
 }
 
 function settingsToDraft(s: OrganisationGeneralSettings) {
+  const tz = ORGANISATION_TIMEZONE_OPTIONS.some(o => o.value === s.timezone)
+    ? (s.timezone as OrganisationTimezone)
+    : DEFAULT_ORGANISATION_TIMEZONE
   return {
     reviewCarePlanAfterDays: s.reviewCarePlanAfterDays,
     handoverReportLastHours: s.handoverReportLastHours,
     archiveServiceUserAfterMonths: s.archiveServiceUserAfterMonths,
     timeDisplayFormat: s.timeDisplayFormat,
     dateDisplayFormat: s.dateDisplayFormat ?? 'DD_MM_YYYY',
+    timezone: tz,
   }
 }
 
@@ -153,8 +170,34 @@ export function GeneralSettingsGeneralPanel() {
           />
         </GeneralSettingsCard>
 
-        <GeneralSettingsCard title="Time & date format">
-          <p className="text-sm font-medium text-foreground">Time format</p>
+        <GeneralSettingsCard title="Time zone & formats">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Organisation time zone</p>
+            <p className="text-xs text-muted-foreground">
+              Used across the project for operational calendar days — schedules, visit “today”,
+              ECM reporting, and rota horizons. Does not convert stored UTC timestamps.
+            </p>
+            <Select
+              value={draft.timezone}
+              disabled={!canUpdate}
+              onValueChange={v =>
+                setDraft(d => ({ ...d, timezone: v as OrganisationTimezone }))
+              }
+            >
+              <SelectTrigger className="h-9 w-full" aria-label="Organisation time zone">
+                <SelectValue placeholder="Select time zone" />
+              </SelectTrigger>
+              <SelectContent>
+                {ORGANISATION_TIMEZONE_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="pt-2 text-sm font-medium text-foreground">Time format</p>
           <p className="text-xs text-muted-foreground">Default is 24-hour clock.</p>
           <RadioGroup
             value={draft.timeDisplayFormat}

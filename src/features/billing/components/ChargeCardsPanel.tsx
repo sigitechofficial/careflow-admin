@@ -103,14 +103,13 @@ export function ChargeCardsPanel() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[1080px] text-sm" data-testid="charge-cards-table">
+        <table className="w-full min-w-[960px] text-sm" data-testid="charge-cards-table">
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Name</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Code</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Attach to</th>
               <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Attached</th>
-              <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Frequency</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Rules summary</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Effective</th>
               <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
@@ -122,13 +121,13 @@ export function ChargeCardsPanel() {
           <tbody>
             {listQuery.isLoading ? (
               <tr>
-                <td colSpan={canManage ? 9 : 8} className="px-3 py-10 text-center text-muted-foreground">
+                <td colSpan={canManage ? 8 : 7} className="px-3 py-10 text-center text-muted-foreground">
                   Loading charge cards…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={canManage ? 9 : 8} className="px-3 py-10 text-center text-muted-foreground">
+                <td colSpan={canManage ? 8 : 7} className="px-3 py-10 text-center text-muted-foreground">
                   No charge cards found. Create one before invoicing can calculate visit charges.
                 </td>
               </tr>
@@ -143,7 +142,6 @@ export function ChargeCardsPanel() {
                   <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
                     {row.attachedRecordCount ?? 0}
                   </td>
-                  <td className="px-3 py-2.5">{formatBillingLabel(row.billingFrequency)}</td>
                   <td className="px-3 py-2.5 text-muted-foreground max-w-[240px] truncate" title={rulesSummary(row)}>
                     {rulesSummary(row)}
                   </td>

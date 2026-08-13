@@ -152,6 +152,8 @@ export type OrganisationGeneralSettings = {
   archiveServiceUserAfterMonths: number
   timeDisplayFormat: TimeDisplayFormat
   dateDisplayFormat: DateDisplayFormat
+  /** IANA timezone for operational calendar (schedules, ECM, today). */
+  timezone: string
   defaultCarerStatus: DefaultCarerStatus
   sendEmailWhenEmployeeActive: boolean
   allowMultipleRoles: boolean
