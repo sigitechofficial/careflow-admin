@@ -187,7 +187,7 @@ export function useRecalculateVisitReconciliationAmounts() {
 export function useClearAllVisitReconciliations() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => clearAllVisitReconciliations(),
+    mutationFn: (params?: { serviceUserId?: string }) => clearAllVisitReconciliations(params),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },

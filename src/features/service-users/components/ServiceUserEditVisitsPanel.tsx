@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ClipboardList, ExternalLink, Eye, Loader2, PoundSterling, Receipt } from 'lucide-react'
+import { ClipboardList, ExternalLink, Eye, Loader2, PoundSterling, Receipt, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -7,10 +7,25 @@ import {
   VisitReconStatusBadge,
 } from '@/features/billing/components/BillingStatusBadge'
 import { VisitReconciliationDetailDialog } from '@/features/billing/components/VisitReconciliationDetailDialog'
-import { useVisitReconciliations } from '@/features/billing/hooks/useVisitReconciliations'
+import {
+  useClearAllVisitReconciliations,
+  useVisitReconciliations,
+} from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/shared/ui/dialog'
 
 function parseMoney(value: string | null | undefined): number {
   if (!value) return 0
@@ -50,8 +65,13 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
   const canOpenBilling = useAuthStore(s =>
     s.can('billing.visit_reconciliations.read' as never),
   )
+  const canManage = useAuthStore(s =>
+    s.can('billing.visit_reconciliations.manage' as never),
+  )
 
   const [detailRow, setDetailRow] = React.useState<VisitReconciliationRow | null>(null)
+  const [deleteAllOpen, setDeleteAllOpen] = React.useState(false)
+  const clearAllMutation = useClearAllVisitReconciliations()
 
   const query = useVisitReconciliations({
     serviceUserId,
@@ -83,6 +103,23 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
     return { charged, withCharge, missingCharge, visitCount: rows.length }
   }, [rows])
 
+  const visitTotal = query.data?.meta.total ?? rows.length
+
+  const handleDeleteAll = async () => {
+    try {
+      const data = await clearAllMutation.mutateAsync({ serviceUserId })
+      setDetailRow(null)
+      setDeleteAllOpen(false)
+      toastSuccess(
+        data.visitReconciliations > 0
+          ? `Deleted ${data.visitReconciliations} visit(s) for this service user.`
+          : 'No visits to delete.',
+      )
+    } catch (err) {
+      toastApiError(err, 'Could not delete visits.')
+    }
+  }
+
   if (!canRead) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -97,14 +134,60 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
         title="Visits"
         description="Completed visits for this client with funder (client) charge amounts from visit reconciliation."
         action={
-          canOpenBilling ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/billing/visit-reconciliation" search={{ serviceUserId }}>
-                Open visit reconciliation
-                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          ) : null
+          <div className="flex flex-wrap items-center gap-2">
+            {canManage && visitTotal > 0 ? (
+              <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={clearAllMutation.isPending}
+                    data-testid="service-user-visits-delete-all"
+                  >
+                    {clearAllMutation.isPending ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    {clearAllMutation.isPending ? 'Deleting…' : 'Delete all visits'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete all visits for this service user?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This removes {visitTotal} reconciled visit{visitTotal === 1 ? '' : 's'} and any
+                      linked payroll / invoice lines for this client only. Scheduled visits are not
+                      deleted — you can sync completed visits again afterwards. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={clearAllMutation.isPending}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={clearAllMutation.isPending}
+                      onClick={e => {
+                        e.preventDefault()
+                        void handleDeleteAll()
+                      }}
+                    >
+                      {clearAllMutation.isPending ? 'Deleting…' : 'Delete all'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
+            {canOpenBilling ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/billing/visit-reconciliation" search={{ serviceUserId }}>
+                  Open visit reconciliation
+                  <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

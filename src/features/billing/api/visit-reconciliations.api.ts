@@ -217,7 +217,9 @@ export async function recalculateVisitReconciliationAmounts(body?: {
   return res.data
 }
 
-export async function clearAllVisitReconciliations(): Promise<{
+export async function clearAllVisitReconciliations(params?: {
+  serviceUserId?: string
+}): Promise<{
   before: number
   visitReconciliations: number
   payrollRunLines: number
@@ -234,7 +236,9 @@ export async function clearAllVisitReconciliations(): Promise<{
     }>
   >('/billing/visit-reconciliations/clear-all', {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      ...(params?.serviceUserId ? { serviceUserId: params.serviceUserId } : {}),
+    }),
   })
   return res.data
 }
