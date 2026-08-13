@@ -228,7 +228,7 @@ export function BillingVisitReconciliationPanel({
     )
     if (!confirmed) return
     try {
-      const data = await clearAllMutation.mutateAsync()
+      const data = await clearAllMutation.mutateAsync({})
       setSelectedIds(new Set())
       setDetailRow(null)
       toastSuccess(
