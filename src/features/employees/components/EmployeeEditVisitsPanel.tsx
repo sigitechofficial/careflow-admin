@@ -364,7 +364,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
               size="sm"
               variant="ghost"
               leftIcon={<CalendarClock className="h-3.5 w-3.5" />}
-              onClick={() => setMonth(currentUtcMonth())}
+              onClick={() => setMonth(currentOrgMonth())}
               data-testid="employee-visits-this-month"
             >
               This month
