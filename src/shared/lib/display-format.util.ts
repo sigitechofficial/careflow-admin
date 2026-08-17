@@ -1,3 +1,5 @@
+import { formatOpsHm } from './operational-day.util'
+
 export type DateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_MM_DD'
 
 export type TimeDisplayFormat = 'HH_XX' | 'HH_MM'
@@ -112,12 +114,9 @@ export function formatDisplayTimeFromIso(
   iso: string,
   format: TimeDisplayFormat = DEFAULT_TIME_DISPLAY_FORMAT,
 ): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const hours = d.getUTCHours()
-  if (format === 'HH_XX') return String(hours)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(hours)}:${pad(d.getUTCMinutes())}`
+  const hm = formatOpsHm(iso)
+  if (!hm) return '—'
+  return formatDisplayTimeHm(hm, format)
 }
 
 export function formatDisplayTimeHm(

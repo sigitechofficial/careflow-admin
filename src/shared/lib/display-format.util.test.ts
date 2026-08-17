@@ -30,12 +30,20 @@ describe('formatDisplayDateLong', () => {
 })
 
 describe('formatDisplayTimeFromIso', () => {
-  it('formats 24-hour with minutes by default', () => {
-    expect(formatDisplayTimeFromIso('2026-06-15T14:30:00.000Z')).toBe('14:30')
+  it('formats London winter GMT from a UTC instant', () => {
+    expect(formatDisplayTimeFromIso('2026-01-15T14:30:00.000Z')).toBe('14:30')
   })
 
-  it('formats 24-hour without minutes', () => {
-    expect(formatDisplayTimeFromIso('2026-06-15T14:30:00.000Z', 'HH_XX')).toBe('14')
+  it('formats London BST from a UTC instant', () => {
+    expect(formatDisplayTimeFromIso('2026-06-15T14:30:00.000Z')).toBe('15:30')
+  })
+
+  it('shows noon BST when the job is stored as 11:00Z', () => {
+    expect(formatDisplayTimeFromIso('2026-08-17T11:00:00.000Z')).toBe('12:00')
+  })
+
+  it('formats 24-hour without minutes in the operational timezone', () => {
+    expect(formatDisplayTimeFromIso('2026-06-15T14:30:00.000Z', 'HH_XX')).toBe('15')
   })
 })
 
