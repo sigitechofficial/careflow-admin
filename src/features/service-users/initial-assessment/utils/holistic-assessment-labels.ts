@@ -170,6 +170,6 @@ export function holisticQuestionLabel(questionText: string): string {
 export function holisticSimpleTextareaPlaceholder(questionText: string): string {
   const text = questionText.trim()
   if (text === 'Previous medical history (summary)') return 'Enter medical history details…'
-  if (text === 'Allergies (summary)') return 'Enter known allergies…'
+  if (text === 'Allergies (summary)') return 'Search the catalogue or add an allergy…'
   return 'Enter details…'
 }

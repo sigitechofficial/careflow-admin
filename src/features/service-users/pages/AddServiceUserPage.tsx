@@ -17,9 +17,10 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { ApiError } from '@/shared/api/api-client'
-import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { parseApiFieldErrors } from '@/shared/api/api-error-format'
+import { extractApiErrorMessage, toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { type EmployeeListRow, type LookupRow } from '@/features/employees/types'
+import { type EmployeeListRow } from '@/features/employees/types'
 import {
   type CreateServiceUserPayload,
   type ServiceUserLookupsBundle,
@@ -116,6 +117,33 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   )
 }
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <p className="mt-1 text-sm text-destructive" role="alert">
+      {message}
+    </p>
+  )
+}
+
+type FieldErrors = Partial<Record<keyof FormState, string>>
+
+function requiredFieldErrors(form: FormState): FieldErrors {
+  const errors: FieldErrors = {}
+  if (!form.firstName.trim()) errors.firstName = 'First name is required'
+  if (!form.lastName.trim()) errors.lastName = 'Last name is required'
+  if (!form.statusId.trim()) errors.statusId = 'Status is required'
+  return errors
+}
+
+function pickFormFieldErrors(parsed: Record<string, string>): FieldErrors {
+  const next: FieldErrors = {}
+  for (const [key, message] of Object.entries(parsed)) {
+    if (key in emptyForm) next[key as keyof FormState] = message
+  }
+  return next
+}
+
 function buildPayload(f: FormState): CreateServiceUserPayload {
   const p: CreateServiceUserPayload = {
     firstName: f.firstName.trim(),
@@ -189,19 +217,17 @@ export default function AddServiceUserPage() {
   const createMutation = useCreateServiceUser()
   const [form, setForm] = React.useState<FormState>({ ...emptyForm })
   const [submitError, setSubmitError] = React.useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({})
   const submitting = createMutation.isPending
 
   const suLookupsQuery = useServiceUserLookups()
   const empLookupsQuery = useEmployeeLookups()
   const lookups: ServiceUserLookupsBundle | null = suLookupsQuery.data ?? null
-  const loadError =
-    suLookupsQuery.error instanceof ApiError
-      ? suLookupsQuery.error.message
-      : empLookupsQuery.error instanceof ApiError
-        ? empLookupsQuery.error.message
-        : suLookupsQuery.error || empLookupsQuery.error
-          ? 'Failed to load lookups'
-          : null
+  const loadError = suLookupsQuery.error
+    ? extractApiErrorMessage(suLookupsQuery.error, 'Failed to load lookups')
+    : empLookupsQuery.error
+      ? extractApiErrorMessage(empLookupsQuery.error, 'Failed to load lookups')
+      : null
 
   const [kwSearch, setKwSearch] = React.useState('')
   const [nnSearch, setNnSearch] = React.useState('')
@@ -237,24 +263,34 @@ export default function AddServiceUserPage() {
     (key: keyof FormState) =>
     (v: string): void => {
       setForm((prev) => ({ ...prev, [key]: v }))
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
     }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
+    setFieldErrors({})
     if (!apiConfigured) {
       setSubmitError('Set VITE_API_BASE_URL in .env and restart Vite.')
       toastError('Cannot create service user', 'Set VITE_API_BASE_URL in .env and restart Vite.')
       return
     }
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      setSubmitError('First name and last name are required.')
-      toastError('Cannot create service user', 'First name and last name are required.')
-      return
-    }
-    if (!form.statusId.trim()) {
-      setSubmitError('Please select a service user status.')
-      toastError('Cannot create service user', 'Please select a service user status.')
+    const required = requiredFieldErrors(form)
+    const missing = [
+      required.firstName ? 'First name' : null,
+      required.lastName ? 'Last name' : null,
+      required.statusId ? 'Status' : null,
+    ].filter((label): label is string => Boolean(label))
+    if (missing.length) {
+      setFieldErrors(required)
+      const summary = `Please complete the required fields: ${missing.join(', ')}.`
+      setSubmitError(summary)
+      toastError('Cannot create service user', summary)
       return
     }
     try {
@@ -271,29 +307,38 @@ export default function AddServiceUserPage() {
       toastSuccess('Service user created', 'Redirecting to the service user list.')
       await navigate({ to: '/service-users/all' })
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Could not create service user')
+      const parsed = pickFormFieldErrors(parseApiFieldErrors(err instanceof ApiError ? err.body : err))
+      setFieldErrors(parsed)
+      setSubmitError(extractApiErrorMessage(err, 'Could not create service user'))
       toastApiError(err, 'Could not create service user')
     }
   }
 
   const mapSelect = (field: keyof FormState, placeholder: string, rows: Array<{ id: string; name: string }>) => (
-    <Select
-      value={form[field] ? String(form[field]) : '__none__'}
-      onValueChange={(v) => set(field)(v === '__none__' ? '' : v)}
-      disabled={!rows.length}
-    >
-      <SelectTrigger className="w-full" data-testid={`service-user-${field}-select`}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">— None —</SelectItem>
-        {rows.map((r) => (
-          <SelectItem key={r.id} value={r.id}>
-            {r.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <>
+      <Select
+        value={form[field] ? String(form[field]) : '__none__'}
+        onValueChange={(v) => set(field)(v === '__none__' ? '' : v)}
+        disabled={!rows.length}
+      >
+        <SelectTrigger
+          className="w-full"
+          data-testid={`service-user-${field}-select`}
+          error={Boolean(fieldErrors[field])}
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">— None —</SelectItem>
+          {rows.map((r) => (
+            <SelectItem key={r.id} value={r.id}>
+              {r.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldError message={fieldErrors[field]} />
+    </>
   )
 
   return (
@@ -322,7 +367,11 @@ export default function AddServiceUserPage() {
         </div>
       )}
       {submitError && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          data-testid="service-user-add-error"
+          role="alert"
+        >
           {submitError}
         </div>
       )}
@@ -337,7 +386,10 @@ export default function AddServiceUserPage() {
               value={form.firstName}
               onChange={(e) => set('firstName')(e.target.value)}
               autoComplete="given-name"
+              error={Boolean(fieldErrors.firstName)}
+              aria-invalid={Boolean(fieldErrors.firstName)}
             />
+            <FieldError message={fieldErrors.firstName} />
           </div>
           <div>
             <FieldLabel>Middle name</FieldLabel>
@@ -350,7 +402,10 @@ export default function AddServiceUserPage() {
               value={form.lastName}
               onChange={(e) => set('lastName')(e.target.value)}
               autoComplete="family-name"
+              error={Boolean(fieldErrors.lastName)}
+              aria-invalid={Boolean(fieldErrors.lastName)}
             />
+            <FieldError message={fieldErrors.lastName} />
           </div>
           <div>
             <FieldLabel>Preferred name</FieldLabel>
@@ -358,15 +413,32 @@ export default function AddServiceUserPage() {
             </div>
           <div>
             <FieldLabel>NHS number</FieldLabel>
-            <Input value={form.nhsNumber} onChange={(e) => set('nhsNumber')(e.target.value)} />
+            <Input
+              value={form.nhsNumber}
+              onChange={(e) => set('nhsNumber')(e.target.value)}
+              error={Boolean(fieldErrors.nhsNumber)}
+              aria-invalid={Boolean(fieldErrors.nhsNumber)}
+            />
+            <FieldError message={fieldErrors.nhsNumber} />
           </div>
           <div>
             <FieldLabel>NI number</FieldLabel>
-            <Input value={form.nationalInsuranceNumber} onChange={(e) => set('nationalInsuranceNumber')(e.target.value)} />
+            <Input
+              value={form.nationalInsuranceNumber}
+              onChange={(e) => set('nationalInsuranceNumber')(e.target.value)}
+              error={Boolean(fieldErrors.nationalInsuranceNumber)}
+              aria-invalid={Boolean(fieldErrors.nationalInsuranceNumber)}
+            />
+            <FieldError message={fieldErrors.nationalInsuranceNumber} />
           </div>
           <div>
             <FieldLabel required>Status</FieldLabel>
-            {lookups ? mapSelect('statusId', 'Select status', lookups.statuses) : <Input disabled placeholder="Loading statuses…" />}
+            {lookups ? mapSelect('statusId', 'Select status', lookups.statuses) : (
+              <>
+                <Input disabled placeholder="Loading statuses…" />
+                <FieldError message={fieldErrors.statusId} />
+              </>
+            )}
             </div>
           <div>
             <FieldLabel>Date of birth</FieldLabel>
@@ -375,7 +447,10 @@ export default function AddServiceUserPage() {
               type="date"
               value={form.dateOfBirth}
               onChange={(e) => set('dateOfBirth')(e.target.value)}
+              error={Boolean(fieldErrors.dateOfBirth)}
+              aria-invalid={Boolean(fieldErrors.dateOfBirth)}
             />
+            <FieldError message={fieldErrors.dateOfBirth} />
           </div>
         </div>
       </Section>
@@ -432,15 +507,30 @@ export default function AddServiceUserPage() {
               value={form.email}
               onChange={(e) => set('email')(e.target.value)}
               autoComplete="email"
+              error={Boolean(fieldErrors.email)}
+              aria-invalid={Boolean(fieldErrors.email)}
             />
+            <FieldError message={fieldErrors.email} />
           </div>
           <div>
             <FieldLabel>Phone</FieldLabel>
-            <Input value={form.phone} onChange={(e) => set('phone')(e.target.value)} />
+            <Input
+              value={form.phone}
+              onChange={(e) => set('phone')(e.target.value)}
+              error={Boolean(fieldErrors.phone)}
+              aria-invalid={Boolean(fieldErrors.phone)}
+            />
+            <FieldError message={fieldErrors.phone} />
           </div>
           <div>
             <FieldLabel>Mobile</FieldLabel>
-            <Input value={form.mobile} onChange={(e) => set('mobile')(e.target.value)} />
+            <Input
+              value={form.mobile}
+              onChange={(e) => set('mobile')(e.target.value)}
+              error={Boolean(fieldErrors.mobile)}
+              aria-invalid={Boolean(fieldErrors.mobile)}
+            />
+            <FieldError message={fieldErrors.mobile} />
           </div>
         </div>
       </Section>
@@ -450,7 +540,13 @@ export default function AddServiceUserPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <FieldLabel>Service user number</FieldLabel>
-            <Input value={form.serviceUserNumber} onChange={(e) => set('serviceUserNumber')(e.target.value)} />
+            <Input
+              value={form.serviceUserNumber}
+              onChange={(e) => set('serviceUserNumber')(e.target.value)}
+              error={Boolean(fieldErrors.serviceUserNumber)}
+              aria-invalid={Boolean(fieldErrors.serviceUserNumber)}
+            />
+            <FieldError message={fieldErrors.serviceUserNumber} />
           </div>
           <div className="md:col-span-2">
             <FieldLabel>Zone & branch</FieldLabel>
@@ -459,6 +555,7 @@ export default function AddServiceUserPage() {
               onChange={set('locationId')}
               className="mt-1.5"
             />
+            <FieldError message={fieldErrors.locationId} />
           </div>
           <div>
             <FieldLabel>Service start</FieldLabel>

@@ -26,6 +26,11 @@ import { useCarePlanInstances } from '@/features/service-users/care-plans/hooks/
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlan } from '@/features/service-users/hooks/useServiceUserCarePlan'
 import { ServiceUserAssessmentsPanel } from '@/features/service-users/assessments/components/ServiceUserAssessmentsPanel'
+import {
+  CarePlanIaRecommendationsBody,
+  CarePlanRiskProfileBody,
+  useCarePlanIaAccordionTitles,
+} from '@/features/service-users/care-plan/CarePlanIaSourcePanels'
 
 function CarePlanAccordion({
   title,
@@ -73,6 +78,7 @@ export default function ServiceUserCarePlanPage() {
   const profileQuery = useServiceUser(serviceUserId)
   const { formSelections, carePlanCatalogue, acceptedCarePlans } = useServiceUserCarePlan(serviceUserId)
   const instancesQuery = useCarePlanInstances(serviceUserId, apiConfigured)
+  const { riskTitle, recTitle } = useCarePlanIaAccordionTitles(serviceUserId)
 
   const detail: ServiceUserDetail | null = profileQuery.data ?? null
   const loading =
@@ -192,7 +198,12 @@ export default function ServiceUserCarePlanPage() {
               <ServiceUserAssessmentsPanel serviceUserId={serviceUserId} serviceUserName={name} />
             </CarePlanAccordion>
             <CarePlanAccordion title="Consent and Mental Capacity" tone="teal" />
-            <CarePlanAccordion title="Risk Profile" tone="teal" />
+            <CarePlanAccordion title={riskTitle} tone="teal" defaultOpen>
+              <CarePlanRiskProfileBody serviceUserId={serviceUserId} />
+            </CarePlanAccordion>
+            <CarePlanAccordion title={recTitle} tone="teal" defaultOpen>
+              <CarePlanIaRecommendationsBody serviceUserId={serviceUserId} />
+            </CarePlanAccordion>
 
             <CarePlanAccordion title={`Active Care Plans for ${name}`} tone="sky" defaultOpen>
               {activeCarePlans.length === 0 ? (

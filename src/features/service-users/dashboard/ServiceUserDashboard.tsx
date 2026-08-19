@@ -42,6 +42,7 @@ import {
 } from '@/features/service-users/components/ServiceUserModuleHeader'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { Button } from '@/shared/ui/button'
+import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 
 type AttentionSeverity = 'red' | 'amber' | 'blue'
 
@@ -271,6 +272,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
 
   const highRisk = isHighRisk(detail)
   const diabetesFlag = hasDiabetesAllergyFlag(allergyRows.map((a) => a.allergyName))
+  const [allergiesOpen, setAllergiesOpen] = React.useState(false)
 
   const attentionItems = React.useMemo((): AttentionItem[] => {
     const items: AttentionItem[] = []
@@ -658,7 +660,14 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             )}
           </SimpleCard>
 
-          <SimpleCard title="Clinical & safety">
+          <SimpleCard
+            title="Clinical & safety"
+            action={
+              <Button type="button" variant="outline" size="sm" onClick={() => setAllergiesOpen(true)}>
+                Manage allergies
+              </Button>
+            }
+          >
             <InfoRow label="Risk level" value={detail.riskLevel?.name ?? 'Not set'} />
             {detail.riskLevel ? (
               <div className="mb-2 px-0.5">
@@ -861,6 +870,11 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
           </div>
         </SimpleCard>
       </div>
+      <ServiceUserAllergiesManageDialog
+        serviceUserId={serviceUserId}
+        open={allergiesOpen}
+        onOpenChange={setAllergiesOpen}
+      />
     </div>
   )
 }

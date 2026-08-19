@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { Info, Loader2 } from 'lucide-react'
-import { ApiError } from '@/shared/api/api-client'
-import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { extractApiErrorMessage, toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import type { LookupRow, EmployeeListRow } from '@/features/employees/types'
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import type {
@@ -587,7 +586,7 @@ export function ServiceUserPersonalDetailsForm({
       toastSuccess('Personal details saved', 'Your changes were applied successfully.')
       window.setTimeout(() => setSaveOk(false), 4000)
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : 'Save failed')
+      setSaveError(extractApiErrorMessage(err, 'Save failed'))
       toastApiError(err, 'Save failed')
     }
   }

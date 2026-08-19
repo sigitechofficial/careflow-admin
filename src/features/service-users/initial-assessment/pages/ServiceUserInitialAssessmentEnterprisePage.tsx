@@ -11,7 +11,7 @@ import { serviceUserKeys } from '@/features/service-users/keys'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
-import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
+import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useAuthStore } from '@/features/auth/store'
 import { Label } from '@/shared/ui/form-field'
 import {
@@ -141,6 +141,7 @@ import {
   applyPrefillToDraftAnswers,
   buildPrefillMap,
 } from '@/features/service-users/initial-assessment/utils/question-prefill'
+import { formatAllergiesAssessmentText } from '@/features/service-users/utils/format-allergies-assessment-text'
 import { prepareAnswersForSave } from '@/features/service-users/initial-assessment/utils/secure-field'
 import { adlMetadataEqual } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import {
@@ -338,6 +339,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const detailQuery = useServiceUser(selectedId, hasApi && canRead && !!selectedId)
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
   const suLookupsQuery = useServiceUserLookups()
+  const allergiesQuery = useServiceUserAllergies(selectedId, hasApi && canRead && !!selectedId)
   const autoSubmissionId = React.useMemo(
     () => resolveInitialAssessmentSubmissionId(submissionsQuery.data, urlSearch.submissionId),
     [submissionsQuery.data, urlSearch.submissionId],
@@ -670,6 +672,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       detail: detailQuery.data,
       domCare: domCareQuery.data,
       lookups: suLookupsQuery.data,
+      allergiesSummary: allergiesQuery.isSuccess
+        ? formatAllergiesAssessmentText(allergiesQuery.data ?? [])
+        : undefined,
     })
     const merged =
       submissionEditable && sections.length > 0 && prefill.size > 0
@@ -707,7 +712,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     answersQuery.data?.length,
     detailQuery.dataUpdatedAt,
     domCareQuery.dataUpdatedAt,
-    suLookupsQuery.dataUpdatedAt,
+    allergiesQuery.dataUpdatedAt,
     sectionsHydrationKey,
     submission?.status,
   ])
@@ -1008,8 +1013,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         detail: detailQuery.data,
         domCare: domCareQuery.data,
         lookups: suLookupsQuery.data,
+        allergiesSummary: allergiesQuery.isSuccess
+          ? formatAllergiesAssessmentText(allergiesQuery.data ?? [])
+          : undefined,
       }),
-    [detailQuery.data, domCareQuery.data, suLookupsQuery.data],
+    [detailQuery.data, domCareQuery.data, suLookupsQuery.data, allergiesQuery.data, allergiesQuery.isSuccess],
   )
 
   const showBodyMapCta = React.useMemo(
@@ -2066,6 +2074,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 recommendations={summaryQuery.data?.carePlanRecommendations ?? []}
                 submissionStatus={submission?.status}
                 canDecide={(canReview || canUpdate) && submission?.status === 'REVIEWED'}
+                canCreate={canUpdate}
                 onGoToSection={(n) => goToSection(n)}
               />
               <InitialAssessmentActionsPanel

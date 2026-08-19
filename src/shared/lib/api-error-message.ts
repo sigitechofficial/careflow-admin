@@ -1,4 +1,5 @@
 import { ApiError } from '@/shared/api/api-client'
+import { formatApiErrorMessage } from '@/shared/api/api-error-format'
 
 type ApiErrorBody = {
   message?: unknown
@@ -28,6 +29,10 @@ function conflictFieldsFromBody(body: unknown): string[] {
 
 export function apiErrorMessage(error: unknown, fallback = 'Request failed'): string {
   if (error instanceof ApiError) {
+    if (error.body != null) {
+      const detail = formatApiErrorMessage(error.body, error.message || fallback)
+      if (detail.trim()) return detail
+    }
     return error.message.trim() || fallback
   }
   if (error instanceof Error && error.message.trim()) {

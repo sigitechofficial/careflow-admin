@@ -14,6 +14,7 @@ import { slotAssignedEmployeeIds } from '@/features/service-users/visit-plan/vis
 import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
+import { VisitPlanIaPreferredVisitTimesPanel } from '@/features/service-users/visit-plan/VisitPlanIaPreferredVisitTimesPanel'
 import {
   carerAssignmentCoversSlotDays,
   formatCarerAvailabilityWarning,
@@ -327,6 +328,8 @@ export function VisitPlanDetailsView({
 
   return (
     <div className={cn('space-y-6', className)}>
+      <VisitPlanIaPreferredVisitTimesPanel serviceUserId={plan.serviceUserId} />
+
       <ContentCard>
         <ContentSectionHeader
           icon={<ClipboardList className="h-5 w-5" aria-hidden />}

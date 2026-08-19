@@ -41,6 +41,7 @@ import {
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { Loader2 } from 'lucide-react'
+import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 import {
   ageFromDob,
   employeeDisplayName,
@@ -213,6 +214,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
   const age = ageFromDob(detail?.dateOfBirth ?? null)
   const highRisk = isHighRisk(detail)
   const diabetesFlag = hasDiabetesAllergyFlag(allergyRows.map(a => a.allergyName))
+  const [allergiesOpen, setAllergiesOpen] = React.useState(false)
 
   const attentionItems = React.useMemo((): AttentionItem[] => {
     const items: AttentionItem[] = []
@@ -606,14 +608,23 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
                 <span className="text-sm font-semibold text-slate-600">
                   Allergies — {allergyRows.length} recorded
                 </span>
-                <Link
-                  to="/service-users/$serviceUserId"
-                  params={{ serviceUserId }}
-                  search={{ tab: 'allergies' }}
-                  className="text-sm font-medium text-teal-700 hover:underline"
-                >
-                  View all
-                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-teal-700 hover:underline"
+                    onClick={() => setAllergiesOpen(true)}
+                  >
+                    Add / edit
+                  </button>
+                  <Link
+                    to="/service-users/$serviceUserId"
+                    params={{ serviceUserId }}
+                    search={{ tab: 'allergies' }}
+                    className="text-sm font-medium text-teal-700 hover:underline"
+                  >
+                    Profile
+                  </Link>
+                </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {allergyRows.length === 0 ? (
@@ -868,6 +879,11 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
           {detail.updatedAt ? ` · Last synced ${formatShortUk(detail.updatedAt)}` : ''}
         </p>
       </div>
+      <ServiceUserAllergiesManageDialog
+        serviceUserId={serviceUserId}
+        open={allergiesOpen}
+        onOpenChange={setAllergiesOpen}
+      />
     </div>
   )
 }

@@ -51,6 +51,7 @@ import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdditionalDetailsPanel'
 import { VisitPlanSlotDetailsSheet } from '@/features/service-users/visit-plan/VisitPlanSlotDetailsSheet'
 import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
+import { VisitPlanIaPreferredVisitTimesPanel } from '@/features/service-users/visit-plan/VisitPlanIaPreferredVisitTimesPanel'
 import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarersDialog'
 import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarePlansDialog'
 import { VisitPlanCarersCountInput } from '@/features/service-users/visit-plan/VisitPlanCarersCountInput'
@@ -943,6 +944,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
           anchorIso={workingPlan?.effectiveFrom}
         />
       </ContentCard>
+
+      <VisitPlanIaPreferredVisitTimesPanel serviceUserId={serviceUserId} />
 
       <ContentCard className="border-2 border-teal-200 dark:border-teal-900">
         <ContentSectionHeader

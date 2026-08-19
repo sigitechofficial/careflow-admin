@@ -51,19 +51,28 @@ const SELECT_CUSTOM = '__custom__'
 export function ServiceUserAllergiesTab({
   serviceUserId,
   allergyCatalog,
+  compact = false,
+  hideHeading = false,
+  disabled = false,
+  formMode = 'dialog',
 }: {
   serviceUserId: string
   allergyCatalog: SuLookupRow[]
+  compact?: boolean
+  hideHeading?: boolean
+  disabled?: boolean
+  /** Use `inline` when this editor is already inside a dialog (avoids nested modals). */
+  formMode?: 'dialog' | 'inline'
 }) {
   const can = useAuthStore((s) => s.can)
   const canRead =
     can('service_users.allergies.read') || can('service_users.read')
   const canCreate =
-    can('service_users.allergies.create') || can('service_users.update')
+    !disabled && (can('service_users.allergies.create') || can('service_users.update'))
   const canUpdate =
-    can('service_users.allergies.update') || can('service_users.update')
+    !disabled && (can('service_users.allergies.update') || can('service_users.update'))
   const canDelete =
-    can('service_users.allergies.delete') || can('service_users.delete')
+    !disabled && (can('service_users.allergies.delete') || can('service_users.delete'))
 
   const allergiesQuery = useServiceUserAllergies(serviceUserId, canRead)
   const createMutation = useCreateServiceUserAllergy(serviceUserId)
@@ -146,6 +155,81 @@ export function ServiceUserAllergiesTab({
 
   const formSaving = createMutation.isPending || updateMutation.isPending
   const deleteSaving = deleteMutation.isPending
+  const inlineForm = formMode === 'inline' && dialogOpen
+
+  const allergyFormFields = (
+    <div className="space-y-4">
+      {formError && <p className="text-sm text-destructive">{formError}</p>}
+      <div className="space-y-1">
+        <label className="text-sm text-muted-foreground">
+          Allergy name <span className="text-destructive">*</span>
+        </label>
+        <Input
+          value={catalogSearch}
+          onChange={e => setCatalogSearch(e.target.value)}
+          placeholder="Search catalogue (food, latex, penicillin…)"
+          className="mb-2"
+        />
+        <Select value={catalogId} onValueChange={setCatalogId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Please select Allergy" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value={SELECT_NONE}>Please select Allergy</SelectItem>
+            {ALLERGY_CATALOG_CATEGORY_ORDER.map(cat => {
+              const items = catalogByCategory.get(cat) ?? []
+              if (items.length === 0) return null
+              return (
+                <SelectGroup key={cat}>
+                  <SelectLabel>{ALLERGY_CATALOG_CATEGORY_LABELS[cat]}</SelectLabel>
+                  {items.map(a => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )
+            })}
+            <SelectItem value={SELECT_CUSTOM}>Other (type below)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {catalogId === SELECT_CUSTOM && (
+        <div className="space-y-1">
+          <label className="text-sm text-muted-foreground">Allergy name (free text)</label>
+          <Input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Enter allergy" />
+        </div>
+      )}
+      <div className="space-y-1">
+        <label className="text-sm text-muted-foreground">
+          Comment <span className="text-destructive">*</span>
+        </label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={4}
+          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          placeholder="Clinical comment or reaction details"
+        />
+      </div>
+    </div>
+  )
+
+  const allergyFormActions = (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={formSaving}>
+        Close
+      </Button>
+      <Button
+        type="button"
+        className="bg-sky-600 text-white hover:bg-sky-700"
+        disabled={formSaving || (editingId ? !canUpdate : !canCreate)}
+        onClick={() => void saveForm()}
+      >
+        {formSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+      </Button>
+    </div>
+  )
 
   async function saveForm() {
     setFormError(null)
@@ -194,16 +278,30 @@ export function ServiceUserAllergiesTab({
   }
 
   return (
-    <section className="space-y-4">
+    <section className={compact ? 'space-y-3' : 'space-y-4'} data-testid="service-user-allergies-editor">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-sky-600 dark:text-sky-400">Allergies</h2>
-        {canCreate && (
+        {hideHeading ? (
+          <span className="text-sm text-muted-foreground">
+            {rows.length === 0 ? 'No allergies on the profile yet.' : `${rows.length} recorded on profile`}
+          </span>
+        ) : (
+          <h2 className="text-sm font-semibold text-sky-600 dark:text-sky-400">Allergies</h2>
+        )}
+        {canCreate && !inlineForm && (
           <Button type="button" size="sm" className="gap-1 bg-sky-600 text-white hover:bg-sky-700" onClick={openAdd}>
             <Plus className="h-4 w-4" />
             Add allergy
           </Button>
         )}
       </div>
+
+      {inlineForm ? (
+        <div className="space-y-4 rounded-lg border border-border p-4">
+          <p className="text-sm font-medium text-sky-600">{editingId ? 'Edit allergy' : 'Add allergy'}</p>
+          {allergyFormFields}
+          {allergyFormActions}
+        </div>
+      ) : null}
 
       {listError && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -212,7 +310,7 @@ export function ServiceUserAllergiesTab({
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12">
+        <div className={compact ? 'flex justify-center py-6' : 'flex justify-center py-12'}>
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : rows.length === 0 ? (
@@ -257,81 +355,17 @@ export function ServiceUserAllergiesTab({
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent size="md" className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-sky-600">{editingId ? 'Edit Allergy' : 'Add Allergy'}</DialogTitle>
-          </DialogHeader>
-          <DialogBody className="space-y-4">
-            {formError && <p className="text-sm text-destructive">{formError}</p>}
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                Allergy name <span className="text-destructive">*</span>
-              </label>
-              <Input
-                value={catalogSearch}
-                onChange={e => setCatalogSearch(e.target.value)}
-                placeholder="Search catalogue (food, latex, penicillin…)"
-                className="mb-2"
-              />
-              <Select value={catalogId} onValueChange={setCatalogId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Please select Allergy" />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  <SelectItem value={SELECT_NONE}>Please select Allergy</SelectItem>
-                  {ALLERGY_CATALOG_CATEGORY_ORDER.map(cat => {
-                    const items = catalogByCategory.get(cat) ?? []
-                    if (items.length === 0) return null
-                    return (
-                      <SelectGroup key={cat}>
-                        <SelectLabel>{ALLERGY_CATALOG_CATEGORY_LABELS[cat]}</SelectLabel>
-                        {items.map(a => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )
-                  })}
-                  <SelectItem value={SELECT_CUSTOM}>Other (type below)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {catalogId === SELECT_CUSTOM && (
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Allergy name (free text)</label>
-                <Input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Enter allergy" />
-              </div>
-            )}
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                Comment <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows={4}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="Clinical comment or reaction details"
-              />
-            </div>
-          </DialogBody>
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={formSaving}>
-              Close
-            </Button>
-            <Button
-              type="button"
-              className="bg-sky-600 text-white hover:bg-sky-700"
-              disabled={formSaving || (editingId ? !canUpdate : !canCreate)}
-              onClick={() => void saveForm()}
-            >
-              {formSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {formMode === 'dialog' ? (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent size="md" className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-sky-600">{editingId ? 'Edit Allergy' : 'Add Allergy'}</DialogTitle>
+            </DialogHeader>
+            <DialogBody>{allergyFormFields}</DialogBody>
+            <DialogFooter className="gap-2 sm:justify-end">{allergyFormActions}</DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       <AlertDialog open={Boolean(deleteId)} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>

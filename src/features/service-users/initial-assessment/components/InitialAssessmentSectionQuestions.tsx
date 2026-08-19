@@ -9,6 +9,10 @@ import { mapLookupRowsToQuestionOptions } from '@/features/service-users/initial
 import { InitialAssessmentAddressContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentAddressContactField'
 import { InitialAssessmentGpContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentGpContactField'
 import {
+  InitialAssessmentAllergiesField,
+  isAllergiesSummaryQuestion,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentAllergiesField'
+import {
   InitialAssessmentPersonCentredCards,
   isPersonCentredCardGroup,
 } from '@/features/service-users/initial-assessment/components/InitialAssessmentPersonCentredCards'
@@ -243,6 +247,19 @@ export function InitialAssessmentSectionQuestions({
           value={merged}
           serviceUserId={serviceUserId}
           serviceUserDetail={serviceUserDetail}
+          errorMessage={questionErrors?.get(q.id)}
+          disabled={isFieldDisabled(q)}
+          variant={simpleLayout ? 'simple' : 'default'}
+          onChange={(patch) => onChange(q.id, patch)}
+        />
+      )
+    }
+    if (isAllergiesSummaryQuestion(q)) {
+      return (
+        <InitialAssessmentAllergiesField
+          question={q}
+          value={merged}
+          serviceUserId={serviceUserId}
           errorMessage={questionErrors?.get(q.id)}
           disabled={isFieldDisabled(q)}
           variant={simpleLayout ? 'simple' : 'default'}

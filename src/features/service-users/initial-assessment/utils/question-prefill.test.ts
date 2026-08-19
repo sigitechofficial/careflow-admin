@@ -130,6 +130,15 @@ describe('buildPrefillMap', () => {
     })
     expect(map.get('nationalInsuranceNumber')).toBe('AB123456C')
   })
+
+  it('prefills allergies summary from profile catalogue text', () => {
+    const map = buildPrefillMap({
+      detail: minimalDetail(),
+      domCare: null,
+      allergiesSummary: 'Penicillin — Anaphylaxis',
+    })
+    expect(map.get('allergies')).toBe('Penicillin — Anaphylaxis')
+  })
 })
 
 describe('mapGenderToAssessmentOption', () => {

@@ -17,6 +17,7 @@ export type PrefillContext = {
   detail: ServiceUserDetail | null | undefined
   domCare: ServiceUserDomCareData | null | undefined
   lookups?: ServiceUserLookupsBundle | null
+  allergiesSummary?: string | null
 }
 
 const PROFILE_REF_ETHNICITY = 'SU_PROFILE_ETHNICITY'
@@ -197,6 +198,7 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
     nhsNumber: detail.nhsNumber?.trim() ?? '',
     nationalInsuranceNumber: detail.nationalInsuranceNumber?.trim() ?? '',
     serviceUserNumber: detail.serviceUserNumber?.trim() ?? '',
+    allergies: ctx.allergiesSummary?.trim() ?? '',
   }
 
   for (const [key, val] of Object.entries(values)) {

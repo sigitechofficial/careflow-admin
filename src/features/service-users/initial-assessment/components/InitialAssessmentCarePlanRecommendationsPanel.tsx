@@ -1,8 +1,18 @@
 import * as React from 'react'
-import { FileText, Loader2 } from 'lucide-react'
+import { AlertTriangle, FileText, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/shared/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/ui/dialog'
 import { decideInitialAssessmentCarePlanRecommendation } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { createCarePlanDraftFromCompose } from '@/features/service-users/care-plans/api'
@@ -20,6 +30,8 @@ type Props = {
   recommendations: CarePlanRecommendation[]
   submissionStatus?: InitialAssessmentStatus
   canDecide?: boolean
+  /** Create a care plan draft from a recommendation without waiting for accept. */
+  canCreate?: boolean
   onGoToSection?: (sectionNumber: number) => void
 }
 
@@ -29,14 +41,19 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   recommendations,
   submissionStatus,
   canDecide = false,
+  canCreate = false,
   onGoToSection,
 }: Props) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [activeRec, setActiveRec] = React.useState<CarePlanRecommendation | null>(null)
+  const [creatingFormId, setCreatingFormId] = React.useState<string | null>(null)
   const [mode, setMode] = React.useState<'accept' | 'decline'>('accept')
   const [reason, setReason] = React.useState('')
+  const reviewPending = submissionStatus === 'SUBMITTED'
+  const [proceedAnyway, setProceedAnyway] = React.useState(false)
+  const [pendingCreateFormId, setPendingCreateFormId] = React.useState<string | null>(null)
 
   const decideMutation = useMutation({
     mutationFn: (input: { recommendationId: string; decision: 'accepted' | 'declined'; reason?: string }) =>
@@ -63,6 +80,9 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
 
   const createDraftMutation = useMutation({
     mutationFn: (formId: string) => createCarePlanDraftFromCompose(serviceUserId, formId),
+    onMutate: (formId) => {
+      setCreatingFormId(formId)
+    },
     onSuccess: (_data, formId) => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
       toastSuccess('Draft created', 'Care plan draft prefilled from assessment sources.')
@@ -72,7 +92,23 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
       })
     },
     onError: (e) => toastApiError(e, 'Could not create care plan draft'),
+    onSettled: () => setCreatingFormId(null),
   })
+
+  const requestCreate = (formId: string) => {
+    if (reviewPending && !proceedAnyway) {
+      setPendingCreateFormId(formId)
+      return
+    }
+    void createDraftMutation.mutateAsync(formId)
+  }
+
+  const confirmProceedAndCreate = () => {
+    const formId = pendingCreateFormId
+    setProceedAnyway(true)
+    setPendingCreateFormId(null)
+    if (formId) void createDraftMutation.mutateAsync(formId)
+  }
 
   const openDialog = (rec: CarePlanRecommendation, nextMode: 'accept' | 'decline') => {
     setActiveRec(rec)
@@ -98,11 +134,34 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
           <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" aria-hidden />
           <h3 className="text-sm font-semibold">Care plan recommendations ({recommendations.length})</h3>
         </div>
-        {submissionStatus === 'SUBMITTED' ? (
-          <p className="text-xs text-muted-foreground">
-            Awaiting manager review — recommendations are shown for reference only. Accept and decline unlock
-            after the assessment is marked reviewed.
-          </p>
+        {reviewPending ? (
+          <div
+            className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+            data-testid="ia-care-plan-review-pending-warning"
+            role="status"
+          >
+            <div className="flex min-w-0 items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <p className="text-sm">
+                Manager review is pending. Care plans created now may need revisiting after the
+                assessment is marked reviewed.
+              </p>
+            </div>
+            {canCreate && !proceedAnyway ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-amber-400 bg-white text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-50"
+                data-testid="ia-care-plan-proceed-anyway"
+                onClick={() => setProceedAnyway(true)}
+              >
+                Proceed anyway
+              </Button>
+            ) : canCreate && proceedAnyway ? (
+              <p className="shrink-0 text-xs font-medium">Proceeding without manager review.</p>
+            ) : null}
+          </div>
         ) : null}
         <ul className="space-y-3">
           {recommendations.map((rec) => (
@@ -142,7 +201,9 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                         §{rec.sectionNumber} {rec.sectionTitle}
                       </button>
                     ) : (
-                      <>§{rec.sectionNumber} {rec.sectionTitle}</>
+                      <>
+                        §{rec.sectionNumber} {rec.sectionTitle}
+                      </>
                     )}
                   </p>
                   {rec.status === 'declined' && rec.declineReason ? (
@@ -173,33 +234,55 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                     <Button type="button" size="sm" onClick={() => openDialog(rec, 'accept')}>
                       Accept
                     </Button>
+                    {canCreate ? (
+                      <CreateCarePlanButton
+                        rec={rec}
+                        pending={createDraftMutation.isPending && creatingFormId === rec.carePathwayFormId}
+                        onCreate={requestCreate}
+                      />
+                    ) : null}
                   </div>
-                ) : rec.status === 'accepted' ? (
-                  rec.carePathwayFormId ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={createDraftMutation.isPending}
-                      onClick={() => void createDraftMutation.mutateAsync(rec.carePathwayFormId!)}
-                    >
-                      {createDraftMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        'Create care plan'
-                      )}
-                    </Button>
-                  ) : (
-                    <Button type="button" variant="outline" size="sm" disabled title="No care plan form linked">
-                      Create care plan
-                    </Button>
-                  )
+                ) : rec.status === 'declined' ? null : canCreate || rec.status === 'accepted' ? (
+                  <CreateCarePlanButton
+                    rec={rec}
+                    pending={createDraftMutation.isPending && creatingFormId === rec.carePathwayFormId}
+                    onCreate={requestCreate}
+                  />
                 ) : null}
               </div>
             </li>
           ))}
         </ul>
       </div>
+
+      <AlertDialog
+        open={Boolean(pendingCreateFormId)}
+        onOpenChange={(open) => {
+          if (!open) setPendingCreateFormId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Manager review is pending</AlertDialogTitle>
+            <AlertDialogDescription>
+              This initial assessment has not been marked reviewed yet. You can still create a care
+              plan draft now; it may need revisiting after manager review.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 text-white hover:bg-amber-700"
+              onClick={(e) => {
+                e.preventDefault()
+                confirmProceedAndCreate()
+              }}
+            >
+              Proceed anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <InitialAssessmentCarePlanDecisionDialog
         open={dialogOpen}
@@ -219,5 +302,34 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
         }}
       />
     </>
+  )
+}
+
+function CreateCarePlanButton({
+  rec,
+  pending,
+  onCreate,
+}: {
+  rec: CarePlanRecommendation
+  pending: boolean
+  onCreate: (formId: string) => void
+}) {
+  if (!rec.carePathwayFormId) {
+    return (
+      <Button type="button" variant="outline" size="sm" disabled title="No care plan form linked">
+        Create care plan
+      </Button>
+    )
+  }
+  return (
+    <Button
+      type="button"
+      size="sm"
+      disabled={pending}
+      data-testid="create-care-plan-from-recommendation"
+      onClick={() => onCreate(rec.carePathwayFormId!)}
+    >
+      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create care plan'}
+    </Button>
   )
 }
