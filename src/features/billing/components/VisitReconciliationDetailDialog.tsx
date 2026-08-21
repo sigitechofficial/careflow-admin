@@ -227,7 +227,19 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     {detail.carerName ? ` · ${detail.carerName}` : ''}
                   </p>
                 </div>
-                <VisitReconStatusBadge status={detail.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  {detail.nightDuty ? (
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                      {detail.nightDutyLabel ??
+                        (detail.nightDuty === 'SLEEPING_NIGHT'
+                          ? 'Sleeping night'
+                          : detail.nightDuty === 'WAKING_NIGHT'
+                            ? 'Waking night'
+                            : 'Standard')}
+                    </span>
+                  ) : null}
+                  <VisitReconStatusBadge status={detail.status} />
+                </div>
               </div>
 
               <ContentCard className="p-4">

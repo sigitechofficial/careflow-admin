@@ -27,6 +27,7 @@ import {
   formatWeekdays,
   formatYesNo,
 } from '@/features/service-users/visit-plan/visit-plan-format'
+import { formatVisitPlanNightDuty } from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
 import {
   contentAlertClass,
@@ -267,6 +268,12 @@ function CallPatternOverviewCard({
               <dt className={contentHelperClass}>Duration</dt>
               <dd>{slot.durationMinutes ? `${slot.durationMinutes} min` : '—'}</dd>
             </div>
+            {slot.nightDuty !== 'NONE' ? (
+              <div>
+                <dt className={contentHelperClass}>Night duty</dt>
+                <dd>{formatVisitPlanNightDuty(slot.nightDuty)}</dd>
+              </div>
+            ) : null}
             <div>
               <dt className={contentHelperClass}>Notes mandatory</dt>
               <dd>{formatYesNo(slot.notesRequired)}</dd>

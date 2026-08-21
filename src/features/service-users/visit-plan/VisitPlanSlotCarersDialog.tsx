@@ -1,12 +1,19 @@
+import * as React from 'react'
+import { Button } from '@/shared/ui/button'
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { VisitPlanSlotCarerAssignment } from '@/features/service-users/visit-plan/VisitPlanSlotCarerAssignment'
+import {
+  formatRequiredCarersRoleHint,
+  slotAssignedEmployeeIds,
+} from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 
 type Props = {
@@ -20,6 +27,22 @@ type Props = {
   onChange: (assignedEmployeeIds: string[]) => void
 }
 
+function slotWithDraftIds(slot: VisitPlanSlot, draftIds: string[]): VisitPlanSlot {
+  return {
+    ...slot,
+    assignedEmployeeIds: draftIds,
+    carerAssignments: draftIds.map((employeeId, index) => ({
+      dayOfWeek: null,
+      employeeId,
+      role: (index === 0 ? 'LEAD' : 'SECONDARY') as VisitPlanSlot['carerAssignments'][number]['role'],
+      durationMinutes: null,
+      plannedStartTime: null,
+      plannedEndTime: null,
+      sortOrder: index,
+    })),
+  }
+}
+
 export function VisitPlanSlotCarersDialog({
   open,
   onOpenChange,
@@ -30,7 +53,24 @@ export function VisitPlanSlotCarersDialog({
   dialogDescription,
   onChange,
 }: Props) {
+  const [draftIds, setDraftIds] = React.useState<string[]>(() => slotAssignedEmployeeIds(slot))
   const defaultTitle = `${slot.assignedEmployeeIds?.length ? 'Change carers' : 'Assign carers'} — ${slot.label}`
+
+  React.useEffect(() => {
+    if (!open) return
+    setDraftIds(slotAssignedEmployeeIds(slot))
+    // Snapshot assigned carers only when the dialog opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slot identity changes each parent render
+  }, [open])
+
+  const draftSlot = React.useMemo(() => slotWithDraftIds(slot, draftIds), [slot, draftIds])
+
+  const closeWithoutSaving = () => onOpenChange(false)
+
+  const confirmSelection = () => {
+    onChange(draftIds)
+    onOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,19 +82,31 @@ export function VisitPlanSlotCarersDialog({
           <DialogTitle>{dialogTitle ?? defaultTitle}</DialogTitle>
           <DialogDescription>
             {dialogDescription ??
-              `Each call slot can have different carers. Assignments apply only to ${slot.label.toLowerCase()} visits (${slot.plannedStartTime}–${slot.plannedEndTime}).`}
+              `Each call slot can have different carers. Assignments apply only to ${slot.label.toLowerCase()} visits (${slot.plannedStartTime}–${slot.plannedEndTime}).${
+                slot.requiredCarers > 1
+                  ? ` Need ${slot.requiredCarers}: ${formatRequiredCarersRoleHint(slot.requiredCarers)}. Cancel keeps the previous list; Confirm applies it.`
+                  : ''
+              }`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="max-h-[min(70dvh,36rem)] min-h-0 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
           <VisitPlanSlotCarerAssignment
             serviceUserId={serviceUserId}
-            slot={slot}
+            slot={draftSlot}
             disabled={disabled}
-            onChange={onChange}
+            onChange={setDraftIds}
             active={open}
             embedded
           />
         </DialogBody>
+        <DialogFooter className="shrink-0 border-t border-border px-5 py-4 sm:px-6">
+          <Button type="button" variant="outline" onClick={closeWithoutSaving}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={confirmSelection} disabled={disabled}>
+            Confirm
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

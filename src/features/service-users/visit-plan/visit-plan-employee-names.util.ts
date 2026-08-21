@@ -1,5 +1,4 @@
 import type { VisitPlanSlot, VisitPlanSlotCarerRole } from '@/features/service-users/visit-plan/types'
-import { formatCarerAssignmentRoleLabel } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 
 /** Resolved carer IDs for one slot (carerAssignments take precedence over legacy list). */
 export function slotAssignedEmployeeIds(slot: VisitPlanSlot): string[] {
@@ -28,6 +27,29 @@ export function slotCarerRoleForEmployee(
   return index <= 0 ? 'LEAD' : 'SECONDARY'
 }
 
+/** On-screen role for 2+ carer slots: Lead, Secondary, or Support 1 / Support 2. */
+export function formatSlotCarerDisplayRole(
+  slot: Pick<VisitPlanSlot, 'carerAssignments' | 'assignedEmployeeIds' | 'requiredCarers'>,
+  employeeId: string,
+): string {
+  const role = slotCarerRoleForEmployee(slot, employeeId)
+  if (role === 'LEAD') return 'Lead'
+  const ids = slotAssignedEmployeeIds(slot as VisitPlanSlot)
+  const supportIds = ids.filter((id) => slotCarerRoleForEmployee(slot, id) === 'SECONDARY')
+  const needNumbered = (slot.requiredCarers ?? 1) >= 3 || supportIds.length >= 2
+  if (!needNumbered) return 'Secondary'
+  const index = supportIds.indexOf(employeeId.trim())
+  return index >= 0 ? `Support ${index + 1}` : 'Secondary'
+}
+
+export function formatRequiredCarersRoleHint(requiredCarers: number): string {
+  const n = Math.max(1, requiredCarers)
+  if (n <= 1) return ''
+  if (n === 2) return 'Lead + Secondary'
+  const supports = Array.from({ length: n - 1 }, (_, i) => `Support ${i + 1}`)
+  return `Lead + ${supports.join(' + ')}`
+}
+
 /** Move employee to front so they become Lead when roles are derived from order. */
 export function promoteEmployeeToLeadOrder(assignedEmployeeIds: string[], employeeId: string): string[] {
   const id = employeeId.trim()
@@ -48,7 +70,7 @@ export function assignedEmployeeIdsFromSlots(slots: VisitPlanSlot[]): string[] {
 export function formatSlotAssignedCarersSummary(
   slot: VisitPlanSlot,
   nameById: Map<string, string>,
-  maxNames = 2,
+  maxNames = 4,
 ): string {
   const ids = slotAssignedEmployeeIds(slot)
   if (!ids.length) return 'None'
@@ -56,7 +78,7 @@ export function formatSlotAssignedCarersSummary(
   const names = ids.map((id) => {
     const name = nameById.get(id) ?? 'Unknown'
     if (!showRoles) return name
-    return `${name} (${formatCarerAssignmentRoleLabel(slotCarerRoleForEmployee(slot, id))})`
+    return `${name} (${formatSlotCarerDisplayRole(slot, id)})`
   })
   if (names.length <= maxNames) return names.join(', ')
   return `${names.slice(0, maxNames).join(', ')} +${names.length - maxNames}`

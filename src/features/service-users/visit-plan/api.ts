@@ -59,6 +59,7 @@ const SLOT_OPTION_DEFAULTS = {
   linkedCarePlanFormIds: [] as string[],
   assignedEmployeeIds: [] as string[],
   slotKind: 'STANDARD' as const,
+  nightDuty: 'NONE' as const,
   slotEffectiveFrom: null as string | null,
   slotEffectiveTo: null as string | null,
   oneOffDate: null as string | null,
@@ -140,7 +141,8 @@ export type VisitPlanSlotInput = {
   linkedCarePlanFormIds?: string[]
   assignedEmployeeIds?: string[]
   slotKind?: VisitPlanSlot['slotKind']
-  slotEffectiveFrom?: string | null
+  nightDuty?: VisitPlanSlot['nightDuty']
+  slotEffectiveFrom?: string | null,
   slotEffectiveTo?: string | null
   oneOffDate?: string | null
   allowBackfillDays?: number
@@ -503,6 +505,7 @@ export type VisitPlanCalendarVisit = {
   attendingEmployeeId?: string | null
   slotLabel?: string | null
   slotCode?: string | null
+  nightDuty?: string | null
   linkedCarePlanFormIds?: string[]
   notes: string | null
   scheduledStartDateTime: string

@@ -13,6 +13,8 @@ export type VisitPlanMonthlyOrdinal = 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 
 
 export type VisitPlanSlotKind = 'STANDARD' | 'OVERNIGHT' | 'ONE_OFF'
 
+export type VisitPlanNightDuty = 'NONE' | 'SLEEPING_NIGHT' | 'WAKING_NIGHT'
+
 export type VisitPlanSlotCarerRole = 'LEAD' | 'SECONDARY'
 
 export type VisitPlanSlotExceptionType = 'SKIP' | 'EXTRA'
@@ -152,6 +154,7 @@ export type VisitPlanSlot = {
   linkedCarePlanFormIds: string[]
   assignedEmployeeIds: string[]
   slotKind: VisitPlanSlotKind
+  nightDuty: VisitPlanNightDuty
   slotEffectiveFrom: string | null
   slotEffectiveTo: string | null
   oneOffDate: string | null

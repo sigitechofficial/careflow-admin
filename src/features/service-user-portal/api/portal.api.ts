@@ -444,6 +444,7 @@ export type PortalVisitPlanSlot = {
   requiredCarers: number
   scheduleFrequency: string
   slotKind: string
+  nightDuty?: string
   notes: string
   carers: Array<{
     displayName: string

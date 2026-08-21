@@ -61,6 +61,11 @@ import {
   visitDurationMinutes,
   visitPlanEndTimeFromStartAndDuration,
 } from '@/features/service-users/visit-plan/visit-plan-time.util'
+import { VISIT_PLAN_MAX_DURATION_MINUTES } from '@/features/service-users/visit-plan/visit-plan-constants'
+import {
+  formatVisitPlanNightDuty,
+  resolveVisitPlanNightDuty,
+} from '@/features/service-users/visit-plan/visit-plan-night-duty.util'
 import {
   assignedEmployeeIdsFromSlots,
   formatSlotAssignedCarersSummary,
@@ -194,6 +199,7 @@ function toSlotInput(slots: VisitPlanSlot[]) {
       linkedCarePlanFormIds: s.linkedCarePlanFormIds,
       ...carers,
       slotKind: s.slotKind,
+      nightDuty: s.nightDuty,
       slotEffectiveFrom: s.slotEffectiveFrom,
       slotEffectiveTo: s.slotEffectiveTo,
       oneOffDate: s.oneOffDate,
@@ -350,9 +356,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   React.useEffect(() => {
     if (!slots.length) return
-    if (!configSlotCode || !slots.some(s => s.slotCode === configSlotCode)) {
-      setConfigSlotCode(slots[0]!.slotCode)
-    }
+    const selected = slots.find((s) => s.slotCode === configSlotCode)
+    if (selected?.isEnabled) return
+    const firstEnabled = slots.find((s) => s.isEnabled)
+    if (firstEnabled) setConfigSlotCode(firstEnabled.slotCode)
+    else if (!configSlotCode) setConfigSlotCode(slots[0]!.slotCode)
   }, [slots, configSlotCode])
 
   const toggleDay = (slotIndex: number, day: number) => {
@@ -367,7 +375,13 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
   }
 
   const updateSlot = (slotIndex: number, patch: Partial<VisitPlanSlot>) => {
-    setSlots((prev) => prev.map((row, i) => (i === slotIndex ? { ...row, ...patch } : row)))
+    setSlots((prev) =>
+      prev.map((row, i) => {
+        if (i !== slotIndex) return row
+        const next = { ...row, ...patch }
+        return { ...next, nightDuty: resolveVisitPlanNightDuty(next) }
+      }),
+    )
   }
 
   const handleCreate = async () => {
@@ -1009,6 +1023,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                       >
                         <TableCell variant="data" className="pr-0" onClick={(e) => e.stopPropagation()}>
                           <div className={contentTableRowLabelClass}>{slot.label}</div>
+                          {slot.nightDuty !== 'NONE' ? (
+                            <p className="mt-0.5 text-[11px] text-sky-700 dark:text-sky-300">
+                              {formatVisitPlanNightDuty(slot.nightDuty)}
+                            </p>
+                          ) : null}
                           <Input
                             type="date"
                             className="mt-1 h-8 w-[9.5rem] text-sm"
@@ -1023,7 +1042,10 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                         <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
                           <Switch
                             checked={slot.isEnabled}
-                            onCheckedChange={(isEnabled) => updateSlot(rowIndex, { isEnabled })}
+                            onCheckedChange={(isEnabled) => {
+                              updateSlot(rowIndex, { isEnabled })
+                              if (isEnabled) setConfigSlotCode(slot.slotCode)
+                            }}
                             aria-label={`Enable ${slot.label}`}
                           />
                         </TableCell>
@@ -1083,7 +1105,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                               const durationMinutes =
                                 raw === ''
                                   ? null
-                                  : Math.min(480, Math.max(1, Number(raw)))
+                                  : Math.min(VISIT_PLAN_MAX_DURATION_MINUTES, Math.max(1, Number(raw)))
                               const end = visitPlanEndTimeFromStartAndDuration(
                                 slot.plannedStartTime,
                                 durationMinutes,

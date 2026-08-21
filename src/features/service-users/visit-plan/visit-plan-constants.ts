@@ -4,6 +4,9 @@ import type {
   VisitPlanScheduleFrequency,
 } from '@/features/service-users/visit-plan/types'
 
+/** Max visit length (12 hours) so sleeping / waking nights can span overnight. */
+export const VISIT_PLAN_MAX_DURATION_MINUTES = 720
+
 export const VISIT_PLAN_SCHEDULE_FREQUENCIES: { value: VisitPlanScheduleFrequency; label: string }[] = [
   { value: 'DAILY', label: 'Daily' },
   { value: 'WEEKLY', label: 'Weekly' },

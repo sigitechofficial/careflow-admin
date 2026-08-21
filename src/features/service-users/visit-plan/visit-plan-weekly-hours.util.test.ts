@@ -34,6 +34,7 @@ function baseSlot(overrides: Partial<VisitPlanSlot> = {}): VisitPlanSlot {
     linkedCarePlanFormIds: [],
     assignedEmployeeIds: [],
     slotKind: 'STANDARD',
+    nightDuty: 'NONE',
     slotEffectiveFrom: null,
     slotEffectiveTo: null,
     oneOffDate: null,

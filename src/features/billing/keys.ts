@@ -40,6 +40,7 @@ export const billingKeys = {
     serviceUserId?: string
     employeeId?: string
     locationId?: string
+    nightDuty?: string
     page?: number
     limit?: number
   }) => [...billingKeys.all, 'visit-reconciliations', filters ?? {}] as const,

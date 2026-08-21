@@ -18,9 +18,12 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
+  formatVisitNightDutyLabel,
   listBlockingExceptionCodes,
+  type VisitNightDutyFilter,
   type VisitReconciliationRow,
 } from '@/features/billing/types/visit-reconciliation.types'
+import { Badge } from '@/shared/ui/badge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { listServiceUsers } from '@/features/service-users/api'
 import { listAllEmployees } from '@/features/employees/api'
@@ -67,6 +70,7 @@ export function BillingVisitReconciliationPanel({
   const [serviceUserId, setServiceUserId] = React.useState(initialServiceUserId ?? '')
   const [employeeId, setEmployeeId] = React.useState(initialEmployeeId ?? '')
   const [exceptionsOnly, setExceptionsOnly] = React.useState(false)
+  const [nightDuty, setNightDuty] = React.useState<VisitNightDutyFilter | ''>('')
 
   React.useEffect(() => {
     if (initialEmployeeId) setEmployeeId(initialEmployeeId)
@@ -120,6 +124,7 @@ export function BillingVisitReconciliationPanel({
     serviceUserId: serviceUserId || undefined,
     employeeId: employeeId || undefined,
     hasExceptions: exceptionsOnly ? true : undefined,
+    nightDuty: nightDuty || undefined,
     locationId: locationId ?? undefined,
     limit: 100,
   })
@@ -141,6 +146,10 @@ export function BillingVisitReconciliationPanel({
       return (b.plannedArrival || '').localeCompare(a.plannedArrival || '')
     })
   }, [query.data?.rows])
+  const filteredTotal = query.data?.meta.total ?? rows.length
+  const hasActiveFilters = Boolean(
+    debouncedSearch || serviceUserId || employeeId || exceptionsOnly || nightDuty,
+  )
   const isMutating =
     approveMutation.isPending ||
     rejectMutation.isPending ||
@@ -295,6 +304,18 @@ export function BillingVisitReconciliationPanel({
               aria-label="Search visit reconciliations"
             />
           </div>
+          <select
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            value={nightDuty}
+            onChange={e => setNightDuty(e.target.value as VisitNightDutyFilter | '')}
+            aria-label="Filter by visit type"
+          >
+            <option value="">All visit types</option>
+            <option value="overnight">Overnight (sleeping + waking)</option>
+            <option value="SLEEPING_NIGHT">Sleeping night</option>
+            <option value="WAKING_NIGHT">Waking night</option>
+            <option value="standard">Standard</option>
+          </select>
           <Button
             variant={exceptionsOnly ? 'default' : 'outline'}
             size="sm"
@@ -303,6 +324,20 @@ export function BillingVisitReconciliationPanel({
           >
             {exceptionsOnly ? 'Showing exceptions' : 'Exceptions only'}
           </Button>
+          {!query.isLoading && !query.isError ? (
+            <span
+              className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-sm font-semibold tabular-nums text-foreground shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+              data-testid="visit-recon-count"
+            >
+              {filteredTotal === 0
+                ? hasActiveFilters
+                  ? 'No matching visits'
+                  : '0 visits'
+                : filteredTotal > rows.length
+                  ? `Showing ${rows.length} of ${filteredTotal} visits`
+                  : `${filteredTotal} ${filteredTotal === 1 ? 'visit' : 'visits'}`}
+            </span>
+          ) : null}
         </div>
 
         {canManage ? (
@@ -372,7 +407,11 @@ export function BillingVisitReconciliationPanel({
           <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
             <ClipboardCheck className="h-5 w-5 text-muted-foreground" aria-hidden />
           </div>
-          <p>No visits awaiting reconciliation.</p>
+          <p>
+            {hasActiveFilters
+              ? 'No visits match these filters.'
+              : 'No visits awaiting reconciliation.'}
+          </p>
           {canManage ? (
             <Button
               variant="outline"
@@ -408,6 +447,9 @@ export function BillingVisitReconciliationPanel({
                 ) : null}
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
                   EMONITORED
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                  Visit type
                 </th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
                   Client ID
@@ -493,6 +535,20 @@ export function BillingVisitReconciliationPanel({
                       {row.emonitored ? (
                         <div className="text-[11px] text-muted-foreground">{row.emonitored}</div>
                       ) : null}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <Badge
+                        variant="secondary"
+                        className={
+                          row.nightDuty === 'SLEEPING_NIGHT'
+                            ? 'bg-indigo-500/10 text-indigo-800 dark:text-indigo-200'
+                            : row.nightDuty === 'WAKING_NIGHT'
+                              ? 'bg-sky-500/10 text-sky-800 dark:text-sky-200'
+                              : 'font-normal'
+                        }
+                      >
+                        {formatVisitNightDutyLabel(row.nightDuty, row.nightDutyLabel)}
+                      </Badge>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
                       {row.clientId || '—'}

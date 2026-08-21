@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Car, ChevronDown, Clock, Plus, PoundSterling, Trash2 } from 'lucide-react'
+import { Car, ChevronDown, Clock, Moon, Plus, PoundSterling, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
@@ -39,6 +39,7 @@ import {
   isHourlyChargePeriodRule,
   isHourlyLongVisitRule,
   isMileageRule,
+  isNightDutyChargeRule,
   isTimeBandRule,
   isTravelOrWaitingRule,
   isTravelTimeRule,
@@ -108,6 +109,7 @@ function emptyTimeBandPayRule(periodCode: PayTimePeriodCode = 'WEEKDAY_EVENING')
 
 /** Absolute or enhanced hourly rates for visits (may include day + clock window). */
 function isHourlyPeriodRule(rule: PayCardRule): boolean {
+  if (isNightDutyChargeRule(rule)) return false
   if (
     rule.rateType === 'FIXED'
     || rule.rateType === 'MILEAGE'
@@ -120,7 +122,7 @@ function isHourlyPeriodRule(rule: PayCardRule): boolean {
 }
 
 function isFixedVisitRule(rule: PayCardRule): boolean {
-  return rule.rateType === 'FIXED'
+  return rule.rateType === 'FIXED' && !isNightDutyChargeRule(rule)
 }
 
 function emptyHourlyChargeRule(periodCode: PayTimePeriodCode = 'WEEKDAY_DAYTIME'): ChargeCardRule {
@@ -185,6 +187,36 @@ function emptyWaitingTimeChargeRule(): ChargeCardRule {
     label: 'Waiting time recharge',
     chargeMethod: 'HOURLY_PRO_RATA',
     chargeableFlag: true,
+  }
+}
+
+function emptySleepingNightChargeRule(): ChargeCardRule {
+  return {
+    label: 'Sleeping night',
+    dayType: 'ANY',
+    rateType: 'FIXED',
+    amount: 0,
+    minimumMinutes: null,
+    startTime: null,
+    endTime: null,
+    chargeMethod: 'SLEEP_IN',
+    chargeableFlag: true,
+    sortOrder: 0,
+  }
+}
+
+function emptyWakingNightChargeRule(): ChargeCardRule {
+  return {
+    label: 'Waking night',
+    dayType: 'ANY',
+    rateType: 'HOURLY',
+    amount: 0,
+    minimumMinutes: null,
+    startTime: null,
+    endTime: null,
+    chargeMethod: 'WAKING_NIGHT',
+    chargeableFlag: true,
+    sortOrder: 0,
   }
 }
 
@@ -486,6 +518,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         : [emptyWaitingTimePayRule(), ...rules],
     )
     setTravelOpen(true)
+    flashNewRules(1)
+  }
+
+  const addSleepingNightRule = () => {
+    if ((rules as ChargeCardRule[]).some(r => r.chargeMethod === 'SLEEP_IN')) {
+      toastWarning('Already added', 'This card already has a Sleeping night rate.')
+      return
+    }
+    onChange([emptySleepingNightChargeRule(), ...(rules as ChargeCardRule[])])
+    flashNewRules(1)
+  }
+
+  const addWakingNightRule = () => {
+    if ((rules as ChargeCardRule[]).some(r => r.chargeMethod === 'WAKING_NIGHT')) {
+      toastWarning('Already added', 'This card already has a Waking night rate.')
+      return
+    }
+    onChange([emptyWakingNightChargeRule(), ...(rules as ChargeCardRule[])])
     flashNewRules(1)
   }
 
@@ -1316,6 +1366,126 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             return (
               <div className="space-y-3">
                 {items.map(({ rule, index }) => renderFixedVisitCard(rule, index))}
+              </div>
+            )
+          })()}
+        </div>
+      ) : null}
+
+      {mode === 'charge' ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
+                <Moon className="h-4 w-4" aria-hidden />
+              </span>
+              <BillingFieldLabel
+                label="Night duty"
+                tooltip="Used only when the visit plan night duty is Sleeping night or Waking night. Day visits still use the hourly / fixed rules above."
+                className="text-sm font-semibold text-foreground"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus className="h-3.5 w-3.5" />}
+                onClick={addSleepingNightRule}
+                disabled={disabled || (rules as ChargeCardRule[]).some(r => r.chargeMethod === 'SLEEP_IN')}
+              >
+                Sleeping night
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus className="h-3.5 w-3.5" />}
+                onClick={addWakingNightRule}
+                disabled={disabled || (rules as ChargeCardRule[]).some(r => r.chargeMethod === 'WAKING_NIGHT')}
+              >
+                Waking night
+              </Button>
+            </div>
+          </div>
+          {(() => {
+            const items = (rules as ChargeCardRule[])
+              .map((rule, index) => ({ rule, index }))
+              .filter(({ rule }) => isNightDutyChargeRule(rule))
+            if (items.length === 0) {
+              return (
+                <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3 text-sm text-muted-foreground">
+                  Optional — add a flat £/night for sleeping nights, or £/hour for waking nights.
+                </p>
+              )
+            }
+            return (
+              <div className="space-y-3">
+                {items.map(({ rule, index }) => (
+                  <div key={index} className={ruleShellClass(index)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {rule.label?.trim() || getRuleChargeMethodLabel(rule)}
+                        </p>
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {getRuleChargeMethodLabel(rule)}
+                        </Badge>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 shrink-0 p-0 text-destructive"
+                        onClick={() => removeRule(index)}
+                        disabled={disabled}
+                        title="Remove"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="space-y-1 text-sm">
+                        <span className="text-xs font-medium text-foreground/90">
+                          {getRuleAmountFieldLabel(rule)} <span className="text-destructive" aria-hidden>*</span>
+                        </span>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={rule.amount === 0 || rule.amount == null ? '' : String(rule.amount)}
+                          onChange={e => {
+                            const raw = e.target.value.trim()
+                            const amount = raw === '' ? 0 : Number(raw)
+                            if (Number.isNaN(amount)) return
+                            updateRule(index, { amount })
+                          }}
+                          disabled={disabled}
+                          placeholder="0.00"
+                          required
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm">
+                        <span className="text-xs font-medium text-foreground/90">Applies on</span>
+                        <select
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={rule.dayType}
+                          onChange={e => updateRule(index, { dayType: e.target.value as BillingDayType })}
+                          disabled={disabled}
+                        >
+                          {BILLING_DAY_TYPE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <p className="text-xs leading-snug text-foreground/80 dark:text-zinc-300">
+                      Note :{' '}
+                      {rule.chargeMethod === 'SLEEP_IN'
+                        ? 'For this type of visit the charge should be fixed — one amount for the whole night.'
+                        : 'For this type of visit the charge should be hourly — billed for the hours worked.'}
+                    </p>
+                  </div>
+                ))}
               </div>
             )
           })()}

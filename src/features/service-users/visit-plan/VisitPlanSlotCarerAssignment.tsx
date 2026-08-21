@@ -18,6 +18,8 @@ import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useS
 import type { VisitPlanCarerCandidate, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import {
+  formatRequiredCarersRoleHint,
+  formatSlotCarerDisplayRole,
   promoteEmployeeToLeadOrder,
   slotAssignedEmployeeIds,
   slotCarerRoleForEmployee,
@@ -268,7 +270,7 @@ export function VisitPlanSlotCarerAssignment({
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" aria-hidden />
                 {maxCarers} carer{maxCarers === 1 ? '' : 's'} required
-                {showRoles ? ' · Lead + Secondary' : ''}
+                {showRoles ? ` · ${formatRequiredCarersRoleHint(maxCarers)}` : ''}
               </span>
             </div>
             {slot.daysOfWeek.length > 0 ? (
@@ -359,7 +361,10 @@ export function VisitPlanSlotCarerAssignment({
                       <div className="min-w-0 flex-1 space-y-2">
                         {showRoles ? (
                           <div className="flex flex-wrap items-center gap-2">
-                            <VisitPlanCarerRoleBadge role={role} />
+                            <VisitPlanCarerRoleBadge
+                              role={role}
+                              label={formatSlotCarerDisplayRole(slot, id)}
+                            />
                             {role === 'SECONDARY' && !disabled ? (
                               <Button
                                 type="button"
@@ -415,7 +420,7 @@ export function VisitPlanSlotCarerAssignment({
               {hasCarerByDay
                 ? 'Day-specific rules from advanced settings. Availability reflects working pattern and existing rota bookings.'
                 : showRoles
-                  ? `First assigned carer is Lead; others are Secondary. Use “Make lead” to change. Assigned for ${slotDayLabels || 'selected days'}.`
+                  ? `First assigned carer is Lead; the next are ${maxCarers >= 3 ? 'Support 1, Support 2' : 'Secondary'}. Use “Make lead” to change. Assigned for ${slotDayLabels || 'selected days'}.`
                   : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then generate rota to apply.`}
             </p>
           </div>

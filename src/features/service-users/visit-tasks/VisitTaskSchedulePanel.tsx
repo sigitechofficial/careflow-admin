@@ -79,6 +79,7 @@ export function VisitTaskSchedulePanel({
     linkedCarePlanFormIds: [],
     assignedEmployeeIds: [],
     slotKind: 'STANDARD' as const,
+    nightDuty: 'NONE' as const,
     slotEffectiveFrom: null,
     slotEffectiveTo: null,
     oneOffDate: null,

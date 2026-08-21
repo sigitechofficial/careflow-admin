@@ -13,7 +13,11 @@ import { Button } from '@/shared/ui/button'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { normalizeTimeForInput } from '@/features/service-users/visit-plan/visit-plan-time.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { slotAssignedEmployeeIds, slotCarerRoleForEmployee } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
+import {
+  formatSlotCarerDisplayRole,
+  slotAssignedEmployeeIds,
+  slotCarerRoleForEmployee,
+} from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import { VisitPlanCarerRoleBadge } from '@/features/service-users/visit-plan/VisitPlanCarerRoleBadge'
 import { VisitPlanSlotCarerByDaySummaryList } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDaySummaryList'
 import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
@@ -95,13 +99,18 @@ export function VisitPlanSlotViewCarersDialog({
                         <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
                           {resolveEmployeeDisplayName(employeeNameById, id)}
                         </p>
-                        {showRoles ? <VisitPlanCarerRoleBadge role={role} /> : null}
+                        {showRoles ? (
+                          <VisitPlanCarerRoleBadge
+                            role={role}
+                            label={formatSlotCarerDisplayRole(slot, id)}
+                          />
+                        ) : null}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {showRoles
                           ? role === 'LEAD'
                             ? 'Lead carer for this visit · View employee profile'
-                            : 'Secondary carer for this visit · View employee profile'
+                            : `${formatSlotCarerDisplayRole(slot, id)} for this visit · View employee profile`
                           : 'View employee profile'}
                       </p>
                     </div>

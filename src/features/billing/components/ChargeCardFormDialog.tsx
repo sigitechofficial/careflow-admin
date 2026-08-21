@@ -25,6 +25,7 @@ import {
 } from '@/shared/ui/dialog'
 import { BillingCardRulesEditor } from '@/features/billing/components/BillingCardRulesEditor'
 import { serializeChargeCardRulesForApi, normalizeChargeCardRulesForEditor } from '@/features/billing/utils/billing-card-payload.util'
+import { isNightDutyChargeRule } from '@/features/billing/utils/billing-card-rule.util'
 import { useCreateChargeCard, useUpdateChargeCard } from '@/features/billing/hooks/useChargeCards'
 import {
   BILLING_CARD_STATUS_OPTIONS,
@@ -216,6 +217,7 @@ export function ChargeCardFormDialog({ open, onOpenChange, card }: ChargeCardFor
         rule.rateType === 'MILEAGE'
         || rule.rateType === 'TRAVEL_TIME'
         || rule.rateType === 'WAITING_TIME'
+        || isNightDutyChargeRule(rule)
       if (!(Number(rule.amount) > 0)) {
         setError('Every rate rule needs an amount greater than zero.')
         return

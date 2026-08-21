@@ -7,12 +7,20 @@ type Props = {
   role: VisitPlanSlotCarerRole
   className?: string
   size?: 'sm' | 'md'
+  /** Override badge text (e.g. Support 1 / Support 2). */
+  label?: string
 }
 
-/** Lead / Secondary badge for double-up (multi-carer) visit plan assignments. */
-export function VisitPlanCarerRoleBadge({ role, className, size = 'sm' }: Props) {
+/** Lead / Secondary / Support N badge for multi-carer visit plan assignments. */
+export function VisitPlanCarerRoleBadge({ role, className, size = 'sm', label }: Props) {
   const isLead = role === 'LEAD'
   const Icon = isLead ? Crown : User
+  const text = label ?? formatCarerAssignmentRoleLabel(role)
+  const title = isLead
+    ? 'Lead carer for this visit'
+    : label
+      ? `${label} for this visit`
+      : 'Secondary carer for this visit'
   return (
     <span
       className={cn(
@@ -23,10 +31,10 @@ export function VisitPlanCarerRoleBadge({ role, className, size = 'sm' }: Props)
           : 'border-slate-300 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-200',
         className,
       )}
-      title={isLead ? 'Lead carer for this visit' : 'Secondary carer for this visit'}
+      title={title}
     >
       <Icon className={size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5'} aria-hidden />
-      {formatCarerAssignmentRoleLabel(role)}
+      {text}
     </span>
   )
 }

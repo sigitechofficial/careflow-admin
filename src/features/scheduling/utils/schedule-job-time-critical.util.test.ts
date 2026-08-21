@@ -44,6 +44,7 @@ const criticalSlot: VisitPlanSlot = {
   linkedCarePlanFormIds: [],
   assignedEmployeeIds: [],
   slotKind: 'STANDARD',
+  nightDuty: 'NONE',
   slotEffectiveFrom: null,
   slotEffectiveTo: null,
   oneOffDate: null,

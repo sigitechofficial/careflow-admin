@@ -2,6 +2,7 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   ApproveScope,
   ExceptionQueueRow,
+  VisitNightDutyFilter,
   VisitReconciliationDetail,
   VisitReconciliationRow,
   VisitReconciliationsSummary,
@@ -24,6 +25,7 @@ export async function fetchVisitReconciliations(params?: {
   serviceUserId?: string
   employeeId?: string
   locationId?: string
+  nightDuty?: VisitNightDutyFilter
   dateFrom?: string
   dateTo?: string
   page?: number
@@ -36,6 +38,7 @@ export async function fetchVisitReconciliations(params?: {
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
   if (params?.employeeId) qs.set('employeeId', params.employeeId)
   if (params?.locationId) qs.set('locationId', params.locationId)
+  if (params?.nightDuty) qs.set('nightDuty', params.nightDuty)
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
   if (params?.page != null) qs.set('page', String(params.page))

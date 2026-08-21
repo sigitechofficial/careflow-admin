@@ -122,6 +122,10 @@ function RuleTable({
                     ? 'Travel hours'
                     : isWaitingTimeRule(rule)
                       ? 'Waiting hours'
+                      : rule.chargeMethod === 'SLEEP_IN'
+                        ? 'Per night'
+                        : rule.chargeMethod === 'WAKING_NIGHT'
+                          ? 'Overnight hours'
                       : isHourlyLongVisitRule(rule)
                         ? 'Over 1 hour'
                         : (formatVisitDurationLabel(rule.minimumMinutes) ?? '—')}

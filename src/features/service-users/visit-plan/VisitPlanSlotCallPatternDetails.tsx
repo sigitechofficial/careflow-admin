@@ -28,6 +28,7 @@ import { resolveCarePlansForSlot } from '@/features/service-users/visit-plan/vis
 import { VisitPlanSlotCarerByDayDetails } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDayDetails'
 import { slotHasCarerByDayAssignments } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 import {
+  formatSlotCarerDisplayRole,
   slotAssignedEmployeeIds,
   slotCarerRoleForEmployee,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
@@ -157,6 +158,16 @@ export function VisitPlanSlotCallPatternDetails({
             label="Duration"
             value={slot.durationMinutes ? `${slot.durationMinutes} min` : '—'}
           />
+          <DetailField
+            label="Night duty"
+            value={
+              slot.nightDuty === 'SLEEPING_NIGHT'
+                ? 'Sleeping night'
+                : slot.nightDuty === 'WAKING_NIGHT'
+                  ? 'Waking night'
+                  : 'None'
+            }
+          />
           <DetailField label="Notes mandatory" value={formatYesNo(slot.notesRequired)} />
           <DetailField label="Photos allowed" value={formatYesNo(slot.photoAllowed)} />
           <DetailField label="Share with family" value={formatYesNo(slot.shareOutcomeWithFamily)} />
@@ -248,13 +259,18 @@ export function VisitPlanSlotCallPatternDetails({
                         <p className="truncate text-sm font-medium text-foreground group-hover:text-sky-900 dark:group-hover:text-sky-100">
                           {name}
                         </p>
-                        {showRoles ? <VisitPlanCarerRoleBadge role={role} /> : null}
+                        {showRoles ? (
+                          <VisitPlanCarerRoleBadge
+                            role={role}
+                            label={formatSlotCarerDisplayRole(slot, id)}
+                          />
+                        ) : null}
                       </div>
                       <p className={contentHelperClass}>
                         {showRoles
                           ? role === 'LEAD'
                             ? 'Lead carer · View employee profile'
-                            : 'Secondary carer · View employee profile'
+                            : `${formatSlotCarerDisplayRole(slot, id)} · View employee profile`
                           : 'View employee profile'}
                       </p>
                     </div>

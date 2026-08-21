@@ -345,6 +345,8 @@ export const DEFAULT_VISIT_DURATION_MINUTES = 30
 export const BILLING_CHARGE_METHOD_OPTIONS: { value: BillingChargeMethod; label: string }[] = [
   { value: 'FIXED_VISIT', label: 'Fixed visit charge (up to 1 hour)' },
   { value: 'HOURLY_PRO_RATA', label: 'Hourly (visits over 1 hour)' },
+  { value: 'SLEEP_IN', label: 'Sleeping night (fixed £/night)' },
+  { value: 'WAKING_NIGHT', label: 'Waking night (£/hour)' },
 ]
 
 export function formatVisitDurationLabel(minutes?: number | null): string | null {
@@ -373,11 +375,15 @@ export function formatPayCardRuleTimeBand(rule: Pick<PayCardRule, 'startTime' | 
 }
 
 export function formatPayCardRuleAmount(
-  rule: Pick<PayCardRule, 'rateType' | 'amount' | 'multiplier' | 'minimumMinutes'>,
+  rule: Pick<PayCardRule, 'rateType' | 'amount' | 'multiplier' | 'minimumMinutes'> & {
+    chargeMethod?: BillingChargeMethod
+  },
   currency = 'GBP',
 ): string {
   const amount = Number(rule.amount)
   const symbol = formatBillingCurrencyDisplay(currency)
+  if (rule.chargeMethod === 'SLEEP_IN') return `${symbol}${amount.toFixed(2)} per night`
+  if (rule.chargeMethod === 'WAKING_NIGHT') return `${symbol}${amount.toFixed(2)}/hr`
   const durationLabel = formatVisitDurationLabel(rule.minimumMinutes)
   if (
     (rule.rateType === 'FIXED' || rule.rateType === 'PER_VISIT_FEE')

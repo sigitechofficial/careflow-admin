@@ -22,6 +22,13 @@ const NON_VISIT_RATE_TYPES = new Set<BillingRateType>([
   'PER_VISIT_FEE',
 ])
 
+export function isNightDutyChargeRule(
+  rule: Pick<ChargeCardRule, 'chargeMethod'> | Pick<PayCardRule, 'rateType'>,
+): boolean {
+  const method = 'chargeMethod' in rule ? rule.chargeMethod : undefined
+  return method === 'SLEEP_IN' || method === 'WAKING_NIGHT'
+}
+
 export function isDurationBandRule(minimumMinutes?: number | null): boolean {
   return minimumMinutes != null && minimumMinutes > 0
 }
@@ -85,7 +92,13 @@ export function isTimeBandRule(
   return Boolean(rule.startTime?.trim() || rule.endTime?.trim())
 }
 
-export function resolveRuleRateType(rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'>): BillingRateType {
+export function resolveRuleRateType(
+  rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'> & {
+    chargeMethod?: BillingChargeMethod
+  },
+): BillingRateType {
+  if (rule.chargeMethod === 'SLEEP_IN') return 'FIXED'
+  if (rule.chargeMethod === 'WAKING_NIGHT') return 'HOURLY'
   if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return rule.rateType
   if (rule.rateType === 'PREMIUM' || rule.rateType === 'UPLIFT' || rule.rateType === 'BANDED') return rule.rateType
   if (rule.rateType === 'HOURLY' || isHourlyLongVisitRule(rule) || isTimeBandRule(rule)) return 'HOURLY'
@@ -111,7 +124,13 @@ export function resolveRuleChargeMethod(
   return 'FIXED_VISIT'
 }
 
-export function getRuleRateTypeLabel(rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'>): string {
+export function getRuleRateTypeLabel(
+  rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'> & {
+    chargeMethod?: BillingChargeMethod
+  },
+): string {
+  if (rule.chargeMethod === 'SLEEP_IN') return 'Sleeping night (£/night)'
+  if (rule.chargeMethod === 'WAKING_NIGHT') return 'Waking night (£/hr)'
   if (isMileageRule(rule)) return 'Mileage (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time (£/hr)'
   if (isWaitingTimeRule(rule)) return 'Waiting time (£/hr)'
@@ -122,6 +141,8 @@ export function getRuleRateTypeLabel(rule: Pick<PayCardRule, 'minimumMinutes' | 
 }
 
 export function getRuleChargeMethodLabel(rule: Pick<ChargeCardRule, 'minimumMinutes' | 'rateType' | 'chargeMethod' | 'startTime' | 'endTime'>): string {
+  if (rule.chargeMethod === 'SLEEP_IN') return 'Sleeping night (fixed £/night)'
+  if (rule.chargeMethod === 'WAKING_NIGHT') return 'Waking night (£/hour)'
   if (isMileageRule(rule)) return 'Mileage recharge'
   if (isTravelTimeRule(rule)) return 'Travel time recharge'
   if (isWaitingTimeRule(rule)) return 'Waiting time recharge'
@@ -130,7 +151,13 @@ export function getRuleChargeMethodLabel(rule: Pick<ChargeCardRule, 'minimumMinu
   return 'Fixed visit charge'
 }
 
-export function getRuleAmountFieldLabel(rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'>): string {
+export function getRuleAmountFieldLabel(
+  rule: Pick<PayCardRule, 'minimumMinutes' | 'rateType' | 'startTime' | 'endTime'> & {
+    chargeMethod?: BillingChargeMethod
+  },
+): string {
+  if (rule.chargeMethod === 'SLEEP_IN') return 'Sleeping night rate (£/night)'
+  if (rule.chargeMethod === 'WAKING_NIGHT') return 'Waking night rate (£/hr)'
   if (isMileageRule(rule)) return 'Mileage rate (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time rate (£/hr)'
   if (isWaitingTimeRule(rule)) return 'Waiting time rate (£/hr)'
@@ -158,6 +185,15 @@ export function normalizePayCardRuleForEditor(rule: PayCardRule): PayCardRule {
 }
 
 export function normalizeChargeCardRuleForEditor(rule: ChargeCardRule): ChargeCardRule {
+  if (rule.chargeMethod === 'SLEEP_IN' || rule.chargeMethod === 'WAKING_NIGHT') {
+    return {
+      ...rule,
+      rateType: rule.chargeMethod === 'SLEEP_IN' ? 'FIXED' : 'HOURLY',
+      minimumMinutes: null,
+      startTime: null,
+      endTime: null,
+    }
+  }
   if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return rule
   if (rule.rateType === 'HOURLY' || isHourlyLongChargeRule(rule) || isTimeBandRule(rule)) {
     return {

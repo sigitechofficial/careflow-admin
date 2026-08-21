@@ -81,6 +81,21 @@ export type VisitReconciliationRow = {
   actualDeparture?: string
   /** ISO timestamp — used to keep newest list entries on top. */
   createdAt?: string
+  nightDuty?: 'NONE' | 'SLEEPING_NIGHT' | 'WAKING_NIGHT'
+  nightDutyLabel?: string
+}
+
+export type VisitNightDutyFilter = 'overnight' | 'SLEEPING_NIGHT' | 'WAKING_NIGHT' | 'standard'
+
+export function formatVisitNightDutyLabel(
+  nightDuty?: VisitReconciliationRow['nightDuty'] | null,
+  nightDutyLabel?: string | null,
+): string {
+  if (nightDuty === 'SLEEPING_NIGHT') return nightDutyLabel?.trim() || 'Sleeping night'
+  if (nightDuty === 'WAKING_NIGHT') return nightDutyLabel?.trim() || 'Waking night'
+  const fromApi = nightDutyLabel?.trim()
+  if (fromApi && fromApi !== 'Standard') return fromApi
+  return 'Standard'
 }
 
 export type VisitReconciliationsSummary = {

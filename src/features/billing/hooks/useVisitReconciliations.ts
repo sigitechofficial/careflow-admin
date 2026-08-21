@@ -16,7 +16,7 @@ import {
   updateVisitReconciliation,
 } from '@/features/billing/api/visit-reconciliations.api'
 import { billingKeys } from '@/features/billing/keys'
-import type { ApproveScope } from '@/features/billing/types/visit-reconciliation.types'
+import type { ApproveScope, VisitNightDutyFilter } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationStatus } from '@/features/billing/types/billing.types'
 
 export function useVisitReconciliations(filters?: {
@@ -26,6 +26,7 @@ export function useVisitReconciliations(filters?: {
   serviceUserId?: string
   employeeId?: string
   locationId?: string
+  nightDuty?: VisitNightDutyFilter
   page?: number
   limit?: number
 }) {
