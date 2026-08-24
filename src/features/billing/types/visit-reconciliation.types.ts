@@ -144,6 +144,20 @@ export type VisitReconciliationRateBreakdown = {
   segments?: VisitReconciliationRateSegment[]
 }
 
+export type VisitReconciliationFunderSplitLine = {
+  funderName: string
+  splitPercent: number | null
+  amount: string
+  included: boolean
+  reason: string | null
+}
+
+export type VisitReconciliationFunderSplitPreview = {
+  note: string
+  totalAmount: string
+  lines: VisitReconciliationFunderSplitLine[]
+}
+
 export type VisitReconciliationCalculationPreview = {
   plannedMinutes: number | null
   actualMinutes: number | null
@@ -156,6 +170,7 @@ export type VisitReconciliationCalculationPreview = {
   multiCarerFunderChargeMode?: 'COMBINED' | 'FIXED'
   isFunderBillingRow?: boolean
   funderChargeNote?: string | null
+  funderSplitPreview?: VisitReconciliationFunderSplitPreview | null
   timeWindows: {
     planned: string
     actual: string

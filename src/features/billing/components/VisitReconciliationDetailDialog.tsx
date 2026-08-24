@@ -391,6 +391,48 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
               />
 
+              {preview?.funderSplitPreview ? (
+                <ContentCard className="space-y-3 p-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">Funder split (invoice run)</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">{preview.funderSplitPreview.note}</p>
+                  </div>
+                  <ul className="space-y-2">
+                    {preview.funderSplitPreview.lines.map((line) => (
+                      <li
+                        key={`${line.funderName}-${line.splitPercent ?? 'none'}`}
+                        className={`rounded-md border px-3 py-2 text-sm ${
+                          line.included
+                            ? 'border-border bg-muted/20'
+                            : 'border-amber-500/30 bg-amber-500/5'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="font-medium text-foreground">{line.funderName}</span>
+                          <span className="tabular-nums font-medium text-foreground">
+                            {line.included ? line.amount : '£0.00'}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {line.splitPercent != null && line.splitPercent > 0
+                            ? `Split ${line.splitPercent}%`
+                            : 'No split %'}
+                        </p>
+                        {!line.included && line.reason ? (
+                          <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">{line.reason}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Total visit charge:{' '}
+                    <span className="font-medium text-foreground tabular-nums">
+                      {preview.funderSplitPreview.totalAmount}
+                    </span>
+                  </p>
+                </ContentCard>
+              ) : null}
+
               {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (
                 <ContentCard className="p-4 space-y-2">
                   <h4 className="text-sm font-semibold">Exceptions</h4>

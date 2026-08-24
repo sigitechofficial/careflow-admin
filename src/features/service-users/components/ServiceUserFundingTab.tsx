@@ -121,7 +121,7 @@ const FUNDING_FIELD_TOOLTIPS = {
   reviewDate: 'Date when this funding arrangement should be reviewed.',
   notes: 'Internal notes for staff. Not shown on invoices.',
   isPrimary:
-    'Primary funding is used first when resolving charge cards and is highlighted on the funding list.',
+    'Primary funding is used first when resolving charge cards and is highlighted on the funding list. At least one active funding must stay primary.',
 } as const
 
 function chargeCardOptionLabel(card: ChargeCard): string {
@@ -155,6 +155,10 @@ function fmtMoney(v: string | null | undefined): string {
 
 function isSplitEligibleFunding(row: EnterpriseServiceUserFundingRow): boolean {
   return row.status !== 'ENDED' && row.status !== 'REJECTED' && row.status !== 'SUSPENDED'
+}
+
+function isPrimaryEligibleFunding(row: EnterpriseServiceUserFundingRow): boolean {
+  return row.status !== 'ENDED' && row.status !== 'REJECTED'
 }
 
 function parseSplitPercentValue(v: string | null | undefined): number | null {
@@ -403,8 +407,13 @@ export function ServiceUserFundingTab({
   const [deleteTarget, setDeleteTarget] = React.useState<EnterpriseServiceUserFundingRow | null>(null)
 
   const openCreate = () => {
+    const primaryEligible = rows.filter(isPrimaryEligibleFunding)
     setEditingId(null)
-    setForm({ ...emptyForm(), splitPriority: String(nextSplitPriority(rows)) })
+    setForm({
+      ...emptyForm(),
+      splitPriority: String(nextSplitPriority(rows)),
+      isPrimary: primaryEligible.length === 0,
+    })
     setDialogOpen(true)
   }
 
@@ -459,9 +468,19 @@ export function ServiceUserFundingTab({
     }
     try {
       const body = formToBody(form)
+      const editingRow = editingId ? rows.find((row) => row.id === editingId) : null
+      const wasSolePrimary =
+        Boolean(
+          editingRow?.isPrimary
+          && rows.filter(isPrimaryEligibleFunding).filter((row) => row.isPrimary).length === 1,
+        )
       if (editingId) {
         await updateMutation.mutateAsync({ fundingId: editingId, body })
-        toastSuccess('Funding updated')
+        if (wasSolePrimary && !form.isPrimary) {
+          toastSuccess('Funding updated. Another funding was set as primary.')
+        } else {
+          toastSuccess('Funding updated')
+        }
       } else {
         await createMutation.mutateAsync(body)
         toastSuccess('Funding created')
@@ -993,6 +1012,12 @@ export function ServiceUserFundingTab({
               <Switch checked={form.isPrimary} onCheckedChange={(v) => setForm((f) => ({ ...f, isPrimary: v }))} />
               <FundingFieldLabel label="Primary funding" tooltip={FUNDING_FIELD_TOOLTIPS.isPrimary} />
             </div>
+            {rows.filter(isPrimaryEligibleFunding).length > 1 ? (
+              <p className="text-xs text-muted-foreground">
+                If you remove the only primary funding, the next funding by split priority will automatically
+                become primary.
+              </p>
+            ) : null}
             </div>
             </TooltipProvider>
           </DialogBody>
