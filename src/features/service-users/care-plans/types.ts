@@ -99,4 +99,59 @@ export type CarePlanComposeResult = {
   composedFrom: Record<string, unknown>
   deltas?: CarePlanComposeDelta[]
   lastPublishedVersionNumber?: number | null
+  suggestionMode?: 'explicit'
+  suggestions?: CarePlanFieldSuggestion[]
+  previousAssessments?: CarePlanPreviousAssessment[]
+  iaStatus?: 'SUBMITTED' | 'REVIEWED' | null
+}
+
+export type CarePlanSuggestionKind = 'value' | 'context'
+
+export type CarePlanSuggestionSourceQuestion = {
+  questionId: string
+  questionFieldKey?: string
+  specRef?: string
+  sourceSection: string
+  sourceLabel: string
+  sourceValue: string
+}
+
+export type CarePlanFieldSuggestion = {
+  id: string
+  kind: CarePlanSuggestionKind
+  targetFieldKey: string
+  targetLabel: string
+  targetFieldType: string
+  suggestedValue: string | boolean | null
+  displayText: string
+  sourceType: 'INITIAL_ASSESSMENT'
+  submissionId: string
+  sourceDate: string | null
+  questionId?: string
+  questionFieldKey?: string
+  specRef?: string
+  sourceSection?: string
+  sourceLabel?: string
+  sourceValue?: string
+  sourceQuestions: CarePlanSuggestionSourceQuestion[]
+  transform: 'direct' | 'typed' | 'narrative' | 'join' | 'context'
+}
+
+export type CarePlanPreviousAssessment = {
+  submissionId: string
+  submittedAt: string | null
+  status: 'SUBMITTED' | 'REVIEWED'
+  suggestions: CarePlanFieldSuggestion[]
+}
+
+export type CarePlanFieldProvenance = {
+  sourceType: 'INITIAL_ASSESSMENT'
+  submissionId: string
+  questionId?: string
+  sourceQuestions?: CarePlanSuggestionSourceQuestion[]
+  acceptedAt: string
+  acceptedById?: string | null
+  originalValue: string | boolean | null
+  sourceDate: string | null
+  userEdited?: boolean
 }

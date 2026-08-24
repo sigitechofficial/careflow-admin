@@ -96,7 +96,17 @@ export function CarePlanRiskProfileBody({ serviceUserId }: { serviceUserId: stri
   )
 }
 
-export function CarePlanIaRecommendationsBody({ serviceUserId }: { serviceUserId: string }) {
+export function CarePlanIaRecommendationsBody({
+  serviceUserId,
+  layout = 'full',
+  includePendingFormIds,
+  cataloguedFormIds,
+}: {
+  serviceUserId: string
+  layout?: 'full' | 'lifecycle'
+  includePendingFormIds?: ReadonlySet<string>
+  cataloguedFormIds?: ReadonlySet<string>
+}) {
   const navigate = useNavigate()
   const { canRead, canUpdate, canReview, canCreateCarePlan, submissionsQuery, summaryQuery, submission } =
     useCarePlanIaSource(serviceUserId)
@@ -111,12 +121,14 @@ export function CarePlanIaRecommendationsBody({ serviceUserId }: { serviceUserId
 
   return (
     <div className="space-y-3" data-testid="care-plan-ia-recommendations">
-      <p className="text-xs text-muted-foreground">
-        Triggered from the latest initial assessment ·{' '}
-        <OpenIaLink serviceUserId={serviceUserId} submissionId={submission.id} tab="schedule">
-          Open IA recommendations
-        </OpenIaLink>
-      </p>
+      {layout === 'lifecycle' ? null : (
+        <p className="text-xs text-muted-foreground">
+          Triggered from the latest initial assessment ·{' '}
+          <OpenIaLink serviceUserId={serviceUserId} submissionId={submission.id} tab="schedule">
+            Open IA recommendations
+          </OpenIaLink>
+        </p>
+      )}
       <InitialAssessmentCarePlanRecommendationsPanel
         serviceUserId={serviceUserId}
         submissionId={submission.id}
@@ -124,6 +136,9 @@ export function CarePlanIaRecommendationsBody({ serviceUserId }: { serviceUserId
         submissionStatus={submission.status}
         canDecide={(canReview || canUpdate) && submission.status === 'REVIEWED'}
         canCreate={canCreateCarePlan}
+        layout={layout}
+        includePendingFormIds={includePendingFormIds}
+        cataloguedFormIds={cataloguedFormIds}
         onGoToSection={(sectionNumber) => {
           void navigate({
             to: '/service-users/initial-assessment',

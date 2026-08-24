@@ -13,12 +13,22 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import type { CarePlanDraftValues } from './care-plan-draft-storage'
+import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
+import { CarePlanFieldSuggestionBanner } from '@/features/service-users/care-plans/components/CarePlanFieldSuggestionBanner'
+import {
+  parseCarePlanYesNoValue,
+  visibleFieldSuggestion,
+} from '@/features/service-users/care-plans/care-plan-suggestion-state'
 import {
   parseFieldOptions,
   parseMultiSelectValue,
   serializeMultiSelectValue,
 } from '@/features/care-pathway/utils/form-builder-field-options.util'
 import { isFieldVisible } from '@/features/care-pathway/utils/form-builder-conditional-logic.util'
+import {
+  carePlanNumberPlaceholder,
+  formatCarePlanNumberInputValue,
+} from '@/features/service-users/care-plan/care-plan-number-field.util'
 import {
   CarePathwayFileUploadField,
   CarePathwayPhotoField,
@@ -51,7 +61,7 @@ function CarePathwayFieldInput({
   if (type === 'YES_NO') {
     return (
       <NoYesToggle
-        value={value === true || value === 'true'}
+        value={parseCarePlanYesNoValue(value)}
         onChange={v => onChange(v)}
         disabled={disabled}
       />
@@ -183,14 +193,24 @@ function CarePathwayFieldInput({
     )
   }
 
+  if (type === 'NUMBER') {
+    return (
+      <Input
+        type="number"
+        value={formatCarePlanNumberInputValue(value)}
+        onChange={e => onChange(e.target.value)}
+        placeholder={carePlanNumberPlaceholder(field.placeholder)}
+        disabled={disabled}
+      />
+    )
+  }
+
   const inputType =
-    type === 'NUMBER'
-      ? 'number'
-      : type === 'DATE'
-        ? 'date'
-        : type === 'TIME'
-          ? 'time'
-          : 'text'
+    type === 'DATE'
+      ? 'date'
+      : type === 'TIME'
+        ? 'time'
+        : 'text'
 
   return (
     <Input
@@ -220,6 +240,11 @@ export function CarePathwayFormRenderer({
   onChange,
   disabled,
   embedded,
+  suggestions,
+  ignoredSuggestionIds,
+  onUseSuggestion,
+  onIgnoreSuggestion,
+  onKeepCurrentSuggestion,
 }: {
   form: CareFormDetail
   values: CarePlanDraftValues
@@ -227,6 +252,11 @@ export function CarePathwayFormRenderer({
   disabled?: boolean
   /** When true, renders without outer card chrome for embedding in care plan accordion. */
   embedded?: boolean
+  suggestions?: CarePlanFieldSuggestion[]
+  ignoredSuggestionIds?: string[]
+  onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }) {
   const setFieldValue = (sectionId: string, field: CareFormFieldRow, next: string | boolean) => {
     onChange({ ...values, [fieldKey(sectionId, field.id)]: next })
@@ -270,6 +300,7 @@ export function CarePathwayFormRenderer({
 
                 const key = fieldKey(section.id, field.id)
                 const tooltip = field.helpText?.trim()
+                const suggestion = visibleFieldSuggestion(suggestions, key, ignoredSuggestionIds ?? [])
                 return (
                   <div key={field.id} className="space-y-1.5">
                     <div className="flex items-center gap-1.5">
@@ -300,6 +331,16 @@ export function CarePathwayFormRenderer({
                       onChange={v => setFieldValue(section.id, field, v)}
                       disabled={disabled}
                     />
+                    {suggestion && onUseSuggestion && onIgnoreSuggestion && onKeepCurrentSuggestion ? (
+                      <CarePlanFieldSuggestionBanner
+                        suggestion={suggestion}
+                        currentValue={values[key]}
+                        disabled={disabled}
+                        onUse={onUseSuggestion}
+                        onIgnore={onIgnoreSuggestion}
+                        onKeepCurrent={onKeepCurrentSuggestion}
+                      />
+                    ) : null}
                   </div>
                 )
               })

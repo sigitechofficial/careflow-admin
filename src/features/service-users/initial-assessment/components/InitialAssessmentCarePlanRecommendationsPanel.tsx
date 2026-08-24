@@ -2,6 +2,7 @@ import * as React from 'react'
 import { AlertTriangle, FileText, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import {
   AlertDialog,
@@ -23,6 +24,8 @@ import type {
 } from '@/features/service-users/initial-assessment/types'
 import { InitialAssessmentCarePlanDecisionDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanDecisionDialog'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { groupPendingRecommendationsByForm } from '@/features/service-users/care-plan/care-plan-display-state'
+import { RecommendedEvidenceList } from '@/features/service-users/care-plan/RecommendedEvidenceList'
 
 type Props = {
   serviceUserId: string
@@ -33,6 +36,14 @@ type Props = {
   /** Create a care plan draft from a recommendation without waiting for accept. */
   canCreate?: boolean
   onGoToSection?: (sectionNumber: number) => void
+  /**
+   * `lifecycle` is used on the Care Plan page: pending recs only, quieter
+   * review notice, card styling aligned with catalogue tiles.
+   */
+  layout?: 'full' | 'lifecycle'
+  /** When set with layout=lifecycle, only pending recs for these forms (plus uncatalogued) are shown. */
+  includePendingFormIds?: ReadonlySet<string>
+  cataloguedFormIds?: ReadonlySet<string>
 }
 
 export function InitialAssessmentCarePlanRecommendationsPanel({
@@ -43,6 +54,9 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   canDecide = false,
   canCreate = false,
   onGoToSection,
+  layout = 'full',
+  includePendingFormIds,
+  cataloguedFormIds,
 }: Props) {
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -83,9 +97,14 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
     onMutate: (formId) => {
       setCreatingFormId(formId)
     },
-    onSuccess: (_data, formId) => {
+    onSuccess: (data, formId) => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
-      toastSuccess('Draft created', 'Care plan draft prefilled from assessment sources.')
+      toastSuccess(
+        'Draft created',
+        data.suggestionMode === 'explicit'
+          ? 'Care plan draft is ready. Review suggestions before saving or publishing.'
+          : 'Care plan draft prefilled from assessment sources.',
+      )
       void navigate({
         to: '/service-users/$serviceUserId/care-plan/forms/$formId',
         params: { serviceUserId, formId },
@@ -117,7 +136,29 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
     setDialogOpen(true)
   }
 
-  if (recommendations.length === 0) {
+  const lifecycle = layout === 'lifecycle'
+  const visibleRecommendations = lifecycle
+    ? includePendingFormIds && cataloguedFormIds
+      ? recommendations.filter((rec) => {
+          if (rec.status !== 'pending') return false
+          if (!rec.carePathwayFormId) return true
+          if (includePendingFormIds.has(rec.carePathwayFormId)) return true
+          return !cataloguedFormIds.has(rec.carePathwayFormId)
+        })
+      : recommendations.filter((rec) => rec.status === 'pending')
+    : recommendations
+  const createLabel = lifecycle ? 'Create Plan' : 'Create care plan'
+  const triggerLimit = lifecycle ? 2 : 4
+  const lifecycleGroups = lifecycle ? groupPendingRecommendationsByForm(visibleRecommendations) : []
+
+  if (visibleRecommendations.length === 0) {
+    if (lifecycle) {
+      return (
+        <p className="text-sm text-muted-foreground" data-testid="ia-care-plan-recommendations-empty">
+          No pending care plan recommendations from the latest Initial Assessment.
+        </p>
+      )
+    }
     return (
       <div className="rounded-xl border border-border bg-muted/30 p-4">
         <p className="text-sm text-muted-foreground">
@@ -130,11 +171,19 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   return (
     <>
       <div className="space-y-3" data-testid="ia-care-plan-recommendations">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" aria-hidden />
-          <h3 className="text-sm font-semibold">Care plan recommendations ({recommendations.length})</h3>
-        </div>
-        {reviewPending ? (
+        {lifecycle ? null : (
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-teal-700 dark:text-teal-300" aria-hidden />
+            <h3 className="text-sm font-semibold">Care plan recommendations ({visibleRecommendations.length})</h3>
+          </div>
+        )}
+        {reviewPending && lifecycle ? (
+          <p className="text-xs text-muted-foreground" data-testid="ia-care-plan-awaiting-review" role="status">
+            Awaiting manager review. Create Plan remains available; the plan may need revisiting after
+            review.
+          </p>
+        ) : null}
+        {reviewPending && !lifecycle ? (
           <div
             className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
             data-testid="ia-care-plan-review-pending-warning"
@@ -163,15 +212,72 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
             ) : null}
           </div>
         ) : null}
-        <ul className="space-y-3">
-          {recommendations.map((rec) => (
+        <ul className={lifecycle ? 'grid items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-3' : 'space-y-3'}>
+          {lifecycle
+            ? lifecycleGroups.map((group) => {
+                const primary = group.recs[0]!
+                const creating = createDraftMutation.isPending && creatingFormId === group.formId
+                const showCreate = Boolean(canCreate || primary.status === 'accepted' || !group.formId)
+                return (
+                  <li
+                    key={group.key}
+                    className="flex h-full min-w-0 flex-col rounded border border-[#c5cdd6] bg-white p-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                    data-testid={`recommended-card-${(group.name || 'plan').replace(/\s+/g, '-').toLowerCase()}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-1.5">
+                      <p className="text-[13px] font-medium leading-snug text-[#1e293b]">{group.name}</p>
+                      <Badge variant="warning" size="sm" className="font-normal">
+                        Recommended
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {group.triggerCount} trigger{group.triggerCount === 1 ? '' : 's'} from Initial
+                      Assessment
+                    </p>
+                    <RecommendedEvidenceList triggers={group.triggers} />
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center justify-end gap-1.5 pt-2">
+                      {canDecide && submissionId && primary.status === 'pending' ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDialog(primary, 'decline')}
+                          >
+                            Decline
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDialog(primary, 'accept')}
+                          >
+                            Accept
+                          </Button>
+                        </>
+                      ) : null}
+                      {showCreate ? (
+                        <CreateCarePlanButton
+                          rec={primary}
+                          pending={creating}
+                          onCreate={requestCreate}
+                          label={createLabel}
+                        />
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })
+            : visibleRecommendations.map((rec) => (
             <li
               key={rec.id}
               className="rounded-xl border border-teal-200/80 bg-teal-50/40 p-4 dark:border-teal-900 dark:bg-teal-950/20"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-col gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-medium text-sm">{rec.title}</p>
                     {rec.carePathwayFormName ? (
                       <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 dark:bg-teal-900 dark:text-teal-100">
@@ -210,14 +316,14 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                     <p className="mt-2 text-xs text-muted-foreground">Decline reason: {rec.declineReason}</p>
                   ) : null}
                   <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {rec.triggers.slice(0, 4).map((t) => (
+                    {rec.triggers.slice(0, triggerLimit).map((t) => (
                       <li key={t.questionId}>
                         {t.specRef ? `${t.specRef} · ` : ''}
                         {t.questionText}
                       </li>
                     ))}
-                    {rec.triggers.length > 4 ? (
-                      <li>+{rec.triggers.length - 4} more triggers</li>
+                    {rec.triggers.length > triggerLimit ? (
+                      <li>+{rec.triggers.length - triggerLimit} more</li>
                     ) : null}
                   </ul>
                 </div>
@@ -239,6 +345,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                         rec={rec}
                         pending={createDraftMutation.isPending && creatingFormId === rec.carePathwayFormId}
                         onCreate={requestCreate}
+                        label={createLabel}
                       />
                     ) : null}
                   </div>
@@ -247,6 +354,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                     rec={rec}
                     pending={createDraftMutation.isPending && creatingFormId === rec.carePathwayFormId}
                     onCreate={requestCreate}
+                    label={createLabel}
                   />
                 ) : null}
               </div>
@@ -309,15 +417,17 @@ function CreateCarePlanButton({
   rec,
   pending,
   onCreate,
+  label = 'Create care plan',
 }: {
   rec: CarePlanRecommendation
   pending: boolean
   onCreate: (formId: string) => void
+  label?: string
 }) {
   if (!rec.carePathwayFormId) {
     return (
       <Button type="button" variant="outline" size="sm" disabled title="No care plan form linked">
-        Create care plan
+        {label}
       </Button>
     )
   }
@@ -325,11 +435,12 @@ function CreateCarePlanButton({
     <Button
       type="button"
       size="sm"
+      className="shrink-0"
       disabled={pending}
       data-testid="create-care-plan-from-recommendation"
       onClick={() => onCreate(rec.carePathwayFormId!)}
     >
-      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create care plan'}
+      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : label}
     </Button>
   )
 }

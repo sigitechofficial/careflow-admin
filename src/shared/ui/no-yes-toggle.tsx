@@ -6,6 +6,7 @@ const PRIMARY_GREEN = 'hsl(160 100% 25%)'
  * Compact NO/YES pill with sliding knob (legacy Care layout).
  * ON (YES): green track, "YES" on the left, white knob on the right.
  * OFF (NO): white track, white knob on the left, "NO" on the right.
+ * Unanswered (`null`/`undefined`): neither side selected.
  */
 export function NoYesToggle({
   value,
@@ -17,7 +18,7 @@ export function NoYesToggle({
   className,
   activeTone = 'primary',
 }: {
-  value: boolean
+  value: boolean | null | undefined
   onChange: (v: boolean) => void
   labelOff?: string
   labelOn?: string
@@ -28,6 +29,50 @@ export function NoYesToggle({
   activeTone?: 'primary' | 'success'
 }) {
   const isOn = value === true
+  const unanswered = value == null
+
+  if (unanswered) {
+    return (
+      <div
+        id={id}
+        role="group"
+        aria-label="Yes or No"
+        data-state="unanswered"
+        data-testid="no-yes-toggle-unanswered"
+        className={cn('inline-flex h-8 overflow-hidden rounded-full border border-border', className)}
+      >
+        <button
+          type="button"
+          disabled={disabled}
+          aria-pressed={false}
+          className={cn(
+            'min-w-[36px] px-2.5 text-[11px] font-bold text-muted-foreground',
+            disabled && 'cursor-not-allowed opacity-50',
+          )}
+          onClick={() => {
+            if (!disabled) onChange(false)
+          }}
+        >
+          {labelOff}
+        </button>
+        <span className="w-px self-stretch bg-border" aria-hidden />
+        <button
+          type="button"
+          disabled={disabled}
+          aria-pressed={false}
+          className={cn(
+            'min-w-[36px] px-2.5 text-[11px] font-bold text-muted-foreground',
+            disabled && 'cursor-not-allowed opacity-50',
+          )}
+          onClick={() => {
+            if (!disabled) onChange(true)
+          }}
+        >
+          {labelOn}
+        </button>
+      </div>
+    )
+  }
 
   const trackClass = isOn
     ? activeTone === 'success'

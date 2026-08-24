@@ -5,6 +5,10 @@ import type {
   CarePlanPublishedVersionDetail,
   CarePlanPublishedVersionSummary,
 } from '@/features/service-users/care-plans/types'
+import {
+  clinicalValuesForCreatePlanDraft,
+  shouldReplaceDraftOnCreatePlan,
+} from '@/features/service-users/care-plans/care-plan-suggestion-state'
 
 export async function ensureCarePlanInstance(
   serviceUserId: string,
@@ -17,17 +21,27 @@ export async function ensureCarePlanInstance(
   return res.data ?? null
 }
 
+export type CreateCarePlanDraftFromComposeResult = {
+  instance: CarePlanInstance | null
+  suggestionMode?: CarePlanComposeResult['suggestionMode']
+}
+
 export async function createCarePlanDraftFromCompose(
   serviceUserId: string,
   formId: string,
-): Promise<CarePlanInstance | null> {
-  await ensureCarePlanInstance(serviceUserId, formId)
+): Promise<CreateCarePlanDraftFromComposeResult> {
+  const instance = await ensureCarePlanInstance(serviceUserId, formId)
   const compose = await fetchCarePlanCompose(serviceUserId, formId)
-  return saveCarePlanDraftApi(serviceUserId, formId, {
-    values: compose.values,
+  const suggestionMode = compose.suggestionMode
+  if (!shouldReplaceDraftOnCreatePlan(compose, Boolean(instance?.draft))) {
+    return { instance, suggestionMode }
+  }
+  const saved = await saveCarePlanDraftApi(serviceUserId, formId, {
+    values: clinicalValuesForCreatePlanDraft(compose),
     composedFrom: compose.composedFrom,
     gaps: compose.gaps,
   })
+  return { instance: saved, suggestionMode }
 }
 
 export async function fetchCarePlanCompose(

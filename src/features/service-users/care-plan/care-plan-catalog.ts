@@ -1,4 +1,4 @@
-/** Display order for inactive care plan cards (matches legacy CareFlow list). */
+/** Display order for catalogue / Available care plan cards (matches legacy CareFlow list). */
 export const INACTIVE_CARE_PLAN_ORDER = [
   'Advance',
   'Care Plan review form',
@@ -31,25 +31,11 @@ export const INACTIVE_CARE_PLAN_ORDER = [
   'Washing and dressing',
 ] as const
 
-/** Care plans treated as active for this service user (shown in Active section, excluded from Inactive). */
-export const ACTIVE_CARE_PLAN_NAMES = new Set(
-  ['Medication care plan', 'Medication', 'Risk Assessment and Care Plan V2', 'Risk Assessment and Care Plan'].map(
-    n => n.toLowerCase(),
-  ),
-)
-
-export function isActiveCarePlanName(name: string): boolean {
-  return ACTIVE_CARE_PLAN_NAMES.has(name.trim().toLowerCase())
-}
-
-/** Active when accepted in initial assessment; falls back to legacy name list when none accepted yet. */
-export function isServiceUserActiveCarePlan(
-  form: { id: string; name: string },
-  acceptedFormIds: ReadonlySet<string>,
-): boolean {
-  if (acceptedFormIds.size > 0) return acceptedFormIds.has(form.id)
-  return isActiveCarePlanName(form.name)
-}
+/**
+ * Care Plan page grouping no longer uses a hard-coded Active name list
+ * (Medication / Risk Assessment). Lifecycle comes from instance displayStatus
+ * and IA recommendation status — see care-plan-display-state.ts.
+ */
 
 /**
  * Restrict care plan cards to Form Selection choices.
