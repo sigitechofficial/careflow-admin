@@ -111,9 +111,20 @@ const HR_ALL: Permission[] = [
   'hr.profile.update',
   'hr.documents.upload',
   'hr.documents.delete',
+  'hr.vacancies.read',
+  'hr.vacancies.create',
+  'hr.vacancies.update',
+  'hr.candidates.read',
+  'hr.candidates.create',
+  'hr.candidates.update',
+  'hr.candidates.convert',
 ]
 
-const HR_READ: Permission[] = ['hr.read']
+const HR_READ: Permission[] = [
+  'hr.read',
+  'hr.vacancies.read',
+  'hr.candidates.read',
+]
 
 const NOTIFICATION_INAPP: Permission[] = [
   'notifications.read',

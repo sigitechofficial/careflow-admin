@@ -58,6 +58,10 @@ import AddEmployeePage from '@/features/employees/pages/AddEmployeePage'
 import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
 import HrDashboardPage from '@/features/hr/pages/HrDashboardPage'
 import HrEmployeeProfilePage from '@/features/hr/pages/HrEmployeeProfilePage'
+import RecruitmentDashboardPage from '@/features/hr/recruitment/pages/RecruitmentDashboardPage'
+import VacanciesPage from '@/features/hr/recruitment/pages/VacanciesPage'
+import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPipelinePage'
+import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
@@ -234,6 +238,10 @@ const pageTitles: Record<string, string> = {
   '/employee/add': 'Add Employee',
   '/hr': 'HR',
   '/hr/employees': 'HR Employees',
+  '/hr/recruitment': 'Recruitment',
+  '/hr/vacancies': 'Vacancies',
+  '/hr/candidates': 'Candidates',
+  '/hr/candidates/$candidateId': 'Candidate',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
   '/account': 'My account',
@@ -1226,6 +1234,39 @@ const hrEmployeeProfileRoute = createRoute({
   component: HrEmployeeProfilePage,
 })
 
+const hrRecruitmentRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/recruitment',
+  beforeLoad: requireAnyPermission('hr.vacancies.read', 'hr.candidates.read'),
+  component: RecruitmentDashboardPage,
+})
+
+const hrVacanciesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/vacancies',
+  beforeLoad: requirePermission('hr.vacancies.read'),
+  component: VacanciesPage,
+})
+
+const hrCandidatesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/candidates',
+  validateSearch: (raw: Record<string, unknown>): { vacancyId?: string } => {
+    const vacancyId =
+      typeof raw.vacancyId === 'string' && raw.vacancyId.trim() ? raw.vacancyId.trim() : undefined
+    return vacancyId ? { vacancyId } : {}
+  },
+  beforeLoad: requirePermission('hr.candidates.read'),
+  component: CandidatesPipelinePage,
+})
+
+const hrCandidateDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/candidates/$candidateId',
+  beforeLoad: requirePermission('hr.candidates.read'),
+  component: CandidateDetailPage,
+})
+
 const accidentsIncidentsViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/view',
@@ -1747,6 +1788,10 @@ const routeTree = rootRoute.addChildren([
     hrIndexRoute,
     hrEmployeesRoute,
     hrEmployeeProfileRoute,
+    hrRecruitmentRoute,
+    hrVacanciesRoute,
+    hrCandidatesRoute,
+    hrCandidateDetailRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
     accountRoute,
