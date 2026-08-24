@@ -182,7 +182,11 @@ export function normalizePayCardRuleForEditor(rule: PayCardRule): PayCardRule {
   }
 
   const withDuration = withDefaultDuration(rule)
-  return { ...withDuration, rateType: 'FIXED' }
+  return {
+    ...withDuration,
+    rateType: 'FIXED',
+    label: nextFixedVisitRuleLabel(rule.label, withDuration.minimumMinutes!),
+  }
 }
 
 export function normalizeChargeCardRuleForEditor(rule: ChargeCardRule): ChargeCardRule {

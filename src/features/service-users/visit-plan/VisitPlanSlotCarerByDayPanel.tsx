@@ -11,7 +11,12 @@ import { MultiSelect } from '@/shared/ui/multi-select'
 import { Button } from '@/shared/ui/button'
 import { UserPlus } from 'lucide-react'
 import * as React from 'react'
-import { contentBodyClass, contentHelperClass, contentOverlineClass, contentTitleClass } from '@/shared/ui/content-section'
+import {
+  contentBodyClass,
+  contentHelperClass,
+  contentOverlineClass,
+  contentTitleClass,
+} from '@/shared/ui/content-section'
 import type { VisitPlanSlot, VisitPlanSlotCarerAssignment } from '@/features/service-users/visit-plan/types'
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
@@ -20,7 +25,6 @@ import {
   type CarerAssignmentGroup,
   ALL_WEEKDAYS_SELECT_LABEL,
   ALL_WEEKDAYS_SELECT_VALUE,
-  allWeekdaySelectValues,
   carerAssignmentDisplayDurationMinutes,
   groupCarerAssignments,
   isAllWeekdaysSelected,
@@ -76,8 +80,8 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h4 className={contentTitleClass}>Carers by day</h4>
           <p className={contentBodyClass}>
             Pick one or more weekdays per carer (e.g. Mon + Wed + Fri). Duration defaults to the visit time for
@@ -85,7 +89,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
             (e.g. 60 + 30 min double-up).
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={addRow}>
             Add carer row
           </Button>
@@ -100,125 +104,151 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
           No day-specific assignments — uses the carers assigned on the main row when generating rota.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {groups.map((group) => (
-            <li key={group.groupId} className="grid gap-2 rounded border border-border bg-card p-2 sm:grid-cols-6">
-              <div>
-                <Label className={contentOverlineClass}>Days</Label>
-                <MultiSelect
-                  options={DAY_OPTIONS}
-                  value={selectedDayValuesForGroup(group.days)}
-                  disabled={disabled}
-                  placeholder="Select days…"
-                  searchPlaceholder="Search days…"
-                  className="min-h-9 py-1.5"
-                  isOptionSelected={(option, value) =>
-                    option.value === ALL_WEEKDAYS_SELECT_VALUE
-                      ? isAllWeekdaysSelected(value)
-                      : value.includes(option.value)
-                  }
-                  formatSelectedOptions={(selected) =>
-                    isAllWeekdaysSelected(selected.map((option) => option.value))
-                      ? [{ value: ALL_WEEKDAYS_SELECT_VALUE, label: ALL_WEEKDAYS_SELECT_LABEL }]
-                      : selected.filter((option) => option.value !== ALL_WEEKDAYS_SELECT_VALUE)
-                  }
-                  onRemoveOption={(option, value) =>
-                    option.value === ALL_WEEKDAYS_SELECT_VALUE ? [] : value.filter((item) => item !== option.value)
-                  }
-                  onChange={(values) => {
-                    const prev = selectedDayValuesForGroup(group.days)
-                    const normalized = normalizeCarerByDaySelection(prev, values)
-                    onChange(replaceGroupDays(slot.carerAssignments, group, normalized))
-                  }}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label className={contentOverlineClass}>Employee</Label>
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  <p className="truncate text-sm">
-                    {nameById.get(group.template.employeeId) ??
-                      (group.template.employeeId ? 'Unknown employee' : 'No carer selected')}
-                  </p>
+            <li
+              key={group.groupId}
+              className="space-y-3 rounded-md border border-border bg-card p-3"
+            >
+              <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_8rem_7rem_auto]">
+                <div className="min-w-0 space-y-1.5">
+                  <Label className={contentOverlineClass}>Days</Label>
+                  <MultiSelect
+                    options={DAY_OPTIONS}
+                    value={selectedDayValuesForGroup(group.days)}
+                    disabled={disabled}
+                    placeholder="Select days…"
+                    searchPlaceholder="Search days…"
+                    className="min-h-9 w-full py-1.5"
+                    isOptionSelected={(option, value) =>
+                      option.value === ALL_WEEKDAYS_SELECT_VALUE
+                        ? isAllWeekdaysSelected(value)
+                        : value.includes(option.value)
+                    }
+                    formatSelectedOptions={(selected) =>
+                      isAllWeekdaysSelected(selected.map((option) => option.value))
+                        ? [{ value: ALL_WEEKDAYS_SELECT_VALUE, label: ALL_WEEKDAYS_SELECT_LABEL }]
+                        : selected.filter((option) => option.value !== ALL_WEEKDAYS_SELECT_VALUE)
+                    }
+                    onRemoveOption={(option, value) =>
+                      option.value === ALL_WEEKDAYS_SELECT_VALUE
+                        ? []
+                        : value.filter((item) => item !== option.value)
+                    }
+                    onChange={(values) => {
+                      const prev = selectedDayValuesForGroup(group.days)
+                      const normalized = normalizeCarerByDaySelection(prev, values)
+                      onChange(replaceGroupDays(slot.carerAssignments, group, normalized))
+                    }}
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5">
+                  <Label className={contentOverlineClass}>Employee</Label>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <p className="truncate text-sm font-medium leading-snug">
+                      {nameById.get(group.template.employeeId) ??
+                        (group.template.employeeId ? 'Unknown employee' : 'No carer selected')}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-fit px-2 text-xs"
+                      disabled={disabled}
+                      onClick={() => onOpenAssign(group)}
+                    >
+                      <UserPlus className="mr-1 h-3.5 w-3.5" />
+                      {group.template.employeeId ? 'Change carer' : 'Assign carer'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="min-w-0 space-y-1.5">
+                  <Label className={contentOverlineClass}>Role</Label>
+                  <Select
+                    value={group.template.role}
+                    disabled={disabled}
+                    onValueChange={(v) =>
+                      onChange(
+                        replaceGroupField(slot.carerAssignments, group, {
+                          role: v as VisitPlanSlotCarerAssignment['role'],
+                        }),
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LEAD">Lead</SelectItem>
+                      <SelectItem value="SECONDARY">Secondary</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="min-w-0 space-y-1.5">
+                  <Label className={contentOverlineClass}>
+                    Duration (min)
+                    {group.template.durationMinutes == null && slotDefaultDuration > 0 ? (
+                      <span className="font-normal text-muted-foreground/80"> · default</span>
+                    ) : null}
+                  </Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={480}
+                    disabled={disabled}
+                    className="w-full"
+                    value={
+                      editingDurationGroupId === group.groupId
+                        ? draftDuration
+                        : String(carerAssignmentDisplayDurationMinutes(group.template, slot) ?? '')
+                    }
+                    onFocus={() => {
+                      setEditingDurationGroupId(group.groupId)
+                      setDraftDuration(
+                        String(carerAssignmentDisplayDurationMinutes(group.template, slot) ?? ''),
+                      )
+                    }}
+                    onChange={(e) => setDraftDuration(e.target.value)}
+                    onBlur={() => {
+                      onChange(
+                        replaceGroupField(slot.carerAssignments, group, {
+                          durationMinutes: parseCarerAssignmentDurationInput(
+                            draftDuration,
+                            slotDefaultDuration,
+                          ),
+                        }),
+                      )
+                      setEditingDurationGroupId(null)
+                      setDraftDuration('')
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-start justify-end sm:pt-6">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-7 w-fit px-2 text-xs"
+                    className="text-muted-foreground hover:text-destructive"
                     disabled={disabled}
-                    onClick={() => onOpenAssign(group)}
+                    onClick={() => onChange(removeGroup(slot.carerAssignments, group))}
                   >
-                    <UserPlus className="mr-1 h-3.5 w-3.5" />
-                    {group.template.employeeId ? 'Change carer' : 'Assign carer'}
+                    Remove
                   </Button>
                 </div>
               </div>
-              <div>
-                <Label className={contentOverlineClass}>Role</Label>
-                <Select
-                  value={group.template.role}
-                  disabled={disabled}
-                  onValueChange={(v) =>
-                    onChange(
-                      replaceGroupField(slot.carerAssignments, group, {
-                        role: v as VisitPlanSlotCarerAssignment['role'],
-                      }),
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LEAD">Lead</SelectItem>
-                    <SelectItem value="SECONDARY">Secondary</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className={contentOverlineClass}>
-                  Duration (min)
-                  {group.template.durationMinutes == null && slotDefaultDuration > 0 ? (
-                    <span className="font-normal text-muted-foreground/80"> · visit default</span>
-                  ) : null}
-                </Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={480}
-                  disabled={disabled}
-                  value={
-                    editingDurationGroupId === group.groupId
-                      ? draftDuration
-                      : String(carerAssignmentDisplayDurationMinutes(group.template, slot) ?? '')
-                  }
-                  onFocus={() => {
-                    setEditingDurationGroupId(group.groupId)
-                    setDraftDuration(
-                      String(carerAssignmentDisplayDurationMinutes(group.template, slot) ?? ''),
-                    )
-                  }}
-                  onChange={(e) => setDraftDuration(e.target.value)}
-                  onBlur={() => {
-                    onChange(
-                      replaceGroupField(slot.carerAssignments, group, {
-                        durationMinutes: parseCarerAssignmentDurationInput(
-                          draftDuration,
-                          slotDefaultDuration,
-                        ),
-                      }),
-                    )
-                    setEditingDurationGroupId(null)
-                    setDraftDuration('')
-                  }}
-                />
-              </div>
+
               {showPerCarerTiming ? (
-                <>
-                  <div>
+                <div className="grid max-w-md grid-cols-1 gap-3 border-t border-border/70 pt-3 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-1.5">
                     <Label className={contentOverlineClass}>Start time</Label>
                     <Input
                       type="time"
                       disabled={disabled}
+                      className="w-full"
                       value={
                         normalizeTimeForInput(group.template.plannedStartTime ?? '') || slotStartHm
                       }
@@ -234,11 +264,12 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                       }}
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0 space-y-1.5">
                     <Label className={contentOverlineClass}>End time</Label>
                     <Input
                       type="time"
                       disabled={disabled}
+                      className="w-full"
                       value={
                         normalizeTimeForInput(group.template.plannedEndTime ?? '') || slotEndHm
                       }
@@ -250,15 +281,6 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                         if (plannedEndTime && start && plannedEndTime <= start) {
                           return
                         }
-                        if (
-                          plannedEndTime &&
-                          slotStartHm &&
-                          slotEndHm &&
-                          (plannedEndTime > slotEndHm ||
-                            (group.template.plannedStartTime ?? start) < slotStartHm)
-                        ) {
-                          // Still allow edit; generation validates against slot window.
-                        }
                         onChange(
                           replaceGroupField(slot.carerAssignments, group, {
                             plannedStartTime: group.template.plannedStartTime ?? (start || null),
@@ -268,19 +290,8 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                       }}
                     />
                   </div>
-                </>
+                </div>
               ) : null}
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={disabled}
-                  onClick={() => onChange(removeGroup(slot.carerAssignments, group))}
-                >
-                  Remove
-                </Button>
-              </div>
             </li>
           ))}
         </ul>

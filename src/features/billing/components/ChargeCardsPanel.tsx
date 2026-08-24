@@ -12,6 +12,7 @@ import {
   formatBillingDate,
   formatChargeCardAssignmentDisplay,
   formatVisitDurationLabel,
+  fixedVisitRuleTitle,
   type ChargeCard,
 } from '@/features/billing/types/billing-cards.types'
 import { useAuthStore } from '@/features/auth/store'
@@ -20,8 +21,14 @@ import { formatBillingLabel } from '@/features/billing/components/BillingStatusB
 function rulesSummary(card: ChargeCard): string {
   if (!card.rules.length) return 'No rules'
   const first = card.rules[0]!
+  const title =
+    first.rateType === 'FIXED'
+      && (first.minimumMinutes ?? 0) > 0
+      && first.chargeMethod !== 'SLEEP_IN'
+      ? fixedVisitRuleTitle(first, first.minimumMinutes!)
+      : (first.label ?? formatBillingLabel(first.chargeMethod))
   const parts = [
-    first.label ?? formatBillingLabel(first.chargeMethod),
+    title,
     `£${Number(first.amount).toFixed(2)}`,
   ]
   const durationLabel = formatVisitDurationLabel(first.minimumMinutes)

@@ -12,6 +12,7 @@ import {
   formatPayCardRuleDayType,
   formatPayCardRuleTimeBand,
   formatVisitDurationLabel,
+  fixedVisitRuleTitle,
   type PayCard,
   type PayCardRule,
   type PayCardRuleCategory,
@@ -82,7 +83,11 @@ function RuleTable({
           return (
             <tr key={rule.id ?? `${rule.label}-${index}`} className="border-b border-border last:border-0">
               <td className="px-3 py-2.5">
-                <span className="font-medium">{rule.label?.trim() || `Rule ${index + 1}`}</span>
+                <span className="font-medium">
+                  {rule.rateType === 'FIXED' && (rule.minimumMinutes ?? 0) > 0
+                    ? fixedVisitRuleTitle(rule, rule.minimumMinutes!)
+                    : (rule.label?.trim() || `Rule ${index + 1}`)}
+                </span>
                 {rule.serviceType?.trim() ? (
                   <p className="text-xs text-muted-foreground">{rule.serviceType}</p>
                 ) : null}

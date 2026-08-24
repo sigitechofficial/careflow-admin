@@ -1117,7 +1117,10 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               value={durationMinutes}
               onChange={e => {
                 const nextMinutes = Number(e.target.value)
-                const next = applyDurationChangeToRule(rule, nextMinutes)
+                const next =
+                  mode === 'charge'
+                    ? applyDurationChangeToChargeRule(rule as ChargeCardRule, nextMinutes)
+                    : applyDurationChangeToRule(rule, nextMinutes)
                 replaceRule(index, {
                   ...next,
                   startTime: rule.startTime?.trim() || '00:00',

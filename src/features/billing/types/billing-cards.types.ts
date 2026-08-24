@@ -367,12 +367,19 @@ export function defaultFixedVisitRuleLabel(minutes: number): string {
 export function isAutoFixedVisitRuleLabel(label?: string | null): boolean {
   const trimmed = label?.trim()
   if (!trimmed) return true
-  return BILLING_VISIT_DURATION_OPTIONS.some(
-    opt =>
-      trimmed === `${opt.label} visit`
-      || trimmed === `${opt.value} min visit`
-      || trimmed === `${opt.value} minutes visit`,
-  )
+  const lower = trimmed.toLowerCase()
+  return BILLING_VISIT_DURATION_OPTIONS.some(opt => {
+    const duration = opt.label.toLowerCase()
+    return (
+      lower === `${duration} visit`
+      || lower === `${opt.value} min visit`
+      || lower === `${opt.value} minutes visit`
+      || lower === `fixed — ${duration} visit`
+      || lower === `fixed - ${duration} visit`
+      || lower === `${duration} charge`
+      || lower === `${duration} visit charge`
+    )
+  })
 }
 
 /** Keep custom titles; refresh auto duration titles when visit length changes. */
