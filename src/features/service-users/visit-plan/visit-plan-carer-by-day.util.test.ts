@@ -119,7 +119,7 @@ describe('visit-plan-carer-by-day.util', () => {
         { durationMinutes: null },
         { durationMinutes: null, plannedStartTime: '08:00', plannedEndTime: '09:30' },
       ),
-    ).toBe('90 min (visit default)')
+    ).toBe('90 min')
     expect(
       formatCarerAssignmentTimeOverrideLabel({
         plannedStartTime: '07:00',

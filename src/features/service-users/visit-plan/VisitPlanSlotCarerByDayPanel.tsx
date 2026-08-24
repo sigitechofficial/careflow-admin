@@ -84,8 +84,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
         <div className="min-w-0 flex-1">
           <h4 className={contentTitleClass}>Carers by day</h4>
           <p className={contentBodyClass}>
-            Pick one or more weekdays per carer (e.g. Mon + Wed + Fri). Duration defaults to the visit time for
-            this slot{slotDefaultDuration > 0 ? ` (${slotDefaultDuration} min)` : ''} — change it for split visits
+            Pick one or more weekdays per carer (e.g. Mon + Wed + Fri). Change duration for split visits
             (e.g. 60 + 30 min double-up).
           </p>
         </div>

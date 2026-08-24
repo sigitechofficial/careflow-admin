@@ -175,7 +175,7 @@ export function formatCarerAssignmentDurationLabel(
 ): string {
   const minutes = carerAssignmentDisplayDurationMinutes(assignment, slot)
   if (minutes == null) return 'Not set'
-  if (assignment.durationMinutes == null) return `${minutes} min (visit default)`
+  if (assignment.durationMinutes == null) return `${minutes} min`
   return `${minutes} min`
 }
 
