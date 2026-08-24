@@ -188,12 +188,7 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
                 </div>
 
                 <div className="min-w-0 space-y-1.5">
-                  <Label className={contentOverlineClass}>
-                    Duration (min)
-                    {group.template.durationMinutes == null && slotDefaultDuration > 0 ? (
-                      <span className="font-normal text-muted-foreground/80"> · default</span>
-                    ) : null}
-                  </Label>
+                  <Label className={contentOverlineClass}>Duration (min)</Label>
                   <Input
                     type="number"
                     min={1}
