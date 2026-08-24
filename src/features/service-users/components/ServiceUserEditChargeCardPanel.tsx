@@ -29,6 +29,16 @@ function fundingDisplayName(row: EnterpriseServiceUserFundingRow): string {
   )
 }
 
+function resolveChargeCardForFunding(row: EnterpriseServiceUserFundingRow): string | null {
+  return (
+    row.defaultChargeCardId
+    ?? row.defaultChargeCard?.id
+    ?? row.funder?.defaultChargeCardId
+    ?? row.funder?.defaultChargeCard?.id
+    ?? null
+  )
+}
+
 function collectChargeCardSources(params: {
   fundings: EnterpriseServiceUserFundingRow[]
   serviceUserCardId: string | null
@@ -51,14 +61,9 @@ function collectChargeCardSources(params: {
     const fundingName = fundingDisplayName(row)
     const primarySuffix = row.isPrimary ? ' · primary' : ''
 
-    const fundingCardId = row.defaultChargeCardId ?? row.defaultChargeCard?.id ?? null
-    if (fundingCardId) {
-      add(fundingCardId, `Funding: ${fundingName} (${funderName})${primarySuffix}`)
-    }
-
-    const funderCardId = row.funder?.defaultChargeCardId ?? row.funder?.defaultChargeCard?.id ?? null
-    if (funderCardId) {
-      add(funderCardId, `Funder: ${funderName}${primarySuffix}`)
+    const cardId = resolveChargeCardForFunding(row)
+    if (cardId) {
+      add(cardId, `Funding: ${fundingName} (${funderName})${primarySuffix}`)
     }
   }
 
@@ -66,12 +71,12 @@ function collectChargeCardSources(params: {
     add(params.serviceUserCardId, 'Service user override')
   }
 
-  if (params.resolvedCardId) {
-    if (params.resolvedIsMatched) {
-      add(params.resolvedCardId, 'Auto-matched for billing')
-    } else if (!map.has(params.resolvedCardId)) {
-      add(params.resolvedCardId, 'Resolved for billing')
-    }
+  // Only show billing resolve fallback when nothing is linked on fundings / service user.
+  if (params.resolvedCardId && map.size === 0) {
+    add(
+      params.resolvedCardId,
+      params.resolvedIsMatched ? 'Auto-matched for billing' : 'Resolved for billing',
+    )
   }
 
   return [...map.values()]
@@ -81,9 +86,7 @@ function fundingRowsMissingChargeCard(fundings: EnterpriseServiceUserFundingRow[
   const missing: string[] = []
   for (const row of fundings) {
     if (row.status === 'ENDED' || row.status === 'REJECTED') continue
-    const fundingCardId = row.defaultChargeCardId ?? row.defaultChargeCard?.id
-    const funderCardId = row.funder?.defaultChargeCardId ?? row.funder?.defaultChargeCard?.id
-    if (fundingCardId || funderCardId) continue
+    if (resolveChargeCardForFunding(row)) continue
     const funderName = row.funder?.name?.trim() || 'Unknown funder'
     const fundingName = fundingDisplayName(row)
     missing.push(`${funderName} — ${fundingName}${row.isPrimary ? ' (primary)' : ''}`)
@@ -181,9 +184,10 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
       <div>
         <h2 className="text-sm font-semibold text-foreground">Charge cards</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Read-only view of charge rates linked to this service user and each funder / funding
-          contract. When several funders apply, every linked card is listed below. The card marked
-          Default for billing is what invoicing uses unless a visit is tied to another funding.
+          Read-only view of charge rates linked to each active funding contract (funding-level card,
+          otherwise the funder default). When several funders apply, one card is shown per funding
+          unless two fundings share the same card. The card marked Default for billing is what
+          invoicing uses for the primary funding unless a visit is tied to another contract.
         </p>
       </div>
 

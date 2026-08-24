@@ -47,6 +47,7 @@ import {
   GraduationCap,
   CalendarOff,
   Landmark,
+  Briefcase,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -244,6 +245,20 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Recruitment',       icon: <UserPlus className="h-5 w-5" />,      href: '/in-progress', ready: false, badge: 5 },
+  {
+    label: 'HR',
+    icon: <Briefcase className="h-5 w-5" />,
+    href: '/hr/employees',
+    children: [
+      {
+        label: 'HR Dashboard',
+        icon: <Users className="h-4 w-4" />,
+        href: '/hr/employees',
+        permission: 'hr.read',
+        navTestId: 'nav-hr-employees',
+      },
+    ],
+  },
   {
     label: 'Reports',
     icon: <BarChart3 className="h-5 w-5" />,

@@ -56,6 +56,8 @@ import EmployeePage from '@/features/employees/pages/EmployeePage'
 import GeneralEmployeeDocumentsPage from '@/features/employees/pages/GeneralEmployeeDocumentsPage'
 import AddEmployeePage from '@/features/employees/pages/AddEmployeePage'
 import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
+import HrDashboardPage from '@/features/hr/pages/HrDashboardPage'
+import HrEmployeeProfilePage from '@/features/hr/pages/HrEmployeeProfilePage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
@@ -230,6 +232,8 @@ const pageTitles: Record<string, string> = {
   '/employee/temp-inspector': 'Temporary Inspector Login',
   '/employee/documents': 'General Employee Documents',
   '/employee/add': 'Add Employee',
+  '/hr': 'HR',
+  '/hr/employees': 'HR Employees',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
   '/account': 'My account',
@@ -1200,6 +1204,28 @@ const employeeEditRoute = createRoute({
   component: EditEmployeePage,
 })
 
+const hrIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr',
+  beforeLoad: () => {
+    throw redirect({ to: '/hr/employees' })
+  },
+})
+
+const hrEmployeesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/employees',
+  beforeLoad: requirePermission('hr.read'),
+  component: HrDashboardPage,
+})
+
+const hrEmployeeProfileRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/employees/$employeeId',
+  beforeLoad: requirePermission('hr.read'),
+  component: HrEmployeeProfilePage,
+})
+
 const accidentsIncidentsViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/view',
@@ -1718,6 +1744,9 @@ const routeTree = rootRoute.addChildren([
     employeeGeneralDocumentsRoute,
     employeeAddRoute,
     employeeEditRoute,
+    hrIndexRoute,
+    hrEmployeesRoute,
+    hrEmployeeProfileRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
     accountRoute,
