@@ -37,6 +37,8 @@ type ChargeCardDetailsViewProps = {
   isBillingDefault?: boolean
   loading?: boolean
   showManageLink?: boolean
+  /** When false, hides the rate rules table (e.g. service user read-only tab). */
+  showRules?: boolean
   groupRules?: boolean
 }
 
@@ -171,6 +173,7 @@ export function ChargeCardDetailsView({
   isBillingDefault,
   loading,
   showManageLink,
+  showRules = true,
   groupRules = true,
 }: ChargeCardDetailsViewProps) {
   const sourceLabel = resolveSourceLabel(resolveSource, matchedLevelLabel)
@@ -257,6 +260,7 @@ export function ChargeCardDetailsView({
         </div>
       </dl>
 
+      {showRules ? (
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -294,6 +298,7 @@ export function ChargeCardDetailsView({
           </div>
         )}
       </div>
+      ) : null}
     </div>
   )
 }

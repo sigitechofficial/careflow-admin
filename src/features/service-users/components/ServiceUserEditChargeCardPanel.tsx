@@ -248,6 +248,7 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
                 contextLabels={entry.contexts}
                 isBillingDefault={isBillingDefault}
                 showManageLink={canManageBilling && index === 0}
+                showRules={false}
               />
             )
           })}

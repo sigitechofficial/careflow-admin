@@ -104,10 +104,9 @@ const FUNDING_FIELD_TOOLTIPS = {
   packageName: 'Care package or contract name shown on invoices and reports.',
   weeklyBudget: 'Maximum weekly amount authorised by the funder for this package.',
   hourlyRate: 'Agreed hourly rate when care is funded by hours rather than a fixed package.',
-  contributionAmount: 'Fixed monetary contribution from this funder (alternative to a percentage split).',
   splitPercent:
-    'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits for one service user cannot exceed 100%.',
-  splitPriority: 'Billing order when multiple funders apply — 1 is highest priority.',
+    'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits cannot exceed 100%. The lowest-priority funder receives any remainder.',
+  splitPriority: 'Billing order when multiple funders apply — 1 is invoiced first; highest number receives the remainder.',
   purchaseOrderNumber: 'Purchase order number that must appear on invoices for this funder.',
   purchaseOrderExpiresAt: 'Date after which the purchase order is no longer valid for billing.',
   authorisedWeeklyHours: 'Maximum care hours per week authorised under this contract.',
@@ -152,6 +151,36 @@ function fmtMoney(v: string | null | undefined): string {
   const n = Number(v)
   if (Number.isNaN(n)) return v
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+function isSplitEligibleFunding(row: EnterpriseServiceUserFundingRow): boolean {
+  return row.status !== 'ENDED' && row.status !== 'REJECTED' && row.status !== 'SUSPENDED'
+}
+
+function parseSplitPercentValue(v: string | null | undefined): number | null {
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isNaN(n) ? null : n
+}
+
+function computeCombinedSplitPercent(
+  fundings: EnterpriseServiceUserFundingRow[],
+  editingId: string | null,
+  nextSplitPercent: string,
+): number {
+  let total = 0
+  for (const row of fundings) {
+    if (!isSplitEligibleFunding(row)) continue
+    const pct =
+      row.id === editingId ? parseSplitPercentValue(nextSplitPercent) : parseSplitPercentValue(row.splitPercent)
+    if (pct != null && pct > 0) total += pct
+  }
+  return total
+}
+
+function nextSplitPriority(fundings: EnterpriseServiceUserFundingRow[]): number {
+  const priorities = fundings.filter(isSplitEligibleFunding).map((r) => r.splitPriority ?? 1)
+  return priorities.length ? Math.max(...priorities) + 1 : 1
 }
 
 type FundingForm = {
@@ -256,7 +285,6 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     endDate: f.endDate || null,
     weeklyBudget: f.weeklyBudget === '' ? null : Number(f.weeklyBudget),
     hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate),
-    contributionAmount: f.contributionAmount === '' ? null : Number(f.contributionAmount),
     splitPercent: f.splitPercent === '' ? null : Number(f.splitPercent),
     splitPriority: f.splitPriority === '' ? 1 : Number(f.splitPriority),
     purchaseOrderNumber: f.purchaseOrderNumber || null,
@@ -376,9 +404,33 @@ export function ServiceUserFundingTab({
 
   const openCreate = () => {
     setEditingId(null)
-    setForm(emptyForm())
+    setForm({ ...emptyForm(), splitPriority: String(nextSplitPriority(rows)) })
     setDialogOpen(true)
   }
+
+  const splitEligibleRows = React.useMemo(
+    () => rows.filter(isSplitEligibleFunding),
+    [rows],
+  )
+
+  const configuredSplitRows = React.useMemo(
+    () =>
+      splitEligibleRows.filter((row) => {
+        const pct = parseSplitPercentValue(row.splitPercent)
+        return pct != null && pct > 0
+      }),
+    [splitEligibleRows],
+  )
+
+  const listSplitTotal = React.useMemo(
+    () => configuredSplitRows.reduce((sum, row) => sum + Number(row.splitPercent), 0),
+    [configuredSplitRows],
+  )
+
+  const formSplitTotal = React.useMemo(
+    () => computeCombinedSplitPercent(rows, editingId, form.splitPercent),
+    [rows, editingId, form.splitPercent],
+  )
 
   const openEdit = (row: EnterpriseServiceUserFundingRow) => {
     setEditingId(row.id)
@@ -390,6 +442,20 @@ export function ServiceUserFundingTab({
     if (!form.fundingTypeId) {
       toastApiError(new Error('Funding type is required'), 'Validation')
       return
+    }
+    if (form.splitPercent !== '') {
+      const pct = Number(form.splitPercent)
+      if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+        toastApiError(new Error('Split percentage must be between 0 and 100'), 'Validation')
+        return
+      }
+      if (formSplitTotal > 100.001) {
+        toastApiError(
+          new Error(`Combined split would be ${formSplitTotal.toFixed(1)}%. Total cannot exceed 100%.`),
+          'Validation',
+        )
+        return
+      }
     }
     try {
       const body = formToBody(form)
@@ -523,6 +589,51 @@ export function ServiceUserFundingTab({
           <p className="mt-4 text-sm text-muted-foreground">No funding records yet.</p>
         ) : (
           <div className="mt-4 space-y-3">
+            {configuredSplitRows.length >= 2 ? (
+              <div
+                className={cn(
+                  'rounded-lg border p-3 text-sm',
+                  listSplitTotal > 100
+                    ? 'border-destructive/50 bg-destructive/5'
+                    : listSplitTotal < 100
+                      ? 'border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20'
+                      : 'border-teal-600/30 bg-teal-50/50 dark:bg-teal-950/20',
+                )}
+              >
+                <p className="font-medium text-foreground">Invoice split</p>
+                <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                  {[...configuredSplitRows]
+                    .sort((a, b) => (a.splitPriority ?? 1) - (b.splitPriority ?? 1))
+                    .map((row) => (
+                      <li key={row.id}>
+                        {row.funder?.name ?? row.fundingType.name}: {row.splitPercent}% (priority{' '}
+                        {row.splitPriority ?? 1})
+                      </li>
+                    ))}
+                </ul>
+                <p
+                  className={cn(
+                    'mt-2 text-xs',
+                    listSplitTotal > 100 && 'text-destructive',
+                    listSplitTotal < 100 && listSplitTotal > 0 && 'text-amber-800 dark:text-amber-200',
+                    listSplitTotal === 100 && 'text-teal-800 dark:text-teal-200',
+                  )}
+                >
+                  Total: {listSplitTotal}%
+                  {listSplitTotal < 100
+                    ? ' — lowest-priority funder receives the remainder on invoices'
+                    : listSplitTotal > 100
+                      ? ' — exceeds 100%; adjust split percentages'
+                      : ''}
+                </p>
+              </div>
+            ) : splitEligibleRows.length >= 2 ? (
+              <p className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                Multiple funders are active. Set <span className="font-medium text-foreground">Split %</span> and{' '}
+                <span className="font-medium text-foreground">Split priority</span> on each funding line to split
+                invoice charges.
+              </p>
+            ) : null}
             {rows.map((row) => (
               <div
                 key={row.id}
@@ -545,7 +656,9 @@ export function ServiceUserFundingTab({
                     {row.funder ? <p className="mt-1 text-sm text-muted-foreground">Funder: {row.funder.name}</p> : null}
                     {row.packageName ? <p className="text-sm text-muted-foreground">Package: {row.packageName}</p> : null}
                     {row.splitPercent ? (
-                      <p className="text-sm text-muted-foreground">Split: {row.splitPercent}%</p>
+                      <p className="text-sm text-muted-foreground">
+                        Split: {row.splitPercent}% · Priority {row.splitPriority ?? 1}
+                      </p>
                     ) : null}
                     {row.defaultChargeCard ? (
                       <p className="text-sm text-muted-foreground">Charge card: {row.defaultChargeCard.name}</p>
@@ -698,7 +811,7 @@ export function ServiceUserFundingTab({
               <FundingFieldLabel className="mb-1" label="Package name" tooltip={FUNDING_FIELD_TOOLTIPS.packageName} />
               <Input value={form.packageName} onChange={(e) => setForm((f) => ({ ...f, packageName: e.target.value }))} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <FundingFieldLabel className="mb-1" label="Weekly budget" tooltip={FUNDING_FIELD_TOOLTIPS.weeklyBudget} />
                 <Input inputMode="decimal" value={form.weeklyBudget} onChange={(e) => setForm((f) => ({ ...f, weeklyBudget: e.target.value }))} />
@@ -706,14 +819,6 @@ export function ServiceUserFundingTab({
               <div>
                 <FundingFieldLabel className="mb-1" label="Hourly rate" tooltip={FUNDING_FIELD_TOOLTIPS.hourlyRate} />
                 <Input inputMode="decimal" value={form.hourlyRate} onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))} />
-              </div>
-              <div>
-                <FundingFieldLabel className="mb-1" label="Contribution" tooltip={FUNDING_FIELD_TOOLTIPS.contributionAmount} />
-                <Input
-                  inputMode="decimal"
-                  value={form.contributionAmount}
-                  onChange={(e) => setForm((f) => ({ ...f, contributionAmount: e.target.value }))}
-                />
               </div>
             </div>
             </div>
@@ -723,24 +828,52 @@ export function ServiceUserFundingTab({
               <p className="text-xs text-muted-foreground">
                 Split percentages, purchase orders, and billing contacts are used when generating invoice runs.
               </p>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
                 <div>
-                  <FundingFieldLabel className="mb-1" label="Split %" tooltip={FUNDING_FIELD_TOOLTIPS.splitPercent} />
-                  <Input
-                    inputMode="decimal"
-                    placeholder="e.g. 70"
-                    value={form.splitPercent}
-                    onChange={(e) => setForm((f) => ({ ...f, splitPercent: e.target.value }))}
-                  />
+                  <p className="text-sm font-medium text-foreground">Funding split</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    When more than one funder pays, set a split % on each line. Priority 1 is invoiced first; the
+                    lowest-priority funder receives any remainder.
+                  </p>
                 </div>
-                <div>
-                  <FundingFieldLabel className="mb-1" label="Split priority" tooltip={FUNDING_FIELD_TOOLTIPS.splitPriority} />
-                  <Input
-                    inputMode="numeric"
-                    value={form.splitPriority}
-                    onChange={(e) => setForm((f) => ({ ...f, splitPriority: e.target.value }))}
-                  />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <FundingFieldLabel className="mb-1" label="Split %" tooltip={FUNDING_FIELD_TOOLTIPS.splitPercent} />
+                    <Input
+                      inputMode="decimal"
+                      placeholder="e.g. 70"
+                      value={form.splitPercent}
+                      onChange={(e) => setForm((f) => ({ ...f, splitPercent: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel className="mb-1" label="Split priority" tooltip={FUNDING_FIELD_TOOLTIPS.splitPriority} />
+                    <Input
+                      inputMode="numeric"
+                      value={form.splitPriority}
+                      onChange={(e) => setForm((f) => ({ ...f, splitPriority: e.target.value }))}
+                    />
+                  </div>
                 </div>
+                {form.splitPercent !== '' || configuredSplitRows.length > 0 ? (
+                  <p
+                    className={cn(
+                      'text-xs',
+                      formSplitTotal > 100 && 'text-destructive',
+                      formSplitTotal < 100 && formSplitTotal > 0 && 'text-amber-800 dark:text-amber-200',
+                      formSplitTotal === 100 && 'text-teal-800 dark:text-teal-200',
+                    )}
+                  >
+                    Combined split: {formSplitTotal.toFixed(formSplitTotal % 1 === 0 ? 0 : 1)}%
+                    {formSplitTotal > 100
+                      ? ' — exceeds 100%'
+                      : formSplitTotal < 100 && formSplitTotal > 0
+                        ? ' — remainder goes to lowest-priority funder'
+                        : formSplitTotal === 100
+                          ? ' — fully allocated'
+                          : ''}
+                  </p>
+                ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
