@@ -16,6 +16,8 @@ import {
   formatPayCardRuleDayType,
   formatPayCardRuleTimeBand,
   formatVisitDurationLabel,
+  defaultFixedVisitRuleLabel,
+  fixedVisitRuleTitle,
   type BillingDayType,
   type ChargeCardRule,
   type PayCardRule,
@@ -60,7 +62,7 @@ type VisitPayMethod = 'PRO_RATA_HOURLY' | 'FIXED_BY_DURATION' | 'BOTH'
 
 function emptyFixedPayRule(minutes = DEFAULT_VISIT_DURATION_MINUTES): PayCardRule {
   return {
-    label: `${formatVisitDurationLabel(minutes) ?? `${minutes} min`} visit`,
+    label: defaultFixedVisitRuleLabel(minutes),
     dayType: 'ANY',
     rateType: 'FIXED',
     amount: 0,
@@ -304,6 +306,9 @@ function applyVisitChargeMethod(rules: ChargeCardRule[], method: VisitPayMethod)
 }
 
 function ruleTitle(rule: PayCardRule, index: number): string {
+  if (rule.rateType === 'FIXED' && (rule.minimumMinutes ?? 0) > 0) {
+    return fixedVisitRuleTitle(rule, rule.minimumMinutes!)
+  }
   if (rule.label?.trim()) return rule.label.trim()
   const day = formatPayCardRuleDayType(rule.dayType)
   const band = formatPayCardRuleTimeBand(rule)
@@ -664,9 +669,6 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                       : applyDurationChangeToRule(rule, nextMinutes)
                   replaceRule(index, {
                     ...next,
-                    label: rule.label?.trim()
-                      ? rule.label
-                      : `${formatVisitDurationLabel(nextMinutes) ?? `${nextMinutes} min`} visit`,
                   })
                 }}
                 disabled={disabled}
@@ -1085,8 +1087,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-0.5">
             <p className="text-sm font-medium text-foreground truncate">
-              {rule.label?.trim()
-                || `${formatVisitDurationLabel(durationMinutes) ?? `${durationMinutes} min`} visit`}
+              {fixedVisitRuleTitle(rule, durationMinutes)}
             </p>
             <p className="text-xs text-muted-foreground">
               {formatPayCardRuleDayType(rule.dayType)}
@@ -1119,9 +1120,6 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 const next = applyDurationChangeToRule(rule, nextMinutes)
                 replaceRule(index, {
                   ...next,
-                  label: rule.label?.trim()
-                    ? rule.label
-                    : `${formatVisitDurationLabel(nextMinutes) ?? `${nextMinutes} min`} visit`,
                   startTime: rule.startTime?.trim() || '00:00',
                   endTime: rule.endTime?.trim() || '23:59',
                 })

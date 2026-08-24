@@ -9,6 +9,7 @@ import {
   DEFAULT_VISIT_DURATION_MINUTES,
   MAX_FIXED_VISIT_MINUTES,
   formatVisitDurationLabel,
+  nextFixedVisitRuleLabel,
 } from '@/features/billing/types/billing-cards.types'
 import { billingTimeWindowsOverlap, parseBillingTimeToMinutes } from '@/features/billing/utils/billing-time.util'
 
@@ -231,6 +232,7 @@ export function applyDurationChangeToRule(rule: PayCardRule, nextMinutes: number
     minimumMinutes: nextMinutes,
     rateType: 'FIXED',
     amount: Number(rule.amount),
+    label: nextFixedVisitRuleLabel(rule.label, nextMinutes),
   }
 }
 
