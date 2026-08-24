@@ -119,16 +119,15 @@ export const DEPENDENCY_LEVEL_OPTIONS = [
   'Total dependence',
 ] as const
 
-export function defaultReviewSummary(serviceUserName: string): string {
-  return `Reviewed period 25/4/2026 to 23/5/2026
-During this review period ${serviceUserName} received support with medication administration, meal preparation, and monitoring of blood pressure and blood sugar levels. Carers reported good adherence to the prescribed regimen with no missed doses. ${serviceUserName} remained medically stable with no new concerns raised.
+export const REVIEW_SUMMARY_PLACEHOLDER = 'Enter review summary'
+export const CARE_PLAN_SUMMARY_PLACEHOLDER = 'Enter care plan summary'
 
-Review Period: 01-04-2026 to 24-04-2026
-Support continued as planned with prompting for medication and assistance with personal care. Family reported satisfaction with the current package. No safeguarding concerns were identified during this period.`
+export function defaultReviewSummary(_serviceUserName?: string): string {
+  return ''
 }
 
-export function defaultCarePlanSummary(serviceUserName: string): string {
-  return `${serviceUserName} requires prompting and supervision for medication administration due to occasional confusion. Carers will support with the blister pack, observe for side effects, and report any refusal or missed doses to the on-call nurse and GP as per the organisation's escalation policy.`
+export function defaultCarePlanSummary(_serviceUserName?: string): string {
+  return ''
 }
 
 export function defaultAssessmentGuidance(): string {

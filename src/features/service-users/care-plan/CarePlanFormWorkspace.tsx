@@ -21,6 +21,8 @@ import {
   DEFAULT_CARE_HISTORY,
   defaultCarePlanSummary,
   defaultReviewSummary,
+  REVIEW_SUMMARY_PLACEHOLDER,
+  CARE_PLAN_SUMMARY_PLACEHOLDER,
   DEPENDENCY_LEVEL_OPTIONS,
   metaBool,
   metaString,
@@ -31,6 +33,7 @@ import {
   type CarePlanRiskItem,
 } from '@/features/service-users/care-plan/care-plan-form-meta'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
+import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
 import { BodyMapCanvas } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import {
   BODY_MAP_RECORD_TYPES,
@@ -175,6 +178,7 @@ function ReviewSummarySection({
           )}
           value={summary}
           disabled={disabled}
+          placeholder={REVIEW_SUMMARY_PLACEHOLDER}
           onChange={(e) =>
             onChange(setMetaValue(values, CARE_PLAN_META.reviewSummary, e.target.value))
           }
@@ -196,7 +200,7 @@ function ReviewSummarySection({
           className="min-h-[120px] w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-sm leading-relaxed ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           value={carePlanSummary}
           disabled={disabled}
-          placeholder="Summarise the care plan for this area…"
+          placeholder={CARE_PLAN_SUMMARY_PLACEHOLDER}
           onChange={(e) =>
             onChange(setMetaValue(values, CARE_PLAN_META.carePlanSummary, e.target.value))
           }
@@ -292,11 +296,21 @@ function CarePlanMainSection({
   values,
   onChange,
   disabled,
+  suggestions,
+  ignoredSuggestionIds,
+  onUseSuggestion,
+  onIgnoreSuggestion,
+  onKeepCurrentSuggestion,
 }: {
   form: CareFormDetail
   values: CarePlanDraftValues
   onChange: (v: CarePlanDraftValues) => void
   disabled?: boolean
+  suggestions?: CarePlanFieldSuggestion[]
+  ignoredSuggestionIds?: string[]
+  onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }) {
   return (
     <CarePathwayFormRenderer
@@ -305,6 +319,11 @@ function CarePlanMainSection({
       onChange={onChange}
       disabled={disabled}
       embedded
+      suggestions={suggestions}
+      ignoredSuggestionIds={ignoredSuggestionIds}
+      onUseSuggestion={onUseSuggestion}
+      onIgnoreSuggestion={onIgnoreSuggestion}
+      onKeepCurrentSuggestion={onKeepCurrentSuggestion}
     />
   )
 }
@@ -703,6 +722,11 @@ export function CarePlanFormWorkspace({
   onPublish,
   onSaveDraft,
   saving,
+  suggestions,
+  ignoredSuggestionIds,
+  onUseSuggestion,
+  onIgnoreSuggestion,
+  onKeepCurrentSuggestion,
 }: {
   serviceUserId: string
   detail: ServiceUserDetail | null
@@ -714,6 +738,11 @@ export function CarePlanFormWorkspace({
   onPublish: () => void
   onSaveDraft: () => void
   saving?: boolean
+  suggestions?: CarePlanFieldSuggestion[]
+  ignoredSuggestionIds?: string[]
+  onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }) {
   const serviceUserName = serviceUserGivenName(detail)
   const consentDefaultName = serviceUserDisplayName(detail)
@@ -797,6 +826,11 @@ export function CarePlanFormWorkspace({
               values={values}
               onChange={onChange}
               disabled={disabled}
+              suggestions={suggestions}
+              ignoredSuggestionIds={ignoredSuggestionIds}
+              onUseSuggestion={onUseSuggestion}
+              onIgnoreSuggestion={onIgnoreSuggestion}
+              onKeepCurrentSuggestion={onKeepCurrentSuggestion}
             />
           )}
           {activeSection === 'risk-profile' && (
