@@ -396,6 +396,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">Funder split (invoice run)</h4>
                     <p className="mt-1 text-xs text-muted-foreground">{preview.funderSplitPreview.note}</p>
+                    {preview.funderSplitPreview.visitChargeCardName ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Visit gross priced with:{' '}
+                        <span className="font-medium text-foreground">
+                          {preview.funderSplitPreview.visitChargeCardName}
+                        </span>{' '}
+                        (primary funding rate card)
+                      </p>
+                    ) : null}
                   </div>
                   <ul className="space-y-2">
                     {preview.funderSplitPreview.lines.map((line) => (
@@ -417,7 +426,11 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                           {line.splitPercent != null && line.splitPercent > 0
                             ? `Split ${line.splitPercent}%`
                             : 'No split %'}
+                          {line.chargeCardName ? ` · Charge card: ${line.chargeCardName}` : ''}
                         </p>
+                        {line.pricingNote ? (
+                          <p className="mt-1 text-xs text-muted-foreground">{line.pricingNote}</p>
+                        ) : null}
                         {!line.included && line.reason ? (
                           <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">{line.reason}</p>
                         ) : null}

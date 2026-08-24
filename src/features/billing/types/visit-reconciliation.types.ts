@@ -150,11 +150,15 @@ export type VisitReconciliationFunderSplitLine = {
   amount: string
   included: boolean
   reason: string | null
+  chargeCardName: string | null
+  pricedWithVisitCard: boolean
+  pricingNote: string | null
 }
 
 export type VisitReconciliationFunderSplitPreview = {
   note: string
   totalAmount: string
+  visitChargeCardName: string | null
   lines: VisitReconciliationFunderSplitLine[]
 }
 
