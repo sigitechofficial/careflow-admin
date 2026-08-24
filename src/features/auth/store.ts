@@ -28,6 +28,12 @@ import type {
 
 const ACCESS_MS = 60 * 60 * 1000
 const REFRESH_MS = 7 * 24 * 60 * 60 * 1000
+const LOGIN_LOCK_AFTER = 5
+
+function isTransientLoginFailure(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error ?? '')
+  return /failed to fetch|network|econnrefused|timeout|abort|load failed|offline/i.test(msg)
+}
 const DEMO_PASSWORD = 'CareAdmin1!'
 
 const MOCK_USERS: Record<
@@ -261,7 +267,7 @@ export const useAuthStore = create<AuthState>()(
 
         if (getApiBaseUrl()) {
           const fails = get().failedByEmail[key] ?? 0
-          if (fails >= 5) {
+          if (fails >= LOGIN_LOCK_AFTER) {
             return { ok: false, error: 'Account temporarily locked. Try again later or contact an administrator.' }
           }
           if (!get().ipAllowedForCurrent()) {
@@ -320,9 +326,11 @@ export const useAuthStore = create<AuthState>()(
             })
             return { ok: true }
           } catch (e) {
-            set(state => ({
-              failedByEmail: { ...state.failedByEmail, [key]: (state.failedByEmail[key] ?? 0) + 1 },
-            }))
+            if (!isTransientLoginFailure(e)) {
+              set(state => ({
+                failedByEmail: { ...state.failedByEmail, [key]: (state.failedByEmail[key] ?? 0) + 1 },
+              }))
+            }
             get().appendLocalAudit({
               at: Date.now(),
               actorId: null,
@@ -838,6 +846,15 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'care-admin-auth',
+      version: 2,
+      migrate: (persisted) => {
+        const state = persisted as { failedByEmail?: Record<string, number>; lockedAccounts?: LockedAccount[] }
+        return {
+          ...state,
+          failedByEmail: {},
+          lockedAccounts: [],
+        }
+      },
       partialize: state => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
