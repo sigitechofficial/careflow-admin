@@ -72,6 +72,13 @@ export function InitialAssessmentSubmissionDetailSheet({
   const correctionRequired = raw.correctionRequired === true
   const waterlowScore = computeWaterlowScore(meta.waterlow)
 
+  const openInForm = () => {
+    if (!submission || !onOpenInForm) return
+    const id = submission.id
+    onOpenChange(false)
+    window.setTimeout(() => onOpenInForm(id), 0)
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" size="lg" className="flex w-full flex-col sm:max-w-md">
@@ -95,9 +102,17 @@ export function InitialAssessmentSubmissionDetailSheet({
                   status={submission.status}
                   managerReviewRequired={managerReviewRequired}
                 />
-                {activeId === submission.id ? (
-                  <span className="rounded-md bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+                {onOpenInForm ? (
+                  <button
+                    type="button"
+                    className="rounded-md bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 hover:bg-teal-200 dark:bg-teal-950 dark:text-teal-200 dark:hover:bg-teal-900"
+                    onClick={openInForm}
+                  >
                     Open in form
+                  </button>
+                ) : activeId === submission.id ? (
+                  <span className="rounded-md bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+                    Current in form
                   </span>
                 ) : null}
                 {correctionRequired ? (
@@ -250,14 +265,7 @@ export function InitialAssessmentSubmissionDetailSheet({
 
         {submission && onOpenInForm ? (
           <SheetFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              type="button"
-              className="w-full"
-              onClick={() => {
-                onOpenInForm(submission.id)
-                onOpenChange(false)
-              }}
-            >
+            <Button type="button" className="w-full" onClick={openInForm}>
               Open in form
             </Button>
             <Button type="button" variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
