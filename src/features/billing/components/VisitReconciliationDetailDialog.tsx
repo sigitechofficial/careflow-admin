@@ -381,8 +381,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
               <RateBreakdownCard
                 title="Client charge"
                 subtitle={
-                  preview?.funderChargeNote?.trim() ||
-                  'Invoice — based on approved billable time (org multi-carer funder setting)'
+                  preview?.funderClientCharges?.length
+                    ? 'Total client charge across all funders (each funder priced with their own rate card).'
+                    : preview?.funderChargeNote?.trim() ||
+                      'Invoice — based on approved billable time (org multi-carer funder setting)'
                 }
                 timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
                 hours={preview?.billableHours ?? null}
@@ -391,7 +393,24 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
               />
 
-              {preview?.funderSplitPreview ? (
+              {preview?.funderClientCharges?.map((funderCharge) => (
+                <RateBreakdownCard
+                  key={`${funderCharge.funderName}-${funderCharge.splitPercent ?? 'none'}`}
+                  title={`Client charge — ${funderCharge.funderName}`}
+                  subtitle={
+                    funderCharge.splitPercent != null && funderCharge.splitPercent > 0
+                      ? `${funderCharge.cardGrossAmount ?? '—'} visit price × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount}`
+                      : funderCharge.reason ?? 'Funder charge'
+                  }
+                  timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                  hours={preview?.billableHours ?? null}
+                  breakdown={funderCharge.breakdown}
+                  fallbackAmount={funderCharge.shareAmount}
+                  icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
+                />
+              ))}
+
+              {preview?.funderSplitPreview && !preview?.funderClientCharges?.length ? (
                 <ContentCard className="space-y-3 p-4">
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">Funder split (invoice run)</h4>

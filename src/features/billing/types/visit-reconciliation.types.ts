@@ -162,6 +162,15 @@ export type VisitReconciliationFunderSplitPreview = {
   lines: VisitReconciliationFunderSplitLine[]
 }
 
+export type VisitReconciliationFunderClientCharge = {
+  funderName: string
+  splitPercent: number | null
+  shareAmount: string
+  cardGrossAmount: string | null
+  breakdown: VisitReconciliationRateBreakdown | null
+  reason: string | null
+}
+
 export type VisitReconciliationCalculationPreview = {
   plannedMinutes: number | null
   actualMinutes: number | null
@@ -183,6 +192,7 @@ export type VisitReconciliationCalculationPreview = {
   }
   carerPay: VisitReconciliationRateBreakdown | null
   clientCharge: VisitReconciliationRateBreakdown | null
+  funderClientCharges?: VisitReconciliationFunderClientCharge[] | null
   exceptionDetails: Array<{
     code: FinanceExceptionCode
     message: string
