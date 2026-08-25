@@ -53,6 +53,7 @@ function RateBreakdownCard({
   icon?: React.ReactNode
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
+  const appliedRules = breakdown?.appliedRules?.filter(r => r.label.trim() || r.detail.trim()) ?? []
 
   return (
     <ContentCard className="p-4 space-y-3">
@@ -81,13 +82,58 @@ function RateBreakdownCard({
               {breakdown.cardCode ? ` (${breakdown.cardCode})` : ''}
             </p>
           ) : null}
-          {breakdown.ruleLabel ? (
-            <p className="text-xs text-muted-foreground">Rule: {breakdown.ruleLabel}</p>
+
+          {appliedRules.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Applied rule{appliedRules.length === 1 ? '' : 's'}
+              </p>
+              <ul className="space-y-2">
+                {appliedRules.map((rule, i) => (
+                  <li
+                    key={`${rule.label}-${rule.rateType}-${i}`}
+                    className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium text-foreground">{rule.label}</span>
+                      {rule.amount ? (
+                        <span className="tabular-nums font-medium text-foreground">{rule.amount}</span>
+                      ) : rule.unitRate ? (
+                        <span className="tabular-nums text-foreground">{rule.unitRate}</span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{rule.rateTypeLabel}</p>
+                    <dl className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                      {rule.dayTypeLabel ? (
+                        <div>
+                          <dt className="inline text-muted-foreground/80">Day: </dt>
+                          <dd className="inline text-foreground">{rule.dayTypeLabel}</dd>
+                        </div>
+                      ) : null}
+                      {rule.timeWindow ? (
+                        <div>
+                          <dt className="inline text-muted-foreground/80">Time: </dt>
+                          <dd className="inline text-foreground">{rule.timeWindow}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                    <p className="text-xs text-muted-foreground">{rule.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : breakdown.ruleLabel ? (
+            <p className="text-xs text-muted-foreground">
+              Rule: <span className="font-medium text-foreground">{breakdown.ruleLabel}</span>
+            </p>
           ) : null}
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-muted-foreground">Rate</span>
-            <span className="font-medium tabular-nums">{breakdown.unitRate ?? '—'}</span>
-          </div>
+
+          {appliedRules.length === 0 ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-muted-foreground">Rate</span>
+              <span className="font-medium tabular-nums">{breakdown.unitRate ?? '—'}</span>
+            </div>
+          ) : null}
           <div className="border-t border-border pt-3 space-y-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Calculation
@@ -432,8 +478,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                         Visit gross priced with:{' '}
                         <span className="font-medium text-foreground">
                           {preview.funderSplitPreview.visitChargeCardName}
-                        </span>{' '}
-                        (primary funding rate card)
+                        </span>
+                        {preview.funderSplitPreview.note.includes('one gross charge')
+                          ? ' (primary funding rate card)'
+                          : null}
                       </p>
                     ) : null}
                   </div>

@@ -130,6 +130,18 @@ export type VisitReconciliationRateSegment = {
   amount: string
 }
 
+export type VisitReconciliationAppliedRule = {
+  label: string
+  rateType: string
+  rateTypeLabel: string
+  dayType: string | null
+  dayTypeLabel: string | null
+  timeWindow: string | null
+  unitRate: string | null
+  amount: string | null
+  detail: string
+}
+
 export type VisitReconciliationRateBreakdown = {
   minutes: number
   hoursLabel: string
@@ -141,6 +153,7 @@ export type VisitReconciliationRateBreakdown = {
   cardCode: string | null
   cardSource: string | null
   ruleLabel: string | null
+  appliedRules?: VisitReconciliationAppliedRule[]
   segments?: VisitReconciliationRateSegment[]
 }
 

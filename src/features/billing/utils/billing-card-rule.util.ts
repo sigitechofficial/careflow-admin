@@ -271,7 +271,10 @@ export function billingDayTypesCanOverlap(a: BillingDayType, b: BillingDayType):
 
 type HourlyOverlapCandidate = Pick<PayCardRule, 'dayType' | 'startTime' | 'endTime' | 'label' | 'rateType'>
 
-function isHourlyPeriodLike(rule: Pick<PayCardRule, 'rateType'>): boolean {
+function isHourlyPeriodLike(
+  rule: Pick<PayCardRule, 'rateType'> & Partial<Pick<ChargeCardRule, 'chargeMethod'>>,
+): boolean {
+  if (isNightDutyChargeRule(rule)) return false
   return (
     rule.rateType === 'HOURLY'
     || rule.rateType === 'BANDED'
