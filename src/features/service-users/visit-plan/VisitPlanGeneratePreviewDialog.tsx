@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
-export type VisitPlanScheduleGenerateMode = 'generate' | 'backfill'
+export type VisitPlanScheduleGenerateMode = 'generate' | 'regenerate' | 'backfill'
 
 type Props = {
   open: boolean
@@ -41,6 +41,7 @@ export function VisitPlanGeneratePreviewDialog({
   const [backfillAck, setBackfillAck] = React.useState(false)
   const backfill = preview?.backfillDays ?? 0
   const isBackfill = mode === 'backfill'
+  const isRegenerate = mode === 'regenerate'
   const needsBackfillAck = isBackfill || backfill > 0
 
   React.useEffect(() => {
@@ -49,18 +50,30 @@ export function VisitPlanGeneratePreviewDialog({
 
   const canConfirm = !needsBackfillAck || backfillAck
 
+  const title = isBackfill
+    ? 'Backfill past visits'
+    : isRegenerate
+      ? 'Regenerate rota from visit plan'
+      : 'Generate rota from visit plan'
+
+  const description = isBackfill
+    ? `Preview for ${fromDate} to ${toDate} (days before rota start). Confirm before creating backdated visits.`
+    : isRegenerate
+      ? `Preview for ${fromDate} to ${toDate}. Missing visits will be created; existing visits will sync carers (including day-specific assignments).`
+      : `Preview for ${fromDate} to ${toDate}. Confirm before creating visits on the scheduling board.`
+
+  const confirmLabel = isBackfill
+    ? 'Backfill visits'
+    : isRegenerate
+      ? 'Regenerate rota'
+      : 'Generate visits'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader className="px-6 py-5 pr-12">
-          <DialogTitle>
-            {isBackfill ? 'Backfill past visits' : 'Generate rota from visit plan'}
-          </DialogTitle>
-          <DialogDescription className="pt-1">
-            {isBackfill
-              ? `Preview for ${fromDate} to ${toDate} (days before rota start). Confirm before creating backdated visits.`
-              : `Preview for ${fromDate} to ${toDate}. Confirm before creating visits on the scheduling board.`}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className="pt-1">{description}</DialogDescription>
         </DialogHeader>
 
         <DialogBody className="space-y-4 px-6 py-5">
@@ -74,7 +87,8 @@ export function VisitPlanGeneratePreviewDialog({
               </li>
               {preview.visitsAlreadyExist > 0 ? (
                 <li className="text-muted-foreground">
-                  {preview.visitsAlreadyExist} already on the rota (will sync carers only)
+                  {preview.visitsAlreadyExist} already on the rota
+                  {isRegenerate ? ' — carers will be synced from this plan' : ' (will sync carers only)'}
                 </li>
               ) : null}
               {preview.visitsSkippedAbsent > 0 ? (
@@ -114,7 +128,9 @@ export function VisitPlanGeneratePreviewDialog({
 
           {preview && !loading && preview.visitsToCreate === 0 && preview.visitsAlreadyExist > 0 ? (
             <p className="text-sm text-muted-foreground">
-              No new visits to create — matching call days in this window already have rota entries.
+              {isRegenerate
+                ? 'No new visits to create — existing rota entries in this window will sync carers from the visit plan.'
+                : 'No new visits to create — matching call days in this window already have rota entries.'}
             </p>
           ) : null}
 
@@ -155,7 +171,7 @@ export function VisitPlanGeneratePreviewDialog({
             disabled={isPending || loading || !canConfirm}
           >
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {isBackfill ? 'Backfill visits' : 'Generate visits'}
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

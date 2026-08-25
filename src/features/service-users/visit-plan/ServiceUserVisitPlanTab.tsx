@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Loader2, Package, PanelRightOpen, Pause, Play, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
+import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Loader2, Package, PanelRightOpen, Pause, Play, RefreshCw, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
@@ -209,7 +209,7 @@ function toSlotInput(slots: VisitPlanSlot[]) {
   })
 }
 
-/** Generate rota step number when visible; Backfill follows (or becomes 5 when Generate is hidden). */
+/** Regenerate rota step number when visible; Backfill follows (or becomes 5 when Regenerate is hidden). */
 const GENERATE_ROTA_STEP = 5
 const BACKFILL_STEP = SHOW_GENERATE_ROTA_SECTION ? 6 : 5
 
@@ -692,7 +692,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       return
     }
     const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
-    setGeneratePreviewMode('generate')
+    setGeneratePreviewMode('regenerate')
     setGeneratePreview(null)
     setGeneratePreviewLoading(true)
     setGeneratePreviewOpen(true)
@@ -704,7 +704,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       setGeneratePreview(preview)
     } catch (e) {
       setGeneratePreviewOpen(false)
-      toastApiError(e, 'Could not preview generate schedule')
+      toastApiError(e, 'Could not preview regenerate rota')
     } finally {
       setGeneratePreviewLoading(false)
     }
@@ -797,13 +797,19 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       })
       setGeneratePreviewOpen(false)
       toastSuccess(
-        'Rota generated',
-        `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
+        generatePreviewMode === 'regenerate' ? 'Rota regenerated' : 'Rota generated',
+        generatePreviewMode === 'regenerate'
+          ? `${result.visitsCreated} visits created; ${result.visitsSkipped} existing visits synced.`
+          : `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
       )
     } catch (e) {
       toastApiError(
         e,
-        generatePreviewMode === 'backfill' ? 'Could not backfill visits' : 'Could not generate schedule',
+        generatePreviewMode === 'backfill'
+          ? 'Could not backfill visits'
+          : generatePreviewMode === 'regenerate'
+            ? 'Could not regenerate rota'
+            : 'Could not generate schedule',
       )
     }
   }
@@ -1574,19 +1580,20 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
             </div>
       </ContentCard>
 
-      {/* Temporarily hidden — re-enable with SHOW_GENERATE_ROTA_SECTION = true */}
+      {/* Forward regenerate — creates missing visits and syncs carers on existing ones */}
       {SHOW_GENERATE_ROTA_SECTION && workingPlan?.status === 'ACTIVE' ? (
         <ContentCard className="space-y-4 border-2 border-sky-200 dark:border-sky-900">
           <ContentSectionHeader
-            icon={<Sparkles className="h-5 w-5" aria-hidden />}
+            icon={<RefreshCw className="h-5 w-5" aria-hidden />}
             iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             kicker={`Step ${GENERATE_ROTA_STEP}`}
             kickerClassName="text-sky-700 dark:text-sky-300"
-            title="Generate rota"
+            title="Regenerate rota"
             titleAs="h3"
             description={
               <>
-                Create scheduled visits from this plan going forward (max 31 days). Leave To empty for the
+                Apply the saved visit plan to the schedule (max 31 days). Creates any missing visits and
+                syncs carers on existing ones — including day-specific carers. Leave To empty for the
                 configured horizon. View results in{' '}
                 <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
                   Scheduling
@@ -1630,12 +1637,12 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   onClick={() => void handleGenerate()}
                   disabled={generateSchedule.isPending}
                 >
-                  {generateSchedule.isPending && generatePreviewMode === 'generate' ? (
+                  {generateSchedule.isPending && generatePreviewMode === 'regenerate' ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <CalendarClock className="mr-2 h-4 w-4" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                   )}
-                  Generate visits
+                  Regenerate rota
                 </Button>
               </div>
         </ContentCard>

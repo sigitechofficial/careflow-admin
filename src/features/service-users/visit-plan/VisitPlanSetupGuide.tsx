@@ -77,8 +77,9 @@ function buildSteps(slots: VisitPlanSlot[], planStatus: ServiceUserVisitPlan['st
   if (SHOW_GENERATE_ROTA_SECTION) {
     steps.push({
       id: 'rota',
-      title: 'Generate rota',
-      detail: 'When plan is Active, pick From/To and click Generate visits → open Scheduling.',
+      title: 'Regenerate rota',
+      detail:
+        'When plan is Active, pick From/To and click Regenerate rota to create missing visits and sync carers → open Scheduling.',
       done: isActive,
       icon: CalendarClock,
     })

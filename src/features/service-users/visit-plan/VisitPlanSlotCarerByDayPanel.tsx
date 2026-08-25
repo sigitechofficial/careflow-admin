@@ -59,7 +59,8 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
   const nameById = useEmployeeNameMap(employeeIds)
   const groups = groupCarerAssignments(slot.carerAssignments)
   const slotDefaultDuration = slotDefaultDurationMinutes(slot)
-  const showPerCarerTiming = slot.requiredCarers > 1 || groups.length > 1
+  // Show per-carer start/end whenever advanced day rows exist (including the first row).
+  const showPerCarerTiming = groups.length >= 1 || slot.requiredCarers > 1
   const slotStartHm = normalizeTimeForInput(slot.plannedStartTime)
   const slotEndHm = normalizeTimeForInput(slot.plannedEndTime)
   const [editingDurationGroupId, setEditingDurationGroupId] = React.useState<string | null>(null)
@@ -99,8 +100,8 @@ export function VisitPlanSlotCarerByDayPanel({ slot, disabled, onChange, onOpenA
       employeeId: '',
       role: slot.carerAssignments.length === 0 ? 'LEAD' : 'SECONDARY',
       durationMinutes: null,
-      plannedStartTime: showPerCarerTiming ? slotStartHm || null : null,
-      plannedEndTime: showPerCarerTiming ? slotEndHm || null : null,
+      plannedStartTime: slotStartHm || null,
+      plannedEndTime: slotEndHm || null,
       sortOrder: 0,
     }
     const next = [newAssignment, ...slot.carerAssignments].map((assignment, index) => ({

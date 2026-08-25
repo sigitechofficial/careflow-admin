@@ -265,7 +265,7 @@ function VisitCalendarCellTooltip({
                     ))}
                   </ul>
                 ) : (
-                  'Generate rota from Configure to create this visit on the schedule'
+                  'Regenerate rota from Configure to create this visit on the schedule'
                 )
               ) : carerNames.length === 0 ? (
                 'No carers assigned on rota'
@@ -870,7 +870,7 @@ export function VisitPlanCalendarTab({
 
         <footer className="vp-cal-footer">
           Generated visits reflect the scheduling rota. Record carer outcomes after visits occur. Striped cells are
-          planned from the visit plan but not yet generated — use Generate rota on Configure.
+          planned from the visit plan but not yet generated — use Regenerate rota on Configure.
         </footer>
       </article>
 
