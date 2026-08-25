@@ -247,6 +247,12 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               </div>
 
+              {preview?.pricingFrozenNote ? (
+                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  {preview.pricingFrozenNote}
+                </p>
+              ) : null}
+
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />

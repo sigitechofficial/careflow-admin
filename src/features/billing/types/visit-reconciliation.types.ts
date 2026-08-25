@@ -184,6 +184,9 @@ export type VisitReconciliationCalculationPreview = {
   isFunderBillingRow?: boolean
   funderChargeNote?: string | null
   funderSplitPreview?: VisitReconciliationFunderSplitPreview | null
+  /** True when pay/charge amounts were frozen at visit completion. */
+  pricingFrozen?: boolean
+  pricingFrozenNote?: string | null
   timeWindows: {
     planned: string
     actual: string
