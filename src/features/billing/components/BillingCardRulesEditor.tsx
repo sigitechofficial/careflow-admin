@@ -623,13 +623,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
       return
     }
     const autoLabel =
-      method === 'SLEEP_IN'
+      (method === 'SLEEP_IN'
         ? emptySleepingNightChargeRule(dayType).label
-        : emptyWakingNightChargeRule(dayType).label
+        : emptyWakingNightChargeRule(dayType).label) ?? ''
     const currentAuto =
-      method === 'SLEEP_IN'
+      (method === 'SLEEP_IN'
         ? emptySleepingNightChargeRule(current.dayType).label
-        : emptyWakingNightChargeRule(current.dayType).label
+        : emptyWakingNightChargeRule(current.dayType).label) ?? ''
     const keepCustomLabel =
       Boolean(current.label?.trim())
       && current.label!.trim().toLowerCase() !== currentAuto.toLowerCase()
