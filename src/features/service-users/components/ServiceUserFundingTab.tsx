@@ -102,8 +102,7 @@ const FUNDING_FIELD_TOOLTIPS = {
   fundingReference: 'External reference from the funder or council (package ID, client number).',
   approvalReference: 'Approval or assessment reference from the commissioning body.',
   packageName: 'Care package or contract name shown on invoices and reports.',
-  weeklyBudget: 'Maximum weekly amount authorised by the funder for this package.',
-  hourlyRate: 'Agreed hourly rate when care is funded by hours rather than a fixed package.',
+  weeklyBudget: 'Maximum weekly amount authorised by the funder for this package (informational). Visit charges come from the charge card.',
   splitPercent:
     'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits cannot exceed 100%. The lowest-priority funder receives any remainder.',
   splitPriority: 'Billing order when multiple funders apply — 1 is invoiced first; highest number receives the remainder.',
@@ -111,7 +110,7 @@ const FUNDING_FIELD_TOOLTIPS = {
   purchaseOrderExpiresAt: 'Date after which the purchase order is no longer valid for billing.',
   authorisedWeeklyHours: 'Maximum care hours per week authorised under this contract.',
   defaultChargeCardId:
-    'Invoice rate card for visits billed to this funding line. Overrides the funder default when set.',
+    'Rate card used to price visits for this funding line (hourly, fixed, night duty, etc.). Overrides the funder default when set.',
   defaultInvoiceTemplateId:
     'Funder export profile for this contract. Used when rendering PDF, Excel, CSV, or API invoice files.',
   billingContactName: 'Person or team named on invoices. Required for billing readiness.',
@@ -197,7 +196,6 @@ type FundingForm = {
   startDate: string
   endDate: string
   weeklyBudget: string
-  hourlyRate: string
   contributionAmount: string
   splitPercent: string
   splitPriority: string
@@ -226,7 +224,6 @@ function emptyForm(): FundingForm {
     startDate: '',
     endDate: '',
     weeklyBudget: '',
-    hourlyRate: '',
     contributionAmount: '',
     splitPercent: '',
     splitPriority: '1',
@@ -256,7 +253,6 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     startDate: row.startDate ? row.startDate.slice(0, 10) : '',
     endDate: row.endDate ? row.endDate.slice(0, 10) : '',
     weeklyBudget: row.weeklyBudget ?? '',
-    hourlyRate: row.hourlyRate ?? '',
     contributionAmount: row.contributionAmount ?? '',
     splitPercent: row.splitPercent ?? '',
     splitPriority: String(row.splitPriority ?? 1),
@@ -288,7 +284,6 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     startDate: f.startDate || null,
     endDate: f.endDate || null,
     weeklyBudget: f.weeklyBudget === '' ? null : Number(f.weeklyBudget),
-    hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate),
     splitPercent: f.splitPercent === '' ? null : Number(f.splitPercent),
     splitPriority: f.splitPriority === '' ? 1 : Number(f.splitPriority),
     purchaseOrderNumber: f.purchaseOrderNumber || null,
@@ -695,7 +690,10 @@ export function ServiceUserFundingTab({
                       <p className="text-sm text-muted-foreground">Billing: {row.billingContactName}</p>
                     ) : null}
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {fmtDate(row.startDate)} → {fmtDate(row.endDate)} · Weekly {fmtMoney(row.weeklyBudget)} · Hourly {fmtMoney(row.hourlyRate)}
+                      {fmtDate(row.startDate)} → {fmtDate(row.endDate)}
+                      {row.weeklyBudget != null && row.weeklyBudget !== ''
+                        ? ` · Weekly ${fmtMoney(row.weeklyBudget)}`
+                        : ''}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -830,15 +828,9 @@ export function ServiceUserFundingTab({
               <FundingFieldLabel className="mb-1" label="Package name" tooltip={FUNDING_FIELD_TOOLTIPS.packageName} />
               <Input value={form.packageName} onChange={(e) => setForm((f) => ({ ...f, packageName: e.target.value }))} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <FundingFieldLabel className="mb-1" label="Weekly budget" tooltip={FUNDING_FIELD_TOOLTIPS.weeklyBudget} />
-                <Input inputMode="decimal" value={form.weeklyBudget} onChange={(e) => setForm((f) => ({ ...f, weeklyBudget: e.target.value }))} />
-              </div>
-              <div>
-                <FundingFieldLabel className="mb-1" label="Hourly rate" tooltip={FUNDING_FIELD_TOOLTIPS.hourlyRate} />
-                <Input inputMode="decimal" value={form.hourlyRate} onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))} />
-              </div>
+            <div>
+              <FundingFieldLabel className="mb-1" label="Weekly budget" tooltip={FUNDING_FIELD_TOOLTIPS.weeklyBudget} />
+              <Input inputMode="decimal" value={form.weeklyBudget} onChange={(e) => setForm((f) => ({ ...f, weeklyBudget: e.target.value }))} />
             </div>
             </div>
 

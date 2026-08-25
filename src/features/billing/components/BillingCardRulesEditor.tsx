@@ -192,10 +192,52 @@ function emptyWaitingTimeChargeRule(): ChargeCardRule {
   }
 }
 
-function emptySleepingNightChargeRule(): ChargeCardRule {
+function nightDutyDayTypeLabel(dayType: BillingDayType): string {
+  return BILLING_DAY_TYPE_OPTIONS.find(o => o.value === dayType)?.label ?? dayType
+}
+
+/** More specific calendar days win over ANY when both match a visit. */
+function nightDutyPriority(dayType: BillingDayType): number {
+  switch (dayType) {
+    case 'ANY':
+      return 0
+    case 'WEEKDAY':
+      return 10
+    case 'SATURDAY':
+      return 20
+    case 'SUNDAY':
+      return 30
+    case 'BANK_HOLIDAY':
+      return 100
+    case 'SPECIAL':
+      return 105
+    case 'EASTER':
+      return 108
+    case 'CHRISTMAS':
+    case 'BOXING_DAY':
+    case 'NEW_YEAR':
+      return 110
+    default:
+      return 0
+  }
+}
+
+function nextNightDutyDayType(
+  rules: ChargeCardRule[],
+  chargeMethod: 'SLEEP_IN' | 'WAKING_NIGHT',
+): BillingDayType {
+  const used = new Set(
+    rules.filter(r => r.chargeMethod === chargeMethod).map(r => r.dayType),
+  )
+  const preferred = BILLING_DAY_TYPE_OPTIONS.map(o => o.value)
+  return preferred.find(dayType => !used.has(dayType)) ?? 'ANY'
+}
+
+function emptySleepingNightChargeRule(dayType: BillingDayType = 'ANY'): ChargeCardRule {
+  const dayLabel = nightDutyDayTypeLabel(dayType)
   return {
-    label: 'Sleeping night',
-    dayType: 'ANY',
+    label: dayType === 'ANY' ? 'Sleeping night' : `Sleeping night — ${dayLabel}`,
+    dayType,
     rateType: 'FIXED',
     amount: 0,
     minimumMinutes: null,
@@ -203,14 +245,16 @@ function emptySleepingNightChargeRule(): ChargeCardRule {
     endTime: null,
     chargeMethod: 'SLEEP_IN',
     chargeableFlag: true,
+    priority: nightDutyPriority(dayType),
     sortOrder: 0,
   }
 }
 
-function emptyWakingNightChargeRule(): ChargeCardRule {
+function emptyWakingNightChargeRule(dayType: BillingDayType = 'ANY'): ChargeCardRule {
+  const dayLabel = nightDutyDayTypeLabel(dayType)
   return {
-    label: 'Waking night',
-    dayType: 'ANY',
+    label: dayType === 'ANY' ? 'Waking night' : `Waking night — ${dayLabel}`,
+    dayType,
     rateType: 'HOURLY',
     amount: 0,
     minimumMinutes: null,
@@ -218,6 +262,7 @@ function emptyWakingNightChargeRule(): ChargeCardRule {
     endTime: null,
     chargeMethod: 'WAKING_NIGHT',
     chargeableFlag: true,
+    priority: nightDutyPriority(dayType),
     sortOrder: 0,
   }
 }
@@ -527,21 +572,72 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   }
 
   const addSleepingNightRule = () => {
-    if ((rules as ChargeCardRule[]).some(r => r.chargeMethod === 'SLEEP_IN')) {
-      toastWarning('Already added', 'This card already has a Sleeping night rate.')
+    const chargeRules = rules as ChargeCardRule[]
+    const dayType = nextNightDutyDayType(chargeRules, 'SLEEP_IN')
+    if (chargeRules.some(r => r.chargeMethod === 'SLEEP_IN' && r.dayType === dayType)) {
+      toastWarning(
+        'Already covered',
+        `This card already has a Sleeping night rate for ${nightDutyDayTypeLabel(dayType)}.`,
+      )
       return
     }
-    onChange([emptySleepingNightChargeRule(), ...(rules as ChargeCardRule[])])
+    onChange([emptySleepingNightChargeRule(dayType), ...chargeRules])
     flashNewRules(1)
   }
 
   const addWakingNightRule = () => {
-    if ((rules as ChargeCardRule[]).some(r => r.chargeMethod === 'WAKING_NIGHT')) {
-      toastWarning('Already added', 'This card already has a Waking night rate.')
+    const chargeRules = rules as ChargeCardRule[]
+    const dayType = nextNightDutyDayType(chargeRules, 'WAKING_NIGHT')
+    if (chargeRules.some(r => r.chargeMethod === 'WAKING_NIGHT' && r.dayType === dayType)) {
+      toastWarning(
+        'Already covered',
+        `This card already has a Waking night rate for ${nightDutyDayTypeLabel(dayType)}.`,
+      )
       return
     }
-    onChange([emptyWakingNightChargeRule(), ...(rules as ChargeCardRule[])])
+    onChange([emptyWakingNightChargeRule(dayType), ...chargeRules])
     flashNewRules(1)
+  }
+
+  const tryUpdateNightDutyDayType = (
+    index: number,
+    dayType: BillingDayType,
+  ) => {
+    const current = rules[index] as ChargeCardRule
+    const method = current.chargeMethod
+    if (method !== 'SLEEP_IN' && method !== 'WAKING_NIGHT') {
+      updateRule(index, { dayType })
+      return
+    }
+    const duplicate = (rules as ChargeCardRule[]).some(
+      (rule, i) =>
+        i !== index
+        && rule.chargeMethod === method
+        && rule.dayType === dayType,
+    )
+    if (duplicate) {
+      toastWarning(
+        'Already covered',
+        `This card already has a ${method === 'SLEEP_IN' ? 'Sleeping' : 'Waking'} night rate for ${nightDutyDayTypeLabel(dayType)}.`,
+      )
+      return
+    }
+    const autoLabel =
+      method === 'SLEEP_IN'
+        ? emptySleepingNightChargeRule(dayType).label
+        : emptyWakingNightChargeRule(dayType).label
+    const currentAuto =
+      method === 'SLEEP_IN'
+        ? emptySleepingNightChargeRule(current.dayType).label
+        : emptyWakingNightChargeRule(current.dayType).label
+    const keepCustomLabel =
+      Boolean(current.label?.trim())
+      && current.label!.trim().toLowerCase() !== currentAuto.toLowerCase()
+    updateRule(index, {
+      dayType,
+      priority: nightDutyPriority(dayType),
+      label: keepCustomLabel ? current.label : autoLabel,
+    })
   }
 
   const updateRule = (index: number, patch: Partial<PayCardRule & ChargeCardRule>) => {
@@ -562,6 +658,24 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
   const showAddHourly = visitPayMethod === 'PRO_RATA_HOURLY' || visitPayMethod === 'BOTH'
   const showAddFixed = visitPayMethod === 'FIXED_BY_DURATION' || visitPayMethod === 'BOTH'
+
+  const canAddSleepingNight = React.useMemo(() => {
+    const used = new Set(
+      (rules as ChargeCardRule[])
+        .filter(r => r.chargeMethod === 'SLEEP_IN')
+        .map(r => r.dayType),
+    )
+    return BILLING_DAY_TYPE_OPTIONS.some(opt => !used.has(opt.value))
+  }, [rules])
+
+  const canAddWakingNight = React.useMemo(() => {
+    const used = new Set(
+      (rules as ChargeCardRule[])
+        .filter(r => r.chargeMethod === 'WAKING_NIGHT')
+        .map(r => r.dayType),
+    )
+    return BILLING_DAY_TYPE_OPTIONS.some(opt => !used.has(opt.value))
+  }, [rules])
 
   const hasAvailableHourlyPeriod = React.useMemo(() => {
     const existing = rules as PayCardRule[]
@@ -955,13 +1069,17 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                     setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
                   }
                 } else {
-                  const ok = tryUpdateHourlyWindow(index, {
+                  // Unlock Custom without rewriting From/Until (forcing 00:00–23:59
+                  // often overlaps other rates and blocked Custom entirely).
+                  setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
+                  updateRule(index, {
                     label: 'Custom period',
                     enhancementMethod: 'ABSOLUTE_HOURLY',
-                    startTime: rule.startTime?.trim() || '00:00',
-                    endTime: rule.endTime?.trim() || '23:59',
+                    rateType: 'HOURLY',
+                    ...(mode === 'charge'
+                      ? { chargeMethod: 'HOURLY_PRO_RATA' as const, chargeableFlag: true }
+                      : {}),
                   })
-                  if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
                 }
               }}
               disabled={disabled}
@@ -1012,6 +1130,18 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
           {isCustom ? (
             <label className="space-y-1 text-sm sm:col-span-2">
+              <span className={fieldLabelClass}>Label</span>
+              <Input
+                value={rule.label ?? ''}
+                onChange={e => updateRule(index, { label: e.target.value })}
+                placeholder="e.g. Midweek twilight"
+                disabled={disabled}
+              />
+            </label>
+          ) : null}
+
+          {isCustom ? (
+            <label className="space-y-1 text-sm sm:col-span-2">
               <span className={fieldLabelClass}>
                 Applies on <span className="text-destructive" aria-hidden>*</span>
               </span>
@@ -1020,11 +1150,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 value={rule.dayType}
                 onChange={e => {
                   const dayType = e.target.value as BillingDayType
-                  tryUpdateHourlyWindow(index, {
+                  const ok = tryUpdateHourlyWindow(index, {
                     dayType,
-                    label: 'Custom period',
+                    label: rule.label?.trim() || 'Custom period',
                     enhancementMethod: 'ABSOLUTE_HOURLY',
                   })
+                  if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
                 }}
                 disabled={disabled}
                 required
@@ -1047,9 +1178,11 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 const startTime = e.target.value || null
                 const ok = tryUpdateHourlyWindow(index, {
                   startTime,
-                  label: matched?.label ?? rule.label ?? 'Custom period',
+                  label: isCustom
+                    ? (rule.label?.trim() || 'Custom period')
+                    : 'Custom period',
                 })
-                if (ok && matched) setForceCustomPeriod(prev => ({ ...prev, [index]: false }))
+                if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
               }}
               disabled={disabled}
               required
@@ -1063,10 +1196,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               type="time"
               value={normalizeBillingTimeInput(rule.endTime)}
               onChange={e => {
-                tryUpdateHourlyWindow(index, {
+                const ok = tryUpdateHourlyWindow(index, {
                   endTime: e.target.value || null,
-                  label: matched?.label ?? rule.label ?? 'Custom period',
+                  label: isCustom
+                    ? (rule.label?.trim() || 'Custom period')
+                    : 'Custom period',
                 })
+                if (ok) setForceCustomPeriod(prev => ({ ...prev, [index]: true }))
               }}
               disabled={disabled}
               required
@@ -1382,7 +1518,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
               </span>
               <BillingFieldLabel
                 label="Night duty"
-                tooltip="Used only when the visit plan night duty is Sleeping night or Waking night. Day visits still use the hourly / fixed rules above."
+                tooltip="Used only when the visit plan night duty is Sleeping night or Waking night. Add separate rates for weekdays, weekends, and holidays if they differ. Day visits still use the hourly / fixed rules above."
                 className="text-sm font-semibold text-foreground"
               />
             </div>
@@ -1393,7 +1529,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 size="sm"
                 leftIcon={<Plus className="h-3.5 w-3.5" />}
                 onClick={addSleepingNightRule}
-                disabled={disabled || (rules as ChargeCardRule[]).some(r => r.chargeMethod === 'SLEEP_IN')}
+                disabled={disabled || !canAddSleepingNight}
+                title={
+                  canAddSleepingNight
+                    ? undefined
+                    : 'A Sleeping night rate already exists for every day type'
+                }
               >
                 Sleeping night
               </Button>
@@ -1403,7 +1544,12 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                 size="sm"
                 leftIcon={<Plus className="h-3.5 w-3.5" />}
                 onClick={addWakingNightRule}
-                disabled={disabled || (rules as ChargeCardRule[]).some(r => r.chargeMethod === 'WAKING_NIGHT')}
+                disabled={disabled || !canAddWakingNight}
+                title={
+                  canAddWakingNight
+                    ? undefined
+                    : 'A Waking night rate already exists for every day type'
+                }
               >
                 Waking night
               </Button>
@@ -1416,7 +1562,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             if (items.length === 0) {
               return (
                 <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3 text-sm text-muted-foreground">
-                  Optional — add a flat £/night for sleeping nights, or £/hour for waking nights.
+                  Optional — add one or more rates (e.g. weekday and bank holiday). Flat £/night for sleeping nights, or £/hour for waking nights.
                 </p>
               )
             }
@@ -1431,6 +1577,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                         </p>
                         <Badge variant="secondary" className="text-[10px] font-normal">
                           {getRuleChargeMethodLabel(rule)}
+                          {' · '}
+                          {formatPayCardRuleDayType(rule.dayType)}
                         </Badge>
                       </div>
                       <Button
@@ -1446,6 +1594,19 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                       </Button>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="space-y-1 text-sm sm:col-span-2">
+                        <span className="text-xs font-medium text-foreground/90">Label</span>
+                        <Input
+                          value={rule.label ?? ''}
+                          onChange={e => updateRule(index, { label: e.target.value })}
+                          placeholder={
+                            rule.chargeMethod === 'SLEEP_IN'
+                              ? 'e.g. Sleeping night — weekday'
+                              : 'e.g. Waking night — weekend'
+                          }
+                          disabled={disabled}
+                        />
+                      </label>
                       <label className="space-y-1 text-sm">
                         <span className="text-xs font-medium text-foreground/90">
                           {getRuleAmountFieldLabel(rule)} <span className="text-destructive" aria-hidden>*</span>
@@ -1470,7 +1631,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                         <select
                           className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                           value={rule.dayType}
-                          onChange={e => updateRule(index, { dayType: e.target.value as BillingDayType })}
+                          onChange={e =>
+                            tryUpdateNightDutyDayType(index, e.target.value as BillingDayType)
+                          }
                           disabled={disabled}
                         >
                           {BILLING_DAY_TYPE_OPTIONS.map(opt => (
