@@ -295,7 +295,7 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
               : ''}
             .
           </p>
-          {sourceEntries.map((entry, index) => {
+          {sourceEntries.map((entry) => {
             const card = cardsById.get(entry.cardId)
             if (!card) {
               return (
@@ -323,8 +323,8 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
                 matchedLevelLabel={isBillingDefault ? matchedLevelLabel : null}
                 contextLabels={entry.contexts}
                 isBillingDefault={isBillingDefault}
-                showManageLink={canManageBilling && index === 0}
-                showRules={false}
+                showManageLink={canManageBilling}
+                showRules
               />
             )
           })}

@@ -39,6 +39,7 @@ function RateBreakdownCard({
   hours,
   breakdown,
   fallbackAmount,
+  unavailableReason,
   icon,
 }: {
   title: string
@@ -47,6 +48,8 @@ function RateBreakdownCard({
   hours: string | null
   breakdown: VisitReconciliationRateBreakdown | null
   fallbackAmount: string | null
+  /** Shown when rate breakdown cannot be built (e.g. missing charge-card rules). */
+  unavailableReason?: string | null
   icon?: React.ReactNode
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
@@ -128,10 +131,12 @@ function RateBreakdownCard({
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {fallbackAmount
-            ? `Estimated total: ${fallbackAmount} (rate card details unavailable)`
-            : 'Amount cannot be calculated — check pay/charge card setup and approved times.'}
+        <p className="text-sm text-amber-800 dark:text-amber-200">
+          {unavailableReason?.trim()
+            ? unavailableReason
+            : fallbackAmount
+              ? `Estimated total: ${fallbackAmount} (rate card details unavailable)`
+              : 'Amount cannot be calculated — check pay/charge card setup and approved times.'}
         </p>
       )}
     </ContentCard>
@@ -406,6 +411,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   hours={preview?.billableHours ?? null}
                   breakdown={funderCharge.breakdown}
                   fallbackAmount={funderCharge.shareAmount}
+                  unavailableReason={funderCharge.reason}
                   icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                 />
               ))}
