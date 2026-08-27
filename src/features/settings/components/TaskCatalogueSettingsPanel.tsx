@@ -44,6 +44,75 @@ const GROUP_LABELS: Record<string, string> = {
   shopping_errands: 'Shopping & errands',
 }
 
+// 24 Aug 2026: catalogue flags (feedsObservation etc.) were in DB only — list hid
+// why the employee app shows an Obs tag. Surface that read-only here.
+const OBSERVATION_FEED_LABELS: Record<string, string> = {
+  skin_integrity: 'Skin integrity',
+  body_map: 'Body map',
+  continence: 'Continence',
+  bowel: 'Bowel',
+  diabetes: 'Blood glucose',
+  pain: 'Pain',
+  vitals: 'Vitals',
+  repositioning_chart: 'Repositioning',
+}
+
+function observationFeedLabels(flagsJson: Record<string, unknown> | null | undefined): string[] {
+  const feeds = flagsJson?.feedsObservation
+  if (!Array.isArray(feeds)) return []
+  return feeds
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean)
+    .map((code) => OBSERVATION_FEED_LABELS[code] ?? code.replace(/_/g, ' '))
+}
+
+const OBSERVATION_FEED_HELP: Record<string, string> = {
+  skin_integrity:
+    'On the employee app this task opens an observation first: check the person’s skin during the task and record what you see (redness, sores, rash, pressure marks — or that skin looks intact). The task completes after that record is saved.',
+  body_map:
+    'On the employee app this task opens a body-map observation first so the carer can mark and describe skin sites before the task is completed.',
+  continence:
+    'On the employee app this task opens a continence observation first so pad/toilet output can be recorded before the task is completed.',
+  bowel:
+    'On the employee app this task opens a bowel observation first so the movement can be recorded before the task is completed.',
+  diabetes:
+    'On the employee app this task opens a blood glucose observation first; the carer must enter the reading before the task is completed.',
+  pain:
+    'On the employee app this task opens a pain observation first so the score or description is recorded before the task is completed.',
+  vitals:
+    'On the employee app this task opens a vitals observation first so readings are recorded before the task is completed.',
+  repositioning_chart:
+    'On the employee app this task opens a repositioning observation first so position and timing are recorded before the task is completed.',
+}
+
+function observationHelpText(flagsJson: Record<string, unknown> | null | undefined): string | null {
+  const feeds = flagsJson?.feedsObservation
+  if (!Array.isArray(feeds)) return null
+  const codes = feeds
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean)
+  if (codes.length === 0) return null
+  const parts = codes.map(
+    (code) =>
+      OBSERVATION_FEED_HELP[code] ??
+      `On the employee app this task opens a ${OBSERVATION_FEED_LABELS[code] ?? code.replace(/_/g, ' ')} observation first; the carer records it before the task is completed.`,
+  )
+  return [...new Set(parts)].join(' ')
+}
+
+function completionInputLabel(flagsJson: Record<string, unknown> | null | undefined): string | null {
+  const raw = flagsJson?.completionInput
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const mode = (raw as { inputMode?: unknown }).inputMode
+  if (typeof mode !== 'string' || !mode.trim()) return null
+  // 24 Aug 2026: "Complete by tick" read as jargon — tick is the default, so hide it.
+  if (mode === 'tick') return null
+  if (mode === 'value') return 'Carer must enter a reading'
+  if (mode === 'note') return 'Carer must add a note'
+  if (mode === 'value_and_note') return 'Carer must enter a reading and a note'
+  return `Carer completes with ${mode.replace(/_/g, ' ')}`
+}
+
 type TaskFormState = {
   categoryId: string
   name: string
@@ -70,7 +139,9 @@ const EMPTY_FORM: TaskFormState = {
 
 function taskMatchesFilter(task: TaskCatalogueAdminTask, query: string): boolean {
   if (!query) return true
-  return task.name.toLowerCase().includes(query)
+  const q = query.toLowerCase()
+  if (task.name.toLowerCase().includes(q)) return true
+  return observationFeedLabels(task.flagsJson).some((label) => label.toLowerCase().includes(q))
 }
 
 export function TaskCatalogueSettingsPanel() {
@@ -399,6 +470,7 @@ export function TaskCatalogueSettingsPanel() {
               onChange={(patch) => setEditForm((prev) => ({ ...prev, ...patch }))}
               showActive
             />
+            {editTask ? <TaskLinkedDetails task={editTask} /> : null}
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeEdit} disabled={saving}>
@@ -491,6 +563,26 @@ function TaskOptionCheckboxes({
   )
 }
 
+function TaskLinkedDetails({
+  task,
+  compact = false,
+}: {
+  task: TaskCatalogueAdminTask
+  compact?: boolean
+}) {
+  const help = observationHelpText(task.flagsJson)
+  const completion = completionInputLabel(task.flagsJson)
+  if (!help && !completion) return null
+
+  return (
+    <p className={cn('text-xs leading-5 text-muted-foreground', compact ? 'mt-1.5' : 'rounded-md border border-border bg-muted/20 px-3 py-2')}>
+      {help}
+      {help && completion ? ' ' : null}
+      {completion ? `${completion}.` : null}
+    </p>
+  )
+}
+
 function TaskGroupSection({
   group,
   canManage,
@@ -552,7 +644,26 @@ function TaskGroupSection({
                           {task.competency.replace(/_/g, ' ')}
                         </span>
                       ) : null}
+                      {task.outOfScope ? (
+                        <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-800 dark:bg-orange-950 dark:text-orange-200">
+                          Out of scope
+                        </span>
+                      ) : null}
+                      {task.supportLevelApplicable ? (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Support level
+                        </span>
+                      ) : null}
+                      {observationFeedLabels(task.flagsJson).map((label) => (
+                        <span
+                          key={label}
+                          className="rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-medium text-teal-800 dark:bg-teal-950 dark:text-teal-200"
+                        >
+                          Obs · {label}
+                        </span>
+                      ))}
                     </div>
+                    <TaskLinkedDetails task={task} compact />
                     <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                       <Checkbox
                         checked={task.requiresMultipleCarers}

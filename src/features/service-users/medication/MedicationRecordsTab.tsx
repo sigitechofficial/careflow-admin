@@ -31,6 +31,18 @@ function freqLabel(m: ServiceUserMedicationRow): string {
   return m.frequency?.name?.trim() || m.frequencyText?.trim() || '—'
 }
 
+function ChartTextCell({ value }: { value?: string | null }) {
+  const text = value?.trim()
+  if (!text) {
+    return <td className="px-3 py-2 text-muted-foreground">—</td>
+  }
+  return (
+    <td className="max-w-[180px] truncate px-3 py-2 text-muted-foreground" title={text}>
+      {text}
+    </td>
+  )
+}
+
 function isCurrentMedication(m: ServiceUserMedicationRow): boolean {
   return m.status === 'ACTIVE' || m.status === 'PAUSED'
 }
@@ -49,6 +61,39 @@ function statusBadgeClass(status: string): string {
     return 'bg-red-500/15 text-red-800 dark:text-red-200'
   }
   return 'bg-muted text-muted-foreground'
+}
+
+type MedicationPackGroup = {
+  key: string
+  title: string
+  rows: ServiceUserMedicationRow[]
+}
+
+function groupMedicationsByPack(rows: ServiceUserMedicationRow[]): MedicationPackGroup[] {
+  const standalone: ServiceUserMedicationRow[] = []
+  const byPack = new Map<string, { name: string; rows: ServiceUserMedicationRow[] }>()
+  for (const row of rows) {
+    const pack = row.medicationPack
+    if (!pack?.id) {
+      standalone.push(row)
+      continue
+    }
+    const existing = byPack.get(pack.id)
+    if (existing) {
+      existing.rows.push(row)
+    } else {
+      byPack.set(pack.id, { name: pack.name?.trim() || 'Blister pack', rows: [row] })
+    }
+  }
+  const groups: MedicationPackGroup[] = []
+  if (standalone.length > 0) {
+    groups.push({ key: 'standalone', title: 'Not in a pack', rows: standalone })
+  }
+  const packGroups = [...byPack.entries()]
+    .sort((a, b) => a[1].name.localeCompare(b[1].name))
+    .map(([id, group]) => ({ key: id, title: group.name, rows: group.rows }))
+  groups.push(...packGroups)
+  return groups
 }
 
 function expandMedicationsToSlotRows(medications: ServiceUserMedicationRow[]): MedicationSlotTableRow[] {
@@ -95,24 +140,45 @@ function MedicationRecordsTable({
   serviceUserId: string
   bodyMapSiteByMedId: ReturnType<typeof useMedicationBodyMapSiteIndex>['byMedicationId']
 }) {
-  const firstRowIndexByMedId = React.useMemo(() => {
-    const map = new Map<string, number>()
-    slotRows.forEach((row, index) => {
-      if (!map.has(row.medication.id)) map.set(row.medication.id, index)
-    })
+  const firstRowKeyByMedId = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const row of slotRows) {
+      if (!map.has(row.medication.id)) map.set(row.medication.id, row.rowKey)
+    }
     return map
+  }, [slotRows])
+
+  const groups = React.useMemo(() => {
+    const source = slotRows.map(r => r.medication)
+    const unique = source.filter((m, i) => source.findIndex(x => x.id === m.id) === i)
+    const showGroups = unique.some(m => m.medicationPack?.id)
+    if (!showGroups) {
+      return [{ key: 'all', title: null as string | null, slotRows }]
+    }
+    return groupMedicationsByPack(unique).map(group => ({
+      key: group.key,
+      title: group.title,
+      slotRows: slotRows.filter(r => group.rows.some(m => m.id === r.medication.id)),
+    }))
   }, [slotRows])
 
   if (slotRows.length === 0) return null
 
+  const colCount =
+    13 + (showEndSource ? 1 : 0) + (canEditMedication ? 1 : 0)
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] text-sm">
+      <table className="w-full min-w-[1100px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <th className="px-3 py-2">Name</th>
             <th className="px-3 py-2">Dose / strength</th>
             <th className="px-3 py-2">Route</th>
+            <th className="px-3 py-2">How assisted</th>
+            <th className="px-3 py-2">Reason</th>
+            <th className="px-3 py-2">Instructions</th>
+            <th className="px-3 py-2">Notes</th>
             <th className="px-3 py-2">Frequency</th>
             <th className="px-3 py-2">Time</th>
             <th className="px-3 py-2">Status</th>
@@ -124,8 +190,20 @@ function MedicationRecordsTable({
           </tr>
         </thead>
         <tbody className={muted ? 'opacity-80' : undefined}>
-          {slotRows.map(({ rowKey, medication: m, schedule }, index) => {
-            const showActions = firstRowIndexByMedId.get(m.id) === index
+          {groups.flatMap(group => {
+            const heading =
+              group.title != null ? (
+                <tr key={`${group.key}-heading`} className="border-b border-border bg-muted/50">
+                  <td colSpan={colCount} className="px-3 py-2 text-xs font-semibold text-foreground">
+                    {group.title}
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      ({new Set(group.slotRows.map(r => r.medication.id)).size})
+                    </span>
+                  </td>
+                </tr>
+              ) : null
+            const body = group.slotRows.map(({ rowKey, medication: m, schedule }) => {
+            const showActions = firstRowKeyByMedId.get(m.id) === rowKey
             return (
               <tr key={rowKey} className="border-b border-border/80 last:border-0">
                 <td className="px-3 py-2 font-medium">
@@ -133,11 +211,6 @@ function MedicationRecordsTable({
                   {m.medicationKind === 'PRN' && (
                     <span className="ml-1.5 rounded bg-blue-500/15 px-1.5 py-0.5 text-xs font-normal text-blue-900 dark:text-blue-100">
                       PRN
-                    </span>
-                  )}
-                  {m.medicationPack?.name && (
-                    <span className="ml-1.5 rounded bg-sky-500/15 px-1.5 py-0.5 text-xs font-normal text-sky-900 dark:text-sky-100">
-                      Pack
                     </span>
                   )}
                   {m.isControlledMedication && (
@@ -150,6 +223,10 @@ function MedicationRecordsTable({
                   {[m.dose, m.strength].filter(Boolean).join(' · ') || '—'}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{m.route?.name ?? '—'}</td>
+                <ChartTextCell value={m.howAssisted} />
+                <ChartTextCell value={m.reasonForMedication} />
+                <ChartTextCell value={m.instructions} />
+                <ChartTextCell value={m.notes} />
                 <td className="px-3 py-2 text-muted-foreground">{freqLabel(m)}</td>
                 <td className="px-3 py-2 font-medium tabular-nums text-foreground">
                   {schedule?.dueTime ?? '—'}
@@ -175,6 +252,14 @@ function MedicationRecordsTable({
                     />
                   ) : null}
                 </td>
+                {showEndSource && (
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {medicationEndSourceLabel(m) ?? '—'}
+                    {medicationEndSourceWhen(m) ? (
+                      <span className="mt-0.5 block text-xs">{medicationEndSourceWhen(m)}</span>
+                    ) : null}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-muted-foreground">{formatShortDate(m.startDate)}</td>
                 <td className="px-3 py-2 text-muted-foreground">{formatShortDate(m.endDate)}</td>
                 {canEditMedication && (
@@ -195,6 +280,8 @@ function MedicationRecordsTable({
                 )}
               </tr>
             )
+            })
+            return heading ? [heading, ...body] : body
           })}
         </tbody>
       </table>

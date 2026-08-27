@@ -62,7 +62,7 @@ export const ADMINISTRATION_ROUNDS: AdministrationRound[] = [
   { code: 'NIGHT', name: 'Night', emoji: '🌙', time: '22:00', windowStart: '20:00', windowEnd: '23:59' },
 ]
 
-export const DEFAULT_SELECTED_ROUNDS = new Set(['MORNING', 'EVENING'])
+export const DEFAULT_SELECTED_ROUNDS = new Set<string>()
 
 export type PackAdminRules = {
   mcaCapacity: boolean

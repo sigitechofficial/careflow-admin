@@ -26,6 +26,19 @@ import {
   urinalysisOptionLabel,
   URINE_OBSERVATIONS,
 } from '@/features/service-users/observations/observation-urinalysis-catalog'
+import {
+  parseSleepReasonCodes,
+  SLEEP_QUALITY_OPTIONS,
+  SLEEP_REASON_OPTIONS,
+  sleepOptionLabel,
+  sleepQualityNeedsReasons,
+} from '@/features/service-users/observations/observation-sleep-catalog'
+import {
+  ALIGN_FORMS,
+  alignOptionLabel,
+  isAlignFieldVisible,
+  parseAlignCsv,
+} from '@/features/service-users/observations/observation-align-catalog'
 
 export type InfectionPayload = {
   infectionType: string
@@ -112,6 +125,11 @@ export type ObservationFormVariant =
   | 'urinalysis'
   | 'infection'
   | 'news2'
+  | 'sleep'
+  | 'continence'
+  | 'peg_enteral'
+  | 'skin_integrity'
+  | 'body_map'
 
 export function getObservationFormVariant(typeCode: string): ObservationFormVariant {
   switch (typeCode) {
@@ -137,8 +155,18 @@ export function getObservationFormVariant(typeCode: string): ObservationFormVari
       return 'urinalysis'
     case 'INFECTION':
       return 'infection'
+    case 'SKIN_INTEGRITY':
+      return 'skin_integrity'
+    case 'BODY_MAP':
+      return 'body_map'
+    case 'CONTINENCE':
+      return 'continence'
+    case 'PEG_ENTERAL':
+      return 'peg_enteral'
     case 'NEWS2':
       return 'news2'
+    case 'SLEEP':
+      return 'sleep'
     default:
       return 'numeric'
   }
@@ -235,18 +263,20 @@ export function historyColumnsForType(typeCode: string): HistoryColumn[] {
     case 'WEIGHT':
       return [...base, { key: 'value', label: 'KG' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
     case 'FALLS':
-      return [
-        ...base,
-        { key: 'value', label: 'Fall' },
-        { key: 'carer', label: 'Carer' },
-        { key: 'notes', label: 'Notes' },
-      ]
+      return [...base, { key: 'value', label: 'Fall' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
     case 'BOWEL_MOVEMENT':
-      return [...base, { key: 'value', label: 'Type' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
+      return [...base, { key: 'value', label: 'Bowel' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
     case 'MEALS':
       return [...base, { key: 'value', label: 'Meal' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
     case 'REPOSITIONING':
       return [...base, { key: 'value', label: 'Position' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
+    case 'CONTINENCE':
+      return [...base, { key: 'value', label: 'Continence' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
+    case 'PEG_ENTERAL':
+      return [...base, { key: 'value', label: 'PEG' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
+    case 'SKIN_INTEGRITY':
+    case 'BODY_MAP':
+      return [...base, { key: 'value', label: 'Skin' }, { key: 'carer', label: 'Carer' }, { key: 'notes', label: 'Notes' }]
     case 'ABC_PATTERNS':
       return [
         ...base,
@@ -290,6 +320,14 @@ export function historyColumnsForType(typeCode: string): HistoryColumn[] {
         ...base,
         { key: 'score', label: 'Score' },
         { key: 'carer', label: 'Employee Name' },
+        { key: 'notes', label: 'Notes' },
+      ]
+    case 'SLEEP':
+      return [
+        ...base,
+        { key: 'sleepQuality', label: 'Sleep' },
+        { key: 'sleepReasons', label: 'Likely reason' },
+        { key: 'carer', label: 'Carer' },
         { key: 'notes', label: 'Notes' },
       ]
     default:
@@ -365,6 +403,10 @@ export function historyCellValue(row: ServiceUserObservationRow, columnKey: stri
       return yesNoLabel((payloadRecord(row) as Partial<InfectionPayload>).isolationRequired)
     case 'score':
       return row.numericValue != null ? String(row.numericValue) : '—'
+    case 'sleepQuality':
+      return formatSleepQualityHistory(row)
+    case 'sleepReasons':
+      return formatSleepReasonsHistory(row)
     case 'value':
       return historyValueForRow(row)
     default:
@@ -402,6 +444,120 @@ export function formatUrinalysisObservation(row: ServiceUserObservationRow): str
 export function formatInfectionHistory(row: ServiceUserObservationRow): string {
   const p = payloadRecord(row) as Partial<InfectionPayload>
   return infectionTypeLabel(p.infectionType)
+}
+
+function sleepReasonsFromPayload(p: Record<string, unknown>): string[] {
+  if (Array.isArray(p.reasons)) {
+    return p.reasons.map(item => String(item).trim()).filter(Boolean)
+  }
+  if (typeof p.reasons === 'string' && p.reasons.trim()) {
+    return parseSleepReasonCodes(p.reasons)
+  }
+  if (typeof p.reason === 'string' && p.reason.trim()) {
+    return parseSleepReasonCodes(p.reason)
+  }
+  return []
+}
+
+export function formatSleepQualityHistory(row: ServiceUserObservationRow): string {
+  const p = payloadRecord(row)
+  return sleepOptionLabel(SLEEP_QUALITY_OPTIONS, typeof p.quality === 'string' ? p.quality : '')
+}
+
+export function formatSleepReasonsHistory(row: ServiceUserObservationRow): string {
+  const p = payloadRecord(row)
+  const quality = typeof p.quality === 'string' ? p.quality : ''
+  if (!sleepQualityNeedsReasons(quality)) return '—'
+  const labels = sleepReasonsFromPayload(p).map(code => sleepOptionLabel(SLEEP_REASON_OPTIONS, code))
+  return labels.length ? labels.join(', ') : '—'
+}
+
+export function formatSleepSummaryHistory(row: ServiceUserObservationRow): string {
+  const quality = formatSleepQualityHistory(row)
+  if (quality === '—') return formatNumericHistory(row)
+  const reasons = formatSleepReasonsHistory(row)
+  return reasons === '—' ? quality : `${quality} · ${reasons}`
+}
+
+const ALIGN_VARIANT_BY_TYPE: Record<string, string> = {
+  CONTINENCE: 'continence',
+  PEG_ENTERAL: 'peg_enteral',
+  SKIN_INTEGRITY: 'skin_integrity',
+  BODY_MAP: 'body_map',
+  BOWEL_MOVEMENT: 'bowel_movement',
+  FALLS: 'falls',
+  REPOSITIONING: 'repositioning',
+  MEALS: 'meals',
+}
+
+function alignCodesFromPayload(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(item => String(item).trim()).filter(Boolean)
+  if (typeof raw === 'string' && raw.trim()) return parseAlignCsv(raw)
+  return []
+}
+
+export function formatAlignHistorySummary(row: ServiceUserObservationRow, typeCode: string): string {
+  const variant = ALIGN_VARIANT_BY_TYPE[typeCode]
+  const def = variant ? ALIGN_FORMS[variant] : undefined
+  const p = payloadRecord(row)
+  if (!def) {
+    return formatGenericPayloadHistory(row, Object.keys(p).slice(0, 4))
+  }
+  const parts: string[] = []
+  for (const field of def.fields) {
+    if (field.kind === 'hint') continue
+    const raw = p[field.key]
+    if (raw == null || raw === '') continue
+    if (field.kind === 'number') {
+      parts.push(String(raw))
+      continue
+    }
+    if (field.kind === 'multi') {
+      const labels = alignCodesFromPayload(raw).map(code => alignOptionLabel(field.options, code))
+      if (labels.length) parts.push(labels.join(', '))
+      continue
+    }
+    parts.push(alignOptionLabel(field.options, String(raw)))
+  }
+  if (parts.length) return parts.join(' · ')
+  if (p.hadFall === true || p.hadFall === 'true') return 'Yes'
+  if (p.hadFall === false || p.hadFall === 'false') return 'No'
+  if (typeof p.bowelType === 'string') return String(p.bowelType)
+  if (typeof p.mealType === 'string') {
+    return [p.mealType, p.intakeLevel].filter(Boolean).join(' · ')
+  }
+  if (typeof p.position === 'string') return String(p.position)
+  return '—'
+}
+
+export function buildAlignCreatePayload(
+  variant: string,
+  draft: CompositeDraft,
+): { payload?: Record<string, unknown>; error?: string } {
+  const def = ALIGN_FORMS[variant]
+  if (!def) return { error: 'Unsupported observation type.' }
+  const payload: Record<string, unknown> = {}
+  for (const field of def.fields) {
+    if (field.kind === 'hint') continue
+    if (!isAlignFieldVisible(field, draft)) continue
+    const raw = draft[field.key]?.trim() ?? ''
+    if (field.required && !raw) {
+      return { error: `Select ${field.label.toLowerCase()}.` }
+    }
+    if (!raw) continue
+    if (field.kind === 'number') {
+      const n = Number(raw)
+      if (Number.isNaN(n)) return { error: `Enter a valid ${field.label.toLowerCase()}.` }
+      payload[field.key] = n
+      continue
+    }
+    if (field.kind === 'multi') {
+      payload[field.key] = parseAlignCsv(raw)
+      continue
+    }
+    payload[field.key] = raw
+  }
+  return { payload }
 }
 
 export function compositeDraftFromNews2Row(row: ServiceUserObservationRow): CompositeDraft {
@@ -490,17 +646,13 @@ export function compositeDraftFromAbcRow(row: ServiceUserObservationRow): Compos
 function historyValueForRow(row: ServiceUserObservationRow): string {
   const code = row.observationType.code
   switch (code) {
-    case 'FALLS': {
-      const p = payloadRecord(row)
-      const occurred = p.hadFall === true || p.hadFall === 'true'
-      return occurred ? 'Yes' : 'No'
-    }
+    case 'FALLS':
     case 'BOWEL_MOVEMENT':
-      return formatGenericPayloadHistory(row, ['bowelType'])
     case 'MEALS':
-      return formatGenericPayloadHistory(row, ['mealType', 'intakeLevel'])
     case 'REPOSITIONING':
-      return formatGenericPayloadHistory(row, ['position'])
+    case 'CONTINENCE':
+    case 'PEG_ENTERAL':
+      return formatAlignHistorySummary(row, code)
     case 'ABC_PATTERNS':
       return formatAbcSummary(row)
     case 'SEIZURE_CHART':
@@ -509,8 +661,13 @@ function historyValueForRow(row: ServiceUserObservationRow): string {
       return formatUrinalysisObservation(row)
     case 'INFECTION':
       return formatInfectionHistory(row)
+    case 'SKIN_INTEGRITY':
+    case 'BODY_MAP':
+      return formatAlignHistorySummary(row, code)
     case 'NEWS2':
       return row.numericValue != null ? `Score ${row.numericValue}` : '—'
+    case 'SLEEP':
+      return formatSleepSummaryHistory(row)
     default:
       return formatNumericHistory(row)
   }
@@ -563,13 +720,14 @@ export function emptyCompositeDraft(variant: ObservationFormVariant): CompositeD
     case 'fluid_monitor':
       return { fluidOutMl: '', fluidInMl: '' }
     case 'falls':
-      return { hadFall: 'false', location: '' }
     case 'bowel_movement':
-      return { bowelType: 'NORMAL' }
     case 'meals':
-      return { mealType: 'BREAKFAST', intakeLevel: 'PART' }
     case 'repositioning':
-      return { position: 'SUPINE' }
+    case 'continence':
+    case 'peg_enteral':
+    case 'skin_integrity':
+    case 'body_map':
+      return {}
     case 'abc_patterns':
       return {
         location: '',
@@ -632,6 +790,8 @@ export function emptyCompositeDraft(variant: ObservationFormVariant): CompositeD
         consciousness: '',
         temperature: '',
       }
+    case 'sleep':
+      return { quality: '', reasons: '' }
     default:
       return {}
   }
@@ -686,31 +846,17 @@ export function buildCreatePayload(
     return { payload, numericValue: net }
   }
 
-  if (variant === 'falls') {
-    return {
-      payload: {
-        hadFall: draft.hadFall === 'true',
-        location: draft.location?.trim() || undefined,
-      },
-    }
-  }
-
-  if (variant === 'bowel_movement') {
-    return { payload: { bowelType: draft.bowelType || 'NORMAL' } }
-  }
-
-  if (variant === 'meals') {
-    return {
-      payload: {
-        mealType: draft.mealType || 'BREAKFAST',
-        intakeLevel: draft.intakeLevel || 'PART',
-      },
-    }
-  }
-
-  if (variant === 'repositioning') {
-    if (!draft.position?.trim()) return { error: 'Select a position.' }
-    return { payload: { position: draft.position } }
+  if (
+    variant === 'falls' ||
+    variant === 'bowel_movement' ||
+    variant === 'meals' ||
+    variant === 'repositioning' ||
+    variant === 'continence' ||
+    variant === 'peg_enteral' ||
+    variant === 'skin_integrity' ||
+    variant === 'body_map'
+  ) {
+    return buildAlignCreatePayload(variant, draft)
   }
 
   if (variant === 'abc_patterns') {
@@ -851,6 +997,25 @@ export function buildCreatePayload(
       return { error: 'Could not calculate NEWS2 score.' }
     }
     return { payload, numericValue: score }
+  }
+
+  if (variant === 'sleep') {
+    const quality = draft.quality?.trim()
+    if (!quality) return { error: 'Select how the person slept.' }
+    if (!SLEEP_QUALITY_OPTIONS.some(o => o.value === quality)) {
+      return { error: 'Select a valid sleep quality.' }
+    }
+    const reasons = sleepQualityNeedsReasons(quality)
+      ? parseSleepReasonCodes(draft.reasons).filter(code =>
+          SLEEP_REASON_OPTIONS.some(o => o.value === code),
+        )
+      : []
+    return {
+      payload: {
+        quality,
+        ...(reasons.length ? { reasons } : {}),
+      },
+    }
   }
 
   return { error: 'Unsupported observation type.' }
