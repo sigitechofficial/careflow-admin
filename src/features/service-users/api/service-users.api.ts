@@ -640,6 +640,7 @@ export type ServiceUserMedicationRow = {
   endDate: string | null
   expiryDate?: string | null
   howAssisted?: string | null
+  reasonForMedication?: string | null
   instructions: string | null
   notes?: string | null
   frequencyText: string | null
@@ -895,6 +896,7 @@ export type CreateServiceUserMedicationPayload = {
   endDate?: string
   expiryDate?: string
   howAssisted?: string
+  reasonForMedication?: string
   medicationTypeId?: string
   routeId?: string
   categoryId?: string
