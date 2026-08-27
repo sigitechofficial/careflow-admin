@@ -495,12 +495,13 @@ const navItems: NavItem[] = [
   {
     label: 'Accident & Incident',
     icon: <AlertTriangle className="h-5 w-5" />,
-    href: '/accidents-incidents/view',
-    badge: 2,
-    badgeVariant: 'destructive',
+    href: '/incidents/dashboard',
     children: [
-      { label: 'View Accidents & Incidents', icon: <Eye className="h-4 w-4" />, href: '/accidents-incidents/view' },
-      { label: 'Raise Accidents/Incidents', icon: <PlusCircle className="h-4 w-4" />, href: '/accidents-incidents/raise' },
+      { label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
+      { label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
+      { label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
+      { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read' },
+      { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/incidents/analytics', permission: 'incidents.view_analytics' },
     ],
   },
   { label: 'Policies',          icon: <BookOpen className="h-5 w-5" />,      href: '/in-progress', ready: false },

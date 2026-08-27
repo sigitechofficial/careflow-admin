@@ -102,6 +102,12 @@ import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
+import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
+import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
+import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
+import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
+import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
+import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
 import VisitReconciliationPage from '@/features/billing/pages/VisitReconciliationPage'
@@ -1283,6 +1289,49 @@ const accidentsIncidentsRaiseRoute = createRoute({
   component: RaiseAccidentsIncidentsPage,
 })
 
+// Incident Management module (real, API-backed).
+const incidentsDashboardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/dashboard',
+  beforeLoad: requirePermission('incidents.read'),
+  component: IncidentsDashboardPage,
+})
+
+const incidentsListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/view',
+  beforeLoad: requirePermission('incidents.read'),
+  component: IncidentsListPage,
+})
+
+const incidentsRaiseRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/raise',
+  beforeLoad: requirePermission('incidents.create'),
+  component: RaiseIncidentPage,
+})
+
+const incidentsMyActionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/my-actions',
+  beforeLoad: requirePermission('incidents.read'),
+  component: MyActionsPage,
+})
+
+const incidentsAnalyticsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/analytics',
+  beforeLoad: requirePermission('incidents.view_analytics'),
+  component: IncidentAnalyticsPage,
+})
+
+const incidentDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/$incidentId',
+  beforeLoad: requirePermission('incidents.read'),
+  component: IncidentDetailPage,
+})
+
 const accountRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/account',
@@ -1794,6 +1843,12 @@ const routeTree = rootRoute.addChildren([
     hrCandidateDetailRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
+    incidentsDashboardRoute,
+    incidentsListRoute,
+    incidentsRaiseRoute,
+    incidentsMyActionsRoute,
+    incidentsAnalyticsRoute,
+    incidentDetailRoute,
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
