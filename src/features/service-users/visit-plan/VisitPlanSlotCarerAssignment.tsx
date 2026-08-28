@@ -342,6 +342,7 @@ export function VisitPlanSlotCarerAssignment({
                 variant="sky"
                 onRemoveEmployee={removeAssigned}
                 carerCandidatesByEmployeeId={assignedCarerCandidatesByEmployeeId}
+                hideTimeMismatch
               />
             ) : (
               <ul className="space-y-3">
@@ -385,6 +386,7 @@ export function VisitPlanSlotCarerAssignment({
                             showSkills={false}
                             isAssigned
                             justAssigned={justAssigned}
+                            hideTimeMismatch
                           />
                         ) : (
                           <p className="inline-flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -523,6 +525,7 @@ export function VisitPlanSlotCarerAssignment({
                         blocked={blocked}
                         isAssigned={isSelected}
                         justAssigned={justAssigned}
+                        hideTimeMismatch
                       />
                     </div>
                   </li>
@@ -574,6 +577,7 @@ export function VisitPlanSlotCarerAssignment({
                       blocked={blocked}
                       isAssigned={checked}
                       justAssigned={justAssigned}
+                      hideTimeMismatch
                     />
                   </div>
                 </li>

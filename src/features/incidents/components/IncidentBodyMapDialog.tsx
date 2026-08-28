@@ -12,27 +12,13 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { incidentKeys } from '@/features/incidents/keys'
-import { addIncidentInjury } from '@/features/incidents/api/incidents-care.api'
 import { INCIDENT_INJURY_SEVERITY_OPTIONS, type IncidentInjurySeverity } from '@/features/incidents/types'
+import { persistIncidentInjury } from '@/features/incidents/utils/incident-injury-persist'
 import { BodyMapCanvas, type PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
-import {
-  prototypeSideToApi,
-  recordViewToApiBodyView,
-} from '@/features/service-users/body-map/utils/body-map-coords'
-import { addBodyMapLink, createBodyMapRecord } from '@/features/service-users/body-map/api'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
-import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
-import type { BodyMapRiskLevel } from '@/features/service-users/body-map/types'
 
 const selectClass =
   'h-9 rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
-
-const SEVERITY_TO_RISK: Record<IncidentInjurySeverity, BodyMapRiskLevel> = {
-  MINOR: 'LOW',
-  MODERATE: 'MEDIUM',
-  SERIOUS: 'HIGH',
-  FATAL: 'URGENT',
-}
 
 /**
  * Places an injury on the reusable anatomical body-map canvas, creates a real
@@ -71,43 +57,12 @@ export function IncidentBodyMapDialog({
     if (!marker || !injuryType.trim()) return
     setSaving(true)
     try {
-      const bodyPart = marker.bodyPart || marker.summaryLabel || 'Unspecified'
-      const record = await createBodyMapRecord({
-        serviceUserId,
-        recordType: 'INJURY' as BodyMapRecordTypeCode,
-        subType: injuryType.trim(),
-        description: notes.trim() || injuryType.trim(),
-        riskLevel: SEVERITY_TO_RISK[severity],
-        bodyView: recordViewToApiBodyView(marker.recordView),
-        side: prototypeSideToApi(marker.side),
-        bodyPart,
-        specificLocation: marker.summaryLabel,
-        xCoordinate: marker.x,
-        yCoordinate: marker.y,
-        observationDetails: {
-          recordView: marker.recordView,
-          canvasView: marker.canvasView,
-          regionId: marker.regionId ?? undefined,
-          source: 'incident',
-          incidentId,
-        },
-      })
-      // Link the body-map record to this incident (bidirectional visibility).
-      await addBodyMapLink(record.id, {
-        linkedModule: 'INCIDENT',
-        linkedRecordId: incidentId,
-        label: 'Incident injury',
-      })
-      // Record the incident injury, pointing at the body-map record.
-      await addIncidentInjury(incidentId, {
-        personKind: 'SERVICE_USER',
-        personServiceUserId: serviceUserId,
-        injurySeverity: severity,
+      await persistIncidentInjury(incidentId, serviceUserId, {
+        id: 'body-map',
         injuryType: injuryType.trim(),
-        bodyRegion: bodyPart,
-        side: prototypeSideToApi(marker.side),
+        severity,
         notes: notes.trim() || undefined,
-        bodyMapRecordId: record.id,
+        marker,
       })
       toastSuccess('Injury recorded on body map')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })

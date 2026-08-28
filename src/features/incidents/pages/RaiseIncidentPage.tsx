@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Lock, MapPin, Trash2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
@@ -11,9 +11,16 @@ import { Badge } from '@/shared/ui/badge'
 import { toastApiError } from '@/shared/lib/toast'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useIncidentCategories, useCreateIncident } from '@/features/incidents/hooks/useIncidents'
+import { IncidentInjuryCaptureDialog } from '@/features/incidents/components/IncidentInjuryCaptureDialog'
+import {
+  persistIncidentInjury,
+  type PendingIncidentInjury,
+} from '@/features/incidents/utils/incident-injury-persist'
 import {
   IMMEDIATE_ACTION_OPTIONS,
+  INCIDENT_INJURY_SEVERITY_OPTIONS,
   type CreateIncidentInput,
+  type IncidentInjurySeverity,
   type IncidentListItem,
   type IncidentSeverity,
 } from '@/features/incidents/types'
@@ -24,6 +31,21 @@ const SEVERITY_OPTIONS: { value: IncidentSeverity; label: string }[] = [
   { value: 'HIGH', label: 'High' },
   { value: 'CRITICAL', label: 'Critical' },
 ]
+
+const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' | 'destructive'> = {
+  MINOR: 'info',
+  MODERATE: 'warning',
+  SERIOUS: 'destructive',
+  FATAL: 'destructive',
+}
+
+function newInjuryId(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `inj-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+  }
+}
 
 function nowLocalDatetime(): string {
   const d = new Date()
@@ -81,6 +103,11 @@ export default function RaiseIncidentPage() {
   const [immediateActions, setImmediateActions] = React.useState('')
   const [actionCodes, setActionCodes] = React.useState<string[]>([])
   const [injuryOccurred, setInjuryOccurred] = React.useState(false)
+  const [injuries, setInjuries] = React.useState<PendingIncidentInjury[]>([])
+  const [bodyMapOpen, setBodyMapOpen] = React.useState(false)
+  const [injType, setInjType] = React.useState('')
+  const [injSeverity, setInjSeverity] = React.useState<IncidentInjurySeverity>('MINOR')
+  const [injNotes, setInjNotes] = React.useState('')
   const [severity, setSeverity] = React.useState<IncidentSeverity>('LOW')
   const [keepPrivate, setKeepPrivate] = React.useState(false)
   const [shareHandover, setShareHandover] = React.useState(true)
@@ -104,6 +131,29 @@ export default function RaiseIncidentPage() {
 
   function toggleActionCode(code: string) {
     setActionCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))
+  }
+
+  function addPendingInjury(injury: PendingIncidentInjury) {
+    setInjuries((prev) => [...prev, injury])
+    setInjuryOccurred(true)
+  }
+
+  function addManualInjury() {
+    if (!injType.trim()) return
+    addPendingInjury({
+      id: newInjuryId(),
+      injuryType: injType.trim(),
+      severity: injSeverity,
+      notes: injNotes.trim() || undefined,
+      marker: null,
+    })
+    setInjType('')
+    setInjNotes('')
+    setInjSeverity('MINOR')
+  }
+
+  function removeInjury(id: string) {
+    setInjuries((prev) => prev.filter((i) => i.id !== id))
   }
 
   function validate(): boolean {
@@ -131,13 +181,29 @@ export default function RaiseIncidentPage() {
       contextAfter: contextAfter.trim() || undefined,
       immediateActions: immediateActions.trim() || undefined,
       immediateActionCodes: actionCodes.length ? actionCodes : undefined,
-      injuryOccurred,
+      injuryOccurred: injuryOccurred || injuries.length > 0,
       severity,
       privacyLevel: keepPrivate ? 'RESTRICTED' : 'NORMAL',
       shareWithHandover: shareHandover,
     }
     try {
       const created = await createMutation.mutateAsync(input)
+      // The incident now exists, so persist each captured injury (with its body-map pin) against it.
+      let injuryFailures = 0
+      for (const injury of injuries) {
+        try {
+          await persistIncidentInjury(created.id, serviceUserId || null, injury)
+        } catch {
+          injuryFailures += 1
+        }
+      }
+      if (injuryFailures > 0) {
+        toastApiError(
+          new Error(
+            `Incident saved, but ${injuryFailures} injury detail(s) could not be recorded. Add them on the incident record.`,
+          ),
+        )
+      }
       setSubmitted(created)
     } catch (err) {
       toastApiError(err)
@@ -171,32 +237,50 @@ export default function RaiseIncidentPage() {
               {submitted.category.label}
               {submitted.subtype ? ` · ${submitted.subtype.label}` : ''} · {submitted.severityLabel} severity
             </p>
+            {injuries.length > 0 && (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" aria-hidden />
+                {injuries.length} injur{injuries.length === 1 ? 'y' : 'ies'} recorded
+                {injuries.some((i) => i.marker) ? ' (with body map)' : ''}
+              </p>
+            )}
           </div>
-          <div className="mt-6 flex justify-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSubmitted(null)
-                setCategoryId('')
-                setSubtypeId('')
-                setServiceUserId('')
-                setSpecificArea('')
-                setDescription('')
-                setContextBefore('')
-                setContextAfter('')
-                setImmediateActions('')
-                setActionCodes([])
-                setInjuryOccurred(false)
-                setSeverity('LOW')
-                setKeepPrivate(false)
-                setOccurredAtLocal(nowLocalDatetime())
-                setErrors({})
-              }}
-            >
-              Report another
-            </Button>
-            <Button onClick={() => navigate({ to: '/incidents/view' })}>View all incidents</Button>
-          </div>
+        </div>
+
+        <div className="mx-auto flex max-w-xl justify-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSubmitted(null)
+              setCategoryId('')
+              setSubtypeId('')
+              setServiceUserId('')
+              setSpecificArea('')
+              setDescription('')
+              setContextBefore('')
+              setContextAfter('')
+              setImmediateActions('')
+              setActionCodes([])
+              setInjuryOccurred(false)
+              setInjuries([])
+              setInjType('')
+              setInjNotes('')
+              setInjSeverity('MINOR')
+              setSeverity('LOW')
+              setKeepPrivate(false)
+              setOccurredAtLocal(nowLocalDatetime())
+              setErrors({})
+            }}
+          >
+            Report another
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: '/incidents/$incidentId', params: { incidentId: submitted.id } })}
+          >
+            Open incident
+          </Button>
+          <Button onClick={() => navigate({ to: '/incidents/view' })}>View all incidents</Button>
         </div>
       </div>
     )
@@ -355,6 +439,111 @@ export default function RaiseIncidentPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-foreground">Injuries</h3>
+            <div className="flex items-center gap-3">
+              <span id="inc-injured-label" className="text-sm font-medium text-foreground">
+                Anyone injured?
+              </span>
+              <Toggle value={injuryOccurred} onChange={setInjuryOccurred} labelledBy="inc-injured-label" />
+            </div>
+          </div>
+
+          {injuryOccurred ? (
+            <div className="space-y-3">
+              {injuries.length > 0 && (
+                <ul className="space-y-2">
+                  {injuries.map((inj) => (
+                    <li
+                      key={inj.id}
+                      className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                          {inj.injuryType}
+                          <Badge variant={INJURY_SEVERITY_BADGE[inj.severity]} size="sm">
+                            {inj.severity}
+                          </Badge>
+                          {inj.marker && (
+                            <Badge variant="info" size="sm">
+                              <MapPin className="mr-0.5 h-3 w-3" /> On body map
+                            </Badge>
+                          )}
+                        </p>
+                        {(inj.marker || inj.notes) && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {[inj.marker?.summaryLabel || inj.marker?.bodyPart, inj.marker?.side, inj.notes]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label="Remove injury"
+                        onClick={() => removeInjury(inj.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                {serviceUserId ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setBodyMapOpen(true)}>
+                    <MapPin className="mr-1 h-3.5 w-3.5" /> Add on body map
+                  </Button>
+                ) : (
+                  <p className="text-xs text-warning">
+                    Select a “Person affected (service user)” above to place injuries on the body map.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
+                <p className="text-xs text-muted-foreground">Or add an injury without the body map:</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    className="w-48"
+                    placeholder="Injury type (e.g. Bruising)"
+                    value={injType}
+                    onChange={(e) => setInjType(e.target.value)}
+                  />
+                  <select
+                    className="h-10 rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={injSeverity}
+                    onChange={(e) => setInjSeverity(e.target.value as IncidentInjurySeverity)}
+                  >
+                    {INCIDENT_INJURY_SEVERITY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    className="w-48"
+                    placeholder="Notes (optional)"
+                    value={injNotes}
+                    onChange={(e) => setInjNotes(e.target.value)}
+                  />
+                  <Button type="button" size="sm" disabled={!injType.trim()} onClick={addManualInjury}>
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Turn on if an injury occurred — you can then pinpoint it on the body map before submitting.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-sm font-semibold text-foreground">Severity &amp; sharing</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Severity" htmlFor="inc-sev">
@@ -371,16 +560,6 @@ export default function RaiseIncidentPage() {
                 ))}
               </select>
             </FormField>
-
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-foreground">Anyone injured?</span>
-              <Toggle value={injuryOccurred} onChange={setInjuryOccurred} />
-              {injuryOccurred && (
-                <Badge variant="warning" size="sm">
-                  Injury details can be added on the incident record
-                </Badge>
-              )}
-            </div>
 
             <div className="flex items-center gap-3">
               <span id="inc-private-label" className="text-sm font-medium text-foreground">
@@ -408,6 +587,15 @@ export default function RaiseIncidentPage() {
           </Button>
         </div>
       </form>
+
+      {serviceUserId && (
+        <IncidentInjuryCaptureDialog
+          open={bodyMapOpen}
+          onOpenChange={setBodyMapOpen}
+          serviceUserId={serviceUserId}
+          onCapture={addPendingInjury}
+        />
+      )}
     </div>
   )
 }

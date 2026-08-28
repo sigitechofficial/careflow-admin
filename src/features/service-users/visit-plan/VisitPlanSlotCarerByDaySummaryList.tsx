@@ -22,6 +22,8 @@ type Props = {
   carerCandidatesByEmployeeId?: Map<string, VisitPlanCarerCandidate>
   onRemoveEmployee?: (employeeId: string) => void
   onNavigate?: () => void
+  /** Hide the "Visit vs working hours" block on each carer (e.g. in the Change carers modal). */
+  hideTimeMismatch?: boolean
 }
 
 const removeButtonStyles = {
@@ -38,6 +40,7 @@ export function VisitPlanSlotCarerByDaySummaryList({
   carerCandidatesByEmployeeId,
   onRemoveEmployee,
   onNavigate,
+  hideTimeMismatch = false,
 }: Props) {
   const groups = groupCarerAssignments(slot.carerAssignments ?? [])
   const carerRows = groups.flatMap((group) =>
@@ -92,6 +95,7 @@ export function VisitPlanSlotCarerByDaySummaryList({
                     slotDaysOfWeek={coveredDays.length ? coveredDays : slot.daysOfWeek}
                     showSkills={false}
                     availabilityOnly
+                    hideTimeMismatch={hideTimeMismatch}
                   />
                 ) : (
                   <p className={contentHelperClass}>

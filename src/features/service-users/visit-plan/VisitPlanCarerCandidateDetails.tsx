@@ -123,6 +123,8 @@ type Props = {
   isAssigned?: boolean
   /** Brief pop animation when the carer was just selected. */
   justAssigned?: boolean
+  /** Hide the "Visit vs working hours" block (e.g. in the Change carers modal). */
+  hideTimeMismatch?: boolean
 }
 
 export function VisitPlanCarerCandidateDetails({
@@ -133,6 +135,7 @@ export function VisitPlanCarerCandidateDetails({
   availabilityOnly = false,
   isAssigned = false,
   justAssigned = false,
+  hideTimeMismatch = false,
 }: Props) {
   const slotDays = [...slotDaysOfWeek].sort((a, b) => a - b)
   const availabilityBreakdown = buildCarerAvailabilityBreakdown(c.availability, slotDays)
@@ -207,7 +210,10 @@ export function VisitPlanCarerCandidateDetails({
               </span>
             ))}
           </div>
-          <VisitPlanCarerAvailabilityBreakdown breakdown={availabilityBreakdown} />
+          <VisitPlanCarerAvailabilityBreakdown
+            breakdown={availabilityBreakdown}
+            hideTimeMismatch={hideTimeMismatch}
+          />
         </div>
       ) : null}
 
