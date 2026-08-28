@@ -40,26 +40,29 @@ export function VisitPlanSlotCarerByDaySummaryList({
   onNavigate,
 }: Props) {
   const groups = groupCarerAssignments(slot.carerAssignments ?? [])
+  const carerRows = groups.flatMap((group) =>
+    group.carers.map((carer) => ({ group, carer })),
+  )
 
-  if (groups.length === 0) return null
+  if (carerRows.length === 0) return null
 
   return (
     <ul className={dense ? 'space-y-2' : 'space-y-3'}>
-      {groups.map((group) => {
-        const employeeId = group.template.employeeId?.trim()
+      {carerRows.map(({ group, carer }) => {
+        const employeeId = carer.employeeId?.trim()
         const name = employeeId
           ? resolveEmployeeDisplayName(employeeNameById, employeeId)
           : 'No carer selected'
         const daysLabel = formatCarerAssignmentGroupDaysLabel(group.days)
-        const durationLabel = formatCarerAssignmentDurationLabel(group.template, slot)
+        const durationLabel = formatCarerAssignmentDurationLabel(carer, slot)
         const candidate = employeeId ? carerCandidatesByEmployeeId?.get(employeeId) : undefined
         const coveredDays = carerAssignmentCoversSlotDays(group.days, slot.daysOfWeek)
-        const visitStart = group.template.plannedStartTime?.trim() || slot.plannedStartTime
-        const visitEnd = group.template.plannedEndTime?.trim() || slot.plannedEndTime
+        const visitStart = carer.plannedStartTime?.trim() || slot.plannedStartTime
+        const visitEnd = carer.plannedEndTime?.trim() || slot.plannedEndTime
 
         return (
           <li
-            key={group.groupId}
+            key={`${group.groupId}::${carer.carerKey}`}
             className="rounded-lg border border-border/80 bg-background px-3 py-3 shadow-sm"
           >
             <div className="flex items-start gap-2">
@@ -77,7 +80,7 @@ export function VisitPlanSlotCarerByDaySummaryList({
                   ) : (
                     <p className={cn(contentTitleClass, 'text-muted-foreground')}>{name}</p>
                   )}
-                  <VisitPlanCarerRoleBadge role={group.template.role} />
+                  <VisitPlanCarerRoleBadge role={carer.role} />
                   <span className={contentHelperClass}>· {daysLabel}</span>
                 </div>
                 <p className={contentHelperClass}>

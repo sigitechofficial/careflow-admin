@@ -2,22 +2,61 @@ import type { VisitPlanSlot, VisitPlanSlotCarerAssignment } from '@/features/ser
 import { VISIT_PLAN_DAY_LABELS } from '@/features/service-users/visit-plan/types'
 import { visitPlanSlotVisitDurationMinutes } from '@/features/service-users/visit-plan/visit-plan-weekly-hours.util'
 
+/** A single carer within a day-group row (one employee + their role/time overrides). */
+export type CarerAssignmentGroupCarer = {
+  carerKey: string
+  employeeId: string
+  role: VisitPlanSlotCarerAssignment['role']
+  requiredCarers?: number | null
+  durationMinutes: number | null
+  plannedStartTime: string | null
+  plannedEndTime: string | null
+  sortOrder: number
+  sourceIndices: number[]
+}
+
 export type CarerAssignmentGroup = {
   groupId: string
+  /** First carer — kept for read-only summaries that show a single carer. */
   template: VisitPlanSlotCarerAssignment
+  /** All carers assigned to this day-group. */
+  carers: CarerAssignmentGroupCarer[]
   sourceIndices: number[]
   /** `null` = applies every day the slot runs */
   days: number[] | null
+  /** Explicit per-row carers required (`null` = use the slot default). */
+  requiredCarers: number | null
 }
 
-function assignmentGroupKey(a: VisitPlanSlotCarerAssignment): string {
+/** Identifies one carer (collapses that carer's own per-day rows into a single entry). */
+function carerEntryKey(a: VisitPlanSlotCarerAssignment): string {
   return [
     a.employeeId || `draft:sort${a.sortOrder}`,
     a.role,
+    a.requiredCarers ?? '',
     a.durationMinutes ?? '',
     a.plannedStartTime ?? '',
     a.plannedEndTime ?? '',
   ].join('|')
+}
+
+/** Canonical signature for a day-set so carers on the same days share one row. */
+function daysSignature(days: number[] | null): string {
+  if (days == null || days.length === 0 || days.length >= 7) return 'all'
+  return [...days].sort((a, b) => a - b).join(',')
+}
+
+function carerToTemplate(carer: CarerAssignmentGroupCarer): VisitPlanSlotCarerAssignment {
+  return {
+    dayOfWeek: null,
+    employeeId: carer.employeeId,
+    role: carer.role,
+    requiredCarers: carer.requiredCarers ?? null,
+    durationMinutes: carer.durationMinutes,
+    plannedStartTime: carer.plannedStartTime,
+    plannedEndTime: carer.plannedEndTime,
+    sortOrder: carer.sortOrder,
+  }
 }
 
 export const ALL_WEEKDAYS_SELECT_VALUE = 'all'
@@ -39,16 +78,17 @@ export function isAllWeekdaysSelected(values: string[]): boolean {
 }
 
 export function groupCarerAssignments(assignments: VisitPlanSlotCarerAssignment[]): CarerAssignmentGroup[] {
-  const map = new Map<
+  // Pass 1 — collapse each carer's own per-day rows into a single entry with a day-set.
+  const carerMap = new Map<
     string,
     { template: VisitPlanSlotCarerAssignment; sourceIndices: number[]; days: Set<number>; allDays: boolean }
   >()
 
   assignments.forEach((row, index) => {
-    const key = assignmentGroupKey(row)
-    const existing = map.get(key)
+    const key = carerEntryKey(row)
+    const existing = carerMap.get(key)
     if (!existing) {
-      map.set(key, {
+      carerMap.set(key, {
         template: row,
         sourceIndices: [index],
         days: row.dayOfWeek == null ? new Set() : new Set([row.dayOfWeek]),
@@ -64,12 +104,64 @@ export function groupCarerAssignments(assignments: VisitPlanSlotCarerAssignment[
     }
   })
 
-  return [...map.entries()].map(([groupId, g]) => ({
-    groupId,
-    template: g.template,
-    sourceIndices: g.sourceIndices,
-    days: g.allDays ? null : [...g.days].sort((a, b) => a - b),
+  const carerEntries = [...carerMap.entries()].map(([carerKey, c]) => ({
+    carerKey,
+    template: c.template,
+    sourceIndices: c.sourceIndices,
+    days: c.allDays ? null : [...c.days].sort((a, b) => a - b),
   }))
+
+  // Pass 2 — merge carers that share a day-set into one row. Rows with no carer yet
+  // (empty employee) stay separate so "Add carer row" always yields a fresh row.
+  const rowMap = new Map<
+    string,
+    { days: number[] | null; carers: CarerAssignmentGroupCarer[]; sourceIndices: number[]; order: number }
+  >()
+
+  carerEntries.forEach((entry, order) => {
+    const hasEmployee = Boolean(entry.template.employeeId?.trim())
+    const rowKey = hasEmployee ? `days:${daysSignature(entry.days)}` : `empty:${entry.carerKey}`
+    const carer: CarerAssignmentGroupCarer = {
+      carerKey: entry.carerKey,
+      employeeId: entry.template.employeeId,
+      role: entry.template.role,
+      requiredCarers: entry.template.requiredCarers ?? null,
+      durationMinutes: entry.template.durationMinutes,
+      plannedStartTime: entry.template.plannedStartTime,
+      plannedEndTime: entry.template.plannedEndTime,
+      sortOrder: entry.template.sortOrder,
+      sourceIndices: entry.sourceIndices,
+    }
+    const existing = rowMap.get(rowKey)
+    if (!existing) {
+      rowMap.set(rowKey, {
+        days: entry.days,
+        carers: [carer],
+        sourceIndices: [...entry.sourceIndices],
+        order,
+      })
+      return
+    }
+    existing.carers.push(carer)
+    existing.sourceIndices.push(...entry.sourceIndices)
+  })
+
+  return [...rowMap.entries()]
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([groupId, r]) => {
+      const carers = [...r.carers].sort((a, b) => a.sortOrder - b.sortOrder)
+      const explicit = carers
+        .map((c) => c.requiredCarers)
+        .filter((n): n is number => typeof n === 'number' && n > 0)
+      return {
+        groupId,
+        template: carerToTemplate(carers[0]!),
+        carers,
+        sourceIndices: r.sourceIndices,
+        days: r.days,
+        requiredCarers: explicit.length ? Math.max(...explicit) : null,
+      }
+    })
 }
 
 export function selectedDayValuesForGroup(days: number[] | null): string[] {
@@ -91,28 +183,27 @@ export function normalizeCarerByDaySelection(prev: string[], next: string[]): st
   return nextDays
 }
 
+/** Rebuild every carer in the row across the newly selected day-set. */
 export function replaceGroupDays(
   assignments: VisitPlanSlotCarerAssignment[],
   group: CarerAssignmentGroup,
   selectedDayValues: string[],
 ): VisitPlanSlotCarerAssignment[] {
   const remaining = assignments.filter((_, i) => !group.sourceIndices.includes(i))
-  const template = group.template
   const dayNums = [...new Set(weekdayValuesOnly(selectedDayValues).map(Number))].sort((a, b) => a - b)
+  const templates = group.carers.map(carerToTemplate)
+  const allDays = dayNums.length === 0 || dayNums.length === 7
 
-  if (dayNums.length === 0 || dayNums.length === 7) {
-    return [...remaining, { ...template, dayOfWeek: null }]
-  }
+  const additions = templates.flatMap((template): VisitPlanSlotCarerAssignment[] =>
+    allDays
+      ? [{ ...template, dayOfWeek: null }]
+      : dayNums.map((dayOfWeek) => ({ ...template, dayOfWeek })),
+  )
 
-  return [
-    ...remaining,
-    ...dayNums.map((dayOfWeek) => ({
-      ...template,
-      dayOfWeek,
-    })),
-  ]
+  return [...remaining, ...additions]
 }
 
+/** Patch a row-level field (e.g. requiredCarers) across every carer in the row. */
 export function replaceGroupField(
   assignments: VisitPlanSlotCarerAssignment[],
   group: CarerAssignmentGroup,
@@ -121,6 +212,53 @@ export function replaceGroupField(
   return assignments.map((row, index) =>
     group.sourceIndices.includes(index) ? { ...row, ...patch } : row,
   )
+}
+
+/** Patch a single carer's fields (role, duration, time overrides) within a row. */
+export function replaceCarerField(
+  assignments: VisitPlanSlotCarerAssignment[],
+  carer: CarerAssignmentGroupCarer,
+  patch: Partial<VisitPlanSlotCarerAssignment>,
+): VisitPlanSlotCarerAssignment[] {
+  return assignments.map((row, index) =>
+    carer.sourceIndices.includes(index) ? { ...row, ...patch } : row,
+  )
+}
+
+/** Remove one carer from a row, keeping the other carers on the same days. */
+export function removeCarer(
+  assignments: VisitPlanSlotCarerAssignment[],
+  carer: CarerAssignmentGroupCarer,
+): VisitPlanSlotCarerAssignment[] {
+  return assignments.filter((_, i) => !carer.sourceIndices.includes(i))
+}
+
+/** Replace a row's carer set with the given employees, preserving each carer's overrides. */
+export function assignCarersToGroup(
+  assignments: VisitPlanSlotCarerAssignment[],
+  group: CarerAssignmentGroup,
+  employeeIds: string[],
+): VisitPlanSlotCarerAssignment[] {
+  const remaining = assignments.filter((_, i) => !group.sourceIndices.includes(i))
+  const dayList: (number | null)[] = group.days == null ? [null] : group.days
+  // Keep at least as many required carers as we're naming so the rota does not slice any off.
+  const rowRequired = group.requiredCarers ?? Math.max(1, employeeIds.length)
+
+  const additions = employeeIds.flatMap((employeeId, index) => {
+    const existing = group.carers.find((c) => c.employeeId === employeeId)
+    const base: Omit<VisitPlanSlotCarerAssignment, 'dayOfWeek'> = {
+      employeeId,
+      role: index === 0 ? 'LEAD' : 'SECONDARY',
+      requiredCarers: rowRequired,
+      durationMinutes: existing?.durationMinutes ?? null,
+      plannedStartTime: existing?.plannedStartTime ?? null,
+      plannedEndTime: existing?.plannedEndTime ?? null,
+      sortOrder: index,
+    }
+    return dayList.map((dayOfWeek) => ({ ...base, dayOfWeek }))
+  })
+
+  return [...remaining, ...additions]
 }
 
 export function removeGroup(
@@ -196,11 +334,19 @@ export function buildCarerByDayAssignSlot(
   slot: VisitPlanSlot,
   group: CarerAssignmentGroup,
 ): VisitPlanSlot {
+  const assignedEmployeeIds = group.carers
+    .map((carer) => carer.employeeId?.trim())
+    .filter((id): id is string => Boolean(id))
   return {
     ...slot,
-    requiredCarers: 1,
+    // Let the dialog select up to this row's carer count (defaults to the slot count).
+    requiredCarers: Math.max(1, group.requiredCarers ?? slot.requiredCarers),
     daysOfWeek: group.days ?? slot.daysOfWeek,
-    assignedEmployeeIds: group.template.employeeId ? [group.template.employeeId] : [],
+    // Check carer working-hours against this row's own visit window when it overrides the slot,
+    // so the "Visit vs working hours" availability reflects the times these carers actually work.
+    plannedStartTime: group.template.plannedStartTime?.trim() || slot.plannedStartTime,
+    plannedEndTime: group.template.plannedEndTime?.trim() || slot.plannedEndTime,
+    assignedEmployeeIds,
     carerAssignments: [],
   }
 }

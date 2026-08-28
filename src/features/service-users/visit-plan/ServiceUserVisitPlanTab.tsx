@@ -73,10 +73,10 @@ import {
   slotAssignedEmployeeIds,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import {
+  assignCarersToGroup,
   buildCarerByDayAssignSlot,
   formatCarerAssignmentGroupDaysLabel,
   groupCarerAssignments,
-  replaceGroupField,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 import { shouldShowVisitPlanCarePathwayPanel } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import {
@@ -1393,21 +1393,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               serviceUserId={serviceUserId}
               slot={carerByDayAssignContext.assignSlot}
               dialogTitle={`${
-                carerByDayAssignContext.group.template.employeeId ? 'Change carer' : 'Assign carer'
+                carerByDayAssignContext.group.carers.some((carer) => carer.employeeId?.trim())
+                  ? 'Change carers'
+                  : 'Assign carers'
               } — ${carerByDayAssignContext.slot.label}`}
-              dialogDescription={`Pick a carer for ${formatCarerAssignmentGroupDaysLabel(
+              dialogDescription={`Pick carers for ${formatCarerAssignmentGroupDaysLabel(
                 carerByDayAssignContext.group.days,
               )} (${carerByDayAssignContext.slot.plannedStartTime}–${carerByDayAssignContext.slot.plannedEndTime}).`}
               onChange={(assignedEmployeeIds) => {
                 const ctx = carerByDayAssignContext
                 if (!ctx) return
-                const employeeId = assignedEmployeeIds[0] ?? ''
-                const carerAssignments = replaceGroupField(ctx.slot.carerAssignments, ctx.group, {
-                  employeeId,
-                })
+                const carerAssignments = assignCarersToGroup(
+                  ctx.slot.carerAssignments,
+                  ctx.group,
+                  assignedEmployeeIds,
+                )
                 updateSlot(
                   ctx.slotIndex,
-                  employeeId
+                  assignedEmployeeIds.length
                     ? normalizeSlotCarerFields({ ...ctx.slot, carerAssignments })
                     : { carerAssignments },
                 )

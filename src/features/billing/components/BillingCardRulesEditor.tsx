@@ -60,6 +60,59 @@ type BillingCardRulesEditorProps = {
 
 type VisitPayMethod = 'PRO_RATA_HOURLY' | 'FIXED_BY_DURATION' | 'BOTH'
 
+/**
+ * Decimal (pounds & pence) amount input. Keeps its own text buffer so the user
+ * can type a decimal point / partial value (e.g. "12." → "12.5" → "12.50")
+ * without it being stripped by the round-trip through a numeric value.
+ */
+function DecimalAmountInput({
+  value,
+  onValueChange,
+  disabled,
+  placeholder,
+  required,
+  className,
+}: {
+  value: number
+  onValueChange: (amount: number) => void
+  disabled?: boolean
+  placeholder?: string
+  required?: boolean
+  className?: string
+}) {
+  const [text, setText] = React.useState(() => (value === 0 || value == null ? '' : String(value)))
+
+  // Re-sync when the numeric value changes externally (e.g. a preset is applied),
+  // but not while the user is mid-typing a value that already equals it ("12." vs 12).
+  React.useEffect(() => {
+    const parsed = text.trim() === '' ? 0 : Number(text)
+    if (Number.isNaN(parsed) || parsed !== value) {
+      setText(value === 0 || value == null ? '' : String(value))
+    }
+    // Intentionally only resync when the external numeric value changes.
+  }, [value])
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      disabled={disabled}
+      placeholder={placeholder}
+      required={required}
+      className={className}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/\s+/g, '')
+        // Allow empty, digits and a single decimal point (partial decimals allowed).
+        if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return
+        setText(raw)
+        const parsed = raw === '' ? 0 : Number(raw)
+        if (!Number.isNaN(parsed)) onValueChange(parsed)
+      }}
+    />
+  )
+}
+
 function emptyFixedPayRule(minutes = DEFAULT_VISIT_DURATION_MINUTES): PayCardRule {
   return {
     label: defaultFixedVisitRuleLabel(minutes),
@@ -862,14 +915,11 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
           <label className="space-y-1 text-sm">
             <span className="text-xs font-medium text-foreground/90">{amountLabel}</span>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={rule.amount === 0 || rule.amount == null ? '' : String(rule.amount)}
-              onChange={e => {
-                const raw = e.target.value.trim()
-                const amount = raw === '' ? 0 : Number(raw)
-                if (Number.isNaN(amount)) return
+            <DecimalAmountInput
+              value={rule.amount}
+              disabled={disabled}
+              placeholder="0.00"
+              onValueChange={amount => {
                 if (mileage) {
                   updateRule(index, {
                     amount,
@@ -905,8 +955,6 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                   })
                 }
               }}
-              disabled={disabled}
-              placeholder="0.00"
             />
             <p className="text-xs text-muted-foreground">
               {mileage
@@ -1105,14 +1153,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <span className={fieldLabelClass}>
               £ per hour <span className="text-destructive" aria-hidden>*</span>
             </span>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={rule.amount === 0 || rule.amount == null ? '' : String(rule.amount)}
-              onChange={e => {
-                const raw = e.target.value.trim()
-                const value = raw === '' ? 0 : Number(raw)
-                if (Number.isNaN(value)) return
+            <DecimalAmountInput
+              value={rule.amount}
+              onValueChange={value => {
                 updateRule(index, {
                   amount: value,
                   enhancementMethod: 'ABSOLUTE_HOURLY',
@@ -1275,14 +1318,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             <span className={fieldLabelClass}>
               Flat £ <span className="text-destructive" aria-hidden>*</span>
             </span>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={rule.amount === 0 || rule.amount == null ? '' : String(rule.amount)}
-              onChange={e => {
-                const raw = e.target.value.trim()
-                const amount = raw === '' ? 0 : Number(raw)
-                if (Number.isNaN(amount)) return
+            <DecimalAmountInput
+              value={rule.amount}
+              onValueChange={amount => {
                 updateRule(index, {
                   amount,
                   rateType: 'FIXED',
@@ -1611,16 +1649,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                         <span className="text-xs font-medium text-foreground/90">
                           {getRuleAmountFieldLabel(rule)} <span className="text-destructive" aria-hidden>*</span>
                         </span>
-                        <Input
-                          type="text"
-                          inputMode="decimal"
-                          value={rule.amount === 0 || rule.amount == null ? '' : String(rule.amount)}
-                          onChange={e => {
-                            const raw = e.target.value.trim()
-                            const amount = raw === '' ? 0 : Number(raw)
-                            if (Number.isNaN(amount)) return
-                            updateRule(index, { amount })
-                          }}
+                        <DecimalAmountInput
+                          value={rule.amount}
+                          onValueChange={amount => updateRule(index, { amount })}
                           disabled={disabled}
                           placeholder="0.00"
                           required

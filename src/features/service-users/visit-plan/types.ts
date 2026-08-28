@@ -108,6 +108,8 @@ export type VisitPlanSlotCarerAssignment = {
   dayOfWeek: number | null
   employeeId: string
   role: VisitPlanSlotCarerRole
+  /** Carers required for this row's day(s); null = use the slot default. */
+  requiredCarers?: number | null
   durationMinutes: number | null
   plannedStartTime: string | null
   plannedEndTime: string | null
