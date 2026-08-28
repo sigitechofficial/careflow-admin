@@ -99,6 +99,7 @@ function VisitBlisterPackCard({
   canRecord,
   chartMedications,
   visitRound,
+  onViewRecord,
 }: {
   serviceUserId: string
   pack: MedicationPackRow
@@ -106,6 +107,7 @@ function VisitBlisterPackCard({
   canRecord: boolean
   chartMedications: MarChartMedicationRow[]
   visitRound: VisitMedicationRound | null
+  onViewRecord: (recordId: string, medLabel: string) => void
 }) {
   const compartmentsQuery = useMedicationPackCompartments(serviceUserId, pack.id)
   const membersQuery = useMedicationPackMembers(serviceUserId, pack.id)
@@ -212,6 +214,7 @@ function VisitBlisterPackCard({
                     compartment={compartment}
                     visitDate={visitDate}
                     chartRows={packChartRows}
+                    onViewRecord={onViewRecord}
                   />
                 ))}
               </ul>
@@ -239,25 +242,48 @@ function VisitPackMemberRow({
   compartment,
   visitDate,
   chartRows,
+  onViewRecord,
 }: {
   member: MedicationPackMemberRow
   compartment: MedicationPackCompartmentRow
   visitDate: string
   chartRows: MarChartMedicationRow[]
+  onViewRecord: (recordId: string, medLabel: string) => void
 }) {
   const med = member.serviceUserMedication
+  const medLabel = med?.medicationName ?? 'Medicine'
   const chartRow = findChartRow(chartRows, member.serviceUserMedicationId, compartment.dueTime)
   const cell = chartCellForVisitDate(chartRow, visitDate)
+  const recordId = cell?.cellState === 'recorded' ? cell.recordId : null
 
   return (
     <li className="flex items-start gap-3 px-3 py-2.5">
-      <MarStatusChip cell={cell} fallbackDue={!cell} />
+      {recordId ? (
+        <button
+          type="button"
+          className="shrink-0 border-0 bg-transparent p-0"
+          onClick={() => onViewRecord(recordId, medLabel)}
+          aria-label={`View ${medLabel} record details`}
+        >
+          <MarStatusChip cell={cell} />
+        </button>
+      ) : (
+        <MarStatusChip cell={cell} fallbackDue={!cell} />
+      )}
       <div className="min-w-0 flex-1">
-        <p className="font-medium leading-snug">{med?.medicationName ?? 'Medicine'}</p>
+        <p className="font-medium leading-snug">{medLabel}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {[med?.strength, med?.dose].filter(Boolean).join(' · ')}
         </p>
-        {cell?.cellState === 'recorded' ? (
+        {recordId ? (
+          <button
+            type="button"
+            className="mt-1 border-0 bg-transparent p-0 text-xs font-medium text-teal-700 underline-offset-2 hover:underline"
+            onClick={() => onViewRecord(recordId, medLabel)}
+          >
+            Recorded — tap to view details
+          </button>
+        ) : cell?.cellState === 'recorded' ? (
           <p className="mt-1 text-xs text-muted-foreground">
             Recorded — use Record round to change status
           </p>
@@ -281,7 +307,9 @@ function VisitStandaloneRow({
   onView: (slot: VisitMarSlot) => void
 }) {
   const { row, cell } = slot
-  const interactive = cell.cellState === 'due' || cell.cellState === 'recorded'
+  // A record exists (scheduled 'recorded' cell OR a recorded PRN dose) → viewable.
+  const recordId = cell.recordId ?? null
+  const interactive = Boolean(recordId) || cell.cellState === 'due'
 
   return (
     <li className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
@@ -290,8 +318,8 @@ function VisitStandaloneRow({
         disabled={!interactive}
         className="shrink-0 border-0 bg-transparent p-0 disabled:opacity-60"
         onClick={() => {
-          if (cell.cellState === 'due' && canRecord) onRecord(slot)
-          else if (cell.cellState === 'recorded') onView(slot)
+          if (recordId) onView(slot)
+          else if (cell.cellState === 'due' && canRecord) onRecord(slot)
         }}
       >
         <MarStatusChip cell={cell} />
@@ -301,6 +329,15 @@ function VisitStandaloneRow({
         <p className="mt-0.5 text-xs text-muted-foreground">
           {[row.strength, row.dose, row.dueTime].filter(Boolean).join(' · ')}
         </p>
+        {recordId ? (
+          <button
+            type="button"
+            className="mt-1 border-0 bg-transparent p-0 text-xs font-medium text-teal-700 underline-offset-2 hover:underline"
+            onClick={() => onView(slot)}
+          >
+            Recorded — tap to view details
+          </button>
+        ) : null}
       </div>
       {cell.cellState === 'due' && canRecord ? (
         <Button type="button" size="sm" variant="outline" className="h-7 shrink-0" onClick={() => onRecord(slot)}>
@@ -314,11 +351,14 @@ function VisitStandaloneRow({
 export function VisitMedicationPanel({
   serviceUserId,
   visitDate,
+  visitId,
   medicationRoundCode,
   medicationRoundLabel,
 }: {
   serviceUserId: string
   visitDate: string
+  /** ScheduledVisit id — scopes PRN "recorded" status to THIS visit. */
+  visitId?: string | null
   /** From visit plan — limits UI to this administration round only. */
   medicationRoundCode?: string | null
   medicationRoundLabel?: string | null
@@ -334,7 +374,12 @@ export function VisitMedicationPanel({
   )
 
   const month = visitDateChartMonth(normalizedDate)
-  const chartQuery = useMedicationRegularChart(serviceUserId, { month })
+  // Scope PRN "recorded" status to THIS visit so a PRN given in another
+  // same-day visit doesn't show as already given here.
+  const chartQuery = useMedicationRegularChart(serviceUserId, {
+    month,
+    prnVisitId: visitId ?? undefined,
+  })
   const packsQuery = useMedicationPacks(serviceUserId)
   const chart = chartQuery.data
 
@@ -352,24 +397,43 @@ export function VisitMedicationPanel({
 
   const chartMedications = chart?.medications ?? []
 
+  // Scheduled standalone (non-PRN) medicines — filtered to the visit round.
   const standaloneSlots = React.useMemo(() => {
     if (!chartMedications.length) return []
     const { standaloneRows } = splitPackAndStandaloneRows(chartMedications)
-    const slots = collectVisitDateMarSlots(standaloneRows, normalizedDate)
+    const scheduled = standaloneRows.filter(r => r.scheduleType !== 'prn')
+    const slots = collectVisitDateMarSlots(scheduled, normalizedDate)
     if (!visitRound) return slots
     return slots.filter(s => marRowMatchesVisitRound(s.row, visitRound))
   }, [chartMedications, normalizedDate, visitRound])
+
+  // PRN (as-needed) medicines are NOT tied to a round — always surface them for
+  // the visit date so a carer's PRN dose is visible/recordable in any visit.
+  const prnSlots = React.useMemo(() => {
+    if (!chartMedications.length) return []
+    const { standaloneRows } = splitPackAndStandaloneRows(chartMedications)
+    const prnRows = standaloneRows.filter(r => r.scheduleType === 'prn')
+    return collectVisitDateMarSlots(prnRows, normalizedDate)
+  }, [chartMedications, normalizedDate])
 
   const visitSlots = React.useMemo(() => {
-    const slots = collectVisitDateMarSlots(chartMedications, normalizedDate)
+    const scheduled = chartMedications.filter(r => r.scheduleType !== 'prn')
+    const slots = collectVisitDateMarSlots(scheduled, normalizedDate)
     if (!visitRound) return slots
     return slots.filter(s => marRowMatchesVisitRound(s.row, visitRound))
   }, [chartMedications, normalizedDate, visitRound])
 
-  const summary = React.useMemo(() => summarizeVisitDateMarSlots(visitSlots), [visitSlots])
+  const summary = React.useMemo(
+    () => summarizeVisitDateMarSlots([...visitSlots, ...prnSlots]),
+    [visitSlots, prnSlots],
+  )
 
   const hasActivePacks = activePacks.length > 0
-  const empty = !hasActivePacks && standaloneSlots.length === 0 && visitSlots.length === 0
+  const empty =
+    !hasActivePacks &&
+    standaloneSlots.length === 0 &&
+    prnSlots.length === 0 &&
+    visitSlots.length === 0
 
   if (chartQuery.isLoading || packsQuery.isLoading) {
     return (
@@ -451,6 +515,11 @@ export function VisitMedicationPanel({
               canRecord={canRecord}
               chartMedications={chartMedications}
               visitRound={visitRound}
+              onViewRecord={(recordId, medLabel) => {
+                setDetailEventId(recordId)
+                setDetailMedLabel(medLabel)
+                setDetailOpen(true)
+              }}
             />
           ))}
 
@@ -461,6 +530,40 @@ export function VisitMedicationPanel({
                 {standaloneSlots.map(slot => (
                   <VisitStandaloneRow
                     key={`${slot.row.medicationId}:${slot.row.scheduleId ?? 'default'}`}
+                    slot={slot}
+                    canRecord={canRecord}
+                    onRecord={s => {
+                      setRecordTarget({ row: s.row, day: s.cell.day, date: s.cell.date })
+                      setRecordOpen(true)
+                    }}
+                    onView={s => {
+                      if (s.cell.recordId) {
+                        setDetailEventId(s.cell.recordId)
+                        setDetailMedLabel(s.row.medicationName)
+                        setDetailOpen(true)
+                      }
+                    }}
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {prnSlots.length > 0 ? (
+            <section className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold">PRN / as-needed</h3>
+                <Badge variant="secondary" size="sm">
+                  As needed
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Given only when required — not tied to a scheduled round. Shows in every visit.
+              </p>
+              <ul className="space-y-2">
+                {prnSlots.map(slot => (
+                  <VisitStandaloneRow
+                    key={`prn:${slot.row.medicationId}:${slot.row.scheduleId ?? 'default'}`}
                     slot={slot}
                     canRecord={canRecord}
                     onRecord={s => {

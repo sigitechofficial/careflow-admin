@@ -235,6 +235,54 @@ export async function deleteServiceUserCareType(id: string): Promise<void> {
   })
 }
 
+// ─── On-entry welfare outcomes (carer-app clock-in) ─────────────────────────
+
+export type WelfareOutcomeTone = 'ok' | 'warn' | 'bad'
+
+export type WelfareOutcomeRow = {
+  id: string
+  code: string
+  label: string
+  tone: WelfareOutcomeTone
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchWelfareOutcomes(): Promise<WelfareOutcomeRow[]> {
+  const res = await apiJson<ApiEnvelope<WelfareOutcomeRow[]>>('/lookups/welfare-outcomes', {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createWelfareOutcome(body: {
+  code: string
+  label: string
+  tone?: WelfareOutcomeTone
+  sortOrder?: number
+}): Promise<WelfareOutcomeRow> {
+  const res = await apiJson<ApiEnvelope<WelfareOutcomeRow>>('/lookups/welfare-outcomes', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function updateWelfareOutcome(
+  id: string,
+  body: { code?: string; label?: string; tone?: WelfareOutcomeTone; sortOrder?: number; isActive?: boolean },
+): Promise<WelfareOutcomeRow> {
+  const res = await apiJson<ApiEnvelope<WelfareOutcomeRow>>(`/lookups/welfare-outcomes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function deleteWelfareOutcome(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/welfare-outcomes/${id}`, { method: 'DELETE' })
+}
+
 export async function fetchServiceUserFundingTypesList(): Promise<ServiceUserFundingTypeRow[]> {
   const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
     '/lookups/service-user-funding-types',

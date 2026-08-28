@@ -16,6 +16,7 @@ import { AllergiesCatalogSettingsPanel } from '@/features/settings/components/Al
 import { TaskCatalogueSettingsPanel } from '@/features/settings/components/TaskCatalogueSettingsPanel'
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
 import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
+import { WelfareOutcomesSettingsPanel } from '@/features/settings/components/WelfareOutcomesSettingsPanel'
 import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components/EcmThresholdLookupsSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
 
@@ -44,6 +45,7 @@ export type SettingsTabId =
   | 'allergies'
   | 'tasks-planner'
   | 'vital-ranges'
+  | 'welfare-outcomes'
   | 'ecm-thresholds'
 
 const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
@@ -71,6 +73,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'record-types', label: 'Record types' },
   { id: 'allergies', label: 'Allergies' },
   { id: 'vital-ranges', label: 'Accepted ranges' },
+  { id: 'welfare-outcomes', label: 'On-entry welfare outcomes' },
   { id: 'ecm-thresholds', label: 'ECM thresholds' },
 ]
 
@@ -232,6 +235,7 @@ export default function SettingsPage() {
           {activeTab === 'allergies' && <AllergiesCatalogSettingsPanel />}
           {activeTab === 'tasks-planner' && <TaskCatalogueSettingsPanel />}
           {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
+          {activeTab === 'welfare-outcomes' && <WelfareOutcomesSettingsPanel />}
           {activeTab === 'ecm-thresholds' && <EcmThresholdLookupsSettingsPanel />}
         </div>
       </div>

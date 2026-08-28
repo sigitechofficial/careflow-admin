@@ -287,6 +287,7 @@ export type VisitObservationRecordedRow = {
   title: string
   observationTypeCode: string
   valueLabel: string | null
+  notes?: string | null
   recordedAt: string
   statusLabel?: string | null
   bodyMapPins?: VisitObservationBodyMapPin[]
@@ -326,6 +327,32 @@ export async function fetchVisitObservations(
     throw new Error('No visit observations data returned')
   }
   return res.data
+}
+
+export type VisitTimelineItem = {
+  id: string
+  time: string
+  timeLabel: string
+  title: string
+  detail: string | null
+  subtitle: string | null
+  tone: 'primary' | 'success' | 'danger' | 'warning' | 'teal' | 'ink' | null
+  type: string
+  occurredAt: string
+  sourceType: string
+}
+
+export type VisitTimelineResponse = { jobId: string; timeline: VisitTimelineItem[] }
+
+export async function fetchVisitTimeline(
+  jobId: string,
+  options?: { signal?: AbortSignal },
+): Promise<VisitTimelineResponse> {
+  const res = await apiJson<ApiEnvelope<VisitTimelineResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/timeline`,
+    { method: 'GET', signal: options?.signal },
+  )
+  return res.data ?? { jobId, timeline: [] }
 }
 
 export async function saveVisitJobTasks(
