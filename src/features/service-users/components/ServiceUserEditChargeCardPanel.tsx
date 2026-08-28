@@ -12,8 +12,11 @@ import {
   type ChargeCard,
 } from '@/features/billing/types/billing-cards.types'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
+import { useUpdateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useServiceUserEnterpriseFundings } from '@/features/service-users/hooks/useServiceUserTabs'
 import type { EnterpriseServiceUserFundingRow } from '@/features/service-users/api/service-users.api'
+import { Button } from '@/shared/ui/button'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 type ChargeCardSourceEntry = {
   cardId: string
@@ -29,6 +32,20 @@ function fundingDisplayName(row: EnterpriseServiceUserFundingRow): string {
   )
 }
 
+function resolveChargeCardForFunding(row: EnterpriseServiceUserFundingRow): string | null {
+  return (
+    row.defaultChargeCardId
+    ?? row.defaultChargeCard?.id
+    ?? row.funder?.defaultChargeCardId
+    ?? row.funder?.defaultChargeCard?.id
+    ?? null
+  )
+}
+
+function listActiveFundings(fundings: EnterpriseServiceUserFundingRow[]): EnterpriseServiceUserFundingRow[] {
+  return fundings.filter(row => row.status !== 'ENDED' && row.status !== 'REJECTED')
+}
+
 function collectChargeCardSources(params: {
   fundings: EnterpriseServiceUserFundingRow[]
   serviceUserCardId: string | null
@@ -36,6 +53,7 @@ function collectChargeCardSources(params: {
   resolvedIsMatched: boolean
 }): ChargeCardSourceEntry[] {
   const map = new Map<string, ChargeCardSourceEntry>()
+  const activeFundings = listActiveFundings(params.fundings)
 
   const add = (cardId: string | null | undefined, context: string) => {
     const id = cardId?.trim()
@@ -45,45 +63,47 @@ function collectChargeCardSources(params: {
     map.set(id, existing)
   }
 
-  for (const row of params.fundings) {
-    if (row.status === 'ENDED' || row.status === 'REJECTED') continue
-    const funderName = row.funder?.name?.trim() || 'Unknown funder'
-    const fundingName = fundingDisplayName(row)
-    const primarySuffix = row.isPrimary ? ' · primary' : ''
-
-    const fundingCardId = row.defaultChargeCardId ?? row.defaultChargeCard?.id ?? null
-    if (fundingCardId) {
-      add(fundingCardId, `Funding: ${fundingName} (${funderName})${primarySuffix}`)
+  if (activeFundings.length > 0) {
+    for (const row of activeFundings) {
+      const cardId = resolveChargeCardForFunding(row)
+      if (!cardId) continue
+      const funderName = row.funder?.name?.trim() || 'Unknown funder'
+      const fundingName = fundingDisplayName(row)
+      const primarySuffix = row.isPrimary ? ' · primary' : ''
+      add(cardId, `Funding: ${fundingName} (${funderName})${primarySuffix}`)
     }
-
-    const funderCardId = row.funder?.defaultChargeCardId ?? row.funder?.defaultChargeCard?.id ?? null
-    if (funderCardId) {
-      add(funderCardId, `Funder: ${funderName}${primarySuffix}`)
-    }
+    return [...map.values()]
   }
 
   if (params.serviceUserCardId) {
     add(params.serviceUserCardId, 'Service user override')
-  }
-
-  if (params.resolvedCardId) {
-    if (params.resolvedIsMatched) {
-      add(params.resolvedCardId, 'Auto-matched for billing')
-    } else if (!map.has(params.resolvedCardId)) {
-      add(params.resolvedCardId, 'Resolved for billing')
-    }
+  } else if (params.resolvedCardId) {
+    add(
+      params.resolvedCardId,
+      params.resolvedIsMatched ? 'Auto-matched for billing' : 'Resolved for billing',
+    )
   }
 
   return [...map.values()]
+}
+
+function resolveBillingDefaultCardId(
+  fundings: EnterpriseServiceUserFundingRow[],
+  resolvedCardId: string | null,
+): string | null {
+  const activeFundings = listActiveFundings(fundings)
+  if (activeFundings.length > 0) {
+    const primary = activeFundings.find(row => row.isPrimary) ?? activeFundings[0]
+    return primary ? resolveChargeCardForFunding(primary) : null
+  }
+  return resolvedCardId
 }
 
 function fundingRowsMissingChargeCard(fundings: EnterpriseServiceUserFundingRow[]): string[] {
   const missing: string[] = []
   for (const row of fundings) {
     if (row.status === 'ENDED' || row.status === 'REJECTED') continue
-    const fundingCardId = row.defaultChargeCardId ?? row.defaultChargeCard?.id
-    const funderCardId = row.funder?.defaultChargeCardId ?? row.funder?.defaultChargeCard?.id
-    if (fundingCardId || funderCardId) continue
+    if (resolveChargeCardForFunding(row)) continue
     const funderName = row.funder?.name?.trim() || 'Unknown funder'
     const fundingName = fundingDisplayName(row)
     missing.push(`${funderName} — ${fundingName}${row.isPrimary ? ' (primary)' : ''}`)
@@ -95,19 +115,37 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
   const canManageBilling = useAuthStore(
     s => s.can('billing.charge_cards.manage' as never) || s.can('billing.charge_cards.read' as never),
   )
+  const canUpdateServiceUser = useAuthStore(s => s.can('service_users.update'))
 
   const serviceUserQuery = useServiceUser(serviceUserId)
   const fundingsQuery = useServiceUserEnterpriseFundings(serviceUserId)
   const resolveQuery = useResolveServiceUserChargeCard(serviceUserId)
+  const updateServiceUserMutation = useUpdateServiceUser(serviceUserId)
 
   const serviceUserCardId =
     serviceUserQuery.data?.defaultChargeCardId
     ?? serviceUserQuery.data?.defaultChargeCard?.id
     ?? null
+  const serviceUserCardName = serviceUserQuery.data?.defaultChargeCard?.name ?? 'Service user default'
 
   const fundings = fundingsQuery.data?.rows ?? []
   const resolved = resolveQuery.data
   const resolvedCardId = resolved?.chargeCard?.id ?? null
+  const activeFundings = React.useMemo(() => listActiveFundings(fundings), [fundings])
+
+  const billingDefaultCardId = React.useMemo(
+    () => resolveBillingDefaultCardId(fundings, resolvedCardId),
+    [fundings, resolvedCardId],
+  )
+
+  const legacyServiceUserOverride = React.useMemo(() => {
+    if (!serviceUserCardId || activeFundings.length === 0) return null
+    const fundingCardIds = new Set(
+      activeFundings.map(row => resolveChargeCardForFunding(row)).filter((id): id is string => Boolean(id)),
+    )
+    if (fundingCardIds.has(serviceUserCardId)) return null
+    return { id: serviceUserCardId, name: serviceUserCardName }
+  }, [serviceUserCardId, serviceUserCardName, activeFundings])
 
   const sourceEntries = React.useMemo(
     () =>
@@ -166,9 +204,17 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
               ? 'Could not load charge cards.'
               : null
 
-  const activeFundingCount = fundings.filter(
-    r => r.status !== 'ENDED' && r.status !== 'REJECTED',
-  ).length
+  const activeFundingCount = activeFundings.length
+
+  const removeLegacyOverride = async () => {
+    try {
+      await updateServiceUserMutation.mutateAsync({ body: { defaultChargeCardId: null } })
+      toastSuccess('Service user default charge card removed')
+      void resolveQuery.refetch()
+    } catch (e) {
+      toastApiError(e, 'Could not remove default charge card')
+    }
+  }
 
   const matchedLevelLabel = resolved?.matchedLevel
     ? CHARGE_CARD_ASSIGNMENT_OPTIONS.find(o => o.value === resolved.matchedLevel)?.label
@@ -181,9 +227,10 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
       <div>
         <h2 className="text-sm font-semibold text-foreground">Charge cards</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Read-only view of charge rates linked to this service user and each funder / funding
-          contract. When several funders apply, every linked card is listed below. The card marked
-          Default for billing is what invoicing uses unless a visit is tied to another funding.
+          Read-only view of charge rates linked to each active funding contract (funding-level card,
+          otherwise the funder default). With split funding, one card is shown per funding line. The
+          card marked Default for billing is what invoicing uses for the primary funding unless a
+          visit is tied to another contract.
         </p>
       </div>
 
@@ -195,6 +242,29 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
       ) : null}
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      {!loading && legacyServiceUserOverride ? (
+        <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-3 text-sm">
+          <p className="font-medium text-foreground">Legacy service user default</p>
+          <p className="mt-1 text-muted-foreground">
+            <span className="font-medium text-foreground">{legacyServiceUserOverride.name}</span> is still
+            assigned on this service user from an earlier setup. Split funding uses the charge cards on each
+            funding line instead — you can remove this legacy default.
+          </p>
+          {canUpdateServiceUser ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              disabled={updateServiceUserMutation.isPending}
+              onClick={() => void removeLegacyOverride()}
+            >
+              {updateServiceUserMutation.isPending ? 'Removing…' : 'Remove service user default'}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {!loading && !error && sourceEntries.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-10 text-center">
@@ -225,7 +295,7 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
               : ''}
             .
           </p>
-          {sourceEntries.map((entry, index) => {
+          {sourceEntries.map((entry) => {
             const card = cardsById.get(entry.cardId)
             if (!card) {
               return (
@@ -238,16 +308,23 @@ export function ServiceUserEditChargeCardPanel({ serviceUserId }: { serviceUserI
                 </div>
               )
             }
-            const isBillingDefault = resolvedCardId === entry.cardId
+            const isBillingDefault = billingDefaultCardId === entry.cardId
             return (
               <ChargeCardDetailsView
                 key={entry.cardId}
                 card={card}
-                resolveSource={isBillingDefault ? (resolved?.source ?? null) : null}
+                resolveSource={
+                  isBillingDefault
+                    ? activeFundings.length > 0
+                      ? 'EXPLICIT_FUNDING'
+                      : (resolved?.source ?? null)
+                    : null
+                }
                 matchedLevelLabel={isBillingDefault ? matchedLevelLabel : null}
                 contextLabels={entry.contexts}
                 isBillingDefault={isBillingDefault}
-                showManageLink={canManageBilling && index === 0}
+                showManageLink={canManageBilling}
+                showRules
               />
             )
           })}

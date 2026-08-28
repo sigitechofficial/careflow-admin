@@ -21,5 +21,5 @@ export function pickCarePlanSourceSubmission(
     const rank = STATUS_RANK[a.status] - STATUS_RANK[b.status]
     if (rank !== 0) return rank
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  })[0]
+  })[0] ?? null
 }

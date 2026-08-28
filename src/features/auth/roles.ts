@@ -105,6 +105,27 @@ const EMPLOYEE_ALL: Permission[] = [
   'employees.reports.read',
 ]
 
+const HR_ALL: Permission[] = [
+  'hr.read',
+  'hr.profile.create',
+  'hr.profile.update',
+  'hr.documents.upload',
+  'hr.documents.delete',
+  'hr.vacancies.read',
+  'hr.vacancies.create',
+  'hr.vacancies.update',
+  'hr.candidates.read',
+  'hr.candidates.create',
+  'hr.candidates.update',
+  'hr.candidates.convert',
+]
+
+const HR_READ: Permission[] = [
+  'hr.read',
+  'hr.vacancies.read',
+  'hr.candidates.read',
+]
+
 const NOTIFICATION_INAPP: Permission[] = [
   'notifications.read',
   'notifications.update',
@@ -233,6 +254,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'employee.read',
     'employee.write',
     ...EMPLOYEE_ALL,
+    ...HR_ALL,
     'lookups.read',
     'lookups.manage',
     'settings.company.read',
@@ -273,6 +295,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'employee.read',
     'employee.write',
     ...EMPLOYEE_ALL,
+    ...HR_ALL,
     'lookups.read',
     'lookups.manage',
     'settings.company.read',
@@ -314,6 +337,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'employees.compliance.documents.upload',
     'employees.compliance.documents.download',
     'employees.reports.read',
+    ...HR_READ,
     'lookups.read',
     'lookups.manage',
     'settings.company.read',

@@ -130,6 +130,18 @@ export type VisitReconciliationRateSegment = {
   amount: string
 }
 
+export type VisitReconciliationAppliedRule = {
+  label: string
+  rateType: string
+  rateTypeLabel: string
+  dayType: string | null
+  dayTypeLabel: string | null
+  timeWindow: string | null
+  unitRate: string | null
+  amount: string | null
+  detail: string
+}
+
 export type VisitReconciliationRateBreakdown = {
   minutes: number
   hoursLabel: string
@@ -141,7 +153,35 @@ export type VisitReconciliationRateBreakdown = {
   cardCode: string | null
   cardSource: string | null
   ruleLabel: string | null
+  appliedRules?: VisitReconciliationAppliedRule[]
   segments?: VisitReconciliationRateSegment[]
+}
+
+export type VisitReconciliationFunderSplitLine = {
+  funderName: string
+  splitPercent: number | null
+  amount: string
+  included: boolean
+  reason: string | null
+  chargeCardName: string | null
+  pricedWithVisitCard: boolean
+  pricingNote: string | null
+}
+
+export type VisitReconciliationFunderSplitPreview = {
+  note: string
+  totalAmount: string
+  visitChargeCardName: string | null
+  lines: VisitReconciliationFunderSplitLine[]
+}
+
+export type VisitReconciliationFunderClientCharge = {
+  funderName: string
+  splitPercent: number | null
+  shareAmount: string
+  cardGrossAmount: string | null
+  breakdown: VisitReconciliationRateBreakdown | null
+  reason: string | null
 }
 
 export type VisitReconciliationCalculationPreview = {
@@ -156,6 +196,10 @@ export type VisitReconciliationCalculationPreview = {
   multiCarerFunderChargeMode?: 'COMBINED' | 'FIXED'
   isFunderBillingRow?: boolean
   funderChargeNote?: string | null
+  funderSplitPreview?: VisitReconciliationFunderSplitPreview | null
+  /** True when pay/charge amounts were frozen at visit completion. */
+  pricingFrozen?: boolean
+  pricingFrozenNote?: string | null
   timeWindows: {
     planned: string
     actual: string
@@ -164,6 +208,7 @@ export type VisitReconciliationCalculationPreview = {
   }
   carerPay: VisitReconciliationRateBreakdown | null
   clientCharge: VisitReconciliationRateBreakdown | null
+  funderClientCharges?: VisitReconciliationFunderClientCharge[] | null
   exceptionDetails: Array<{
     code: FinanceExceptionCode
     message: string

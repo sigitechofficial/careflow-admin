@@ -342,6 +342,7 @@ export function VisitPlanSlotCarerAssignment({
                 variant="sky"
                 onRemoveEmployee={removeAssigned}
                 carerCandidatesByEmployeeId={assignedCarerCandidatesByEmployeeId}
+                hideTimeMismatch
               />
             ) : (
               <ul className="space-y-3">
@@ -385,6 +386,7 @@ export function VisitPlanSlotCarerAssignment({
                             showSkills={false}
                             isAssigned
                             justAssigned={justAssigned}
+                            hideTimeMismatch
                           />
                         ) : (
                           <p className="inline-flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -421,7 +423,7 @@ export function VisitPlanSlotCarerAssignment({
                 ? 'Day-specific rules from advanced settings. Availability reflects working pattern and existing rota bookings.'
                 : showRoles
                   ? `First assigned carer is Lead; the next are ${maxCarers >= 3 ? 'Support 1, Support 2' : 'Secondary'}. Use “Make lead” to change. Assigned for ${slotDayLabels || 'selected days'}.`
-                  : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then generate rota to apply.`}
+                  : `Assigned for ${slotDayLabels || 'selected days'}. Save the visit plan, then regenerate rota to apply.`}
             </p>
           </div>
         </section>
@@ -523,6 +525,7 @@ export function VisitPlanSlotCarerAssignment({
                         blocked={blocked}
                         isAssigned={isSelected}
                         justAssigned={justAssigned}
+                        hideTimeMismatch
                       />
                     </div>
                   </li>
@@ -574,6 +577,7 @@ export function VisitPlanSlotCarerAssignment({
                       blocked={blocked}
                       isAssigned={checked}
                       justAssigned={justAssigned}
+                      hideTimeMismatch
                     />
                   </div>
                 </li>
@@ -596,7 +600,7 @@ export function VisitPlanSlotCarerAssignment({
             <span className="font-medium text-foreground">{selected.size}</span> of {maxCarers} carer
             {maxCarers === 1 ? '' : 's'} selected
             {selected.size < maxCarers ? ` · ${maxCarers - selected.size} more needed` : ' · ready for this slot'}
-            . Changes apply when you save the visit plan and generate rota.
+            . Changes apply when you save the visit plan and regenerate rota.
           </p>
         ) : (
           <p>No carers selected yet for this call slot.</p>

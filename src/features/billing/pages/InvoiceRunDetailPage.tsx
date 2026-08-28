@@ -5,13 +5,17 @@ import {
   ArrowLeft,
   Calculator,
   CheckCircle2,
+  Download,
   Eye,
   FileText,
   Loader2,
   Lock,
   Send,
+  Sheet,
   Users,
 } from 'lucide-react'
+import { toastApiError } from '@/shared/lib/toast'
+import { downloadInvoiceRunExport } from '@/features/billing/api/invoice-runs.api'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import {
@@ -104,10 +108,22 @@ export default function InvoiceRunDetailPage() {
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [previewFunderId, setPreviewFunderId] = React.useState<string | null | undefined>(undefined)
+  const [exporting, setExporting] = React.useState<'csv' | 'xlsx' | null>(null)
 
   const openPreview = (funderId?: string | null) => {
     setPreviewFunderId(funderId)
     setPreviewOpen(true)
+  }
+
+  const handleExport = async (id: string, format: 'csv' | 'xlsx') => {
+    setExporting(format)
+    try {
+      await downloadInvoiceRunExport(id, format)
+    } catch (e) {
+      toastApiError(e)
+    } finally {
+      setExporting(null)
+    }
   }
 
   const query = useInvoiceRun(invoiceRunId)
@@ -191,6 +207,24 @@ export default function InvoiceRunDetailPage() {
                 disabled={run.lineCount === 0}
               >
                 Preview all
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                onClick={() => void handleExport(run.id, 'csv')}
+                disabled={run.lineCount === 0 || exporting !== null}
+              >
+                {exporting === 'csv' ? 'Exporting…' : 'CSV'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Sheet className="h-3.5 w-3.5" />}
+                onClick={() => void handleExport(run.id, 'xlsx')}
+                disabled={run.lineCount === 0 || exporting !== null}
+              >
+                {exporting === 'xlsx' ? 'Exporting…' : 'Excel'}
               </Button>
               {canManage ? (
                 <>
