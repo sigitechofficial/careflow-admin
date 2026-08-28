@@ -4,8 +4,12 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { validateVisitJobTasks, hydrateVisitJobTaskRow, mapVisitJobTaskForSave } from '@/features/scheduling/types/visit-job-tasks.types'
-import { fetchVisitJobTasks, saveVisitJobTasks } from '@/features/scheduling/api/scheduling.api'
-import { VisitJobTasksChecklist } from '@/features/scheduling/components/VisitJobTasksChecklist'
+import { fetchVisitJobTasks, saveVisitJobTasks, fetchVisitObservations } from '@/features/scheduling/api/scheduling.api'
+import {
+  VisitJobTasksChecklist,
+  normalizeObservationCode,
+  type RecordedObservation,
+} from '@/features/scheduling/components/VisitJobTasksChecklist'
 import type { VisitJobTaskRow, VisitJobTaskOutcome } from '@/features/scheduling/types/visit-job-tasks.types'
 import { formatMedicationRoundWindow } from '@/features/service-users/medication/medication-time-slots'
 
@@ -22,6 +26,29 @@ export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
     queryFn: () => fetchVisitJobTasks(jobId),
     enabled: Boolean(jobId),
   })
+
+  // Recorded observations for this visit — used to surface a linked
+  // observation's value on its obs-linked task row (parity with the carer app).
+  const observationsQuery = useQuery({
+    queryKey: ['visit-observations', jobId],
+    queryFn: () => fetchVisitObservations(jobId),
+    enabled: Boolean(jobId),
+  })
+
+  const observationsByType = React.useMemo(() => {
+    const map: Record<string, RecordedObservation> = {}
+    for (const row of observationsQuery.data?.recordedThisVisit ?? []) {
+      const key = normalizeObservationCode(row.observationTypeCode)
+      const value = row.valueLabel?.trim()
+      if (key && value)
+        map[key] = {
+          label: row.title?.trim() || 'Observation',
+          value,
+          notes: row.notes?.trim() || null,
+        }
+    }
+    return map
+  }, [observationsQuery.data])
 
   const [localTasks, setLocalTasks] = React.useState<VisitJobTaskRow[]>([])
   const [dirty, setDirty] = React.useState(false)
@@ -121,6 +148,7 @@ export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
         tasks={localTasks}
         loading={tasksQuery.isLoading}
         fillHeight={fillHeight}
+        observationsByType={observationsByType}
         roundLabel={roundLabel}
         roundWindow={roundWindow}
         noRoundMessage={

@@ -65,6 +65,8 @@ export type MarChartQueryParams = {
   dateFrom?: string
   dateTo?: string
   medicationIds?: string[]
+  /** Visit workspace: scopes PRN "recorded" cells to this visit (ScheduledVisit id). */
+  prnVisitId?: string
 }
 
 export type PackExportDetailMode = 'summary' | 'full'
@@ -87,6 +89,7 @@ export function buildMarChartQueryString(
   if (params.dateTo) qs.set('dateTo', params.dateTo)
   if (params.months?.length) qs.set('months', params.months.join(','))
   if (params.medicationIds?.length) qs.set('medicationIds', params.medicationIds.join(','))
+  if (params.prnVisitId) qs.set('prnVisitId', params.prnVisitId)
   if (params.packExportDetail) qs.set('packExportDetail', params.packExportDetail)
   if (params.format) qs.set('format', params.format)
   if (params.preview) qs.set('preview', 'true')
@@ -313,6 +316,11 @@ export type MedicationEventDetail = {
   reason: string | null
   notes: string | null
   doseGiven: string | null
+  /** How the carer supported the dose (e.g. Independent / Prompted / Assisted / Administered). */
+  supportLevel?: string | null
+  /** Carer-app clock-face time the dose was given (HH:mm), org timezone. */
+  timeGiven?: string | null
+  outcomeLabel?: string | null
   isPrn?: boolean
   prnReason: string | null
   prnOutcome: string | null

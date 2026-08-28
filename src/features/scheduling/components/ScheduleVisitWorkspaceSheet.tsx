@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Sheet,
   SheetContent,
@@ -36,6 +38,19 @@ export function ScheduleVisitWorkspaceSheet({
   onAddNotes,
   onAllocate,
 }: Props) {
+  const queryClient = useQueryClient()
+  const jobId = job?.id
+
+  // Every time the workspace opens, refetch the latest server data for this
+  // job (tasks, observations, medication, …) — no stale cache on open.
+  useEffect(() => {
+    if (!open || !jobId) return
+    void queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) && query.queryKey.includes(jobId),
+    })
+  }, [open, jobId, queryClient])
+
   if (!job) return null
 
   const returnTo = `/scheduling/schedule-jobs?date=${encodeURIComponent(date)}`

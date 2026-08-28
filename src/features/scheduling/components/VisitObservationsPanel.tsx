@@ -341,16 +341,50 @@ export function VisitObservationsPanel({
                 className="rounded-lg border border-border bg-muted/20 px-3 py-2.5"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{row.title}</p>
-                    <p className="mt-0.5 text-sm text-foreground">
-                      {row.valueLabel ?? 'Recorded'}
-                    </p>
+                    {/* Multi-field values (backend joins sub-fields with " · ")
+                        render one line per sub-field for full, readable detail. */}
+                    {row.valueLabel?.trim() ? (
+                      <ul className="mt-0.5 space-y-0.5">
+                        {row.valueLabel.split(' · ').map((part, index) => {
+                          const sep = part.indexOf(': ')
+                          return (
+                            <li key={index} className="text-sm leading-relaxed">
+                              {sep > 0 ? (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {part.slice(0, sep)}:
+                                  </span>{' '}
+                                  <span className="font-medium text-foreground">
+                                    {part.slice(sep + 2)}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="font-medium text-foreground">{part}</span>
+                              )}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="mt-0.5 text-sm text-muted-foreground">Recorded</p>
+                    )}
                     {row.statusLabel ? (
                       <p className="mt-0.5 text-xs text-muted-foreground">{row.statusLabel}</p>
                     ) : null}
+                    {row.notes?.trim() ? (
+                      <div className="mt-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Observation notes
+                        </p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                          {row.notes}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="shrink-0 text-xs text-muted-foreground">
                     {formatOrganisationDateTime(row.recordedAt)}
                   </p>
                 </div>

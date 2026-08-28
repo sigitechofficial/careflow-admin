@@ -31,6 +31,7 @@ export function useMedicationRegularChart(
     params.dateFrom ?? '',
     params.dateTo ?? '',
     params.medicationIds?.join(',') ?? '',
+    params.prnVisitId ?? '',
   ] as const
   const hasRange = Boolean(
     params.month || (params.dateFrom && params.dateTo),

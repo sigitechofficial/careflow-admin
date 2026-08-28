@@ -198,6 +198,36 @@ export function combineOperationalDateAndHm(
   return new Date(guess).toISOString()
 }
 
+/** Numeric calendar date (DD/MM/YYYY) of an instant in the operational timezone. */
+export function formatOpsDateNumeric(
+  iso: string | null | undefined,
+  timeZone = getSyncedOperationalTimeZone(),
+): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(d)
+}
+
+/**
+ * Numeric date + 24h clock (DD/MM/YYYY HH:mm) of an instant in the operational
+ * timezone — so medication/clinical timestamps read in UK time regardless of
+ * the viewer's browser timezone.
+ */
+export function formatOpsDateTimeNumeric(
+  iso: string | null | undefined,
+  timeZone = getSyncedOperationalTimeZone(),
+): string {
+  const date = formatOpsDateNumeric(iso, timeZone)
+  if (date === '—') return '—'
+  return `${date} ${formatOpsClockTime(iso, timeZone)}`
+}
+
 /** HH:mm wall clock of an instant in the operational timezone. */
 export function formatOpsHm(
   iso: string | null | undefined,
