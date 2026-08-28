@@ -103,7 +103,8 @@ function loginFailureCountsTowardLockout(error: unknown): boolean {
 }
 
 function pruneExpiredLoginLocks(lockedAccounts: LockedAccount[], now = Date.now()): LockedAccount[] {
-  return lockedAccounts.filter(l => l.lockedUntil > now)
+  // A null `lockedUntil` is a permanent lock (no auto-expiry) and is never pruned.
+  return lockedAccounts.filter(l => l.lockedUntil === null || l.lockedUntil > now)
 }
 
 function resolveLoginLockState(
@@ -118,7 +119,8 @@ function resolveLoginLockState(
     return { locked: false, failedByEmail, lockedAccounts: prunedLocks }
   }
   const lock = prunedLocks.find(l => l.email === email)
-  if (!lock || now >= lock.lockedUntil) {
+  // No lock, or a time-limited lock whose expiry has passed → clear it. A null (permanent) lock stays locked.
+  if (!lock || (lock.lockedUntil !== null && now >= lock.lockedUntil)) {
     return {
       locked: false,
       failedByEmail: { ...failedByEmail, [email]: 0 },
