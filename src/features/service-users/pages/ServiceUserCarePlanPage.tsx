@@ -15,6 +15,7 @@ import type { ServiceUserDetail } from '@/features/service-users/types'
 import type { SelectableForm } from '@/features/care-pathway/types/care-pathway.types'
 import {
   filterCarePlansByFormSelection,
+  mergeFormsWithCarePlanInstances,
   sortCarePlansByCatalogOrder,
 } from '@/features/service-users/care-plan/care-plan-catalog'
 import {
@@ -150,8 +151,18 @@ export default function ServiceUserCarePlanPage() {
   const carePlanForms: SelectableForm[] = React.useMemo(() => {
     if (!formSelections.data || !carePlanCatalogue.data) return []
     const selectedIds = formSelections.data.carePlans.map((s) => s.formId)
-    return filterCarePlansByFormSelection(carePlanCatalogue.data, selectedIds)
-  }, [formSelections.data, carePlanCatalogue.data])
+    const selectionFiltered = filterCarePlansByFormSelection(
+      carePlanCatalogue.data,
+      selectedIds,
+    )
+    // Published / draft instances must appear in Live / In Progress even when the
+    // form is outside company Form Selection (IA recommendations are not gated).
+    return mergeFormsWithCarePlanInstances(
+      selectionFiltered,
+      carePlanCatalogue.data,
+      instancesQuery.data ?? [],
+    )
+  }, [formSelections.data, carePlanCatalogue.data, instancesQuery.data])
 
   const name = serviceUserGivenName(detail)
 
@@ -183,6 +194,37 @@ export default function ServiceUserCarePlanPage() {
       available: sortCarePlansByCatalogOrder(grouped.available),
     }
   }, [carePlanForms, instancesByFormId, recommendations, acceptedFormIds])
+
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || loading) return
+    // Temporary overview debug — remove once Live refresh is confirmed in QA.
+    // eslint-disable-next-line no-console
+    console.debug('[Care Plans overview]', {
+      recommended: groupPendingRecommendationsByForm(
+        pendingRecommendationsForRecommendedSection(
+          recommendations,
+          new Set(buckets.recommended.map((f) => f.id)),
+          new Set(carePlanForms.map((f) => f.id)),
+        ),
+      ).map((g) => g.name),
+      inProgress: buckets.inProgress.map((f) => f.name),
+      live: buckets.live.map((f) => f.name),
+      instances: (instancesQuery.data ?? []).map((row) => ({
+        formName: row.formName,
+        status: row.status,
+        displayStatus: row.displayStatus,
+        carePathwayFormId: row.carePathwayFormId,
+      })),
+    })
+  }, [
+    loading,
+    buckets.recommended,
+    buckets.inProgress,
+    buckets.live,
+    carePlanForms,
+    recommendations,
+    instancesQuery.data,
+  ])
 
   const cataloguedFormIds = React.useMemo(
     () => new Set(carePlanForms.map((form) => form.id)),

@@ -12,8 +12,6 @@ export type IaAutofillLevelUi = {
   label: string
   testId: string
   title: string
-  completeToastTitle: string
-  failedToastTitle: string
 }
 
 export const IA_AUTOFILL_LEVELS: IaAutofillLevelUi[] = [
@@ -22,32 +20,30 @@ export const IA_AUTOFILL_LEVELS: IaAutofillLevelUi[] = [
     label: IA_CONDITION_LEVEL_LABELS.critical,
     testId: 'ia-autofill-critical',
     title:
-      'Service user in very critical condition — full assessment with safeguarding, falls, wounds, and high-risk scores.',
-    completeToastTitle: 'Very critical autofill complete',
-    failedToastTitle: 'Very critical autofill failed',
+      'Very critical scenario — sections fill with safeguarding, falls, wounds, and high-risk scores.',
   },
   {
     level: 'normal',
     label: IA_CONDITION_LEVEL_LABELS.normal,
     testId: 'ia-autofill-normal',
-    title:
-      'Not too critical — required fields and hubs filled with routine risk flags; may submit incomplete.',
-    completeToastTitle: 'Moderate autofill complete',
-    failedToastTitle: 'Moderate autofill failed',
+    title: 'Moderate scenario — sections fill with routine risk flags and required fields.',
   },
   {
     level: 'low',
     label: IA_CONDITION_LEVEL_LABELS.low,
     testId: 'ia-autofill-low',
-    title:
-      'Out of danger — condition is normal; required fields and low-risk flags; submits as incomplete where allowed.',
-    completeToastTitle: 'Stable autofill complete',
-    failedToastTitle: 'Stable autofill failed',
+    title: 'Stable scenario — sections fill with low-risk, out-of-danger values.',
   },
 ]
 
-export const IA_PLAYWRIGHT_TESTS_BUTTON_TOOLTIP =
-  'Run server-side autofill for this service user — choose Very critical, Moderate, or Stable to match their condition.'
+/** Toolbar button that opens the QA Demo Data scenario selector (dev/QA only). */
+export const IA_QA_DEMO_DATA_BUTTON_LABEL = 'QA Demo Data'
+
+export const IA_QA_DEMO_DATA_BUTTON_TOOLTIP =
+  'Pick a QA scenario (Very critical / Moderate / Stable), then use each section’s “Fill Demo Data” button to populate that section only.'
+
+/** Shown per section after a successful section fill. */
+export const IA_SECTION_DEMO_SUCCESS_TOAST = 'Demo data populated for this section'
 
 export function iaAutofillLevelUi(level: IaAutofillLevel): IaAutofillLevelUi {
   const row = IA_AUTOFILL_LEVELS.find((x) => x.level === level)

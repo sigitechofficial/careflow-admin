@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertTriangle, CheckCircle2, Loader2, MinusCircle, TestTube2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Check, MinusCircle, FlaskConical } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
@@ -16,8 +16,10 @@ import type { IaAutofillLevel } from '@/features/service-users/initial-assessmen
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  runningLevel: IaAutofillLevel | null
-  onRun: (level: IaAutofillLevel) => void | Promise<void>
+  /** Currently-active QA scenario, or null if none picked yet. */
+  activeLevel: IaAutofillLevel | null
+  /** Set the active scenario. Selecting does NOT fill anything — each section fills itself. */
+  onSelect: (level: IaAutofillLevel) => void
 }
 
 const LEVEL_BUTTON: Record<
@@ -30,63 +32,61 @@ const LEVEL_BUTTON: Record<
 > = {
   critical: {
     variant: 'destructive',
-    hint: 'Full assessment — safeguarding, falls, wounds, high scores',
+    hint: 'Safeguarding, falls, wounds, high scores',
     Icon: AlertTriangle,
   },
   normal: {
     variant: 'warning',
-    hint: 'Required fields and hubs — routine risk flags',
+    hint: 'Routine risk flags, required fields',
     Icon: MinusCircle,
   },
   low: {
     variant: 'success',
-    hint: 'Low-risk answers — stable / out of danger',
+    hint: 'Low-risk, stable / out of danger',
     Icon: CheckCircle2,
   },
 }
 
-function AutofillLevelButton({
+function ScenarioButton({
   level,
   label,
   testId,
   tooltip,
-  running,
-  anyRunning,
-  onRun,
+  active,
+  onSelect,
 }: {
   level: IaAutofillLevel
   label: string
   testId: string
   tooltip: string
-  running: boolean
-  anyRunning: boolean
-  onRun: (level: IaAutofillLevel) => void
+  active: boolean
+  onSelect: (level: IaAutofillLevel) => void
 }) {
   const { variant, hint, Icon } = LEVEL_BUTTON[level]
-  const disabled = anyRunning
 
   const button = (
     <Button
       type="button"
-      variant={variant}
+      variant={active ? variant : 'outline'}
       size="lg"
       className={cn(
         'h-auto w-full flex-col items-stretch gap-1 rounded-lg px-4 py-3 text-left shadow-sm',
         'active:scale-[0.99]',
+        active && 'ring-2 ring-offset-2',
       )}
       data-testid={testId}
-      disabled={disabled}
-      aria-busy={running}
-      aria-label={running ? `${label} autofill running` : `${label} autofill`}
-      onClick={() => onRun(level)}
+      aria-pressed={active}
+      aria-label={active ? `${label} scenario (selected)` : `Select ${label} scenario`}
+      onClick={() => onSelect(level)}
     >
       <span className="flex w-full items-center gap-2">
-        {running ? (
-          <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
+        {active ? (
+          <Check className="h-5 w-5 shrink-0" aria-hidden />
         ) : (
           <Icon className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
         )}
-        <span className="flex-1 text-base font-semibold">{running ? 'Running…' : label}</span>
+        <span className="flex-1 text-base font-semibold">{label}</span>
+        {active ? <span className="text-xs font-medium uppercase opacity-90">Selected</span> : null}
       </span>
       <span className="w-full pl-7 text-xs font-normal leading-snug opacity-90">{hint}</span>
     </Button>
@@ -94,9 +94,7 @@ function AutofillLevelButton({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        {disabled ? <span className="inline-flex w-full cursor-not-allowed">{button}</span> : button}
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="left" className="max-w-sm text-left leading-snug">
         {tooltip}
       </TooltipContent>
@@ -104,42 +102,44 @@ function AutofillLevelButton({
   )
 }
 
-export function InitialAssessmentPlaywrightTestsDialog({
+export function InitialAssessmentQaDemoDataDialog({
   open,
   onOpenChange,
-  runningLevel,
-  onRun,
+  activeLevel,
+  onSelect,
 }: Props) {
-  const anyRunning = runningLevel !== null
+  const handleSelect = (level: IaAutofillLevel) => {
+    onSelect(level)
+    onOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md" data-testid="ia-playwright-tests-dialog">
+      <DialogContent size="md" data-testid="ia-qa-demo-data-dialog">
         <DialogHeader className="border-b border-border pb-4">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-950">
-              <TestTube2 className="h-5 w-5 text-teal-800 dark:text-teal-300" aria-hidden />
+              <FlaskConical className="h-5 w-5 text-teal-800 dark:text-teal-300" aria-hidden />
             </span>
-            Playwright Tests
+            QA Demo Data
           </DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-4 pt-1">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Autofill this service user&apos;s assessment to simulate how critical their condition
-            appears. One run at a time — the active button shows a spinner until Playwright finishes.
+            Pick a QA scenario for this service user. Selecting a scenario does not change any data —
+            it just decides what each section’s <strong>Fill Demo Data</strong> button will populate.
           </p>
           <TooltipProvider delayDuration={250}>
             <div className="flex flex-col gap-3">
               {IA_AUTOFILL_LEVELS.map(({ level, label, testId, title }) => (
-                <AutofillLevelButton
+                <ScenarioButton
                   key={level}
                   level={level}
                   label={label}
                   testId={testId}
                   tooltip={title}
-                  running={runningLevel === level}
-                  anyRunning={anyRunning}
-                  onRun={(l) => void onRun(l)}
+                  active={activeLevel === level}
+                  onSelect={handleSelect}
                 />
               ))}
             </div>

@@ -15,10 +15,23 @@ export function isExplicitSuggestionCompose(
   return compose?.suggestionMode === 'explicit'
 }
 
+/** Hybrid = partial auto-prefill (tier A) plus suggestions (tier B), e.g. Home Support Plan. */
+export function isHybridCompose(
+  compose: Pick<CarePlanComposeResult, 'suggestionMode'> | null | undefined,
+): boolean {
+  return compose?.suggestionMode === 'hybrid'
+}
+
+/** Plans that surface IA suggestions in the editor (Falls explicit, HSP hybrid). */
+export function isSuggestionGatedCompose(
+  compose: Pick<CarePlanComposeResult, 'suggestionMode'> | null | undefined,
+): boolean {
+  return isExplicitSuggestionCompose(compose) || isHybridCompose(compose)
+}
+
 /**
  * Whether Create Plan may copy compose.values into clinical draft fields.
- * Explicit suggestion mode never auto-fills. Empty generic compose still
- * creates a draft — that is a separate decision from this flag.
+ * Explicit suggestion mode never auto-fills. Hybrid and generic compose may.
  */
 export function shouldWriteComposeValuesToDraft(
   compose: Pick<CarePlanComposeResult, 'suggestionMode'> | null | undefined,
@@ -42,7 +55,7 @@ export function shouldReplaceDraftOnCreatePlan(
   compose: Pick<CarePlanComposeResult, 'suggestionMode'> | null | undefined,
   hasExistingDraft: boolean,
 ): boolean {
-  if (isExplicitSuggestionCompose(compose) && hasExistingDraft) return false
+  if (hasExistingDraft && isSuggestionGatedCompose(compose)) return false
   return true
 }
 
@@ -84,6 +97,50 @@ export function readFieldProvenance(composedFrom: unknown): Record<string, CareP
   const raw = (composedFrom as CarePlanDraftComposedFrom).fieldProvenance
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   return raw
+}
+
+/** Merge top-level compose.provenance into composedFrom.fieldProvenance for draft persistence. */
+export function mergeComposeProvenanceFromComposeResult(
+  compose: Pick<CarePlanComposeResult, 'composedFrom' | 'provenance'>,
+): Record<string, unknown> {
+  const base = compose.composedFrom ?? {}
+  const topLevel = compose.provenance ?? {}
+  if (!Object.keys(topLevel).length) return base
+  return {
+    ...base,
+    fieldProvenance: {
+      ...readFieldProvenance(base),
+      ...topLevel,
+    },
+  }
+}
+
+/** Merge draft metadata with compose provenance when opening the editor. */
+export function hydrateComposedFromForEditor(params: {
+  draftComposedFrom?: Record<string, unknown> | null
+  compose: Pick<CarePlanComposeResult, 'composedFrom' | 'provenance'> | null | undefined
+}): Record<string, unknown> {
+  const draft = params.draftComposedFrom ?? {}
+  const composeMerged = params.compose
+    ? mergeComposeProvenanceFromComposeResult(params.compose)
+    : {}
+  const draftIgnored = readIgnoredSuggestionIds(draft)
+  const composeIgnored = readIgnoredSuggestionIds(composeMerged)
+
+  return {
+    ...composeMerged,
+    ...draft,
+    fieldProvenance: {
+      ...readFieldProvenance(composeMerged),
+      ...readFieldProvenance(draft),
+    },
+    ignoredSuggestionIds: draftIgnored.length > 0 ? draftIgnored : composeIgnored,
+  }
+}
+
+export function isAutoPrefilledField(composedFrom: unknown, fieldKey: string): boolean {
+  const entry = readFieldProvenance(composedFrom)[fieldKey]
+  return Boolean(entry?.autoPrefilled && !entry.userEdited)
 }
 
 export function visibleFieldSuggestion(
@@ -181,17 +238,62 @@ export function markProvenanceEdited(
   }
 }
 
+/**
+ * Hybrid refresh: replace auto-prefilled IA fields from compose; keep user-edited values.
+ * Empty fields still accept compose values (same as empty_only).
+ */
+export function mergeHybridRefreshValues(
+  current: Record<string, string | boolean>,
+  composed: Record<string, string | boolean>,
+  composedFrom: Record<string, unknown>,
+): Record<string, string | boolean> {
+  const provenance = readFieldProvenance(composedFrom)
+  const next = { ...current }
+
+  for (const [key, value] of Object.entries(composed)) {
+    const entry = provenance[key]
+    if (entry?.userEdited === true) continue
+    if (entry?.autoPrefilled === true || isCarePlanFieldEmpty(current[key])) {
+      next[key] = value
+    }
+  }
+
+  return next
+}
+
 export function hydrateCarePlanEditorValues(params: {
   draftValues?: Record<string, string | boolean> | null
+  /**
+   * Snapshot from the latest published version. When provided (published Live view
+   * with no draft), this is preferred over compose.values so accepted IA
+   * suggestions persist after publish.
+   */
+  publishedValues?: Record<string, string | boolean> | null
   compose: Pick<CarePlanComposeResult, 'suggestionMode' | 'values'> | null | undefined
 }): Record<string, string | boolean> | 'wait' {
   const draftValues = params.draftValues ?? {}
   if (Object.keys(draftValues).length > 0) {
     return draftValues
   }
+  // Published Live/"View plan": draft was consumed on publish — restore the version snapshot.
+  if (params.publishedValues != null) {
+    return params.publishedValues
+  }
   if (!params.compose) return 'wait'
   if (isExplicitSuggestionCompose(params.compose)) {
     return draftValues
   }
+  // Hybrid and Medication-style compose: prefill empty drafts from compose.values.
   return params.compose.values ?? {}
+}
+
+/**
+ * Live/"View plan" after publish has no draft row. Load values from the published
+ * version instead of hybrid compose.values (which omits accepted suggestion fields).
+ */
+export function shouldHydrateFromPublishedVersion(params: {
+  draft?: { values?: Record<string, string | boolean> | null } | null
+  latestPublishedVersionId?: string | null
+}): boolean {
+  return !params.draft && Boolean(params.latestPublishedVersionId)
 }

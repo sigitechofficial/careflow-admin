@@ -29,6 +29,10 @@ import type {
 const ACCESS_MS = 60 * 60 * 1000
 const REFRESH_MS = 7 * 24 * 60 * 60 * 1000
 const DEMO_PASSWORD = 'CareAdmin1!'
+const MAX_FAILED_LOGIN_ATTEMPTS = 5
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000
+const LOGIN_LOCKOUT_MESSAGE =
+  'Account temporarily locked. Try again later or contact an administrator.'
 
 const MOCK_USERS: Record<
   string,
@@ -80,6 +84,81 @@ function parseUa(): string {
 function buildUser(row: (typeof MOCK_USERS)[string]): AuthUser {
   const perms = permissionsForRole(row.user.role)
   return { ...row.user, permissions: perms }
+}
+
+function loginFailureCountsTowardLockout(error: unknown): boolean {
+  if (error instanceof TypeError) return false
+  const msg = error instanceof Error ? error.message.toLowerCase() : ''
+  if (!msg) return false
+  if (
+    msg.includes('failed to fetch') ||
+    msg.includes('network') ||
+    msg.includes('load failed') ||
+    msg.includes('econnrefused') ||
+    msg.includes('not set')
+  ) {
+    return false
+  }
+  return msg.includes('invalid credentials') || msg.includes('unauthorized')
+}
+
+function pruneExpiredLoginLocks(lockedAccounts: LockedAccount[], now = Date.now()): LockedAccount[] {
+  return lockedAccounts.filter(l => l.lockedUntil > now)
+}
+
+function resolveLoginLockState(
+  email: string,
+  failedByEmail: Record<string, number>,
+  lockedAccounts: LockedAccount[],
+): { locked: boolean; failedByEmail: Record<string, number>; lockedAccounts: LockedAccount[] } {
+  const now = Date.now()
+  const prunedLocks = pruneExpiredLoginLocks(lockedAccounts, now)
+  const fails = failedByEmail[email] ?? 0
+  if (fails < MAX_FAILED_LOGIN_ATTEMPTS) {
+    return { locked: false, failedByEmail, lockedAccounts: prunedLocks }
+  }
+  const lock = prunedLocks.find(l => l.email === email)
+  if (!lock || now >= lock.lockedUntil) {
+    return {
+      locked: false,
+      failedByEmail: { ...failedByEmail, [email]: 0 },
+      lockedAccounts: prunedLocks.filter(l => l.email !== email),
+    }
+  }
+  return { locked: true, failedByEmail, lockedAccounts: prunedLocks }
+}
+
+function registerLoginFailure(
+  email: string,
+  userId: string,
+  state: Pick<AuthState, 'failedByEmail' | 'lockedAccounts'>,
+): Pick<AuthState, 'failedByEmail' | 'lockedAccounts'> {
+  const fails = (state.failedByEmail[email] ?? 0) + 1
+  const failedByEmail = { ...state.failedByEmail, [email]: fails }
+  if (fails < MAX_FAILED_LOGIN_ATTEMPTS) {
+    return { failedByEmail, lockedAccounts: state.lockedAccounts }
+  }
+  const lock: LockedAccount = {
+    userId,
+    email,
+    failedAttempts: fails,
+    lockedUntil: Date.now() + LOGIN_LOCKOUT_MS,
+    reason: 'Too many failed attempts',
+  }
+  return {
+    failedByEmail,
+    lockedAccounts: [lock, ...state.lockedAccounts.filter(l => l.email !== email)],
+  }
+}
+
+function clearLoginFailures(
+  email: string,
+  state: Pick<AuthState, 'failedByEmail' | 'lockedAccounts'>,
+): Pick<AuthState, 'failedByEmail' | 'lockedAccounts'> {
+  return {
+    failedByEmail: { ...state.failedByEmail, [email]: 0 },
+    lockedAccounts: state.lockedAccounts.filter(l => l.email !== email),
+  }
 }
 
 interface AuthState {
@@ -260,9 +339,18 @@ export const useAuthStore = create<AuthState>()(
         const key = email.trim().toLowerCase()
 
         if (getApiBaseUrl()) {
-          const fails = get().failedByEmail[key] ?? 0
-          if (fails >= 5) {
-            return { ok: false, error: 'Account temporarily locked. Try again later or contact an administrator.' }
+          const lockState = resolveLoginLockState(key, get().failedByEmail, get().lockedAccounts)
+          if (
+            lockState.failedByEmail !== get().failedByEmail ||
+            lockState.lockedAccounts !== get().lockedAccounts
+          ) {
+            set({
+              failedByEmail: lockState.failedByEmail,
+              lockedAccounts: lockState.lockedAccounts,
+            })
+          }
+          if (lockState.locked) {
+            return { ok: false, error: LOGIN_LOCKOUT_MESSAGE }
           }
           if (!get().ipAllowedForCurrent()) {
             get().appendLocalAudit({
@@ -307,7 +395,7 @@ export const useAuthStore = create<AuthState>()(
               user,
               sessions: [session],
               devices: [device],
-              failedByEmail: { ...get().failedByEmail, [key]: 0 },
+              ...clearLoginFailures(key, get()),
               forgotMessage: null,
             })
             get().appendLocalAudit({
@@ -320,9 +408,20 @@ export const useAuthStore = create<AuthState>()(
             })
             return { ok: true }
           } catch (e) {
-            set(state => ({
-              failedByEmail: { ...state.failedByEmail, [key]: (state.failedByEmail[key] ?? 0) + 1 },
-            }))
+            if (loginFailureCountsTowardLockout(e)) {
+              const next = registerLoginFailure(key, 'unknown', get())
+              set(next)
+              if ((next.failedByEmail[key] ?? 0) >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                get().appendLocalAudit({
+                  at: Date.now(),
+                  actorId: null,
+                  actorEmail: key,
+                  action: 'auth.lockout.triggered',
+                  ip: nowIp(),
+                  meta: { email: key, mode: 'api' },
+                })
+              }
+            }
             get().appendLocalAudit({
               at: Date.now(),
               actorId: null,
@@ -332,6 +431,9 @@ export const useAuthStore = create<AuthState>()(
               meta: { mode: 'api' },
             })
             const msg = e instanceof Error ? e.message : 'Sign-in failed.'
+            if ((get().failedByEmail[key] ?? 0) >= MAX_FAILED_LOGIN_ATTEMPTS) {
+              return { ok: false, error: LOGIN_LOCKOUT_MESSAGE }
+            }
             return { ok: false, error: msg }
           }
         }
@@ -854,8 +956,19 @@ export const useAuthStore = create<AuthState>()(
         devices: state.devices,
         sessions: state.sessions,
       }),
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => state => {
         loadAuditFromStorage()
+        if (!state) return
+        const prunedLocks = pruneExpiredLoginLocks(state.lockedAccounts)
+        const failedByEmail = { ...state.failedByEmail }
+        for (const email of Object.keys(failedByEmail)) {
+          if ((failedByEmail[email] ?? 0) >= MAX_FAILED_LOGIN_ATTEMPTS) {
+            const lock = prunedLocks.find(l => l.email === email)
+            if (!lock) failedByEmail[email] = 0
+          }
+        }
+        state.lockedAccounts = prunedLocks
+        state.failedByEmail = failedByEmail
       },
     }
   )

@@ -3,10 +3,12 @@ import {
   fetchCarePlanCompose,
   fetchCarePlanInstance,
   fetchCarePlanInstances,
+  fetchCarePlanVersion,
   publishCarePlanApi,
   saveCarePlanDraftApi,
 } from '@/features/service-users/care-plans/api'
-import type { CarePlanComposeGap } from '@/features/service-users/care-plans/types'
+import type { CarePlanComposeGap, CarePlanInstance } from '@/features/service-users/care-plans/types'
+import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { serviceUserKeys } from '@/features/service-users/keys'
 
 const STALE_TIME = 30_000
@@ -15,6 +17,21 @@ export type SaveCarePlanDraftPayload = {
   values: Record<string, string | boolean>
   composedFrom?: Record<string, unknown>
   gaps?: CarePlanComposeGap[]
+}
+
+/** Keep Live Care Plans list in sync immediately after publish (before refetch settles). */
+export function upsertCarePlanInstanceInList(
+  prev: CarePlanInstance[] | undefined,
+  next: CarePlanInstance,
+): CarePlanInstance[] {
+  if (!prev?.length) return [next]
+  const idx = prev.findIndex(
+    (row) => row.id === next.id || row.carePathwayFormId === next.carePathwayFormId,
+  )
+  if (idx < 0) return [...prev, next]
+  const copy = [...prev]
+  copy[idx] = next
+  return copy
 }
 
 export function useCarePlanInstances(serviceUserId: string, enabled = true) {
@@ -39,6 +56,20 @@ export function useCarePlanInstance(
   })
 }
 
+export function useCarePlanPublishedVersion(
+  serviceUserId: string,
+  formId: string,
+  versionId: string | null | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: [...serviceUserKeys.carePlan(serviceUserId), 'version', formId, versionId] as const,
+    queryFn: ({ signal }) => fetchCarePlanVersion(serviceUserId, formId, versionId!, { signal }),
+    enabled: enabled && Boolean(serviceUserId) && Boolean(formId) && Boolean(versionId),
+    staleTime: STALE_TIME,
+  })
+}
+
 export function useSaveCarePlanDraft(serviceUserId: string, formId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -55,8 +86,23 @@ export function usePublishCarePlan(serviceUserId: string, formId: string) {
   return useMutation({
     mutationFn: (payload?: { summary?: string; gapAcknowledged?: boolean }) =>
       publishCarePlanApi(serviceUserId, formId, payload),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
+    onSuccess: async (published) => {
+      if (published) {
+        qc.setQueryData(
+          [...serviceUserKeys.carePlan(serviceUserId), 'instance', formId] as const,
+          published,
+        )
+        qc.setQueryData(
+          [...serviceUserKeys.carePlan(serviceUserId), 'instances'] as const,
+          (prev: CarePlanInstance[] | undefined) =>
+            upsertCarePlanInstanceInList(prev, published),
+        )
+      }
+      // Instances list (Live) + IA recommendations / accepted care plans on overview.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) }),
+        qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) }),
+      ])
     },
   })
 }

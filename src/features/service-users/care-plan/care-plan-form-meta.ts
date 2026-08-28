@@ -63,11 +63,11 @@ export function setMetaValue(
 export function parseRiskItems(values: CarePlanDraftValues): CarePlanRiskItem[] {
   try {
     const raw = metaString(values, CARE_PLAN_META.riskItems)
-    if (!raw) return DEFAULT_RISK_ITEMS
+    if (!raw) return []
     const parsed = JSON.parse(raw) as CarePlanRiskItem[]
-    return Array.isArray(parsed) ? parsed : DEFAULT_RISK_ITEMS
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    return DEFAULT_RISK_ITEMS
+    return []
   }
 }
 
@@ -75,12 +75,14 @@ export function serializeRiskItems(items: CarePlanRiskItem[]): string {
   return JSON.stringify(items)
 }
 
+/** @deprecated Kept for reference; Risk Profile no longer seeds fake defaults. */
 export const DEFAULT_RISK_ITEMS: CarePlanRiskItem[] = [
   { id: 'bleeding', name: 'Bleeding Risk' },
   { id: 'diabetes', name: 'Diabetes Risk' },
   { id: 'missed-medication', name: 'Missed medication' },
 ]
 
+/** @deprecated Care Actions tab no longer displays this stub; IA actions are loaded live. */
 export const DEFAULT_CARE_ACTIONS: CarePlanActionRow[] = [
   {
     id: '1',
@@ -90,6 +92,7 @@ export const DEFAULT_CARE_ACTIONS: CarePlanActionRow[] = [
   },
 ]
 
+/** @deprecated Care History tab Phase 1 uses published versions API, not this stub. */
 export const DEFAULT_CARE_HISTORY: CarePlanHistoryRow[] = [
   {
     id: '1',

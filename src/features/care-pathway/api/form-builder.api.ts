@@ -67,6 +67,7 @@ export async function saveCareFormSchema(
     sortOrder: number
     fields: {
       label: string
+      fieldKey?: string | null
       fieldType: FormFieldType
       placeholder?: string
       helpText?: string

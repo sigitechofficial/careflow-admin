@@ -95,7 +95,7 @@ export type InitialAssessmentAnswer = {
   carePlanTrigger: boolean
   question?: Pick<
     InitialAssessmentQuestion,
-    'id' | 'questionText' | 'questionType' | 'riskFlag' | 'carePlanTrigger'
+    'id' | 'questionText' | 'questionType' | 'riskFlag' | 'carePlanTrigger' | 'metadata'
   >
 }
 

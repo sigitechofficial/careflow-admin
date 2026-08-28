@@ -24,3 +24,13 @@ export function carePlanInstancesByFormId(
 export function isCarePlanPublished(displayStatus: CarePlanInstanceDisplayStatus | undefined): boolean {
   return displayStatus === 'PUBLISHED' || displayStatus === 'PUBLISHED_WITH_DRAFT'
 }
+
+/**
+ * IA suggestion cards (Use / Ignore) belong only to an editable draft session.
+ * Published-only "View plan" (displayStatus PUBLISHED) must stay a read-only final document.
+ */
+export function shouldShowCarePlanIaSuggestions(
+  displayStatus: CarePlanInstanceDisplayStatus | undefined | null,
+): boolean {
+  return displayStatus === 'DRAFT' || displayStatus === 'PUBLISHED_WITH_DRAFT'
+}

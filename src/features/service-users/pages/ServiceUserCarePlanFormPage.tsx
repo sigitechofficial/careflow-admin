@@ -20,6 +20,7 @@ import {
   mergeComposedValues,
   useCarePlanCompose,
   useCarePlanInstance,
+  useCarePlanPublishedVersion,
   usePublishCarePlan,
   useSaveCarePlanDraft,
 } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
@@ -32,14 +33,19 @@ import { CarePlanReviewBadge } from '@/features/service-users/care-plans/compone
 import { CarePlanVersionHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanVersionHistoryPanel'
 import { Button } from '@/shared/ui/button'
 import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
+import { shouldShowCarePlanIaSuggestions } from '@/features/service-users/care-plans/care-plan-instance-status'
 import {
   applySuggestionToValues,
   hydrateCarePlanEditorValues,
+  hydrateComposedFromForEditor,
   isExplicitSuggestionCompose,
+  isHybridCompose,
   markProvenanceEdited,
   mergeComposedFromOnIgnore,
   mergeComposedFromOnUse,
+  mergeHybridRefreshValues,
   readIgnoredSuggestionIds,
+  shouldHydrateFromPublishedVersion,
 } from '@/features/service-users/care-plans/care-plan-suggestion-state'
 
 export default function ServiceUserCarePlanFormPage() {
@@ -73,10 +79,22 @@ export default function ServiceUserCarePlanFormPage() {
 
   const instanceQuery = useCarePlanInstance(serviceUserId, formId, apiConfigured && Boolean(formId))
   const composeQuery = useCarePlanCompose(serviceUserId, formId, apiConfigured && Boolean(formId))
+  const hydrateFromPublished = shouldHydrateFromPublishedVersion({
+    draft: instanceQuery.data?.draft,
+    latestPublishedVersionId: instanceQuery.data?.latestPublishedVersion?.id,
+  })
+  const publishedVersionQuery = useCarePlanPublishedVersion(
+    serviceUserId,
+    formId,
+    instanceQuery.data?.latestPublishedVersion?.id,
+    apiConfigured && Boolean(formId) && hydrateFromPublished,
+  )
   const saveDraftMutation = useSaveCarePlanDraft(serviceUserId, formId)
   const publishMutation = usePublishCarePlan(serviceUserId, formId)
   const actorId = useAuthStore((s) => s.user?.id)
   const explicitSuggestions = isExplicitSuggestionCompose(composeQuery.data)
+  /** Published "View plan" must not show IA suggestion cards; draft edit keeps them. */
+  const showIaSuggestions = shouldShowCarePlanIaSuggestions(instanceQuery.data?.displayStatus)
 
   React.useEffect(() => {
     if (!apiConfigured || !serviceUserId || !formId || instanceQuery.isLoading) return
@@ -96,19 +114,35 @@ export default function ServiceUserCarePlanFormPage() {
 
   React.useEffect(() => {
     if (valuesHydrated || instanceQuery.isLoading) return
+    if (hydrateFromPublished && (publishedVersionQuery.isLoading || !publishedVersionQuery.data)) return
+
     const draftValues = instanceQuery.data?.draft?.values
     const hydrated = hydrateCarePlanEditorValues({
       draftValues,
+      publishedValues: hydrateFromPublished ? publishedVersionQuery.data?.values ?? null : undefined,
       compose: composeQuery.data,
     })
     if (hydrated === 'wait') return
     setValues(hydrated)
-    setComposedFrom({
-      ...(composeQuery.data?.composedFrom ?? {}),
-      ...(instanceQuery.data?.draft?.composedFrom ?? {}),
-    })
+    setComposedFrom(
+      hydrateComposedFromForEditor({
+        // Published snapshot is the source of truth once the draft was consumed.
+        draftComposedFrom: hydrateFromPublished
+          ? publishedVersionQuery.data?.composedFrom
+          : instanceQuery.data?.draft?.composedFrom,
+        compose: hydrateFromPublished ? null : composeQuery.data,
+      }),
+    )
     setValuesHydrated(true)
-  }, [valuesHydrated, instanceQuery.isLoading, instanceQuery.data, composeQuery.data])
+  }, [
+    valuesHydrated,
+    instanceQuery.isLoading,
+    instanceQuery.data,
+    composeQuery.data,
+    hydrateFromPublished,
+    publishedVersionQuery.isLoading,
+    publishedVersionQuery.data,
+  ])
 
   const persistDraft = React.useCallback(
     (nextValues: CarePlanDraftValues, nextComposedFrom: Record<string, unknown>) => {
@@ -129,13 +163,29 @@ export default function ServiceUserCarePlanFormPage() {
         toastSuccess('Refreshed', 'Suggestions updated from the latest assessment. Existing care plan values were not changed.')
         return
       }
-      setValues((current) => mergeComposedValues(current, compose.values, 'empty_only'))
+      const mergedComposedFrom = hydrateComposedFromForEditor({
+        draftComposedFrom: composedFrom,
+        compose,
+      })
+      const mergeValues = isHybridCompose(compose)
+        ? (current: Record<string, string | boolean>) =>
+            mergeHybridRefreshValues(current, compose.values, mergedComposedFrom)
+        : (current: Record<string, string | boolean>) =>
+            mergeComposedValues(current, compose.values, 'empty_only')
+      const nextValues = mergeValues(values)
+      setValues((current) => mergeValues(current))
+      setComposedFrom(mergedComposedFrom)
       await saveDraftMutation.mutateAsync({
-        values: mergeComposedValues(values, compose.values, 'empty_only'),
-        composedFrom: compose.composedFrom,
+        values: nextValues,
+        composedFrom: mergedComposedFrom,
         gaps: compose.gaps,
       })
-      toastSuccess('Refreshed', 'Empty fields updated from assessment and profile sources.')
+      toastSuccess(
+        'Refreshed',
+        isHybridCompose(compose)
+          ? 'Empty fields updated from assessment. Review suggestions and prefilled values.'
+          : 'Empty fields updated from assessment and profile sources.',
+      )
     } catch (e) {
       toastApiError(e, 'Could not refresh from sources')
     }
@@ -191,10 +241,13 @@ export default function ServiceUserCarePlanFormPage() {
           summary: payload.summary,
         }),
       )
-      .then(() => {
+      .then(async () => {
         setPublishOpen(false)
-        toastSuccess('Published', 'Care plan version published.')
-        void instanceQuery.refetch()
+        toastSuccess('Care Plan published successfully')
+        await navigate({
+          to: '/service-users/$serviceUserId/care-plan',
+          params: { serviceUserId },
+        })
       })
       .catch((e) => toastApiError(e, 'Could not publish care plan'))
   }
@@ -218,7 +271,11 @@ export default function ServiceUserCarePlanFormPage() {
   }
 
   const workspaceLoading =
-    loading || ensuringInstance || instanceQuery.isLoading || (!valuesHydrated && composeQuery.isLoading)
+    loading ||
+    ensuringInstance ||
+    instanceQuery.isLoading ||
+    (!valuesHydrated &&
+      (composeQuery.isLoading || (hydrateFromPublished && publishedVersionQuery.isLoading)))
 
   return (
     <div className="flex min-h-full flex-col bg-[#f4f6f8] pb-12 dark:bg-background">
@@ -316,11 +373,12 @@ export default function ServiceUserCarePlanFormPage() {
               onPublish={() => setPublishOpen(true)}
               onSaveDraft={onSaveDraft}
               saving={saveDraftMutation.isPending || publishMutation.isPending}
-              suggestions={composeQuery.data?.suggestions}
-              ignoredSuggestionIds={readIgnoredSuggestionIds(composedFrom)}
-              onUseSuggestion={onUseSuggestion}
-              onIgnoreSuggestion={onIgnoreSuggestion}
-              onKeepCurrentSuggestion={onIgnoreSuggestion}
+              suggestions={showIaSuggestions ? composeQuery.data?.suggestions : undefined}
+              ignoredSuggestionIds={showIaSuggestions ? readIgnoredSuggestionIds(composedFrom) : undefined}
+              composedFrom={composedFrom}
+              onUseSuggestion={showIaSuggestions ? onUseSuggestion : undefined}
+              onIgnoreSuggestion={showIaSuggestions ? onIgnoreSuggestion : undefined}
+              onKeepCurrentSuggestion={showIaSuggestions ? onIgnoreSuggestion : undefined}
             />
 
             <CarePlanVersionHistoryPanel serviceUserId={serviceUserId} formId={formId} />

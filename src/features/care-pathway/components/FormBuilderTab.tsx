@@ -305,8 +305,10 @@ export function FormBuilderTab() {
         sortOrder: s.sortOrder,
         fields: s.fields.map((f) => {
           const options = parseFieldOptions(f.optionsJson)
+          const fieldKey = f.fieldKey?.trim().toLowerCase() || undefined
           return {
             label: f.label,
+            fieldKey,
             fieldType: f.fieldType,
             placeholder: f.placeholder?.trim() || undefined,
             helpText: f.helpText?.trim() || undefined,
