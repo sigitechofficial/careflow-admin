@@ -13,6 +13,11 @@ import {
   deleteComplianceType,
   deleteLookupItem,
   deleteServiceUserCareType,
+  fetchWelfareOutcomes,
+  createWelfareOutcome,
+  updateWelfareOutcome,
+  deleteWelfareOutcome,
+  type WelfareOutcomeTone,
   deleteServiceUserEthnicity,
   deleteServiceUserFundingType,
   deleteServiceUserLanguage,
@@ -457,5 +462,60 @@ export function useUpdateVitalAcceptedRangeCatalog() {
       void qc.invalidateQueries({ queryKey: settingsKeys.vitalAcceptedRanges() })
       void qc.invalidateQueries({ queryKey: vitalAcceptedRangeLookupKey })
     },
+  })
+}
+
+// ─── On-entry welfare outcomes ──────────────────────────────────────────────
+
+export function useWelfareOutcomes(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.welfareOutcomes(),
+    queryFn: () => fetchWelfareOutcomes(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateWelfareOutcome() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      code: string
+      label: string
+      tone?: WelfareOutcomeTone
+      sortOrder?: number
+    }) => createWelfareOutcome(body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.welfareOutcomes() }),
+  })
+}
+
+export function useUpdateWelfareOutcome() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        code?: string
+        label?: string
+        tone?: WelfareOutcomeTone
+        sortOrder?: number
+        isActive?: boolean
+      }
+    }) => updateWelfareOutcome(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.welfareOutcomes() }),
+  })
+}
+
+export function useDeleteWelfareOutcome() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteWelfareOutcome(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.welfareOutcomes() }),
   })
 }

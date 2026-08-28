@@ -25,28 +25,31 @@ export function VisitPlanCarerAvailabilityRow({ icon, label, children, className
 
 type Props = {
   breakdown: CarerAvailabilityBreakdown
+  /** Hide the "Visit vs working hours" time-mismatch block (e.g. in the Change carers modal). */
+  hideTimeMismatch?: boolean
 }
 
-function accordionSummary(breakdown: CarerAvailabilityBreakdown): string {
+function accordionSummary(breakdown: CarerAvailabilityBreakdown, showTimeMismatch: boolean): string {
   if (breakdown.availableDays.length > 0) {
     return `Available on ${formatVisitPlanDayList(breakdown.availableDays)}`
   }
   if (breakdown.unavailableDays.length > 0) {
     return `Not working on ${formatVisitPlanDayList(breakdown.unavailableDays)}`
   }
-  if (breakdown.timeMismatchMessages.length > 0) {
+  if (showTimeMismatch && breakdown.timeMismatchMessages.length > 0) {
     return 'Visit vs working hours'
   }
   return 'Availability breakdown'
 }
 
-export function VisitPlanCarerAvailabilityBreakdown({ breakdown }: Props) {
+export function VisitPlanCarerAvailabilityBreakdown({ breakdown, hideTimeMismatch }: Props) {
   const { availableDays, unavailableDays, fortnightNotes, timeMismatchMessages } = breakdown
+  const showTimeMismatch = !hideTimeMismatch && timeMismatchMessages.length > 0
   const hasRows =
     availableDays.length > 0 ||
     unavailableDays.length > 0 ||
     fortnightNotes.length > 0 ||
-    timeMismatchMessages.length > 0
+    showTimeMismatch
 
   if (!hasRows) return null
 
@@ -59,7 +62,7 @@ export function VisitPlanCarerAvailabilityBreakdown({ breakdown }: Props) {
         )}
       >
         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-        <span className="min-w-0 truncate">{accordionSummary(breakdown)}</span>
+        <span className="min-w-0 truncate">{accordionSummary(breakdown, showTimeMismatch)}</span>
       </summary>
       <div className="space-y-2.5 border-t border-border/60 px-2.5 py-2">
         {availableDays.length > 0 ? (
@@ -95,7 +98,7 @@ export function VisitPlanCarerAvailabilityBreakdown({ breakdown }: Props) {
           </VisitPlanCarerAvailabilityRow>
         ) : null}
 
-        {timeMismatchMessages.length > 0 ? (
+        {showTimeMismatch ? (
           <div className="space-y-1.5 border-t border-border/60 pt-2">
             <p className={contentAlertHeadingClass}>
               Visit vs working hours

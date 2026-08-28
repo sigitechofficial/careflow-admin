@@ -1899,14 +1899,26 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   }, [])
 
   const selectSubmission = (id: string) => {
-    if (id === submissionId) return
     promptIfUnsaved(() => {
-      setManualSubmissionId(id)
-      setDraftAnswers({})
-      dirtyAnswerQuestionIdsRef.current.clear()
-      answersHydratedRef.current = false
-      skipAutosaveRef.current = true
-      patchUrlSearch({ section: 1, tab: 'form' })
+      if (id !== submissionId) {
+        setManualSubmissionId(id)
+        setDraftAnswers({})
+        dirtyAnswerQuestionIdsRef.current.clear()
+        answersHydratedRef.current = false
+        skipAutosaveRef.current = true
+      }
+      void navigate({
+        to: ENTERPRISE_PATH,
+        search: (prev) =>
+          buildInitialAssessmentEnterpriseSearch({
+            ...parseInitialAssessmentEnterpriseSearch(prev),
+            serviceUserId: selectedId || undefined,
+            submissionId: id,
+            section: 1,
+            tab: 'form',
+          }),
+        replace: true,
+      })
     })
   }
 

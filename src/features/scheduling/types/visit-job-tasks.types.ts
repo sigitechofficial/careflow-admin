@@ -214,13 +214,9 @@ export function sortVisitJobTasksForCarer(tasks: VisitJobTaskRow[]): VisitJobTas
   })
 }
 
-const OPTIONAL_TASK_PRIORITIES = new Set(['optional', 'low', 'nice_to_have'])
-
-/** Same required/optional split as carer app Tasks tab. */
-export function visitJobTaskIsRequired(task: Pick<VisitJobTaskRow, 'priority' | 'isRequired' | 'isExtra'>): boolean {
-  if (typeof task.isRequired === 'boolean') return task.isRequired
-  if (task.isExtra) return true
-  return !OPTIONAL_TASK_PRIORITIES.has(String(task.priority ?? 'routine').toLowerCase())
+/** 24 Aug 2026: every visit task must be addressed before clock-out. */
+export function visitJobTaskIsRequired(_task: Pick<VisitJobTaskRow, 'priority' | 'isRequired' | 'isExtra'>): boolean {
+  return true
 }
 
 export function visitJobTaskOutcomeLabel(outcome: VisitJobTaskOutcome | null | undefined): string {

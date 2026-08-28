@@ -49,6 +49,29 @@ function dayChipTone(
   return 'border-border bg-muted/40 text-muted-foreground'
 }
 
+/** Per-day availability detail shown when hovering a day chip. */
+function dayStatus(
+  day: number,
+  availability: VisitPlanCarerCandidate['availability'],
+): { label: string; detail: string } {
+  const { availableDays, unavailableDays, timeMismatchDays = [], timeMismatchMessages = [] } = availability
+  const dayLabel = VISIT_PLAN_DAY_LABELS[day] ?? ''
+  const message = timeMismatchMessages.find((m) => m.startsWith(`On ${dayLabel}`))
+  if (timeMismatchDays.includes(day)) {
+    return {
+      label: 'Partly outside working hours',
+      detail: message ?? 'The visit time only partly overlaps this carer’s working pattern.',
+    }
+  }
+  if (unavailableDays.includes(day)) {
+    return { label: 'Not working', detail: 'This carer is not scheduled to work on this day.' }
+  }
+  if (availableDays.includes(day)) {
+    return { label: 'Available', detail: 'The visit fits within this carer’s working pattern.' }
+  }
+  return { label: 'No working pattern', detail: 'No working pattern is set for this day.' }
+}
+
 function ComplianceIssuesInfo({
   count,
   employeeId,
@@ -123,6 +146,8 @@ type Props = {
   isAssigned?: boolean
   /** Brief pop animation when the carer was just selected. */
   justAssigned?: boolean
+  /** Hide the "Visit vs working hours" block (e.g. in the Change carers modal). */
+  hideTimeMismatch?: boolean
 }
 
 export function VisitPlanCarerCandidateDetails({
@@ -133,6 +158,7 @@ export function VisitPlanCarerCandidateDetails({
   availabilityOnly = false,
   isAssigned = false,
   justAssigned = false,
+  hideTimeMismatch = false,
 }: Props) {
   const slotDays = [...slotDaysOfWeek].sort((a, b) => a - b)
   const availabilityBreakdown = buildCarerAvailabilityBreakdown(c.availability, slotDays)
@@ -194,20 +220,38 @@ export function VisitPlanCarerCandidateDetails({
             <Clock className="h-3.5 w-3.5" aria-hidden />
             Working pattern · this slot
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {slotDays.map((day) => (
-              <span
-                key={day}
-                className={cn(
-                  'inline-flex min-w-[2.5rem] items-center justify-center rounded-md border px-2 py-1 text-xs font-medium',
-                  dayChipTone(day, c.availability),
-                )}
-              >
-                {VISIT_PLAN_DAY_LABELS[day]}
-              </span>
-            ))}
-          </div>
-          <VisitPlanCarerAvailabilityBreakdown breakdown={availabilityBreakdown} />
+          <TooltipProvider delayDuration={100}>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {slotDays.map((day) => {
+                const status = dayStatus(day, c.availability)
+                return (
+                  <Tooltip key={day}>
+                    <TooltipTrigger asChild>
+                      <span
+                        tabIndex={0}
+                        className={cn(
+                          'inline-flex min-w-[2.5rem] cursor-help items-center justify-center rounded-md border px-2 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          dayChipTone(day, c.availability),
+                        )}
+                      >
+                        {VISIT_PLAN_DAY_LABELS[day]}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start" className="max-w-[16rem] space-y-1 p-2.5 text-xs leading-relaxed">
+                      <p className="font-semibold text-foreground">
+                        {VISIT_PLAN_DAY_LABELS[day]} · {status.label}
+                      </p>
+                      <p className="text-muted-foreground">{status.detail}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              })}
+            </div>
+          </TooltipProvider>
+          <VisitPlanCarerAvailabilityBreakdown
+            breakdown={availabilityBreakdown}
+            hideTimeMismatch={hideTimeMismatch}
+          />
         </div>
       ) : null}
 

@@ -7,6 +7,8 @@ import {
   CircleDashed,
   Clock,
   ExternalLink,
+  LogIn,
+  LogOut,
   MapPin,
   Pill,
   Activity,
@@ -16,7 +18,10 @@ import {
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
-import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import {
+  formatOrganisationDateTime,
+  formatOrganisationIsoTime,
+} from '@/shared/lib/organisation-display-format.store'
 import { BodyMapHandoverPreview } from '@/features/service-users/body-map/components/BodyMapHandoverPreview'
 import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
@@ -27,10 +32,13 @@ import { VisitBodyMapCapture } from '@/features/scheduling/components/VisitBodyM
 import { VisitJobTasksPanel } from '@/features/scheduling/components/VisitJobTasksPanel'
 import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedicationPanel'
 import { VisitObservationsPanel } from '@/features/scheduling/components/VisitObservationsPanel'
+import { VisitLogTimelinePanel } from '@/features/scheduling/components/VisitLogTimelinePanel'
 import {
   fetchVisitObservations,
+  getScheduledJob,
   type VisitObservationRecordedRow,
 } from '@/features/scheduling/api/scheduling.api'
+import { schedulingKeys } from '@/features/scheduling/keys'
 import {
   buildScheduleVisitContext,
   type ScheduleVisitContext,
@@ -50,6 +58,7 @@ export type ScheduleVisitWorkspaceTab =
   | 'tasks'
   | 'medication'
   | 'observations'
+  | 'log'
   | 'body-map'
 
 type Props = {
@@ -115,25 +124,44 @@ export function ScheduleVisitWorkspaceContent({
     )
   }, [obsQuery.data?.recordedThisVisit])
 
+  // Fetch the freshest copy of this job by id so attendance (clock in/out),
+  // status and actual times reflect the latest server state — the `job` prop
+  // comes from the day-timeline board query (keyed by date), which is not
+  // refetched when the workspace reopens. This query IS refetched on open
+  // (its key includes the jobId, which the sheet invalidates on open).
+  const freshJobQuery = useQuery({
+    queryKey: schedulingKeys.job(job.id),
+    queryFn: () => getScheduledJob(job.id),
+    enabled: Boolean(job.id),
+  })
+  const liveJob = freshJobQuery.data ?? job
+
   const visitSlot = timelineJobVisitPlanSlot(job)
   const deliveryAssessment = React.useMemo(
     () =>
-      job.deliveryAssessment ??
+      liveJob.deliveryAssessment ??
       assessVisitDeliveryFromJobLike({
-        status: job.status,
-        requiredCarers: job.requiredCarers,
-        allocatedCarers: job.allocatedCarers,
-        allocations: job.allocations,
-        scheduledStartDateTime: job.scheduledStartDateTime,
-        scheduledEndDateTime: job.scheduledEndDateTime,
-        actualStartDateTime: job.actualStartDateTime,
-        actualEndDateTime: job.actualEndDateTime,
-        visitPlan: job.visitPlan,
-        visits: job.visits,
-        latestAttendanceEventType: job.attendanceEvents?.[0]?.eventType,
+        status: liveJob.status,
+        requiredCarers: liveJob.requiredCarers,
+        allocatedCarers: liveJob.allocatedCarers,
+        allocations: liveJob.allocations,
+        scheduledStartDateTime: liveJob.scheduledStartDateTime,
+        scheduledEndDateTime: liveJob.scheduledEndDateTime,
+        actualStartDateTime: liveJob.actualStartDateTime,
+        actualEndDateTime: liveJob.actualEndDateTime,
+        visitPlan: liveJob.visitPlan,
+        visits: liveJob.visits,
+        latestAttendanceEventType: liveJob.attendanceEvents?.[0]?.eventType,
       }),
-    [job],
+    [liveJob],
   )
+
+  const clockInLabel = liveJob.actualStartDateTime
+    ? formatOrganisationIsoTime(liveJob.actualStartDateTime)
+    : null
+  const clockOutLabel = liveJob.actualEndDateTime
+    ? formatOrganisationIsoTime(liveJob.actualEndDateTime)
+    : null
 
   return (
     <div
@@ -150,6 +178,7 @@ export function ScheduleVisitWorkspaceContent({
             ['tasks', 'Tasks'],
             ['medication', 'Medication'],
             ['observations', 'Observations'],
+            ['log', 'Log'],
             ['body-map', 'Body map'],
           ] as const
         ).map(([id, label]) => (
@@ -185,6 +214,29 @@ export function ScheduleVisitWorkspaceContent({
                 <span>Date: {date}</span>
               </div>
             </dl>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1.5 border-t border-border/60 pt-3 text-sm">
+              <span className="flex items-center gap-1.5">
+                <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="text-muted-foreground">Clocked in:</span>
+                {clockInLabel ? (
+                  <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
+                ) : (
+                  <span className="font-medium text-amber-600 dark:text-amber-500">
+                    Carer not clocked in yet
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <LogOut className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="text-muted-foreground">Clocked out:</span>
+                {clockOutLabel ? (
+                  <span className="font-medium tabular-nums text-foreground">{clockOutLabel}</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </span>
+            </div>
           </section>
 
           <VisitDeliveryStatusPanel
@@ -376,6 +428,7 @@ export function ScheduleVisitWorkspaceContent({
           <VisitMedicationPanel
             serviceUserId={job.serviceUserId}
             visitDate={date}
+            visitId={visitContext.scheduledVisitId}
             medicationRoundCode={job.visitPlan?.medicationRoundCode ?? job.visitPlan?.slotCode}
             medicationRoundLabel={job.visitPlan?.label}
           />
@@ -387,6 +440,10 @@ export function ScheduleVisitWorkspaceContent({
             scheduledJobId={job.id}
             scheduledVisitId={visitContext.scheduledVisitId}
           />
+        </div>
+      ) : tab === 'log' ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <VisitLogTimelinePanel jobId={job.id} />
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">

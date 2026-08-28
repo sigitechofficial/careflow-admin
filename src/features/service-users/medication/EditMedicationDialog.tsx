@@ -115,10 +115,12 @@ export function EditMedicationDialog({
   const [routeId, setRouteId] = React.useState(MEDICATION_SELECT_NONE)
   const [medicationTypeId, setMedicationTypeId] = React.useState(MEDICATION_SELECT_NONE)
   const [howAssisted, setHowAssisted] = React.useState(MEDICATION_SELECT_NONE)
+  const [reasonForMedication, setReasonForMedication] = React.useState('')
   const [instructions, setInstructions] = React.useState('')
   const [notes, setNotes] = React.useState('')
   const [isControlledMedication, setIsControlledMedication] = React.useState(false)
   const [isDecongestantMedication, setIsDecongestantMedication] = React.useState(false)
+  const [isPrnMedication, setIsPrnMedication] = React.useState(false)
   const [formError, setFormError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -132,14 +134,18 @@ export function EditMedicationDialog({
     setRouteId(medication.route?.id ?? MEDICATION_SELECT_NONE)
     setMedicationTypeId(medication.medicationType?.id ?? MEDICATION_SELECT_NONE)
     setHowAssisted(howAssistedToSelectValue(medication.howAssisted))
+    setReasonForMedication(medication.reasonForMedication ?? '')
     setInstructions(medication.instructions ?? '')
     setNotes(medication.notes ?? '')
     setIsControlledMedication(medication.isControlledMedication)
     setIsDecongestantMedication(medication.isDecongestantMedication ?? false)
+    setIsPrnMedication(medication.medicationKind === 'PRN')
     setFormError(null)
   }, [open, medication])
 
-  const isPrn = medication?.medicationKind === 'PRN'
+  const wasPrn = medication?.medicationKind === 'PRN'
+  const isPrn = isPrnMedication
+  const inBlisterPack = Boolean(medication?.medicationPack?.id)
   const saving =
     updateMutation.isPending || statusMutation.isPending || deleteMutation.isPending
   const disabled = !canEdit || saving || lookupsLoading
@@ -154,10 +160,12 @@ export function EditMedicationDialog({
     routeId: routeId !== MEDICATION_SELECT_NONE ? routeId : undefined,
     medicationTypeId: medicationTypeId !== MEDICATION_SELECT_NONE ? medicationTypeId : undefined,
     howAssisted: howAssisted !== MEDICATION_SELECT_NONE ? howAssisted : undefined,
+    reasonForMedication: reasonForMedication.trim() || undefined,
     instructions: instructions.trim() || undefined,
     notes: notes.trim() || undefined,
     isControlledMedication,
     isDecongestantMedication,
+    medicationKind: isPrnMedication ? 'PRN' : 'REGULAR',
   })
 
   async function saveDetails() {
@@ -437,23 +445,37 @@ export function EditMedicationDialog({
 
             <div className="space-y-1 sm:col-span-2">
               <label className="text-sm font-medium">Reason for medication</label>
+              <p className="text-xs text-muted-foreground">Why this is prescribed. Shown to the carer.</p>
               <textarea
-                value={instructions}
-                onChange={e => setInstructions(e.target.value)}
-                rows={3}
+                value={reasonForMedication}
+                onChange={e => setReasonForMedication(e.target.value)}
+                rows={2}
                 disabled={disabled}
-                placeholder="Reason for medication…"
+                placeholder="e.g. High blood pressure"
                 className={MEDICATION_TEXTAREA_CLASS}
               />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <label className="text-sm font-medium">Medication notes</label>
+              <label className="text-sm font-medium">Instructions</label>
+              <p className="text-xs text-muted-foreground">How to give this medicine. Shown to the carer.</p>
+              <textarea
+                value={instructions}
+                onChange={e => setInstructions(e.target.value)}
+                rows={2}
+                disabled={disabled}
+                placeholder="e.g. Take with food in the morning"
+                className={MEDICATION_TEXTAREA_CLASS}
+              />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Office notes</label>
+              <p className="text-xs text-muted-foreground">Internal only. Not shown on the employee app.</p>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                rows={3}
+                rows={2}
                 disabled={disabled}
-                placeholder="Any medication note…"
+                placeholder="Office-only note…"
                 className={MEDICATION_TEXTAREA_CLASS}
               />
             </div>
@@ -481,6 +503,28 @@ export function EditMedicationDialog({
 
           <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
             <p className="text-sm font-medium text-foreground">Administration times</p>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isPrnMedication}
+                onChange={e => setIsPrnMedication(e.target.checked)}
+                disabled={disabled || wasPrn || inBlisterPack}
+              />
+              PRN medication (as required — no fixed daily times)
+            </label>
+            {wasPrn ? (
+              <p className="text-xs text-muted-foreground">
+                This line is already PRN. Changing it back to a timed dose is not available here.
+              </p>
+            ) : inBlisterPack ? (
+              <p className="text-xs text-muted-foreground">
+                Blister pack medicines cannot be PRN. Remove it from the pack first.
+              </p>
+            ) : isPrnMedication ? (
+              <p className="text-xs text-muted-foreground">
+                Save will remove fixed times. It will show on the carer app under PRN · as required.
+              </p>
+            ) : null}
             {isPrn ? (
               <p className="text-sm text-muted-foreground">PRN — as required (no fixed daily times).</p>
             ) : (medication.schedules?.length ?? 0) > 0 ? (

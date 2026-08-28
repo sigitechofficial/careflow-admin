@@ -74,10 +74,12 @@ function AdministrationTimingSection({ ev }: { ev: MedicationEventDetail }) {
             {ev.actualDateTime ? formatGbDateTime(ev.actualDateTime) : '—'}
           </div>
         </div>
+        {/* Recorded at — hidden on UI for now (per request)
         <div className="record-summary-item">
           <div className="label">Recorded at</div>
           <div className="value text-sm tabular-nums">{formatGbDateTime(ev.createdAt)}</div>
         </div>
+        */}
         {roundWindow && (
           <div className="record-summary-item">
             <div className="label">Admin window</div>
@@ -97,6 +99,12 @@ function AdministrationTimingSection({ ev }: { ev: MedicationEventDetail }) {
           <div className="record-summary-item">
             <div className="label">Dose given</div>
             <div className="value">{ev.doseGiven}</div>
+          </div>
+        )}
+        {ev.supportLevel && (
+          <div className="record-summary-item">
+            <div className="label">How supported</div>
+            <div className="value">{ev.supportLevel}</div>
           </div>
         )}
         <div className="record-summary-item">
@@ -123,7 +131,8 @@ function AdministrationTimingSection({ ev }: { ev: MedicationEventDetail }) {
           mono
           value={ev.actualDateTime ? formatGbDateTime(ev.actualDateTime) : '—'}
         />
-        <DetailRow label="Recorded at" mono value={formatGbDateTime(ev.createdAt)} />
+        {/* Recorded at — hidden on UI for now (per request) */}
+        {/* <DetailRow label="Recorded at" mono value={formatGbDateTime(ev.createdAt)} /> */}
         {ev.updatedAt && ev.updatedAt !== ev.createdAt && (
           <DetailRow label="Last updated" mono value={formatGbDateTime(ev.updatedAt)} />
         )}

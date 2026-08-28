@@ -1,7 +1,5 @@
 import { AlertTriangle, CheckSquare, Flag, ListChecks, Loader2, Users, X } from 'lucide-react'
 import { Checkbox } from '@/shared/ui/toggle-controls'
-import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { formatOpsClockTime, formatOpsHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
@@ -12,7 +10,6 @@ import {
   stripVisitTaskOutcomeNotes,
   visitJobTaskIsRequired,
   visitJobTaskOutcomeLabel,
-  visitTaskNeedsInputFields,
   VISIT_JOB_TASK_OUTCOMES,
   type VisitJobTaskOutcome,
   type VisitJobTaskRow,
@@ -46,6 +43,28 @@ type Props = {
   /** When true, fills parent height and scrolls the task list inside. */
   fillHeight?: boolean
   listMaxHeightClass?: string
+  /** Normalised observation type code → { label, value }, to surface the linked
+   * observation on an obs-linked task (parity with the carer app). */
+  observationsByType?: Record<string, RecordedObservation>
+}
+
+export type RecordedObservation = { label: string; value: string; notes?: string | null }
+
+/** Normalise an observation type code so `skin_integrity` == `SKIN_INTEGRITY`. */
+export function normalizeObservationCode(code: string | null | undefined): string {
+  return (code ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_')
+}
+
+function observationForTask(
+  task: VisitJobTaskRow,
+  observationsByType: Record<string, RecordedObservation> | undefined,
+): RecordedObservation | null {
+  if (!observationsByType) return null
+  for (const code of [task.observationTypeCode, task.linkedTypeCode]) {
+    const key = normalizeObservationCode(code)
+    if (key && observationsByType[key]?.value?.trim()) return observationsByType[key]
+  }
+  return null
 }
 
 function VisitJobTaskCarerGuidance({
@@ -101,15 +120,87 @@ function formatTaskCompletedLabel(task: VisitJobTaskRow): string | null {
   return `Recorded · ${when}`
 }
 
-function VisitJobTaskCarerRecord({ task }: { task: VisitJobTaskRow }) {
+/** One labelled field in the carer record; shows "Not recorded" for blanks. */
+function CarerField({ label, value }: { label: string; value?: string | null }) {
+  const has = Boolean(value && value.trim())
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          'whitespace-pre-wrap text-sm leading-relaxed',
+          has ? 'text-foreground' : 'italic text-muted-foreground',
+        )}
+      >
+        {has ? value : 'Not recorded'}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Observation value field — renders a multi-field observation value (backend
+ * joins sub-fields with " · ") as ONE line per sub-field for readability, with
+ * the "Label:" part muted and the value emphasised. Single-value observations
+ * (temperature, etc.) render as a single line.
+ */
+function CarerObservationField({ label, value }: { label: string; value?: string | null }) {
+  const parts = (value ?? '')
+    .split(' · ')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      {parts.length === 0 ? (
+        <p className="text-sm italic leading-relaxed text-muted-foreground">Not recorded</p>
+      ) : (
+        <ul className="mt-0.5 space-y-0.5">
+          {parts.map((part, index) => {
+            const sep = part.indexOf(': ')
+            return (
+              <li key={index} className="text-sm leading-relaxed">
+                {sep > 0 ? (
+                  <>
+                    <span className="text-muted-foreground">{part.slice(0, sep)}:</span>{' '}
+                    <span className="font-medium text-foreground">{part.slice(sep + 2)}</span>
+                  </>
+                ) : (
+                  <span className="font-medium text-foreground">{part}</span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function VisitJobTaskCarerRecord({
+  task,
+  observation,
+}: {
+  task: VisitJobTaskRow
+  observation?: RecordedObservation | null
+}) {
   const outcome = inferVisitJobTaskOutcome(task)
   if (!outcome && !task.isCompleted) return null
-  const notes = stripVisitTaskOutcomeNotes(task.notes)
-  const value = displayVisitTaskRecordedValue(task.recordedValue)
   const completedLabel = formatTaskCompletedLabel(task)
+  const spec = task.completionInput
+  const needsValue = spec?.inputMode === 'value' || spec?.inputMode === 'value_and_note'
+  const valueLabel = spec?.valueLabel?.trim() || 'Reading'
+  // Named completion note (e.g. Insulin → "Injection site"), else generic.
+  const noteLabel = spec?.noteLabel?.trim() || 'Task outcome notes'
+  const value = displayVisitTaskRecordedValue(task.recordedValue)
+  const outcomeNotes = stripVisitTaskOutcomeNotes(task.notes)
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
+    <div className="mt-3 space-y-3 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Carer app record
@@ -129,21 +220,23 @@ function VisitJobTaskCarerRecord({ task }: { task: VisitJobTaskRow }) {
       {completedLabel ? (
         <p className="text-xs text-muted-foreground">{completedLabel}</p>
       ) : null}
-      {value ? (
-        <p className="text-sm text-foreground">
-          <span className="font-medium">Value: </span>
-          {value}
-        </p>
-      ) : null}
-      {notes ? (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-          <span className="font-medium">Notes: </span>
-          {notes}
-        </p>
-      ) : null}
-      {!value && !notes && outcome ? (
-        <p className="text-xs text-muted-foreground">No value or notes were recorded with this outcome.</p>
-      ) : null}
+
+      <div className="space-y-2.5">
+        {observation ? (
+          <>
+            <CarerObservationField label={observation.label} value={observation.value} />
+            {observation.notes?.trim() ? (
+              <CarerField label="Observation notes" value={observation.notes} />
+            ) : null}
+          </>
+        ) : null}
+        {/* Task value only when NOT obs-linked (the observation already carries
+            the reading, so we don't duplicate it). */}
+        {needsValue && !observation ? (
+          <CarerField label={valueLabel} value={value} />
+        ) : null}
+        <CarerField label={noteLabel} value={outcomeNotes} />
+      </div>
     </div>
   )
 }
@@ -161,6 +254,7 @@ export function VisitJobTasksChecklist({
   idPrefix = 'visit-job-task',
   fillHeight = false,
   listMaxHeightClass = 'max-h-[min(24rem,50vh)]',
+  observationsByType,
 }: Props) {
   if (loading) {
     return (
@@ -205,14 +299,6 @@ export function VisitJobTasksChecklist({
   const renderTaskCard = (task: VisitJobTaskRow) => {
     const outcome = inferVisitJobTaskOutcome(task)
     const showOutcomeFields = Boolean(task.isCompleted)
-    const showClinicalInputs =
-      showOutcomeFields &&
-      outcome === 'completed' &&
-      visitTaskNeedsInputFields(task.completionInput)
-    const showOutcomeNotes =
-      showOutcomeFields && (outcome === 'partial' || outcome === 'declined')
-    const valueId = `${idPrefix}-value-${task.assignmentId}`
-    const noteId = `${idPrefix}-note-${task.assignmentId}`
     const priority = normalizeVisitTaskPriority(task.priority)
     const taskVisual = groupVisual(task.groupCode)
 
@@ -309,19 +395,11 @@ export function VisitJobTasksChecklist({
                   />
                 ) : null}
 
-                <VisitJobTaskCarerRecord task={task} />
+                <VisitJobTaskCarerRecord
+                  task={task}
+                  observation={observationForTask(task, observationsByType)}
+                />
 
-                {visitTaskNeedsInputFields(task.completionInput) && !showOutcomeFields ? (
-                  <p className="mt-2 text-xs font-medium text-teal-700 dark:text-teal-300">
-                    {task.observationTypeCode
-                      ? 'When marked complete, enter the observation reading — it is saved to Observations.'
-                      : task.completionInput.inputMode === 'value'
-                        ? 'When marked complete, record a reading below.'
-                        : task.completionInput.inputMode === 'note'
-                          ? 'When marked complete, add a description below.'
-                          : 'When marked complete, record a reading and description below.'}
-                  </p>
-                ) : null}
               </div>
             </div>
 
@@ -372,93 +450,14 @@ export function VisitJobTasksChecklist({
                       )
                     })}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    {
-                      VISIT_JOB_TASK_OUTCOMES.find((o) => o.value === (outcome ?? 'completed'))
-                        ?.description
-                    }
-                  </p>
+                  {/* Outcome description ("… notes required") removed — the notes
+                      editor is gone, so the hint is no longer relevant. */}
                 </div>
 
-                {showClinicalInputs ? (
-                  <>
-                    {task.completionInput.inputMode === 'value' ||
-                    task.completionInput.inputMode === 'value_and_note' ? (
-                      <div className="space-y-1">
-                        <Label htmlFor={valueId} className="text-xs text-muted-foreground">
-                          {task.observationTypeCode
-                            ? (task.completionInput.valueLabel
-                                ? `Observation value (${task.completionInput.valueLabel})`
-                                : 'Observation value')
-                            : (task.completionInput.valueLabel ?? 'Recorded value')}
-                        </Label>
-                        <Input
-                          id={valueId}
-                          type="text"
-                          disabled={disabled}
-                          value={displayVisitTaskRecordedValue(task.recordedValue)}
-                          placeholder={task.completionInput.valuePlaceholder}
-                          onChange={(event) =>
-                            onTaskChange(task.assignmentId, {
-                              recordedValue: event.target.value,
-                            })
-                          }
-                        />
-                        {task.observationTypeCode ? (
-                          <p className="text-[11px] text-muted-foreground">
-                            Saved to the service user’s Observations record for this visit.
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {task.completionInput.inputMode === 'note' ||
-                    task.completionInput.inputMode === 'value_and_note' ? (
-                      <div className="space-y-1">
-                        <Label htmlFor={noteId} className="text-xs text-muted-foreground">
-                          {task.completionInput.noteLabel ?? 'Notes'}
-                        </Label>
-                        <textarea
-                          id={noteId}
-                          rows={2}
-                          disabled={disabled}
-                          value={task.notes ?? ''}
-                          placeholder={task.completionInput.notePlaceholder}
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          onChange={(event) =>
-                            onTaskChange(task.assignmentId, {
-                              notes: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    ) : null}
-                  </>
-                ) : null}
-
-                {showOutcomeNotes ? (
-                  <div className="space-y-1">
-                    <Label htmlFor={noteId} className="text-xs text-muted-foreground">
-                      {outcome === 'partial' ? 'Partial notes (required)' : 'Decline notes (required)'}
-                    </Label>
-                    <textarea
-                      id={noteId}
-                      rows={2}
-                      disabled={disabled}
-                      value={task.notes ?? ''}
-                      placeholder={
-                        outcome === 'partial'
-                          ? 'What was completed and what remains…'
-                          : 'Why was this task declined…'
-                      }
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      onChange={(event) =>
-                        onTaskChange(task.assignmentId, {
-                          notes: event.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                ) : null}
+                {/* Editable value input + note textarea removed — the carer's
+                    recorded value and notes are already shown read-only in the
+                    "Carer app record" box above (no duplicate editors). Outcome
+                    is still adjustable via the pills. */}
               </div>
             ) : null}
           </div>

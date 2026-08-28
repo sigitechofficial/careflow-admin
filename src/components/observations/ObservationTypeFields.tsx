@@ -21,6 +21,15 @@ import {
   type CompositeDraft,
   type ObservationFormVariant,
 } from '@/features/service-users/observations/observation-payload'
+import {
+  joinSleepReasonCodes,
+  parseSleepReasonCodes,
+  SLEEP_QUALITY_OPTIONS,
+  SLEEP_REASON_OPTIONS,
+  sleepQualityNeedsReasons,
+} from '@/features/service-users/observations/observation-sleep-catalog'
+import { ObservationAlignedForm } from '@/components/observations/ObservationAlignedForm'
+import { ALIGN_FORMS } from '@/features/service-users/observations/observation-align-catalog'
 
 type Props = {
   activeType: ObservationTypeRow
@@ -81,10 +90,6 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   )
 }
 
-const BOWEL_TYPES = ['NORMAL', 'CONSTIPATED', 'DIARRHOEA', 'NONE', 'OTHER'] as const
-const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'OTHER'] as const
-const INTAKE_LEVELS = ['NONE', 'PART', 'MOST', 'ALL'] as const
-const POSITIONS = ['SUPINE', 'LEFT', 'RIGHT', 'PRONE', 'SITTING', 'OTHER'] as const
 export function ObservationTypeFields({
   activeType,
   variant,
@@ -214,143 +219,18 @@ export function ObservationTypeFields({
     )
   }
 
-  if (variant === 'falls') {
+  if (ALIGN_FORMS[variant]) {
     return (
-      <CompositeSimpleForm
+      <ObservationAlignedForm
+        variant={variant}
         canSave={canSave}
+        compositeDraft={compositeDraft}
+        onCompositeChange={onCompositeChange}
         notes={notes}
         onNotesChange={onNotesChange}
         recordedAtLocal={recordedAtLocal}
         onRecordedAtChange={onRecordedAtChange}
-      >
-        <FieldLabel required>Did a fall occur?</FieldLabel>
-        <Select
-          value={compositeDraft.hadFall ?? 'false'}
-          onValueChange={v => onCompositeChange('hadFall', v)}
-          disabled={!canSave}
-        >
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="false">No</SelectItem>
-            <SelectItem value="true">Yes</SelectItem>
-          </SelectContent>
-        </Select>
-        <FieldLabel>Location / details</FieldLabel>
-        <Input
-          value={compositeDraft.location ?? ''}
-          onChange={e => onCompositeChange('location', e.target.value)}
-          disabled={!canSave}
-        />
-      </CompositeSimpleForm>
-    )
-  }
-
-  if (variant === 'bowel_movement') {
-    return (
-      <CompositeSimpleForm
-        canSave={canSave}
-        notes={notes}
-        onNotesChange={onNotesChange}
-        recordedAtLocal={recordedAtLocal}
-        onRecordedAtChange={onRecordedAtChange}
-      >
-        <FieldLabel required>Bowel type</FieldLabel>
-        <Select
-          value={compositeDraft.bowelType ?? 'NORMAL'}
-          onValueChange={v => onCompositeChange('bowelType', v)}
-          disabled={!canSave}
-        >
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {BOWEL_TYPES.map(t => (
-              <SelectItem key={t} value={t}>
-                {t.charAt(0) + t.slice(1).toLowerCase().replace('_', ' ')}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </CompositeSimpleForm>
-    )
-  }
-
-  if (variant === 'meals') {
-    return (
-      <CompositeSimpleForm
-        canSave={canSave}
-        notes={notes}
-        onNotesChange={onNotesChange}
-        recordedAtLocal={recordedAtLocal}
-        onRecordedAtChange={onRecordedAtChange}
-      >
-        <FieldLabel required>Meal</FieldLabel>
-        <Select
-          value={compositeDraft.mealType ?? 'BREAKFAST'}
-          onValueChange={v => onCompositeChange('mealType', v)}
-          disabled={!canSave}
-        >
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MEAL_TYPES.map(t => (
-              <SelectItem key={t} value={t}>
-                {t.charAt(0) + t.slice(1).toLowerCase()}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <FieldLabel required>Intake</FieldLabel>
-        <Select
-          value={compositeDraft.intakeLevel ?? 'PART'}
-          onValueChange={v => onCompositeChange('intakeLevel', v)}
-          disabled={!canSave}
-        >
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {INTAKE_LEVELS.map(t => (
-              <SelectItem key={t} value={t}>
-                {t.charAt(0) + t.slice(1).toLowerCase()}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </CompositeSimpleForm>
-    )
-  }
-
-  if (variant === 'repositioning') {
-    return (
-      <CompositeSimpleForm
-        canSave={canSave}
-        notes={notes}
-        onNotesChange={onNotesChange}
-        recordedAtLocal={recordedAtLocal}
-        onRecordedAtChange={onRecordedAtChange}
-      >
-        <FieldLabel required>Position</FieldLabel>
-        <Select
-          value={compositeDraft.position ?? 'SUPINE'}
-          onValueChange={v => onCompositeChange('position', v)}
-          disabled={!canSave}
-        >
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {POSITIONS.map(t => (
-              <SelectItem key={t} value={t}>
-                {t.charAt(0) + t.slice(1).toLowerCase()}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </CompositeSimpleForm>
+      />
     )
   }
 
@@ -415,6 +295,78 @@ export function ObservationTypeFields({
         recordedAtLocal={recordedAtLocal}
         onRecordedAtChange={onRecordedAtChange}
       />
+    )
+  }
+
+  if (variant === 'sleep') {
+    const quality = compositeDraft.quality ?? ''
+    const selectedReasons = new Set(parseSleepReasonCodes(compositeDraft.reasons))
+    const showReasons = sleepQualityNeedsReasons(quality)
+    return (
+      <CompositeSimpleForm
+        canSave={canSave}
+        notes={notes}
+        onNotesChange={onNotesChange}
+        recordedAtLocal={recordedAtLocal}
+        onRecordedAtChange={onRecordedAtChange}
+      >
+        <p className="text-sm text-muted-foreground">
+          How did the person sleep this visit / overnight?
+        </p>
+        <FieldLabel required>Sleep</FieldLabel>
+        <Select
+          value={quality || '__none__'}
+          onValueChange={v => {
+            const next = v === '__none__' ? '' : v
+            onCompositeChange('quality', next)
+            if (!sleepQualityNeedsReasons(next)) onCompositeChange('reasons', '')
+          }}
+          disabled={!canSave}
+        >
+          <SelectTrigger className="max-w-xs">
+            <SelectValue placeholder="Select sleep" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Select sleep</SelectItem>
+            {SLEEP_QUALITY_OPTIONS.map(o => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {showReasons ? (
+          <div className="space-y-2">
+            <FieldLabel>Likely reason</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {SLEEP_REASON_OPTIONS.map(o => {
+                const on = selectedReasons.has(o.value)
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    disabled={!canSave}
+                    onClick={() => {
+                      const next = new Set(selectedReasons)
+                      if (on) next.delete(o.value)
+                      else next.add(o.value)
+                      onCompositeChange('reasons', joinSleepReasonCodes([...next]))
+                    }}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                      on
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:border-foreground/40',
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+      </CompositeSimpleForm>
     )
   }
 

@@ -29,6 +29,8 @@ export const settingsKeys = {
 
   bodyMapRecordTypes: () => [...settingsKeys.all(), 'body-map-record-types'] as const,
 
+  welfareOutcomes: () => [...settingsKeys.all(), 'welfare-outcomes'] as const,
+
   allergyCatalog: () => [...settingsKeys.all(), 'allergy-catalog'] as const,
 
   taskCatalogue: () => [...settingsKeys.all(), 'task-catalogue'] as const,

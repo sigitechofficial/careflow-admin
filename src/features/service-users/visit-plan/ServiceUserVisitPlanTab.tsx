@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Loader2, Package, PanelRightOpen, Pause, Play, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
+import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Loader2, Package, PanelRightOpen, Pause, Play, RefreshCw, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
@@ -70,13 +70,13 @@ import {
   assignedEmployeeIdsFromSlots,
   formatSlotAssignedCarersSummary,
   normalizeSlotCarerFields,
-  slotAssignedEmployeeIds,
+  slotGlobalCarerIds,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import {
+  assignCarersToGroup,
   buildCarerByDayAssignSlot,
   formatCarerAssignmentGroupDaysLabel,
   groupCarerAssignments,
-  replaceGroupField,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
 import { shouldShowVisitPlanCarePathwayPanel } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import {
@@ -209,7 +209,7 @@ function toSlotInput(slots: VisitPlanSlot[]) {
   })
 }
 
-/** Generate rota step number when visible; Backfill follows (or becomes 5 when Generate is hidden). */
+/** Regenerate rota step number when visible; Backfill follows (or becomes 5 when Regenerate is hidden). */
 const GENERATE_ROTA_STEP = 5
 const BACKFILL_STEP = SHOW_GENERATE_ROTA_SECTION ? 6 : 5
 
@@ -692,7 +692,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       return
     }
     const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
-    setGeneratePreviewMode('generate')
+    setGeneratePreviewMode('regenerate')
     setGeneratePreview(null)
     setGeneratePreviewLoading(true)
     setGeneratePreviewOpen(true)
@@ -704,7 +704,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       setGeneratePreview(preview)
     } catch (e) {
       setGeneratePreviewOpen(false)
-      toastApiError(e, 'Could not preview generate schedule')
+      toastApiError(e, 'Could not preview regenerate rota')
     } finally {
       setGeneratePreviewLoading(false)
     }
@@ -797,13 +797,19 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       })
       setGeneratePreviewOpen(false)
       toastSuccess(
-        'Rota generated',
-        `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
+        generatePreviewMode === 'regenerate' ? 'Rota regenerated' : 'Rota generated',
+        generatePreviewMode === 'regenerate'
+          ? `${result.visitsCreated} visits created; ${result.visitsSkipped} existing visits synced.`
+          : `${result.visitsCreated} visits created (${result.visitsSkipped} already existed).`,
       )
     } catch (e) {
       toastApiError(
         e,
-        generatePreviewMode === 'backfill' ? 'Could not backfill visits' : 'Could not generate schedule',
+        generatePreviewMode === 'backfill'
+          ? 'Could not backfill visits'
+          : generatePreviewMode === 'regenerate'
+            ? 'Could not regenerate rota'
+            : 'Could not generate schedule',
       )
     }
   }
@@ -1007,7 +1013,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                 </TableHeader>
                 <TableBody>
                   {slots.map((slot, rowIndex) => {
-                    const assignedIds = slotAssignedEmployeeIds(slot)
+                    const assignedIds = slotGlobalCarerIds(slot)
                     const carerSummary = formatSlotAssignedCarersSummary(slot, employeeNameById)
                     return (
                       <TableRow
@@ -1143,11 +1149,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                             value={slot.requiredCarers}
                             aria-label={`${slot.label} carers per visit`}
                             onCommit={(requiredCarers) => {
-                              const assigned = slotAssignedEmployeeIds(slot)
+                              // Slot default count trims the global carers only; day-specific advanced
+                              // rows keep their own carers and per-row counts untouched.
+                              const globalIds = slotGlobalCarerIds(slot)
                               const assignedEmployeeIds =
-                                assigned.length > requiredCarers ? assigned.slice(0, requiredCarers) : assigned
-                              const carerAssignments = (slot.carerAssignments ?? []).filter((a) =>
-                                assignedEmployeeIds.includes(a.employeeId),
+                                globalIds.length > requiredCarers
+                                  ? globalIds.slice(0, requiredCarers)
+                                  : globalIds
+                              const carerAssignments = (slot.carerAssignments ?? []).filter(
+                                (a) => a.dayOfWeek != null || assignedEmployeeIds.includes(a.employeeId),
                               )
                               updateSlot(rowIndex, { requiredCarers, assignedEmployeeIds, carerAssignments })
                             }}
@@ -1364,7 +1374,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               slot={carersModalSlot}
               onChange={(assignedEmployeeIds) => {
                 if (carersModalIndex < 0) return
-                const carerAssignments = assignedEmployeeIds.map((employeeId, index) => ({
+                // Replace only the global (all-days) carer rows; keep any day-specific advanced rows.
+                const daySpecific = (carersModalSlot.carerAssignments ?? []).filter(
+                  (a) => a.dayOfWeek != null,
+                )
+                const globalRows = assignedEmployeeIds.map((employeeId, index) => ({
                   dayOfWeek: null,
                   employeeId,
                   role: (index === 0 ? 'LEAD' : 'SECONDARY') as VisitPlanSlot['carerAssignments'][number]['role'],
@@ -1373,6 +1387,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   plannedEndTime: null,
                   sortOrder: index,
                 }))
+                const carerAssignments = [...globalRows, ...daySpecific]
                 updateSlot(carersModalIndex, { assignedEmployeeIds, carerAssignments })
               }}
             />
@@ -1387,21 +1402,24 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               serviceUserId={serviceUserId}
               slot={carerByDayAssignContext.assignSlot}
               dialogTitle={`${
-                carerByDayAssignContext.group.template.employeeId ? 'Change carer' : 'Assign carer'
+                carerByDayAssignContext.group.carers.some((carer) => carer.employeeId?.trim())
+                  ? 'Change carers'
+                  : 'Assign carers'
               } — ${carerByDayAssignContext.slot.label}`}
-              dialogDescription={`Pick a carer for ${formatCarerAssignmentGroupDaysLabel(
+              dialogDescription={`Pick carers for ${formatCarerAssignmentGroupDaysLabel(
                 carerByDayAssignContext.group.days,
               )} (${carerByDayAssignContext.slot.plannedStartTime}–${carerByDayAssignContext.slot.plannedEndTime}).`}
               onChange={(assignedEmployeeIds) => {
                 const ctx = carerByDayAssignContext
                 if (!ctx) return
-                const employeeId = assignedEmployeeIds[0] ?? ''
-                const carerAssignments = replaceGroupField(ctx.slot.carerAssignments, ctx.group, {
-                  employeeId,
-                })
+                const carerAssignments = assignCarersToGroup(
+                  ctx.slot.carerAssignments,
+                  ctx.group,
+                  assignedEmployeeIds,
+                )
                 updateSlot(
                   ctx.slotIndex,
-                  employeeId
+                  assignedEmployeeIds.length
                     ? normalizeSlotCarerFields({ ...ctx.slot, carerAssignments })
                     : { carerAssignments },
                 )
@@ -1574,19 +1592,20 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
             </div>
       </ContentCard>
 
-      {/* Temporarily hidden — re-enable with SHOW_GENERATE_ROTA_SECTION = true */}
+      {/* Forward regenerate — creates missing visits and syncs carers on existing ones */}
       {SHOW_GENERATE_ROTA_SECTION && workingPlan?.status === 'ACTIVE' ? (
         <ContentCard className="space-y-4 border-2 border-sky-200 dark:border-sky-900">
           <ContentSectionHeader
-            icon={<Sparkles className="h-5 w-5" aria-hidden />}
+            icon={<RefreshCw className="h-5 w-5" aria-hidden />}
             iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             kicker={`Step ${GENERATE_ROTA_STEP}`}
             kickerClassName="text-sky-700 dark:text-sky-300"
-            title="Generate rota"
+            title="Regenerate rota"
             titleAs="h3"
             description={
               <>
-                Create scheduled visits from this plan going forward (max 31 days). Leave To empty for the
+                Apply the saved visit plan to the schedule (max 31 days). Creates any missing visits and
+                syncs carers on existing ones — including day-specific carers. Leave To empty for the
                 configured horizon. View results in{' '}
                 <Link to="/scheduling/view" search={{ date: generateFrom }} className="text-sky-600 underline">
                   Scheduling
@@ -1630,12 +1649,12 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   onClick={() => void handleGenerate()}
                   disabled={generateSchedule.isPending}
                 >
-                  {generateSchedule.isPending && generatePreviewMode === 'generate' ? (
+                  {generateSchedule.isPending && generatePreviewMode === 'regenerate' ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <CalendarClock className="mr-2 h-4 w-4" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                   )}
-                  Generate visits
+                  Regenerate rota
                 </Button>
               </div>
         </ContentCard>

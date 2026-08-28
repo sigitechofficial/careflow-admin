@@ -121,6 +121,7 @@ export function AddIndividualMedicationForm({
   const [medicationTypeId, setMedicationTypeId] = React.useState(SELECT_NONE)
   const [expiryDate, setExpiryDate] = React.useState('')
   const [reasonForMedication, setReasonForMedication] = React.useState('')
+  const [medicationInstructions, setMedicationInstructions] = React.useState('')
   const [medicationNotes, setMedicationNotes] = React.useState('')
   const [schedulePattern, setSchedulePattern] = React.useState<SchedulePattern>('DAILY')
   const [frequencyIntervalDays, setFrequencyIntervalDays] = React.useState('1')
@@ -323,7 +324,8 @@ export function AddIndividualMedicationForm({
           : undefined,
       monthlyAnchorToStartDate:
         !isPrnMedication && schedulePattern === 'MONTHLY' ? monthlyAnchorToStart : undefined,
-      instructions: reasonForMedication.trim() || undefined,
+      reasonForMedication: reasonForMedication.trim() || undefined,
+      instructions: medicationInstructions.trim() || undefined,
       notes: medicationNotes.trim() || undefined,
       howAssisted: howAssistedLabel,
       isControlledMedication,
@@ -346,6 +348,7 @@ export function AddIndividualMedicationForm({
     setMedicationTypeId(SELECT_NONE)
     setExpiryDate('')
     setReasonForMedication('')
+    setMedicationInstructions('')
     setMedicationNotes('')
     setSchedulePattern('DAILY')
     setFrequencyIntervalDays('1')
@@ -535,23 +538,37 @@ export function AddIndividualMedicationForm({
 
         <div className="space-y-1 sm:col-span-2">
           <label className="text-sm font-medium">Reason for medication</label>
+          <p className="text-xs text-muted-foreground">Why this is prescribed. Shown to the carer.</p>
           <textarea
             value={reasonForMedication}
             onChange={e => setReasonForMedication(e.target.value)}
-            rows={3}
+            rows={2}
             disabled={disabled}
-            placeholder="Reason for medication…"
+            placeholder="e.g. High blood pressure"
             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-sm font-medium">Medication notes</label>
+          <label className="text-sm font-medium">Instructions</label>
+          <p className="text-xs text-muted-foreground">How to give this medicine. Shown to the carer.</p>
+          <textarea
+            value={medicationInstructions}
+            onChange={e => setMedicationInstructions(e.target.value)}
+            rows={2}
+            disabled={disabled}
+            placeholder="e.g. Take with food in the morning"
+            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-sm font-medium">Office notes</label>
+          <p className="text-xs text-muted-foreground">Internal only. Not shown on the employee app.</p>
           <textarea
             value={medicationNotes}
             onChange={e => setMedicationNotes(e.target.value)}
-            rows={3}
+            rows={2}
             disabled={disabled}
-            placeholder="Any medication note…"
+            placeholder="Office-only note…"
             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>

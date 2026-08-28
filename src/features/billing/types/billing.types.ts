@@ -1,5 +1,6 @@
 export type BillingTabId =
   | 'dashboard'
+  | 'service-user-invoices'
   | 'pay-cards'
   | 'charge-cards'
   | 'funding-contracts'

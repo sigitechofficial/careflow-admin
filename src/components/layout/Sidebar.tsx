@@ -47,6 +47,7 @@ import {
   GraduationCap,
   CalendarOff,
   Landmark,
+  Briefcase,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -243,7 +244,41 @@ const navItems: NavItem[] = [
       { label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
     ],
   },
-  { label: 'Recruitment',       icon: <UserPlus className="h-5 w-5" />,      href: '/in-progress', ready: false, badge: 5 },
+  {
+    label: 'HR',
+    icon: <Briefcase className="h-5 w-5" />,
+    href: '/hr/employees',
+    children: [
+      {
+        label: 'HR Dashboard',
+        icon: <Users className="h-4 w-4" />,
+        href: '/hr/employees',
+        permission: 'hr.read',
+        navTestId: 'nav-hr-employees',
+      },
+      {
+        label: 'Recruitment',
+        icon: <UserPlus className="h-4 w-4" />,
+        href: '/hr/recruitment',
+        anyPermission: ['hr.vacancies.read', 'hr.candidates.read'],
+        navTestId: 'nav-hr-recruitment',
+      },
+      {
+        label: 'Vacancies',
+        icon: <Briefcase className="h-4 w-4" />,
+        href: '/hr/vacancies',
+        permission: 'hr.vacancies.read',
+        navTestId: 'nav-hr-vacancies',
+      },
+      {
+        label: 'Candidates',
+        icon: <Users className="h-4 w-4" />,
+        href: '/hr/candidates',
+        permission: 'hr.candidates.read',
+        navTestId: 'nav-hr-candidates',
+      },
+    ],
+  },
   {
     label: 'Reports',
     icon: <BarChart3 className="h-5 w-5" />,
@@ -454,18 +489,26 @@ const navItems: NavItem[] = [
         permission: 'billing.invoice_runs.read',
         navTestId: 'nav-billing-invoices',
       },
+      {
+        label: 'Service user invoices',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/billing/service-user-invoices',
+        permission: 'billing.invoice_runs.read',
+        navTestId: 'nav-billing-service-user-invoices',
+      },
       // Payments + Audit & export: hidden for now. Routes remain available by URL if needed.
     ],
   },
   {
     label: 'Accident & Incident',
     icon: <AlertTriangle className="h-5 w-5" />,
-    href: '/accidents-incidents/view',
-    badge: 2,
-    badgeVariant: 'destructive',
+    href: '/incidents/dashboard',
     children: [
-      { label: 'View Accidents & Incidents', icon: <Eye className="h-4 w-4" />, href: '/accidents-incidents/view' },
-      { label: 'Raise Accidents/Incidents', icon: <PlusCircle className="h-4 w-4" />, href: '/accidents-incidents/raise' },
+      { label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
+      { label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
+      { label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
+      { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read' },
+      { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/incidents/analytics', permission: 'incidents.view_analytics' },
     ],
   },
   { label: 'Policies',          icon: <BookOpen className="h-5 w-5" />,      href: '/in-progress', ready: false },
