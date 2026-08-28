@@ -489,6 +489,13 @@ const navItems: NavItem[] = [
         permission: 'billing.invoice_runs.read',
         navTestId: 'nav-billing-invoices',
       },
+      {
+        label: 'Service user invoices',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/billing/service-user-invoices',
+        permission: 'billing.invoice_runs.read',
+        navTestId: 'nav-billing-service-user-invoices',
+      },
       // Payments + Audit & export: hidden for now. Routes remain available by URL if needed.
     ],
   },

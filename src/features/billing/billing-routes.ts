@@ -11,6 +11,7 @@ export const BILLING_SETUP_TAB_IDS: BillingTabId[] = [
 
 /** Ops tabs promoted to dedicated full-page routes. */
 export const BILLING_SECTION_PATHS = {
+  'service-user-invoices': '/billing/service-user-invoices',
   'visit-reconciliation': '/billing/visit-reconciliation',
   'payroll-runs': '/billing/payroll-runs',
   'invoice-runs': '/billing/invoice-runs',

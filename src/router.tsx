@@ -115,6 +115,7 @@ import PayrollRunsPage from '@/features/billing/pages/PayrollRunsPage'
 import SalaryOverviewPage from '@/features/billing/pages/SalaryOverviewPage'
 import EmployeePayoutsPage from '@/features/billing/pages/EmployeePayoutsPage'
 import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
+import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoicesPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
@@ -265,6 +266,7 @@ const pageTitles: Record<string, string> = {
   '/billing/payroll-runs': 'Visit pay runs',
   '/billing/salary': 'Salary',
   '/billing/employee-payouts': 'Employee payouts',
+  '/billing/service-user-invoices': 'Service user invoices',
   '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
   '/billing/payments': 'Payments',
@@ -1545,6 +1547,13 @@ const billingEmployeePayoutsRoute = createRoute({
   component: EmployeePayoutsPage,
 })
 
+const billingServiceUserInvoicesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/service-user-invoices',
+  beforeLoad: requirePermission('billing.invoice_runs.read'),
+  component: ServiceUserInvoicesPage,
+})
+
 const billingInvoiceRunsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/invoice-runs',
@@ -1865,6 +1874,7 @@ const routeTree = rootRoute.addChildren([
     billingPayrollRunsRoute,
     billingSalaryRoute,
     billingEmployeePayoutsRoute,
+    billingServiceUserInvoicesRoute,
     billingInvoiceRunsRoute,
     billingInvoiceRunDetailRoute,
     billingPaymentsRoute,

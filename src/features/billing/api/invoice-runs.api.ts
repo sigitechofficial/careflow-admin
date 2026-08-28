@@ -2,6 +2,7 @@ import { apiJson, ApiError, type ApiEnvelope } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
+import type { ServiceUserInvoicesOverview } from '@/features/billing/types/service-user-invoices.types'
 
 export type InvoiceRunRow = {
   id: string
@@ -187,6 +188,17 @@ export async function fetchServiceUserInvoices(
 ): Promise<ServiceUserInvoicesSummary> {
   const res = await apiJson<ApiEnvelope<ServiceUserInvoicesSummary>>(
     `/billing/invoice-runs/service-user/${serviceUserId}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function fetchServiceUserInvoicesOverview(
+  month?: string,
+): Promise<ServiceUserInvoicesOverview> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : ''
+  const res = await apiJson<ApiEnvelope<ServiceUserInvoicesOverview>>(
+    `/billing/invoice-runs/service-users${query}`,
     { method: 'GET' },
   )
   return res.data
