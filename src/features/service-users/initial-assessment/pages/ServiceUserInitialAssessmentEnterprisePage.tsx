@@ -1,7 +1,15 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ClipboardCheck, FileCode2, FileDown, Loader2, PanelRightClose, PanelRightOpen, TestTube2 } from 'lucide-react'
+import {
+  ClipboardCheck,
+  FileCode2,
+  FileDown,
+  FlaskConical,
+  Loader2,
+  PanelRightClose,
+  PanelRightOpen,
+} from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastInfo, toastSuccess } from '@/shared/lib/toast'
@@ -28,6 +36,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Button } from '@/shared/ui/button'
+import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
 import { InitialAssessmentAuditPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAuditPanel'
@@ -40,7 +49,7 @@ import { InitialAssessmentManagerReviewPanel } from '@/features/service-users/in
 import { InitialAssessmentReopenDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentReopenDialog'
 import { InitialAssessmentHtmlExportDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentHtmlExportDialog'
 import { InitialAssessmentPdfDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentPdfDialog'
-import { InitialAssessmentPlaywrightTestsDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentPlaywrightTestsDialog'
+import { InitialAssessmentQaDemoDataDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentQaDemoDataDialog'
 import { InitialAssessmentWorkspaceSkeleton } from '@/features/service-users/initial-assessment/components/InitialAssessmentWorkspaceSkeleton'
 import { InitialAssessmentProfileCard } from '@/features/service-users/initial-assessment/components/InitialAssessmentProfileCard'
 import { InitialAssessmentStatusBadge } from '@/features/service-users/initial-assessment/components/InitialAssessmentStatusBadge'
@@ -57,6 +66,7 @@ import { signOffQuestionIds } from '@/features/service-users/initial-assessment/
 import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 import { HOLISTIC_FORM_TITLE } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import { InitialAssessmentDocumentTabContent } from '@/features/service-users/initial-assessment/components/InitialAssessmentDocumentTabContent'
+import { SectionQaDemoDataPanel } from '@/features/service-users/initial-assessment/components/SectionQaDemoDataPanel'
 import {
   buildHolisticTabNavStatus,
   firstHolisticTabForEnterpriseSection,
@@ -208,10 +218,11 @@ import type {
   InitialAssessmentStatus,
 } from '@/features/service-users/initial-assessment/types'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
-import { runIaAutofillDev } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
+import type { IaAutofillLevel } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
 import {
-  IA_PLAYWRIGHT_TESTS_BUTTON_TOOLTIP,
-  iaAutofillLevelUi,
+  IA_CONDITION_LEVEL_LABELS,
+  IA_QA_DEMO_DATA_BUTTON_LABEL,
+  IA_QA_DEMO_DATA_BUTTON_TOOLTIP,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
@@ -280,6 +291,25 @@ function serviceUserDetailLabel(detail: ServiceUserDetail): string {
     lastName: detail.lastName,
     serviceUserNumber: detail.serviceUserNumber,
   })
+}
+
+/**
+ * Best-effort check for user-entered data inside a worksheet/metadata object (QA Demo Data
+ * overwrite confirm). Treats non-empty strings, real numbers, `true`, and non-empty arrays as
+ * "has data"; empty defaults read as no data. Dev/QA-only heuristic — safe to over-report.
+ */
+function worksheetHasMeaningfulValue(value: unknown): boolean {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim() !== ''
+  if (typeof value === 'number') return Number.isFinite(value) && value !== 0
+  if (typeof value === 'boolean') return value === true
+  if (Array.isArray(value)) return value.some((v) => worksheetHasMeaningfulValue(v))
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((v) =>
+      worksheetHasMeaningfulValue(v),
+    )
+  }
+  return false
 }
 
 export default function ServiceUserInitialAssessmentEnterprisePage() {
@@ -514,33 +544,18 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     setHtmlExportOpen(true)
   }, [submission?.id])
 
-  const [iaAutofillRunning, setIaAutofillRunning] = React.useState<
-    'low' | 'normal' | 'critical' | null
-  >(null)
-  const [playwrightTestsOpen, setPlaywrightTestsOpen] = React.useState(false)
+  // QA Demo Data (dev/QA only): a chosen scenario drives per-section "Fill Demo Data".
+  const [qaDemoSeverity, setQaDemoSeverity] = React.useState<IaAutofillLevel | null>(null)
+  const [qaDemoDialogOpen, setQaDemoDialogOpen] = React.useState(false)
 
-  const runIaPlaywrightAutofill = React.useCallback(
-    async (level: 'low' | 'normal' | 'critical') => {
-      if (!selectedId || iaAutofillRunning) return
-      setIaAutofillRunning(level)
-      try {
-        const ui = iaAutofillLevelUi(level)
-        const message = await runIaAutofillDev(selectedId, level)
-        toastSuccess(ui.completeToastTitle, message)
-        await queryClient.invalidateQueries({ queryKey: initialAssessmentKeys.all() })
-        if (submissionId) {
-          await queryClient.invalidateQueries({
-            queryKey: initialAssessmentKeys.submission(selectedId, submissionId),
-          })
-        }
-      } catch (e) {
-        toastApiError(e, iaAutofillLevelUi(level).failedToastTitle)
-      } finally {
-        setIaAutofillRunning(null)
-      }
-    },
-    [selectedId, submissionId, iaAutofillRunning, queryClient],
-  )
+  const invalidateInitialAssessmentQueries = React.useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: initialAssessmentKeys.all() })
+    if (selectedId && submissionId) {
+      await queryClient.invalidateQueries({
+        queryKey: initialAssessmentKeys.submission(selectedId, submissionId),
+      })
+    }
+  }, [queryClient, selectedId, submissionId])
 
   const canExportSecure = can('service_users.initial_assessment.export')
 
@@ -1081,6 +1096,65 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     sections,
     visibleQuestionsBySection,
     excludeQuestionIds,
+  ])
+
+  // QA Demo Data: does the ACTIVE tab already hold answers or worksheet data?
+  // Drives the overwrite confirm; only ever inspects the current tab, never other sections.
+  const currentTabHasDemoData = React.useMemo(() => {
+    if (!import.meta.env.DEV) return false
+    const answered = currentTabQuestions.some((q) => {
+      const a = draftAnswers[q.id]
+      if (!a) return false
+      return (
+        a.checked === true ||
+        a.booleanValue != null ||
+        (typeof a.textValue === 'string' && a.textValue.trim() !== '') ||
+        a.numberValue != null ||
+        (typeof a.dateValue === 'string' && a.dateValue !== '') ||
+        (typeof a.timeValue === 'string' && a.timeValue !== '') ||
+        (Array.isArray(a.selectedOptions) && a.selectedOptions.length > 0) ||
+        (typeof a.notes === 'string' && a.notes.trim() !== '')
+      )
+    })
+    if (answered) return true
+    // Worksheet/metadata-backed tabs keep their data outside per-question answers.
+    const worksheetByTab: Record<number, unknown> = {
+      2: practicalCare,
+      4: skinIntegrityCheck,
+      5: waterlow,
+      6: equipmentSelection,
+      7: mustAssessment,
+      8: fallsScreening,
+      9: movingHandlingOperations,
+      10: painAssessment,
+      12: environmentAssessment,
+      13: advanceCarePlanning,
+      14: endOfLifeAssessment,
+      15: clinicalOutcomeSummary,
+      16: carePlanObjectives,
+      17: mentalCapacityChecklist,
+      18: photographyConsent,
+    }
+    return worksheetHasMeaningfulValue(worksheetByTab[currentHolisticTab.id])
+  }, [
+    currentTabQuestions,
+    draftAnswers,
+    currentHolisticTab.id,
+    practicalCare,
+    skinIntegrityCheck,
+    waterlow,
+    equipmentSelection,
+    mustAssessment,
+    fallsScreening,
+    movingHandlingOperations,
+    painAssessment,
+    environmentAssessment,
+    advanceCarePlanning,
+    endOfLifeAssessment,
+    clinicalOutcomeSummary,
+    carePlanObjectives,
+    mentalCapacityChecklist,
+    photographyConsent,
   ])
 
   const waterlowScore = React.useMemo(() => computeWaterlowScore(waterlow), [waterlow])
@@ -1882,9 +1956,54 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6" data-testid="initial-assessment-enterprise-page">
-      <div className="flex flex-wrap items-center gap-3">
-        <ClipboardCheck className="h-7 w-7 text-teal-700 dark:text-teal-400" aria-hidden />
-        <h1 className="text-lg font-bold leading-snug md:text-xl">{HOLISTIC_FORM_TITLE}</h1>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <ClipboardCheck className="h-7 w-7 text-teal-700 dark:text-teal-400" aria-hidden />
+          <h1 className="text-lg font-bold leading-snug md:text-xl">{HOLISTIC_FORM_TITLE}</h1>
+        </div>
+
+        {/* QA Demo Data — dev/QA only; hidden entirely in production builds. */}
+        {import.meta.env.DEV && canUpdate ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <TooltipProvider delayDuration={250}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0"
+                    data-testid="ia-qa-demo-data-open"
+                    onClick={() => setQaDemoDialogOpen(true)}
+                  >
+                    <FlaskConical className="mr-2 h-4 w-4" />
+                    {IA_QA_DEMO_DATA_BUTTON_LABEL}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-sm text-left leading-snug">
+                  {IA_QA_DEMO_DATA_BUTTON_TOOLTIP}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {qaDemoSeverity ? (
+              <Badge
+                variant="outline"
+                data-testid="ia-qa-demo-active-scenario"
+                className="text-xs"
+              >
+                QA scenario: {IA_CONDITION_LEVEL_LABELS[qaDemoSeverity]}
+              </Badge>
+            ) : (
+              <span className="text-xs text-muted-foreground">No QA scenario selected</span>
+            )}
+            <InitialAssessmentQaDemoDataDialog
+              open={qaDemoDialogOpen}
+              onOpenChange={setQaDemoDialogOpen}
+              activeLevel={qaDemoSeverity}
+              onSelect={setQaDemoSeverity}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="max-w-xl space-y-2 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -1924,7 +2043,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         <InitialAssessmentWorkspaceSkeleton />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
               {submission ? (
                 <InitialAssessmentStatusBadge
@@ -1962,36 +2081,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               </Button>
               */}
             </div>
-            {selectedId && canUpdate ? (
-              <>
-                <TooltipProvider delayDuration={250}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="shrink-0"
-                        data-testid="ia-playwright-tests-open"
-                        onClick={() => setPlaywrightTestsOpen(true)}
-                      >
-                        <TestTube2 className="mr-2 h-4 w-4" />
-                        Playwright Tests
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-sm text-left leading-snug">
-                      {IA_PLAYWRIGHT_TESTS_BUTTON_TOOLTIP}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <InitialAssessmentPlaywrightTestsDialog
-                  open={playwrightTestsOpen}
-                  onOpenChange={setPlaywrightTestsOpen}
-                  runningLevel={iaAutofillRunning}
-                  onRun={runIaPlaywrightAutofill}
-                />
-              </>
-            ) : null}
           </div>
 
           <InitialAssessmentHubTabs
@@ -2269,6 +2358,18 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       HOLISTIC_FORM_PAGE_CLASS,
                     )}
                   >
+                  {import.meta.env.DEV && canUpdate && editable ? (
+                    <SectionQaDemoDataPanel
+                      tabId={currentHolisticTab.id}
+                      tabTitle={holisticTabTitle(currentHolisticTab.id)}
+                      serviceUserId={selectedId}
+                      questionIds={currentTabQuestions.map((q) => q.id)}
+                      activeLevel={qaDemoSeverity}
+                      sectionHasData={currentTabHasDemoData}
+                      onFilled={invalidateInitialAssessmentQueries}
+                      onPickScenario={() => setQaDemoDialogOpen(true)}
+                    />
+                  ) : null}
                   {currentSection ? (
                     <>
                       {currentHolisticTab.kind !== 'skin-integrity-check' &&

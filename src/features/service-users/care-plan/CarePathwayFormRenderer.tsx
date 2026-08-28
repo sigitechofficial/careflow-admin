@@ -1,8 +1,7 @@
 import * as React from 'react'
-import { HelpCircle } from 'lucide-react'
 import type { CareFormDetail, CareFormFieldRow, FormFieldType } from '@/features/care-pathway/types/care-pathway.types'
 import { Input } from '@/shared/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
@@ -14,11 +13,14 @@ import {
 } from '@/shared/ui/select'
 import type { CarePlanDraftValues } from './care-plan-draft-storage'
 import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
-import { CarePlanFieldSuggestionBanner } from '@/features/service-users/care-plans/components/CarePlanFieldSuggestionBanner'
+import { CarePlanReviewRow } from '@/features/service-users/care-plans/components/CarePlanReviewRow'
+import { CarePlanSectionHeader } from '@/features/service-users/care-plans/components/CarePlanSectionHeader'
 import {
   parseCarePlanYesNoValue,
+  suggestionConflictState,
   visibleFieldSuggestion,
 } from '@/features/service-users/care-plans/care-plan-suggestion-state'
+import { CarePlanAutoPrefillIndicator } from '@/features/service-users/care-plans/components/CarePlanAutoPrefillIndicator'
 import {
   parseFieldOptions,
   parseMultiSelectValue,
@@ -242,6 +244,7 @@ export function CarePathwayFormRenderer({
   embedded,
   suggestions,
   ignoredSuggestionIds,
+  composedFrom,
   onUseSuggestion,
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
@@ -254,6 +257,7 @@ export function CarePathwayFormRenderer({
   embedded?: boolean
   suggestions?: CarePlanFieldSuggestion[]
   ignoredSuggestionIds?: string[]
+  composedFrom?: Record<string, unknown>
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
@@ -275,77 +279,87 @@ export function CarePathwayFormRenderer({
       {form.sections.map(section => (
         <section
           key={section.id}
-          className={embedded ? 'space-y-4 border-t border-border pt-4' : 'rounded-lg border border-border bg-card p-4 shadow-sm'}
+          className={
+            embedded
+              ? 'space-y-4 border-t border-border pt-4'
+              : 'rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,39,68,0.04)] dark:border-slate-700 dark:bg-card'
+          }
         >
-          <h3 className={embedded ? 'text-base font-normal text-[#5a7a96]' : 'text-sm font-semibold text-primary'}>
-            {section.title}
-          </h3>
-          {section.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
-          ) : null}
-          <div className="mt-4 space-y-4">
-            {section.fields.length === 0 ? (
-              section.description ? null : (
-                <p className="text-sm text-muted-foreground">No fields in this section.</p>
-              )
-            ) : (
-              section.fields.map(field => {
-                if (field.fieldType === 'SECTION_TEXT') {
-                  return <SectionTextBlock key={field.id} field={field} />
-                }
+          {(() => {
+            const visibleFields = section.fields.filter(
+              field => field.fieldType === 'SECTION_TEXT' || isFieldVisible(field, values),
+            )
+            const pendingRecommendationCount = visibleFields.reduce((count, field) => {
+              if (field.fieldType === 'SECTION_TEXT') return count
+              if (!onUseSuggestion || !onIgnoreSuggestion || !onKeepCurrentSuggestion) return count
+              const key = fieldKey(section.id, field.id)
+              const suggestion = visibleFieldSuggestion(suggestions, key, ignoredSuggestionIds ?? [])
+              if (!suggestion) return count
+              if (suggestionConflictState(values[key], suggestion) === 'match') return count
+              return count + 1
+            }, 0)
 
-                if (!isFieldVisible(field, values)) {
-                  return null
-                }
+            return (
+              <>
+                <CarePlanSectionHeader
+                  title={section.title}
+                  description={section.description}
+                  recommendationCount={pendingRecommendationCount}
+                  embedded={embedded}
+                />
+                <div className="mt-4 space-y-3">
+                  {section.fields.length === 0 ? (
+                    section.description ? null : (
+                      <p className="text-sm text-muted-foreground">No fields in this section.</p>
+                    )
+                  ) : (
+                    visibleFields.map(field => {
+                      if (field.fieldType === 'SECTION_TEXT') {
+                        return <SectionTextBlock key={field.id} field={field} />
+                      }
 
-                const key = fieldKey(section.id, field.id)
-                const tooltip = field.helpText?.trim()
-                const suggestion = visibleFieldSuggestion(suggestions, key, ignoredSuggestionIds ?? [])
-                return (
-                  <div key={field.id} className="space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <label className="text-sm font-medium text-foreground">
-                        {field.label}
-                        {field.required ? <span className="text-destructive"> *</span> : null}
-                      </label>
-                      {tooltip ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="inline-flex shrink-0 rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              aria-label={`Help: ${tooltip}`}
-                            >
-                              <HelpCircle className="h-4 w-4" aria-hidden />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            {tooltip}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : null}
-                    </div>
-                    <CarePathwayFieldInput
-                      field={field}
-                      value={values[key]}
-                      onChange={v => setFieldValue(section.id, field, v)}
-                      disabled={disabled}
-                    />
-                    {suggestion && onUseSuggestion && onIgnoreSuggestion && onKeepCurrentSuggestion ? (
-                      <CarePlanFieldSuggestionBanner
-                        suggestion={suggestion}
-                        currentValue={values[key]}
-                        disabled={disabled}
-                        onUse={onUseSuggestion}
-                        onIgnore={onIgnoreSuggestion}
-                        onKeepCurrent={onKeepCurrentSuggestion}
-                      />
-                    ) : null}
-                  </div>
-                )
-              })
-            )}
-          </div>
+                      const key = fieldKey(section.id, field.id)
+                      const tooltip = field.helpText?.trim()
+                      const suggestion = visibleFieldSuggestion(
+                        suggestions,
+                        key,
+                        ignoredSuggestionIds ?? [],
+                      )
+
+                      return (
+                        <CarePlanReviewRow
+                          key={field.id}
+                          label={field.label}
+                          required={field.required}
+                          helpText={tooltip}
+                          category={section.title}
+                          currentValue={values[key]}
+                          disabled={disabled}
+                          suggestion={suggestion}
+                          onUseSuggestion={onUseSuggestion}
+                          onDismissSuggestion={onIgnoreSuggestion}
+                          onKeepCurrentSuggestion={onKeepCurrentSuggestion}
+                          answerFooter={
+                            composedFrom ? (
+                              <CarePlanAutoPrefillIndicator composedFrom={composedFrom} fieldKey={key} />
+                            ) : null
+                          }
+                          input={
+                            <CarePathwayFieldInput
+                              field={field}
+                              value={values[key]}
+                              onChange={v => setFieldValue(section.id, field, v)}
+                              disabled={disabled}
+                            />
+                          }
+                        />
+                      )
+                    })
+                  )}
+                </div>
+              </>
+            )
+          })()}
         </section>
       ))}
       </div>

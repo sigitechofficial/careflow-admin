@@ -38,7 +38,7 @@ export const INACTIVE_CARE_PLAN_ORDER = [
  */
 
 /**
- * Restrict care plan cards to Form Selection choices.
+ * Restrict Available / template cards to Form Selection choices.
  * When nothing is saved yet (empty selection), all published forms are shown.
  */
 export function filterCarePlansByFormSelection<T extends { id: string }>(
@@ -47,7 +47,50 @@ export function filterCarePlansByFormSelection<T extends { id: string }>(
 ): T[] {
   if (!selectedFormIds.length) return forms
   const ids = new Set(selectedFormIds)
-  return forms.filter(f => ids.has(f.id))
+  return forms.filter((f) => ids.has(f.id))
+}
+
+export type CarePlanInstanceFormRef = {
+  carePathwayFormId: string
+  formName?: string | null
+  pictureUrl?: string | null
+}
+
+/**
+ * Live / In Progress must include every form that already has an instance for this
+ * service user — even when that form is outside company Form Selection.
+ *
+ * Form Selection still gates Available templates. Recommended cards come from IA
+ * independently. Without this merge, a published Skin Integrity plan can leave
+ * Recommended (accepted) but never appear under Live if Falls was selected and
+ * Skin Integrity was not.
+ */
+export function mergeFormsWithCarePlanInstances<
+  T extends { id: string; name: string; pictureUrl?: string | null },
+>(selectionFilteredForms: T[], fullCatalogue: T[], instances: CarePlanInstanceFormRef[]): T[] {
+  const byId = new Map(selectionFilteredForms.map((form) => [form.id, form]))
+  const catalogueById = new Map(fullCatalogue.map((form) => [form.id, form]))
+
+  for (const instance of instances) {
+    const formId = instance.carePathwayFormId
+    if (!formId || byId.has(formId)) continue
+
+    const fromCatalogue = catalogueById.get(formId)
+    if (fromCatalogue) {
+      byId.set(formId, fromCatalogue)
+      continue
+    }
+
+    const name = instance.formName?.trim()
+    if (!name) continue
+    byId.set(formId, {
+      id: formId,
+      name,
+      pictureUrl: instance.pictureUrl ?? null,
+    } as T)
+  }
+
+  return [...byId.values()]
 }
 
 export function sortCarePlansByCatalogOrder<T extends { name: string }>(items: T[]): T[] {

@@ -302,6 +302,25 @@ export function FormBuilderFieldEditor({
         )}
       </div>
 
+      {!isSectionText ? (
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Business key (optional)</span>
+          <Input
+            placeholder="e.g. hsp_personal_care_tasks"
+            value={field.fieldKey ?? ''}
+            onChange={(event) => {
+              const raw = event.target.value
+              onChange({ fieldKey: raw.trim() === '' ? null : raw })
+            }}
+            disabled={disabled}
+            className="font-mono text-sm"
+          />
+          <p className="text-xs text-muted-foreground">
+            Stable lowercase snake_case key for future IA → care plan mapping. Label can change without breaking the key.
+          </p>
+        </div>
+      ) : null}
+
       {isSectionText ? (
         <div className="space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Guidance text</span>

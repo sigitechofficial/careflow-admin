@@ -3,10 +3,8 @@ import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
   ChevronRight,
-  Eye,
   Info,
   Loader2,
-  Pencil,
   Plus,
   Trash2,
 } from 'lucide-react'
@@ -16,9 +14,27 @@ import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/Care
 import { CarePlanAssessmentSection } from '@/features/service-users/care-plan/CarePlanAssessmentSection'
 import { CarePlanConsentCapacitySection } from '@/features/service-users/care-plan/CarePlanConsentCapacitySection'
 import {
+  applyManualRiskItems,
+  formatRiskLevelLabel,
+  mapIaRiskRecordsForCarePlanProfile,
+  manualRiskItemsFromDraft,
+} from '@/features/service-users/care-plan/care-plan-risk-profile.util'
+import {
+  formatActionPriorityLabel,
+  formatActionStatusLabel,
+  mapIaActionsForCarePlanProfile,
+} from '@/features/service-users/care-plan/care-plan-actions.util'
+import { mapCarePlanVersionsToHistory } from '@/features/service-users/care-plan/care-plan-history.util'
+import { fetchCarePlanVersions } from '@/features/service-users/care-plans/api'
+import { serviceUserKeys } from '@/features/service-users/keys'
+import { useQuery } from '@tanstack/react-query'
+import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
+import {
+  useInitialAssessmentActions,
+  useInitialAssessmentRiskRecords,
+} from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
+import {
   CARE_PLAN_META,
-  DEFAULT_CARE_ACTIONS,
-  DEFAULT_CARE_HISTORY,
   defaultCarePlanSummary,
   defaultReviewSummary,
   REVIEW_SUMMARY_PLACEHOLDER,
@@ -26,8 +42,6 @@ import {
   DEPENDENCY_LEVEL_OPTIONS,
   metaBool,
   metaString,
-  parseRiskItems,
-  serializeRiskItems,
   setMetaValue,
   type CarePlanReviewStatus,
   type CarePlanRiskItem,
@@ -45,6 +59,7 @@ import type { BodyMapRecordRow } from '@/features/service-users/body-map/types'
 import { serviceUserGivenName, serviceUserDisplayName } from '@/features/service-users/lib/service-user-display'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
+import { Badge } from '@/shared/ui/badge'
 import { DatePicker } from '@/shared/ui/date-picker'
 import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
@@ -298,6 +313,7 @@ function CarePlanMainSection({
   disabled,
   suggestions,
   ignoredSuggestionIds,
+  composedFrom,
   onUseSuggestion,
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
@@ -308,6 +324,7 @@ function CarePlanMainSection({
   disabled?: boolean
   suggestions?: CarePlanFieldSuggestion[]
   ignoredSuggestionIds?: string[]
+  composedFrom?: Record<string, unknown>
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
@@ -321,6 +338,7 @@ function CarePlanMainSection({
       embedded
       suggestions={suggestions}
       ignoredSuggestionIds={ignoredSuggestionIds}
+      composedFrom={composedFrom}
       onUseSuggestion={onUseSuggestion}
       onIgnoreSuggestion={onIgnoreSuggestion}
       onKeepCurrentSuggestion={onKeepCurrentSuggestion}
@@ -329,70 +347,220 @@ function CarePlanMainSection({
 }
 
 function RiskProfileSection({
+  serviceUserId,
   values,
   onChange,
   disabled,
 }: {
+  serviceUserId: string
   values: CarePlanDraftValues
   onChange: (v: CarePlanDraftValues) => void
   disabled?: boolean
 }) {
-  const items = parseRiskItems(values)
+  const iaSource = useCarePlanIaSource(serviceUserId)
+  const submissionId = iaSource.submission?.id ?? null
+  const recordsQuery = useInitialAssessmentRiskRecords(
+    serviceUserId,
+    submissionId,
+    iaSource.canRead && Boolean(submissionId),
+  )
+
+  const iaRisks = React.useMemo(
+    () =>
+      mapIaRiskRecordsForCarePlanProfile(recordsQuery.data ?? [], {
+        submittedAt: iaSource.submission?.submittedAt,
+      }),
+    [recordsQuery.data, iaSource.submission?.submittedAt],
+  )
+  const manualItems = manualRiskItemsFromDraft(values)
 
   const updateItems = (next: CarePlanRiskItem[]) => {
-    onChange(setMetaValue(values, CARE_PLAN_META.riskItems, serializeRiskItems(next)))
+    onChange(applyManualRiskItems(values, next))
   }
 
   const addItem = () => {
-    updateItems([
-      ...items,
-      { id: crypto.randomUUID(), name: 'New risk' },
-    ])
+    updateItems([...manualItems, { id: crypto.randomUUID(), name: 'New risk' }])
   }
 
   const removeItem = (id: string) => {
-    updateItems(items.filter((i) => i.id !== id))
+    updateItems(manualItems.filter((i) => i.id !== id))
   }
 
+  const renameItem = (id: string, name: string) => {
+    updateItems(manualItems.map((i) => (i.id === id ? { ...i, name } : i)))
+  }
+
+  const iaLoading =
+    iaSource.submissionsQuery.isLoading || (Boolean(submissionId) && recordsQuery.isLoading)
+
   return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={addItem}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
-        aria-label="Add risk"
-      >
-        <Plus className="h-4 w-4" />
-      </button>
-      {items.map((item) => (
-        <details
-          key={item.id}
-          className="group overflow-hidden rounded-sm border border-border/80"
-        >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground [&::-webkit-details-marker]:hidden">
-            <span className="flex items-center gap-2">
-              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
-              {item.name}
-            </span>
-            <button
-              type="button"
-              disabled={disabled}
-              className="rounded p-1 text-rose-200 hover:bg-white/10 hover:text-white disabled:opacity-50"
-              aria-label={`Remove ${item.name}`}
-              onClick={(e) => {
-                e.preventDefault()
-                removeItem(item.id)
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </summary>
-          <div className="border-t border-border bg-white p-4 text-sm text-muted-foreground dark:bg-card">
-            Risk mitigation details for {item.name.toLowerCase()} will appear here.
+    <div className="space-y-8" data-testid="care-plan-risk-profile">
+      <section className="space-y-3" aria-labelledby="care-plan-ia-risks-heading">
+        <div>
+          <h3 id="care-plan-ia-risks-heading" className="text-sm font-semibold text-foreground">
+            Identified Risks from Initial Assessment
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Read-only risks from the latest eligible Initial Assessment. Not stored on this care plan
+            draft.
+          </p>
+        </div>
+
+        {iaLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading assessment risks…
           </div>
-        </details>
-      ))}
+        ) : !submissionId ? (
+          <p className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+            No risks identified from Initial Assessment
+          </p>
+        ) : iaRisks.length === 0 ? (
+          <p
+            className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
+            data-testid="care-plan-ia-risks-empty"
+          >
+            No risks identified from Initial Assessment
+          </p>
+        ) : (
+          <ul className="space-y-3" data-testid="care-plan-ia-risks-list">
+            {iaRisks.map((risk) => (
+              <li
+                key={risk.id}
+                className="rounded-lg border border-border/80 bg-card shadow-sm"
+                data-testid={`care-plan-ia-risk-${risk.id}`}
+              >
+                <div className="flex">
+                  <div
+                    className={cn(
+                      'w-1 shrink-0 rounded-l-lg',
+                      risk.riskLevel === 'HIGH'
+                        ? 'bg-destructive'
+                        : risk.riskLevel === 'MEDIUM'
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500',
+                    )}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1 px-4 py-3.5">
+                    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+                      <h4 className="text-[15px] font-semibold tracking-tight text-foreground">
+                        {risk.name}
+                      </h4>
+                      <span className="mt-0.5 shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Read-only
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <Badge
+                        variant={
+                          risk.riskLevel === 'HIGH'
+                            ? 'destructive'
+                            : risk.riskLevel === 'MEDIUM'
+                              ? 'warning'
+                              : 'secondary'
+                        }
+                        size="sm"
+                        className="font-medium"
+                      >
+                        {formatRiskLevelLabel(risk.riskLevel)}
+                      </Badge>
+                      <Badge variant="outline" size="sm" className="font-normal text-muted-foreground">
+                        From Initial Assessment
+                      </Badge>
+                    </div>
+
+                    <div className="mt-3 space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Reason
+                      </p>
+                      <p className="text-sm leading-relaxed text-foreground/90">{risk.reason}</p>
+                    </div>
+
+                    <p
+                      className="mt-3 text-xs text-muted-foreground"
+                      data-testid={`care-plan-ia-risk-source-${risk.id}`}
+                    >
+                      {risk.sourceLabel}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3" aria-labelledby="care-plan-manual-risks-heading">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 id="care-plan-manual-risks-heading" className="text-sm font-semibold text-foreground">
+              Additional Care Plan Risks
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Optional risks recorded on this care plan. Saved with draft / publish.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={addItem}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
+            aria-label="Add risk"
+            data-testid="care-plan-manual-risk-add"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
+        {manualItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground" data-testid="care-plan-manual-risks-empty">
+            No additional care plan risks. Use + to add one.
+          </p>
+        ) : (
+          <ul className="space-y-2" data-testid="care-plan-manual-risks-list">
+            {manualItems.map((item) => (
+              <li key={item.id}>
+                <details className="group overflow-hidden rounded-sm border border-border/80">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground [&::-webkit-details-marker]:hidden">
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
+                      {disabled ? (
+                        <span className="truncate">{item.name}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={item.name}
+                          aria-label={`Risk name for ${item.name}`}
+                          className="min-w-0 flex-1 rounded-sm border-0 bg-transparent text-sm font-semibold text-primary-foreground outline-none placeholder:text-primary-foreground/60 focus:ring-1 focus:ring-white/40"
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => renameItem(item.id, e.target.value)}
+                        />
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      className="rounded p-1 text-rose-200 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                      aria-label={`Remove ${item.name}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        removeItem(item.id)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </summary>
+                  <div className="border-t border-border bg-white p-4 text-sm text-muted-foreground dark:bg-card">
+                    Risk mitigation details for {item.name.toLowerCase()} will appear here.
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }
@@ -544,117 +712,265 @@ function BodyMapSection({ serviceUserId }: { serviceUserId: string }) {
   )
 }
 
-function CareActionsSection() {
+function CareActionsSection({ serviceUserId }: { serviceUserId: string }) {
+  const iaSource = useCarePlanIaSource(serviceUserId)
+  const submissionId = iaSource.submission?.id ?? null
+  const actionsQuery = useInitialAssessmentActions(
+    serviceUserId,
+    submissionId,
+    iaSource.canRead && Boolean(submissionId),
+  )
+
+  const iaActions = React.useMemo(
+    () =>
+      mapIaActionsForCarePlanProfile(actionsQuery.data ?? [], {
+        submittedAt: iaSource.submission?.submittedAt,
+      }),
+    [actionsQuery.data, iaSource.submission?.submittedAt],
+  )
+
+  const iaLoading =
+    iaSource.submissionsQuery.isLoading || (Boolean(submissionId) && actionsQuery.isLoading)
+
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Actions for Medication care plan</p>
-      <div className="overflow-x-auto rounded-sm border border-border">
-        <table className="w-full min-w-[420px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="px-3 py-2 font-medium">Action Name</th>
-              <th className="px-3 py-2 font-medium">Designation</th>
-              <th className="px-3 py-2 font-medium">Frequency</th>
-              <th className="px-3 py-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {DEFAULT_CARE_ACTIONS.map((row) => (
-              <tr key={row.id} className="border-b border-border bg-muted/20">
-                <td className="px-3 py-3">{row.actionName}</td>
-                <td className="px-3 py-3 text-muted-foreground">{row.designation || '—'}</td>
-                <td className="px-3 py-3">{row.frequency}</td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <button type="button" className="text-muted-foreground hover:text-foreground">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button type="button" className="text-destructive hover:opacity-80">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-white"
+    <div className="space-y-8" data-testid="care-plan-care-actions">
+      <section className="space-y-3" aria-labelledby="care-plan-ia-actions-heading">
+        <div>
+          <h3 id="care-plan-ia-actions-heading" className="text-sm font-semibold text-foreground">
+            Actions from Initial Assessment
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Read-only open actions from the latest eligible Initial Assessment. Not stored on this care
+            plan draft.
+          </p>
+        </div>
+
+        {iaLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading assessment actions…
+          </div>
+        ) : !submissionId || iaActions.length === 0 ? (
+          <p
+            className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
+            data-testid="care-plan-ia-actions-empty"
+          >
+            No actions identified from Initial Assessment
+          </p>
+        ) : (
+          <ul className="space-y-2" data-testid="care-plan-ia-actions-list">
+            {iaActions.map((action) => (
+              <li
+                key={action.id}
+                className="rounded-lg border border-border/80 bg-card shadow-sm"
+                data-testid={`care-plan-ia-action-${action.id}`}
+              >
+                <div className="flex">
+                  <div
+                    className={cn(
+                      'w-1 shrink-0 rounded-l-lg',
+                      action.priority === 'URGENT' || action.priority === 'HIGH'
+                        ? 'bg-destructive'
+                        : action.priority === 'MEDIUM'
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500',
+                    )}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1 px-3.5 py-2.5">
+                    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                      <h4 className="text-[15px] font-semibold tracking-tight text-foreground">
+                        {action.title}
+                      </h4>
+                      <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Read-only
+                      </span>
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <Badge
+                        variant={
+                          action.priority === 'URGENT' || action.priority === 'HIGH'
+                            ? 'destructive'
+                            : action.priority === 'MEDIUM'
+                              ? 'warning'
+                              : 'secondary'
+                        }
+                        size="sm"
+                        className="font-medium"
+                      >
+                        {formatActionPriorityLabel(action.priority)}
+                      </Badge>
+                      <Badge variant="outline" size="sm" className="font-normal">
+                        {formatActionStatusLabel(action.status)}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        size="sm"
+                        className="font-normal text-muted-foreground"
+                      >
+                        From Initial Assessment
+                      </Badge>
+                    </div>
+
+                    {action.dueDateLabel ? (
+                      <div className="mt-2 flex items-baseline gap-1.5 text-xs">
+                        <span className="font-medium text-muted-foreground">Due</span>
+                        <span className="text-foreground/90">{action.dueDateLabel}</span>
+                      </div>
+                    ) : null}
+
+                    {action.reason ? (
+                      <div className="mt-2 space-y-0.5 border-t border-border/50 pt-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Details
+                        </p>
+                        <p className="text-sm leading-snug text-foreground/90">{action.reason}</p>
+                      </div>
+                    ) : null}
+
+                    <p
+                      className="mt-2 text-xs text-muted-foreground"
+                      data-testid={`care-plan-ia-action-source-${action.id}`}
                     >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
+                      {action.sourceLabel}
+                    </p>
                   </div>
-                </td>
-              </tr>
+                </div>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
-      <button type="button" className="text-sm font-medium text-destructive hover:underline">
-        Add an action
-      </button>
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-2" aria-labelledby="care-plan-manual-actions-heading">
+        <div>
+          <h3 id="care-plan-manual-actions-heading" className="text-sm font-semibold text-foreground">
+            Additional Care Plan Actions
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Plan-specific actions (separate from Initial Assessment). Not configured yet.
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground" data-testid="care-plan-manual-actions-empty">
+          No additional care plan actions.
+        </p>
+      </section>
     </div>
   )
 }
 
-function CareHistorySection() {
-  const [page, setPage] = React.useState(1)
-  const rows = DEFAULT_CARE_HISTORY
-  const total = 14
-  const pageSize = rows.length
+function CareHistorySection({
+  serviceUserId,
+  formId,
+}: {
+  serviceUserId: string
+  formId: string
+}) {
+  const versionsQuery = useQuery({
+    queryKey: [...serviceUserKeys.carePlan(serviceUserId), 'versions', formId] as const,
+    queryFn: ({ signal }) => fetchCarePlanVersions(serviceUserId, formId, { signal }),
+    enabled: Boolean(serviceUserId) && Boolean(formId),
+    staleTime: 30_000,
+  })
+
+  const historyRows = React.useMemo(
+    () => mapCarePlanVersionsToHistory(versionsQuery.data ?? []),
+    [versionsQuery.data],
+  )
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Action History</p>
-      <div className="overflow-x-auto rounded-sm border border-border">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/30 text-muted-foreground">
-              <th className="px-2 py-2 font-medium">Date</th>
-              <th className="px-2 py-2 font-medium">Time</th>
-              <th className="px-2 py-2 font-medium">Event</th>
-              <th className="px-2 py-2 font-medium">Action</th>
-              <th className="px-2 py-2 font-medium">Employee</th>
-              <th className="px-2 py-2 font-medium">Checklist</th>
-              <th className="px-2 py-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-border">
-                <td className="px-2 py-2">{row.date}</td>
-                <td className="px-2 py-2">{row.time}</td>
-                <td className="px-2 py-2">{row.event}</td>
-                <td className="px-2 py-2">{row.action}</td>
-                <td className="px-2 py-2">{row.employee}</td>
-                <td className="px-2 py-2 text-muted-foreground">{row.checklist}</td>
-                <td className="px-2 py-2">
-                  <button type="button" className="text-muted-foreground hover:text-foreground">
-                    <Eye className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <span>
-          Showing 1 to {pageSize} of {total} entries
-        </span>
-        <div className="flex items-center gap-1">
-          <Button type="button" variant="outline" size="sm" disabled={page <= 1}>
-            Previous
-          </Button>
-          <Button type="button" size="sm" className="min-w-8 bg-destructive hover:bg-destructive/90">
-            {page}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page * pageSize >= total}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
+    <div className="space-y-8" data-testid="care-plan-care-history">
+      <section className="space-y-3" aria-labelledby="care-plan-version-history-heading">
+        <div>
+          <h3 id="care-plan-version-history-heading" className="text-sm font-semibold text-foreground">
+            Care Plan History
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Published versions of this care plan. Read-only.
+          </p>
         </div>
-      </div>
+
+        {versionsQuery.isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading care plan history…
+          </div>
+        ) : historyRows.length === 0 ? (
+          <p
+            className="rounded-sm border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground"
+            data-testid="care-plan-history-empty"
+          >
+            No care plan history available yet.
+          </p>
+        ) : (
+          <ul className="space-y-2" data-testid="care-plan-history-list">
+            {historyRows.map((row) => (
+              <li
+                key={row.id}
+                className="rounded-lg border border-border/80 bg-card shadow-sm"
+                data-testid={`care-plan-history-version-${row.id}`}
+              >
+                <div className="flex">
+                  <div
+                    className={cn(
+                      'w-1 shrink-0 rounded-l-lg',
+                      row.status === 'Current' ? 'bg-emerald-500' : 'bg-slate-300',
+                    )}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1 px-3.5 py-2.5">
+                    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                      <h4 className="text-[15px] font-semibold tracking-tight text-foreground">
+                        {row.versionLabel}
+                      </h4>
+                      <Badge
+                        variant={row.status === 'Current' ? 'success' : 'secondary'}
+                        size="sm"
+                        className="font-medium"
+                      >
+                        {row.status}
+                      </Badge>
+                    </div>
+
+                    <dl className="mt-2 grid gap-1.5 text-xs sm:grid-cols-2">
+                      <div>
+                        <dt className="font-medium text-muted-foreground">Published</dt>
+                        <dd className="text-foreground/90">{row.publishedAtLabel}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-medium text-muted-foreground">Published by</dt>
+                        <dd className="text-foreground/90">{row.publishedByLabel}</dd>
+                      </div>
+                    </dl>
+
+                    {row.summary ? (
+                      <p className="mt-2 border-t border-border/50 pt-2 text-sm text-foreground/90">
+                        {row.summary}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Phase 2: Visit Activity History — keep section shell for future integration. */}
+      <section className="space-y-2" aria-labelledby="care-plan-visit-history-heading">
+        <div>
+          <h3 id="care-plan-visit-history-heading" className="text-sm font-semibold text-foreground">
+            Visit Activity History
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Completed visit actions linked to this care plan (coming soon).
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground" data-testid="care-plan-visit-history-placeholder">
+          No visit activity history yet.
+        </p>
+      </section>
     </div>
   )
 }
@@ -724,6 +1040,7 @@ export function CarePlanFormWorkspace({
   saving,
   suggestions,
   ignoredSuggestionIds,
+  composedFrom,
   onUseSuggestion,
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
@@ -740,6 +1057,7 @@ export function CarePlanFormWorkspace({
   saving?: boolean
   suggestions?: CarePlanFieldSuggestion[]
   ignoredSuggestionIds?: string[]
+  composedFrom?: Record<string, unknown>
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
@@ -828,19 +1146,28 @@ export function CarePlanFormWorkspace({
               disabled={disabled}
               suggestions={suggestions}
               ignoredSuggestionIds={ignoredSuggestionIds}
+              composedFrom={composedFrom}
               onUseSuggestion={onUseSuggestion}
               onIgnoreSuggestion={onIgnoreSuggestion}
               onKeepCurrentSuggestion={onKeepCurrentSuggestion}
             />
           )}
           {activeSection === 'risk-profile' && (
-            <RiskProfileSection values={values} onChange={onChange} disabled={disabled} />
+            <RiskProfileSection
+              serviceUserId={serviceUserId}
+              values={values}
+              onChange={onChange}
+              disabled={disabled}
+            />
           )}
           {activeSection === 'body-map' && <BodyMapSection serviceUserId={serviceUserId} />}
-          {activeSection === 'care-actions' && <CareActionsSection />}
-          {activeSection === 'care-history' && <CareHistorySection />}
+          {activeSection === 'care-actions' && <CareActionsSection serviceUserId={serviceUserId} />}
+          {activeSection === 'care-history' && (
+            <CareHistorySection serviceUserId={serviceUserId} formId={form.id} />
+          )}
           {activeSection === 'consent-capacity' && (
             <CarePlanConsentCapacitySection
+              serviceUserId={serviceUserId}
               serviceUserName={serviceUserName}
               values={values}
               onChange={onChange}

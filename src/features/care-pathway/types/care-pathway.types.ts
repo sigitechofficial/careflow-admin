@@ -70,6 +70,8 @@ export type CareFormListRow = {
 
 export type CareFormFieldRow = {
   id: string
+  /** Stable business key for IA → care plan mapping (optional until backfill). */
+  fieldKey?: string | null
   label: string
   fieldType: FormFieldType
   placeholder: string | null

@@ -99,7 +99,8 @@ export type CarePlanComposeResult = {
   composedFrom: Record<string, unknown>
   deltas?: CarePlanComposeDelta[]
   lastPublishedVersionNumber?: number | null
-  suggestionMode?: 'explicit'
+  suggestionMode?: 'explicit' | 'hybrid'
+  provenance?: Record<string, CarePlanFieldProvenance>
   suggestions?: CarePlanFieldSuggestion[]
   previousAssessments?: CarePlanPreviousAssessment[]
   iaStatus?: 'SUBMITTED' | 'REVIEWED' | null
@@ -154,4 +155,5 @@ export type CarePlanFieldProvenance = {
   originalValue: string | boolean | null
   sourceDate: string | null
   userEdited?: boolean
+  autoPrefilled?: boolean
 }

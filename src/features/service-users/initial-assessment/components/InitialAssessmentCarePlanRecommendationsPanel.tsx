@@ -103,7 +103,9 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
         'Draft created',
         data.suggestionMode === 'explicit'
           ? 'Care plan draft is ready. Review suggestions before saving or publishing.'
-          : 'Care plan draft prefilled from assessment sources.',
+          : data.suggestionMode === 'hybrid'
+            ? 'Care plan draft prefilled from assessment. Review suggestions for remaining fields.'
+            : 'Care plan draft prefilled from assessment sources.',
       )
       void navigate({
         to: '/service-users/$serviceUserId/care-plan/forms/$formId',

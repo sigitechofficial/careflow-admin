@@ -1,15 +1,23 @@
 import { mergeComposedValues } from './hooks/useServiceUserCarePlanInstances'
 import { deriveCarePlanDisplayState } from '@/features/service-users/care-plan/care-plan-display-state'
+import { shouldShowCarePlanIaSuggestions } from '@/features/service-users/care-plans/care-plan-instance-status'
 import {
   applySuggestionToValues,
   carePlanValuesEqual,
   clinicalValuesForCreatePlanDraft,
   hydrateCarePlanEditorValues,
+  hydrateComposedFromForEditor,
+  isAutoPrefilledField,
   isExplicitSuggestionCompose,
+  isHybridCompose,
+  isSuggestionGatedCompose,
+  mergeComposeProvenanceFromComposeResult,
+  mergeHybridRefreshValues,
   mergeComposedFromOnIgnore,
   mergeComposedFromOnUse,
   markProvenanceEdited,
   parseCarePlanYesNoValue,
+  shouldHydrateFromPublishedVersion,
   shouldReplaceDraftOnCreatePlan,
   shouldWriteComposeValuesToDraft,
   suggestionConflictState,
@@ -216,6 +224,14 @@ describe('Falls suggestion editor state', () => {
     expect(deriveCarePlanDisplayState({ displayStatus: 'PUBLISHED_WITH_DRAFT' })).toBe('LIVE_WITH_DRAFT')
   })
 
+  it('shows IA suggestion cards only for draft edit modes, not published view', () => {
+    expect(shouldShowCarePlanIaSuggestions('DRAFT')).toBe(true)
+    expect(shouldShowCarePlanIaSuggestions('PUBLISHED_WITH_DRAFT')).toBe(true)
+    expect(shouldShowCarePlanIaSuggestions('PUBLISHED')).toBe(false)
+    expect(shouldShowCarePlanIaSuggestions(undefined)).toBe(false)
+    expect(shouldShowCarePlanIaSuggestions(null)).toBe(false)
+  })
+
   it('does not write context-only suggestions into draft values', () => {
     const context: CarePlanFieldSuggestion = {
       ...suggestion,
@@ -247,5 +263,262 @@ describe('Falls suggestion editor state', () => {
     expect(hydrated).toEqual({})
     expect(parseCarePlanYesNoValue((hydrated as Record<string, string | boolean>)['hist:injury'])).toBeUndefined()
     expect(clinicalValuesForCreatePlanDraft({ suggestionMode: 'explicit', values: { 'hist:injury': false } })).toEqual({})
+  })
+})
+
+describe('Hybrid compose editor state', () => {
+  const hybridCompose = {
+    suggestionMode: 'hybrid' as const,
+    values: {
+      'sec:lives_alone': true,
+      'sec:key_safe_in_use': true,
+    },
+    composedFrom: {
+      mapping: 'home-support-plan-hybrid',
+      fieldProvenance: {
+        'sec:lives_alone': {
+          sourceType: 'INITIAL_ASSESSMENT' as const,
+          submissionId: 'ia-hsp-1',
+          acceptedAt: '2026-08-19T07:36:44.000Z',
+          originalValue: true,
+          sourceDate: '2026-08-19T07:36:44.000Z',
+          autoPrefilled: true,
+          userEdited: false,
+        },
+      },
+    },
+    provenance: {
+      'sec:key_safe_in_use': {
+        sourceType: 'INITIAL_ASSESSMENT' as const,
+        submissionId: 'ia-hsp-1',
+        acceptedAt: '2026-08-19T07:36:44.000Z',
+        originalValue: true,
+        sourceDate: '2026-08-19T07:36:44.000Z',
+        autoPrefilled: true,
+        userEdited: false,
+      },
+    },
+  }
+
+  it('identifies hybrid compose mode', () => {
+    expect(isHybridCompose({ suggestionMode: 'hybrid' })).toBe(true)
+    expect(isHybridCompose({ suggestionMode: 'explicit' })).toBe(false)
+    expect(isSuggestionGatedCompose({ suggestionMode: 'hybrid' })).toBe(true)
+    expect(isSuggestionGatedCompose({ values: { a: '1' } })).toBe(false)
+  })
+
+  it('writes hybrid compose values on Create Plan', () => {
+    expect(shouldWriteComposeValuesToDraft(hybridCompose)).toBe(true)
+    expect(clinicalValuesForCreatePlanDraft(hybridCompose)).toEqual(hybridCompose.values)
+  })
+
+  it('hydrates an empty draft from hybrid compose values', () => {
+    expect(
+      hydrateCarePlanEditorValues({
+        draftValues: {},
+        compose: hybridCompose,
+      }),
+    ).toEqual(hybridCompose.values)
+  })
+
+  it('does not overwrite existing draft values for hybrid compose', () => {
+    expect(
+      hydrateCarePlanEditorValues({
+        draftValues: { 'sec:lives_alone': false },
+        compose: hybridCompose,
+      }),
+    ).toEqual({ 'sec:lives_alone': false })
+  })
+
+  it('keeps accepted HSP suggestions after publish when opening the live plan', () => {
+    const suggestion: CarePlanFieldSuggestion = {
+      id: 'hsp:personal-care:ia-1',
+      kind: 'value',
+      targetFieldKey: 'sec:personal_care',
+      targetLabel: 'Personal care tasks',
+      targetFieldType: 'TEXTAREA',
+      suggestedValue: 'Bathing: assistance of one person',
+      displayText: 'Bathing: assistance of one person',
+      sourceType: 'INITIAL_ASSESSMENT',
+      submissionId: 'ia-1',
+      sourceDate: '2026-08-19T07:36:44.000Z',
+      sourceQuestions: [],
+      transform: 'narrative',
+    }
+
+    // 1–3: create draft, accept suggestion, save (draft values + provenance)
+    const draftValues = applySuggestionToValues({ ...hybridCompose.values }, suggestion)
+    const draftComposedFrom = mergeComposedFromOnUse({
+      composedFrom: mergeComposeProvenanceFromComposeResult(hybridCompose),
+      suggestion,
+      acceptedById: 'user-1',
+    })
+    expect(draftValues['sec:personal_care']).toBe('Bathing: assistance of one person')
+
+    // Hybrid compose never writes tier-B suggestions into compose.values
+    expect(hybridCompose.values).not.toHaveProperty('sec:personal_care')
+
+    // 4: publish copies draft into version, then consumes draft
+    const publishedValues = { ...draftValues }
+    const publishedComposedFrom = { ...draftComposedFrom }
+    expect(shouldHydrateFromPublishedVersion({ draft: null, latestPublishedVersionId: 'ver-1' })).toBe(
+      true,
+    )
+    expect(
+      shouldHydrateFromPublishedVersion({
+        draft: { values: draftValues },
+        latestPublishedVersionId: 'ver-1',
+      }),
+    ).toBe(false)
+
+    // 5–6: open live plan — no draft; hydrate from published snapshot, not compose.values
+    const liveValues = hydrateCarePlanEditorValues({
+      draftValues: null,
+      publishedValues,
+      compose: hybridCompose,
+    })
+    expect(liveValues).toEqual(publishedValues)
+    expect(liveValues['sec:personal_care']).toBe('Bathing: assistance of one person')
+
+    const liveComposedFrom = hydrateComposedFromForEditor({
+      draftComposedFrom: publishedComposedFrom,
+      compose: null,
+    })
+    expect(
+      (liveComposedFrom.fieldProvenance as Record<string, { originalValue: string | boolean | null }>)[
+        'sec:personal_care'
+      ]?.originalValue,
+    ).toBe('Bathing: assistance of one person')
+  })
+
+  it('prefers published values over hybrid compose when draft was consumed', () => {
+    const publishedValues = {
+      'sec:lives_alone': true,
+      'sec:personal_care': 'Accepted suggestion text',
+    }
+    expect(
+      hydrateCarePlanEditorValues({
+        draftValues: {},
+        publishedValues,
+        compose: hybridCompose,
+      }),
+    ).toEqual(publishedValues)
+  })
+
+  it('does not replace an existing hybrid draft on Create Plan', () => {
+    expect(shouldReplaceDraftOnCreatePlan(hybridCompose, true)).toBe(false)
+    expect(shouldReplaceDraftOnCreatePlan(hybridCompose, false)).toBe(true)
+  })
+
+  it('merges compose provenance into composedFrom for editor hydration', () => {
+    const merged = hydrateComposedFromForEditor({
+      draftComposedFrom: {},
+      compose: hybridCompose,
+    })
+    const provenance = merged.fieldProvenance as Record<string, { autoPrefilled?: boolean }>
+    expect(provenance['sec:lives_alone']?.autoPrefilled).toBe(true)
+    expect(provenance['sec:key_safe_in_use']?.autoPrefilled).toBe(true)
+    expect(isAutoPrefilledField(merged, 'sec:lives_alone')).toBe(true)
+  })
+
+  it('marks auto-prefilled provenance as userEdited after a manual edit', () => {
+    const composedFrom = mergeComposeProvenanceFromComposeResult(hybridCompose)
+    const edited = markProvenanceEdited(composedFrom, 'sec:lives_alone', false)
+    expect(
+      (edited.fieldProvenance as Record<string, { userEdited: boolean; autoPrefilled: boolean }>)[
+        'sec:lives_alone'
+      ].userEdited,
+    ).toBe(true)
+    expect(isAutoPrefilledField(edited, 'sec:lives_alone')).toBe(false)
+  })
+
+  it('keeps Falls explicit suggestion-only behaviour unchanged', () => {
+    const fallsCompose = { suggestionMode: 'explicit' as const, values: { 'hist:count': '2' } }
+    expect(shouldWriteComposeValuesToDraft(fallsCompose)).toBe(false)
+    expect(clinicalValuesForCreatePlanDraft(fallsCompose)).toEqual({})
+    expect(
+      hydrateCarePlanEditorValues({
+        draftValues: {},
+        compose: fallsCompose,
+      }),
+    ).toEqual({})
+  })
+
+  it('keeps Medication-style auto-prefill behaviour unchanged', () => {
+    const medicationCompose = { values: { 'sec:1': 'Prompted', 'sec:2': true } }
+    expect(shouldWriteComposeValuesToDraft(medicationCompose)).toBe(true)
+    expect(clinicalValuesForCreatePlanDraft(medicationCompose)).toEqual(medicationCompose.values)
+    expect(
+      hydrateCarePlanEditorValues({
+        draftValues: {},
+        compose: medicationCompose,
+      }),
+    ).toEqual(medicationCompose.values)
+  })
+})
+
+describe('mergeHybridRefreshValues', () => {
+  const composedFrom = {
+    fieldProvenance: {
+      'sec:gp': {
+        sourceType: 'INITIAL_ASSESSMENT' as const,
+        submissionId: 'ia-1',
+        acceptedAt: '2026-08-19T07:36:44.000Z',
+        originalValue: 'Registered with local GP practice.',
+        sourceDate: '2026-08-19T07:36:44.000Z',
+        autoPrefilled: true,
+        userEdited: false,
+      },
+      'sec:manual': {
+        sourceType: 'INITIAL_ASSESSMENT' as const,
+        submissionId: 'ia-1',
+        acceptedAt: '2026-08-19T07:36:44.000Z',
+        originalValue: 'User typed this',
+        sourceDate: '2026-08-19T07:36:44.000Z',
+        autoPrefilled: true,
+        userEdited: true,
+      },
+    },
+  }
+
+  it('replaces auto-prefilled draft values with refreshed compose values', () => {
+    const current = {
+      'sec:gp': '<p>Registered with local GP practice.</p>',
+      'sec:empty': '',
+    }
+    const composed = {
+      'sec:gp': 'Registered with local GP practice.',
+      'sec:empty': 'Filled from IA',
+    }
+
+    expect(mergeHybridRefreshValues(current, composed, composedFrom)).toEqual({
+      'sec:gp': 'Registered with local GP practice.',
+      'sec:empty': 'Filled from IA',
+    })
+  })
+
+  it('keeps user-edited fields untouched during hybrid refresh', () => {
+    const current = {
+      'sec:gp': '<p>Registered with local GP practice.</p>',
+      'sec:manual': 'User typed this',
+    }
+    const composed = {
+      'sec:gp': 'Registered with local GP practice.',
+      'sec:manual': 'New IA suggestion',
+    }
+
+    expect(mergeHybridRefreshValues(current, composed, composedFrom)).toEqual({
+      'sec:gp': 'Registered with local GP practice.',
+      'sec:manual': 'User typed this',
+    })
+  })
+
+  it('does not overwrite non-empty fields without auto-prefill provenance', () => {
+    const current = { 'sec:other': 'Keep me' }
+    const composed = { 'sec:other': 'Replace me' }
+
+    expect(mergeHybridRefreshValues(current, composed, {})).toEqual({
+      'sec:other': 'Keep me',
+    })
   })
 })

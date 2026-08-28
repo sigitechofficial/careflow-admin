@@ -7,6 +7,7 @@ import type {
 } from '@/features/service-users/care-plans/types'
 import {
   clinicalValuesForCreatePlanDraft,
+  mergeComposeProvenanceFromComposeResult,
   shouldReplaceDraftOnCreatePlan,
 } from '@/features/service-users/care-plans/care-plan-suggestion-state'
 
@@ -38,7 +39,7 @@ export async function createCarePlanDraftFromCompose(
   }
   const saved = await saveCarePlanDraftApi(serviceUserId, formId, {
     values: clinicalValuesForCreatePlanDraft(compose),
-    composedFrom: compose.composedFrom,
+    composedFrom: mergeComposeProvenanceFromComposeResult(compose),
     gaps: compose.gaps,
   })
   return { instance: saved, suggestionMode }
