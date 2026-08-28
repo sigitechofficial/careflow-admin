@@ -1,4 +1,6 @@
-import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import { apiJson, ApiError, type ApiEnvelope } from '@/shared/api/api-client'
+import { getApiBaseUrl } from '@/shared/lib/api-base'
+import { useAuthStore } from '@/features/auth/store'
 import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
 
 export type InvoiceRunRow = {
@@ -117,6 +119,29 @@ export async function lockInvoiceRun(id: string): Promise<void> {
 
 export async function sendInvoiceRun(id: string): Promise<void> {
   await apiJson(`/billing/invoice-runs/${id}/send`, { method: 'POST' })
+}
+
+/** Download the invoice run as CSV or Excel (authenticated, streamed as a file). */
+export async function downloadInvoiceRunExport(id: string, format: 'csv' | 'xlsx'): Promise<void> {
+  const base = getApiBaseUrl()
+  if (!base) throw new ApiError('API base URL is not configured.', 0)
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetch(`${base}/billing/invoice-runs/${id}/export?format=${format}`, { headers })
+  if (!res.ok) throw new ApiError('Export failed', res.status)
+  const disposition = res.headers.get('content-disposition') ?? ''
+  const match = /filename="?([^"]+)"?/.exec(disposition)
+  const filename = match?.[1] ?? `invoice-${id}.${format}`
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 export type ServiceUserInvoiceFunderSummary = {
