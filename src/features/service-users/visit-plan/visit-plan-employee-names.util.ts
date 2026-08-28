@@ -12,6 +12,24 @@ export function slotAssignedEmployeeIds(slot: VisitPlanSlot): string[] {
 }
 
 /**
+ * The slot's default ("Visit Schedule") carers — global rows only (dayOfWeek == null),
+ * falling back to the legacy assignedEmployeeIds. Day-specific advanced rows are excluded
+ * so they never override the default carer shown/used for the whole visit.
+ */
+export function slotGlobalCarerIds(
+  slot: Pick<VisitPlanSlot, 'carerAssignments' | 'assignedEmployeeIds'>,
+): string[] {
+  const globalIds = [...new Set(
+    (slot.carerAssignments ?? [])
+      .filter((a) => a.dayOfWeek == null)
+      .map((a) => a.employeeId?.trim())
+      .filter((id): id is string => Boolean(id)),
+  )]
+  if (globalIds.length) return globalIds
+  return (slot.assignedEmployeeIds ?? []).filter((id) => id.trim())
+}
+
+/**
  * Lead / Secondary for a carer on this slot.
  * Prefers explicit carerAssignments.role; otherwise first assigned = Lead.
  */
@@ -72,7 +90,8 @@ export function formatSlotAssignedCarersSummary(
   nameById: Map<string, string>,
   maxNames = 4,
 ): string {
-  const ids = slotAssignedEmployeeIds(slot)
+  // Visit Schedule overview shows the slot's default carers; day-specific rows show in the advanced panel.
+  const ids = slotGlobalCarerIds(slot)
   if (!ids.length) return 'None'
   const showRoles = slot.requiredCarers > 1 || ids.length > 1
   const names = ids.map((id) => {
@@ -84,7 +103,7 @@ export function formatSlotAssignedCarersSummary(
   return `${names.slice(0, maxNames).join(', ')} +${names.length - maxNames}`
 }
 
-/** Strip empty rows and keep assignedEmployeeIds in sync for API save. */
+/** Strip empty rows and keep assignedEmployeeIds (the default carers) in sync for API save. */
 export function normalizeSlotCarerFields(slot: VisitPlanSlot): Pick<
   VisitPlanSlot,
   'assignedEmployeeIds' | 'carerAssignments'
@@ -92,9 +111,14 @@ export function normalizeSlotCarerFields(slot: VisitPlanSlot): Pick<
   const carerAssignments = (slot.carerAssignments ?? [])
     .filter((a) => a.employeeId?.trim())
     .map(({ id: _id, ...assignment }) => assignment)
+  // assignedEmployeeIds is the slot default (all-days) carer set only — day-specific advanced
+  // rows must not leak in, otherwise they become the fallback carer for every other day.
+  const globalIds = [...new Set(
+    carerAssignments.filter((a) => a.dayOfWeek == null).map((a) => a.employeeId),
+  )]
   const assignedEmployeeIds =
-    carerAssignments.length > 0
-      ? [...new Set(carerAssignments.map((a) => a.employeeId))]
+    globalIds.length > 0
+      ? globalIds
       : (slot.assignedEmployeeIds ?? []).filter((id) => id.trim())
   return { assignedEmployeeIds, carerAssignments }
 }

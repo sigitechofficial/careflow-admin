@@ -70,7 +70,7 @@ import {
   assignedEmployeeIdsFromSlots,
   formatSlotAssignedCarersSummary,
   normalizeSlotCarerFields,
-  slotAssignedEmployeeIds,
+  slotGlobalCarerIds,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import {
   assignCarersToGroup,
@@ -1013,7 +1013,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                 </TableHeader>
                 <TableBody>
                   {slots.map((slot, rowIndex) => {
-                    const assignedIds = slotAssignedEmployeeIds(slot)
+                    const assignedIds = slotGlobalCarerIds(slot)
                     const carerSummary = formatSlotAssignedCarersSummary(slot, employeeNameById)
                     return (
                       <TableRow
@@ -1149,11 +1149,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                             value={slot.requiredCarers}
                             aria-label={`${slot.label} carers per visit`}
                             onCommit={(requiredCarers) => {
-                              const assigned = slotAssignedEmployeeIds(slot)
+                              // Slot default count trims the global carers only; day-specific advanced
+                              // rows keep their own carers and per-row counts untouched.
+                              const globalIds = slotGlobalCarerIds(slot)
                               const assignedEmployeeIds =
-                                assigned.length > requiredCarers ? assigned.slice(0, requiredCarers) : assigned
-                              const carerAssignments = (slot.carerAssignments ?? []).filter((a) =>
-                                assignedEmployeeIds.includes(a.employeeId),
+                                globalIds.length > requiredCarers
+                                  ? globalIds.slice(0, requiredCarers)
+                                  : globalIds
+                              const carerAssignments = (slot.carerAssignments ?? []).filter(
+                                (a) => a.dayOfWeek != null || assignedEmployeeIds.includes(a.employeeId),
                               )
                               updateSlot(rowIndex, { requiredCarers, assignedEmployeeIds, carerAssignments })
                             }}
@@ -1370,7 +1374,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
               slot={carersModalSlot}
               onChange={(assignedEmployeeIds) => {
                 if (carersModalIndex < 0) return
-                const carerAssignments = assignedEmployeeIds.map((employeeId, index) => ({
+                // Replace only the global (all-days) carer rows; keep any day-specific advanced rows.
+                const daySpecific = (carersModalSlot.carerAssignments ?? []).filter(
+                  (a) => a.dayOfWeek != null,
+                )
+                const globalRows = assignedEmployeeIds.map((employeeId, index) => ({
                   dayOfWeek: null,
                   employeeId,
                   role: (index === 0 ? 'LEAD' : 'SECONDARY') as VisitPlanSlot['carerAssignments'][number]['role'],
@@ -1379,6 +1387,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                   plannedEndTime: null,
                   sortOrder: index,
                 }))
+                const carerAssignments = [...globalRows, ...daySpecific]
                 updateSlot(carersModalIndex, { assignedEmployeeIds, carerAssignments })
               }}
             />
