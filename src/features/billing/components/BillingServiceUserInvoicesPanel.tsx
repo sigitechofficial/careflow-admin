@@ -1,6 +1,15 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, ChevronRight, Clock, Loader2 } from 'lucide-react'
+import {
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FileText,
+  Loader2,
+  Send,
+  Users,
+} from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
@@ -42,19 +51,73 @@ function summarize(months: ServiceUserInvoiceMonthRow[]) {
   return { invoiceCount: months.length, sentCount, pendingCount, totalValue }
 }
 
-function StatTile({ label, value, tone }: { label: string; value: number | string; tone?: 'sent' | 'pending' }) {
+function StatTile({
+  icon,
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  icon: React.ReactNode
+  label: string
+  value: number | string
+  tone?: 'sent' | 'pending' | 'neutral'
+}) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm">
+      <span
         className={cn(
-          'mt-0.5 text-xl font-semibold tabular-nums',
-          tone === 'sent' && 'text-emerald-600 dark:text-emerald-400',
-          tone === 'pending' && 'text-amber-600 dark:text-amber-400',
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+          tone === 'sent' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+          tone === 'pending' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+          tone === 'neutral' && 'bg-primary/10 text-primary',
         )}
       >
-        {value}
-      </p>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-xl font-semibold tabular-nums text-foreground">{value}</p>
+      </div>
+    </div>
+  )
+}
+
+/** Sent-vs-remaining bar with a legend. */
+function SentProgress({ sent, remaining }: { sent: number; remaining: number }) {
+  const total = sent + remaining
+  const pct = total > 0 ? Math.round((sent / total) * 100) : 0
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span className="font-medium text-foreground">Sent to funders</span>
+        <span className="tabular-nums text-muted-foreground">
+          {sent} of {total} invoices · {pct}%
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-950/50">
+        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-1.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" /> Sent {sent}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-amber-400" /> Remaining {remaining}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** Compact per-row sent ratio. */
+function MiniRatio({ sent, total }: { sent: number; total: number }) {
+  const pct = total > 0 ? Math.round((sent / total) * 100) : 0
+  return (
+    <div className="ml-auto flex w-28 items-center gap-2">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-950/50">
+        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">{pct}%</span>
     </div>
   )
 }
@@ -97,18 +160,18 @@ function MonthTable({ months }: { months: ServiceUserInvoiceMonthRow[] }) {
         </thead>
         <tbody>
           {months.map((m) => (
-            <tr key={m.runId} className="border-b border-border/60 last:border-0">
+            <tr key={m.runId} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
               <td className="px-3 py-2 font-medium">{m.period}</td>
               <td className="px-3 py-2">
                 <InvoiceRunStatusBadge status={m.status} />
               </td>
               <td className="px-3 py-2">
                 {m.sent ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Sent
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
                     <Clock className="h-3.5 w-3.5" aria-hidden /> Remaining
                   </span>
                 )}
@@ -168,6 +231,9 @@ function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
         <td className="px-3 py-2.5 text-right">
           <CountPill value={row.pendingCount} tone="pending" />
         </td>
+        <td className="px-3 py-2.5">
+          <MiniRatio sent={row.sentCount} total={row.invoiceCount} />
+        </td>
         <td className="px-3 py-2.5 text-right tabular-nums font-medium">{row.totalInvoiced}</td>
         <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
           {row.lastPeriodEnd ?? '—'}
@@ -175,7 +241,7 @@ function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
       </tr>
       {open ? (
         <tr className="border-b border-border bg-muted/10 last:border-0">
-          <td colSpan={6} className="px-3 py-2">
+          <td colSpan={7} className="px-3 py-2">
             <MonthTable months={row.months} />
           </td>
         </tr>
@@ -262,9 +328,12 @@ export function BillingServiceUserInvoicesPanel() {
         description="Pick a service user to see their previous invoices, or browse everyone. Filter by month to focus on a billing period; each invoice shows whether it has been sent to the funder or is still outstanding."
       />
 
-      <div className="flex flex-wrap items-end gap-3">
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/20 p-3">
         <div className="min-w-[240px] flex-1 space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Service user</label>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Users className="h-3.5 w-3.5" aria-hidden /> Service user
+          </label>
           <Combobox
             options={serviceUserOptions}
             value={serviceUserId}
@@ -275,14 +344,14 @@ export function BillingServiceUserInvoicesPanel() {
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="su-inv-month" className="text-xs font-medium text-muted-foreground">
-            Month
+          <label htmlFor="su-inv-month" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5" aria-hidden /> Month
           </label>
           <select
             id="su-inv-month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="h-9 rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-9 min-w-[9rem] rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">All months</option>
             {(overview?.months ?? []).map((m) => (
@@ -292,6 +361,18 @@ export function BillingServiceUserInvoicesPanel() {
             ))}
           </select>
         </div>
+        {(serviceUserId || month) && (
+          <button
+            type="button"
+            onClick={() => {
+              setServiceUserId('')
+              setMonth('')
+            }}
+            className="h-9 rounded-md border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {query.isLoading ? (
@@ -301,46 +382,56 @@ export function BillingServiceUserInvoicesPanel() {
         </div>
       ) : selected ? (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                {selected.serviceUserName}
-                {selected.serviceUserNumber ? (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    {selected.serviceUserNumber}
-                  </span>
-                ) : null}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {month ? monthLabel(month) : 'All months'} · previous invoices
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                {selected.serviceUserName
+                  .split(' ')
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">{selected.serviceUserName}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {selected.serviceUserNumber ? `${selected.serviceUserNumber} · ` : ''}
+                  {month ? monthLabel(month) : 'All months'} · previous invoices
+                </p>
+              </div>
             </div>
             <Link
               to="/service-users/$serviceUserId"
               params={{ serviceUserId: selected.serviceUserId }}
-              className="text-sm text-primary hover:underline"
+              className="text-sm font-medium text-primary hover:underline"
             >
               Open service user
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile label="Invoices" value={selectedSummary.invoiceCount} />
-            <StatTile label="Sent" value={selectedSummary.sentCount} tone="sent" />
-            <StatTile label="Remaining" value={selectedSummary.pendingCount} tone="pending" />
-            <StatTile label="Total invoiced" value={gbp.format(selectedSummary.totalValue)} />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile icon={<FileText className="h-4 w-4" />} label="Invoices" value={selectedSummary.invoiceCount} />
+            <StatTile icon={<Send className="h-4 w-4" />} label="Sent" value={selectedSummary.sentCount} tone="sent" />
+            <StatTile icon={<Clock className="h-4 w-4" />} label="Remaining" value={selectedSummary.pendingCount} tone="pending" />
+            <StatTile icon={<span className="text-sm font-semibold">£</span>} label="Total invoiced" value={gbp.format(selectedSummary.totalValue)} />
           </div>
+
+          <SentProgress sent={selectedSummary.sentCount} remaining={selectedSummary.pendingCount} />
 
           <MonthTable months={selectedMonths} />
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile label="Service users" value={overviewRows.length} />
-            <StatTile label="Invoices" value={overviewTotals.invoices} />
-            <StatTile label="Sent" value={overviewTotals.sent} tone="sent" />
-            <StatTile label="Remaining" value={overviewTotals.pending} tone="pending" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile icon={<Users className="h-4 w-4" />} label="Service users" value={overviewRows.length} />
+            <StatTile icon={<FileText className="h-4 w-4" />} label="Invoices" value={overviewTotals.invoices} />
+            <StatTile icon={<Send className="h-4 w-4" />} label="Sent" value={overviewTotals.sent} tone="sent" />
+            <StatTile icon={<Clock className="h-4 w-4" />} label="Remaining" value={overviewTotals.pending} tone="pending" />
           </div>
+
+          {overviewTotals.invoices > 0 ? (
+            <SentProgress sent={overviewTotals.sent} remaining={overviewTotals.pending} />
+          ) : null}
 
           {overviewRows.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -349,14 +440,15 @@ export function BillingServiceUserInvoicesPanel() {
                 : 'No invoices yet. Create and calculate an invoice run for a billing period to see service user invoices here.'}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[860px] text-sm">
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full min-w-[960px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Service user</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Invoices</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Sent</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Remaining</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Progress</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Total invoiced</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Last period</th>
                   </tr>
