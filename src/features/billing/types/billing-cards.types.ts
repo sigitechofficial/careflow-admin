@@ -330,12 +330,14 @@ export const PAY_ENHANCEMENT_METHOD_OPTIONS: { value: PayEnhancementMethod; labe
   },
 ]
 
-export const BILLING_VISIT_DURATION_OPTIONS: { value: number; label: string }[] = [
-  { value: 15, label: '15 minutes' },
-  { value: 30, label: '30 minutes' },
-  { value: 45, label: '45 minutes' },
-  { value: 60, label: '60 minutes (1 hour)' },
-]
+export const BILLING_VISIT_DURATION_OPTIONS: { value: number; label: string }[] =
+  Array.from({ length: 12 }, (_, i) => {
+    const value = (i + 1) * 5 // 5, 10, 15 … 60
+    return {
+      value,
+      label: value === 60 ? '60 minutes (1 hour)' : `${value} minutes`,
+    }
+  })
 
 /** Fixed visit slots apply up to this duration; longer visits use hourly rate × hours. */
 export const MAX_FIXED_VISIT_MINUTES = 60

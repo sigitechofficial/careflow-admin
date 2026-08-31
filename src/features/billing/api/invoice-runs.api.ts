@@ -106,6 +106,13 @@ export async function createInvoiceRun(body: {
   return res.data
 }
 
+export async function deleteAllInvoiceRuns(): Promise<{ deleted: number }> {
+  const res = await apiJson<ApiEnvelope<{ deleted: number }>>('/billing/invoice-runs', {
+    method: 'DELETE',
+  })
+  return res.data
+}
+
 export async function calculateInvoiceRun(id: string): Promise<void> {
   await apiJson(`/billing/invoice-runs/${id}/calculate`, { method: 'POST' })
 }
@@ -154,6 +161,17 @@ export type ServiceUserInvoiceFunderSummary = {
   subtotalValue: number
 }
 
+export type ServiceUserInvoiceLine = {
+  id: string
+  visitRef: string | null
+  funderName: string
+  description: string
+  minutes: number | null
+  amount: string
+  amountValue: number
+  exceptionMessage: string | null
+}
+
 export type ServiceUserInvoiceRunRow = {
   id: string
   period: string
@@ -169,6 +187,15 @@ export type ServiceUserInvoiceRunRow = {
   exceptions: number
   funders: number
   funderSummaries: ServiceUserInvoiceFunderSummary[]
+  lines: ServiceUserInvoiceLine[]
+  runNetTotal: string
+  runNetTotalValue: number
+  paid: string
+  paidValue: number
+  outstanding: string
+  outstandingValue: number
+  paymentStatus: 'UNPAID' | 'PART_PAID' | 'PAID'
+  sent: boolean
   canSend: boolean
 }
 

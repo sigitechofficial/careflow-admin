@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ExternalLink, Loader2, Send } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Eye, Loader2, Send } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -11,6 +11,133 @@ import { InvoiceRunStatusBadge } from '@/features/billing/components/BillingStat
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
+
+type InvoiceRunRow = NonNullable<
+  ReturnType<typeof useServiceUserInvoices>['data']
+>['runs'][number]
+
+function PaymentBadge({ status }: { status: 'UNPAID' | 'PART_PAID' | 'PAID' }) {
+  if (status === 'PAID') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Paid
+      </span>
+    )
+  }
+  if (status === 'PART_PAID') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        Part paid
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      Unpaid
+    </span>
+  )
+}
+
+function InvoiceDetailDialog({
+  run,
+  serviceUserName,
+  onOpenChange,
+}: {
+  run: InvoiceRunRow | null
+  serviceUserName: string
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <Dialog open={run !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{run ? `Invoice — ${run.period}` : 'Invoice'}</DialogTitle>
+        </DialogHeader>
+        {run ? (
+          <DialogBody className="space-y-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span className="text-muted-foreground">{serviceUserName}</span>
+              <InvoiceRunStatusBadge status={run.status} />
+              {run.sent ? <PaymentBadge status={run.paymentStatus} /> : null}
+              <span className="text-muted-foreground">
+                {run.periodStart} → {run.periodEnd}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">This client</p>
+                <p className="text-lg font-semibold tabular-nums">{run.subtotal}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Invoice total</p>
+                <p className="text-lg font-semibold tabular-nums">{run.runNetTotal}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Paid</p>
+                <p className="text-lg font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {run.paid}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Outstanding</p>
+                <p className="text-lg font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                  {run.outstanding}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[560px] text-xs">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                    <th className="px-3 py-2 text-left font-medium">Visit</th>
+                    <th className="px-3 py-2 text-left font-medium">Funder</th>
+                    <th className="px-3 py-2 text-left font-medium">Description</th>
+                    <th className="px-3 py-2 text-right font-medium">Mins</th>
+                    <th className="px-3 py-2 text-right font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {run.lines.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">
+                        No invoice lines for this client on this run.
+                      </td>
+                    </tr>
+                  ) : (
+                    run.lines.map((line) => (
+                      <tr key={line.id} className="border-b border-border/60 last:border-0">
+                        <td className="px-3 py-2 font-medium">{line.visitRef ?? '—'}</td>
+                        <td className="px-3 py-2">{line.funderName}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {line.description}
+                          {line.exceptionMessage ? (
+                            <span className="ml-1 text-amber-600 dark:text-amber-400">
+                              · {line.exceptionMessage}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{line.minutes ?? '—'}</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-medium">{line.amount}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </DialogBody>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 function StatCard({
   title,
@@ -43,6 +170,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
   const invoicesQuery = useServiceUserInvoices(serviceUserId, canRead)
   const templateQuery = useResolveServiceUserInvoiceTemplate(serviceUserId, undefined, canRead)
   const sendMutation = useSendInvoiceRun()
+  const [selectedRun, setSelectedRun] = React.useState<InvoiceRunRow | null>(null)
 
   const data = invoicesQuery.data
   const runs = data?.runs ?? []
@@ -168,6 +296,9 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                         Sent
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                        Payment
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Actions
                       </th>
                     </tr>
@@ -215,7 +346,29 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                               : '—'}
                           </td>
                           <td className="px-3 py-2.5">
+                            {run.sent ? (
+                              <div className="space-y-0.5">
+                                <PaymentBadge status={run.paymentStatus} />
+                                <p className="text-[11px] text-muted-foreground">
+                                  {run.paymentStatus === 'PAID'
+                                    ? `Paid ${run.paid}`
+                                    : `${run.paid} paid · ${run.outstanding} due`}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedRun(run)}
+                              >
+                                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                Detail
+                              </Button>
                               {canOpenBilling ? (
                                 <Button variant="outline" size="sm" asChild>
                                   <Link
@@ -248,6 +401,14 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
           </ContentCard>
         </>
       ) : null}
+
+      <InvoiceDetailDialog
+        run={selectedRun}
+        serviceUserName={data?.serviceUserName ?? ''}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRun(null)
+        }}
+      />
     </div>
   )
 }

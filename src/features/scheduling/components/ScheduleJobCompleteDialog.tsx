@@ -101,6 +101,7 @@ export function ScheduleJobCompleteDialog({
 }: Props) {
   const completeJob = useCompleteHousekeepingJob()
   const [notes, setNotes] = React.useState('')
+  const [statusReason, setStatusReason] = React.useState('')
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
@@ -205,6 +206,7 @@ export function ScheduleJobCompleteDialog({
   React.useEffect(() => {
     if (!open || !job) return
     setNotes(job.notes?.trim() ?? '')
+    setStatusReason('')
     setDeliveredIds([])
     setVisitTasks([])
     setOverrunReason('')
@@ -376,6 +378,10 @@ export function ScheduleJobCompleteDialog({
       )
       return
     }
+    if (!statusReason.trim()) {
+      toastWarning('Reason required', 'Add a reason for this visit status before saving.')
+      return
+    }
     if (isStartedOutcome && multiCarerTiming) {
       const invalid = carerActualTimes.some((row) => !row.startHm || !/^\d{2}:\d{2}$/.test(row.startHm))
       if (invalid) {
@@ -480,10 +486,20 @@ export function ScheduleJobCompleteDialog({
             })
           : undefined
 
+      const statusLabel =
+        SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)?.label ??
+        visitStatus
+      const combinedNotes = [
+        statusReason.trim() ? `Reason (${statusLabel}): ${statusReason.trim()}` : '',
+        notes.trim(),
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+
       await completeJob.mutateAsync({
         jobId: job.id,
         status: visitStatus,
-        notes: notes.trim() || undefined,
+        notes: combinedNotes || undefined,
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
         actualStartDateTime: isStartedOutcome
           ? actualStartDateTime
@@ -602,6 +618,27 @@ export function ScheduleJobCompleteDialog({
               {SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)
                 ?.description}
             </p>
+          </section>
+
+          <section className="space-y-2">
+            <Label
+              htmlFor="schedule-job-status-reason"
+              className="text-sm font-semibold text-foreground"
+            >
+              Reason <span className="text-destructive">*</span>
+            </Label>
+            <textarea
+              id="schedule-job-status-reason"
+              className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              value={statusReason}
+              disabled={busy}
+              onChange={(event) => setStatusReason(event.target.value)}
+              placeholder={`Why is this visit "${
+                SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)
+                  ?.label ?? visitStatus
+              }"? Required.`}
+              maxLength={2000}
+            />
           </section>
 
           <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-3">

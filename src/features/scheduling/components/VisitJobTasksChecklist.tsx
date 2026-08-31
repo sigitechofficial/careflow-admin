@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckSquare, Flag, ListChecks, Loader2, Users, X } from 'lucide-react'
 import { Checkbox } from '@/shared/ui/toggle-controls'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { formatOpsClockTime, formatOpsHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
@@ -301,6 +303,16 @@ export function VisitJobTasksChecklist({
     const showOutcomeFields = Boolean(task.isCompleted)
     const priority = normalizeVisitTaskPriority(task.priority)
     const taskVisual = groupVisual(task.groupCode)
+    const spec = task.completionInput
+    const needsValue = spec.inputMode === 'value' || spec.inputMode === 'value_and_note'
+    const needsNote = spec.inputMode === 'note' || spec.inputMode === 'value_and_note'
+    const valueLabel = spec.valueLabel?.trim() || 'Reading'
+    const noteLabel = spec.noteLabel?.trim() || 'Notes'
+    const effectiveOutcome = outcome ?? 'completed'
+    const needsNoteEditor =
+      (needsNote && effectiveOutcome === 'completed') ||
+      effectiveOutcome === 'partial' ||
+      effectiveOutcome === 'declined'
 
     return (
       <li
@@ -450,14 +462,57 @@ export function VisitJobTasksChecklist({
                       )
                     })}
                   </div>
-                  {/* Outcome description ("… notes required") removed — the notes
-                      editor is gone, so the hint is no longer relevant. */}
                 </div>
 
-                {/* Editable value input + note textarea removed — the carer's
-                    recorded value and notes are already shown read-only in the
-                    "Carer app record" box above (no duplicate editors). Outcome
-                    is still adjustable via the pills. */}
+                {needsValue && effectiveOutcome === 'completed' ? (
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor={`${idPrefix}-${task.assignmentId}-value`}
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      {valueLabel}
+                    </label>
+                    <Input
+                      id={`${idPrefix}-${task.assignmentId}-value`}
+                      value={displayVisitTaskRecordedValue(task.recordedValue)}
+                      placeholder={spec.valuePlaceholder || `Enter ${valueLabel.toLowerCase()}`}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        onTaskChange(task.assignmentId, {
+                          isCompleted: true,
+                          recordedValue: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {needsNoteEditor ? (
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor={`${idPrefix}-${task.assignmentId}-note`}
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      {noteLabel}
+                      {effectiveOutcome === 'partial' || effectiveOutcome === 'declined'
+                        ? ' (required)'
+                        : ''}
+                    </label>
+                    <Textarea
+                      id={`${idPrefix}-${task.assignmentId}-note`}
+                      rows={2}
+                      value={task.notes ?? ''}
+                      placeholder={spec.notePlaceholder || 'Add notes…'}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        onTaskChange(task.assignmentId, {
+                          isCompleted: true,
+                          notes: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
