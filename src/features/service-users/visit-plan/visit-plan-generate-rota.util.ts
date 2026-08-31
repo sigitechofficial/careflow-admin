@@ -52,8 +52,8 @@ export function todayIsoDate(): string {
   return operationalTodayIso()
 }
 
-/** Visit-plan tab: show forward Generate rota (Step 5). When false, Backfill is Step 5. */
-export const SHOW_GENERATE_ROTA_SECTION = false
+/** Visit-plan tab: show forward Regenerate rota (Step 5). When false, Backfill is Step 5. */
+export const SHOW_GENERATE_ROTA_SECTION = true
 
 /** Inclusive start of a backfill window ending the day before `rotaStartDate` (UTC date-only). */
 export function resolveBackfillWindowStart(rotaStartDate: string, backfillDays: number): string {

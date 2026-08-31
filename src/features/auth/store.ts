@@ -848,7 +848,7 @@ export const useAuthStore = create<AuthState>()(
       name: 'care-admin-auth',
       version: 2,
       migrate: (persisted) => {
-        const state = persisted as { failedByEmail?: Record<string, number>; lockedAccounts?: LockedAccount[] }
+        const state = persisted as AuthState
         return {
           ...state,
           failedByEmail: {},

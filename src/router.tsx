@@ -56,6 +56,12 @@ import EmployeePage from '@/features/employees/pages/EmployeePage'
 import GeneralEmployeeDocumentsPage from '@/features/employees/pages/GeneralEmployeeDocumentsPage'
 import AddEmployeePage from '@/features/employees/pages/AddEmployeePage'
 import EditEmployeePage from '@/features/employees/pages/EditEmployeePage'
+import HrDashboardPage from '@/features/hr/pages/HrDashboardPage'
+import HrEmployeeProfilePage from '@/features/hr/pages/HrEmployeeProfilePage'
+import RecruitmentDashboardPage from '@/features/hr/recruitment/pages/RecruitmentDashboardPage'
+import VacanciesPage from '@/features/hr/recruitment/pages/VacanciesPage'
+import CandidatesPipelinePage from '@/features/hr/recruitment/pages/CandidatesPipelinePage'
+import CandidateDetailPage from '@/features/hr/recruitment/pages/CandidateDetailPage'
 
 // ΓöÇΓöÇ Scheduling pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ViewSchedulePage from '@/features/scheduling/pages/ViewSchedulePage'
@@ -96,6 +102,12 @@ import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
+import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
+import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
+import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
+import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
+import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
+import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
 import VisitReconciliationPage from '@/features/billing/pages/VisitReconciliationPage'
@@ -103,6 +115,7 @@ import PayrollRunsPage from '@/features/billing/pages/PayrollRunsPage'
 import SalaryOverviewPage from '@/features/billing/pages/SalaryOverviewPage'
 import EmployeePayoutsPage from '@/features/billing/pages/EmployeePayoutsPage'
 import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
+import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoicesPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
@@ -230,6 +243,12 @@ const pageTitles: Record<string, string> = {
   '/employee/temp-inspector': 'Temporary Inspector Login',
   '/employee/documents': 'General Employee Documents',
   '/employee/add': 'Add Employee',
+  '/hr': 'HR',
+  '/hr/employees': 'HR Employees',
+  '/hr/recruitment': 'Recruitment',
+  '/hr/vacancies': 'Vacancies',
+  '/hr/candidates': 'Candidates',
+  '/hr/candidates/$candidateId': 'Candidate',
   '/accidents-incidents/view': 'View Accidents & Incidents',
   '/accidents-incidents/raise': 'Raise Accidents & Incidents',
   '/account': 'My account',
@@ -247,6 +266,7 @@ const pageTitles: Record<string, string> = {
   '/billing/payroll-runs': 'Visit pay runs',
   '/billing/salary': 'Salary',
   '/billing/employee-payouts': 'Employee payouts',
+  '/billing/service-user-invoices': 'Service user invoices',
   '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
   '/billing/payments': 'Payments',
@@ -1200,6 +1220,61 @@ const employeeEditRoute = createRoute({
   component: EditEmployeePage,
 })
 
+const hrIndexRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr',
+  beforeLoad: () => {
+    throw redirect({ to: '/hr/employees' })
+  },
+})
+
+const hrEmployeesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/employees',
+  beforeLoad: requirePermission('hr.read'),
+  component: HrDashboardPage,
+})
+
+const hrEmployeeProfileRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/employees/$employeeId',
+  beforeLoad: requirePermission('hr.read'),
+  component: HrEmployeeProfilePage,
+})
+
+const hrRecruitmentRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/recruitment',
+  beforeLoad: requireAnyPermission('hr.vacancies.read', 'hr.candidates.read'),
+  component: RecruitmentDashboardPage,
+})
+
+const hrVacanciesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/vacancies',
+  beforeLoad: requirePermission('hr.vacancies.read'),
+  component: VacanciesPage,
+})
+
+const hrCandidatesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/candidates',
+  validateSearch: (raw: Record<string, unknown>): { vacancyId?: string } => {
+    const vacancyId =
+      typeof raw.vacancyId === 'string' && raw.vacancyId.trim() ? raw.vacancyId.trim() : undefined
+    return vacancyId ? { vacancyId } : {}
+  },
+  beforeLoad: requirePermission('hr.candidates.read'),
+  component: CandidatesPipelinePage,
+})
+
+const hrCandidateDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hr/candidates/$candidateId',
+  beforeLoad: requirePermission('hr.candidates.read'),
+  component: CandidateDetailPage,
+})
+
 const accidentsIncidentsViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/view',
@@ -1214,6 +1289,49 @@ const accidentsIncidentsRaiseRoute = createRoute({
   beforeLoad: requirePermission('incidents.read'),
   // UI-only form page ΓÇö no lookup API to prefetch yet
   component: RaiseAccidentsIncidentsPage,
+})
+
+// Incident Management module (real, API-backed).
+const incidentsDashboardRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/dashboard',
+  beforeLoad: requirePermission('incidents.read'),
+  component: IncidentsDashboardPage,
+})
+
+const incidentsListRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/view',
+  beforeLoad: requirePermission('incidents.read'),
+  component: IncidentsListPage,
+})
+
+const incidentsRaiseRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/raise',
+  beforeLoad: requirePermission('incidents.create'),
+  component: RaiseIncidentPage,
+})
+
+const incidentsMyActionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/my-actions',
+  beforeLoad: requirePermission('incidents.read'),
+  component: MyActionsPage,
+})
+
+const incidentsAnalyticsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/analytics',
+  beforeLoad: requirePermission('incidents.view_analytics'),
+  component: IncidentAnalyticsPage,
+})
+
+const incidentDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/incidents/$incidentId',
+  beforeLoad: requirePermission('incidents.read'),
+  component: IncidentDetailPage,
 })
 
 const accountRoute = createRoute({
@@ -1427,6 +1545,13 @@ const billingEmployeePayoutsRoute = createRoute({
   path: '/billing/employee-payouts',
   beforeLoad: requirePermission('billing.employee_payouts.read'),
   component: EmployeePayoutsPage,
+})
+
+const billingServiceUserInvoicesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/service-user-invoices',
+  beforeLoad: requirePermission('billing.invoice_runs.read'),
+  component: ServiceUserInvoicesPage,
 })
 
 const billingInvoiceRunsRoute = createRoute({
@@ -1718,8 +1843,21 @@ const routeTree = rootRoute.addChildren([
     employeeGeneralDocumentsRoute,
     employeeAddRoute,
     employeeEditRoute,
+    hrIndexRoute,
+    hrEmployeesRoute,
+    hrEmployeeProfileRoute,
+    hrRecruitmentRoute,
+    hrVacanciesRoute,
+    hrCandidatesRoute,
+    hrCandidateDetailRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
+    incidentsDashboardRoute,
+    incidentsListRoute,
+    incidentsRaiseRoute,
+    incidentsMyActionsRoute,
+    incidentsAnalyticsRoute,
+    incidentDetailRoute,
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
@@ -1736,6 +1874,7 @@ const routeTree = rootRoute.addChildren([
     billingPayrollRunsRoute,
     billingSalaryRoute,
     billingEmployeePayoutsRoute,
+    billingServiceUserInvoicesRoute,
     billingInvoiceRunsRoute,
     billingInvoiceRunDetailRoute,
     billingPaymentsRoute,

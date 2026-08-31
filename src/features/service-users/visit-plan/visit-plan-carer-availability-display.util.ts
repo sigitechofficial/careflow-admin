@@ -29,6 +29,25 @@ type CarerAvailabilityInput = VisitPlanCarerCandidate['availability'] & {
   timeMismatchMessages?: string[]
 }
 
+/**
+ * Keep only the "On <Day>, …" working-hours messages whose day is in `days`. The backend
+ * computes availability across every slot day, so a carer covering only Saturday would
+ * otherwise show a Friday "outside working hours" message. Messages we can't attribute to a
+ * day are kept (fail-open) so a genuine warning is never hidden.
+ */
+export function filterTimeMismatchMessagesToDays(messages: string[], days: number[]): string[] {
+  if (!days.length) return messages
+  const labels = new Set<string>()
+  for (const day of days) {
+    const label = VISIT_PLAN_DAY_LABELS[day]
+    if (label) labels.add(label)
+  }
+  return messages.filter((message) => {
+    const day = /^On ([A-Za-z]{3})\b/.exec(message)?.[1]
+    return day ? labels.has(day) : true
+  })
+}
+
 export function buildCarerAvailabilityBreakdown(
   availability: CarerAvailabilityInput,
   slotDaysOfWeek: number[],
@@ -44,6 +63,9 @@ export function buildCarerAvailabilityBreakdown(
     availableDays: availability.availableDays.filter(onSlot),
     unavailableDays: availability.unavailableDays.filter(onSlot),
     fortnightNotes,
-    timeMismatchMessages: availability.timeMismatchMessages ?? [],
+    timeMismatchMessages: filterTimeMismatchMessagesToDays(
+      availability.timeMismatchMessages ?? [],
+      slotDaysOfWeek,
+    ),
   }
 }

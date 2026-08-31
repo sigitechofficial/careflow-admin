@@ -23,18 +23,22 @@ export function VisitPlanSlotCarerByDayDetails({ slot, employeeNameById, onClose
     return <p className="text-sm text-muted-foreground">No day-specific carer rules configured.</p>
   }
 
+  const carerRows = groups.flatMap((group) =>
+    group.carers.map((carer) => ({ group, carer })),
+  )
+
   return (
     <ul className="space-y-3">
-      {groups.map((group) => {
-        const employeeId = group.template.employeeId?.trim()
+      {carerRows.map(({ group, carer }) => {
+        const employeeId = carer.employeeId?.trim()
         const name = employeeId
           ? resolveEmployeeDisplayName(employeeNameById, employeeId)
           : 'No carer selected'
-        const timeOverride = formatCarerAssignmentTimeOverrideLabel(group.template)
+        const timeOverride = formatCarerAssignmentTimeOverrideLabel(carer)
 
         return (
           <li
-            key={group.groupId}
+            key={`${group.groupId}::${carer.carerKey}`}
             className="rounded-lg border border-violet-200/80 bg-violet-50/30 p-3 dark:border-violet-900 dark:bg-violet-950/20"
           >
             <div className="flex items-start gap-3">
@@ -72,7 +76,7 @@ export function VisitPlanSlotCarerByDayDetails({ slot, employeeNameById, onClose
                   <div>
                     <dt className="text-muted-foreground">Role</dt>
                     <dd className="mt-0.5">
-                      <VisitPlanCarerRoleBadge role={group.template.role} />
+                      <VisitPlanCarerRoleBadge role={carer.role} />
                     </dd>
                   </div>
                   <div className="flex items-start gap-1.5">
@@ -80,7 +84,7 @@ export function VisitPlanSlotCarerByDayDetails({ slot, employeeNameById, onClose
                     <div>
                       <dt className="text-muted-foreground">Duration</dt>
                       <dd className="font-medium text-foreground">
-                        {formatCarerAssignmentDurationLabel(group.template, slot)}
+                        {formatCarerAssignmentDurationLabel(carer, slot)}
                       </dd>
                     </div>
                   </div>

@@ -39,6 +39,7 @@ function RateBreakdownCard({
   hours,
   breakdown,
   fallbackAmount,
+  unavailableReason,
   icon,
 }: {
   title: string
@@ -47,9 +48,12 @@ function RateBreakdownCard({
   hours: string | null
   breakdown: VisitReconciliationRateBreakdown | null
   fallbackAmount: string | null
+  /** Shown when rate breakdown cannot be built (e.g. missing charge-card rules). */
+  unavailableReason?: string | null
   icon?: React.ReactNode
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
+  const appliedRules = breakdown?.appliedRules?.filter(r => r.label.trim() || r.detail.trim()) ?? []
 
   return (
     <ContentCard className="p-4 space-y-3">
@@ -78,13 +82,58 @@ function RateBreakdownCard({
               {breakdown.cardCode ? ` (${breakdown.cardCode})` : ''}
             </p>
           ) : null}
-          {breakdown.ruleLabel ? (
-            <p className="text-xs text-muted-foreground">Rule: {breakdown.ruleLabel}</p>
+
+          {appliedRules.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Applied rule{appliedRules.length === 1 ? '' : 's'}
+              </p>
+              <ul className="space-y-2">
+                {appliedRules.map((rule, i) => (
+                  <li
+                    key={`${rule.label}-${rule.rateType}-${i}`}
+                    className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium text-foreground">{rule.label}</span>
+                      {rule.amount ? (
+                        <span className="tabular-nums font-medium text-foreground">{rule.amount}</span>
+                      ) : rule.unitRate ? (
+                        <span className="tabular-nums text-foreground">{rule.unitRate}</span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{rule.rateTypeLabel}</p>
+                    <dl className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                      {rule.dayTypeLabel ? (
+                        <div>
+                          <dt className="inline text-muted-foreground/80">Day: </dt>
+                          <dd className="inline text-foreground">{rule.dayTypeLabel}</dd>
+                        </div>
+                      ) : null}
+                      {rule.timeWindow ? (
+                        <div>
+                          <dt className="inline text-muted-foreground/80">Time: </dt>
+                          <dd className="inline text-foreground">{rule.timeWindow}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                    <p className="text-xs text-muted-foreground">{rule.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : breakdown.ruleLabel ? (
+            <p className="text-xs text-muted-foreground">
+              Rule: <span className="font-medium text-foreground">{breakdown.ruleLabel}</span>
+            </p>
           ) : null}
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-muted-foreground">Rate</span>
-            <span className="font-medium tabular-nums">{breakdown.unitRate ?? '—'}</span>
-          </div>
+
+          {appliedRules.length === 0 ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-muted-foreground">Rate</span>
+              <span className="font-medium tabular-nums">{breakdown.unitRate ?? '—'}</span>
+            </div>
+          ) : null}
           <div className="border-t border-border pt-3 space-y-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Calculation
@@ -128,10 +177,12 @@ function RateBreakdownCard({
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {fallbackAmount
-            ? `Estimated total: ${fallbackAmount} (rate card details unavailable)`
-            : 'Amount cannot be calculated — check pay/charge card setup and approved times.'}
+        <p className="text-sm text-amber-800 dark:text-amber-200">
+          {unavailableReason?.trim()
+            ? unavailableReason
+            : fallbackAmount
+              ? `Estimated total: ${fallbackAmount} (rate card details unavailable)`
+              : 'Amount cannot be calculated — check pay/charge card setup and approved times.'}
         </p>
       )}
     </ContentCard>
@@ -241,6 +292,12 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   <VisitReconStatusBadge status={detail.status} />
                 </div>
               </div>
+
+              {preview?.pricingFrozenNote ? (
+                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  {preview.pricingFrozenNote}
+                </p>
+              ) : null}
 
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -381,8 +438,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
               <RateBreakdownCard
                 title="Client charge"
                 subtitle={
-                  preview?.funderChargeNote?.trim() ||
-                  'Invoice — based on approved billable time (org multi-carer funder setting)'
+                  preview?.funderClientCharges?.length
+                    ? 'Total client charge across all funders (each funder priced with their own rate card).'
+                    : preview?.funderChargeNote?.trim() ||
+                      'Invoice — based on approved billable time (org multi-carer funder setting)'
                 }
                 timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
                 hours={preview?.billableHours ?? null}
@@ -390,6 +449,81 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 fallbackAmount={detail.billableAmount}
                 icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
               />
+
+              {preview?.funderClientCharges?.map((funderCharge) => (
+                <RateBreakdownCard
+                  key={`${funderCharge.funderName}-${funderCharge.splitPercent ?? 'none'}`}
+                  title={`Client charge — ${funderCharge.funderName}`}
+                  subtitle={
+                    funderCharge.splitPercent != null && funderCharge.splitPercent > 0
+                      ? `${funderCharge.cardGrossAmount ?? '—'} visit price × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount}`
+                      : funderCharge.reason ?? 'Funder charge'
+                  }
+                  timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                  hours={preview?.billableHours ?? null}
+                  breakdown={funderCharge.breakdown}
+                  fallbackAmount={funderCharge.shareAmount}
+                  unavailableReason={funderCharge.reason}
+                  icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
+                />
+              ))}
+
+              {preview?.funderSplitPreview && !preview?.funderClientCharges?.length ? (
+                <ContentCard className="space-y-3 p-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">Funder split (invoice run)</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">{preview.funderSplitPreview.note}</p>
+                    {preview.funderSplitPreview.visitChargeCardName ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Visit gross priced with:{' '}
+                        <span className="font-medium text-foreground">
+                          {preview.funderSplitPreview.visitChargeCardName}
+                        </span>
+                        {preview.funderSplitPreview.note.includes('one gross charge')
+                          ? ' (primary funding rate card)'
+                          : null}
+                      </p>
+                    ) : null}
+                  </div>
+                  <ul className="space-y-2">
+                    {preview.funderSplitPreview.lines.map((line) => (
+                      <li
+                        key={`${line.funderName}-${line.splitPercent ?? 'none'}`}
+                        className={`rounded-md border px-3 py-2 text-sm ${
+                          line.included
+                            ? 'border-border bg-muted/20'
+                            : 'border-amber-500/30 bg-amber-500/5'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="font-medium text-foreground">{line.funderName}</span>
+                          <span className="tabular-nums font-medium text-foreground">
+                            {line.included ? line.amount : '£0.00'}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {line.splitPercent != null && line.splitPercent > 0
+                            ? `Split ${line.splitPercent}%`
+                            : 'No split %'}
+                          {line.chargeCardName ? ` · Charge card: ${line.chargeCardName}` : ''}
+                        </p>
+                        {line.pricingNote ? (
+                          <p className="mt-1 text-xs text-muted-foreground">{line.pricingNote}</p>
+                        ) : null}
+                        {!line.included && line.reason ? (
+                          <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">{line.reason}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Total visit charge:{' '}
+                    <span className="font-medium text-foreground tabular-nums">
+                      {preview.funderSplitPreview.totalAmount}
+                    </span>
+                  </p>
+                </ContentCard>
+              ) : null}
 
               {preview?.exceptionDetails && preview.exceptionDetails.length > 0 ? (
                 <ContentCard className="p-4 space-y-2">

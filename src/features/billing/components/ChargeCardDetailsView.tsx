@@ -19,6 +19,7 @@ import {
   formatPayCardRuleDayType,
   formatPayCardRuleTimeBand,
   formatVisitDurationLabel,
+  fixedVisitRuleTitle,
   type ChargeCard,
   type ChargeCardRule,
   type PayCardRuleCategory,
@@ -36,6 +37,8 @@ type ChargeCardDetailsViewProps = {
   isBillingDefault?: boolean
   loading?: boolean
   showManageLink?: boolean
+  /** When false, hides the rate rules table (e.g. service user read-only tab). */
+  showRules?: boolean
   groupRules?: boolean
 }
 
@@ -110,7 +113,13 @@ function RuleTable({
           return (
             <tr key={rule.id ?? `${rule.label}-${index}`} className="border-b border-border last:border-0">
               <td className="px-3 py-2.5">
-                <span className="font-medium">{rule.label?.trim() || `Rule ${index + 1}`}</span>
+                <span className="font-medium">
+                  {rule.rateType === 'FIXED'
+                    && (rule.minimumMinutes ?? 0) > 0
+                    && rule.chargeMethod !== 'SLEEP_IN'
+                    ? fixedVisitRuleTitle(rule, rule.minimumMinutes!)
+                    : (rule.label?.trim() || `Rule ${index + 1}`)}
+                </span>
                 {rule.serviceType?.trim() ? (
                   <p className="text-xs text-muted-foreground">{rule.serviceType}</p>
                 ) : null}
@@ -164,6 +173,7 @@ export function ChargeCardDetailsView({
   isBillingDefault,
   loading,
   showManageLink,
+  showRules = true,
   groupRules = true,
 }: ChargeCardDetailsViewProps) {
   const sourceLabel = resolveSourceLabel(resolveSource, matchedLevelLabel)
@@ -250,6 +260,7 @@ export function ChargeCardDetailsView({
         </div>
       </dl>
 
+      {showRules ? (
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -287,6 +298,7 @@ export function ChargeCardDetailsView({
           </div>
         )}
       </div>
+      ) : null}
     </div>
   )
 }

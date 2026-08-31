@@ -12,7 +12,7 @@ import {
 import { VisitPlanSlotCarerAssignment } from '@/features/service-users/visit-plan/VisitPlanSlotCarerAssignment'
 import {
   formatRequiredCarersRoleHint,
-  slotAssignedEmployeeIds,
+  slotGlobalCarerIds,
 } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 
@@ -53,14 +53,13 @@ export function VisitPlanSlotCarersDialog({
   dialogDescription,
   onChange,
 }: Props) {
-  const [draftIds, setDraftIds] = React.useState<string[]>(() => slotAssignedEmployeeIds(slot))
+  const [draftIds, setDraftIds] = React.useState<string[]>(() => slotGlobalCarerIds(slot))
   const defaultTitle = `${slot.assignedEmployeeIds?.length ? 'Change carers' : 'Assign carers'} — ${slot.label}`
 
   React.useEffect(() => {
     if (!open) return
-    setDraftIds(slotAssignedEmployeeIds(slot))
-    // Snapshot assigned carers only when the dialog opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- slot identity changes each parent render
+    // Snapshot assigned carers only when the dialog opens (slot identity changes each parent render).
+    setDraftIds(slotGlobalCarerIds(slot))
   }, [open])
 
   const draftSlot = React.useMemo(() => slotWithDraftIds(slot, draftIds), [slot, draftIds])

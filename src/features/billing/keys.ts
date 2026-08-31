@@ -65,6 +65,8 @@ export const billingKeys = {
   invoiceRun: (id: string) => [...billingKeys.all, 'invoice-run', id] as const,
   serviceUserInvoices: (serviceUserId: string) =>
     [...billingKeys.all, 'service-user-invoices', serviceUserId] as const,
+  serviceUserInvoicesOverview: (month?: string) =>
+    [...billingKeys.all, 'service-user-invoices-overview', month ?? 'all'] as const,
   payments: (filters?: { locationId?: string }) =>
     [...billingKeys.all, 'payments', filters ?? {}] as const,
   payment: (id: string) => [...billingKeys.all, 'payment', id] as const,

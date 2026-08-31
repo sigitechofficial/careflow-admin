@@ -355,6 +355,54 @@ export function formatVisitDurationLabel(minutes?: number | null): string | null
   return match?.label ?? `${minutes} minutes`
 }
 
+/** Default card title for a fixed visit-length rule, e.g. "30 minutes visit". */
+export function defaultFixedVisitRuleLabel(minutes: number): string {
+  return `${formatVisitDurationLabel(minutes) ?? `${minutes} min`} visit`
+}
+
+/**
+ * True when the label is empty or matches an auto-generated fixed-visit title
+ * (any standard duration). Custom labels like "Morning short call" return false.
+ */
+export function isAutoFixedVisitRuleLabel(label?: string | null): boolean {
+  const trimmed = label?.trim()
+  if (!trimmed) return true
+  const lower = trimmed.toLowerCase()
+  return BILLING_VISIT_DURATION_OPTIONS.some(opt => {
+    const duration = opt.label.toLowerCase()
+    return (
+      lower === `${duration} visit`
+      || lower === `${opt.value} min visit`
+      || lower === `${opt.value} minutes visit`
+      || lower === `fixed — ${duration} visit`
+      || lower === `fixed - ${duration} visit`
+      || lower === `${duration} charge`
+      || lower === `${duration} visit charge`
+    )
+  })
+}
+
+/** Keep custom titles; refresh auto duration titles when visit length changes. */
+export function nextFixedVisitRuleLabel(
+  currentLabel: string | null | undefined,
+  nextMinutes: number,
+): string {
+  if (isAutoFixedVisitRuleLabel(currentLabel)) {
+    return defaultFixedVisitRuleLabel(nextMinutes)
+  }
+  return currentLabel!.trim()
+}
+
+/** Header for a fixed visit rule: custom label wins, else current visit length. */
+export function fixedVisitRuleTitle(
+  rule: Pick<PayCardRule, 'label' | 'minimumMinutes'>,
+  durationMinutes: number,
+): string {
+  const label = rule.label?.trim()
+  if (label && !isAutoFixedVisitRuleLabel(label)) return label
+  return defaultFixedVisitRuleLabel(durationMinutes)
+}
+
 export function formatPayCardRuleDayType(dayType: BillingDayType): string {
   return BILLING_DAY_TYPE_OPTIONS.find(o => o.value === dayType)?.label ?? dayType
 }

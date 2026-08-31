@@ -9,6 +9,7 @@ import {
   DEFAULT_VISIT_DURATION_MINUTES,
   MAX_FIXED_VISIT_MINUTES,
   formatVisitDurationLabel,
+  nextFixedVisitRuleLabel,
 } from '@/features/billing/types/billing-cards.types'
 import { billingTimeWindowsOverlap, parseBillingTimeToMinutes } from '@/features/billing/utils/billing-time.util'
 
@@ -181,7 +182,11 @@ export function normalizePayCardRuleForEditor(rule: PayCardRule): PayCardRule {
   }
 
   const withDuration = withDefaultDuration(rule)
-  return { ...withDuration, rateType: 'FIXED' }
+  return {
+    ...withDuration,
+    rateType: 'FIXED',
+    label: nextFixedVisitRuleLabel(rule.label, withDuration.minimumMinutes!),
+  }
 }
 
 export function normalizeChargeCardRuleForEditor(rule: ChargeCardRule): ChargeCardRule {
@@ -231,6 +236,7 @@ export function applyDurationChangeToRule(rule: PayCardRule, nextMinutes: number
     minimumMinutes: nextMinutes,
     rateType: 'FIXED',
     amount: Number(rule.amount),
+    label: nextFixedVisitRuleLabel(rule.label, nextMinutes),
   }
 }
 
@@ -265,7 +271,10 @@ export function billingDayTypesCanOverlap(a: BillingDayType, b: BillingDayType):
 
 type HourlyOverlapCandidate = Pick<PayCardRule, 'dayType' | 'startTime' | 'endTime' | 'label' | 'rateType'>
 
-function isHourlyPeriodLike(rule: Pick<PayCardRule, 'rateType'>): boolean {
+function isHourlyPeriodLike(
+  rule: Pick<PayCardRule, 'rateType'> & Partial<Pick<ChargeCardRule, 'chargeMethod'>>,
+): boolean {
+  if (isNightDutyChargeRule(rule)) return false
   return (
     rule.rateType === 'HOURLY'
     || rule.rateType === 'BANDED'
