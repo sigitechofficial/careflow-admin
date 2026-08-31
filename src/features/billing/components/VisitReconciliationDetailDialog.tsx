@@ -11,6 +11,7 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { ContentCard } from '@/shared/ui/content-section'
+import { cn } from '@/shared/lib/utils'
 import {
   BillingExceptionBadge,
   VisitReconStatusBadge,
@@ -198,6 +199,40 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
   const detail = detailQuery.data
   const preview = detail?.calculationPreview
 
+  // What the approval decision means for this visit: is the carer actually paid,
+  // and is the client / funder actually charged? Priced amounts are shown either way,
+  // but a scoped approval (pay-only or bill-only) zeroes out the other side.
+  const status = detail?.status
+  // Carer will NOT be paid: bill-only approval, or pay explicitly rejected.
+  const carerNotPaid = status === 'APPROVED_FOR_INVOICE' || status === 'REJECTED_FOR_PAY'
+  // Funders will NOT be charged: pay-only approval, or invoice explicitly rejected.
+  const funderNotCharged = status === 'APPROVED_FOR_PAY' || status === 'REJECTED_FOR_INVOICE'
+
+  const decisionBanner: { tone: 'both' | 'pay' | 'bill' | 'reject'; text: string } | null =
+    status === 'APPROVED_FOR_PAY'
+      ? {
+          tone: 'pay',
+          text: 'Approved for carer pay only — the carer will be paid. The client / funders are charged £0 for this visit.',
+        }
+      : status === 'APPROVED_FOR_INVOICE'
+        ? {
+            tone: 'bill',
+            text: 'Approved for client / funder billing only — the funders will be charged. The carer is paid £0 for this visit.',
+          }
+        : status === 'APPROVED_FOR_BOTH' || status === 'LOCKED'
+          ? {
+              tone: 'both',
+              text: 'Approved for both — the carer is paid and the client / funders are charged for this visit.',
+            }
+          : status === 'REJECTED_FOR_PAY'
+            ? { tone: 'reject', text: 'Carer pay rejected — the carer will not be paid for this visit.' }
+            : status === 'REJECTED_FOR_INVOICE'
+              ? {
+                  tone: 'reject',
+                  text: 'Client / funder billing rejected — the funders will not be charged for this visit.',
+                }
+              : null
+
   const [travelMiles, setTravelMiles] = React.useState('')
   const [overrunNotes, setOverrunNotes] = React.useState('')
 
@@ -297,6 +332,24 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                   {preview.pricingFrozenNote}
                 </p>
+              ) : null}
+
+              {decisionBanner ? (
+                <div
+                  className={cn(
+                    'rounded-md border px-3 py-2 text-xs font-medium',
+                    decisionBanner.tone === 'pay' &&
+                      'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
+                    decisionBanner.tone === 'bill' &&
+                      'border-sky-500/40 bg-sky-500/10 text-sky-800 dark:text-sky-200',
+                    decisionBanner.tone === 'both' &&
+                      'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
+                    decisionBanner.tone === 'reject' &&
+                      'border-destructive/40 bg-destructive/10 text-destructive',
+                  )}
+                >
+                  {decisionBanner.text}
+                </div>
               ) : null}
 
               <ContentCard className="p-4">
@@ -425,48 +478,64 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 )}
               </ContentCard>
 
-              <RateBreakdownCard
-                title="Carer pay"
-                subtitle="Payroll — based on this carer’s approved payable time"
-                timeRange={preview?.timeWindows.approvedPayable ?? row.approvedPayable}
-                hours={preview?.payableHours ?? null}
-                breakdown={preview?.carerPay ?? null}
-                fallbackAmount={detail.payableAmount}
-                icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
-              />
-
-              <RateBreakdownCard
-                title="Client charge"
-                subtitle={
-                  preview?.funderClientCharges?.length
-                    ? 'Total client charge across all funders (each funder priced with their own rate card).'
-                    : preview?.funderChargeNote?.trim() ||
-                      'Invoice — based on approved billable time (org multi-carer funder setting)'
-                }
-                timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
-                hours={preview?.billableHours ?? null}
-                breakdown={preview?.clientCharge ?? null}
-                fallbackAmount={detail.billableAmount}
-                icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
-              />
-
-              {preview?.funderClientCharges?.map((funderCharge) => (
+              <div className={cn('space-y-2', carerNotPaid && 'opacity-70')}>
+                {carerNotPaid ? (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                    Not paid for this visit — £0 to the carer. The amount below is the priced value,
+                    kept for reference only.
+                  </p>
+                ) : null}
                 <RateBreakdownCard
-                  key={`${funderCharge.funderName}-${funderCharge.splitPercent ?? 'none'}`}
-                  title={`Client charge — ${funderCharge.funderName}`}
+                  title="Carer pay"
+                  subtitle="Payroll — based on this carer’s approved payable time"
+                  timeRange={preview?.timeWindows.approvedPayable ?? row.approvedPayable}
+                  hours={preview?.payableHours ?? null}
+                  breakdown={preview?.carerPay ?? null}
+                  fallbackAmount={detail.payableAmount}
+                  icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
+                />
+              </div>
+
+              <div className={cn('space-y-4', funderNotCharged && 'opacity-70')}>
+                {funderNotCharged ? (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                    Not billed for this visit — £0 to the client / funders. The amounts below are the
+                    priced values, kept for reference only.
+                  </p>
+                ) : null}
+                <RateBreakdownCard
+                  title="Client charge"
                   subtitle={
-                    funderCharge.splitPercent != null && funderCharge.splitPercent > 0
-                      ? `${funderCharge.cardGrossAmount ?? '—'} visit price × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount}`
-                      : funderCharge.reason ?? 'Funder charge'
+                    preview?.funderClientCharges?.length
+                      ? 'Total client charge across all funders (each funder priced with their own rate card).'
+                      : preview?.funderChargeNote?.trim() ||
+                        'Invoice — based on approved billable time (org multi-carer funder setting)'
                   }
                   timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
                   hours={preview?.billableHours ?? null}
-                  breakdown={funderCharge.breakdown}
-                  fallbackAmount={funderCharge.shareAmount}
-                  unavailableReason={funderCharge.reason}
+                  breakdown={preview?.clientCharge ?? null}
+                  fallbackAmount={detail.billableAmount}
                   icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                 />
-              ))}
+
+                {preview?.funderClientCharges?.map((funderCharge) => (
+                  <RateBreakdownCard
+                    key={`${funderCharge.funderName}-${funderCharge.splitPercent ?? 'none'}`}
+                    title={`Client charge — ${funderCharge.funderName}`}
+                    subtitle={
+                      funderCharge.splitPercent != null && funderCharge.splitPercent > 0
+                        ? `${funderCharge.cardGrossAmount ?? '—'} visit price × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount}`
+                        : funderCharge.reason ?? 'Funder charge'
+                    }
+                    timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                    hours={preview?.billableHours ?? null}
+                    breakdown={funderCharge.breakdown}
+                    fallbackAmount={funderCharge.shareAmount}
+                    unavailableReason={funderCharge.reason}
+                    icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
+                  />
+                ))}
+              </div>
 
               {preview?.funderSplitPreview && !preview?.funderClientCharges?.length ? (
                 <ContentCard className="space-y-3 p-4">

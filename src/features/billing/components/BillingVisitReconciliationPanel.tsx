@@ -1,8 +1,15 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Calculator, CheckCircle2, ClipboardCheck, Eye, Filter, Loader2, RefreshCw, Search, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, Calculator, CheckCircle2, ChevronDown, ClipboardCheck, Eye, Filter, Landmark, Loader2, RefreshCw, Search, Trash2, Wallet, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu'
 import { Input } from '@/shared/ui/input'
 import { BillingExceptionBadge, VisitReconStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { VisitReconciliationDetailDialog } from '@/features/billing/components/VisitReconciliationDetailDialog'
@@ -20,6 +27,7 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import {
   formatVisitNightDutyLabel,
   listBlockingExceptionCodes,
+  type ApproveScope,
   type VisitNightDutyFilter,
   type VisitReconciliationRow,
 } from '@/features/billing/types/visit-reconciliation.types'
@@ -51,6 +59,25 @@ function carerOptionLabel(row: {
     `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() ||
     'Unnamed carer'
   )
+}
+
+/** Human labels for the two pay/bill decisions on a visit. */
+const SCOPE_LABEL: Record<ApproveScope, string> = {
+  PAY: 'Pay carer',
+  INVOICE: 'Bill client / funder',
+  BOTH: 'Pay & bill',
+}
+
+const SCOPE_APPROVE_TOAST: Record<ApproveScope, string> = {
+  PAY: 'Approved — carer will be paid for this visit.',
+  INVOICE: 'Approved — client / funder will be billed for this visit.',
+  BOTH: 'Approved for carer pay and client / funder billing.',
+}
+
+const SCOPE_REJECT_TOAST: Record<ApproveScope, string> = {
+  PAY: 'Rejected — carer will not be paid for this visit.',
+  INVOICE: 'Rejected — client / funder will not be billed for this visit.',
+  BOTH: 'Rejected for both carer pay and client / funder billing.',
 }
 
 type Props = {
@@ -188,19 +215,35 @@ export function BillingVisitReconciliationPanel({
     setSelectedIds(new Set(selectableIds))
   }
 
-  const handleApprove = async (id: string, managerOverride = false) => {
-    await approveMutation.mutateAsync({ id, scope: 'BOTH', managerOverride })
+  const handleApprove = async (id: string, scope: ApproveScope = 'BOTH', managerOverride = false) => {
+    try {
+      // The three buttons are an authoritative choice: "Funders" means bill-only even if
+      // the visit was previously approved for pay (and vice versa), so pass exclusive.
+      await approveMutation.mutateAsync({ id, scope, managerOverride, exclusive: true })
+      toastSuccess(SCOPE_APPROVE_TOAST[scope])
+    } catch (err) {
+      toastApiError(err, 'Could not approve visit.')
+    }
   }
 
-  const handleReject = async (id: string) => {
-    await rejectMutation.mutateAsync({ id, scope: 'BOTH' })
+  const handleReject = async (id: string, scope: ApproveScope = 'BOTH') => {
+    try {
+      await rejectMutation.mutateAsync({ id, scope })
+      toastSuccess(SCOPE_REJECT_TOAST[scope])
+    } catch (err) {
+      toastApiError(err, 'Could not reject visit.')
+    }
   }
 
-  const handleBulkApprove = async () => {
+  const handleBulkApprove = async (scope: ApproveScope = 'BOTH') => {
     const ids = selectedIds.size ? [...selectedIds] : rows.map(r => r.id)
     if (!ids.length) return
-    await bulkApproveMutation.mutateAsync({ ids, scope: 'BOTH' })
-    setSelectedIds(new Set())
+    try {
+      await bulkApproveMutation.mutateAsync({ ids, scope })
+      setSelectedIds(new Set())
+    } catch (err) {
+      toastApiError(err, 'Could not bulk approve visits.')
+    }
   }
 
   const handleBackfill = async () => {
@@ -381,16 +424,48 @@ export function BillingVisitReconciliationPanel({
             >
               {clearAllMutation.isPending ? 'Deleting…' : 'Delete all'}
             </Button>
-            <Button
-              size="sm"
-              leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
-              onClick={() => void handleBulkApprove()}
-              disabled={isMutating || !rows.length}
-            >
-              {selectedIds.size
-                ? `Bulk approve (${selectedIds.size})`
-                : 'Bulk approve all'}
-            </Button>
+            <div className="inline-flex">
+              <Button
+                size="sm"
+                className="rounded-r-none"
+                leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                onClick={() => void handleBulkApprove('BOTH')}
+                disabled={isMutating || !rows.length}
+              >
+                {selectedIds.size
+                  ? `Bulk approve (${selectedIds.size})`
+                  : 'Bulk approve all'}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-l-none border-l border-primary-foreground/25 px-1.5"
+                    disabled={isMutating || !rows.length}
+                    aria-label="Bulk approve — pay or bill options"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    Bulk approve {selectedIds.size ? `(${selectedIds.size})` : 'all'}
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => void handleBulkApprove('PAY')}>
+                    <Wallet className="mr-2 h-4 w-4 text-success" aria-hidden />
+                    {SCOPE_LABEL.PAY} only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void handleBulkApprove('INVOICE')}>
+                    <Landmark className="mr-2 h-4 w-4 text-success" aria-hidden />
+                    {SCOPE_LABEL.INVOICE} only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void handleBulkApprove('BOTH')}>
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-success" aria-hidden />
+                    {SCOPE_LABEL.BOTH}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         ) : null}
       </div>
@@ -517,6 +592,14 @@ export function BillingVisitReconciliationPanel({
                   (row.overrunMinutes ?? 0) > 0 &&
                   (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
                 const locked = row.status === 'LOCKED' || row.status === 'APPROVED_FOR_BOTH'
+                const approveDisabled = isMutating || locked || pendingOverrun || hasBlocking
+                const approveTitle = hasBlocking
+                  ? `Blocking exceptions must be fixed first: ${blockingCodes.join(', ')}`
+                  : pendingOverrun
+                    ? 'Open Details to approve or reject overrun first'
+                    : needsManager
+                      ? 'Manager approve (pay & bill)'
+                      : 'Approve for carer pay and client / funder billing'
                 return (
                   <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     {canManage ? (
@@ -643,35 +726,51 @@ export function BillingVisitReconciliationPanel({
                       </Button>
                     </td>
                     {canManage ? (
-                      <td className="px-3 py-2.5">
-                        <div className="flex gap-1">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Button
-                            variant="ghost"
+                            variant="default"
                             size="sm"
-                            className="h-8 w-8 p-0"
-                            title={
-                              hasBlocking
-                                ? `Blocking exceptions must be fixed first: ${blockingCodes.join(', ')}`
-                                : pendingOverrun
-                                  ? 'Open Details to approve or reject overrun first'
-                                  : needsManager
-                                    ? 'Manager approve'
-                                    : 'Approve for pay and invoice'
-                            }
-                            disabled={isMutating || locked || pendingOverrun || hasBlocking}
-                            onClick={() => void handleApprove(row.id, needsManager)}
+                            className="h-7 px-2 text-xs"
+                            title={approveTitle}
+                            disabled={approveDisabled}
+                            onClick={() => void handleApprove(row.id, 'BOTH', needsManager)}
                           >
-                            <CheckCircle2 className="h-4 w-4 text-success" />
+                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden />
+                            All
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            title="Pay the carer only — client / funder is charged £0 for this visit"
+                            disabled={approveDisabled}
+                            onClick={() => void handleApprove(row.id, 'PAY', needsManager)}
+                          >
+                            <Wallet className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
+                            Carer pay
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            title="Charge the client / funder only — carer is paid £0 for this visit"
+                            disabled={approveDisabled}
+                            onClick={() => void handleApprove(row.id, 'INVOICE', needsManager)}
+                          >
+                            <Landmark className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
+                            Funders
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Reject"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            title="Reject (no pay, no charge)"
                             disabled={isMutating || locked}
-                            onClick={() => void handleReject(row.id)}
+                            aria-label="Reject visit"
+                            onClick={() => void handleReject(row.id, 'BOTH')}
                           >
-                            <XCircle className="h-4 w-4 text-destructive" />
+                            <XCircle className="h-4 w-4" aria-hidden />
                           </Button>
                         </div>
                       </td>
