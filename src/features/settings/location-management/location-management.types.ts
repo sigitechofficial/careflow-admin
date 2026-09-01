@@ -22,6 +22,7 @@ export type LocationTreeBranch = {
   scheduleAreaId: string
   locationId: string | null
   locationName: string | null
+  address: string | null
   areas: LocationTreeArea[]
   /** Unassigned service users + employees (area members nest under areas). */
   children: LocationTreeChild[]
@@ -29,8 +30,12 @@ export type LocationTreeBranch = {
 
 export type LocationTreeZone = {
   id: string
+  /** Real lookups.Zone id when known (for Add Branch). */
+  lookupZoneId: string | null
   name: string
   code: string
+  country: string | null
+  city: string | null
   markerColorHex: string
   locationId: string | null
   locationName: string | null
@@ -55,8 +60,11 @@ export type LocationActiveUser = {
 
 export type LocationZoneDetail = {
   id: string
+  lookupZoneId?: string | null
   name: string
   code: string
+  country?: string | null
+  city?: string | null
   markerColorHex: string
   locationId: string | null
   locationName: string | null
@@ -107,6 +115,8 @@ export type ServiceUserLocationRow = {
   serviceUserAreaId: string | null
   serviceUserAreaName: string | null
   serviceUserAreaPostcodes: string[]
+  /** Home address postcode (from ServiceUserAddress). */
+  postcode: string | null
 }
 
 export type EmployeeLocationRow = {

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createLocationBranch,
+  createLocationZone,
   createServiceUserArea,
   deleteServiceUserArea,
   fetchEmployeeLocations,
@@ -65,6 +67,22 @@ export function useUpdateLocationZone() {
       zoneId: string
       body: Parameters<typeof updateLocationZone>[1]
     }) => updateLocationZone(zoneId, body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useCreateLocationZone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createLocationZone>[0]) => createLocationZone(body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useCreateLocationBranch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createLocationBranch>[0]) => createLocationBranch(body),
     onSuccess: () => invalidateLocationManagement(qc),
   })
 }

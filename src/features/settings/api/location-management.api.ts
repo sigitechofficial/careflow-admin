@@ -31,10 +31,55 @@ export async function updateLocationZone(
     markerColorHex?: string
     incidentMessageUserIds?: string[]
     incidentEmailUserIds?: string[]
+    country?: string | null
+    city?: string | null
   },
 ): Promise<LocationZoneDetail> {
   const res = await apiJson<ApiEnvelope<LocationZoneDetail>>(`/location-management/zones/${zoneId}`, {
     method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  return res.data
+}
+
+export async function createLocationZone(payload: {
+  name: string
+  country?: string
+  city?: string
+  markerColorHex?: string
+}): Promise<LocationZoneDetail> {
+  const res = await apiJson<ApiEnvelope<LocationZoneDetail>>('/location-management/zones', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data
+}
+
+export async function createLocationBranch(payload: {
+  zoneId: string
+  name: string
+  address?: string
+  code?: string
+  visitRefCode?: string
+}): Promise<{
+  id: string
+  name: string
+  scheduleAreaId: string
+  locationId: string | null
+  locationName: string | null
+  address: string | null
+}> {
+  const res = await apiJson<
+    ApiEnvelope<{
+      id: string
+      name: string
+      scheduleAreaId: string
+      locationId: string | null
+      locationName: string | null
+      address: string | null
+    }>
+  >('/location-management/branches', {
+    method: 'POST',
     body: JSON.stringify(payload),
   })
   return res.data
@@ -99,7 +144,11 @@ export async function fetchServiceUserLocations(): Promise<{
 
 export async function updateServiceUserLocation(
   serviceUserId: string,
-  payload: { locationId?: string | null; serviceUserAreaId?: string | null },
+  payload: {
+    locationId?: string | null
+    serviceUserAreaId?: string | null
+    postcode?: string | null
+  },
 ): Promise<ServiceUserLocationRow> {
   const res = await apiJson<ApiEnvelope<ServiceUserLocationRow>>(
     `/location-management/service-users/${serviceUserId}/location`,

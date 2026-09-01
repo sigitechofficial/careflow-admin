@@ -1,25 +1,32 @@
 import * as React from 'react'
 import {
-  ChevronDown,
-  ChevronRight,
-  Home,
+  Download,
+  Eye,
+  Filter,
   Loader2,
-  MapPin,
   MapPinned,
-  User,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
   Users,
 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import type {
-  LocationActiveUser,
   LocationTreeArea,
   LocationTreeBranch,
   LocationTreeZone,
 } from '@/features/settings/location-management/location-management.types'
 import {
+  citiesForCountry,
+  ZONE_COUNTRY_OPTIONS,
+} from '@/features/settings/location-management/country-city'
+import {
+  useCreateLocationBranch,
+  useCreateLocationZone,
   useCreateServiceUserArea,
   useDeleteServiceUserArea,
-  useLocationActiveUsers,
   useLocationManagementTree,
   useUpdateLocationZone,
   useUpdateServiceUserArea,
@@ -27,27 +34,29 @@ import {
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { MultiSelect } from '@/shared/ui/multi-select'
-import { Textarea } from '@/shared/ui/form-field'
-import { cn } from '@/shared/lib/utils'
+import { Badge } from '@/shared/ui/badge'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
+import { GoogleBranchAddressField } from '@/shared/ui/google-branch-address-field'
+import {
+  GooglePostcodesField,
+  type GooglePostcodesValidity,
+} from '@/shared/ui/google-postcodes-field'
 import { useAuthStore } from '@/features/auth/store'
-
-function ZonePin({ color }: { color: string }) {
-  return (
-    <span
-      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-      style={{ backgroundColor: color }}
-      aria-hidden
-    >
-      <MapPin className="h-3 w-3 text-white" />
-    </span>
-  )
-}
-
-type Selection =
-  | { kind: 'zone'; zone: LocationTreeZone }
-  | { kind: 'branch'; zone: LocationTreeZone; branch: LocationTreeBranch }
-  | { kind: 'area'; zone: LocationTreeZone; branch: LocationTreeBranch; area: LocationTreeArea }
+import { cn } from '@/shared/lib/utils'
 
 function parsePostcodesInput(raw: string): string[] {
   return raw
@@ -56,169 +65,235 @@ function parsePostcodesInput(raw: string): string[] {
     .filter(Boolean)
 }
 
+function zoneLookupId(zone: LocationTreeZone): string | null {
+  if (zone.lookupZoneId) return zone.lookupZoneId
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(zone.id)) {
+    return zone.id
+  }
+  return null
+}
+
+function allPostcodes(zone: LocationTreeZone): string[] {
+  return zone.branches.flatMap(b => b.areas.flatMap(a => a.postcodes ?? []))
+}
+
+type AreaModalState =
+  | { mode: 'create'; zone: LocationTreeZone; branch: LocationTreeBranch }
+  | { mode: 'edit'; zone: LocationTreeZone; branch: LocationTreeBranch; area: LocationTreeArea }
+
+type ZoneEditState = { zone: LocationTreeZone }
+
 export function LocationManagementZonesPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
   const treeQuery = useLocationManagementTree()
-  const usersQuery = useLocationActiveUsers()
+  const createZoneMutation = useCreateLocationZone()
   const updateZoneMutation = useUpdateLocationZone()
+  const createBranchMutation = useCreateLocationBranch()
   const createAreaMutation = useCreateServiceUserArea()
   const updateAreaMutation = useUpdateServiceUserArea()
   const deleteAreaMutation = useDeleteServiceUserArea()
+
+  const [search, setSearch] = React.useState('')
+  const [zoneOpen, setZoneOpen] = React.useState(false)
+  const [zoneEdit, setZoneEdit] = React.useState<ZoneEditState | null>(null)
+  const [branchOpen, setBranchOpen] = React.useState(false)
+  const [viewZone, setViewZone] = React.useState<LocationTreeZone | null>(null)
+  const [areaModal, setAreaModal] = React.useState<AreaModalState | null>(null)
   const [saving, setSaving] = React.useState(false)
-  const [initialized, setInitialized] = React.useState(false)
-  const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set(['org-root']))
-  const [selection, setSelection] = React.useState<Selection | null>(null)
 
-  const [draftName, setDraftName] = React.useState('')
-  const [draftColor, setDraftColor] = React.useState('#EAB308')
-  const [draftMessageUsers, setDraftMessageUsers] = React.useState<string[]>([])
-  const [draftEmailUsers, setDraftEmailUsers] = React.useState<string[]>([])
-  const [savedZoneSnapshot, setSavedZoneSnapshot] = React.useState<{
-    name: string
-    color: string
-    messageUsers: string[]
-    emailUsers: string[]
-  } | null>(null)
+  const [zoneName, setZoneName] = React.useState('')
+  const [zoneCountry, setZoneCountry] = React.useState('United Kingdom')
+  const [zoneCity, setZoneCity] = React.useState('')
 
-  const [draftAreaName, setDraftAreaName] = React.useState('')
-  const [draftPostcodes, setDraftPostcodes] = React.useState('')
-  const [savedAreaSnapshot, setSavedAreaSnapshot] = React.useState<{
-    name: string
-    postcodes: string
-  } | null>(null)
+  const [branchZoneId, setBranchZoneId] = React.useState('')
+  const [branchName, setBranchName] = React.useState('')
+  const [branchAddress, setBranchAddress] = React.useState('')
 
-  const loading = treeQuery.isLoading || usersQuery.isLoading
+  const [areaName, setAreaName] = React.useState('')
+  const [areaPostcodes, setAreaPostcodes] = React.useState('')
+  const [areaPostcodesValidity, setAreaPostcodesValidity] =
+    React.useState<GooglePostcodesValidity | null>(null)
+
+  const loading = treeQuery.isLoading
   const error =
     treeQuery.error instanceof ApiError
       ? treeQuery.error.message
-      : usersQuery.error instanceof ApiError
-        ? usersQuery.error.message
-        : treeQuery.error || usersQuery.error
-          ? 'Could not load location tree.'
-          : null
-  const orgName = treeQuery.data?.organisation.name ?? ''
+      : treeQuery.error
+        ? 'Could not load location tree.'
+        : null
   const zones = treeQuery.data?.zones ?? []
-  const activeUsers: LocationActiveUser[] = usersQuery.data ?? []
+
+  const cityOptions = React.useMemo(() => citiesForCountry(zoneCountry), [zoneCountry])
 
   React.useEffect(() => {
-    if (!treeQuery.data?.zones.length || initialized) return
-    const first = treeQuery.data.zones[0]
-    if (!first) return
-    selectZone(first)
-    setExpanded(prev => new Set([...prev, 'org-root', first.id]))
-    setInitialized(true)
-  }, [treeQuery.data, initialized])
+    if (zoneCity && !cityOptions.includes(zoneCity)) {
+      setZoneCity('')
+    }
+  }, [cityOptions, zoneCity])
 
-  const userOptions = activeUsers.map(u => ({ value: u.id, label: u.label }))
+  const stats = React.useMemo(() => {
+    const cities = new Set(
+      zones.map(z => z.city?.trim()).filter((c): c is string => Boolean(c)),
+    )
+    const branches = zones.reduce((n, z) => n + (z.branches?.length ?? 0), 0)
+    return {
+      cities: cities.size,
+      zones: zones.length,
+      branches,
+    }
+  }, [zones])
 
-  function selectZone(zone: LocationTreeZone) {
-    setSelection({ kind: 'zone', zone })
-    setDraftName(zone.name)
-    setDraftColor(zone.markerColorHex)
-    setDraftMessageUsers(zone.incidentMessageUserIds)
-    setDraftEmailUsers(zone.incidentEmailUserIds)
-    setSavedZoneSnapshot({
-      name: zone.name,
-      color: zone.markerColorHex,
-      messageUsers: zone.incidentMessageUserIds,
-      emailUsers: zone.incidentEmailUserIds,
+  const filteredZones = React.useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return zones
+    return zones.filter(z => {
+      const pcs = allPostcodes(z).join(' ').toLowerCase()
+      const branchNames = z.branches.map(b => b.name).join(' ').toLowerCase()
+      return (
+        z.name.toLowerCase().includes(q) ||
+        (z.city ?? '').toLowerCase().includes(q) ||
+        (z.country ?? '').toLowerCase().includes(q) ||
+        branchNames.includes(q) ||
+        pcs.includes(q)
+      )
     })
+  }, [zones, search])
+
+  const zoneOptions = React.useMemo(
+    () =>
+      zones
+        .map(z => ({ id: zoneLookupId(z), name: z.name }))
+        .filter((z): z is { id: string; name: string } => Boolean(z.id)),
+    [zones],
+  )
+
+  function openCreateZone() {
+    setZoneName('')
+    setZoneCountry('United Kingdom')
+    setZoneCity('')
+    setZoneOpen(true)
   }
 
-  function selectBranch(zone: LocationTreeZone, branch: LocationTreeBranch) {
-    setSelection({ kind: 'branch', zone, branch })
-    setDraftAreaName('')
-    setDraftPostcodes('')
-    setSavedAreaSnapshot({ name: '', postcodes: '' })
+  function openEditZone(zone: LocationTreeZone) {
+    setZoneName(zone.name)
+    setZoneCountry(zone.country || 'United Kingdom')
+    setZoneCity(zone.city || '')
+    setZoneEdit({ zone })
   }
 
-  function selectArea(zone: LocationTreeZone, branch: LocationTreeBranch, area: LocationTreeArea) {
-    const postcodesText = (area.postcodes ?? []).join('\n')
-    setSelection({ kind: 'area', zone, branch, area })
-    setDraftAreaName(area.name)
-    setDraftPostcodes(postcodesText)
-    setSavedAreaSnapshot({ name: area.name, postcodes: postcodesText })
+  function openCreateBranch(preselectZoneId?: string | null) {
+    setBranchZoneId(preselectZoneId || zoneOptions[0]?.id || '')
+    setBranchName('')
+    setBranchAddress('')
+    setBranchOpen(true)
   }
 
-  function toggleExpanded(id: string) {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  function openCreateArea(zone: LocationTreeZone, branch: LocationTreeBranch) {
+    setAreaName('')
+    setAreaPostcodes('')
+    setAreaPostcodesValidity(null)
+    setAreaModal({ mode: 'create', zone, branch })
   }
 
-  function onCancelZone() {
-    if (!savedZoneSnapshot) return
-    setDraftName(savedZoneSnapshot.name)
-    setDraftColor(savedZoneSnapshot.color)
-    setDraftMessageUsers(savedZoneSnapshot.messageUsers)
-    setDraftEmailUsers(savedZoneSnapshot.emailUsers)
+  function openEditArea(zone: LocationTreeZone, branch: LocationTreeBranch, area: LocationTreeArea) {
+    setAreaName(area.name)
+    setAreaPostcodes((area.postcodes ?? []).join('\n'))
+    setAreaPostcodesValidity(null)
+    setAreaModal({ mode: 'edit', zone, branch, area })
   }
 
-  function onCancelArea() {
-    if (!savedAreaSnapshot) return
-    setDraftAreaName(savedAreaSnapshot.name)
-    setDraftPostcodes(savedAreaSnapshot.postcodes)
-  }
-
-  async function onSaveZone() {
-    if (!canUpdate || selection?.kind !== 'zone') return
+  async function onCreateZone() {
+    if (!canUpdate || !zoneName.trim()) return
     setSaving(true)
     try {
-      const updated = await updateZoneMutation.mutateAsync({
-        zoneId: selection.zone.id,
+      await createZoneMutation.mutateAsync({
+        name: zoneName.trim(),
+        country: zoneCountry.trim() || undefined,
+        city: zoneCity.trim() || undefined,
+      })
+      toastSuccess('Created', 'Zone added.')
+      setZoneOpen(false)
+    } catch (e) {
+      toastApiError(e, 'Could not create zone')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onSaveZoneEdit() {
+    if (!canUpdate || !zoneEdit || !zoneName.trim()) return
+    setSaving(true)
+    try {
+      await updateZoneMutation.mutateAsync({
+        zoneId: zoneEdit.zone.id,
         body: {
-          name: draftName.trim(),
-          markerColorHex: draftColor,
-          incidentMessageUserIds: draftMessageUsers,
-          incidentEmailUserIds: draftEmailUsers,
+          name: zoneName.trim(),
+          country: zoneCountry.trim() || null,
+          city: zoneCity.trim() || null,
         },
       })
-      setSavedZoneSnapshot({
-        name: updated.name,
-        color: updated.markerColorHex,
-        messageUsers: updated.incidentMessageUserIds,
-        emailUsers: updated.incidentEmailUserIds,
-      })
-      toastSuccess('Saved', 'Zone settings updated.')
+      toastSuccess('Saved', 'Zone updated.')
+      setZoneEdit(null)
     } catch (e) {
-      toastApiError(e, 'Save failed')
+      toastApiError(e, 'Could not update zone')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onCreateBranch() {
+    if (!canUpdate || !branchZoneId || !branchName.trim()) return
+    setSaving(true)
+    try {
+      await createBranchMutation.mutateAsync({
+        zoneId: branchZoneId,
+        name: branchName.trim(),
+        address: branchAddress.trim() || undefined,
+      })
+      toastSuccess('Created', 'Branch added.')
+      setBranchOpen(false)
+    } catch (e) {
+      toastApiError(e, 'Could not create branch')
     } finally {
       setSaving(false)
     }
   }
 
   async function onSaveArea() {
-    if (!canUpdate || !selection || (selection.kind !== 'branch' && selection.kind !== 'area')) {
-      return
+    if (!canUpdate || !areaModal || !areaName.trim()) return
+    const postcodes = parsePostcodesInput(areaPostcodes)
+    if (areaPostcodesValidity?.configured) {
+      if (areaPostcodesValidity.checking) {
+        toastApiError(new Error('Still verifying postcodes with Google. Please wait.'), 'Please wait')
+        return
+      }
+      if (!areaPostcodesValidity.canSubmit) {
+        const bad = areaPostcodesValidity.invalid.join(', ') || 'one or more entries'
+        toastApiError(
+          new Error(`These postcodes were not found: ${bad}`),
+          'Invalid postcode',
+        )
+        return
+      }
     }
-    const name = draftAreaName.trim()
-    if (!name) return
-    const postcodes = parsePostcodesInput(draftPostcodes)
     setSaving(true)
     try {
-      if (selection.kind === 'branch') {
-        const created = await createAreaMutation.mutateAsync({
-          scheduleAreaId: selection.branch.scheduleAreaId,
-          name,
+      if (areaModal.mode === 'create') {
+        await createAreaMutation.mutateAsync({
+          scheduleAreaId: areaModal.branch.scheduleAreaId,
+          name: areaName.trim(),
           postcodes,
         })
-        toastSuccess('Created', 'Service user area created.')
-        setDraftAreaName(created.name)
-        setDraftPostcodes(created.postcodes.join('\n'))
-        setSavedAreaSnapshot({ name: created.name, postcodes: created.postcodes.join('\n') })
+        toastSuccess('Created', 'Service area created.')
       } else {
-        const updated = await updateAreaMutation.mutateAsync({
-          areaId: selection.area.id,
-          body: { name, postcodes },
+        await updateAreaMutation.mutateAsync({
+          areaId: areaModal.area.id,
+          body: { name: areaName.trim(), postcodes },
         })
-        toastSuccess('Saved', 'Service user area updated.')
-        setDraftAreaName(updated.name)
-        setDraftPostcodes(updated.postcodes.join('\n'))
-        setSavedAreaSnapshot({ name: updated.name, postcodes: updated.postcodes.join('\n') })
+        toastSuccess('Saved', 'Service area updated.')
       }
+      setAreaModal(null)
+      void treeQuery.refetch()
     } catch (e) {
       toastApiError(e, 'Save failed')
     } finally {
@@ -227,15 +302,15 @@ export function LocationManagementZonesPanel() {
   }
 
   async function onDeleteArea() {
-    if (!canUpdate || selection?.kind !== 'area') return
-    if (!window.confirm(`Delete area “${selection.area.name}”? Service users must be unassigned first.`)) {
+    if (!canUpdate || areaModal?.mode !== 'edit') return
+    if (!window.confirm(`Delete area “${areaModal.area.name}”? Service users must be unassigned first.`)) {
       return
     }
     setSaving(true)
     try {
-      await deleteAreaMutation.mutateAsync(selection.area.id)
-      toastSuccess('Deleted', 'Service user area removed.')
-      selectBranch(selection.zone, selection.branch)
+      await deleteAreaMutation.mutateAsync(areaModal.area.id)
+      toastSuccess('Deleted', 'Service area removed.')
+      setAreaModal(null)
     } catch (e) {
       toastApiError(e, 'Delete failed')
     } finally {
@@ -243,22 +318,31 @@ export function LocationManagementZonesPanel() {
     }
   }
 
-  function renderPersonList(children: LocationTreeBranch['children']) {
-    if (!children.length) return null
-    return (
-      <ul className="ml-6 space-y-0.5 border-l border-border pl-2">
-        {children.map(child => (
-          <li key={child.id} className="flex items-center gap-2 px-2 py-1 text-muted-foreground">
-            {child.type === 'employee' ? (
-              <Users className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-            ) : (
-              <User className="h-3.5 w-3.5 shrink-0 text-primary" />
-            )}
-            <span className="truncate text-xs">{child.label}</span>
-          </li>
-        ))}
-      </ul>
-    )
+  function exportCsv() {
+    const header = ['Zone', 'Status', 'Country', 'City', 'Branches', 'Postcodes']
+    const lines = filteredZones.map(z => {
+      const pcs = allPostcodes(z)
+      const status = (z.branches?.length ?? 0) > 0 ? 'Active' : 'Unassigned'
+      return [
+        z.name,
+        status,
+        z.country ?? '',
+        z.city ?? '',
+        String(z.branches?.length ?? 0),
+        String(pcs.length),
+      ]
+        .map(cell => `"${String(cell).replace(/"/g, '""')}"`)
+        .join(',')
+    })
+    const blob = new Blob([[header.join(','), ...lines].join('\n')], {
+      type: 'text/csv;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'zones.csv'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   if (loading) {
@@ -269,337 +353,605 @@ export function LocationManagementZonesPanel() {
     )
   }
 
-  const selectedZoneId = selection?.kind === 'zone' ? selection.zone.id : null
-  const selectedBranchId = selection?.kind === 'branch' ? selection.branch.id : null
-  const selectedAreaId = selection?.kind === 'area' ? selection.area.id : null
+  const liveViewZone =
+    viewZone == null ? null : (zones.find(z => z.id === viewZone.id) ?? viewZone)
 
   return (
-    <div className="space-y-4" data-testid="location-management-zones-panel">
-      {error && (
+    <div className="space-y-5" data-testid="location-management-zones-panel">
+      {error ? (
         <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
-      )}
+      ) : null}
 
-      <div className="flex min-h-[420px] flex-col gap-4 lg:flex-row">
-        <div className="w-full shrink-0 rounded-lg border border-border bg-muted/10 p-3 lg:w-80">
-          <div className="mb-2 flex items-center justify-end gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Users className="h-3.5 w-3.5 text-emerald-600" /> Employee
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <User className="h-3.5 w-3.5 text-primary" /> Service User
-            </span>
-          </div>
-          <ul className="space-y-0.5 text-sm">
-            <li>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
-                onClick={() => toggleExpanded('org-root')}
-              >
-                {expanded.has('org-root') ? (
-                  <ChevronDown className="h-4 w-4 shrink-0" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0" />
-                )}
-                <Home className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="font-medium">{orgName}</span>
-              </button>
-              {expanded.has('org-root') && (
-                <ul className="ml-6 space-y-0.5 border-l border-border pl-2">
-                  {zones.map(zone => (
-                    <li key={zone.id}>
-                      <button
-                        type="button"
-                        className={cn(
-                          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/50',
-                          selectedZoneId === zone.id && 'bg-primary/10 text-primary',
-                        )}
-                        onClick={() => {
-                          selectZone(zone)
-                          setExpanded(prev => new Set([...prev, zone.id]))
-                        }}
-                      >
-                        {(zone.branches?.length ?? 0) > 0 ? (
-                          <span
-                            role="presentation"
-                            className="shrink-0"
-                            onClick={e => {
-                              e.stopPropagation()
-                              toggleExpanded(zone.id)
-                            }}
-                          >
-                            {expanded.has(zone.id) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </span>
-                        ) : (
-                          <span className="w-4" />
-                        )}
-                        <ZonePin color={zone.markerColorHex} />
-                        <span>{zone.name}</span>
-                      </button>
-                      {expanded.has(zone.id) &&
-                        (zone.branches?.length ? (
-                          <ul className="ml-6 space-y-0.5 border-l border-border pl-2">
-                            {zone.branches.map((branch: LocationTreeBranch) => {
-                              const areas = branch.areas ?? []
-                              const hasNested = areas.length > 0 || branch.children.length > 0
-                              return (
-                                <li key={branch.id}>
-                                  <button
-                                    type="button"
-                                    className={cn(
-                                      'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted/50',
-                                      selectedBranchId === branch.id && 'bg-primary/10 text-primary',
-                                    )}
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      selectBranch(zone, branch)
-                                      setExpanded(prev => new Set([...prev, branch.id]))
-                                    }}
-                                  >
-                                    {hasNested ? (
-                                      <span
-                                        role="presentation"
-                                        className="shrink-0"
-                                        onClick={ev => {
-                                          ev.stopPropagation()
-                                          toggleExpanded(branch.id)
-                                        }}
-                                      >
-                                        {expanded.has(branch.id) ? (
-                                          <ChevronDown className="h-3.5 w-3.5" />
-                                        ) : (
-                                          <ChevronRight className="h-3.5 w-3.5" />
-                                        )}
-                                      </span>
-                                    ) : (
-                                      <span className="w-3.5" />
-                                    )}
-                                    <span className="font-medium text-foreground">{branch.name}</span>
-                                  </button>
-                                  {expanded.has(branch.id) && (
-                                    <>
-                                      {areas.length > 0 && (
-                                        <ul className="ml-6 space-y-0.5 border-l border-border pl-2">
-                                          {areas.map(area => (
-                                            <li key={area.id}>
-                                              <button
-                                                type="button"
-                                                className={cn(
-                                                  'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs hover:bg-muted/50',
-                                                  selectedAreaId === area.id &&
-                                                    'bg-primary/10 text-primary',
-                                                )}
-                                                onClick={e => {
-                                                  e.stopPropagation()
-                                                  selectArea(zone, branch, area)
-                                                  setExpanded(prev => new Set([...prev, area.id]))
-                                                }}
-                                              >
-                                                {(area.children?.length ?? 0) > 0 ? (
-                                                  <span
-                                                    role="presentation"
-                                                    className="shrink-0"
-                                                    onClick={ev => {
-                                                      ev.stopPropagation()
-                                                      toggleExpanded(area.id)
-                                                    }}
-                                                  >
-                                                    {expanded.has(area.id) ? (
-                                                      <ChevronDown className="h-3 w-3" />
-                                                    ) : (
-                                                      <ChevronRight className="h-3 w-3" />
-                                                    )}
-                                                  </span>
-                                                ) : (
-                                                  <span className="w-3" />
-                                                )}
-                                                <MapPinned className="h-3.5 w-3.5 shrink-0 text-amber-700" />
-                                                <span className="truncate">{area.name}</span>
-                                                {area.postcodes?.length ? (
-                                                  <span className="truncate text-[10px] text-muted-foreground">
-                                                    ({area.postcodes.length} PC)
-                                                  </span>
-                                                ) : null}
-                                              </button>
-                                              {expanded.has(area.id) &&
-                                                renderPersonList(area.children ?? [])}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                      {renderPersonList(branch.children)}
-                                    </>
-                                  )}
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        ) : zone.children.length > 0 ? (
-                          renderPersonList(zone.children)
-                        ) : null)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          </ul>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">Zones</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Service areas, postcodes, and branch locations.
+          </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={exportCsv}>
+            <Download className="mr-1.5 h-4 w-4" />
+            Export CSV
+          </Button>
+          {canUpdate ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => openCreateBranch()}
+                disabled={zoneOptions.length === 0}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add branch
+              </Button>
+              <Button type="button" onClick={openCreateZone}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add Zone
+              </Button>
+            </>
+          ) : null}
+        </div>
+      </div>
 
-        <div className="min-w-0 flex-1 rounded-lg border border-border bg-card p-5 shadow-sm">
-          {selection?.kind === 'zone' ? (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label htmlFor="zone-name" className="text-sm font-medium text-foreground">
-                  Zone Name
-                </label>
-                <Input
-                  id="zone-name"
-                  value={draftName}
-                  disabled={!canUpdate}
-                  onChange={e => setDraftName(e.target.value)}
-                />
-              </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Total cities"
+          value={stats.cities}
+          accent="border-l-violet-500"
+          icon={<Users className="h-4 w-4 text-violet-600" />}
+        />
+        <StatCard
+          label="Total zones"
+          value={stats.zones}
+          accent="border-l-sky-500"
+          icon={<MapPinned className="h-4 w-4 text-sky-600" />}
+        />
+        <StatCard
+          label="Total branches"
+          value={stats.branches}
+          accent="border-l-emerald-500"
+          icon={<RefreshCw className="h-4 w-4 text-emerald-600" />}
+        />
+      </div>
 
-              <div className="space-y-2">
-                <label htmlFor="zone-color" className="text-sm font-medium text-foreground">
-                  Map marker colour
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="zone-color"
-                    type="color"
-                    value={draftColor}
-                    disabled={!canUpdate}
-                    onChange={e => setDraftColor(e.target.value)}
-                    className="h-9 w-14 cursor-pointer rounded border border-border"
-                  />
-                  <span className="text-sm text-muted-foreground">{draftColor}</span>
-                </div>
-              </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by zone name, city, postcode..."
+            className="pl-9"
+          />
+        </div>
+        <Button type="button" variant="outline" disabled title="Coming soon">
+          <Filter className="mr-1.5 h-4 w-4" />
+          Filters
+        </Button>
+      </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  A Message will be sent to the following users when an incident/accident is
-                  reported
-                </p>
-                <MultiSelect
-                  options={userOptions}
-                  value={draftMessageUsers}
-                  onChange={setDraftMessageUsers}
-                  placeholder="Select one or more Active users"
-                  disabled={!canUpdate}
-                />
-              </div>
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full min-w-[880px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+              <th className="px-4 py-3 font-medium">Zone</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">City</th>
+              <th className="px-4 py-3 font-medium">Postcodes</th>
+              <th className="px-4 py-3 font-medium">Branches</th>
+              <th className="px-4 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredZones.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                  No zones match your search.
+                </td>
+              </tr>
+            ) : (
+              filteredZones.map(zone => {
+                const pcs = allPostcodes(zone)
+                const preview = pcs.slice(0, 3).join(', ')
+                const extra = pcs.length > 3 ? ` +${pcs.length - 3}` : ''
+                const branchCount = zone.branches?.length ?? 0
+                const status = branchCount > 0 ? 'Active' : 'Unassigned'
+                const lookupId = zoneLookupId(zone)
+                return (
+                  <tr key={zone.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-4 py-3.5">
+                      <div className="font-semibold text-foreground">{zone.name}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {[zone.city, preview ? `${preview}${extra}` : null]
+                          .filter(Boolean)
+                          .join(' · ') || '—'}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground/80">
+                        ID {zone.code || zone.id.slice(0, 8)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          'font-normal',
+                          status === 'Unassigned' && 'bg-slate-100 text-slate-700',
+                          status === 'Active' && 'bg-emerald-500/10 text-emerald-800',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'mr-1.5 inline-block h-1.5 w-1.5 rounded-full',
+                            status === 'Unassigned' ? 'bg-slate-400' : 'bg-emerald-500',
+                          )}
+                        />
+                        {status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3.5">{zone.city || '—'}</td>
+                    <td className="px-4 py-3.5 font-medium">{pcs.length} codes</td>
+                    <td className="px-4 py-3.5">
+                      <div className="font-medium">{branchCount}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {branchCount === 0 ? '0 Unassigned' : `${zone.branches.reduce((n, b) => n + (b.areas?.length ?? 0), 0)} areas`}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          title="View"
+                          onClick={() => setViewZone(zone)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        {canUpdate ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              title="Edit zone"
+                              onClick={() => openEditZone(zone)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            {lookupId ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                title="Add branch"
+                                onClick={() => openCreateBranch(lookupId)}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  An email will be sent to the following users when an incident/accident is
-                  reported
-                </p>
-                <MultiSelect
-                  options={userOptions}
-                  value={draftEmailUsers}
-                  onChange={setDraftEmailUsers}
-                  placeholder="Select one or more Active users"
-                  disabled={!canUpdate}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button type="button" variant="outline" onClick={onCancelZone} disabled={saving}>
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => void onSaveZone()}
-                  disabled={!canUpdate || saving || !draftName.trim()}
-                >
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Save
-                </Button>
-              </div>
+      {/* Add / Edit zone */}
+      <Dialog
+        open={zoneOpen || Boolean(zoneEdit)}
+        onOpenChange={open => {
+          if (!open) {
+            setZoneOpen(false)
+            setZoneEdit(null)
+          }
+        }}
+      >
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>{zoneEdit ? 'Edit zone' : 'Add Zone'}</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="lm-zone-name" className="text-sm font-medium">
+                Zone name
+              </label>
+              <Input
+                id="lm-zone-name"
+                value={zoneName}
+                onChange={e => setZoneName(e.target.value)}
+                placeholder="e.g. Croydon"
+              />
             </div>
-          ) : selection?.kind === 'branch' || selection?.kind === 'area' ? (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  {selection.kind === 'area' ? 'Edit service user area' : 'Create service user area'}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Branch: {selection.branch.name}
-                  {selection.kind === 'area' && selection.area.postcodes?.length
-                    ? ` · ${selection.area.postcodes.length} postcode(s)`
-                    : null}
+            <CountryCityFields
+              country={zoneCountry}
+              city={zoneCity}
+              onCountryChange={setZoneCountry}
+              onCityChange={setZoneCity}
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setZoneOpen(false)
+                setZoneEdit(null)
+              }}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void (zoneEdit ? onSaveZoneEdit() : onCreateZone())}
+              disabled={saving || !zoneName.trim()}
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {zoneEdit ? 'Save' : 'Create zone'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add branch + Google address */}
+      <Dialog open={branchOpen} onOpenChange={setBranchOpen}>
+        <DialogContent
+          size="md"
+          onPointerDownOutside={e => {
+            // Keep dialog open when clicking our portaled address suggestions.
+            if (e.target instanceof Element && e.target.closest('[role="listbox"]')) {
+              e.preventDefault()
+            }
+          }}
+          onInteractOutside={e => {
+            if (e.target instanceof Element && e.target.closest('[role="listbox"]')) {
+              e.preventDefault()
+            }
+          }}
+          onFocusOutside={e => {
+            if (e.target instanceof Element && e.target.closest('[role="listbox"]')) {
+              e.preventDefault()
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Add branch</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="lm-branch-zone" className="text-sm font-medium">
+                Zone
+              </label>
+              <select
+                id="lm-branch-zone"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={branchZoneId}
+                onChange={e => setBranchZoneId(e.target.value)}
+              >
+                <option value="">Select zone</option>
+                {zoneOptions.map(z => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="lm-branch-name" className="text-sm font-medium">
+                Branch name
+              </label>
+              <Input
+                id="lm-branch-name"
+                value={branchName}
+                onChange={e => setBranchName(e.target.value)}
+                placeholder="e.g. Croydon 1"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="lm-branch-address" className="text-sm font-medium">
+                Address
+              </label>
+              <GoogleBranchAddressField
+                id="lm-branch-address"
+                value={branchAddress}
+                onChange={addr => setBranchAddress(addr)}
+                countryRestriction={
+                  ZONE_COUNTRY_OPTIONS.find(c => c.name === (
+                    zones.find(z => zoneLookupId(z) === branchZoneId)?.country ?? 'United Kingdom'
+                  ))?.code.toLowerCase() ?? 'gb'
+                }
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBranchOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void onCreateBranch()}
+              disabled={saving || !branchZoneId || !branchName.trim()}
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Create branch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View zone detail */}
+      <Dialog open={Boolean(liveViewZone)} onOpenChange={open => (!open ? setViewZone(null) : undefined)}>
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>{liveViewZone?.name ?? 'Zone'}</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            {liveViewZone ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {[liveViewZone.country, liveViewZone.city].filter(Boolean).join(' · ') ||
+                    'No country/city set'}
                 </p>
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="area-name" className="text-sm font-medium text-foreground">
-                  Area name
-                </label>
-                <Input
-                  id="area-name"
-                  value={draftAreaName}
-                  disabled={!canUpdate}
-                  onChange={e => setDraftAreaName(e.target.value)}
-                  placeholder="e.g. South Croydon"
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="area-postcodes" className="text-sm font-medium text-foreground">
-                  Postcodes
-                </label>
-                <Textarea
-                  id="area-postcodes"
-                  value={draftPostcodes}
-                  disabled={!canUpdate}
-                  onChange={e => setDraftPostcodes(e.target.value)}
-                  placeholder={'One per line or comma-separated\ne.g.\nCR0 1AA\nCR2 6XH'}
-                  rows={8}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Each postcode can belong to only one area organisation-wide.
-                </p>
-              </div>
-              <div className="flex justify-between gap-2 border-t border-border pt-4">
-                <div>
-                  {selection.kind === 'area' ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => void onDeleteArea()}
-                      disabled={!canUpdate || saving}
-                    >
-                      Delete
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={onCancelArea} disabled={saving}>
-                    Cancel
-                  </Button>
+                {canUpdate && zoneLookupId(liveViewZone) ? (
                   <Button
                     type="button"
-                    onClick={() => void onSaveArea()}
-                    disabled={!canUpdate || saving || !draftAreaName.trim()}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openCreateBranch(zoneLookupId(liveViewZone))}
                   >
-                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {selection.kind === 'area' ? 'Save' : 'Create'}
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Add branch
                   </Button>
-                </div>
-              </div>
+                ) : null}
+                {(liveViewZone.branches?.length ?? 0) === 0 ? (
+                  <p className="text-sm text-muted-foreground">No branches in this zone yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {liveViewZone.branches.map(branch => (
+                      <div key={branch.id} className="rounded-lg border border-border p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium">{branch.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {branch.address || 'No address'}
+                            </p>
+                          </div>
+                          {canUpdate ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openCreateArea(liveViewZone, branch)}
+                            >
+                              + Area
+                            </Button>
+                          ) : null}
+                        </div>
+                        {(branch.areas?.length ?? 0) > 0 ? (
+                          <ul className="mt-2 space-y-1 border-t border-border pt-2">
+                            {branch.areas.map(area => (
+                              <li
+                                key={area.id}
+                                className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                              >
+                                <span className="inline-flex items-center gap-1.5">
+                                  <MapPinned className="h-3.5 w-3.5 text-amber-700" />
+                                  {area.name}
+                                  <span className="text-xs text-muted-foreground">
+                                    ({area.postcodes?.length ?? 0} PC)
+                                  </span>
+                                </span>
+                                {canUpdate ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2"
+                                    onClick={() => openEditArea(liveViewZone, branch, area)}
+                                  >
+                                    <Pencil className="mr-1 h-3 w-3" />
+                                    Edit
+                                  </Button>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-xs text-muted-foreground">No service areas yet.</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setViewZone(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Service area modal */}
+      <Dialog open={Boolean(areaModal)} onOpenChange={open => (!open ? setAreaModal(null) : undefined)}>
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>
+              {areaModal?.mode === 'edit' ? 'Edit service area' : 'Add service area'}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            {areaModal ? (
+              <p className="text-sm text-muted-foreground">
+                {areaModal.zone.name} · {areaModal.branch.name}
+              </p>
+            ) : null}
+            <div className="space-y-2">
+              <label htmlFor="lm-area-name" className="text-sm font-medium">
+                Area name
+              </label>
+              <Input
+                id="lm-area-name"
+                value={areaName}
+                onChange={e => setAreaName(e.target.value)}
+                placeholder="e.g. South Croydon"
+              />
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Select a zone to edit, or a branch/area to manage service user areas.
-            </p>
-          )}
+            <div className="space-y-2">
+              <label htmlFor="lm-area-postcodes" className="text-sm font-medium">
+                Postcodes
+              </label>
+              <GooglePostcodesField
+                id="lm-area-postcodes"
+                value={areaPostcodes}
+                onChange={setAreaPostcodes}
+                onValidityChange={setAreaPostcodesValidity}
+                countryCode={
+                  ZONE_COUNTRY_OPTIONS.find(
+                    c =>
+                      c.name ===
+                      (areaModal?.zone.country ?? 'United Kingdom'),
+                  )?.code.toLowerCase() ?? 'gb'
+                }
+                disabled={saving}
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter className="justify-between sm:justify-between">
+            <div>
+              {areaModal?.mode === 'edit' ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => void onDeleteArea()}
+                  disabled={saving}
+                >
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  Delete
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setAreaModal(null)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void onSaveArea()}
+                disabled={
+                  saving ||
+                  !areaName.trim() ||
+                  Boolean(areaPostcodesValidity?.configured && !areaPostcodesValidity.canSubmit) ||
+                  Boolean(areaPostcodesValidity?.checking)
+                }
+              >
+                {saving || areaPostcodesValidity?.checking ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                {areaModal?.mode === 'edit' ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function CountryCityFields({
+  country,
+  city,
+  onCountryChange,
+  onCityChange,
+}: {
+  country: string
+  city: string
+  onCountryChange: (v: string) => void
+  onCityChange: (v: string) => void
+}) {
+  const cityOptions = citiesForCountry(country)
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Country</label>
+        <Select
+          value={country}
+          onValueChange={v => {
+            onCountryChange(v)
+            onCityChange('')
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select country" />
+          </SelectTrigger>
+          <SelectContent>
+            {ZONE_COUNTRY_OPTIONS.map(c => (
+              <SelectItem key={c.code} value={c.name}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">City</label>
+        <Select
+          value={city || undefined}
+          onValueChange={onCityChange}
+          disabled={!country || cityOptions.length === 0}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={country ? 'Select city' : 'Select country first'} />
+          </SelectTrigger>
+          <SelectContent>
+            {cityOptions.map(c => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+  icon,
+}: {
+  label: string
+  value: number
+  accent: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border border-border border-l-4 bg-card px-4 py-3 shadow-sm',
+        accent,
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
         </div>
+        <div className="rounded-md bg-muted/60 p-2">{icon}</div>
       </div>
     </div>
   )
