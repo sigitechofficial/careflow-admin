@@ -38,6 +38,8 @@ export const schedulingKeys = {
 
   job: (id: string) => [...schedulingKeys.all(), 'job', id] as const,
 
+  careConsents: (jobId: string) => [...schedulingKeys.all(), 'care-consents', jobId] as const,
+
   bulkCandidates: (params: { locationId?: string; readyOnly?: boolean }) =>
     [...schedulingKeys.all(), 'bulk-candidates', params] as const,
 } as const

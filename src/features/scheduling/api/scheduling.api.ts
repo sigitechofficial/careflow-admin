@@ -571,6 +571,35 @@ export async function getScheduledJob(jobId: string, init?: RequestInit) {
   return res.data
 }
 
+export type VisitCareConsentRow = {
+  status: 'GRANTED' | 'DECLINED'
+  reason: string | null
+  recordedAt: string | null
+  capturedByEmployeeId: string | null
+  capturedByName: string | null
+}
+
+export type VisitCareConsentsPayload = {
+  required: boolean
+  consents: VisitCareConsentRow[]
+}
+
+export async function fetchVisitCareConsents(jobId: string, init?: RequestInit) {
+  const res = await apiJson<ApiEnvelope<VisitCareConsentsPayload>>(
+    `/scheduled-jobs/${jobId}/care-consents`,
+    { method: 'GET', ...init },
+  )
+  return res.data ?? { required: true, consents: [] }
+}
+
+export async function clearVisitCareConsents(jobId: string) {
+  const res = await apiJson<ApiEnvelope<VisitCareConsentsPayload>>(
+    `/scheduled-jobs/${jobId}/care-consents`,
+    { method: 'DELETE' },
+  )
+  return res.data ?? { required: true, consents: [] }
+}
+
 export async function updateScheduledJob(
   jobId: string,
   body: {
