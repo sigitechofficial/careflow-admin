@@ -60,6 +60,7 @@ type FormState = {
   fundingTypeId: string
   riskLevelId: string
   locationId: string
+  serviceUserAreaId: string
   keyWorkerId: string
   namedNurseId: string
   keySafeNumber: string
@@ -89,6 +90,7 @@ const emptyForm: FormState = {
   fundingTypeId: '',
   riskLevelId: '',
   locationId: '',
+  serviceUserAreaId: '',
   keyWorkerId: '',
   namedNurseId: '',
   keySafeNumber: '',
@@ -174,6 +176,7 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
   p.fundingTypeId = optId(f.fundingTypeId)
   p.riskLevelId = optId(f.riskLevelId)
   p.locationId = optId(f.locationId)
+  p.serviceUserAreaId = optId(f.serviceUserAreaId)
   p.keyWorkerId = optId(f.keyWorkerId)
   p.namedNurseId = optId(f.namedNurseId)
   return p
@@ -549,10 +552,15 @@ export default function AddServiceUserPage() {
             <FieldError message={fieldErrors.serviceUserNumber} />
           </div>
           <div className="md:col-span-2">
-            <FieldLabel>Zone & branch</FieldLabel>
+            <FieldLabel>Zone, branch & area</FieldLabel>
             <ServiceUserZoneBranchSelect
               value={form.locationId}
-              onChange={set('locationId')}
+              areaId={form.serviceUserAreaId}
+              addressPostcode={form.postcode}
+              onChange={({ locationId, serviceUserAreaId }) =>
+                setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
+              }
+              onApplyPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
               className="mt-1.5"
             />
             <FieldError message={fieldErrors.locationId} />

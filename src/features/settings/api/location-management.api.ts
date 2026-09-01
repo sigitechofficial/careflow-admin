@@ -5,6 +5,7 @@ import type {
   LocationLookup,
   LocationZoneDetail,
   LocationZoneOption,
+  ServiceUserAreaDetail,
   ServiceUserLocationRow,
   EmployeeLocationRow,
 } from '@/features/settings/location-management/location-management.types'
@@ -39,6 +40,48 @@ export async function updateLocationZone(
   return res.data
 }
 
+export async function createServiceUserArea(payload: {
+  scheduleAreaId: string
+  name: string
+  code?: string
+  description?: string
+  postcodes?: string[]
+  sortOrder?: number
+}): Promise<ServiceUserAreaDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserAreaDetail>>('/location-management/areas', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data
+}
+
+export async function updateServiceUserArea(
+  areaId: string,
+  payload: {
+    name?: string
+    code?: string
+    description?: string | null
+    postcodes?: string[]
+    sortOrder?: number
+    isActive?: boolean
+  },
+): Promise<ServiceUserAreaDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserAreaDetail>>(
+    `/location-management/areas/${areaId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserArea(areaId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/location-management/areas/${areaId}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function fetchServiceUserLocations(): Promise<{
   zones: LocationZoneOption[]
   locations: LocationLookup[]
@@ -56,13 +99,13 @@ export async function fetchServiceUserLocations(): Promise<{
 
 export async function updateServiceUserLocation(
   serviceUserId: string,
-  locationId: string | null,
+  payload: { locationId?: string | null; serviceUserAreaId?: string | null },
 ): Promise<ServiceUserLocationRow> {
   const res = await apiJson<ApiEnvelope<ServiceUserLocationRow>>(
     `/location-management/service-users/${serviceUserId}/location`,
     {
       method: 'PATCH',
-      body: JSON.stringify({ locationId }),
+      body: JSON.stringify(payload),
     },
   )
   return res.data

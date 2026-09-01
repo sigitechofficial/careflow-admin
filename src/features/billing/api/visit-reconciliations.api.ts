@@ -133,7 +133,12 @@ export async function setVisitPayableAmount(
 
 export async function approveVisitReconciliation(
   id: string,
-  body: { scope: ApproveScope; managerOverride?: boolean; approvalNotes?: string },
+  body: {
+    scope: ApproveScope
+    managerOverride?: boolean
+    approvalNotes?: string
+    exclusive?: boolean
+  },
 ): Promise<void> {
   await apiJson(`/billing/visit-reconciliations/${id}/approve`, {
     method: 'POST',

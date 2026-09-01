@@ -501,7 +501,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     reset,
     setValue,
     watch,
-    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues,
@@ -705,6 +704,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const maximumWeeklyHours = useWatch({ control, name: 'maximumWeeklyHours' })
   const accessAllZones = useWatch({ control, name: 'accessAllZones' })
   const baseLocationIds = useWatch({ control, name: 'baseLocationIds' })
+
   const visaHoursError = React.useMemo(
     () =>
       employmentHoursVisaError(visaTypes, visaTypeId, {

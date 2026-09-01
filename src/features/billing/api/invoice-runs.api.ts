@@ -159,6 +159,11 @@ export type ServiceUserInvoiceFunderSummary = {
   lineCount: number
   subtotal: string
   subtotalValue: number
+  paid: string
+  paidValue: number
+  outstanding: string
+  outstandingValue: number
+  paymentStatus: 'UNPAID' | 'PART_PAID' | 'PAID'
 }
 
 export type ServiceUserInvoiceLine = {

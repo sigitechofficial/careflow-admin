@@ -6,7 +6,12 @@ const STAFF_PUBLIC_PATHS = new Set([
   '/auth/login',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/legal/privacy-policy',
 ])
+
+function isPublicLegalPath(path: string): boolean {
+  return path === '/legal/privacy-policy' || path.startsWith('/legal/')
+}
 
 function isPortalPath(path: string) {
   return path === '/portal' || path.startsWith('/portal/')
@@ -48,7 +53,7 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
     return
   }
 
-  if (STAFF_PUBLIC_PATHS.has(path)) {
+  if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path)) {
     if (path === '/auth/login' && isAuthenticated()) {
       throw redirect({ to: isServiceUser() ? '/portal' : '/' })
     }

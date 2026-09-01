@@ -70,6 +70,11 @@ export default function PortalLoginPage() {
             Admin sign in
           </Link>
         </p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          <Link to="/legal/privacy-policy" className="text-sky-600 hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   )

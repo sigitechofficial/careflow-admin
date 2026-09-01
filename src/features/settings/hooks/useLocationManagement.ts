@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createServiceUserArea,
+  deleteServiceUserArea,
   fetchEmployeeLocations,
   fetchLocationActiveUsers,
   fetchLocationManagementTree,
   fetchServiceUserLocations,
   updateEmployeeLocation,
   updateLocationZone,
+  updateServiceUserArea,
   updateServiceUserLocation,
 } from '@/features/settings/api/location-management.api'
 import { settingsKeys } from '@/features/settings/keys'
@@ -66,16 +69,46 @@ export function useUpdateLocationZone() {
   })
 }
 
+export function useCreateServiceUserArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createServiceUserArea>[0]) => createServiceUserArea(body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useUpdateServiceUserArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      areaId,
+      body,
+    }: {
+      areaId: string
+      body: Parameters<typeof updateServiceUserArea>[1]
+    }) => updateServiceUserArea(areaId, body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useDeleteServiceUserArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (areaId: string) => deleteServiceUserArea(areaId),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
 export function useUpdateServiceUserLocation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({
       serviceUserId,
-      locationId,
+      body,
     }: {
       serviceUserId: string
-      locationId: string | null
-    }) => updateServiceUserLocation(serviceUserId, locationId),
+      body: Parameters<typeof updateServiceUserLocation>[1]
+    }) => updateServiceUserLocation(serviceUserId, body),
     onSuccess: () => invalidateLocationManagement(qc),
   })
 }

@@ -331,8 +331,8 @@ export const PAY_ENHANCEMENT_METHOD_OPTIONS: { value: PayEnhancementMethod; labe
 ]
 
 export const BILLING_VISIT_DURATION_OPTIONS: { value: number; label: string }[] =
-  Array.from({ length: 12 }, (_, i) => {
-    const value = (i + 1) * 5 // 5, 10, 15 … 60
+  Array.from({ length: 10 }, (_, i) => {
+    const value = 15 + i * 5 // 15, 20, 25 … 60
     return {
       value,
       label: value === 60 ? '60 minutes (1 hour)' : `${value} minutes`,

@@ -34,6 +34,7 @@ export function LocationServiceUserLocationsPanel() {
   const [editing, setEditing] = React.useState<ServiceUserLocationRow | null>(null)
   const [draftZoneKey, setDraftZoneKey] = React.useState('')
   const [draftLocationId, setDraftLocationId] = React.useState<string | null>(null)
+  const [draftAreaId, setDraftAreaId] = React.useState<string | null>(null)
 
   const loading = locationsQuery.isLoading
   const error =
@@ -51,17 +52,21 @@ export function LocationServiceUserLocationsPanel() {
     return (
       m.fullName.toLowerCase().includes(q) ||
       (m.zoneName?.toLowerCase().includes(q) ?? false) ||
-      (m.roomName?.toLowerCase().includes(q) ?? false)
+      (m.roomName?.toLowerCase().includes(q) ?? false) ||
+      (m.serviceUserAreaName?.toLowerCase().includes(q) ?? false)
     )
   })
 
   const selectedZone = zones.find(z => z.id === draftZoneKey) ?? null
   const branchOptions = selectedZone?.branches ?? []
+  const selectedBranch = branchOptions.find(b => b.id === draftLocationId) ?? null
+  const areaOptions = selectedBranch?.areas ?? []
 
   function openEdit(row: ServiceUserLocationRow) {
     setEditing(row)
     setDraftZoneKey(row.zoneName ?? '')
     setDraftLocationId(row.locationId)
+    setDraftAreaId(row.serviceUserAreaId)
   }
 
   async function onSaveEdit() {
@@ -70,7 +75,10 @@ export function LocationServiceUserLocationsPanel() {
     try {
       await updateMutation.mutateAsync({
         serviceUserId: editing.id,
-        locationId: draftLocationId,
+        body: {
+          locationId: draftLocationId,
+          serviceUserAreaId: draftAreaId,
+        },
       })
       toastSuccess('Saved', 'Service user location updated.')
       setEditing(null)
@@ -94,8 +102,8 @@ export function LocationServiceUserLocationsPanel() {
       <div>
         <h3 className="text-sm font-semibold text-primary">Service User Location Management</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assign each service user to a zone and branch (e.g. Croydon). They appear under the
-          matching branch in the location tree.
+          Assign each service user to a zone, branch and area. They appear under the matching area
+          in the location tree.
         </p>
       </div>
       {error && (
@@ -105,16 +113,17 @@ export function LocationServiceUserLocationsPanel() {
       )}
       <input
         type="search"
-        placeholder="Filter by name, zone or branch…"
+        placeholder="Filter by name, zone, branch or area…"
         value={filter}
         onChange={e => setFilter(e.target.value)}
         className="h-9 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
       />
       <div className="overflow-hidden rounded-lg border border-border">
-        <div className="grid grid-cols-[1fr_10rem_10rem_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="grid grid-cols-[1fr_8rem_8rem_8rem_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Service User Name</span>
-          <span>Zone Name</span>
+          <span>Zone</span>
           <span>Branch</span>
+          <span>Area</span>
           <span className="sr-only">Edit</span>
         </div>
         <ul className="divide-y divide-border">
@@ -122,13 +131,14 @@ export function LocationServiceUserLocationsPanel() {
             <li
               key={m.id}
               className={cn(
-                'grid grid-cols-[1fr_10rem_10rem_3rem] items-center gap-2 px-4 py-3 text-sm',
+                'grid grid-cols-[1fr_8rem_8rem_8rem_3rem] items-center gap-2 px-4 py-3 text-sm',
                 i % 2 === 1 && 'bg-muted/15',
               )}
             >
               <span className={cn(!m.isActive && 'text-muted-foreground')}>{m.fullName}</span>
               <span>{m.zoneName ?? '—'}</span>
               <span>{m.roomName ?? '—'}</span>
+              <span>{m.serviceUserAreaName ?? '—'}</span>
               <Button
                 type="button"
                 variant="ghost"
@@ -157,13 +167,14 @@ export function LocationServiceUserLocationsPanel() {
             <DialogBody className="space-y-4">
               <p className="text-sm text-muted-foreground">{editing.fullName}</p>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Zone Name</label>
+                <label className="text-sm font-medium">Zone</label>
                 <Select
                   value={draftZoneKey || '__none__'}
                   onValueChange={v => {
                     const key = v === '__none__' ? '' : v
                     setDraftZoneKey(key)
                     setDraftLocationId(null)
+                    setDraftAreaId(null)
                   }}
                   disabled={!canUpdate}
                 >
@@ -184,17 +195,44 @@ export function LocationServiceUserLocationsPanel() {
                 <label className="text-sm font-medium">Branch</label>
                 <Select
                   value={draftLocationId ?? '__none__'}
-                  onValueChange={v => setDraftLocationId(v === '__none__' ? null : v)}
+                  onValueChange={v => {
+                    setDraftLocationId(v === '__none__' ? null : v)
+                    setDraftAreaId(null)
+                  }}
                   disabled={!canUpdate || !draftZoneKey}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select room" />
+                    <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">— Unassigned —</SelectItem>
                     {branchOptions.map(b => (
                       <SelectItem key={b.id} value={b.id}>
                         {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Area</label>
+                <Select
+                  value={draftAreaId ?? '__none__'}
+                  onValueChange={v => setDraftAreaId(v === '__none__' ? null : v)}
+                  disabled={!canUpdate || !draftLocationId}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        areaOptions.length ? 'Select area' : 'No areas on this branch'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Unassigned —</SelectItem>
+                    {areaOptions.map(a => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

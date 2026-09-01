@@ -33,6 +33,7 @@ export type SettingsTabId =
   | 'certifications'
   | 'non-core'
   | 'leaving-reasons'
+  | 'visit-status-reasons'
   | 'review-types'
   | 'travel-payment'
   | 'medication'
@@ -61,6 +62,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'certifications', label: 'Certifications' },
   { id: 'non-core', label: 'Non-core activities' },
   { id: 'leaving-reasons', label: 'Leaving reasons' },
+  { id: 'visit-status-reasons', label: 'Visit status reasons' },
   { id: 'review-types', label: 'Review types' },
   { id: 'travel-payment', label: 'Travel payment' },
   { id: 'medication', label: 'Medication (MAR)' },
@@ -206,6 +208,13 @@ export default function SettingsPage() {
               resource="leaving-reasons"
               title="Leaving reasons"
               description="Options when an employee leaves the organisation."
+            />
+          )}
+          {activeTab === 'visit-status-reasons' && (
+            <LookupNamePanel
+              resource="visit-status-reasons"
+              title="Visit status reasons"
+              description="Reasons required when recording a visit outcome on the schedule."
             />
           )}
           {activeTab === 'review-types' && (

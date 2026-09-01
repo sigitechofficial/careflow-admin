@@ -10,6 +10,7 @@ export type LookupResource =
   | 'certification-types'
   | 'non-core-activity-reasons'
   | 'leaving-reasons'
+  | 'visit-status-reasons'
   | 'review-types'
   | 'locations'
   | 'zones'
@@ -32,6 +33,7 @@ const GET_PATH: Record<LookupResource, string> = {
   'certification-types': '/lookups/certification-types',
   'non-core-activity-reasons': '/lookups/non-core-activity-reasons',
   'leaving-reasons': '/lookups/leaving-reasons',
+  'visit-status-reasons': '/lookups/visit-status-reasons',
   'review-types': '/lookups/review-types',
   locations: '/lookups/locations',
   zones: '/lookups/zones',
