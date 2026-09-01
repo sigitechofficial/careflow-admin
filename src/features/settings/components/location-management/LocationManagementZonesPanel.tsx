@@ -77,11 +77,22 @@ function allPostcodes(zone: LocationTreeZone): string[] {
   return zone.branches.flatMap(b => b.areas.flatMap(a => a.postcodes ?? []))
 }
 
+function branchPostcodes(branch: LocationTreeBranch): string[] {
+  return (branch.areas ?? []).flatMap(a => a.postcodes ?? [])
+}
+
+type ZoneBranchRow = {
+  key: string
+  zone: LocationTreeZone
+  branch: LocationTreeBranch | null
+}
+
 type AreaModalState =
   | { mode: 'create'; zone: LocationTreeZone; branch: LocationTreeBranch }
   | { mode: 'edit'; zone: LocationTreeZone; branch: LocationTreeBranch; area: LocationTreeArea }
 
 type ZoneEditState = { zone: LocationTreeZone }
+type PostcodesViewState = { zone: LocationTreeZone; branch: LocationTreeBranch | null }
 
 export function LocationManagementZonesPanel() {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
@@ -98,7 +109,7 @@ export function LocationManagementZonesPanel() {
   const [zoneEdit, setZoneEdit] = React.useState<ZoneEditState | null>(null)
   const [branchOpen, setBranchOpen] = React.useState(false)
   const [viewZone, setViewZone] = React.useState<LocationTreeZone | null>(null)
-  const [postcodesZone, setPostcodesZone] = React.useState<LocationTreeZone | null>(null)
+  const [postcodesView, setPostcodesView] = React.useState<PostcodesViewState | null>(null)
   const [areaModal, setAreaModal] = React.useState<AreaModalState | null>(null)
   const [saving, setSaving] = React.useState(false)
 
@@ -150,15 +161,33 @@ export function LocationManagementZonesPanel() {
     return zones.filter(z => {
       const pcs = allPostcodes(z).join(' ').toLowerCase()
       const branchNames = z.branches.map(b => b.name).join(' ').toLowerCase()
+      const addresses = z.branches.map(b => b.address ?? '').join(' ').toLowerCase()
       return (
         z.name.toLowerCase().includes(q) ||
         (z.city ?? '').toLowerCase().includes(q) ||
         (z.country ?? '').toLowerCase().includes(q) ||
         branchNames.includes(q) ||
+        addresses.includes(q) ||
         pcs.includes(q)
       )
     })
   }, [zones, search])
+
+  /** One table row per branch (zones with no branches still get a single empty row). */
+  const tableRows = React.useMemo((): ZoneBranchRow[] => {
+    const rows: ZoneBranchRow[] = []
+    for (const zone of filteredZones) {
+      const branches = zone.branches ?? []
+      if (branches.length === 0) {
+        rows.push({ key: `${zone.id}:empty`, zone, branch: null })
+        continue
+      }
+      for (const branch of branches) {
+        rows.push({ key: `${zone.id}:${branch.id}`, zone, branch })
+      }
+    }
+    return rows
+  }, [filteredZones])
 
   const zoneOptions = React.useMemo(
     () =>
@@ -320,16 +349,18 @@ export function LocationManagementZonesPanel() {
   }
 
   function exportCsv() {
-    const header = ['Zone', 'Status', 'Country', 'City', 'Branches', 'Postcodes']
-    const lines = filteredZones.map(z => {
-      const pcs = allPostcodes(z)
-      const status = (z.branches?.length ?? 0) > 0 ? 'Active' : 'Unassigned'
+    const header = ['Zone', 'Branch', 'Status', 'Country', 'City', 'Address', 'Areas', 'Postcodes']
+    const lines = tableRows.map(({ zone, branch }) => {
+      const pcs = branch ? branchPostcodes(branch) : []
+      const status = branch ? 'Active' : 'Unassigned'
       return [
-        z.name,
+        zone.name,
+        branch?.name ?? '',
         status,
-        z.country ?? '',
-        z.city ?? '',
-        String(z.branches?.length ?? 0),
+        zone.country ?? '',
+        zone.city ?? '',
+        branch?.address ?? '',
+        String(branch?.areas?.length ?? 0),
         String(pcs.length),
       ]
         .map(cell => `"${String(cell).replace(/"/g, '""')}"`)
@@ -341,10 +372,21 @@ export function LocationManagementZonesPanel() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'zones.csv'
+    a.download = 'zones-branches.csv'
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  const liveViewZone =
+    viewZone == null ? null : (zones.find(z => z.id === viewZone.id) ?? viewZone)
+  const livePostcodesView = React.useMemo(() => {
+    if (!postcodesView) return null
+    const zone = zones.find(z => z.id === postcodesView.zone.id) ?? postcodesView.zone
+    if (!postcodesView.branch) return { zone, branch: null as LocationTreeBranch | null }
+    const branch =
+      zone.branches.find(b => b.id === postcodesView.branch!.id) ?? postcodesView.branch
+    return { zone, branch }
+  }, [postcodesView, zones])
 
   if (loading) {
     return (
@@ -353,11 +395,6 @@ export function LocationManagementZonesPanel() {
       </div>
     )
   }
-
-  const liveViewZone =
-    viewZone == null ? null : (zones.find(z => z.id === viewZone.id) ?? viewZone)
-  const livePostcodesZone =
-    postcodesZone == null ? null : (zones.find(z => z.id === postcodesZone.id) ?? postcodesZone)
 
   return (
     <div className="space-y-5" data-testid="location-management-zones-panel">
@@ -437,44 +474,53 @@ export function LocationManagementZonesPanel() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full min-w-[880px] text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <th className="px-4 py-3 font-medium">Zone</th>
+              <th className="px-4 py-3 font-medium">Branch</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">City</th>
+              <th className="px-4 py-3 font-medium">Address</th>
+              <th className="px-4 py-3 font-medium">Areas</th>
               <th className="px-4 py-3 font-medium">Postcodes</th>
-              <th className="px-4 py-3 font-medium">Branches</th>
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredZones.length === 0 ? (
+            {tableRows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                   No zones match your search.
                 </td>
               </tr>
             ) : (
-              filteredZones.map(zone => {
-                const pcs = allPostcodes(zone)
-                const preview = pcs.slice(0, 3).join(', ')
-                const extra = pcs.length > 3 ? ` +${pcs.length - 3}` : ''
-                const branchCount = zone.branches?.length ?? 0
-                const status = branchCount > 0 ? 'Active' : 'Unassigned'
+              tableRows.map(({ key, zone, branch }) => {
+                const pcs = branch ? branchPostcodes(branch) : []
+                const areaCount = branch?.areas?.length ?? 0
+                const status = branch ? 'Active' : 'Unassigned'
                 const lookupId = zoneLookupId(zone)
                 return (
-                  <tr key={zone.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                  <tr key={key} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-foreground">{zone.name}</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {[zone.city, preview ? `${preview}${extra}` : null]
-                          .filter(Boolean)
-                          .join(' · ') || '—'}
-                      </div>
                       <div className="mt-0.5 text-[11px] text-muted-foreground/80">
                         ID {zone.code || zone.id.slice(0, 8)}
                       </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {branch ? (
+                        <div>
+                          <div className="font-medium text-foreground">{branch.name}</div>
+                          {branch.locationName ? (
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {branch.locationName}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">No branch</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5">
                       <Badge
@@ -495,6 +541,17 @@ export function LocationManagementZonesPanel() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3.5">{zone.city || '—'}</td>
+                    <td className="max-w-[220px] px-4 py-3.5">
+                      <span className="line-clamp-2 text-muted-foreground">
+                        {branch?.address?.trim() || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="font-medium">{areaCount}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {areaCount === 1 ? 'area' : 'areas'}
+                      </div>
+                    </td>
                     <td className="px-4 py-3.5 font-medium">
                       <button
                         type="button"
@@ -505,17 +562,11 @@ export function LocationManagementZonesPanel() {
                             : 'cursor-default text-muted-foreground',
                         )}
                         disabled={pcs.length === 0}
-                        onClick={() => setPostcodesZone(zone)}
+                        onClick={() => setPostcodesView({ zone, branch })}
                         title={pcs.length > 0 ? 'View postcodes' : 'No postcodes'}
                       >
                         {pcs.length} {pcs.length === 1 ? 'code' : 'codes'}
                       </button>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="font-medium">{branchCount}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {branchCount === 0 ? '0 Unassigned' : `${zone.branches.reduce((n, b) => n + (b.areas?.length ?? 0), 0)} areas`}
-                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
@@ -523,7 +574,7 @@ export function LocationManagementZonesPanel() {
                           type="button"
                           variant="outline"
                           size="icon-sm"
-                          title="View"
+                          title="View zone"
                           onClick={() => setViewZone(zone)}
                         >
                           <Eye className="h-3.5 w-3.5" />
@@ -539,6 +590,17 @@ export function LocationManagementZonesPanel() {
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
+                            {branch ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                title="Add service area"
+                                onClick={() => openCreateArea(zone, branch)}
+                              >
+                                <MapPinned className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : null}
                             {lookupId ? (
                               <Button
                                 type="button"
@@ -585,7 +647,7 @@ export function LocationManagementZonesPanel() {
                 id="lm-zone-name"
                 value={zoneName}
                 onChange={e => setZoneName(e.target.value)}
-                placeholder="e.g. Croydon"
+                placeholder="e.g. London"
               />
             </div>
             <CountryCityFields
@@ -800,73 +862,93 @@ export function LocationManagementZonesPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Zone postcodes (from Postcodes / codes column) */}
+      {/* Branch postcodes (from Postcodes / codes column) */}
       <Dialog
-        open={Boolean(livePostcodesZone)}
-        onOpenChange={open => (!open ? setPostcodesZone(null) : undefined)}
+        open={Boolean(livePostcodesView)}
+        onOpenChange={open => (!open ? setPostcodesView(null) : undefined)}
       >
         <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>
-              {livePostcodesZone ? `${livePostcodesZone.name} postcodes` : 'Postcodes'}
+              {livePostcodesView?.branch
+                ? `${livePostcodesView.branch.name} postcodes`
+                : livePostcodesView
+                  ? `${livePostcodesView.zone.name} postcodes`
+                  : 'Postcodes'}
             </DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            {livePostcodesZone ? (
-              allPostcodes(livePostcodesZone).length === 0 ? (
-                <p className="text-sm text-muted-foreground">No postcodes in this zone yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {livePostcodesZone.branches.map(branch => {
-                    const areasWithPcs = (branch.areas ?? []).filter(
-                      a => (a.postcodes?.length ?? 0) > 0,
-                    )
-                    if (areasWithPcs.length === 0) return null
-                    return (
-                      <div key={branch.id} className="rounded-lg border border-border p-3">
-                        <p className="text-sm font-medium">{branch.name}</p>
-                        <ul className="mt-2 space-y-3">
-                          {areasWithPcs.map(area => (
-                            <li key={area.id}>
-                              <div className="mb-1.5 flex items-center justify-between gap-2">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  {area.name}
-                                </p>
-                                {canUpdate ? (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 px-2"
-                                    onClick={() => {
-                                      setPostcodesZone(null)
-                                      openEditArea(livePostcodesZone, branch, area)
-                                    }}
-                                  >
-                                    <Pencil className="mr-1 h-3 w-3" />
-                                    Edit
-                                  </Button>
-                                ) : null}
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {(area.postcodes ?? []).map(pc => (
-                                  <Badge key={pc} variant="secondary" className="font-normal">
-                                    {pc}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
+            {livePostcodesView ? (
+              (() => {
+                const { zone, branch } = livePostcodesView
+                const branches = branch ? [branch] : zone.branches
+                const hasAny = branches.some(b => branchPostcodes(b).length > 0)
+                if (!hasAny) {
+                  return (
+                    <p className="text-sm text-muted-foreground">
+                      No postcodes on this {branch ? 'branch' : 'zone'} yet.
+                    </p>
+                  )
+                }
+                return (
+                  <div className="space-y-3">
+                    {branches.map(b => {
+                      const areasWithPcs = (b.areas ?? []).filter(
+                        a => (a.postcodes?.length ?? 0) > 0,
+                      )
+                      if (areasWithPcs.length === 0) return null
+                      return (
+                        <div key={b.id} className="rounded-lg border border-border p-3">
+                          {!branch ? (
+                            <p className="mb-2 text-sm font-medium">{b.name}</p>
+                          ) : (
+                            <p className="mb-2 text-xs text-muted-foreground">
+                              {zone.name} · {b.name}
+                            </p>
+                          )}
+                          <ul className="space-y-3">
+                            {areasWithPcs.map(area => (
+                              <li key={area.id}>
+                                <div className="mb-1.5 flex items-center justify-between gap-2">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {area.name}
+                                  </p>
+                                  {canUpdate ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2"
+                                      onClick={() => {
+                                        setPostcodesView(null)
+                                        openEditArea(zone, b, area)
+                                      }}
+                                    >
+                                      <Pencil className="mr-1 h-3 w-3" />
+                                      Edit
+                                    </Button>
+                                  ) : null}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(area.postcodes ?? []).map(pc => (
+                                    <Badge key={pc} variant="secondary" className="font-normal">
+                                      {pc}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()
             ) : null}
           </DialogBody>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPostcodesZone(null)}>
+            <Button type="button" variant="outline" onClick={() => setPostcodesView(null)}>
               Close
             </Button>
           </DialogFooter>
