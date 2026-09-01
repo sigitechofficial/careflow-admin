@@ -77,6 +77,7 @@ import { ScheduleJobsRouteError } from '@/features/scheduling/pages/ScheduleJobs
 
 // ΓöÇΓöÇ Auth pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import LoginPage from '@/features/auth/pages/LoginPage'
+import PrivacyPolicyPage from '@/features/legal/pages/PrivacyPolicyPage'
 import ForgotPasswordPage from '@/features/auth/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/pages/ResetPasswordPage'
 import BlockedIpPage from '@/features/auth/pages/BlockedIpPage'
@@ -500,6 +501,12 @@ const authBlockedRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: 'blocked-ip',
   component: BlockedIpPage,
+})
+
+const legalPrivacyPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/legal/privacy-policy',
+  component: PrivacyPolicyPage,
 })
 
 function PortalRootShell() {
@@ -1784,6 +1791,7 @@ const routeTree = rootRoute.addChildren([
     authResetRoute,
     authBlockedRoute,
   ]),
+  legalPrivacyPolicyRoute,
   portalLoginRoute,
   portalShellRoute.addChildren([
     portalIndexRoute,
