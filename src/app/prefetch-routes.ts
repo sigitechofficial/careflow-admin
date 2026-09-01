@@ -107,6 +107,7 @@ const SETTINGS_TAB_LOOKUP: Partial<Record<SettingsTabId, LookupResource>> = {
   certifications: 'certification-types',
   'non-core': 'non-core-activity-reasons',
   'leaving-reasons': 'leaving-reasons',
+  'visit-status-reasons': 'visit-status-reasons',
   'review-types': 'review-types',
   'travel-payment': 'travel-payment-types',
 }

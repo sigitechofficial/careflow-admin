@@ -202,6 +202,14 @@ export type ServiceUserDetail = {
     branchLayers?: string[]
     displayLabel?: string
   } | null
+  serviceUserAreaId?: string | null
+  serviceUserArea?: {
+    id: string
+    name: string
+    code: string
+    scheduleAreaId: string
+    postcodes: string[]
+  } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
   address: ServiceUserDetailAddress
@@ -1611,6 +1619,7 @@ export type UpdateServiceUserPayload = {
   fundingTypeId?: string | null
   riskLevelId?: string | null
   locationId?: string | null
+  serviceUserAreaId?: string | null
   keyWorkerId?: string | null
   namedNurseId?: string | null
   notes?: string | null
@@ -1740,6 +1749,7 @@ export type CreateServiceUserPayload = {
   fundingTypeId?: string
   riskLevelId?: string
   locationId?: string
+  serviceUserAreaId?: string
   keyWorkerId?: string
   namedNurseId?: string
   notes?: string

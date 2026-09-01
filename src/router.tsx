@@ -307,6 +307,7 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'certifications',
   'non-core',
   'leaving-reasons',
+  'visit-status-reasons',
   'review-types',
   'travel-payment',
   'medication',

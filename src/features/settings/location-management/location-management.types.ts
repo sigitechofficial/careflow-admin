@@ -7,12 +7,23 @@ export type LocationTreeChild = {
   label: string
 }
 
+export type LocationTreeArea = {
+  id: string
+  name: string
+  code?: string
+  scheduleAreaId?: string
+  postcodes: string[]
+  children: LocationTreeChild[]
+}
+
 export type LocationTreeBranch = {
   id: string
   name: string
   scheduleAreaId: string
   locationId: string | null
   locationName: string | null
+  areas: LocationTreeArea[]
+  /** Unassigned service users + employees (area members nest under areas). */
   children: LocationTreeChild[]
 }
 
@@ -53,12 +64,36 @@ export type LocationZoneDetail = {
   incidentEmailUserIds: string[]
 }
 
+export type ServiceUserAreaDetail = {
+  id: string
+  scheduleAreaId: string
+  scheduleAreaName: string | null
+  locationId: string | null
+  name: string
+  code: string
+  description: string | null
+  sortOrder: number
+  isActive: boolean
+  postcodes: string[]
+}
+
 export type LocationLookup = { id: string; name: string }
+
+export type LocationAreaOption = {
+  id: string
+  name: string
+  postcodes: string[]
+}
 
 export type LocationZoneOption = {
   id: string
   name: string
-  branches: { id: string; name: string }[]
+  branches: {
+    id: string
+    name: string
+    scheduleAreaId?: string | null
+    areas: LocationAreaOption[]
+  }[]
 }
 
 export type ServiceUserLocationRow = {
@@ -69,6 +104,9 @@ export type ServiceUserLocationRow = {
   locationName: string | null
   zoneName: string | null
   roomName: string | null
+  serviceUserAreaId: string | null
+  serviceUserAreaName: string | null
+  serviceUserAreaPostcodes: string[]
 }
 
 export type EmployeeLocationRow = {

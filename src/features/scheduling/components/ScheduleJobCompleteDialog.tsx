@@ -24,6 +24,7 @@ import {
 import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { useCompleteHousekeepingJob } from '@/features/scheduling/hooks/useSchedulingMutations'
+import { useLookupList } from '@/features/settings/hooks/useLookupsAdmin'
 import { ScheduleJobCompleteCarerSection } from '@/features/scheduling/components/ScheduleJobCompleteCarerSection'
 import { ScheduleJobDeliveredCarePlans } from '@/features/scheduling/components/ScheduleJobDeliveredCarePlans'
 import { VisitJobTasksChecklist } from '@/features/scheduling/components/VisitJobTasksChecklist'
@@ -100,6 +101,8 @@ export function ScheduleJobCompleteDialog({
   onJobUpdated,
 }: Props) {
   const completeJob = useCompleteHousekeepingJob()
+  const visitStatusReasonsQuery = useLookupList('visit-status-reasons', open)
+  const visitStatusReasonOptions = visitStatusReasonsQuery.data ?? []
   const [notes, setNotes] = React.useState('')
   const [statusReason, setStatusReason] = React.useState('')
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
@@ -379,7 +382,10 @@ export function ScheduleJobCompleteDialog({
       return
     }
     if (!statusReason.trim()) {
-      toastWarning('Reason required', 'Add a reason for this visit status before saving.')
+      toastWarning(
+        'Reason required',
+        'Select a reason for this visit status before saving.',
+      )
       return
     }
     if (isStartedOutcome && multiCarerTiming) {
@@ -627,18 +633,44 @@ export function ScheduleJobCompleteDialog({
             >
               Reason <span className="text-destructive">*</span>
             </Label>
-            <textarea
-              id="schedule-job-status-reason"
-              className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              value={statusReason}
-              disabled={busy}
-              onChange={(event) => setStatusReason(event.target.value)}
-              placeholder={`Why is this visit "${
-                SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)
-                  ?.label ?? visitStatus
-              }"? Required.`}
-              maxLength={2000}
-            />
+            <Select
+              value={statusReason || undefined}
+              onValueChange={setStatusReason}
+              disabled={busy || visitStatusReasonsQuery.isLoading}
+            >
+              <SelectTrigger id="schedule-job-status-reason" data-testid="schedule-job-status-reason">
+                <SelectValue
+                  placeholder={
+                    visitStatusReasonsQuery.isLoading
+                      ? 'Loading reasons…'
+                      : visitStatusReasonOptions.length
+                        ? `Why is this visit "${
+                            SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find(
+                              (option) => option.value === visitStatus,
+                            )?.label ?? visitStatus
+                          }"?`
+                        : 'No reasons configured — add them in Settings'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {visitStatusReasonOptions.map((reason) => (
+                  <SelectItem key={reason.id} value={reason.name}>
+                    {reason.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {visitStatusReasonsQuery.isError ? (
+              <p className="text-xs text-destructive" role="alert">
+                Could not load visit status reasons.
+              </p>
+            ) : null}
+            {!visitStatusReasonsQuery.isLoading && visitStatusReasonOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Add options under Settings → Visit status reasons.
+              </p>
+            ) : null}
           </section>
 
           <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-3">

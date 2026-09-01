@@ -105,13 +105,16 @@ export function AddressPlacesField({
 
   const applyParsed = React.useCallback(
     (parsed: ParsedPostalAddress) => {
+      // Keep an already-set postcode (e.g. chosen from a service user area). Photon
+      // results often omit postcode and would otherwise clear it.
+      const existingPostcode = value.postcode.trim()
       onChange({
         addressLine1: parsed.addressLine1,
         addressLine2: parsed.addressLine2,
         town: parsed.town,
         county: parsed.county,
         country: parsed.country,
-        postcode: parsed.postcode,
+        postcode: existingPostcode || parsed.postcode || '',
         latitude: parsed.latitude != null ? String(parsed.latitude) : '',
         longitude: parsed.longitude != null ? String(parsed.longitude) : '',
       })
@@ -119,7 +122,7 @@ export function AddressPlacesField({
         setShowMap(true)
       }
     },
-    [onChange],
+    [onChange, value.postcode],
   )
 
   const selectFeature = React.useCallback(

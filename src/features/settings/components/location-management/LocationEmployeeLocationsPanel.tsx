@@ -116,8 +116,8 @@ export function LocationEmployeeLocationsPanel() {
       <div>
         <h3 className="text-sm font-semibold text-primary">Employee Locations allocation</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set each employee&apos;s primary zone (area–branch), floor access within that zone, and
-          whether they can access all branches in the zone.
+          Set each employee&apos;s primary branch, floor access, and whether they can access all
+          branches in the zone.
         </p>
       </div>
       {error && (
@@ -133,11 +133,11 @@ export function LocationEmployeeLocationsPanel() {
         className="h-9 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
       />
       <div className="overflow-hidden rounded-lg border border-border">
-        <div className="grid grid-cols-[1fr_14rem_1fr_7rem_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="grid grid-cols-[1fr_8rem_1fr_6rem_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Employee Name</span>
-          <span>Zone Name</span>
+          <span>Zone</span>
           <span>Floor Name</span>
-          <span>Access All Zone</span>
+          <span>Access All</span>
           <span className="sr-only">Edit</span>
         </div>
         <ul className="divide-y divide-border">
@@ -145,7 +145,7 @@ export function LocationEmployeeLocationsPanel() {
             <li
               key={m.id}
               className={cn(
-                'grid grid-cols-[1fr_14rem_1fr_7rem_3rem] items-center gap-2 px-4 py-3 text-sm',
+                'grid grid-cols-[1fr_8rem_1fr_6rem_3rem] items-center gap-2 px-4 py-3 text-sm',
                 i % 2 === 1 && 'bg-muted/15',
               )}
             >
@@ -185,7 +185,7 @@ export function LocationEmployeeLocationsPanel() {
             <DialogBody className="space-y-4">
               <p className="text-sm text-muted-foreground">{editing.fullName}</p>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Zone Name (primary branch)</label>
+                <label className="text-sm font-medium">Primary branch</label>
                 <Select
                   value={draftLocationId ?? '__none__'}
                   onValueChange={v => {

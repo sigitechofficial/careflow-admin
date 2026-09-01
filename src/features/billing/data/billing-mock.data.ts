@@ -24,7 +24,7 @@ export const BILLING_EXCEPTION_QUEUE = [
   {
     id: 'ex-1',
     code: 'CHARGE_CARD_MISSING',
-    visitRef: 'V-2026-07-0451',
+    visitRef: 'VIS-L01-20260901-0123',
     serviceUser: 'Margaret Hughes',
     severity: 'high' as ExceptionSeverity,
     message: 'No active charge card for visit date',
@@ -32,7 +32,7 @@ export const BILLING_EXCEPTION_QUEUE = [
   {
     id: 'ex-2',
     code: 'RATE_MISSING',
-    visitRef: 'V-2026-07-0448',
+    visitRef: 'VIS-CROYDON1-20260713-0448',
     serviceUser: 'James Okonkwo',
     severity: 'high' as ExceptionSeverity,
     message: 'Carer pay rate card missing',
@@ -40,7 +40,7 @@ export const BILLING_EXCEPTION_QUEUE = [
   {
     id: 'ex-3',
     code: 'PO_MISSING',
-    visitRef: 'V-2026-07-0439',
+    visitRef: 'VIS-CROYDON1-20260713-0439',
     serviceUser: 'Eleanor Price',
     severity: 'medium' as ExceptionSeverity,
     message: 'Purchase order required for London Council export',
@@ -245,7 +245,7 @@ export const MOCK_INVOICE_TEMPLATES = [
 export const MOCK_VISIT_RECONCILIATION = [
   {
     id: 'vr-1',
-    visitRef: 'V-2026-07-0451',
+    visitRef: 'VIS-L01-20260901-0123',
     serviceUser: 'Margaret Hughes',
     carer: 'Saima Ahmad',
     date: '2026-07-06',
@@ -261,7 +261,7 @@ export const MOCK_VISIT_RECONCILIATION = [
   },
   {
     id: 'vr-2',
-    visitRef: 'V-2026-07-0448',
+    visitRef: 'VIS-CROYDON1-20260713-0448',
     serviceUser: 'James Okonkwo',
     carer: 'Ahmad Alam',
     date: '2026-07-06',
@@ -274,7 +274,7 @@ export const MOCK_VISIT_RECONCILIATION = [
   },
   {
     id: 'vr-3',
-    visitRef: 'V-2026-07-0442',
+    visitRef: 'VIS-CROYDON1-20260713-0442',
     serviceUser: 'Eleanor Price',
     carer: 'Briana Adjei',
     date: '2026-07-05',

@@ -199,6 +199,7 @@ type FormState = {
   keySafeNumber: string
   serviceUserNumber: string
   locationId: string
+  serviceUserAreaId: string
   serviceStartDate: string
   serviceEndDate: string
   dateOfDeath: string
@@ -257,6 +258,7 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     keySafeNumber: d.address?.keySafeNumber ?? '',
     serviceUserNumber: d.serviceUserNumber ?? '',
     locationId: d.location?.id ?? '',
+    serviceUserAreaId: d.serviceUserAreaId ?? d.serviceUserArea?.id ?? '',
     serviceStartDate: toInputDate(d.serviceStartDate),
     serviceEndDate: toInputDate(d.serviceEndDate),
     dateOfDeath: extValue(r, PROFILE_REF.dateOfDeath),
@@ -554,6 +556,7 @@ export function ServiceUserPersonalDetailsForm({
         fundingTypeId: form.fundingTypeId || undefined,
         riskLevelId: form.riskLevelId || undefined,
         locationId: form.locationId || undefined,
+        serviceUserAreaId: form.serviceUserAreaId || null,
         keyWorkerId: form.keyWorkerId || undefined,
         namedNurseId: form.namedNurseId || undefined,
         references: withoutAs,
@@ -797,10 +800,15 @@ export function ServiceUserPersonalDetailsForm({
             onChange={set('serviceUserNumber')}
           />
           <div className="sm:col-span-2 space-y-1.5">
-            <LabelWithTooltip label="Zone & branch" required tooltip={FIELD_HELP.location} />
+            <LabelWithTooltip label="Zone, branch & area" required tooltip={FIELD_HELP.location} />
             <ServiceUserZoneBranchSelect
               value={form.locationId}
-              onChange={set('locationId')}
+              areaId={form.serviceUserAreaId}
+              addressPostcode={form.postcode}
+              onChange={({ locationId, serviceUserAreaId }) =>
+                setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
+              }
+              onApplyPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
               required
             />
           </div>
