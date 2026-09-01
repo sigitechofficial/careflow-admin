@@ -98,6 +98,7 @@ export function LocationManagementZonesPanel() {
   const [zoneEdit, setZoneEdit] = React.useState<ZoneEditState | null>(null)
   const [branchOpen, setBranchOpen] = React.useState(false)
   const [viewZone, setViewZone] = React.useState<LocationTreeZone | null>(null)
+  const [postcodesZone, setPostcodesZone] = React.useState<LocationTreeZone | null>(null)
   const [areaModal, setAreaModal] = React.useState<AreaModalState | null>(null)
   const [saving, setSaving] = React.useState(false)
 
@@ -355,6 +356,8 @@ export function LocationManagementZonesPanel() {
 
   const liveViewZone =
     viewZone == null ? null : (zones.find(z => z.id === viewZone.id) ?? viewZone)
+  const livePostcodesZone =
+    postcodesZone == null ? null : (zones.find(z => z.id === postcodesZone.id) ?? postcodesZone)
 
   return (
     <div className="space-y-5" data-testid="location-management-zones-panel">
@@ -492,7 +495,22 @@ export function LocationManagementZonesPanel() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3.5">{zone.city || '—'}</td>
-                    <td className="px-4 py-3.5 font-medium">{pcs.length} codes</td>
+                    <td className="px-4 py-3.5 font-medium">
+                      <button
+                        type="button"
+                        className={cn(
+                          'rounded-md px-1.5 py-0.5 text-left underline-offset-2',
+                          pcs.length > 0
+                            ? 'text-primary hover:bg-primary/5 hover:underline'
+                            : 'cursor-default text-muted-foreground',
+                        )}
+                        disabled={pcs.length === 0}
+                        onClick={() => setPostcodesZone(zone)}
+                        title={pcs.length > 0 ? 'View postcodes' : 'No postcodes'}
+                      >
+                        {pcs.length} {pcs.length === 1 ? 'code' : 'codes'}
+                      </button>
+                    </td>
                     <td className="px-4 py-3.5">
                       <div className="font-medium">{branchCount}</div>
                       <div className="text-xs text-muted-foreground">
@@ -776,6 +794,79 @@ export function LocationManagementZonesPanel() {
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setViewZone(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zone postcodes (from Postcodes / codes column) */}
+      <Dialog
+        open={Boolean(livePostcodesZone)}
+        onOpenChange={open => (!open ? setPostcodesZone(null) : undefined)}
+      >
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>
+              {livePostcodesZone ? `${livePostcodesZone.name} postcodes` : 'Postcodes'}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            {livePostcodesZone ? (
+              allPostcodes(livePostcodesZone).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No postcodes in this zone yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {livePostcodesZone.branches.map(branch => {
+                    const areasWithPcs = (branch.areas ?? []).filter(
+                      a => (a.postcodes?.length ?? 0) > 0,
+                    )
+                    if (areasWithPcs.length === 0) return null
+                    return (
+                      <div key={branch.id} className="rounded-lg border border-border p-3">
+                        <p className="text-sm font-medium">{branch.name}</p>
+                        <ul className="mt-2 space-y-3">
+                          {areasWithPcs.map(area => (
+                            <li key={area.id}>
+                              <div className="mb-1.5 flex items-center justify-between gap-2">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  {area.name}
+                                </p>
+                                {canUpdate ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2"
+                                    onClick={() => {
+                                      setPostcodesZone(null)
+                                      openEditArea(livePostcodesZone, branch, area)
+                                    }}
+                                  >
+                                    <Pencil className="mr-1 h-3 w-3" />
+                                    Edit
+                                  </Button>
+                                ) : null}
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {(area.postcodes ?? []).map(pc => (
+                                  <Badge key={pc} variant="secondary" className="font-normal">
+                                    {pc}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPostcodesZone(null)}>
               Close
             </Button>
           </DialogFooter>
