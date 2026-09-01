@@ -35,6 +35,7 @@ import { VisitObservationsPanel } from '@/features/scheduling/components/VisitOb
 import { VisitLogTimelinePanel } from '@/features/scheduling/components/VisitLogTimelinePanel'
 import {
   fetchVisitObservations,
+  fetchVisitCareConsents,
   getScheduledJob,
   type VisitObservationRecordedRow,
 } from '@/features/scheduling/api/scheduling.api'
@@ -52,6 +53,7 @@ import {
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
+import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
 
 export type ScheduleVisitWorkspaceTab =
   | 'overview'
@@ -135,6 +137,14 @@ export function ScheduleVisitWorkspaceContent({
     enabled: Boolean(job.id),
   })
   const liveJob = freshJobQuery.data ?? job
+
+  const careConsentQuery = useQuery({
+    queryKey: schedulingKeys.careConsents(job.id),
+    queryFn: () => fetchVisitCareConsents(job.id),
+    enabled: Boolean(job.id),
+    refetchOnMount: 'always',
+    staleTime: 0,
+  })
 
   const visitSlot = timelineJobVisitPlanSlot(job)
   const deliveryAssessment = React.useMemo(
@@ -238,6 +248,12 @@ export function ScheduleVisitWorkspaceContent({
               </span>
             </div>
           </section>
+
+          <VisitCareConsentSection
+            jobId={job.id}
+            consents={careConsentQuery.data?.consents ?? []}
+            loading={careConsentQuery.isLoading}
+          />
 
           <VisitDeliveryStatusPanel
             assessment={deliveryAssessment}
