@@ -15,9 +15,16 @@ export default function LoginPage() {
   const apiUrl = getApiBaseUrl()
   const [mode, setMode] = React.useState<'staff' | 'inspector'>(apiUrl ? 'staff' : 'staff')
 
-  const [email, setEmail] = React.useState(apiUrl ? 'admin@careadmin.local' : 'admin@care.local')
+  const defaultLoginEmail =
+    import.meta.env.VITE_DEFAULT_LOGIN_EMAIL?.trim() ||
+    (apiUrl ? 'admin@careadmin.local' : 'admin@care.local')
+  const defaultLoginPassword =
+    import.meta.env.VITE_DEFAULT_LOGIN_PASSWORD?.trim() ||
+    (apiUrl ? 'Admin@12345' : 'CareAdmin1!')
+
+  const [email, setEmail] = React.useState(defaultLoginEmail)
   const [inspectorUsername, setInspectorUsername] = React.useState('')
-  const [password, setPassword] = React.useState(apiUrl ? 'Admin@12345' : 'CareAdmin1!')
+  const [password, setPassword] = React.useState(defaultLoginPassword)
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
 
@@ -170,6 +177,14 @@ export default function LoginPage() {
           </Button>
         </form>
       )}
+
+      {mode === 'staff' && apiUrl ? (
+        <div className="mt-4 rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+          <p>
+            <span className="font-medium text-foreground">Admin email:</span> {defaultLoginEmail}
+          </p>
+        </div>
+      ) : null}
 
       {mode === 'staff' && !apiUrl ? (
         <div className="mt-4 rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">

@@ -39,6 +39,8 @@ jobs:
           # Hardcoded for allforcare — do not reuse VITE_API_BASE_URL secret (that is for careflowadmin/main).
           VITE_API_BASE_URL: https://api-allforcare.sigisolutions.net/
           REACT_APP_API_BASE_URL: https://api-allforcare.sigisolutions.net/
+          VITE_DEFAULT_LOGIN_EMAIL: suzzette@allforcare.co.uk
+          VITE_DEFAULT_LOGIN_PASSWORD: Admin@12345
           # Baked into the JS bundle at build time (Vite). Add this secret in the
           # care-admin GitHub repo → Settings → Secrets and variables → Actions.
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
