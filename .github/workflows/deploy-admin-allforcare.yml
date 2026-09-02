@@ -372,7 +372,10 @@ jobs:
 
           echo "Checking live website..."
 
-          curl -fsS --retry 3 "$APP_URL" > /dev/null
+          if ! curl -fsS --retry 3 "$APP_URL" > /dev/null; then
+            echo "TLS verify failed or unreachable; retrying live check with insecure SSL (-k)..."
+            curl -fsSk --retry 3 "$APP_URL" > /dev/null
+          fi
 
           echo "Cleaning old releases and backups..."
 
