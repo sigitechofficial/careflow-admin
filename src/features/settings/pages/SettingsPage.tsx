@@ -17,6 +17,9 @@ import { TaskCatalogueSettingsPanel } from '@/features/settings/components/TaskC
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
 import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
 import { WelfareOutcomesSettingsPanel } from '@/features/settings/components/WelfareOutcomesSettingsPanel'
+import { ClockInArrivalReasonsSettingsPanel } from '@/features/settings/components/ClockInArrivalReasonsSettingsPanel'
+import { ClockOutEndReasonsSettingsPanel } from '@/features/settings/components/ClockOutEndReasonsSettingsPanel'
+import { VisitOutcomeReasonsSettingsPanel } from '@/features/settings/components/VisitOutcomeReasonsSettingsPanel'
 import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components/EcmThresholdLookupsSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
 
@@ -47,6 +50,9 @@ export type SettingsTabId =
   | 'tasks-planner'
   | 'vital-ranges'
   | 'welfare-outcomes'
+  | 'clock-in-arrival-reasons'
+  | 'clock-out-end-reasons'
+  | 'outcome-reasons'
   | 'ecm-thresholds'
 
 const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
@@ -76,6 +82,9 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'allergies', label: 'Allergies' },
   { id: 'vital-ranges', label: 'Accepted ranges' },
   { id: 'welfare-outcomes', label: 'On-entry welfare outcomes' },
+  { id: 'clock-in-arrival-reasons', label: 'Clock-in arrival reasons' },
+  { id: 'clock-out-end-reasons', label: 'Clock-out end reasons' },
+  { id: 'outcome-reasons', label: 'Outcome reasons' },
   { id: 'ecm-thresholds', label: 'ECM thresholds' },
 ]
 
@@ -245,6 +254,9 @@ export default function SettingsPage() {
           {activeTab === 'tasks-planner' && <TaskCatalogueSettingsPanel />}
           {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
           {activeTab === 'welfare-outcomes' && <WelfareOutcomesSettingsPanel />}
+          {activeTab === 'clock-in-arrival-reasons' && <ClockInArrivalReasonsSettingsPanel />}
+          {activeTab === 'clock-out-end-reasons' && <ClockOutEndReasonsSettingsPanel />}
+          {activeTab === 'outcome-reasons' && <VisitOutcomeReasonsSettingsPanel />}
           {activeTab === 'ecm-thresholds' && <EcmThresholdLookupsSettingsPanel />}
         </div>
       </div>

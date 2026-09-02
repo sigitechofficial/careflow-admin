@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Link } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -72,7 +73,16 @@ export function MedicationStatusCodesSettingsPanel() {
       <div>
         <h2 className="text-lg font-semibold">Medication MAR status codes</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Status codes control MAR cell colours and recording rules when documenting administration.
+          Status codes control MAR cell colours and recording rules. The carer app uses these
+          same codes as medication outcome pills.{' '}
+          <Link
+            to="/settings"
+            search={{ tab: 'outcome-reasons' }}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Add nested reasons
+          </Link>{' '}
+          under Outcome reasons.
         </p>
       </div>
 

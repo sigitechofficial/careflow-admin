@@ -22,6 +22,22 @@ import {
 import type { MedicationEventDetail } from '@/features/service-users/api/medication-mar.api'
 import './mar-record.css'
 
+const WITNESS_RELATION_LABELS: Record<string, string> = {
+  CO_CARER: 'Co-carer',
+  RELATIVE: 'Relative',
+  OTHER: 'Other',
+}
+
+function witnessRelationDisplay(
+  code: string | null | undefined,
+  detail: string | null | undefined,
+): string {
+  const label = code ? WITNESS_RELATION_LABELS[code.toUpperCase()] ?? code : ''
+  const extra = detail?.trim() ?? ''
+  if (label && extra) return `${label} — ${extra}`
+  return label || extra || '—'
+}
+
 function DetailRow({
   label,
   value,
@@ -284,6 +300,23 @@ export function RecordDetailDrawer({
                   {ev.notes && <DetailRow label="Notes" value={ev.notes} full />}
                   {ev.prnReason && <DetailRow label="PRN reason" value={ev.prnReason} />}
                   {ev.prnOutcome && <DetailRow label="PRN outcome" value={ev.prnOutcome} />}
+                </div>
+              )}
+
+              {ev.witnessPresent != null && (
+                <div className="drawer-section">
+                  <div className="drawer-label">Witness</div>
+                  <DetailRow label="Present" value={ev.witnessPresent ? 'Yes' : 'No'} />
+                  {ev.witnessPresent ? (
+                    <>
+                      <DetailRow label="Name" value={ev.witnessName ?? '—'} />
+                      <DetailRow
+                        label="Relation"
+                        value={witnessRelationDisplay(ev.witnessRelationCode, ev.witnessRelationDetail)}
+                      />
+                      {ev.witnessNotes ? <DetailRow label="Notes" value={ev.witnessNotes} full /> : null}
+                    </>
+                  ) : null}
                 </div>
               )}
 

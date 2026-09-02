@@ -321,6 +321,11 @@ export type MedicationEventDetail = {
   /** Carer-app clock-face time the dose was given (HH:mm), org timezone. */
   timeGiven?: string | null
   outcomeLabel?: string | null
+  witnessPresent?: boolean | null
+  witnessName?: string | null
+  witnessRelationCode?: string | null
+  witnessRelationDetail?: string | null
+  witnessNotes?: string | null
   isPrn?: boolean
   prnReason: string | null
   prnOutcome: string | null
