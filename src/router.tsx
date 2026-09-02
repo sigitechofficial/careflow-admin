@@ -34,9 +34,11 @@ import ServiceUsersPage from '@/features/service-users/pages/ServiceUsersPage'
 // import InitialAssessmentChecklistPage from '@/features/service-users/pages/InitialAssessmentChecklistPage'
 import ServiceUserInitialAssessmentEnterprisePage from '@/features/service-users/initial-assessment/pages/ServiceUserInitialAssessmentEnterprisePage'
 import { validateInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
+import { validateServiceUserProfileSearch } from '@/features/service-users/service-user-profile-tabs'
 import AddServiceUserPage from '@/features/service-users/pages/AddServiceUserPage'
 import EditServiceUserPage from '@/features/service-users/pages/EditServiceUserPage'
 import ViewServiceUserPage from '@/features/service-users/pages/ViewServiceUserPage'
+import ServiceUserProfilePage from '@/features/service-users/pages/ServiceUserProfilePage'
 import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUserMedicationPage'
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
@@ -50,6 +52,7 @@ import ServiceUserDocumentsModulePage from '@/features/service-users/pages/Servi
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
 import InitialAssessmentReviewQueuePage from '@/features/service-users/initial-assessment/pages/InitialAssessmentReviewQueuePage'
 import AssessmentReviewQueuePage from '@/features/service-users/assessments/pages/AssessmentReviewQueuePage'
+import CarePlanReviewsPage from '@/features/service-users/care-plans/pages/CarePlanReviewsPage'
 
 // ΓöÇΓöÇ Employee pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import EmployeePage from '@/features/employees/pages/EmployeePage'
@@ -222,6 +225,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/initial-assessment': 'Initial Assessment',
   // '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
   '/service-users/add': 'Add Service User',
+  '/service-users/$serviceUserId/profile': 'Profile',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
@@ -377,6 +381,8 @@ function AppRootShell() {
     pageTitles[pathname] ??
     (/^\/employee\/[^/]+\/edit$/.test(pathname)
       ? 'Edit Employee'
+      : /^\/service-users\/[^/]+\/profile$/.test(pathname)
+        ? 'Profile'
       : /^\/service-users\/[^/]+\/view$/.test(pathname)
         ? 'Service User'
         : /^\/service-users\/[^/]+\/medication$/.test(pathname)
@@ -391,6 +397,8 @@ function AppRootShell() {
                 ? 'Documents'
               : pathname === '/body-map/review-queue'
                 ? 'Body Map Review Queue'
+              : pathname === '/care-plans/reviews'
+                ? 'Care Plan Reviews'
             : /^\/service-users\/[^/]+\/care-plan(\/forms\/[^/]+)?$/.test(pathname)
               ? 'Care Plan'
             : /^\/service-users\/[^/]+\/visit-plan$/.test(pathname)
@@ -407,6 +415,7 @@ function AppRootShell() {
     pathname === '/service-users/initial-assessment' ||
     pathname === '/scheduling/view' ||
     pathname === '/scheduling/schedule-jobs' ||
+    /^\/service-users\/[^/]+\/profile$/.test(pathname) ||
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
@@ -741,6 +750,17 @@ const serviceUsersViewRoute = createRoute({
   component: ViewServiceUserPage,
 })
 
+const serviceUsersProfileRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/profile',
+  validateSearch: validateServiceUserProfileSearch,
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserEditRoute(qc, serviceUserId)
+  },
+  component: ServiceUserProfilePage,
+})
+
 const serviceUsersMedicationRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/medication',
@@ -941,6 +961,13 @@ const assessmentReviewQueueRoute = createRoute({
   path: '/assessments/review-queue',
   beforeLoad: requirePermission('service_users.assessments.read'),
   component: AssessmentReviewQueuePage,
+})
+
+const carePlanReviewsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/care-plans/reviews',
+  beforeLoad: requirePermission('service_users.read'),
+  component: CarePlanReviewsPage,
 })
 
 const serviceUsersEditRoute = createRoute({
@@ -1820,6 +1847,7 @@ const routeTree = rootRoute.addChildren([
     // serviceUsersInitialAssessmentRoute,
     serviceUsersAddRoute,
     serviceUsersViewRoute,
+    serviceUsersProfileRoute,
     serviceUsersMedicationRoute,
     serviceUsersCarePlanRoute,
     serviceUsersCarePlanFormRoute,
@@ -1833,6 +1861,7 @@ const routeTree = rootRoute.addChildren([
     bodyMapReviewQueueRoute,
     initialAssessmentReviewQueueRoute,
     assessmentReviewQueueRoute,
+    carePlanReviewsRoute,
     serviceUsersEditRoute,
     schedulingViewRoute,
     schedulingScheduleJobsRoute,

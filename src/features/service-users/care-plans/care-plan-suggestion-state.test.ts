@@ -13,6 +13,7 @@ import {
   isSuggestionGatedCompose,
   mergeComposeProvenanceFromComposeResult,
   mergeHybridRefreshValues,
+  mergeComposedFromOnEdit,
   mergeComposedFromOnIgnore,
   mergeComposedFromOnUse,
   markProvenanceEdited,
@@ -118,6 +119,23 @@ describe('Falls suggestion editor state', () => {
       notes: 'keep',
       'hist:count': '2',
     })
+  })
+
+  it('never overwrites an existing saved field value', () => {
+    expect(applySuggestionToValues({ 'hist:count': 'staff text' }, suggestion)).toEqual({
+      'hist:count': 'staff text',
+    })
+  })
+
+  it('Edit records provenance as user-edited without changing other fields', () => {
+    const next = mergeComposedFromOnEdit({
+      composedFrom: { iaSubmissionId: 'ia-1' },
+      suggestion,
+      acceptedById: 'user-1',
+    })
+    const provenance = next.fieldProvenance as Record<string, { userEdited?: boolean; originalValue?: string }>
+    expect(provenance['hist:count']?.userEdited).toBe(true)
+    expect(provenance['hist:count']?.originalValue).toBe('2')
   })
 
   it('Ignore persists the suggestion id on the draft metadata', () => {

@@ -23,6 +23,12 @@
       "nodeId": "354:11113"
     },
     {
+      "name": "care-none",
+      "slug": "care-none",
+      "file": "/care-plan-icons/quick-select/care-none.svg",
+      "nodeId": "local-care-none"
+    },
+    {
       "name": "care-low",
       "slug": "care-low",
       "file": "/care-plan-icons/quick-select/care-low.svg",

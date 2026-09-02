@@ -34,7 +34,11 @@ export function syncFallsScreeningDerivedState(
   onAdlChange(nextAdl)
 
   const fallsLast12Q = findQuestionBySpecRefAndText(sections, '12.7', 'falls in last 12 months')
-  if (fallsLast12Q && screening?.q1FallsNeedInvestigating != null) {
+  if (
+    fallsLast12Q &&
+    screening?.consentToSixQuestions === true &&
+    screening?.q1FallsNeedInvestigating != null
+  ) {
     onAnswerChange(
       fallsLast12Q.id,
       yesNoAnswer(fallsLast12Q.id, screening.q1FallsNeedInvestigating),

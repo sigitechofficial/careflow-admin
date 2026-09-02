@@ -33,8 +33,11 @@ import type { PhotographyConsentMetadata } from '@/features/service-users/initia
 import type { EquipmentSelectionMetadata } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import type { AdvanceCarePlanningMetadata } from '@/features/service-users/initial-assessment/utils/advance-care-planning'
 import type { FallsScreeningMetadata } from '@/features/service-users/initial-assessment/utils/falls-screening'
-import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
-import { HOLISTIC_TAB_COUNT } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import {
+  enrichAbbeyMetadata,
+  type PainAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import { HOLISTIC_REGISTERED_TAB_IDS } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 
 export type IaHolisticAutofillLevel = 'low' | 'normal' | 'critical'
 
@@ -85,13 +88,17 @@ function buildFallsScreening(level: IaHolisticAutofillLevel): FallsScreeningMeta
     fallOrConcern: level === 'critical',
     firstScreenSinceLastFall: level === 'critical' ? 'yes' : 'na',
     consentToSixQuestions: level !== 'low',
-    q1FallsNeedInvestigating: level === 'critical',
-    q2DizzyOrBlackouts: false,
-    q3WalkingBalanceUnassessed: level === 'critical',
-    q4FourPlusMedsNoReview: false,
-    q5TrippingMore: level === 'critical',
-    q6FearOfFalling: false,
     additionalComments: `${prefix} — falls screening (E2E)`,
+    ...(level === 'low'
+      ? {}
+      : {
+          q1FallsNeedInvestigating: level === 'critical',
+          q2DizzyOrBlackouts: false,
+          q3WalkingBalanceUnassessed: level === 'critical',
+          q4FourPlusMedsNoReview: false,
+          q5TrippingMore: level === 'critical',
+          q6FearOfFalling: false,
+        }),
   }
 }
 
@@ -104,13 +111,63 @@ function buildMustAssessment(level: IaHolisticAutofillLevel) {
   })
 }
 
+function abbeyDomainScoresForLevel(level: IaHolisticAutofillLevel) {
+  if (level === 'critical') {
+    return {
+      vocalisation: 3 as const,
+      facialExpression: 3 as const,
+      bodyLanguage: 2 as const,
+      behaviouralChange: 3 as const,
+      physiologicalChange: 2 as const,
+      physicalChanges: 2 as const,
+    }
+  }
+  if (level === 'normal') {
+    return {
+      vocalisation: 2 as const,
+      facialExpression: 2 as const,
+      bodyLanguage: 2 as const,
+      behaviouralChange: 2 as const,
+      physiologicalChange: 2 as const,
+      physicalChanges: 1 as const,
+    }
+  }
+  return {
+    vocalisation: 0 as const,
+    facialExpression: 0 as const,
+    bodyLanguage: 0 as const,
+    behaviouralChange: 0 as const,
+    physiologicalChange: 0 as const,
+    physicalChanges: 0 as const,
+  }
+}
+
 function buildPainAssessment(level: IaHolisticAutofillLevel): PainAssessmentMetadata {
   const prefix = conditionPrefix(level)
+  const abbey = enrichAbbeyMetadata({
+    ...abbeyDomainScoresForLevel(level),
+    painType: level === 'critical' ? 'acute_on_chronic' : level === 'normal' ? 'chronic' : undefined,
+    dateCompleted: isoDate(),
+    assessorNameDesignation: 'E2E Assessor — RM',
+  })
   return {
-    nrsScore: level === 'critical' ? 7 : level === 'normal' ? 4 : 1,
+    nrsScore: level === 'critical' ? 7 : level === 'normal' ? 4 : 0,
+    scaleUsed: 'both',
+    abbey,
     therapyAideMemoire: {
+      choking: { checked: false },
+      chestInfections: { checked: false },
+      speechConcern: { checked: false },
+      mobilityChange: {
+        checked: level === 'critical',
+        details: level === 'critical' ? 'Walking and transfers have become slower (E2E).' : undefined,
+      },
+      selfCareChange: {
+        checked: level === 'critical',
+        details: level === 'critical' ? 'I need more help to wash and dress (E2E).' : undefined,
+      },
+      carePackageConcern: { checked: false },
       furtherReferralRequired: false,
-      referralCompleted: false,
       additionalComments: `${prefix} — therapy aide memoire (E2E)`,
     },
   }
@@ -169,6 +226,10 @@ function buildEndOfLife(level: IaHolisticAutofillLevel): EndOfLifeAssessmentMeta
   const out: EndOfLifeAssessmentMetadata = {}
   for (const q of END_OF_LIFE_ASSESSMENT_QUESTIONS) {
     if (q.kind === 'notesOnly') continue
+    if (q.id === 'dnrInPlace') {
+      out.dnrInPlaceAnswer = false
+      continue
+    }
     if (q.kind === 'yesNoUnknown') {
       out[`${q.id}TriAnswer`] = level === 'critical' ? 'yes' : 'no'
     } else {
@@ -255,9 +316,13 @@ function buildPhotographyConsent(): PhotographyConsentMetadata {
 function buildEquipmentSelection(level: IaHolisticAutofillLevel): EquipmentSelectionMetadata {
   return {
     waterlowScore: level === 'critical' ? '18' : level === 'normal' ? '12' : '8',
-    selectedRiskLevel: level === 'critical' ? 'High risk' : 'At risk',
+    selectedRiskLevel: level === 'critical' ? 'High risk' : level === 'normal' ? 'At risk' : 'Low risk',
     selectedEquipment:
-      level === 'critical' ? 'Full replacement mattress' : 'High risk foam mattress / alternating overlay',
+      level === 'critical'
+        ? 'Full replacement mattress'
+        : level === 'normal'
+          ? 'High risk foam mattress / alternating overlay'
+          : 'Standard foam mattress — no additional pressure equipment',
     equipmentInPlace: level === 'low',
     otReferralRequired: level === 'critical',
     notes: `${conditionPrefix(level)} — equipment selection (E2E)`,
@@ -313,7 +378,7 @@ function buildMobilityMetadata(level: IaHolisticAutofillLevel): Record<string, u
   )
 
   const sectionComments: Record<string, { text: string }> = {}
-  for (let n = 1; n <= HOLISTIC_TAB_COUNT; n++) {
+  for (const n of HOLISTIC_REGISTERED_TAB_IDS) {
     sectionComments[String(n)] = {
       text: `${conditionPrefix(level)} — holistic tab ${n} (E2E)`,
     }
@@ -321,7 +386,7 @@ function buildMobilityMetadata(level: IaHolisticAutofillLevel): Record<string, u
 
   const sectionFooters: Record<string, { dateCompleted?: string; assessorNameDesignation?: string }> =
     {}
-  for (let n = 1; n <= HOLISTIC_TAB_COUNT; n++) {
+  for (const n of HOLISTIC_REGISTERED_TAB_IDS) {
     sectionFooters[String(n)] = {
       dateCompleted: isoDate(),
       assessorNameDesignation: 'E2E Assessor — RM',
@@ -343,11 +408,14 @@ function buildMobilityMetadata(level: IaHolisticAutofillLevel): Record<string, u
       comments: level === 'critical' ? 'E2E transfer matrix' : '',
     },
     equipmentChecklist: {
-      hoistServiced: true,
-      profilingBedServiced: true,
-      staffTrainingCoversHoist: true,
+      hoistServiced: level === 'critical',
+      profilingBedServiced: level === 'critical',
+      staffTrainingCoversHoist: level === 'critical',
       otGuidanceRequired: false,
-      comments: 'E2E equipment checklist',
+      comments:
+        level === 'critical'
+          ? 'Hoist and profiling bed are in use (E2E).'
+          : 'No hoist or profiling bed is in use (E2E).',
     },
     dailyLivingAids: {
       aidsInUseOrRequired: false,

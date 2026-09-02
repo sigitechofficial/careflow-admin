@@ -10,16 +10,18 @@ export type IARecommendationCardProps = {
   suggestion: CarePlanFieldSuggestion
   currentValue: string | boolean | undefined
   disabled?: boolean
-  /** Brief success flash after Use suggestion. */
+  /** Brief success flash after Accept. */
   applied?: boolean
   onUse: (suggestion: CarePlanFieldSuggestion) => void
   onDismiss: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrent: (suggestion: CarePlanFieldSuggestion) => void
+  /** Put the suggestion into the field for staff to amend before save. Does not persist. */
+  onEdit?: (suggestion: CarePlanFieldSuggestion) => void
 }
 
 /**
  * Dedicated IA recommendation panel for Care Plan review rows.
- * Soft mint card with source metadata and Use suggestion / Dismiss actions.
+ * Soft mint card with source metadata and Accept / Edit / Dismiss actions.
  */
 export function IARecommendationCard({
   suggestion,
@@ -29,6 +31,7 @@ export function IARecommendationCard({
   onUse,
   onDismiss,
   onKeepCurrent,
+  onEdit,
 }: IARecommendationCardProps) {
   const state = suggestionConflictState(currentValue, suggestion)
   if (state === 'match' && !applied) return null
@@ -76,14 +79,33 @@ export function IARecommendationCard({
 
       {disabled || isContext ? null : (
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            className="h-8 rounded-lg bg-emerald-700 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-800"
-            onClick={() => onUse(suggestion)}
-          >
-            Use suggestion
-          </Button>
+          {isConflict ? (
+            <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+              This field already has a saved value. The suggestion will not overwrite it.
+            </p>
+          ) : (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-lg bg-emerald-700 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-800"
+                onClick={() => onUse(suggestion)}
+              >
+                Accept
+              </Button>
+              {onEdit ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-lg border-emerald-300 bg-white px-3 text-xs font-medium text-emerald-800 hover:bg-emerald-50 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-200"
+                  onClick={() => onEdit(suggestion)}
+                >
+                  Edit
+                </Button>
+              ) : null}
+            </>
+          )}
           <Button
             type="button"
             size="sm"

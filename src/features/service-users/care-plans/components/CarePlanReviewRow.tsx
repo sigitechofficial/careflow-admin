@@ -20,6 +20,7 @@ export type CarePlanReviewRowProps = {
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onDismissSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onEditSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }
 
 const APPLIED_FLASH_MS = 1800
@@ -41,6 +42,7 @@ export function CarePlanReviewRow({
   onUseSuggestion,
   onDismissSuggestion,
   onKeepCurrentSuggestion,
+  onEditSuggestion,
 }: CarePlanReviewRowProps) {
   const [appliedFlash, setAppliedFlash] = useState(false)
   const help = helpText?.trim() || null
@@ -112,6 +114,7 @@ export function CarePlanReviewRow({
               onUse={handleUse}
               onDismiss={onDismissSuggestion}
               onKeepCurrent={onKeepCurrentSuggestion}
+              onEdit={onEditSuggestion}
             />
           ) : null}
         </div>

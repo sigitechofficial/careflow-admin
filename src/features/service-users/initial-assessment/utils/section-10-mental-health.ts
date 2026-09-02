@@ -21,6 +21,8 @@ export const SECTION_10_CANONICAL_QUESTION_TEXT = [
   'GP referral for mental health made?',
   'GP referral date',
   'Diagnosed dementia?',
+  'Wandering or exit-seeking?',
+  'Wandering or exit-seeking support needed',
   'Learning disability?',
   'Ever had a brain injury?',
   'Good long-term memory recall?',

@@ -14,6 +14,7 @@ type ModuleTab = {
   id: ServiceUserModuleTabIconId
   label: string
   to?:
+    | '/service-users/$serviceUserId/profile'
     | '/service-users/$serviceUserId/view'
     | '/service-users/$serviceUserId/ecm'
     | '/service-users/$serviceUserId/tasks-planner'
@@ -28,6 +29,7 @@ type ModuleTab = {
 
 /** Light circle behind glyph exports that omit a filled disc (meds includes its own). */
 const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = {
+  profile: null,
   overview: '#E8F0FE',
   ecm: '#FEF3E8',
   observations: '#E8F5F2',
@@ -43,7 +45,12 @@ const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = 
   activity: '#E8F5F2',
 }
 
-const MODULE_TABS: ModuleTab[] = [
+export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
+  {
+    id: 'profile',
+    label: 'Profile',
+    to: '/service-users/$serviceUserId/profile',
+  },
   {
     id: 'overview',
     label: 'Overview',
@@ -98,8 +105,9 @@ const MODULE_TABS: ModuleTab[] = [
   },
 ]
 
-function isTabActive(tab: ModuleTab, pathname: string): boolean {
+export function isServiceUserModuleTabActive(tab: ModuleTab, pathname: string): boolean {
   if (!tab.to) return false
+  if (tab.id === 'profile') return /\/service-users\/[^/]+\/profile\/?$/.test(pathname)
   if (tab.id === 'overview') return /\/service-users\/[^/]+\/view\/?$/.test(pathname)
   if (tab.id === 'ecm') return /\/service-users\/[^/]+\/ecm\/?$/.test(pathname)
   if (tab.id === 'meds') return pathname.includes('/medication')
@@ -163,8 +171,8 @@ export function ServiceUserModuleTabs({
           serviceUserModuleShellClass(shellLayout),
         )}
       >
-        {MODULE_TABS.map(tab => {
-          const active = isTabActive(tab, pathname)
+        {SERVICE_USER_MODULE_TABS.map(tab => {
+          const active = isServiceUserModuleTabActive(tab, pathname)
           const content = <TabContent tab={tab} active={active} />
 
           if (tab.to) {
@@ -174,6 +182,7 @@ export function ServiceUserModuleTabs({
                 to={tab.to}
                 params={{ serviceUserId }}
                 title={tab.label}
+                data-testid={`su-module-tab-${tab.id}`}
               >
                 {content}
               </Link>

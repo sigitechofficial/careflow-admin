@@ -1,4 +1,5 @@
 import type { HubTabId } from '@/features/service-users/initial-assessment/components/InitialAssessmentHubTabs'
+import { isRegisteredHolisticTabId } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 
 const HUB_TAB_IDS = new Set<HubTabId>([
   'form',
@@ -13,7 +14,7 @@ const HUB_TAB_IDS = new Set<HubTabId>([
 
 export type InitialAssessmentEnterpriseSearch = {
   serviceUserId?: string
-  /** Holistic document tab (1–18). */
+  /** Registered internal holistic tab id (URL `section=`). Not the display number. */
   section?: number
   tab?: HubTabId
   /** Open a specific submission (e.g. after API autofill / E2E). */
@@ -21,10 +22,10 @@ export type InitialAssessmentEnterpriseSearch = {
 }
 
 function parseSection(raw: unknown): number | undefined {
-  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 1 && raw <= 99) return raw
+  if (typeof raw === 'number' && Number.isInteger(raw) && isRegisteredHolisticTabId(raw)) return raw
   if (typeof raw === 'string' && /^\d{1,2}$/.test(raw.trim())) {
     const n = Number.parseInt(raw.trim(), 10)
-    return n >= 1 && n <= 18 ? n : undefined
+    return isRegisteredHolisticTabId(n) ? n : undefined
   }
   return undefined
 }

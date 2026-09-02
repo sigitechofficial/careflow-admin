@@ -62,6 +62,18 @@ export function InitialAssessmentMedicationSpecRefPanel({
   renderField,
   renderMultiSelect,
 }: Props) {
+  if (specRef === '9.2' || specRef === '9.5') {
+    return (
+      <InitialAssessmentSection12PanelShell title={title} testId={`ia-spec-group-${specRef}`} bodyVariant="content">
+        <InitialAssessmentPanelFieldList
+          questions={questions}
+          renderField={renderField}
+          renderMultiSelect={renderMultiSelect}
+        />
+      </InitialAssessmentSection12PanelShell>
+    )
+  }
+
   if (specRef === '9.4') {
     return (
       <InitialAssessmentSection12PanelShell title={title} testId="ia-spec-group-9.4" bodyVariant="content">

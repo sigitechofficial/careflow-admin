@@ -12,7 +12,7 @@ import {
   type VisibleQuestionsOptions,
 } from '@/features/service-users/initial-assessment/utils/visible-section-questions'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
-import { hasTextAnswerValue } from '@/features/service-users/initial-assessment/utils/secure-field'
+import { hasTextAnswerValue, isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
 import type { AdlWorksheetMetadata } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import type {
   DailyLivingAidsMetadata,
@@ -40,6 +40,34 @@ export type SectionProgressResult = {
   requiredAnswered: number
   requiredTotal: number
   percent: number
+}
+
+/**
+ * Optional invented measurements (MUST/Waterlow/MUAC) and optional secure codes are
+ * not IA completeness slots — the QA generator correctly leaves them blank.
+ * Required fields always count.
+ */
+const INVENTED_MEASUREMENT_FIELD_KEYS = new Set(['weightKg', 'muacCm', 'muacNutritionalRisk'])
+const INVENTED_MEASUREMENT_TEXT = [
+  'bmi value',
+  'must score',
+  'amt score',
+  'weight (kg)',
+  'mid upper arm circumference',
+  'muac nutritional risk',
+]
+
+export function questionCountsTowardCompleteness(q: InitialAssessmentQuestion): boolean {
+  if (q.isRequired) return true
+  if (q.metadata?.completenessExempt === true) return false
+  const key = typeof q.metadata?.fieldKey === 'string' ? q.metadata.fieldKey : ''
+  if (INVENTED_MEASUREMENT_FIELD_KEYS.has(key)) return false
+  const text = q.questionText.trim().toLowerCase()
+  if (INVENTED_MEASUREMENT_TEXT.some((needle) => text === needle || text.startsWith(needle))) {
+    return false
+  }
+  if (isSecureQuestion(q)) return false
+  return true
 }
 
 function isAnswered(q: InitialAssessmentQuestion, value: InitialAssessmentAnswerInput | undefined): boolean {
@@ -72,10 +100,11 @@ function mergeSlots(
   answers: Record<string, InitialAssessmentAnswerInput>,
   meta: MetadataProgressSlot,
 ): SectionProgressResult {
-  const required = questions.filter((q) => q.isRequired)
-  const answered = questions.filter((q) => isAnswered(q, answers[q.id])).length
+  const counted = questions.filter(questionCountsTowardCompleteness)
+  const required = counted.filter((q) => q.isRequired)
+  const answered = counted.filter((q) => isAnswered(q, answers[q.id])).length
   const requiredAnswered = required.filter((q) => isAnswered(q, answers[q.id])).length
-  const total = questions.length + meta.total
+  const total = counted.length + meta.total
   const requiredTotal = required.length + (meta.requiredTotal ?? 0)
   const mergedAnswered = answered + meta.answered
   const mergedRequiredAnswered = requiredAnswered + (meta.requiredAnswered ?? 0)

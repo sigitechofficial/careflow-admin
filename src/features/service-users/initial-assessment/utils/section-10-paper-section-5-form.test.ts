@@ -27,9 +27,10 @@ function q(text: string, specRef: string): InitialAssessmentQuestion {
 }
 
 describe('section 10 paper section 5 form', () => {
-  it('orders paper subsection groups emotional → cognitive → sleeping', () => {
+  it('orders paper subsection groups emotional → cognitive → 10.6a checklist → sleeping', () => {
     expect(paperSection5GroupOrderIndex('10.2')).toBeLessThan(paperSection5GroupOrderIndex('10.6'))
-    expect(paperSection5GroupOrderIndex('10.6')).toBeLessThan(paperSection5GroupOrderIndex('10.4'))
+    expect(paperSection5GroupOrderIndex('10.6')).toBeLessThan(paperSection5GroupOrderIndex('10.6a'))
+    expect(paperSection5GroupOrderIndex('10.6a')).toBeLessThan(paperSection5GroupOrderIndex('10.4'))
   })
 
   it('allows only paper section 5 questions', () => {

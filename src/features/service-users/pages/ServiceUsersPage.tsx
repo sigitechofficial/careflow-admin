@@ -36,6 +36,7 @@ import {
   statusFilterLabel,
   type StatusFilterValue,
 } from '@/features/service-users/utils/service-users-list-query'
+import { SERVICE_USER_MANAGEMENT_NAME_TO } from '@/features/service-users/service-user-profile-tabs'
 
 const TEAL = '#4db8c8'
 
@@ -102,9 +103,10 @@ function SuUserDetailsBlock({
           <span>{displayName(user)}</span>
         ) : (
           <Link
-            to="/service-users/$serviceUserId"
+            to={SERVICE_USER_MANAGEMENT_NAME_TO}
             params={{ serviceUserId: user.id }}
             className="hover:underline"
+            data-testid="su-list-name-link"
           >
             {displayName(user)}
           </Link>

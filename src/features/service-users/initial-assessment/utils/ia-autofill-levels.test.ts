@@ -6,6 +6,7 @@ import {
   IA_QA_DEMO_DATA_BUTTON_TOOLTIP,
   IA_SECTION_DEMO_SUCCESS_TOAST,
   iaAutofillLevelUi,
+  iaSectionDemoOverwriteConfirmText,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
 
 describe('ia-autofill-levels QA demo data constants', () => {
@@ -33,5 +34,17 @@ describe('ia-autofill-levels QA demo data constants', () => {
   it('resolves a level UI row', () => {
     expect(iaAutofillLevelUi('critical').label).toBe('Very critical')
     expect(() => iaAutofillLevelUi('nope' as never)).toThrow()
+  })
+
+  it('names the selected scenario in the overwrite confirm', () => {
+    expect(iaSectionDemoOverwriteConfirmText('Moderate')).toBe(
+      'This section already contains data. Replace it with Moderate demo data?',
+    )
+    expect(iaSectionDemoOverwriteConfirmText('Very critical')).toBe(
+      'This section already contains data. Replace it with Very critical demo data?',
+    )
+    expect(iaSectionDemoOverwriteConfirmText('Stable')).toBe(
+      'This section already contains data. Replace it with Stable demo data?',
+    )
   })
 })

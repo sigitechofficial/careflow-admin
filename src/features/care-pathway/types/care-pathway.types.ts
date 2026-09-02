@@ -66,6 +66,7 @@ export type CareFormListRow = {
   publishedById: string | null
   versionLabel: string
   pictureUrl?: string | null
+  reviewFrequencyMonths?: number | null
 }
 
 export type CareFormFieldRow = {

@@ -9,9 +9,7 @@ const KEY_SAFE_CODE_TEXT = 'Key safe code'
 
 export function isHolisticKeySafeQuestion(q: InitialAssessmentQuestion): boolean {
   const key = fieldKeyOf(q)
-  if (key === 'keySafePresentHolistic' || key === 'keySafeCodeHolistic') return true
-  const text = q.questionText.trim()
-  return text === KEY_SAFE_PRESENT_TEXT || text === KEY_SAFE_CODE_TEXT
+  return key === 'keySafePresentHolistic' || key === 'keySafeCodeHolistic'
 }
 
 export function findHolisticKeySafeQuestions(sections: InitialAssessmentSection[]): {

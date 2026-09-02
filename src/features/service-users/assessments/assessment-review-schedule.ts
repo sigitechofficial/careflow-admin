@@ -1,3 +1,5 @@
+import { isPainElevatedReview } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+
 /**
  * CQC / NICE-aligned review intervals — keep in sync with
  * careflow-api/src/service-user-assessments/assessment-review-schedule.ts
@@ -142,6 +144,20 @@ export const ASSESSMENT_REVIEW_SCHEDULES: Record<string, AssessmentReviewSchedul
     guidanceSource: 'ICO / consent management',
     guidanceSummary: 'Renew photography consent annually or when consent scope changes.',
   },
+  'equipment-selection': {
+    kind: 'event_driven',
+    dueSoonLeadDays: 14,
+    guidanceSource: 'Pressure-care / equipment good practice',
+    guidanceSummary:
+      'Review equipment selection when Waterlow, mobility, or the equipment in place changes.',
+  },
+  peep: {
+    kind: 'event_driven',
+    dueSoonLeadDays: 14,
+    guidanceSource: 'Fire safety / PEEP good practice',
+    guidanceSummary:
+      'Review the personal emergency evacuation plan when mobility, equipment, or the home layout changes, and by the recorded review date.',
+  },
 };
 
 export function getAssessmentReviewSchedule(assessmentKey: string): AssessmentReviewSchedule | null {
@@ -189,6 +205,13 @@ export function resolveEffectiveReviewIntervalDays(
       if (rf && typeof rf === 'object' && (rf as Record<string, unknown>).totallyIndependentLowRisk === false) {
         return elevatedDays;
       }
+    }
+  }
+
+  if (assessmentKey === 'pain-tool') {
+    const raw = snapshot.painAssessment;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      if (isPainElevatedReview(raw)) return elevatedDays;
     }
   }
 
