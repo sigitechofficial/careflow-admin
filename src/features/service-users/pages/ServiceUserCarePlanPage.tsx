@@ -32,7 +32,8 @@ import {
   carePlanInstancesByFormId,
 } from '@/features/service-users/care-plans/care-plan-instance-status'
 import type { CarePlanInstance } from '@/features/service-users/care-plans/types'
-import { useCarePlanInstances } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
+import { CarePlanReviewBadge } from '@/features/service-users/care-plans/components/CarePlanReviewBadge'
+import { useCarePlanInstances, useCarePlanReviewSummary } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlan } from '@/features/service-users/hooks/useServiceUserCarePlan'
 import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
@@ -133,6 +134,7 @@ export default function ServiceUserCarePlanPage() {
   const profileQuery = useServiceUser(serviceUserId)
   const { formSelections, carePlanCatalogue, acceptedCarePlans } = useServiceUserCarePlan(serviceUserId)
   const instancesQuery = useCarePlanInstances(serviceUserId, apiConfigured)
+  const reviewSummaryQuery = useCarePlanReviewSummary(serviceUserId, apiConfigured)
   const iaSource = useCarePlanIaSource(serviceUserId)
   const { riskTitle } = useCarePlanIaAccordionTitles(serviceUserId)
   const [availableSearch, setAvailableSearch] = React.useState('')
@@ -392,6 +394,82 @@ export default function ServiceUserCarePlanPage() {
                 </div>
               )}
             </CarePlanLifecycleSection>
+
+            <section
+              className="space-y-2"
+              data-testid="monitor-care-plans"
+              aria-labelledby="care-plans-monitor"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 id="care-plans-monitor" className={contentTitleClass}>
+                    Monitor Care Plans
+                  </h3>
+                  <p className={cn('mt-0.5', contentHelperClass)}>
+                    Review dates for this service user’s published care plans.
+                  </p>
+                </div>
+                <Link
+                  to="/care-plans/reviews"
+                  className="text-sm font-medium text-[#0f766e] hover:underline"
+                >
+                  All care plan reviews
+                </Link>
+              </div>
+              {reviewSummaryQuery.data?.carePlanReviewRequired ? (
+                <p className="rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  Care plan review required — at least one published care plan is overdue.
+                </p>
+              ) : null}
+              <CarePlanAccordion title="Care plan reviews" tone="sky" defaultOpen>
+                {(() => {
+                  const published = (instancesQuery.data ?? []).filter(
+                    (row) =>
+                      row.displayStatus === 'PUBLISHED' ||
+                      row.displayStatus === 'PUBLISHED_WITH_DRAFT',
+                  )
+                  if (published.length === 0) {
+                    return (
+                      <p className={contentHelperClass}>No published care plans to monitor yet.</p>
+                    )
+                  }
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                          <tr>
+                            <th className="px-2 py-1.5">Care plan</th>
+                            <th className="px-2 py-1.5">Next review</th>
+                            <th className="px-2 py-1.5">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {published.map((row) => (
+                            <tr key={row.id} className="border-t border-border">
+                              <td className="px-2 py-2">
+                                <button
+                                  type="button"
+                                  className="font-medium text-[#0f766e] hover:underline"
+                                  onClick={() => openCarePlanForm(row.carePathwayFormId)}
+                                >
+                                  {row.formName ?? 'Care plan'}
+                                </button>
+                              </td>
+                              <td className="px-2 py-2 text-muted-foreground">
+                                {row.nextReviewDueAt ? formatDate(row.nextReviewDueAt) : '—'}
+                              </td>
+                              <td className="px-2 py-2">
+                                <CarePlanReviewBadge review={row.review} compact />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })()}
+              </CarePlanAccordion>
+            </section>
 
             <section
               className="space-y-2"

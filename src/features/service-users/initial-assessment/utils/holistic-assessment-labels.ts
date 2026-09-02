@@ -162,8 +162,23 @@ export function holisticSectionTitle(sectionNumber: number, fallback: string): s
   return HOLISTIC_SECTION_TITLES[sectionNumber] ?? fallback
 }
 
+/**
+ * Strip internal/template placeholders from a user-facing label so template syntax never
+ * reaches the UI. Targets name-personalisation tokens (a bare `@` or `@token`, e.g. the
+ * care-plan-style `@preferredName`) and collapses the resulting whitespace. IA question text
+ * contains no such tokens today; this is a defensive guard for any that appear later.
+ */
+export function stripInternalLabelPlaceholders(label: string): string {
+  return label
+    .replace(/@[A-Za-z][A-Za-z0-9_]*/g, '') // @preferredName, @firstName, @serviceUserNumber…
+    .replace(/@/g, '') // bare "@" name token
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 export function holisticQuestionLabel(questionText: string): string {
-  return HOLISTIC_QUESTION_LABELS[questionText.trim()] ?? questionText
+  const mapped = HOLISTIC_QUESTION_LABELS[questionText.trim()] ?? questionText
+  return stripInternalLabelPlaceholders(mapped)
 }
 
 /** Placeholder hints for paper-style §1 simple text areas. */

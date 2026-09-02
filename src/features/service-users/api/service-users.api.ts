@@ -41,6 +41,9 @@ export type ServiceUserListEmployeeBrief = {
   lastName: string | null
 } | null
 
+/** Service User Management Care Plan icon. 7-day amber window; not 30-day due_soon. */
+export type CarePlanListStatus = 'none' | 'ok' | 'due_within_week' | 'overdue'
+
 export type ServiceUserListRow = {
   id: string
   serviceUserNumber: string | null
@@ -71,6 +74,11 @@ export type ServiceUserListRow = {
   hasActiveAbsence?: boolean
   /** True when a current ACTIVE flash message exists and is not past displayUntil. */
   hasActiveFlashMessage?: boolean
+  /**
+   * Derived Care Plan row-icon status for this service user.
+   * Published plans only; 7-day amber window (not the 30-day due_soon review status).
+   */
+  carePlanListStatus?: CarePlanListStatus
 }
 
 export type ServiceUserListMeta = {

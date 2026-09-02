@@ -24,8 +24,9 @@ export function useServiceUserCarePlan(serviceUserId: string) {
         staleTime: STALE_TIME,
       },
       {
-        queryKey: carePathwayKeys.selectableForms('care-plans'),
-        queryFn: () => listSelectableForms('care-plans'),
+        // API default is 20; 29 published CARE_PLAN templates exist. Match Form Builder.
+        queryKey: carePathwayKeys.selectableForms('care-plans', { limit: 100 }),
+        queryFn: () => listSelectableForms('care-plans', { limit: 100 }),
         staleTime: STALE_TIME,
       },
       {

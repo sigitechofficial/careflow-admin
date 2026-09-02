@@ -35,6 +35,7 @@ export async function createCareForm(body: {
   formType: CarePathwayFormType
   description?: string
   pictureUrl?: string
+  reviewFrequencyMonths?: number | null
 }): Promise<CareFormDetail> {
   const res = await apiJson<ApiEnvelope<CareFormDetail>>('/form-builder', {
     method: 'POST',
@@ -50,6 +51,7 @@ export async function updateCareForm(
     formType: CarePathwayFormType
     description: string | null
     pictureUrl: string | null
+    reviewFrequencyMonths: number | null
   }>,
 ): Promise<CareFormDetail> {
   const res = await apiJson<ApiEnvelope<CareFormDetail>>(`/form-builder/${id}`, {

@@ -13,7 +13,7 @@ import { resolveMediaUrl } from '@/shared/lib/media-url'
 import type { ServiceUserDolsRow, ServiceUserDetail } from '@/features/service-users/types'
 import { useServiceUserDetail } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlan } from '@/features/service-users/hooks/useServiceUserCarePlan'
-import { useCarePlanInstances } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
+import { useCarePlanInstances, useCarePlanReviewSummary } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
 import { useBodyMapSummary } from '@/features/service-users/body-map/hooks/useBodyMap'
 import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
 import { useWorkingServiceUserVisitPlan } from '@/features/service-users/visit-plan/hooks'
@@ -194,6 +194,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
     useServiceUserDetail(serviceUserId)
   const carePlan = useServiceUserCarePlan(serviceUserId)
   const carePlanInstances = useCarePlanInstances(serviceUserId, apiConfigured)
+  const carePlanReviewSummary = useCarePlanReviewSummary(serviceUserId, apiConfigured)
   const bodyMapSummary = useBodyMapSummary(serviceUserId)
   const visitPlanQuery = useWorkingServiceUserVisitPlan(serviceUserId)
   const medicationsQuery = useServiceUserMedications(serviceUserId)
@@ -317,6 +318,19 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         params: { serviceUserId },
       })
     }
+    if (carePlanReviewSummary.data?.carePlanReviewRequired) {
+      items.push({
+        id: 'care-plan-review-required',
+        severity: 'red',
+        title: 'Care plan review required',
+        detail: `${carePlanReviewSummary.data.overdueCount} published care plan${
+          carePlanReviewSummary.data.overdueCount === 1 ? '' : 's'
+        } overdue`,
+        linkLabel: 'Open care plan',
+        to: '/service-users/$serviceUserId/care-plan',
+        params: { serviceUserId },
+      })
+    }
     if (acceptedItems.length === 0 && publishedCount === 0) {
       items.push({
         id: 'care-plan',
@@ -395,6 +409,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
   }, [
     acceptedItems.length,
     bm,
+    carePlanReviewSummary.data,
     draftCount,
     flashData,
     fundingReviewOverdue,
@@ -467,7 +482,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         actions={
           <Button type="button" size="sm" variant="outline" asChild>
             <Link
-              to="/service-users/$serviceUserId"
+              to="/service-users/$serviceUserId/profile"
               params={{ serviceUserId }}
               search={{ tab: 'personal' }}
             >

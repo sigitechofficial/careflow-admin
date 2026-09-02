@@ -9,58 +9,72 @@ import type { IaAutofillLevel } from '@/features/service-users/initial-assessmen
 import {
   IA_CONDITION_LEVEL_LABELS,
   IA_SECTION_DEMO_SUCCESS_TOAST,
+  iaSectionDemoOverwriteConfirmText,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
-import { runIaSectionDemoDev } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
+import { generateIaSectionDemoDev } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
 
 type Props = {
   tabId: number
   tabTitle: string
-  serviceUserId: string | null
   /** The exact questionIds this tab renders (backend still drops profile/secure fields). */
   questionIds: string[]
   /** Active QA scenario, or null when none picked yet. */
   activeLevel: IaAutofillLevel | null
+  /** Whether the assessment is editable (DRAFT/IN_PROGRESS). Read-only ones cannot be filled. */
+  editable: boolean
   /** Whether this section already holds answers/worksheet data (drives the overwrite confirm). */
   sectionHasData: boolean
-  /** Refresh IA queries after a fill. */
-  onFilled: () => Promise<void>
+  /** Whether this section has already had demo data populated this session. */
+  alreadyFilled: boolean
+  /** Existing Service User identity so worksheet labels are not a different person. */
+  identity?: import('@/features/service-users/initial-assessment/utils/ia-section-demo-dev').IaDemoIdentity | null
+  /** Merge generated values into the editable form draft IN MEMORY (no save/submit). */
+  onApply: (
+    tabId: number,
+    answers: import('@/features/service-users/initial-assessment/utils/ia-section-demo-dev').GenerateIaSectionResult['answers'],
+    metadata: Record<string, unknown>,
+  ) => void
   /** Open the scenario selector (when no scenario is active yet). */
   onPickScenario: () => void
 }
 
 /**
- * Dev/QA-only panel: fills THIS section with demo data at the active severity.
- * Only this section changes — other tabs are never touched, and the assessment is never submitted.
+ * Dev/QA-only panel: populates THIS section's fields with demo data at the active severity.
+ * It only GENERATES the values (no persistence) and merges them into the editable form in memory —
+ * nothing is saved, no submission is created, nothing is submitted. Only this section changes.
+ * The user edits as needed and saves/submits via the normal controls.
  * Callers must gate rendering behind `import.meta.env.DEV`.
  */
 export function SectionQaDemoDataPanel({
   tabId,
   tabTitle,
-  serviceUserId,
   questionIds,
   activeLevel,
+  editable,
   sectionHasData,
-  onFilled,
+  alreadyFilled,
+  identity,
+  onApply,
   onPickScenario,
 }: Props) {
   const [running, setRunning] = React.useState(false)
   const scenarioLabel = activeLevel ? IA_CONDITION_LEVEL_LABELS[activeLevel] : null
 
   const doFill = React.useCallback(async () => {
-    if (!serviceUserId || !activeLevel || running) return
+    if (!activeLevel || running || !editable) return
     setRunning(true)
     try {
-      const result = await runIaSectionDemoDev(serviceUserId, activeLevel, tabId, questionIds)
-      toastSuccess(IA_SECTION_DEMO_SUCCESS_TOAST, result.message)
-      await onFilled()
+      const { answers, metadata } = await generateIaSectionDemoDev(activeLevel, tabId, questionIds, identity)
+      onApply(tabId, answers, metadata)
+      toastSuccess(IA_SECTION_DEMO_SUCCESS_TOAST, 'Review the values and use Save when you are ready.')
     } catch (e) {
-      toastApiError(e, 'Section demo data failed to load')
+      toastApiError(e, 'Could not generate section demo data')
     } finally {
       setRunning(false)
     }
-  }, [serviceUserId, activeLevel, running, tabId, questionIds, onFilled])
+  }, [activeLevel, running, editable, tabId, questionIds, identity, onApply])
 
-  const disabled = !serviceUserId || !activeLevel || running
+  const disabled = !activeLevel || running || !editable
 
   const fillButton = (
     <Button
@@ -99,19 +113,30 @@ export function SectionQaDemoDataPanel({
               {scenarioLabel}
             </Badge>
           ) : null}
+          {alreadyFilled ? (
+            <Badge
+              variant="outline"
+              className="border-emerald-500/60 text-[10px] font-medium text-emerald-700 dark:text-emerald-300"
+              data-testid={`ia-section-demo-filled-${tabId}`}
+            >
+              ✓ Filled
+            </Badge>
+          ) : null}
         </div>
         <p className="text-xs leading-snug text-amber-800/90 dark:text-amber-200/80">
-          {activeLevel
-            ? `Populate this section with realistic ${scenarioLabel} scenario data. Only this section will change.`
-            : 'Select a QA scenario first to enable section demo data.'}
+          {!editable
+            ? 'This assessment is read-only (submitted/reviewed). Reopen it (Actions ▸ Reopen) to fill demo data.'
+            : activeLevel
+              ? `Populate this section with realistic ${scenarioLabel} scenario data. Only this section is filled, in the form — nothing is saved until you Save.`
+              : 'Select a QA scenario first to enable section demo data.'}
         </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
         {activeLevel && sectionHasData ? (
           <InlineConfirm
-            title="Replace this section’s data?"
-            description={`This section already contains data. Filling demo data will replace the existing answers in “${tabTitle}”. Other sections are not affected.`}
+            title={iaSectionDemoOverwriteConfirmText(IA_CONDITION_LEVEL_LABELS[activeLevel])}
+            description={`“${tabTitle}” — only this section is replaced, in the form. Nothing is saved until you Save.`}
             confirmLabel="Replace"
             cancelLabel="Cancel"
             destructive

@@ -56,6 +56,10 @@ import {
 } from '@/shared/ui/data-table'
 import { useAuthStore } from '@/features/auth/store'
 import { toastError, toastSuccess } from '@/shared/lib/toast'
+import {
+  CARE_PLAN_REVIEW_FREQUENCY_OPTIONS,
+  DEFAULT_CARE_PLAN_REVIEW_FREQUENCY_MONTHS,
+} from '@/features/service-users/care-plans/care-plan-review-frequency'
 
 const FORM_TYPES: { value: CarePathwayFormType; label: string }[] = [
   { value: 'CARE_PLAN', label: 'Care plan' },
@@ -139,6 +143,9 @@ export function FormBuilderTab() {
   const [createDescription, setCreateDescription] = React.useState('')
   const [createPictureUrl, setCreatePictureUrl] = React.useState<string | null>(null)
   const [createIconFile, setCreateIconFile] = React.useState<File | null>(null)
+  const [createReviewFrequencyMonths, setCreateReviewFrequencyMonths] = React.useState(
+    String(DEFAULT_CARE_PLAN_REVIEW_FREQUENCY_MONTHS),
+  )
 
   const [editorOpen, setEditorOpen] = React.useState(false)
   const [editingId, setEditingId] = React.useState<string | null>(null)
@@ -148,6 +155,9 @@ export function FormBuilderTab() {
   const [formStatus, setFormStatus] = React.useState('')
   const [formPictureUrl, setFormPictureUrl] = React.useState<string | null>(null)
   const [formIconFile, setFormIconFile] = React.useState<File | null>(null)
+  const [formReviewFrequencyMonths, setFormReviewFrequencyMonths] = React.useState(
+    String(DEFAULT_CARE_PLAN_REVIEW_FREQUENCY_MONTHS),
+  )
   const [sections, setSections] = React.useState<CareFormSectionRow[]>([])
   const [editorDirty, setEditorDirty] = React.useState(false)
 
@@ -190,6 +200,11 @@ export function FormBuilderTab() {
       setFormStatus(form.status)
       setFormPictureUrl(form.pictureUrl ?? null)
       setFormIconFile(null)
+      setFormReviewFrequencyMonths(
+        form.reviewFrequencyMonths != null
+          ? String(form.reviewFrequencyMonths)
+          : String(DEFAULT_CARE_PLAN_REVIEW_FREQUENCY_MONTHS),
+      )
       setSections(sectionsFromForm(form))
     }
   }, [formQuery.data, editorOpen, editorDirty])
@@ -236,6 +251,8 @@ export function FormBuilderTab() {
         formType: createType,
         description: createDescription.trim() || undefined,
         pictureUrl: createIconFile ? undefined : createPictureUrl ?? undefined,
+        reviewFrequencyMonths:
+          createType === 'CARE_PLAN' ? Number(createReviewFrequencyMonths) : undefined,
       })
       if (createIconFile) {
         await applyFormIcon(created.id, createPictureUrl, createIconFile)
@@ -290,6 +307,8 @@ export function FormBuilderTab() {
         formType,
         description: formDescription.trim() || null,
         pictureUrl: formIconFile ? undefined : formPictureUrl,
+        reviewFrequencyMonths:
+          formType === 'CARE_PLAN' ? Number(formReviewFrequencyMonths) : null,
       },
     })
     if (formIconFile) {
@@ -553,6 +572,26 @@ export function FormBuilderTab() {
                 </SelectContent>
               </Select>
             </div>
+            {createType === 'CARE_PLAN' ? (
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Review frequency</span>
+                <Select
+                  value={createReviewFrequencyMonths}
+                  onValueChange={setCreateReviewFrequencyMonths}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CARE_PLAN_REVIEW_FREQUENCY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <label htmlFor="create-form-desc" className="text-sm font-medium">
                 Description (optional)
@@ -643,6 +682,34 @@ export function FormBuilderTab() {
                     </Select>
                   </div>
                 </div>
+                {formType === 'CARE_PLAN' ? (
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium">Review frequency</span>
+                    <Select
+                      value={formReviewFrequencyMonths}
+                      onValueChange={(v) => {
+                        markDirty()
+                        setFormReviewFrequencyMonths(v)
+                      }}
+                      disabled={!canUpdate}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CARE_PLAN_REVIEW_FREQUENCY_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={String(opt.value)}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Used as the default Next Review Date when a care plan is created. Staff can
+                      still override the date on the plan.
+                    </p>
+                  </div>
+                ) : null}
                 <div className="space-y-2">
                   <label htmlFor="edit-form-desc" className="text-sm font-medium">
                     Description

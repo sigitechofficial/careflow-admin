@@ -54,6 +54,7 @@ export type ServiceUserQuickSelectIconId =
   | 'person-all'
   | 'person-active'
   | 'person-discharged'
+  | 'care-none'
   | 'care-low'
   | 'care-medium'
   | 'care-high'
@@ -64,6 +65,7 @@ export const SERVICE_USER_QUICK_SELECT_ICONS: Record<ServiceUserQuickSelectIconI
   'person-all': `${quickSelectBase}/person-all.svg`,
   'person-active': `${quickSelectBase}/person-active.svg`,
   'person-discharged': `${quickSelectBase}/person-discharged.svg`,
+  'care-none': `${quickSelectBase}/care-none.svg`,
   'care-low': `${quickSelectBase}/care-low.svg`,
   'care-medium': `${quickSelectBase}/care-medium.svg`,
   'care-high': `${quickSelectBase}/care-high.svg`,
@@ -95,6 +97,7 @@ export const QUICK_SELECT_RISK_ICON = {
 const moduleTabsBase = '/care-plan-icons/module-tabs'
 
 export type ServiceUserModuleTabIconId =
+  | 'profile'
   | 'overview'
   | 'ecm'
   | 'observations'
@@ -110,6 +113,7 @@ export type ServiceUserModuleTabIconId =
   | 'activity'
 
 export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, string> = {
+  profile: `${moduleTabsBase}/profile.svg`,
   overview: `${base}/view.svg`,
   ecm: `${moduleTabsBase}/alerts.svg`,
   observations: `${moduleTabsBase}/observations.svg`,

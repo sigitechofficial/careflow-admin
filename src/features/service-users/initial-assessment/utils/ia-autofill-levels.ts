@@ -45,6 +45,11 @@ export const IA_QA_DEMO_DATA_BUTTON_TOOLTIP =
 /** Shown per section after a successful section fill. */
 export const IA_SECTION_DEMO_SUCCESS_TOAST = 'Demo data populated for this section'
 
+/** Overwrite confirm when Fill Demo Data is clicked on a section that already has values. */
+export function iaSectionDemoOverwriteConfirmText(scenarioLabel: string): string {
+  return `This section already contains data. Replace it with ${scenarioLabel} demo data?`
+}
+
 export function iaAutofillLevelUi(level: IaAutofillLevel): IaAutofillLevelUi {
   const row = IA_AUTOFILL_LEVELS.find((x) => x.level === level)
   if (!row) throw new Error(`Unknown IA autofill level: ${level}`)

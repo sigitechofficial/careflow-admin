@@ -7,7 +7,7 @@ import {
   publishCarePlanApi,
   saveCarePlanDraftApi,
 } from '@/features/service-users/care-plans/api'
-import type { CarePlanComposeGap, CarePlanInstance } from '@/features/service-users/care-plans/types'
+import type { CarePlanComposeGap, CarePlanInstance, CarePlanReviewSummary } from '@/features/service-users/care-plans/types'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { serviceUserKeys } from '@/features/service-users/keys'
 
@@ -40,6 +40,17 @@ export function useCarePlanInstances(serviceUserId: string, enabled = true) {
     queryFn: ({ signal }) => fetchCarePlanInstances(serviceUserId, { signal }),
     enabled: enabled && Boolean(serviceUserId),
     staleTime: STALE_TIME,
+    select: (payload) => payload.instances,
+  })
+}
+
+export function useCarePlanReviewSummary(serviceUserId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...serviceUserKeys.carePlan(serviceUserId), 'instances'] as const,
+    queryFn: ({ signal }) => fetchCarePlanInstances(serviceUserId, { signal }),
+    enabled: enabled && Boolean(serviceUserId),
+    staleTime: STALE_TIME,
+    select: (payload) => payload.reviewSummary,
   })
 }
 
@@ -77,6 +88,7 @@ export function useSaveCarePlanDraft(serviceUserId: string, formId: string) {
       saveCarePlanDraftApi(serviceUserId, formId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) })
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.lists() })
     },
   })
 }
@@ -94,14 +106,25 @@ export function usePublishCarePlan(serviceUserId: string, formId: string) {
         )
         qc.setQueryData(
           [...serviceUserKeys.carePlan(serviceUserId), 'instances'] as const,
-          (prev: CarePlanInstance[] | undefined) =>
-            upsertCarePlanInstanceInList(prev, published),
+          (
+            prev:
+              | { instances: CarePlanInstance[]; reviewSummary: CarePlanReviewSummary | null }
+              | CarePlanInstance[]
+              | undefined,
+          ) => {
+            if (Array.isArray(prev)) return upsertCarePlanInstanceInList(prev, published)
+            return {
+              instances: upsertCarePlanInstanceInList(prev?.instances, published),
+              reviewSummary: prev?.reviewSummary ?? null,
+            }
+          },
         )
       }
       // Instances list (Live) + IA recommendations / accepted care plans on overview.
       await Promise.all([
         qc.invalidateQueries({ queryKey: serviceUserKeys.carePlan(serviceUserId) }),
         qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) }),
+        qc.invalidateQueries({ queryKey: serviceUserKeys.lists() }),
       ])
     },
   })

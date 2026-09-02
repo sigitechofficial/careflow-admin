@@ -178,7 +178,21 @@ export function applySuggestionToValues(
   suggestion: CarePlanFieldSuggestion,
 ): Record<string, string | boolean> {
   if (suggestion.kind !== 'value' || suggestion.suggestedValue == null) return values
+  if (!isCarePlanFieldEmpty(values[suggestion.targetFieldKey])) return values
   return { ...values, [suggestion.targetFieldKey]: suggestion.suggestedValue }
+}
+
+export function mergeComposedFromOnEdit(params: {
+  composedFrom: Record<string, unknown>
+  suggestion: CarePlanFieldSuggestion
+  acceptedById?: string | null
+}): Record<string, unknown> {
+  const next = mergeComposedFromOnUse(params)
+  const provenance = { ...readFieldProvenance(next) }
+  const existing = provenance[params.suggestion.targetFieldKey]
+  if (!existing) return next
+  provenance[params.suggestion.targetFieldKey] = { ...existing, userEdited: true }
+  return { ...next, fieldProvenance: provenance }
 }
 
 export function mergeComposedFromOnUse(params: {

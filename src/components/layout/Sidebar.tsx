@@ -174,6 +174,13 @@ const navItems: NavItem[] = [
         permission: 'service_users.assessments.read',
         navTestId: 'nav-assessments-review-queue',
       },
+      {
+        label: 'Care plan reviews',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/care-plans/reviews',
+        permission: 'service_users.read',
+        navTestId: 'nav-care-plan-reviews',
+      },
       { label: 'Add Service User',              icon: <UserRoundPlus className="h-4 w-4" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
       {
         label: 'Portal access',
