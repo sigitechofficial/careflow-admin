@@ -116,6 +116,11 @@ export type TimelineJob = {
     actualStartDateTime?: string | null
     actualEndDateTime?: string | null
   }>
+  /**
+   * EMONITORED visit reference from visit reconciliation when available
+   * (VIS-[BRANCH]-YYYYMMDD-NNNN). Attached on employee visits responses.
+   */
+  visitRef?: string | null
   actualStartDateTime?: string | null
   actualEndDateTime?: string | null
   /** Derived lifecycle / timing / duration classification (API or client). */

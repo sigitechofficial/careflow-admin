@@ -590,21 +590,27 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                 ref={tableScrollRef}
                 className="max-h-[min(70vh,40rem)] overflow-auto rounded-lg border border-border"
               >
-                <table className="w-full min-w-[1880px] border-separate border-spacing-0 text-sm">
+                <table className="w-full min-w-[2040px] border-separate border-spacing-0 text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="sticky left-0 top-0 z-40 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th
+                        className="sticky left-0 top-0 z-40 w-[10.5rem] min-w-[10.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground"
+                        title="Visit reference: VIS-[BRANCH]-[YYYYMMDD]-[NNNN] (same as visit reconciliation EMONITORED)"
+                      >
+                        Visit ID
+                      </th>
+                      <th className="sticky left-[10.5rem] top-0 z-40 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarDays className="h-3.5 w-3.5" aria-hidden />
                           Date
                         </span>
                       </th>
-                      <th className="sticky left-[8.5rem] top-0 z-40 w-[5.5rem] min-w-[5.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-[19rem] top-0 z-40 w-[5.5rem] min-w-[5.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Slot
                       </th>
                       <th
                         className={cn(
-                          'sticky left-[14rem] top-0 z-40 min-w-[9rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground',
+                          'sticky left-[24.5rem] top-0 z-40 min-w-[9rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground',
                           isScrolledX &&
                             'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
                         )}
@@ -698,7 +704,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         : 'bg-card'
                       const stickyHover = 'group-hover:bg-muted'
 
-                      return (
+                          return (
                         <tr
                           key={job.id}
                           className={cn(
@@ -708,7 +714,27 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         >
                           <td
                             className={cn(
-                              'sticky left-0 z-20 w-[8.5rem] min-w-[8.5rem] border-b border-border px-3 py-2.5 whitespace-nowrap text-muted-foreground',
+                              'sticky left-0 z-20 w-[10.5rem] min-w-[10.5rem] border-b border-border px-3 py-2.5 whitespace-nowrap',
+                              stickyBg,
+                              stickyHover,
+                            )}
+                          >
+                            {job.visitRef ? (
+                              <span
+                                className="font-mono text-xs font-medium tracking-tight"
+                                title="Visit reference (EMONITORED) — same as visit reconciliation"
+                              >
+                                {job.visitRef}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground" title="Not synced to visit reconciliation yet">
+                                —
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            className={cn(
+                              'sticky left-[10.5rem] z-20 w-[8.5rem] min-w-[8.5rem] border-b border-border px-3 py-2.5 whitespace-nowrap text-muted-foreground',
                               stickyBg,
                               stickyHover,
                             )}
@@ -722,7 +748,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                           </td>
                           <td
                             className={cn(
-                              'sticky left-[8.5rem] z-20 w-[5.5rem] min-w-[5.5rem] border-b border-border px-3 py-2.5 font-medium',
+                              'sticky left-[19rem] z-20 w-[5.5rem] min-w-[5.5rem] border-b border-border px-3 py-2.5 font-medium',
                               stickyBg,
                               stickyHover,
                             )}
@@ -731,7 +757,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                           </td>
                           <td
                             className={cn(
-                              'sticky left-[14rem] z-20 min-w-[9rem] border-b border-border px-3 py-2.5',
+                              'sticky left-[24.5rem] z-20 min-w-[9rem] border-b border-border px-3 py-2.5',
                               stickyBg,
                               stickyHover,
                               isScrolledX &&
