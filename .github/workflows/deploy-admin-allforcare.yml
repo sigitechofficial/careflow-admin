@@ -1,0 +1,383 @@
+name: Deploy Allforcare Admin
+
+on:
+  push:
+    branches:
+      - production
+
+  workflow_dispatch:
+
+concurrency:
+  group: allforcare-admin-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build React Admin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout admin repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production files
+        run: npm run build
+        env:
+          CI: true
+          # Hardcoded for allforcare — do not reuse VITE_API_BASE_URL secret (that is for careflowadmin/main).
+          VITE_API_BASE_URL: https://api-allforcare.sigisolutions.net/
+          REACT_APP_API_BASE_URL: https://api-allforcare.sigisolutions.net/
+          # Baked into the JS bundle at build time (Vite). Add this secret in the
+          # care-admin GitHub repo → Settings → Secrets and variables → Actions.
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+
+      - name: Detect build folder
+        run: |
+          set -euo pipefail
+
+          if [ -d "dist" ]; then
+            echo "BUILD_DIR=dist" >> $GITHUB_ENV
+          elif [ -d "build" ]; then
+            echo "BUILD_DIR=build" >> $GITHUB_ENV
+          else
+            echo "Build folder not found. Expected dist or build."
+            exit 1
+          fi
+
+      - name: Validate build output
+        run: |
+          set -euo pipefail
+
+          test -f "$BUILD_DIR/index.html"
+          echo "Build output verified from $BUILD_DIR"
+
+      - name: Create release metadata
+        run: |
+          set -euo pipefail
+
+          cat > "$BUILD_DIR/release.json" <<EOF
+          {
+            "app": "allforcare-admin",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "deployedBy": "${{ github.actor }}",
+            "runId": "${{ github.run_id }}",
+            "runNumber": "${{ github.run_number }}",
+            "deployedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
+      - name: Package release
+        run: |
+          set -euo pipefail
+
+          tar -czf allforcare-admin-release.tar.gz -C "$BUILD_DIR" .
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: allforcare-admin-release
+          path: allforcare-admin-release.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to cPanel VPS
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      # Hardcoded allforcare targets — do not reuse ADMIN_* secrets (those are for careflowadmin/main).
+      ADMIN_DEPLOY_PATH: /home/sigisolutions/allforcare.sigisolutions.net
+      ADMIN_APP_URL: https://allforcare.sigisolutions.net/
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: allforcare-admin-release
+
+      - name: Configure SSH access
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          echo "Runner public IP:"
+          curl -s https://api.ipify.org || true
+          echo ""
+
+          echo "Testing SSH port connectivity..."
+
+          SSH_PORT_REACHABLE=0
+
+          for i in 1 2 3 4 5; do
+            if command -v nc >/dev/null 2>&1; then
+              if nc -vz -w 20 "$VPS_HOST" "$VPS_PORT"; then
+                SSH_PORT_REACHABLE=1
+                echo "SSH port is reachable."
+                break
+              fi
+            else
+              if timeout 20 bash -c "cat < /dev/null > /dev/tcp/$VPS_HOST/$VPS_PORT"; then
+                SSH_PORT_REACHABLE=1
+                echo "SSH port is reachable."
+                break
+              fi
+            fi
+
+            echo "SSH port is not reachable. Retry $i..."
+            sleep 10
+          done
+
+          if [ "$SSH_PORT_REACHABLE" -ne 1 ]; then
+            echo "VPS SSH port is not reachable from this GitHub runner."
+            echo "Most likely reason: firewall, CSF, LFD, cPHulk, Fail2Ban, hosting firewall, VPS security rule, or SSH rate limiting."
+            exit 1
+          fi
+
+          echo "Adding VPS host key to known_hosts..."
+
+          HOST_KEY_ADDED=0
+          HOST_KEY_FILE="$(mktemp)"
+
+          for i in 1 2 3 4 5; do
+            if ssh-keyscan -4 -T 30 -p "$VPS_PORT" -H "$VPS_HOST" > "$HOST_KEY_FILE" 2>/dev/null && [ -s "$HOST_KEY_FILE" ]; then
+              cat "$HOST_KEY_FILE" >> ~/.ssh/known_hosts
+              HOST_KEY_ADDED=1
+              echo "VPS host key added successfully."
+              break
+            fi
+
+            echo "ssh-keyscan failed. Retry $i..."
+            sleep 10
+          done
+
+          rm -f "$HOST_KEY_FILE"
+
+          if [ "$HOST_KEY_ADDED" -ne 1 ] || [ ! -s ~/.ssh/known_hosts ]; then
+            echo "Failed to add VPS host key."
+            echo "SSH port was reachable, but ssh-keyscan could not read the host key."
+            echo "Check SSH daemon, server load, firewall inspection, provider filtering, or SSH configuration."
+            exit 1
+          fi
+
+          chmod 644 ~/.ssh/known_hosts
+
+          echo "SSH access configured."
+
+      - name: Verify SSH connection
+        run: |
+          set -euo pipefail
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" \
+            "
+              echo 'Connected as:'
+              whoami
+
+              echo 'Current directory:'
+              pwd
+
+              echo 'Checking deploy path:'
+              ls -ld '$ADMIN_DEPLOY_PATH'
+
+              echo 'Checking required server commands:'
+              command -v tar
+              command -v rsync
+              command -v curl
+            "
+
+      - name: Prepare remote deployment folders
+        run: |
+          set -euo pipefail
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" \
+            "
+              mkdir -p /home/sigisolutions/deployments/allforcare-admin/incoming
+              mkdir -p /home/sigisolutions/deployments/allforcare-admin/releases
+              mkdir -p /home/sigisolutions/deployments/allforcare-admin/backups
+              mkdir -p /home/sigisolutions/deployments/allforcare-admin/logs
+            "
+
+      - name: Upload release package
+        run: |
+          set -euo pipefail
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          scp -i ~/.ssh/deploy_key \
+            -P "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            allforcare-admin-release.tar.gz \
+            "$VPS_USER@$VPS_HOST:/home/sigisolutions/deployments/allforcare-admin/incoming/${{ github.sha }}.tar.gz"
+
+      - name: Deploy release with backup and rollback protection
+        run: |
+          set -euo pipefail
+
+          VPS_PORT="${VPS_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" << 'REMOTE_SCRIPT'
+          set -euo pipefail
+
+          APP_NAME="allforcare-admin"
+          RELEASE_ID="${{ github.sha }}"
+          LIVE_PATH="/home/sigisolutions/allforcare.sigisolutions.net"
+          APP_URL="https://allforcare.sigisolutions.net/"
+          DEPLOY_ROOT="/home/sigisolutions/deployments/allforcare-admin"
+          INCOMING_FILE="$DEPLOY_ROOT/incoming/$RELEASE_ID.tar.gz"
+          RELEASE_PATH="$DEPLOY_ROOT/releases/$RELEASE_ID"
+          BACKUP_FILE="$DEPLOY_ROOT/backups/backup-$(date +%Y%m%d%H%M%S).tar.gz"
+          ROLLBACK_DIR="$DEPLOY_ROOT/rollback-temp"
+          DEPLOY_LOG="$DEPLOY_ROOT/logs/deployments.log"
+
+          rollback() {
+            echo "Deployment failed. Starting rollback..."
+
+            if [ -f "$BACKUP_FILE" ]; then
+              rm -rf "$ROLLBACK_DIR"
+              mkdir -p "$ROLLBACK_DIR"
+
+              tar -xzf "$BACKUP_FILE" -C "$ROLLBACK_DIR"
+
+              rsync -az --delete \
+                --exclude=".htaccess" \
+                --exclude=".well-known" \
+                --exclude="cgi-bin" \
+                --exclude=".env" \
+                --exclude=".env.*" \
+                --exclude="*.pem" \
+                --exclude="*.key" \
+                "$ROLLBACK_DIR/" "$LIVE_PATH/"
+
+              echo "Rollback completed."
+            else
+              echo "No backup file found. Rollback skipped."
+            fi
+          }
+
+          trap rollback ERR
+
+          echo "Starting deployment for $APP_NAME"
+          echo "Release ID: $RELEASE_ID"
+
+          test -f "$INCOMING_FILE"
+
+          rm -rf "$RELEASE_PATH"
+          mkdir -p "$RELEASE_PATH"
+
+          tar -xzf "$INCOMING_FILE" -C "$RELEASE_PATH"
+
+          test -f "$RELEASE_PATH/index.html"
+
+          echo "Creating backup of current live files..."
+
+          tar \
+            --exclude=".well-known" \
+            --exclude="cgi-bin" \
+            --exclude=".env" \
+            --exclude=".env.*" \
+            --exclude="*.pem" \
+            --exclude="*.key" \
+            -czf "$BACKUP_FILE" \
+            -C "$LIVE_PATH" .
+
+          echo "Syncing release to live folder..."
+
+          rsync -az --delete \
+            --exclude=".htaccess" \
+            --exclude=".well-known" \
+            --exclude="cgi-bin" \
+            --exclude=".env" \
+            --exclude=".env.*" \
+            --exclude="*.pem" \
+            --exclude="*.key" \
+            "$RELEASE_PATH/" "$LIVE_PATH/"
+
+          if [ ! -f "$LIVE_PATH/.htaccess" ]; then
+            echo "Creating default React .htaccess..."
+
+            cat > "$LIVE_PATH/.htaccess" <<'HTACCESS'
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+
+            RewriteCond %{REQUEST_FILENAME} -f [OR]
+            RewriteCond %{REQUEST_FILENAME} -d
+            RewriteRule ^ - [L]
+
+            RewriteRule ^ index.html [L]
+          </IfModule>
+          HTACCESS
+
+            chmod 644 "$LIVE_PATH/.htaccess"
+          fi
+
+          echo "$RELEASE_ID" > "$DEPLOY_ROOT/current-release.txt"
+
+          {
+            echo "release=$RELEASE_ID"
+            echo "backup=$BACKUP_FILE"
+            echo "actor=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "---"
+          } >> "$DEPLOY_LOG"
+
+          echo "Checking live website..."
+
+          curl -fsS --retry 3 "$APP_URL" > /dev/null
+
+          echo "Cleaning old releases and backups..."
+
+          ls -1dt "$DEPLOY_ROOT/releases"/* 2>/dev/null | tail -n +11 | xargs -r rm -rf
+          ls -1t "$DEPLOY_ROOT/backups"/backup-*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
+
+          echo "Deployment completed successfully."
+          REMOTE_SCRIPT

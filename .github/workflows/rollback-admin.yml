@@ -24,8 +24,17 @@ on:
         required: false
         type: string
 
+      deploy_target:
+        description: "Which admin site to roll back (careflowadmin = main site, allforcare = production branch site)"
+        required: true
+        type: choice
+        default: careflowadmin
+        options:
+          - careflowadmin
+          - allforcare
+
 concurrency:
-  group: careflow-admin-production
+  group: careflow-admin-${{ github.event.inputs.deploy_target }}-ops
   cancel-in-progress: false
 
 permissions:
@@ -98,13 +107,22 @@ jobs:
             "$VPS_USER@$VPS_HOST" << 'REMOTE_SCRIPT'
           set -euo pipefail
 
-          LIVE_PATH="${{ secrets.ADMIN_DEPLOY_PATH }}"
-          APP_URL="${{ secrets.ADMIN_APP_URL }}"
-          DEPLOY_ROOT="/home/sigisolutions/deployments/careflow-admin"
-          RELEASES_DIR="$DEPLOY_ROOT/releases"
-          BACKUPS_DIR="$DEPLOY_ROOT/backups"
+          DEPLOY_TARGET="${{ github.event.inputs.deploy_target }}"
           ROLLBACK_TYPE="${{ github.event.inputs.rollback_type }}"
           TARGET="${{ github.event.inputs.target }}"
+
+          if [ "$DEPLOY_TARGET" = "allforcare" ]; then
+            LIVE_PATH="/home/sigisolutions/allforcare.sigisolutions.net"
+            APP_URL="https://allforcare.sigisolutions.net/"
+            DEPLOY_ROOT="/home/sigisolutions/deployments/allforcare-admin"
+          else
+            LIVE_PATH="${{ secrets.ADMIN_DEPLOY_PATH }}"
+            APP_URL="${{ secrets.ADMIN_APP_URL }}"
+            DEPLOY_ROOT="/home/sigisolutions/deployments/careflow-admin"
+          fi
+
+          RELEASES_DIR="$DEPLOY_ROOT/releases"
+          BACKUPS_DIR="$DEPLOY_ROOT/backups"
           ROLLBACK_TEMP="$DEPLOY_ROOT/manual-rollback-temp"
           PRE_ROLLBACK_BACKUP="$BACKUPS_DIR/pre-rollback-$(date +%Y%m%d%H%M%S).tar.gz"
           ROLLBACK_LOG="$DEPLOY_ROOT/logs/rollbacks.log"
