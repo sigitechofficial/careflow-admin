@@ -520,7 +520,10 @@ export function BillingVisitReconciliationPanel({
                     />
                   </th>
                 ) : null}
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                <th
+                  className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap"
+                  title="Visit reference: VIS-[BRANCH]-[YYYYMMDD]-[NNNN] (service user branch)"
+                >
                   EMONITORED
                 </th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground whitespace-nowrap">
@@ -614,10 +617,12 @@ export function BillingVisitReconciliationPanel({
                       </td>
                     ) : null}
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="font-mono text-xs font-medium">{row.visitRef || '—'}</div>
-                      {row.emonitored ? (
-                        <div className="text-[11px] text-muted-foreground">{row.emonitored}</div>
-                      ) : null}
+                      <div
+                        className="font-mono text-xs font-medium tracking-tight"
+                        title="Visit reference (immutable). BRANCH = service user branch."
+                      >
+                        {row.visitRef || '—'}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <Badge

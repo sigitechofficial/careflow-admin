@@ -307,7 +307,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-mono text-sm font-medium">{detail.visitRef}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Visit reference (EMONITORED)
+                  </p>
+                  <p
+                    className="font-mono text-sm font-medium"
+                    title="VIS-[BRANCH]-[YYYYMMDD]-[NNNN] — BRANCH from the service user’s branch"
+                  >
+                    {detail.visitRef}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {detail.date} · {detail.serviceUserName}
                     {detail.carerName ? ` · ${detail.carerName}` : ''}
