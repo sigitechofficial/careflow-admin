@@ -204,24 +204,30 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }
+  const accessAllZones = Boolean(e.accessAllZones)
+  const primaryLocationId = e.locationId?.trim() || ''
+  const otherBranchIds = accessAllZones
+    ? []
+    : [...new Set((e.baseLocationIds ?? []).filter(id => id && id !== primaryLocationId))]
   return {
     workAreaId: e.workAreaId,
     roleId: e.roleId,
-    locationId: e.locationId,
+    locationId: primaryLocationId || undefined,
     jobTitleId: e.jobTitleId,
     rbacLevelId: e.rbacLevelId,
     gradeId: e.gradeId,
     contractTypeId: e.contractTypeId,
     travelPaymentTypeId: e.travelPaymentTypeId,
-    baseLocationIds: e.accessAllZones ? [] : (e.baseLocationIds ?? []),
-    serviceUserAreaIds: e.accessAllZones ? [] : (e.serviceUserAreaIds ?? []),
+    baseLocationId: accessAllZones ? null : primaryLocationId || null,
+    baseLocationIds: otherBranchIds,
+    serviceUserAreaIds: accessAllZones ? [] : (e.serviceUserAreaIds ?? []),
     startDate: e.startDate ? new Date(e.startDate).toISOString() : undefined,
     endDate: e.endDate ? new Date(e.endDate).toISOString() : undefined,
     nationalInsuranceNo: e.nationalInsuranceNo,
     nmcPinNumber: e.nmcPinNumber,
     employeeNumber: e.employeeNumber,
     payrollNumber: e.payrollNumber,
-    accessAllZones: e.accessAllZones,
+    accessAllZones,
     visaTypeId: e.visaTypeId || null,
     isInCountry: e.isInCountry,
     contractedWeeklyHours: toNum(e.contractedWeeklyHours),
@@ -503,6 +509,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     clearErrors,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors },
   } = useForm<FormValues>({
@@ -797,9 +804,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     }
   }
 
-  const onSavePersonal = async (raw: FormValues) => {
+  const onSavePersonal = async () => {
     setBanner(null)
-    const parsed = personalStepSchema.safeParse(raw)
+    // handleSubmit + personalStepSchema strips non-personal fields from the callback arg.
+    // Always read location scope from the full form so Access all zones / branches / areas persist.
+    const form = getValues()
+    const parsed = personalStepSchema.safeParse(form)
     if (!parsed.success) {
       applyZodErrors(parsed, setError)
       setBanner({ type: 'error', text: 'Fix the highlighted fields before continuing.' })
@@ -812,11 +822,18 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     try {
       const p = parsed.data
       const personalBody = await personalPayloadFromStep(p)
+      const accessAllZones = Boolean(form.accessAllZones)
+      const primaryLocationId = form.locationId?.trim() || ''
+      const otherBranchIds = accessAllZones
+        ? []
+        : [...new Set((form.baseLocationIds ?? []).filter(id => id && id !== primaryLocationId))]
       const locationEmploymentBody = {
-        locationId: raw.locationId || undefined,
-        baseLocationIds: raw.accessAllZones ? [] : (raw.baseLocationIds ?? []),
-        serviceUserAreaIds: raw.accessAllZones ? [] : (raw.serviceUserAreaIds ?? []),
-        accessAllZones: raw.accessAllZones,
+        locationId: primaryLocationId || undefined,
+        // Sync legacy singular field so it cannot resurrect a second branch on reload.
+        baseLocationId: accessAllZones ? null : primaryLocationId || null,
+        baseLocationIds: otherBranchIds,
+        serviceUserAreaIds: accessAllZones ? [] : (form.serviceUserAreaIds ?? []),
+        accessAllZones,
       }
       if (isEditMode && editEmployeeId) {
         await patchPersonalMutation.mutateAsync({ employeeId: editEmployeeId, body: personalBody })
@@ -850,7 +867,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
       setCreatedEmployeeId(id)
       setEmploymentSaved(false)
       await patchPersonalMutation.mutateAsync({ employeeId: id, body: personalBody })
-      if (raw.locationId || raw.accessAllZones || (raw.serviceUserAreaIds?.length ?? 0) > 0) {
+      if (
+        primaryLocationId ||
+        accessAllZones ||
+        (form.serviceUserAreaIds?.length ?? 0) > 0 ||
+        otherBranchIds.length > 0
+      ) {
         await patchEmploymentMutation.mutateAsync({
           employeeId: id,
           body: locationEmploymentBody,
@@ -868,14 +890,16 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     }
   }
 
-  const onSaveEmployment = async (raw: FormValues) => {
+  const onSaveEmployment = async () => {
     setBanner(null)
     if (!createdEmployeeId) {
       setBanner({ type: 'error', text: 'Save Personal Details first.' })
       setTab('personal')
       return
     }
-    const parsed = employmentStepSchema.safeParse(raw)
+    // Same as personal: resolver strips unknown keys; read full form for location scope.
+    const form = getValues()
+    const parsed = employmentStepSchema.safeParse(form)
     if (!parsed.success) {
       applyZodErrors(parsed, setError)
       setBanner({ type: 'error', text: 'Fix employment fields marked in red.' })
@@ -1387,14 +1411,17 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                       value={{
                         zoneIds: zoneIds ?? [],
                         locationIds: [
-                          ...(locationId ? [locationId] : []),
-                          ...((baseLocationIds ?? []).filter(id => id && id !== locationId)),
+                          ...new Set([
+                            ...(locationId ? [locationId] : []),
+                            ...((baseLocationIds ?? []).filter(id => id && id !== locationId)),
+                          ]),
                         ],
                         serviceUserAreaIds: serviceUserAreaIds ?? [],
                       }}
                       onChange={(next, meta) => {
                         const dirty = meta?.source !== 'hydrate'
-                        const [primary, ...rest] = next.locationIds
+                        const uniqueLocations = [...new Set(next.locationIds.filter(Boolean))]
+                        const [primary, ...rest] = uniqueLocations
                         setValue('zoneIds', next.zoneIds, { shouldDirty: dirty })
                         setValue('locationId', primary ?? '', {
                           shouldDirty: dirty,
@@ -1499,6 +1526,20 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                 onSubmit={handleSubmit(onSaveEmployment)}
               >
                 <h2 className="text-sm font-semibold text-foreground">Employment</h2>
+                <p className="text-xs text-muted-foreground">
+                  Zones, branches and service areas are set on the{' '}
+                  <span className="font-medium text-foreground">Personal</span> tab
+                  {locationId
+                    ? ' (branch selected).'
+                    : accessAllZones
+                      ? ' (access all zones).'
+                      : ' — select at least one branch there before saving employment.'}
+                </p>
+                {errors.locationId?.message ? (
+                  <p className="text-sm text-destructive" role="alert">
+                    {errors.locationId.message}
+                  </p>
+                ) : null}
 
                 <div className="grid grid-cols-1 gap-y-4 gap-x-10 lg:grid-cols-2">
                   <FormField label="Work area" htmlFor="workAreaId" required error={errors.workAreaId?.message}>

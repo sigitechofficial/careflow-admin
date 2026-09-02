@@ -27,7 +27,7 @@ describe('resolveOtherBranchLocationIds', () => {
     ).toEqual(['other-a'])
   })
 
-  it('falls back to baseLocationIds / baseLocations / legacy baseLocation', () => {
+  it('falls back to baseLocationIds / baseLocations (ignores legacy baseLocationId)', () => {
     expect(
       resolveOtherBranchLocationIds({
         locationId: 'primary',
@@ -42,12 +42,13 @@ describe('resolveOtherBranchLocationIds', () => {
       }),
     ).toEqual(['y'])
 
+    // Legacy singular field must not reappear as a second selected branch.
     expect(
       resolveOtherBranchLocationIds({
         locationId: 'primary',
         baseLocationId: 'z',
         baseLocation: { id: 'z', name: 'Z' },
       }),
-    ).toEqual(['z'])
+    ).toEqual([])
   })
 })

@@ -246,10 +246,7 @@ export const employmentStepSchema = z
       v => emptyToUndef(v),
       z.string({ required_error: 'Select a role' }).uuid('Select a role')
     ),
-    locationId: z.preprocess(
-      v => emptyToUndef(v),
-      z.string({ required_error: 'Select at least one branch' }).uuid('Select at least one branch')
-    ),
+    locationId: uuidOpt,
     jobTitleId: uuidOpt,
     rbacLevelId: uuidOpt,
     gradeId: uuidOpt,
@@ -317,6 +314,13 @@ export const employmentStepSchema = z
   .superRefine((data, ctx) => {
     refineEmploymentDates(data, ctx)
     refineWeeklyHours(data, ctx)
+    if (!data.accessAllZones && !data.locationId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select at least one branch',
+        path: ['locationId'],
+      })
+    }
     const capOverride = parseOptionalDecimal(data.weeklyHoursCapOverride)
     if (capOverride !== undefined) {
       if (!data.weeklyHoursCapOverrideReason?.trim()) {

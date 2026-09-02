@@ -414,7 +414,7 @@ export type EmploymentPayload = {
   payrollNumber?: string
   defaultPayCardId?: string | null
   locationId?: string
-  baseLocationId?: string
+  baseLocationId?: string | null
   baseLocationIds?: string[]
   serviceUserAreaIds?: string[]
   accessAllZones?: boolean

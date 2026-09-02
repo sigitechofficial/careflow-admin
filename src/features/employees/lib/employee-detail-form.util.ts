@@ -122,14 +122,13 @@ export function resolveOtherBranchLocationIds(
       ?.map((row) => pickLookupId(null, row.location))
       .filter((id) => id.length > 0) ?? []
   const fromFlat = (em.baseLocationIds ?? []).map((id) => String(id).trim()).filter(Boolean)
-  const legacy = pickLookupId(em.baseLocationId, em.baseLocation)
-
   const combined = [
     ...fromFloor,
     ...fromJoin,
     ...fromFlat,
-    ...(legacy ? [legacy] : []),
   ]
+  // Intentionally ignore legacy singular `baseLocationId` — it often equals primary or holds a
+  // stale second site that survived multi-branch saves. Floor join / baseLocationIds are source of truth.
   return [...new Set(combined)].filter((id) => id !== primaryId)
 }
 
