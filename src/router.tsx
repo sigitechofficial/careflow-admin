@@ -318,6 +318,10 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'allergies',
   'tasks-planner',
   'vital-ranges',
+  'welfare-outcomes',
+  'clock-in-arrival-reasons',
+  'clock-out-end-reasons',
+  'outcome-reasons',
   'ecm-thresholds',
 ]
 

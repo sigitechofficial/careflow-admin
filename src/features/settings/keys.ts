@@ -31,6 +31,12 @@ export const settingsKeys = {
 
   welfareOutcomes: () => [...settingsKeys.all(), 'welfare-outcomes'] as const,
 
+  clockInArrivalReasons: () => [...settingsKeys.all(), 'clock-in-arrival-reasons'] as const,
+
+  clockOutEndReasons: () => [...settingsKeys.all(), 'clock-out-end-reasons'] as const,
+
+  visitOutcomes: () => [...settingsKeys.all(), 'visit-outcomes'] as const,
+
   allergyCatalog: () => [...settingsKeys.all(), 'allergy-catalog'] as const,
 
   taskCatalogue: () => [...settingsKeys.all(), 'task-catalogue'] as const,

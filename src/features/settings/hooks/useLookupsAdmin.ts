@@ -18,6 +18,20 @@ import {
   updateWelfareOutcome,
   deleteWelfareOutcome,
   type WelfareOutcomeTone,
+  fetchClockInArrivalReasons,
+  createClockInArrivalReason,
+  updateClockInArrivalReason,
+  deleteClockInArrivalReason,
+  type ClockInArrivalKind,
+  fetchClockOutEndReasons,
+  createClockOutEndReason,
+  updateClockOutEndReason,
+  deleteClockOutEndReason,
+  type ClockOutEndKind,
+  fetchVisitOutcomes,
+  createVisitOutcomeReason,
+  updateVisitOutcomeReason,
+  deleteVisitOutcomeReason,
   deleteServiceUserEthnicity,
   deleteServiceUserFundingType,
   deleteServiceUserLanguage,
@@ -517,5 +531,161 @@ export function useDeleteWelfareOutcome() {
     mutationFn: (id: string) => deleteWelfareOutcome(id),
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: settingsKeys.welfareOutcomes() }),
+  })
+}
+
+// ─── Clock-in early / late arrival reasons ─────────────────────────────────
+
+export function useClockInArrivalReasons(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.clockInArrivalReasons(),
+    queryFn: () => fetchClockInArrivalReasons(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateClockInArrivalReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      kind: ClockInArrivalKind
+      label: string
+      requiresNotes?: boolean
+      sortOrder?: number
+    }) => createClockInArrivalReason(body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.clockInArrivalReasons() }),
+  })
+}
+
+export function useUpdateClockInArrivalReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        label?: string
+        requiresNotes?: boolean
+        sortOrder?: number
+        isActive?: boolean
+      }
+    }) => updateClockInArrivalReason(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.clockInArrivalReasons() }),
+  })
+}
+
+export function useDeleteClockInArrivalReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteClockInArrivalReason(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.clockInArrivalReasons() }),
+  })
+}
+
+// ─── Clock-out early / late end reasons ────────────────────────────────────
+
+export function useClockOutEndReasons(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.clockOutEndReasons(),
+    queryFn: () => fetchClockOutEndReasons(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateClockOutEndReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      kind: ClockOutEndKind
+      label: string
+      requiresNotes?: boolean
+      sortOrder?: number
+    }) => createClockOutEndReason(body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.clockOutEndReasons() }),
+  })
+}
+
+export function useUpdateClockOutEndReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        label?: string
+        requiresNotes?: boolean
+        sortOrder?: number
+        isActive?: boolean
+      }
+    }) => updateClockOutEndReason(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.clockOutEndReasons() }),
+  })
+}
+
+export function useDeleteClockOutEndReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteClockOutEndReason(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.clockOutEndReasons() }),
+  })
+}
+
+export function useVisitOutcomes(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.visitOutcomes(),
+    queryFn: () => fetchVisitOutcomes(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateVisitOutcomeReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      outcomeId,
+      body,
+    }: {
+      outcomeId: string
+      body: { label: string; requiresNotes?: boolean; sortOrder?: number }
+    }) => createVisitOutcomeReason(outcomeId, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.visitOutcomes() }),
+  })
+}
+
+export function useUpdateVisitOutcomeReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: { label?: string; requiresNotes?: boolean; sortOrder?: number; isActive?: boolean }
+    }) => updateVisitOutcomeReason(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.visitOutcomes() }),
+  })
+}
+
+export function useDeleteVisitOutcomeReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteVisitOutcomeReason(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.visitOutcomes() }),
   })
 }

@@ -285,6 +285,176 @@ export async function deleteWelfareOutcome(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/lookups/welfare-outcomes/${id}`, { method: 'DELETE' })
 }
 
+// ─── Clock-in early / late arrival reasons (carer-app) ──────────────────────
+
+export type ClockInArrivalKind = 'EARLY' | 'LATE'
+
+export type ClockInArrivalReasonRow = {
+  id: string
+  kind: ClockInArrivalKind
+  label: string
+  requiresNotes: boolean
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchClockInArrivalReasons(): Promise<ClockInArrivalReasonRow[]> {
+  const res = await apiJson<ApiEnvelope<ClockInArrivalReasonRow[]>>(
+    '/lookups/clock-in-arrival-reasons',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createClockInArrivalReason(body: {
+  kind: ClockInArrivalKind
+  label: string
+  requiresNotes?: boolean
+  sortOrder?: number
+}): Promise<ClockInArrivalReasonRow> {
+  const res = await apiJson<ApiEnvelope<ClockInArrivalReasonRow>>(
+    '/lookups/clock-in-arrival-reasons',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateClockInArrivalReason(
+  id: string,
+  body: {
+    label?: string
+    requiresNotes?: boolean
+    sortOrder?: number
+    isActive?: boolean
+  },
+): Promise<ClockInArrivalReasonRow> {
+  const res = await apiJson<ApiEnvelope<ClockInArrivalReasonRow>>(
+    `/lookups/clock-in-arrival-reasons/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteClockInArrivalReason(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/clock-in-arrival-reasons/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Clock-out early / late end reasons (carer-app) ─────────────────────────
+
+export type ClockOutEndKind = 'EARLY' | 'LATE'
+
+export type ClockOutEndReasonRow = {
+  id: string
+  kind: ClockOutEndKind
+  label: string
+  requiresNotes: boolean
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchClockOutEndReasons(): Promise<ClockOutEndReasonRow[]> {
+  const res = await apiJson<ApiEnvelope<ClockOutEndReasonRow[]>>(
+    '/lookups/clock-out-end-reasons',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createClockOutEndReason(body: {
+  kind: ClockOutEndKind
+  label: string
+  requiresNotes?: boolean
+  sortOrder?: number
+}): Promise<ClockOutEndReasonRow> {
+  const res = await apiJson<ApiEnvelope<ClockOutEndReasonRow>>(
+    '/lookups/clock-out-end-reasons',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateClockOutEndReason(
+  id: string,
+  body: {
+    label?: string
+    requiresNotes?: boolean
+    sortOrder?: number
+    isActive?: boolean
+  },
+): Promise<ClockOutEndReasonRow> {
+  const res = await apiJson<ApiEnvelope<ClockOutEndReasonRow>>(
+    `/lookups/clock-out-end-reasons/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteClockOutEndReason(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/clock-out-end-reasons/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Visit outcomes + reasons (Medication / Task / Observation) ─────────────
+
+export type VisitOutcomeArea = 'MEDICATION' | 'TASK' | 'OBSERVATION'
+
+export type VisitOutcomeReasonRow = {
+  id: string
+  label: string
+  requiresNotes: boolean
+  sortOrder: number
+  isActive: boolean
+}
+
+export type VisitOutcomeRow = {
+  id: string
+  area: VisitOutcomeArea
+  code: string
+  label: string
+  allowsReasons: boolean
+  sortOrder: number
+  isActive: boolean
+  reasons: VisitOutcomeReasonRow[]
+}
+
+export async function fetchVisitOutcomes(): Promise<VisitOutcomeRow[]> {
+  const res = await apiJson<ApiEnvelope<VisitOutcomeRow[]>>('/lookups/visit-outcomes', {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createVisitOutcomeReason(
+  outcomeId: string,
+  body: { label: string; requiresNotes?: boolean; sortOrder?: number },
+): Promise<VisitOutcomeReasonRow> {
+  const res = await apiJson<ApiEnvelope<VisitOutcomeReasonRow>>(
+    `/lookups/visit-outcomes/${outcomeId}/reasons`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateVisitOutcomeReason(
+  id: string,
+  body: { label?: string; requiresNotes?: boolean; sortOrder?: number; isActive?: boolean },
+): Promise<VisitOutcomeReasonRow> {
+  const res = await apiJson<ApiEnvelope<VisitOutcomeReasonRow>>(
+    `/lookups/visit-outcome-reasons/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteVisitOutcomeReason(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/visit-outcome-reasons/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function fetchServiceUserFundingTypesList(): Promise<ServiceUserFundingTypeRow[]> {
   const res = await apiJson<ApiEnvelope<ServiceUserFundingTypeRow[]>>(
     '/lookups/service-user-funding-types',
