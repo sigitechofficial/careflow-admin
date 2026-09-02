@@ -63,7 +63,10 @@ import { InitialAssessmentBlockingBanner } from '@/features/service-users/initia
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { signOffQuestionIds } from '@/features/service-users/initial-assessment/utils/sign-off-questions'
-import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import {
+  isPainAssessmentComplete as isPainToolComplete,
+  type PainAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 import { HOLISTIC_FORM_TITLE } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import { InitialAssessmentDocumentTabContent } from '@/features/service-users/initial-assessment/components/InitialAssessmentDocumentTabContent'
 import { SectionQaDemoDataPanel } from '@/features/service-users/initial-assessment/components/SectionQaDemoDataPanel'
@@ -73,6 +76,7 @@ import {
   HOLISTIC_ASSESSMENT_TABS,
   HOLISTIC_TAB_COUNT,
   holisticTabById,
+  holisticTabDisplayNumber,
   holisticTabTitle,
   questionsForDocumentTab,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
@@ -81,7 +85,9 @@ import { demoFillQuestionsForDocumentTab } from '@/features/service-users/initia
 import { iaDemoIdentityFromDetail, isIaDemoIdentityPrefillQuestion } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
 import { HOLISTIC_FORM_PAGE_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
+  iaAssessorNameDesignation,
   painPanelTemplateQuestionIds,
+  stampPainAssessmentCompletion,
   syncPainAssessmentAnswers,
 } from '@/features/service-users/initial-assessment/utils/pain-questions'
 import {
@@ -130,6 +136,7 @@ import {
   type EquipmentSelectionMetadata,
 } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import { syncFallsScreeningDerivedState } from '@/features/service-users/initial-assessment/utils/falls-screening-questions'
+import { syncFillDemoCatalogueAnswers } from '@/features/service-users/initial-assessment/utils/fill-demo-worksheet-sync'
 import {
   mustTemplateQuestionIds,
   syncMustAssessmentAnswers,
@@ -921,7 +928,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         questionErrors: validationMaps.questionErrors,
         revealFieldErrors: validationRevealed,
         waterlowComplete: computeWaterlowScore(waterlow) > 0,
-        painToolComplete: painAssessment.nrsScore != null,
+        painToolComplete: isPainToolComplete(painAssessment),
         skinIntegrityCheckComplete: skinIntegrityCheckHasEntries(skinIntegrityCheck),
         mustToolComplete: isMustScoringComplete(mustAssessment),
         fallsScreeningComplete: isFallsScreeningComplete(fallsScreening),
@@ -1237,8 +1244,34 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           case 'waterlow':
             setWaterlow(value as Parameters<typeof setWaterlow>[0])
             break
-          case 'painAssessment':
-            setPainAssessment(value as Parameters<typeof setPainAssessment>[0])
+          case 'painAssessment': {
+            const incoming = value as {
+              nrsScore?: number
+              scaleUsed?: string
+              abbey?: unknown
+              therapyAideMemoire?: unknown
+            }
+            setPainAssessment((prev) => ({
+              ...prev,
+              ...incoming,
+              abbey: incoming.abbey ?? prev.abbey,
+              therapyAideMemoire: incoming.therapyAideMemoire
+                ? {
+                    ...prev.therapyAideMemoire,
+                    ...(incoming.therapyAideMemoire as typeof prev.therapyAideMemoire),
+                  }
+                : prev.therapyAideMemoire,
+            }))
+            break
+          }
+          case 'therapyAideMemoire':
+            setPainAssessment((prev) => ({
+              ...prev,
+              therapyAideMemoire: {
+                ...prev.therapyAideMemoire,
+                ...(value as NonNullable<typeof prev.therapyAideMemoire>),
+              },
+            }))
             break
           case 'skinIntegrityCheck':
             skinIntegrityLocalEditRef.current = true
@@ -1302,6 +1335,25 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         }
       }
 
+      // 2b) Worksheet → catalogue dual-write (same helpers as live worksheet edits).
+      // Do not use onAnswerChange here: that marks answers dirty and would auto-save Fill Demo.
+      syncFillDemoCatalogueAnswers(
+        sections,
+        metadata,
+        (metadata.adl as typeof adl | undefined) ?? adl,
+        (nextAdl) => setAdl(nextAdl),
+        (questionId, patch) => {
+          demoFilledQuestionIdsRef.current.add(questionId)
+          setDraftAnswers((prev) => {
+            const next = {
+              ...prev,
+              [questionId]: { ...prev[questionId], ...patch, questionId },
+            }
+            return syncDerivedConcernGates(sections, next).answers
+          })
+        },
+      )
+
       // 3) Mark this tab as filled (drives the nav "Demo data filled" badge).
       setDemoFilledTabs((prev) => {
         if (prev.has(tabId)) return prev
@@ -1310,7 +1362,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         return next
       })
     },
-    [sections],
+    [sections, adl],
   )
 
   const syncEmergencyContactFromProfile = React.useCallback(() => {
@@ -1378,11 +1430,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const onPainAssessmentChange = React.useCallback(
     (next: PainAssessmentMetadata) => {
-      setPainAssessment(next)
-      void persistMetadata({ painAssessment: next })
-      syncPainAssessmentAnswers(sections, next, onAnswerChange)
+      const footer = sectionFooters['10']
+      const stamped = stampPainAssessmentCompletion(next, {
+        dateCompleted: footer?.dateCompleted || new Date().toISOString().slice(0, 10),
+        assessorNameDesignation:
+          footer?.assessorNameDesignation || iaAssessorNameDesignation(sections, draftAnswers),
+      })
+      setPainAssessment(stamped)
+      void persistMetadata({ painAssessment: stamped })
+      syncPainAssessmentAnswers(sections, stamped, onAnswerChange)
     },
-    [sections, persistMetadata, onAnswerChange],
+    [sections, persistMetadata, onAnswerChange, sectionFooters, draftAnswers],
   )
 
   const syncSkinIntegrityFromBodyMap = React.useCallback(async () => {
@@ -2451,7 +2509,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onClick={() => goToHolisticTab(tab.id)}
                       >
                         <span className="flex items-center gap-1.5">
-                          <span className="font-semibold">{tab.id}.</span>
+                          <span className="font-semibold">{holisticTabDisplayNumber(tab)}.</span>
                           <span className="min-w-0 flex-1">{tab.title}</span>
                           {navStatus === 'blocking' ? (
                             <span
@@ -2530,6 +2588,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           : null,
                         accessInstruction: domCareQuery.data?.accessInstruction ?? null,
                       })}
+                      serviceUserId={selectedId}
+                      gpContactId={
+                        detailQuery.data?.contacts?.find((c) => c.relationshipType?.code === 'GP')?.id ?? null
+                      }
+                      onProfilePersisted={() =>
+                        queryClient.invalidateQueries({ queryKey: serviceUserKeys.detail(selectedId) })
+                      }
                       onApply={applyDemoDataToSection}
                       onPickScenario={() => setQaDemoDialogOpen(true)}
                     />
@@ -2552,7 +2617,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       currentHolisticTab.kind !== 'mental-capacity-checklist' &&
                       currentHolisticTab.kind !== 'photography-consent' ? (
                         <h2 className={IA_SECTION_TITLE_CLASS}>
-                          {currentHolisticTab.id}. {holisticTabTitle(currentHolisticTab.id)}
+                          {holisticTabDisplayNumber(currentHolisticTab)}. {holisticTabTitle(currentHolisticTab.id)}
                         </h2>
                       ) : null}
                       <InitialAssessmentDocumentTabContent

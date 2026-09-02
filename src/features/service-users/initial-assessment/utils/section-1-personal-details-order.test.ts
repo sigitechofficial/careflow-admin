@@ -38,18 +38,14 @@ describe('sortPersonalDetailsQuestions', () => {
     ])
   })
 
-  it('places key safe after address and before GP contact', () => {
+  it('places address before GP contact without key-safe fields', () => {
     const sorted = sortPersonalDetailsQuestions([
       q('GP contact details', 4),
-      q('Key safe code', 3),
       q('Address and contact details', 1),
-      q('Key safe present?', 2),
     ])
 
     expect(sorted.map((x) => x.questionText)).toEqual([
       'Address and contact details',
-      'Key safe present?',
-      'Key safe code',
       'GP contact details',
     ])
   })

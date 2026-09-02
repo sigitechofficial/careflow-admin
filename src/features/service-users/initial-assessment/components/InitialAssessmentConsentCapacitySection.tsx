@@ -112,6 +112,7 @@ export function InitialAssessmentConsentCapacitySection({
 
       {CONSENT_CAPACITY_STEPS.map((step) => {
         const qs = questionsForConsentStep(visibleQuestions, step)
+        if (qs.length === 0) return null
         return (
           <InitialAssessmentSection12PanelShell
             key={step.id}
@@ -120,13 +121,9 @@ export function InitialAssessmentConsentCapacitySection({
             bodyVariant="content"
             testId={`ia-consent-step-${step.id}`}
           >
-            {qs.length === 0 ? (
-              <p className={IA_HINT_CLASS}>No questions visible for this step.</p>
-            ) : (
-              qs.map((q) => (
+            {qs.map((q) => (
                 <InitialAssessmentSection12FieldRow key={q.id}>{renderField(q)}</InitialAssessmentSection12FieldRow>
-              ))
-            )}
+              ))}
 
             {step.id === 'capacity' ? (
               <div className={IA_CALLOUT_VIOLET_CLASS}>

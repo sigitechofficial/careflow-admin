@@ -2,7 +2,7 @@ import type { InitialAssessmentQuestion } from '@/features/service-users/initial
 import type { SpecRefGroup } from '@/features/service-users/initial-assessment/utils/spec-ref-groups'
 
 /** Paper Section 5 — Emotional health (enterprise §10) subsection order. */
-export const PAPER_SECTION_5_SPEC_ORDER = ['10.1', '10.2', '10.6', '10.4'] as const
+export const PAPER_SECTION_5_SPEC_ORDER = ['10.1', '10.2', '10.6', '10.6a', '10.4'] as const
 
 /** Intro yes/no block at the top of paper Section 5. */
 export const PAPER_SECTION_5_INTRO_QUESTION_TEXT = [

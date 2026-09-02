@@ -110,10 +110,10 @@ const section14: InitialAssessmentSection = {
 const sections = [section1, section2, section3, section4, section13, section14]
 
 describe('demoFillQuestionsForDocumentTab', () => {
-  it('tab 1 includes manage-home, §1 assessorName, and same-tab diabetes follow-up', () => {
+  it('tab 1 includes §1 assessorName and same-tab diabetes follow-up, not fire or environment manage-home', () => {
     const tab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 1)!
     const ids = new Set(demoFillQuestionsForDocumentTab(tab, sections).map((x) => x.id))
-    expect(ids.has('manage')).toBe(true)
+    expect(ids.has('manage')).toBe(false)
     expect(ids.has('assessor-s1')).toBe(true)
     expect(ids.has('diabetes-type')).toBe(true)
     expect(ids.has('sg')).toBe(false)
@@ -129,12 +129,12 @@ describe('demoFillQuestionsForDocumentTab', () => {
     expect(ids.has('sg')).toBe(false)
   })
 
-  it('tab 12 owns remaining §3 template questions including lone worker (not fire)', () => {
+  it('tab 12 owns remaining §3 template questions including manage-home and lone worker', () => {
     const tab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 12)!
     const ids = new Set(demoFillQuestionsForDocumentTab(tab, sections).map((x) => x.id))
     expect(ids.has('lone')).toBe(true)
     expect(ids.has('access')).toBe(true)
-    expect(ids.has('manage')).toBe(false)
+    expect(ids.has('manage')).toBe(true)
   })
 
   it('tab 13 owns safeguarding / emergency contact', () => {
@@ -151,5 +151,63 @@ describe('demoFillQuestionsForDocumentTab', () => {
     expect(ids.has('next-review')).toBe(true)
     expect(ids.has('assessor-s14')).toBe(true)
     expect(ids.has('assessor-s1')).toBe(false)
+  })
+
+  it('tab 21 owns infection precautions and tab 22 owns fire safety', () => {
+    const infection: InitialAssessmentSection = {
+      id: 's15',
+      sectionNumber: 15,
+      title: 'Infection',
+      sortOrder: 15,
+      questions: [q('infection', 'Are infection control precautions required?', '15.1', {
+        metadata: { specRef: '15.1', fieldKey: 'infectionPrecautionsRequired' },
+      })],
+    }
+    const fire: InitialAssessmentSection = {
+      id: 's18',
+      sectionNumber: 18,
+      title: 'Fire Safety',
+      sortOrder: 18,
+      questions: [q('fire', 'Any fire safety risks identified?', '18.1', {
+        metadata: { specRef: '18.1', fieldKey: 'fireSafetyRisksIdentified' },
+      })],
+    }
+    const withPhase1 = [...sections, infection, fire]
+    const tab21 = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 21)!
+    const tab22 = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 22)!
+    expect(demoFillQuestionsForDocumentTab(tab21, withPhase1).map((x) => x.id)).toContain('infection')
+    expect(demoFillQuestionsForDocumentTab(tab22, withPhase1).map((x) => x.id)).toContain('fire')
+    expect(demoFillQuestionsForDocumentTab(tab21, withPhase1).map((x) => x.id)).not.toContain('fire')
+  })
+
+  it('tab 19 owns PEEP and tab 20 owns Bed Rails', () => {
+    const peep: InitialAssessmentSection = {
+      id: 's16',
+      sectionNumber: 16,
+      title: 'PEEP',
+      sortOrder: 16,
+      questions: [
+        q('self-evac', 'Can the person self-evacuate in an emergency?', '16.1', {
+          metadata: { specRef: '16.1', fieldKey: 'canSelfEvacuate' },
+        }),
+      ],
+    }
+    const rails: InitialAssessmentSection = {
+      id: 's17',
+      sectionNumber: 17,
+      title: 'Bed Rails',
+      sortOrder: 17,
+      questions: [
+        q('rails', 'Are bed rails in use or being considered?', '17.1', {
+          metadata: { specRef: '17.1', fieldKey: 'bedRailsInUseOrConsidered' },
+        }),
+      ],
+    }
+    const withPhase2 = [...sections, peep, rails]
+    const tab19 = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 19)!
+    const tab20 = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 20)!
+    expect(demoFillQuestionsForDocumentTab(tab19, withPhase2).map((x) => x.id)).toContain('self-evac')
+    expect(demoFillQuestionsForDocumentTab(tab20, withPhase2).map((x) => x.id)).toContain('rails')
+    expect(demoFillQuestionsForDocumentTab(tab19, withPhase2).map((x) => x.id)).not.toContain('rails')
   })
 })

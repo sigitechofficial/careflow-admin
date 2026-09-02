@@ -14,7 +14,7 @@ function fieldKeyOf(q: InitialAssessmentQuestion): string | undefined {
   return typeof key === 'string' ? key : undefined
 }
 
-const CONSENT_SPEC_REFS = new Set(['2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8'])
+const CONSENT_SPEC_REFS = new Set(['2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9'])
 
 /**
  * Template questions this tab's Fill Demo Data must include even when they are hidden
@@ -29,7 +29,7 @@ export function extraDemoFillQuestionsForTab(
     case 1: {
       const sec1 = sections.find((s) => s.sectionNumber === 1)
       const assessor = (sec1?.questions ?? []).filter((q) => fieldKeyOf(q) === 'assessorName')
-      return [...all.filter((q) => isSection31FireQuestion(q)), ...assessor]
+      return assessor
     }
     case 3:
       return all.filter((q) => {
@@ -49,6 +49,22 @@ export function extraDemoFillQuestionsForTab(
     case 16: {
       const sec14 = sections.find((s) => s.sectionNumber === 14)
       return (sec14?.questions ?? []).filter((q) => specRefOf(q) === '14.1')
+    }
+    case 21: {
+      const sec15 = sections.find((s) => s.sectionNumber === 15)
+      return sec15?.questions ?? []
+    }
+    case 19: {
+      const sec16 = sections.find((s) => s.sectionNumber === 16)
+      return sec16?.questions ?? []
+    }
+    case 20: {
+      const sec17 = sections.find((s) => s.sectionNumber === 17)
+      return sec17?.questions ?? []
+    }
+    case 22: {
+      const sec18 = sections.find((s) => s.sectionNumber === 18)
+      return [...(sec18?.questions ?? []), ...all.filter((q) => isSection31FireQuestion(q))]
     }
     default:
       return []

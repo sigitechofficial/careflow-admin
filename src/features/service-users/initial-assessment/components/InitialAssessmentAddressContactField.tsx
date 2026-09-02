@@ -44,7 +44,7 @@ type AddressContactDraft = {
   email: string
 }
 
-function draftFromDetail(detail: ServiceUserDetail | null | undefined): AddressContactDraft {
+export function addressContactDraftFromDetail(detail: ServiceUserDetail | null | undefined): AddressContactDraft {
   return {
     addressLine1: detail?.address?.addressLine1 ?? '',
     addressLine2: detail?.address?.addressLine2 ?? '',
@@ -55,6 +55,10 @@ function draftFromDetail(detail: ServiceUserDetail | null | undefined): AddressC
     mobile: detail?.mobile ?? '',
     email: detail?.email ?? '',
   }
+}
+
+function draftFromDetail(detail: ServiceUserDetail | null | undefined): AddressContactDraft {
+  return addressContactDraftFromDetail(detail)
 }
 
 function formatAsAssessmentText(v: AddressContactDraft): string {

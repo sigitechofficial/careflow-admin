@@ -73,6 +73,38 @@ describe('IARecommendationCard / banner adapter', () => {
     expect(screen.getByText('Mobility, ADL and Practical Support')).toBeInTheDocument()
   })
 
+  it('renders existing Accept / Edit / Dismiss UI for a medication_support_level suggestion', () => {
+    const medicationSuggestion: CarePlanFieldSuggestion = {
+      ...valueSuggestion,
+      id: 'medication:support',
+      targetFieldKey: 'sec:medication_support_level',
+      targetLabel: 'Medication support level',
+      targetFieldType: 'SELECT',
+      suggestedValue: 'Administered by carer',
+      displayText: 'Administered by carer',
+      questionFieldKey: 'medicationSupportLevel',
+      specRef: '9.2',
+      sourceSection: 'Medication Support',
+    }
+    render(
+      <TooltipProvider>
+        <IARecommendationCard
+          suggestion={medicationSuggestion}
+          currentValue={undefined}
+          onUse={() => undefined}
+          onDismiss={() => undefined}
+          onKeepCurrent={() => undefined}
+          onEdit={() => undefined}
+        />
+      </TooltipProvider>,
+    )
+    expect(screen.getByTestId('care-plan-suggestion-sec:medication_support_level')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /accept/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('care-plan-prefill-sec:medication_support_level')).not.toBeInTheDocument()
+  })
+
   it('hides Accept and Edit when the field already has a saved value', () => {
     render(
       <TooltipProvider>

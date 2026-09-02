@@ -12,14 +12,33 @@ export type GenerateIaSectionResult = {
   answers: InitialAssessmentAnswerInput[]
   /** This tab's worksheet metadata (e.g. { waterlow: {...} }); empty for answer-only tabs. */
   metadata: Record<string, unknown>
+  /** Empty profile fields to persist through the Service User address/contact APIs. */
+  profilePatch: IaDemoProfilePatch
+}
+
+export type IaDemoProfilePatch = {
+  address?: {
+    addressLine1?: string
+    addressLine2?: string
+    town?: string
+    county?: string
+    postcode?: string
+  }
+  phone?: string
+  mobile?: string
+  email?: string
+  gp?: {
+    name?: string
+    phone?: string
+    practice?: string
+  }
 }
 
 /**
  * GENERATE (no-save) severity-aware demo values for a single holistic tab. The backend computes
  * the values for the supplied `questionIds` (excluding profile/secure fields) plus this tab's
- * worksheet metadata and RETURNS them — nothing is persisted (no submission, no save, no submit).
- * The caller merges the values into the editable form draft in memory; the user saves/submits
- * via the normal controls. Dev/QA only — the endpoint 404s outside non-production/`ENABLE_DEV_TOOLS`.
+ * worksheet metadata and RETURNS them — IA answers are not persisted. Empty profile address/GP
+ * fields are returned as `profilePatch` for the client to apply via the existing profile APIs.
  */
 export type IaDemoIdentity = {
   firstName?: string | null
@@ -33,8 +52,18 @@ export type IaDemoIdentity = {
   ethnicity?: string | null
   language?: string | null
   addressContact?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  town?: string | null
+  county?: string | null
+  postcode?: string | null
+  phone?: string | null
+  mobile?: string | null
+  email?: string | null
   gpContact?: string | null
   gpName?: string | null
+  gpPhone?: string | null
+  gpPractice?: string | null
   emergencyContact?: string | null
   allergies?: string | null
   accessInstruction?: string | null
@@ -108,6 +137,8 @@ export function iaDemoIdentityFromDetail(
       lastName?: string | null
       phone?: string | null
       mobile?: string | null
+      address?: string | null
+      notes?: string | null
       isEmergencyContact?: boolean
       isPrimary?: boolean
       relationshipType?: { name?: string | null; code?: string | null } | null
@@ -145,6 +176,16 @@ export function iaDemoIdentityFromDetail(
         .join(' · ')
     : ''
 
+  const gp = detail.contacts?.find((c) => c.relationshipType?.code === 'GP')
+  const gpName = gp ? [gp.firstName, gp.lastName].filter(Boolean).join(' ').trim() : ''
+  const gpPhone = gp ? (gp.mobile || gp.phone || '').trim() : ''
+  const gpPractice = gp ? [gp.address, gp.notes].filter((x) => x?.trim()).join('\n').trim() : ''
+  const gpContactText =
+    nonempty(extras?.gpContact) ??
+    (gpName || gpPhone || gpPractice
+      ? [`Name: ${gpName}`, gpPhone ? `Tel: ${gpPhone}` : '', gpPractice].filter(Boolean).join('\n')
+      : undefined)
+
   const identity: IaDemoIdentity = {
     firstName: nonempty(detail.firstName),
     middleName: nonempty(detail.middleName),
@@ -157,12 +198,97 @@ export function iaDemoIdentityFromDetail(
     ethnicity: nonempty(ethnicity),
     language: nonempty(language),
     addressContact: nonempty(address),
-    gpContact: nonempty(extras?.gpContact),
+    addressLine1: nonempty(detail.address?.addressLine1),
+    addressLine2: nonempty(detail.address?.addressLine2),
+    town: nonempty(detail.address?.town),
+    county: nonempty(detail.address?.county),
+    postcode: nonempty(detail.address?.postcode),
+    phone: nonempty(detail.phone),
+    mobile: nonempty(detail.mobile),
+    email: nonempty(detail.email),
+    gpContact: gpContactText,
+    gpName: nonempty(gpName),
+    gpPhone: nonempty(gpPhone),
+    gpPractice: nonempty(gpPractice),
     emergencyContact: nonempty(emergencyText),
     allergies: nonempty(extras?.allergiesSummary),
     accessInstruction: nonempty(extras?.accessInstruction),
   }
   return Object.values(identity).some((v) => v) ? identity : {}
+}
+
+function splitContactName(name: string): { firstName: string; lastName?: string } {
+  const trimmed = name.trim()
+  if (!trimmed) return { firstName: '' }
+  const parts = trimmed.split(/\s+/)
+  if (parts.length === 1) return { firstName: parts[0] ?? '' }
+  return { firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] }
+}
+
+export function profilePatchHasValues(patch: IaDemoProfilePatch | undefined): boolean {
+  if (!patch) return false
+  if (patch.phone || patch.mobile || patch.email) return true
+  if (patch.address && Object.keys(patch.address).length) return true
+  if (patch.gp && Object.keys(patch.gp).length) return true
+  return false
+}
+
+/**
+ * Persist empty address/GP fields through the same Service User APIs the IA widgets use.
+ * Occupied fields are omitted from `patch` by the generator.
+ */
+export async function persistIaDemoProfilePatch(
+  serviceUserId: string,
+  patch: IaDemoProfilePatch,
+  existing?: { gpContactId?: string | null },
+): Promise<void> {
+  if (!profilePatchHasValues(patch)) return
+
+  const { updateServiceUser, patchServiceUserAddress, createServiceUserContact, updateServiceUserContact, fetchServiceUserLookups } =
+    await import('@/features/service-users/api')
+
+  const body: { phone?: string | null; mobile?: string | null; email?: string | null } = {}
+  if (patch.phone) body.phone = patch.phone
+  if (patch.mobile) body.mobile = patch.mobile
+  if (patch.email) body.email = patch.email
+  if (Object.keys(body).length) {
+    await updateServiceUser(serviceUserId, body)
+  }
+  if (patch.address && Object.keys(patch.address).length) {
+    await patchServiceUserAddress(serviceUserId, patch.address)
+  }
+
+  if (patch.gp && Object.keys(patch.gp).length) {
+    if (existing?.gpContactId) {
+      const body: {
+        firstName?: string
+        lastName?: string
+        phone?: string
+        notes?: string
+      } = {}
+      if (patch.gp.name?.trim()) {
+        const { firstName, lastName } = splitContactName(patch.gp.name)
+        body.firstName = firstName || 'GP'
+        if (lastName) body.lastName = lastName
+      }
+      if (patch.gp.phone) body.phone = patch.gp.phone
+      if (patch.gp.practice) body.notes = patch.gp.practice
+      if (Object.keys(body).length) {
+        await updateServiceUserContact(serviceUserId, existing.gpContactId, body)
+      }
+    } else {
+      const { firstName, lastName } = splitContactName(patch.gp.name?.trim() || 'GP')
+      const lookups = await fetchServiceUserLookups()
+      const relationshipTypeId = lookups.relationshipTypes.find((r) => r.code === 'GP')?.id
+      await createServiceUserContact(serviceUserId, {
+        firstName: firstName || 'GP',
+        lastName,
+        phone: patch.gp.phone,
+        notes: patch.gp.practice,
+        relationshipTypeId,
+      })
+    }
+  }
 }
 
 export async function generateIaSectionDemoDev(
@@ -179,9 +305,12 @@ export async function generateIaSectionDemoDev(
     },
     { timeoutMs: IA_SECTION_GENERATE_TIMEOUT_MS },
   )
+  const profilePatch =
+    res.data?.profilePatch && typeof res.data.profilePatch === 'object' ? res.data.profilePatch : {}
   return {
     answers: Array.isArray(res.data?.answers) ? res.data!.answers : [],
     metadata:
       res.data?.metadata && typeof res.data.metadata === 'object' ? res.data.metadata : {},
+    profilePatch,
   }
 }

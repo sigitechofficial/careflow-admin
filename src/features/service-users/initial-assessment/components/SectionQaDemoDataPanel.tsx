@@ -11,7 +11,11 @@ import {
   IA_SECTION_DEMO_SUCCESS_TOAST,
   iaSectionDemoOverwriteConfirmText,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
-import { generateIaSectionDemoDev } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
+import {
+  generateIaSectionDemoDev,
+  persistIaDemoProfilePatch,
+  profilePatchHasValues,
+} from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
 
 type Props = {
   tabId: number
@@ -28,7 +32,12 @@ type Props = {
   alreadyFilled: boolean
   /** Existing Service User identity so worksheet labels are not a different person. */
   identity?: import('@/features/service-users/initial-assessment/utils/ia-section-demo-dev').IaDemoIdentity | null
-  /** Merge generated values into the editable form draft IN MEMORY (no save/submit). */
+  /** Persist empty address/GP through the Service User profile APIs the widgets read. */
+  serviceUserId?: string
+  gpContactId?: string | null
+  /** After profile persistence — typically invalidate the Service User detail query. */
+  onProfilePersisted?: () => void | Promise<void>
+  /** Merge generated values into the editable form draft IN MEMORY (no IA save/submit). */
   onApply: (
     tabId: number,
     answers: import('@/features/service-users/initial-assessment/utils/ia-section-demo-dev').GenerateIaSectionResult['answers'],
@@ -40,9 +49,9 @@ type Props = {
 
 /**
  * Dev/QA-only panel: populates THIS section's fields with demo data at the active severity.
- * It only GENERATES the values (no persistence) and merges them into the editable form in memory —
- * nothing is saved, no submission is created, nothing is submitted. Only this section changes.
- * The user edits as needed and saves/submits via the normal controls.
+ * IA answers are generated (not saved as a submission) and merged into the editable form.
+ * Empty Service User address/GP fields are persisted through the existing profile APIs
+ * so the address and GP widgets have real values to display. Occupied profile values are never overwritten.
  * Callers must gate rendering behind `import.meta.env.DEV`.
  */
 export function SectionQaDemoDataPanel({
@@ -54,6 +63,9 @@ export function SectionQaDemoDataPanel({
   sectionHasData,
   alreadyFilled,
   identity,
+  serviceUserId,
+  gpContactId,
+  onProfilePersisted,
   onApply,
   onPickScenario,
 }: Props) {
@@ -64,15 +76,35 @@ export function SectionQaDemoDataPanel({
     if (!activeLevel || running || !editable) return
     setRunning(true)
     try {
-      const { answers, metadata } = await generateIaSectionDemoDev(activeLevel, tabId, questionIds, identity)
+      const { answers, metadata, profilePatch } = await generateIaSectionDemoDev(
+        activeLevel,
+        tabId,
+        questionIds,
+        identity,
+      )
       onApply(tabId, answers, metadata)
+      if (serviceUserId && profilePatchHasValues(profilePatch)) {
+        await persistIaDemoProfilePatch(serviceUserId, profilePatch, { gpContactId })
+        await onProfilePersisted?.()
+      }
       toastSuccess(IA_SECTION_DEMO_SUCCESS_TOAST, 'Review the values and use Save when you are ready.')
     } catch (e) {
       toastApiError(e, 'Could not generate section demo data')
     } finally {
       setRunning(false)
     }
-  }, [activeLevel, running, editable, tabId, questionIds, identity, onApply])
+  }, [
+    activeLevel,
+    running,
+    editable,
+    tabId,
+    questionIds,
+    identity,
+    onApply,
+    serviceUserId,
+    gpContactId,
+    onProfilePersisted,
+  ])
 
   const disabled = !activeLevel || running || !editable
 

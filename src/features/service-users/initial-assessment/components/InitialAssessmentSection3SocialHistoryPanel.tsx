@@ -12,8 +12,7 @@ import type {
 } from '@/features/service-users/initial-assessment/types'
 import type { InitialAssessmentFieldRenderOptions } from '@/features/service-users/initial-assessment/utils/field-render-options'
 import { groupedYesNoFieldOptions } from '@/features/service-users/initial-assessment/utils/field-render-options'
-import { InitialAssessmentSection31FireSafetyPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection31FireSafetyPanel'
-import { findSection31FireQuestions } from '@/features/service-users/initial-assessment/utils/section-31-fire-safety'
+import { fieldKeyOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import type { SpecRefGroup } from '@/features/service-users/initial-assessment/utils/spec-ref-groups'
 
 const SOCIAL_HISTORY_ORDER = [
@@ -32,8 +31,10 @@ const SOCIAL_HISTORY_ORDER = [
   'Carer assessment referral date',
   'Type of living accommodation',
   'Other accommodation (please state)',
-  'Is client able to answer front door?',
   'Does the client live alone?',
+  'Is client able to answer front door?',
+  'Key safe present?',
+  'Key safe code',
   'Instructions for gaining access to client’s home',
   'Any identified risks to visiting staff members?',
   'Lifestyle, role and choices',
@@ -86,14 +87,10 @@ function renderQuestion(
 
 export function InitialAssessmentSection3SocialHistoryPanel({
   group,
-  allSections,
-  draftAnswers,
   renderField,
   renderMultiSelect,
-  onOpenEnvironmentAssessmentTab,
 }: Props) {
   const questions = byPaperOrder(group.questions)
-  const fire = findSection31FireQuestions(allSections)
 
   const find = (text: string) =>
     questions.find((q) => normalizeQuestionText(q.questionText) === normalizeQuestionText(text))
@@ -113,20 +110,18 @@ export function InitialAssessmentSection3SocialHistoryPanel({
   const referralDate = find('Carer assessment referral date')
   const accommodation = find('Type of living accommodation')
   const accommodationOther = find('Other accommodation (please state)')
-  const frontDoor = find('Is client able to answer front door?')
   const livesAlone = find('Does the client live alone?')
+  const frontDoor = find('Is client able to answer front door?')
+  const keySafePresent =
+    questions.find((q) => fieldKeyOf(q) === 'keySafePresentHolistic') ?? find('Key safe present?')
+  const keySafeCode =
+    questions.find((q) => fieldKeyOf(q) === 'keySafeCodeHolistic') ?? find('Key safe code')
   const accessInstructions = find('Instructions for gaining access to client’s home')
   const staffRisks = find('Any identified risks to visiting staff members?')
   const lifestyle = find('Lifestyle, role and choices')
 
   const placed = new Set(
     [
-      fire.fireRisksIdentified,
-      fire.fireRisksDetails,
-      fire.lfbInformed,
-      fire.lfbDetails,
-      fire.manageHomeSafely,
-      fire.safetyMeasures,
       nextOfKin,
       relationship,
       repInvolved,
@@ -142,8 +137,10 @@ export function InitialAssessmentSection3SocialHistoryPanel({
       referralDate,
       accommodation,
       accommodationOther,
-      frontDoor,
       livesAlone,
+      frontDoor,
+      keySafePresent,
+      keySafeCode,
       accessInstructions,
       staffRisks,
       lifestyle,
@@ -202,14 +199,32 @@ export function InitialAssessmentSection3SocialHistoryPanel({
           {accommodationOther ? renderQuestion(accommodationOther, renderField, renderMultiSelect) : null}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {frontDoor ? <div>{renderQuestion(frontDoor, renderField, renderMultiSelect)}</div> : null}
-          {livesAlone ? <div>{renderQuestion(livesAlone, renderField, renderMultiSelect)}</div> : null}
+        <div className="space-y-4">
+          {livesAlone ? (
+            <div>
+              {renderQuestion(livesAlone, renderField, renderMultiSelect, groupedYesNoFieldOptions(livesAlone))}
+            </div>
+          ) : null}
+          {frontDoor ? (
+            <div>
+              {renderQuestion(frontDoor, renderField, renderMultiSelect, groupedYesNoFieldOptions(frontDoor))}
+            </div>
+          ) : null}
+          {keySafePresent ? (
+            <div>
+              {renderQuestion(
+                keySafePresent,
+                renderField,
+                renderMultiSelect,
+                groupedYesNoFieldOptions(keySafePresent),
+              )}
+            </div>
+          ) : null}
+          {keySafeCode ? <div>{renderQuestion(keySafeCode, renderField, renderMultiSelect)}</div> : null}
+          {accessInstructions ? (
+            <div>{renderQuestion(accessInstructions, renderField, renderMultiSelect)}</div>
+          ) : null}
         </div>
-
-        {accessInstructions ? (
-          <div>{renderQuestion(accessInstructions, renderField, renderMultiSelect)}</div>
-        ) : null}
         {staffRisks ? <div>{renderQuestion(staffRisks, renderField, renderMultiSelect)}</div> : null}
         {lifestyle ? <div>{renderQuestion(lifestyle, renderField, renderMultiSelect)}</div> : null}
 
@@ -227,15 +242,6 @@ export function InitialAssessmentSection3SocialHistoryPanel({
             ))}
           </div>
         ) : null}
-
-        <InitialAssessmentSection31FireSafetyPanel
-          fire={fire}
-          allSections={allSections}
-          draftAnswers={draftAnswers}
-          renderField={renderField}
-          renderMultiSelect={renderMultiSelect}
-          onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
-        />
       </div>
     </section>
   )

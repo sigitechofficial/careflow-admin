@@ -21,6 +21,7 @@ import { InitialAssessmentSectionQuestions } from '@/features/service-users/init
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentTotalSkinIntegrityCheckPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTotalSkinIntegrityCheckPanel'
 import { InitialAssessmentEquipmentSelectionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentSelectionPanel'
+import { InitialAssessmentEquipmentChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentChecklistPanel'
 import { InitialAssessmentFallsScreeningPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentFallsScreeningPanel'
 import { InitialAssessmentMovingHandlingOperationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMovingHandlingOperationsPanel'
 import { InitialAssessmentMustPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMustPanel'
@@ -37,6 +38,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/section-4-physical-assessment-display-order'
 import { isPaperSection7AdlSlice } from '@/features/service-users/initial-assessment/utils/section-7-adl-display-order'
 import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import { recommendedPainScale } from '@/features/service-users/initial-assessment/utils/pain-questions'
 import type { AdlWorksheetMetadata } from '@/features/service-users/initial-assessment/utils/adl-scoring'
 import type {
   DailyLivingAidsMetadata,
@@ -157,6 +159,7 @@ function toHolisticTabSlice(
 ): HolisticAssessmentTab {
   return {
     id: tab.id,
+    displayNumber: tab.displayNumber,
     title: tab.title,
     kind: 'form-section',
     enterpriseSection: sectionNumber,
@@ -255,6 +258,7 @@ export function InitialAssessmentDocumentTabContent({
   )
 
   if (tab.kind === 'mca-screening') {
+    const section2 = sections.find((s) => s.sectionNumber === 2)
     return (
       <>
         <InitialAssessmentMcaScreeningPanel
@@ -262,6 +266,29 @@ export function InitialAssessmentDocumentTabContent({
           renderField={renderMcaField}
           disabled={disabled}
         />
+        {section2 ? (
+          <InitialAssessmentSectionQuestions
+            section={section2}
+            allSections={sections}
+            draftAnswers={draftAnswers}
+            prefillMap={prefillMap}
+            questionErrors={questionErrors}
+            disabled={disabled}
+            serviceUserId={serviceUserId}
+            submissionId={submissionId}
+            serviceUserDetail={serviceUserDetail}
+            onChange={onChange}
+            holisticTab={{
+              id: tab.id,
+              displayNumber: tab.displayNumber,
+              title: tab.title,
+              kind: 'form-section',
+              enterpriseSection: 2,
+              specRefs: ['2.9'],
+            }}
+            suppressIntro
+          />
+        ) : null}
         {footer}
       </>
     )
@@ -279,11 +306,24 @@ export function InitialAssessmentDocumentTabContent({
 
   if (tab.kind === 'equipment-selection') {
     return (
-      <InitialAssessmentEquipmentSelectionPanel
-        value={equipmentSelection}
-        disabled={disabled}
-        onChange={onEquipmentSelectionChange}
-      />
+      <>
+        <InitialAssessmentEquipmentSelectionPanel
+          value={equipmentSelection}
+          disabled={disabled}
+          onChange={onEquipmentSelectionChange}
+        />
+        {section12 ? (
+          <div className="mt-6">
+            <InitialAssessmentEquipmentChecklistPanel
+              visible
+              embedded={false}
+              value={section12.equipmentChecklist}
+              disabled={disabled}
+              onChange={section12.onEquipmentChecklistChange}
+            />
+          </div>
+        ) : null}
+      </>
     )
   }
 
@@ -322,6 +362,7 @@ export function InitialAssessmentDocumentTabContent({
       <InitialAssessmentPainAssessmentPanel
         value={painAssessment}
         disabled={disabled}
+        recommendedScale={recommendedPainScale(sections, draftAnswers)}
         onChange={onPainAssessmentChange}
       />
     )

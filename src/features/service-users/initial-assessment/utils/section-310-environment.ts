@@ -2,8 +2,6 @@ import type { InitialAssessmentQuestion } from '@/features/service-users/initial
 
 /** §3.10 — minimum property environment checklist (enterprise YES/NO + notes). */
 export const SECTION_310_CANONICAL_QUESTION_TEXT = [
-  'Smoke alarm fitted and working?',
-  'Referral required for smoke, CO or fire alarm?',
   'Steps or uneven access at entrance?',
   'Level access throughout the property?',
   'Hoarding or clutter risk?',

@@ -104,8 +104,15 @@ export function normalizeTherapyAideMemoireMetadata(
 
 export function isTherapyAideMemoireComplete(meta: TherapyAideMemoireMetadata | undefined): boolean {
   if (!meta) return false
+  for (const item of THERAPY_AIDE_MEMOIRE_SCREENING_ITEMS) {
+    const state = meta[item.key]
+    if (!boolAnswered(state?.checked)) return false
+    if (state?.checked === true && item.detailsPlaceholder && !state.details?.trim()) return false
+  }
   if (!boolAnswered(meta.furtherReferralRequired)) return false
-  if (!boolAnswered(meta.referralCompleted)) return false
-  if (meta.referralCompleted === true && !meta.referralDate?.trim()) return false
+  if (meta.furtherReferralRequired === true) {
+    if (!boolAnswered(meta.referralCompleted)) return false
+    if (meta.referralCompleted === true && !meta.referralDate?.trim()) return false
+  }
   return true
 }

@@ -3,18 +3,26 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SectionQaDemoDataPanel } from '@/features/service-users/initial-assessment/components/SectionQaDemoDataPanel'
-import { generateIaSectionDemoDev } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
+import { generateIaSectionDemoDev, persistIaDemoProfilePatch } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
 import { iaSectionDemoOverwriteConfirmText } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
 
-vi.mock('@/features/service-users/initial-assessment/utils/ia-section-demo-dev', () => ({
-  generateIaSectionDemoDev: vi.fn(),
-}))
+vi.mock('@/features/service-users/initial-assessment/utils/ia-section-demo-dev', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('@/features/service-users/initial-assessment/utils/ia-section-demo-dev')
+  >()
+  return {
+    ...actual,
+    generateIaSectionDemoDev: vi.fn(),
+    persistIaDemoProfilePatch: vi.fn(),
+  }
+})
 vi.mock('@/shared/lib/toast', () => ({
   toastSuccess: vi.fn(),
   toastApiError: vi.fn(),
 }))
 
 const mockGenerate = vi.mocked(generateIaSectionDemoDev)
+const mockPersist = vi.mocked(persistIaDemoProfilePatch)
 
 afterEach(() => vi.clearAllMocks())
 
@@ -69,6 +77,7 @@ describe('SectionQaDemoDataPanel', () => {
     mockGenerate.mockResolvedValue({
       answers: [{ questionId: 'q1', textValue: 'Realistic note' }],
       metadata: { painAssessment: { nrsScore: 7 } },
+      profilePatch: {},
     })
     const { onApply } = renderPanel({ sectionHasData: false })
 
@@ -83,6 +92,7 @@ describe('SectionQaDemoDataPanel', () => {
         { painAssessment: { nrsScore: 7 } },
       ),
     )
+    expect(mockPersist).not.toHaveBeenCalled()
   })
 
   it('requires confirmation naming the scenario before overwriting a section that already has data', async () => {
@@ -100,7 +110,11 @@ describe('SectionQaDemoDataPanel', () => {
   })
 
   it('Cancel on the overwrite confirm generates nothing and applies nothing', async () => {
-    mockGenerate.mockResolvedValue({ answers: [{ questionId: 'q1', textValue: 'nope' }], metadata: {} })
+    mockGenerate.mockResolvedValue({
+      answers: [{ questionId: 'q1', textValue: 'nope' }],
+      metadata: {},
+      profilePatch: {},
+    })
     const { onApply } = renderPanel({ activeLevel: 'normal', sectionHasData: true })
 
     await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
@@ -116,6 +130,7 @@ describe('SectionQaDemoDataPanel', () => {
     mockGenerate.mockResolvedValue({
       answers: [{ questionId: 'q1', textValue: 'Replaced note' }],
       metadata: { painAssessment: { nrsScore: 4 } },
+      profilePatch: {},
     })
     const { onApply } = renderPanel({ activeLevel: 'normal', sectionHasData: true })
 
@@ -154,5 +169,24 @@ describe('SectionQaDemoDataPanel', () => {
     expect(screen.getByText(/read-only.*Reopen it/i)).toBeInTheDocument()
     await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
     expect(mockGenerate).not.toHaveBeenCalled()
+  })
+
+  it('persists empty profile address/GP through the Service User APIs after generate', async () => {
+    const profilePatch = {
+      address: { addressLine1: '12 Maple Close', postcode: 'LS1 4AP' },
+      phone: '0113 496 0123',
+      gp: { name: 'Dr A. Patel', phone: '0113 496 0456', practice: 'Oak Tree Medical Practice' },
+    }
+    mockGenerate.mockResolvedValue({ answers: [], metadata: {}, profilePatch })
+    mockPersist.mockResolvedValue(undefined)
+    const onProfilePersisted = vi.fn()
+    renderPanel({ serviceUserId: 'su-1', gpContactId: null, onProfilePersisted })
+
+    await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
+
+    await waitFor(() =>
+      expect(mockPersist).toHaveBeenCalledWith('su-1', profilePatch, { gpContactId: null }),
+    )
+    expect(onProfilePersisted).toHaveBeenCalled()
   })
 })

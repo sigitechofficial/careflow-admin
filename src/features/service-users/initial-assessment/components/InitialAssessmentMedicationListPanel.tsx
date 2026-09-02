@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { cn, formatDate } from '@/shared/lib/utils'
 import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
-import { findQuestionBySpecRef, isYesAnswer } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import { findQuestionByFieldKey, isYesAnswer } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import {
   IA_CALLOUT_AMBER_CLASS,
   IA_HINT_CLASS,
@@ -43,7 +43,7 @@ export function InitialAssessmentMedicationListPanel({
   const active = medications.filter((m) => m.status === 'ACTIVE' || m.status === 'PAUSED')
   const verifiedQ = sections.flatMap((s) => s.questions).find((q) => q.questionText.toLowerCase().includes('medication list verified'))
   const verified = verifiedQ ? isYesAnswer(draftAnswers[verifiedQ.id]) : false
-  const emarQ = findQuestionBySpecRef(sections, '9.6')
+  const emarQ = findQuestionByFieldKey(sections, 'emarRequired')
 
   const body = (
     <>

@@ -7,8 +7,13 @@ export const SECTION_31_FIRE_FIELD_KEYS = [
   'fireSafetyRisks',
   'londonFireBrigadeInformed',
   'londonFireBrigadeDetails',
-  'manageHomeEnvironmentSafely',
-  'homeEnvironmentSafetyMeasures',
+  'smokeAlarmFittedWorking',
+  'smokeCoFireAlarmReferral',
+  'smokingInProperty',
+  'cookingLeftUnattendedRisk',
+  'cookingFireRiskDetails',
+  'primaryEscapeRoute',
+  'fireEmergencyArrangements',
 ] as const
 
 export type Section31FireQuestions = {
@@ -84,5 +89,12 @@ export function isSection31FireQuestion(q: InitialAssessmentQuestion): boolean {
     return true
   }
   const specRef = q.metadata?.specRef
-  return specRef === '3.1' || specRef === '3.2' || specRef === '3.3' || specRef === '3.4'
+  return (
+    specRef === '18.1' ||
+    specRef === '18.2' ||
+    specRef === '18.3' ||
+    specRef === '18.4' ||
+    specRef === '18.5' ||
+    specRef === '18.6'
+  )
 }
