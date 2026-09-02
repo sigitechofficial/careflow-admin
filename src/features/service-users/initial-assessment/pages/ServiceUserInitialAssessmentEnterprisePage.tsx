@@ -1245,12 +1245,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
             setWaterlow(value as Parameters<typeof setWaterlow>[0])
             break
           case 'painAssessment': {
-            const incoming = value as {
-              nrsScore?: number
-              scaleUsed?: string
-              abbey?: unknown
-              therapyAideMemoire?: unknown
-            }
+            const incoming = value as Partial<PainAssessmentMetadata>
             setPainAssessment((prev) => ({
               ...prev,
               ...incoming,
