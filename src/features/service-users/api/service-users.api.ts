@@ -145,6 +145,7 @@ export type ServiceUserDetailAddress = {
   county: string | null
   country: string | null
   postcode: string | null
+  secondaryPostcode: string | null
   latitude: unknown
   longitude: unknown
   accessInstructions: string | null
@@ -1720,7 +1721,10 @@ export type PatchServiceUserAddressPayload = {
   town?: string
   county?: string
   country?: string
+  /** Main postcode (usually from the assigned area). */
   postcode?: string
+  /** Secondary postcode from the searched street address. */
+  secondaryPostcode?: string
   latitude?: number
   longitude?: number
   accessInstructions?: string

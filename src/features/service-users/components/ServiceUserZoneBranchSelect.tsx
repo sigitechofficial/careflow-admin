@@ -32,20 +32,20 @@ export type ServiceUserZoneBranchAreaValue = {
 export function ServiceUserZoneBranchSelect({
   value,
   areaId = '',
-  addressPostcode = '',
+  mainPostcode = '',
   onChange,
-  onApplyPostcode,
+  onApplyMainPostcode,
   disabled,
   required,
   className,
 }: {
   value: string
   areaId?: string
-  /** Current address postcode — used to show match / mismatch vs the selected area. */
-  addressPostcode?: string
+  /** Main postcode from the area list (not the street-address secondary). */
+  mainPostcode?: string
   onChange: (next: ServiceUserZoneBranchAreaValue) => void
-  /** Fill address postcode when the user picks one of the area’s postcodes. */
-  onApplyPostcode?: (postcode: string) => void
+  /** Set the main postcode when the user picks one of the area’s postcodes. */
+  onApplyMainPostcode?: (postcode: string) => void
   disabled?: boolean
   required?: boolean
   className?: string
@@ -73,13 +73,13 @@ export function ServiceUserZoneBranchSelect({
   const areasRequired = areaOptions.length > 0
   const loading = locationsQuery.isLoading
 
-  const addressKey = normalizePostcodeKey(addressPostcode)
+  const mainKey = normalizePostcodeKey(mainPostcode)
   const areaKeys = React.useMemo(
     () => new Set(areaPostcodes.map(normalizePostcodeKey)),
     [areaPostcodes],
   )
-  const postcodeMatchesArea = !addressKey || areaKeys.size === 0 || areaKeys.has(addressKey)
-  const showMismatch = Boolean(selectedArea && addressKey && areaKeys.size > 0 && !postcodeMatchesArea)
+  const mainMatchesArea = !mainKey || areaKeys.size === 0 || areaKeys.has(mainKey)
+  const showMismatch = Boolean(selectedArea && mainKey && areaKeys.size > 0 && !mainMatchesArea)
 
   return (
     <div className={className}>
@@ -175,18 +175,18 @@ export function ServiceUserZoneBranchSelect({
           data-testid="service-user-area-postcodes"
         >
           <p className="text-xs font-medium text-foreground">
-            Postcodes for {selectedArea.name}
-            {onApplyPostcode ? (
+            Main postcode for {selectedArea.name}
+            {onApplyMainPostcode ? (
               <span className="font-normal text-muted-foreground">
                 {' '}
-                — click one to fill the address postcode
+                — click one to set the main postcode
               </span>
             ) : null}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {areaPostcodes.map(pc => {
-              const selected = addressKey === normalizePostcodeKey(pc)
-              const interactive = Boolean(onApplyPostcode) && !disabled
+              const selected = mainKey === normalizePostcodeKey(pc)
+              const interactive = Boolean(onApplyMainPostcode) && !disabled
               const ChipTag = interactive ? 'button' : 'span'
               return (
                 <ChipTag
@@ -196,7 +196,7 @@ export function ServiceUserZoneBranchSelect({
                   onClick={
                     interactive
                       ? () => {
-                          onApplyPostcode?.(pc)
+                          onApplyMainPostcode?.(pc)
                         }
                       : undefined
                   }
@@ -216,9 +216,9 @@ export function ServiceUserZoneBranchSelect({
           </div>
           {showMismatch ? (
             <p className="mt-2 text-xs text-amber-700 dark:text-amber-400" role="status">
-              Address postcode <span className="font-medium">{addressPostcode.trim()}</span> is
-              not in this area’s list. You can still save — area is used for monitoring; address
-              postcode stays on the home address.
+              Main postcode <span className="font-medium">{mainPostcode.trim()}</span> is not in
+              this area’s list. You can still save — pick a listed code for monitoring, or keep
+              your current main postcode.
             </p>
           ) : null}
         </div>

@@ -60,6 +60,8 @@ export type GoogleGeocodeResult = {
   formatted_address?: string
   address_components?: GoogleAddressComponent[]
   types?: string[]
+  geometry?: { location: { lat: () => number; lng: () => number } }
+  name?: string
 }
 
 export type GoogleGeocoderApi = {
@@ -128,9 +130,25 @@ export function loadGoogleMapsPlaces(): Promise<NonNullable<GoogleMapsWindow['go
   return w.__careGoogleMapsPromise
 }
 
+/** Extract a UK/IE-style postcode from free text (e.g. formatted_address). */
+export function extractPostcodeFromText(text: string): string {
+  const raw = text.trim()
+  if (!raw) return ''
+  // UK: outward + inward (e.g. SW1A 1AA, CR0 1XP, EC1A 1BB)
+  const uk =
+    raw.match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i) ??
+    // Ireland Eircode-ish: A65 F4E2
+    raw.match(/\b([A-Z]\d{2}\s*[A-Z0-9]{4})\b/i)
+  if (!uk?.[1]) return ''
+  return uk[1].replace(/\s+/g, ' ').toUpperCase()
+}
+
 export function parseGooglePlaceFormatted(place: GooglePlaceResult): {
   formattedAddress: string
+  addressLine1: string
+  addressLine2: string
   city: string
+  county: string
   country: string
   postcode: string
   lat: number | null
@@ -141,20 +159,50 @@ export function parseGooglePlaceFormatted(place: GooglePlaceResult): {
     components.find(c => types.every(t => c.types.includes(t)))?.long_name ??
     components.find(c => types.some(t => c.types.includes(t)))?.long_name ??
     ''
+  const findShort = (...types: string[]) =>
+    components.find(c => types.every(t => c.types.includes(t)))?.short_name ??
+    components.find(c => types.some(t => c.types.includes(t)))?.short_name ??
+    ''
+
+  const streetNumber = find('street_number')
+  const route = find('route')
+  const premise = find('premise')
+  const subpremise = find('subpremise')
+  const streetLine = [streetNumber, route].filter(Boolean).join(' ').trim()
+  const addressLine1 = streetLine || premise || place.name?.trim() || ''
+  const addressLine2 =
+    subpremise ||
+    find('neighborhood') ||
+    (streetLine && premise && premise !== streetLine ? premise : '') ||
+    ''
 
   const city =
     find('postal_town') ||
     find('locality') ||
     find('administrative_area_level_2') ||
     ''
+  const county =
+    find('administrative_area_level_2') ||
+    find('administrative_area_level_1') ||
+    ''
   const country = find('country')
-  const postcode = find('postal_code')
+  const postalCode = find('postal_code') || findShort('postal_code')
+  const postalSuffix = find('postal_code_suffix') || findShort('postal_code_suffix')
+  const componentPostcode = [postalCode, postalSuffix].filter(Boolean).join(' ').trim()
+  const formattedAddress = place.formatted_address?.trim() || place.name?.trim() || ''
+  const postcode =
+    componentPostcode ||
+    extractPostcodeFromText(formattedAddress) ||
+    extractPostcodeFromText(place.name ?? '')
   const lat = place.geometry?.location ? place.geometry.location.lat() : null
   const lng = place.geometry?.location ? place.geometry.location.lng() : null
 
   return {
-    formattedAddress: place.formatted_address?.trim() || place.name?.trim() || '',
+    formattedAddress,
+    addressLine1,
+    addressLine2,
     city,
+    county: county === city ? find('administrative_area_level_1') || county : county,
     country,
     postcode,
     lat,

@@ -41,6 +41,7 @@ import { EmployeeEditSalaryPanel } from '@/features/employees/components/Employe
 import { EmployeeEditLearningPanel } from '@/features/employees/components/EmployeeEditLearningPanel'
 import { EmployeeAppAccessSection } from '@/features/employees/components/EmployeeAppAccessSection'
 import { EmployeeEditReviewsPanel } from '@/features/employees/components/EmployeeEditReviewsPanel'
+import { EmployeeZoneBranchAreaMultiSelect } from '@/features/employees/components/EmployeeZoneBranchAreaMultiSelect'
 import {
   personalStepSchema,
   employmentStepSchema,
@@ -85,7 +86,6 @@ import { Combobox } from '@/shared/ui/combobox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import { AddressPlacesField } from '@/shared/ui/address-places-field'
-import { MultiSelect } from '@/shared/ui/multi-select'
 import {
   employeeAddressPayloadFromForm,
   ensureEmployeeAddressCoordinates,
@@ -128,6 +128,8 @@ const defaultValues: FormValues = {
   contractTypeId: '',
   travelPaymentTypeId: '',
   baseLocationIds: [],
+  zoneIds: [],
+  serviceUserAreaIds: [],
   startDate: '',
   endDate: '',
   nationalInsuranceNo: '',
@@ -212,6 +214,7 @@ function employmentPayloadFromStep(e: z.infer<typeof employmentStepSchema>) {
     contractTypeId: e.contractTypeId,
     travelPaymentTypeId: e.travelPaymentTypeId,
     baseLocationIds: e.accessAllZones ? [] : (e.baseLocationIds ?? []),
+    serviceUserAreaIds: e.accessAllZones ? [] : (e.serviceUserAreaIds ?? []),
     startDate: e.startDate ? new Date(e.startDate).toISOString() : undefined,
     endDate: e.endDate ? new Date(e.endDate).toISOString() : undefined,
     nationalInsuranceNo: e.nationalInsuranceNo,
@@ -704,6 +707,9 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const maximumWeeklyHours = useWatch({ control, name: 'maximumWeeklyHours' })
   const accessAllZones = useWatch({ control, name: 'accessAllZones' })
   const baseLocationIds = useWatch({ control, name: 'baseLocationIds' })
+  const locationId = useWatch({ control, name: 'locationId' })
+  const zoneIds = useWatch({ control, name: 'zoneIds' })
+  const serviceUserAreaIds = useWatch({ control, name: 'serviceUserAreaIds' })
 
   const visaHoursError = React.useMemo(
     () =>
@@ -718,10 +724,14 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
   const savedEmployment = employeeQuery.data?.employment
 
   React.useEffect(() => {
-    if (accessAllZones && (baseLocationIds?.length ?? 0) > 0) {
+    if (!accessAllZones) return
+    if ((baseLocationIds?.length ?? 0) > 0) {
       setValue('baseLocationIds', [], { shouldDirty: true })
     }
-  }, [accessAllZones, baseLocationIds, setValue])
+    if ((serviceUserAreaIds?.length ?? 0) > 0) {
+      setValue('serviceUserAreaIds', [], { shouldDirty: true })
+    }
+  }, [accessAllZones, baseLocationIds, serviceUserAreaIds, setValue])
 
   React.useEffect(() => {
     if (!visaTypeId) {
@@ -802,8 +812,18 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
     try {
       const p = parsed.data
       const personalBody = await personalPayloadFromStep(p)
+      const locationEmploymentBody = {
+        locationId: raw.locationId || undefined,
+        baseLocationIds: raw.accessAllZones ? [] : (raw.baseLocationIds ?? []),
+        serviceUserAreaIds: raw.accessAllZones ? [] : (raw.serviceUserAreaIds ?? []),
+        accessAllZones: raw.accessAllZones,
+      }
       if (isEditMode && editEmployeeId) {
         await patchPersonalMutation.mutateAsync({ employeeId: editEmployeeId, body: personalBody })
+        await patchEmploymentMutation.mutateAsync({
+          employeeId: editEmployeeId,
+          body: locationEmploymentBody,
+        })
         const photoOk = await flushPendingPhoto(editEmployeeId)
         if (!photoOk) {
           return
@@ -828,6 +848,12 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
       setCreatedEmployeeId(id)
       setEmploymentSaved(false)
       await patchPersonalMutation.mutateAsync({ employeeId: id, body: personalBody })
+      if (raw.locationId || raw.accessAllZones || (raw.serviceUserAreaIds?.length ?? 0) > 0) {
+        await patchEmploymentMutation.mutateAsync({
+          employeeId: id,
+          body: locationEmploymentBody,
+        })
+      }
       const photoOk = await flushPendingPhoto(id)
       if (!photoOk) {
         return
@@ -1318,6 +1344,73 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                   </FormField>
                 </div>
 
+                <div className="space-y-3 border-t border-border pt-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">Access all zones</span>
+                    <FieldTip text="When Yes, the carer can work at any branch. Zone, branch and service area selections below are not used." />
+                    <Controller
+                      name="accessAllZones"
+                      control={control}
+                      render={({ field }) => (
+                        <NoYesToggle
+                          id="accessAllZones"
+                          value={field.value}
+                          onChange={v => {
+                            field.onChange(v)
+                            if (v) {
+                              setValue('baseLocationIds', [], { shouldDirty: true })
+                              setValue('serviceUserAreaIds', [], { shouldDirty: true })
+                              setValue('zoneIds', [], { shouldDirty: true })
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className={cn('space-y-3', accessAllZones && 'opacity-60')}>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Zones, branches &amp; service areas
+                      </h3>
+                      <FieldTip text="An employee can work across multiple zones, branches and monitoring areas. The first selected branch is the primary location." />
+                    </div>
+                    {errors.locationId?.message ? (
+                      <p className="text-sm text-destructive" role="alert">
+                        {errors.locationId.message}
+                      </p>
+                    ) : null}
+                    <EmployeeZoneBranchAreaMultiSelect
+                      disabled={Boolean(accessAllZones)}
+                      value={{
+                        zoneIds: zoneIds ?? [],
+                        locationIds: [
+                          ...(locationId ? [locationId] : []),
+                          ...((baseLocationIds ?? []).filter(id => id && id !== locationId)),
+                        ],
+                        serviceUserAreaIds: serviceUserAreaIds ?? [],
+                      }}
+                      onChange={next => {
+                        const [primary, ...rest] = next.locationIds
+                        setValue('zoneIds', next.zoneIds, { shouldDirty: true })
+                        setValue('locationId', primary ?? '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                        setValue('baseLocationIds', rest, { shouldDirty: true })
+                        setValue('serviceUserAreaIds', next.serviceUserAreaIds, {
+                          shouldDirty: true,
+                        })
+                      }}
+                    />
+                    {accessAllZones ? (
+                      <p className="text-xs text-muted-foreground">
+                        Not used while Access all zones is Yes.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
                 <div className="border-t border-border pt-5">
                   <h3 className="mb-3 text-sm font-semibold text-foreground">Next of Kin / Emergency Contacts</h3>
                   <p className="mb-3 text-xs text-muted-foreground">
@@ -1593,80 +1686,6 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                     />
                   </FormField>
 
-                  <FormField label="Primary branch" htmlFor="locationId" required error={errors.locationId?.message}>
-                    <Controller
-                      name="locationId"
-                      control={control}
-                      render={({ field }) => (
-                        <LookupSelect
-                          id="locationId"
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={L?.locations ?? []}
-                          placeholder="Select primary branch"
-                          error={errors.locationId?.message}
-                          disabled={!L}
-                          tip="The carer's main branch for employment and scheduling."
-                          savedOptionName={savedEmployment?.location?.name}
-                        />
-                      )}
-                    />
-                  </FormField>
-
-                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4 lg:col-span-2">
-                    <span className="text-sm font-medium">Access all zones</span>
-                    <FieldTip text="When Yes, the carer can work at any branch. Other branch locations are not used." />
-                    <Controller
-                      name="accessAllZones"
-                      control={control}
-                      render={({ field }) => (
-                        <NoYesToggle
-                          id="accessAllZones"
-                          value={field.value}
-                          onChange={v => {
-                            field.onChange(v)
-                            if (v) {
-                              setValue('baseLocationIds', [], { shouldDirty: true })
-                            }
-                          }}
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    htmlFor="baseLocationIds"
-                    error={errors.baseLocationIds?.message}
-                    hint={
-                      accessAllZones
-                        ? 'Not used while Access all zones is Yes.'
-                        : undefined
-                    }
-                  >
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="baseLocationIds">Other branch locations</Label>
-                      <FieldTip text="Select branches where this carer can work in addition to their primary branch." />
-                    </div>
-                    <Controller
-                      name="baseLocationIds"
-                      control={control}
-                      render={({ field }) => (
-                        <div id="baseLocationIds" data-testid="baseLocationIds" className="mt-1.5">
-                          <MultiSelect
-                            options={(L?.locations ?? []).map(loc => ({
-                              value: loc.id,
-                              label: loc.name,
-                            }))}
-                            value={field.value ?? []}
-                            onChange={field.onChange}
-                            placeholder="Select other branches"
-                            searchPlaceholder="Search branches…"
-                            disabled={!L || Boolean(accessAllZones)}
-                          />
-                        </div>
-                      )}
-                    />
-                  </FormField>
                 </div>
 
                 <div className="grid grid-cols-1 gap-x-10 gap-y-6 pt-2 lg:grid-cols-2">

@@ -82,7 +82,8 @@ const FIELD_HELP = {
   town: 'Town or city for the service address.',
   county: 'County, region, or state if used in your address format.',
   country: 'Country for the service address.',
-  postcode: 'Postal or ZIP code for routing and validation.',
+  postcode: 'Main postcode from the assigned service area (monitoring).',
+  secondaryPostcode: 'Secondary postcode from the home / searched street address.',
   latitude: 'Optional latitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   longitude: 'Optional longitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   keySafeNumber:
@@ -193,6 +194,7 @@ type FormState = {
   county: string
   country: string
   postcode: string
+  secondaryPostcode: string
   latitude: string
   longitude: string
   accessInstructions: string
@@ -252,6 +254,7 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     county: d.address?.county ?? '',
     country: d.address?.country ?? '',
     postcode: d.address?.postcode ?? '',
+    secondaryPostcode: d.address?.secondaryPostcode ?? '',
     latitude: decStr(d.address?.latitude),
     longitude: decStr(d.address?.longitude),
     accessInstructions: d.address?.accessInstructions ?? '',
@@ -572,6 +575,7 @@ export function ServiceUserPersonalDetailsForm({
               county: form.county.trim() || undefined,
               country: form.country.trim() || undefined,
               postcode: form.postcode.trim() || undefined,
+              secondaryPostcode: form.secondaryPostcode.trim() || undefined,
               accessInstructions: form.accessInstructions.trim() || undefined,
               keySafeNumber: form.keySafeNumber.trim() || undefined,
               latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
@@ -741,20 +745,49 @@ export function ServiceUserPersonalDetailsForm({
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
+          Service location
+        </h2>
+        <div className="space-y-1.5">
+          <LabelWithTooltip label="Zone, branch & area" required tooltip={FIELD_HELP.location} />
+          <ServiceUserZoneBranchSelect
+            value={form.locationId}
+            areaId={form.serviceUserAreaId}
+            mainPostcode={form.postcode}
+            onChange={({ locationId, serviceUserAreaId }) =>
+              setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
+            }
+            onApplyMainPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
+            required
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
           Address (optional — includes map coordinates)
         </h2>
         <AddressPlacesField
+          postcodeLabel="Secondary postcode"
           value={{
             addressLine1: form.addressLine1,
             addressLine2: form.addressLine2,
             town: form.town,
             county: form.county,
             country: form.country,
-            postcode: form.postcode,
+            postcode: form.secondaryPostcode,
             latitude: form.latitude,
             longitude: form.longitude,
           }}
-          onChange={(patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch }))}
+          onChange={(patch) =>
+            setForm((prev) => {
+              const { postcode, ...rest } = patch
+              return {
+                ...prev,
+                ...rest,
+                ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+              }
+            })
+          }
           disabled={!canAddress}
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -799,19 +832,6 @@ export function ServiceUserPersonalDetailsForm({
             value={form.serviceUserNumber}
             onChange={set('serviceUserNumber')}
           />
-          <div className="sm:col-span-2 space-y-1.5">
-            <LabelWithTooltip label="Zone, branch & area" required tooltip={FIELD_HELP.location} />
-            <ServiceUserZoneBranchSelect
-              value={form.locationId}
-              areaId={form.serviceUserAreaId}
-              addressPostcode={form.postcode}
-              onChange={({ locationId, serviceUserAreaId }) =>
-                setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
-              }
-              onApplyPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
-              required
-            />
-          </div>
           <FieldEditable
             label="Service Start Date"
             tooltip={FIELD_HELP.serviceStartDate}

@@ -595,11 +595,14 @@ export function BillingVisitReconciliationPanel({
                   (row.overrunMinutes ?? 0) > 0 &&
                   (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
                 const locked = row.status === 'LOCKED' || row.status === 'APPROVED_FOR_BOTH'
-                const approveDisabled = isMutating || locked || pendingOverrun || hasBlocking
+                // Keep All / Carer pay / Funders clickable even with exceptions or pending overrun;
+                // backend accepts these via managerOverride.
+                const approveDisabled = isMutating || locked
+                const managerOverride = needsManager || hasBlocking || pendingOverrun
                 const approveTitle = hasBlocking
-                  ? `Blocking exceptions must be fixed first: ${blockingCodes.join(', ')}`
+                  ? `Approve despite exceptions (${blockingCodes.join(', ')}) — manager override`
                   : pendingOverrun
-                    ? 'Open Details to approve or reject overrun first'
+                    ? 'Approve with pending overrun — manager override (or open Details to decide overrun first)'
                     : needsManager
                       ? 'Manager approve (pay & bill)'
                       : 'Approve for carer pay and client / funder billing'
@@ -739,7 +742,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={approveTitle}
                             disabled={approveDisabled}
-                            onClick={() => void handleApprove(row.id, 'BOTH', needsManager)}
+                            onClick={() => void handleApprove(row.id, 'BOTH', managerOverride)}
                           >
                             <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden />
                             All
@@ -750,7 +753,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title="Pay the carer only — client / funder is charged £0 for this visit"
                             disabled={approveDisabled}
-                            onClick={() => void handleApprove(row.id, 'PAY', needsManager)}
+                            onClick={() => void handleApprove(row.id, 'PAY', managerOverride)}
                           >
                             <Wallet className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
                             Carer pay
@@ -761,7 +764,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title="Charge the client / funder only — carer is paid £0 for this visit"
                             disabled={approveDisabled}
-                            onClick={() => void handleApprove(row.id, 'INVOICE', needsManager)}
+                            onClick={() => void handleApprove(row.id, 'INVOICE', managerOverride)}
                           >
                             <Landmark className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
                             Funders

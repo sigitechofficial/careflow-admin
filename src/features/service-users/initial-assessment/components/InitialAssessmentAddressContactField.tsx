@@ -3,6 +3,7 @@ import { cn } from '@/shared/lib/utils'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { toastApiError } from '@/shared/lib/toast'
+import { AddressPlacesField } from '@/shared/ui/address-places-field'
 import { useUpdateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import type { ServiceUserDetail } from '@/features/service-users/api'
 import type { InitialAssessmentAnswerInput, InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
@@ -38,7 +39,13 @@ type AddressContactDraft = {
   addressLine2: string
   town: string
   county: string
+  country: string
+  /** Main postcode (area / monitoring). */
   postcode: string
+  /** Secondary postcode from street address search. */
+  secondaryPostcode: string
+  latitude: string
+  longitude: string
   phone: string
   mobile: string
   email: string
@@ -50,7 +57,11 @@ function draftFromDetail(detail: ServiceUserDetail | null | undefined): AddressC
     addressLine2: detail?.address?.addressLine2 ?? '',
     town: detail?.address?.town ?? '',
     county: detail?.address?.county ?? '',
+    country: detail?.address?.country ?? '',
     postcode: detail?.address?.postcode ?? '',
+    secondaryPostcode: detail?.address?.secondaryPostcode ?? '',
+    latitude: detail?.address?.latitude != null ? String(detail.address.latitude) : '',
+    longitude: detail?.address?.longitude != null ? String(detail.address.longitude) : '',
     phone: detail?.phone ?? '',
     mobile: detail?.mobile ?? '',
     email: detail?.email ?? '',
@@ -58,7 +69,15 @@ function draftFromDetail(detail: ServiceUserDetail | null | undefined): AddressC
 }
 
 function formatAsAssessmentText(v: AddressContactDraft): string {
-  const address = [v.addressLine1, v.addressLine2, v.town, v.county, v.postcode].filter((x) => x.trim()).join(', ')
+  const address = [
+    v.addressLine1,
+    v.addressLine2,
+    v.town,
+    v.county,
+    v.secondaryPostcode || v.postcode,
+  ]
+    .filter((x) => x.trim())
+    .join(', ')
   return [address, v.phone ? `Tel: ${v.phone}` : '', v.mobile ? `Mobile: ${v.mobile}` : '', v.email ? `Email: ${v.email}` : '']
     .filter(Boolean)
     .join('\n')
@@ -92,7 +111,11 @@ export function InitialAssessmentAddressContactField({
         addressLine2: serviceUserDetail?.address?.addressLine2 ?? '',
         town: serviceUserDetail?.address?.town ?? '',
         county: serviceUserDetail?.address?.county ?? '',
+        country: serviceUserDetail?.address?.country ?? '',
         postcode: serviceUserDetail?.address?.postcode ?? '',
+        secondaryPostcode: serviceUserDetail?.address?.secondaryPostcode ?? '',
+        latitude: serviceUserDetail?.address?.latitude != null ? String(serviceUserDetail.address.latitude) : '',
+        longitude: serviceUserDetail?.address?.longitude != null ? String(serviceUserDetail.address.longitude) : '',
         phone: serviceUserDetail?.phone ?? '',
         mobile: serviceUserDetail?.mobile ?? '',
         email: serviceUserDetail?.email ?? '',
@@ -105,36 +128,49 @@ export function InitialAssessmentAddressContactField({
     setDraft(draftFromDetail(serviceUserDetail))
   }, [detailStamp, serviceUserDetail, isDirty])
 
-  const persistProfile = React.useCallback(async () => {
+  const persistProfile = React.useCallback(async (override?: AddressContactDraft) => {
     if (disabled || savingRef.current) return
+    const current = override ?? draft
     const original = draftFromDetail(serviceUserDetail)
     const profileChanged =
-      original.phone !== draft.phone || original.mobile !== draft.mobile || original.email !== draft.email
+      original.phone !== current.phone ||
+      original.mobile !== current.mobile ||
+      original.email !== current.email
     const addressChanged =
-      original.addressLine1 !== draft.addressLine1 ||
-      original.addressLine2 !== draft.addressLine2 ||
-      original.town !== draft.town ||
-      original.county !== draft.county ||
-      original.postcode !== draft.postcode
+      original.addressLine1 !== current.addressLine1 ||
+      original.addressLine2 !== current.addressLine2 ||
+      original.town !== current.town ||
+      original.county !== current.county ||
+      original.country !== current.country ||
+      original.postcode !== current.postcode ||
+      original.secondaryPostcode !== current.secondaryPostcode ||
+      original.latitude !== current.latitude ||
+      original.longitude !== current.longitude
 
     if (!profileChanged && !addressChanged) return
     savingRef.current = true
     try {
+      const lat = current.latitude.trim() ? Number(current.latitude) : undefined
+      const lng = current.longitude.trim() ? Number(current.longitude) : undefined
       await updateServiceUser.mutateAsync({
         body: profileChanged
           ? {
-              phone: valueOrNull(draft.phone),
-              mobile: valueOrNull(draft.mobile),
-              email: valueOrNull(draft.email),
+              phone: valueOrNull(current.phone),
+              mobile: valueOrNull(current.mobile),
+              email: valueOrNull(current.email),
             }
           : {},
         address: addressChanged
           ? {
-              addressLine1: valueOrNull(draft.addressLine1) ?? undefined,
-              addressLine2: valueOrNull(draft.addressLine2) ?? undefined,
-              town: valueOrNull(draft.town) ?? undefined,
-              county: valueOrNull(draft.county) ?? undefined,
-              postcode: valueOrNull(draft.postcode) ?? undefined,
+              addressLine1: valueOrNull(current.addressLine1) ?? undefined,
+              addressLine2: valueOrNull(current.addressLine2) ?? undefined,
+              town: valueOrNull(current.town) ?? undefined,
+              county: valueOrNull(current.county) ?? undefined,
+              country: valueOrNull(current.country) ?? undefined,
+              postcode: valueOrNull(current.postcode) ?? undefined,
+              secondaryPostcode: valueOrNull(current.secondaryPostcode) ?? undefined,
+              latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
+              longitude: lng != null && Number.isFinite(lng) ? lng : undefined,
             }
           : undefined,
       })
@@ -146,8 +182,7 @@ export function InitialAssessmentAddressContactField({
     }
   }, [disabled, draft, serviceUserDetail, updateServiceUser])
 
-  const setField = (key: keyof AddressContactDraft, nextValue: string) => {
-    const next = { ...draft, [key]: nextValue }
+  const applyDraft = (next: AddressContactDraft) => {
     setIsDirty(true)
     setDraft(next)
     onChange({
@@ -157,140 +192,123 @@ export function InitialAssessmentAddressContactField({
     })
   }
 
-  const fields: { key: keyof AddressContactDraft; label: string }[] = [
-    { key: 'addressLine1', label: 'Address line 1' },
-    { key: 'addressLine2', label: 'Address line 2' },
-    { key: 'town', label: 'Town' },
-    { key: 'county', label: 'County' },
-    { key: 'postcode', label: 'Postcode' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'mobile', label: 'Mobile' },
-    { key: 'email', label: 'Email' },
-  ]
-
-  if (simple) {
-    return (
-      <div className="min-w-0 space-y-5">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {poNumber ? (
-            <div className={IA_SIMPLE_FIELD_CLASS}>
-              <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
-                PO Number
-              </Label>
-              <Input
-                id={`${question.id}-poNumber`}
-                value={poNumber.value?.textValue ?? ''}
-                onChange={(e) =>
-                  poNumber.onChange({
-                    ...(poNumber.value ?? { questionId: poNumber.questionId }),
-                    questionId: poNumber.questionId,
-                    textValue: e.target.value,
-                  })
-                }
-                disabled={disabled}
-                placeholder="Enter details"
-                className={IA_SIMPLE_INPUT_CLASS}
-              />
-              {poNumber.errorMessage ? (
-                <p className="text-xs font-medium text-destructive" role="alert">
-                  {poNumber.errorMessage}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          {fields.map(({ key, label }) => (
-            <div key={key} className={IA_SIMPLE_FIELD_CLASS}>
-              <Label htmlFor={`${question.id}-${key}`} className={IA_QUESTION_LABEL_CLASS}>
-                {label}
-              </Label>
-              <Input
-                id={`${question.id}-${key}`}
-                value={draft[key]}
-                onChange={(e) => setField(key, e.target.value)}
-                onBlur={() => void persistProfile()}
-                disabled={disabled}
-                placeholder="Enter details"
-                className={IA_SIMPLE_INPUT_CLASS}
-              />
-            </div>
-          ))}
-        </div>
-        <p className={cn('text-xs', IA_HINT_CLASS)}>
-          Saves to the service user profile when you leave a field.
-        </p>
-        {errorMessage ? (
-          <p className="text-xs font-medium text-destructive" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-      </div>
-    )
+  const setContactField = (key: 'phone' | 'mobile' | 'email', nextValue: string) => {
+    applyDraft({ ...draft, [key]: nextValue })
   }
 
-  const fieldsWithPlaceholder: { key: keyof AddressContactDraft; label: string; placeholder: string }[] = [
-    { key: 'addressLine1', label: 'Address line 1', placeholder: 'Address line 1' },
-    { key: 'addressLine2', label: 'Address line 2', placeholder: 'Address line 2' },
-    { key: 'town', label: 'Town', placeholder: 'Town' },
-    { key: 'county', label: 'County', placeholder: 'County' },
-    { key: 'postcode', label: 'Postcode', placeholder: 'Postcode' },
+  const contactFields: { key: 'phone' | 'mobile' | 'email'; label: string; placeholder: string }[] = [
     { key: 'phone', label: 'Phone', placeholder: 'Phone' },
     { key: 'mobile', label: 'Mobile', placeholder: 'Mobile' },
     { key: 'email', label: 'Email', placeholder: 'Email' },
   ]
 
   return (
-    <div className="space-y-3 p-1">
-      <Label className={IA_QUESTION_LABEL_CLASS}>
-        {holisticQuestionLabel(question.questionText)}
-        {question.isRequired ? (
-          <span className="text-teal-700 dark:text-teal-400" aria-hidden>
-            {' '}
-            *
-          </span>
-        ) : null}
-      </Label>
-      <p className={IA_HINT_CLASS}>Updates here will also update the Service User profile.</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {poNumber ? (
-          <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
-              PO Number
-            </Label>
-            <Input
-              id={`${question.id}-poNumber`}
-              value={poNumber.value?.textValue ?? ''}
-              onChange={(e) =>
-                poNumber.onChange({
-                  ...(poNumber.value ?? { questionId: poNumber.questionId }),
-                  questionId: poNumber.questionId,
-                  textValue: e.target.value,
-                })
-              }
-              disabled={disabled}
-              placeholder="PO Number"
-              className="h-10 max-w-md text-base"
-            />
-            {poNumber.errorMessage ? (
-              <p className="text-xs font-medium text-destructive" role="alert">
-                {poNumber.errorMessage}
-              </p>
+    <div className={cn('space-y-3', simple ? 'min-w-0 space-y-5 p-0' : 'p-1')}>
+      {!simple ? (
+        <>
+          <Label className={IA_QUESTION_LABEL_CLASS}>
+            {holisticQuestionLabel(question.questionText)}
+            {question.isRequired ? (
+              <span className="text-teal-700 dark:text-teal-400" aria-hidden>
+                {' '}
+                *
+              </span>
             ) : null}
-          </div>
-        ) : null}
-        {fieldsWithPlaceholder.map(({ key, label, placeholder }) => (
-          <div key={key} className="space-y-1">
+          </Label>
+          <p className={IA_HINT_CLASS}>Updates here will also update the Service User profile.</p>
+        </>
+      ) : null}
+
+      {poNumber ? (
+        <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-1'}>
+          <Label htmlFor={`${question.id}-poNumber`} className={IA_QUESTION_LABEL_CLASS}>
+            PO Number
+          </Label>
+          <Input
+            id={`${question.id}-poNumber`}
+            value={poNumber.value?.textValue ?? ''}
+            onChange={(e) =>
+              poNumber.onChange({
+                ...(poNumber.value ?? { questionId: poNumber.questionId }),
+                questionId: poNumber.questionId,
+                textValue: e.target.value,
+              })
+            }
+            disabled={disabled}
+            placeholder="PO Number"
+            className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 max-w-md text-base'}
+          />
+          {poNumber.errorMessage ? (
+            <p className="text-xs font-medium text-destructive" role="alert">
+              {poNumber.errorMessage}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <AddressPlacesField
+        postcodeLabel="Secondary postcode"
+        disabled={disabled}
+        value={{
+          addressLine1: draft.addressLine1,
+          addressLine2: draft.addressLine2,
+          town: draft.town,
+          county: draft.county,
+          country: draft.country,
+          postcode: draft.secondaryPostcode,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+        }}
+        onChange={(patch) => {
+          const { postcode, ...rest } = patch
+          const next = {
+            ...draft,
+            ...rest,
+            ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+          }
+          applyDraft(next)
+          void persistProfile(next)
+        }}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-1'}>
+          <Label className={IA_QUESTION_LABEL_CLASS}>Main postcode</Label>
+          <Input
+            value={draft.postcode}
+            onChange={(e) => applyDraft({ ...draft, postcode: e.target.value })}
+            onBlur={() => void persistProfile()}
+            disabled={disabled}
+            placeholder="Main postcode"
+            className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 text-base'}
+          />
+        </div>
+        {contactFields.map(({ key, label, placeholder }) => (
+          <div key={key} className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-1'}>
+            {simple ? (
+              <Label htmlFor={`${question.id}-${key}`} className={IA_QUESTION_LABEL_CLASS}>
+                {label}
+              </Label>
+            ) : null}
             <Input
+              id={simple ? `${question.id}-${key}` : undefined}
               value={draft[key]}
-              onChange={(e) => setField(key, e.target.value)}
+              onChange={(e) => setContactField(key, e.target.value)}
               onBlur={() => void persistProfile()}
               disabled={disabled}
               placeholder={placeholder}
-              className="h-10 text-base"
+              className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 text-base'}
               aria-label={label}
             />
           </div>
         ))}
       </div>
+
+      <p className={cn('text-xs', IA_HINT_CLASS)}>
+        {simple
+          ? 'Saves to the service user profile when you leave a field. Address search uses Google Places.'
+          : 'Leave a field to save. Address search uses Google Places and fills the secondary postcode.'}
+      </p>
       {errorMessage ? (
         <p className="text-xs font-medium text-destructive" role="alert">
           {errorMessage}

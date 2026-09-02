@@ -151,6 +151,11 @@ export type EmployeeDetail = {
     }> | null
     /** Extra branch ids when already flattened by the API. */
     baseLocationIds?: string[] | null
+    serviceUserAreaIds?: string[] | null
+    serviceUserAreas?: Array<{
+      serviceUserAreaId?: string | null
+      serviceUserArea?: { id: string; name: string } | null
+    }> | null
     locationId?: string | null
     location?: { id: string; name: string } | null
     startDate?: string | null
@@ -411,6 +416,7 @@ export type EmploymentPayload = {
   locationId?: string
   baseLocationId?: string
   baseLocationIds?: string[]
+  serviceUserAreaIds?: string[]
   accessAllZones?: boolean
   visaTypeId?: string | null
   isInCountry?: boolean

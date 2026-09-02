@@ -248,7 +248,7 @@ export const employmentStepSchema = z
     ),
     locationId: z.preprocess(
       v => emptyToUndef(v),
-      z.string({ required_error: 'Select a location' }).uuid('Select a location')
+      z.string({ required_error: 'Select at least one branch' }).uuid('Select at least one branch')
     ),
     jobTitleId: uuidOpt,
     rbacLevelId: uuidOpt,
@@ -256,6 +256,8 @@ export const employmentStepSchema = z
     contractTypeId: uuidOpt,
     travelPaymentTypeId: uuidOpt,
     baseLocationIds: z.array(z.string().uuid()).optional().default([]),
+    zoneIds: z.array(z.string()).optional().default([]),
+    serviceUserAreaIds: z.array(z.string().uuid()).optional().default([]),
     startDate: optionalDateString,
     endDate: optionalDateString,
     nationalInsuranceNo: optionalNiNumber,

@@ -6,7 +6,6 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
   AddressPlacesField,
-  emptyAddressPlacesValue,
   type AddressPlacesValue,
 } from '@/shared/ui/address-places-field'
 import {
@@ -65,7 +64,11 @@ type FormState = {
   namedNurseId: string
   keySafeNumber: string
   accessInstructions: string
-} & AddressPlacesValue
+  /** Main postcode from zone → branch → area selection. */
+  postcode: string
+  /** Secondary postcode from address search. */
+  secondaryPostcode: string
+} & Omit<AddressPlacesValue, 'postcode'>
 
 const emptyForm: FormState = {
   firstName: '',
@@ -95,7 +98,15 @@ const emptyForm: FormState = {
   namedNurseId: '',
   keySafeNumber: '',
   accessInstructions: '',
-  ...emptyAddressPlacesValue(),
+  postcode: '',
+  secondaryPostcode: '',
+  addressLine1: '',
+  addressLine2: '',
+  town: '',
+  county: '',
+  country: '',
+  latitude: '',
+  longitude: '',
 }
 
 function Section({ children }: { children: React.ReactNode }) {
@@ -190,6 +201,7 @@ function hasAddressData(f: FormState): boolean {
     f.county,
     f.country,
     f.postcode,
+    f.secondaryPostcode,
     f.latitude,
     f.longitude,
     f.keySafeNumber,
@@ -207,6 +219,7 @@ function buildAddressPayload(f: FormState) {
     county: f.county.trim() || undefined,
     country: f.country.trim() || undefined,
     postcode: f.postcode.trim() || undefined,
+    secondaryPostcode: f.secondaryPostcode.trim() || undefined,
     latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
     longitude: lng != null && Number.isFinite(lng) ? lng : undefined,
     keySafeNumber: f.keySafeNumber.trim() || undefined,
@@ -556,11 +569,11 @@ export default function AddServiceUserPage() {
             <ServiceUserZoneBranchSelect
               value={form.locationId}
               areaId={form.serviceUserAreaId}
-              addressPostcode={form.postcode}
+              mainPostcode={form.postcode}
               onChange={({ locationId, serviceUserAreaId }) =>
                 setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
               }
-              onApplyPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
+              onApplyMainPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
               className="mt-1.5"
             />
             <FieldError message={fieldErrors.locationId} />
@@ -701,17 +714,27 @@ export default function AddServiceUserPage() {
       <Section>
         <SHead>Address (optional — includes map coordinates)</SHead>
         <AddressPlacesField
+          postcodeLabel="Secondary postcode"
           value={{
             addressLine1: form.addressLine1,
             addressLine2: form.addressLine2,
             town: form.town,
             county: form.county,
             country: form.country,
-            postcode: form.postcode,
+            postcode: form.secondaryPostcode,
             latitude: form.latitude,
             longitude: form.longitude,
           }}
-          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+          onChange={(patch) =>
+            setForm((prev) => {
+              const { postcode, ...rest } = patch
+              return {
+                ...prev,
+                ...rest,
+                ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+              }
+            })
+          }
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>

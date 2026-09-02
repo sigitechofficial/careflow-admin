@@ -276,7 +276,7 @@ export function LocationServiceUserLocationsPanel() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Postcode</label>
+                <label className="text-sm font-medium">Main postcode</label>
                 <Select
                   value={draftPostcode ?? '__none__'}
                   onValueChange={v => setDraftPostcode(v === '__none__' ? null : v)}
