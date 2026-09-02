@@ -820,6 +820,8 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
       }
       if (isEditMode && editEmployeeId) {
         await patchPersonalMutation.mutateAsync({ employeeId: editEmployeeId, body: personalBody })
+        // Always persist location scope on personal save in edit mode so zone/branch/area
+        // selections stay in sync with what the Personal tab shows.
         await patchEmploymentMutation.mutateAsync({
           employeeId: editEmployeeId,
           body: locationEmploymentBody,
@@ -1390,16 +1392,17 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                         ],
                         serviceUserAreaIds: serviceUserAreaIds ?? [],
                       }}
-                      onChange={next => {
+                      onChange={(next, meta) => {
+                        const dirty = meta?.source !== 'hydrate'
                         const [primary, ...rest] = next.locationIds
-                        setValue('zoneIds', next.zoneIds, { shouldDirty: true })
+                        setValue('zoneIds', next.zoneIds, { shouldDirty: dirty })
                         setValue('locationId', primary ?? '', {
-                          shouldDirty: true,
-                          shouldValidate: true,
+                          shouldDirty: dirty,
+                          shouldValidate: dirty,
                         })
-                        setValue('baseLocationIds', rest, { shouldDirty: true })
+                        setValue('baseLocationIds', rest, { shouldDirty: dirty })
                         setValue('serviceUserAreaIds', next.serviceUserAreaIds, {
-                          shouldDirty: true,
+                          shouldDirty: dirty,
                         })
                       }}
                     />

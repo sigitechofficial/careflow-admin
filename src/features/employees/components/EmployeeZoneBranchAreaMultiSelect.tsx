@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Loader2 } from 'lucide-react'
-import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
+import { useEmployeeLocations } from '@/features/settings/hooks/useLocationManagement'
 import { MultiSelect } from '@/shared/ui/multi-select'
 import { Label } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
@@ -14,15 +14,22 @@ export type EmployeeZoneBranchAreaValue = {
 
 type Props = {
   value: EmployeeZoneBranchAreaValue
-  onChange: (next: EmployeeZoneBranchAreaValue) => void
+  onChange: (next: EmployeeZoneBranchAreaValue, meta?: { source: 'user' | 'hydrate' }) => void
   disabled?: boolean
   className?: string
 }
 
-function zoneIdsForLocations(
-  zones: Array<{ id: string; branches: Array<{ id: string }> }>,
-  locationIds: string[],
-): string[] {
+type ZoneTree = Array<{
+  id: string
+  name: string
+  branches: Array<{
+    id: string
+    name: string
+    areas?: Array<{ id: string; name: string; postcodes?: string[] }>
+  }>
+}>
+
+export function zoneIdsForLocations(zones: ZoneTree, locationIds: string[]): string[] {
   const set = new Set<string>()
   for (const locId of locationIds) {
     for (const zone of zones) {
@@ -32,8 +39,27 @@ function zoneIdsForLocations(
   return [...set]
 }
 
+function sameIdSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const set = new Set(a)
+  return b.every(id => set.has(id))
+}
+
+function withOrphanOptions(
+  options: Array<{ value: string; label: string }>,
+  selectedIds: string[],
+  labelFor?: (id: string) => string | undefined,
+): Array<{ value: string; label: string }> {
+  const known = new Set(options.map(o => o.value))
+  const extras = selectedIds
+    .filter(id => id && !known.has(id))
+    .map(id => ({ value: id, label: labelFor?.(id) || id }))
+  return extras.length ? [...options, ...extras] : options
+}
+
 /**
  * Multi zone → branch → service area picker for employee employment.
+ * Uses employee location-management tree so edit/add work with employees.read.
  */
 export function EmployeeZoneBranchAreaMultiSelect({
   value,
@@ -41,14 +67,52 @@ export function EmployeeZoneBranchAreaMultiSelect({
   disabled,
   className,
 }: Props) {
-  const locationsQuery = useServiceUserLocations()
-  const zones = locationsQuery.data?.zones ?? []
+  const locationsQuery = useEmployeeLocations()
+  const zones = (locationsQuery.data?.zones ?? []) as ZoneTree
   const loading = locationsQuery.isLoading
+  const loadError = locationsQuery.isError
+
+  const inferredZoneIds = React.useMemo(
+    () => zoneIdsForLocations(zones, value.locationIds),
+    [zones, value.locationIds],
+  )
 
   const zoneIds =
-    value.zoneIds.length > 0
-      ? value.zoneIds
-      : zoneIdsForLocations(zones, value.locationIds)
+    value.zoneIds.length > 0 ? value.zoneIds : inferredZoneIds
+
+  const onChangeRef = React.useRef(onChange)
+  onChangeRef.current = onChange
+
+  // On edit, zoneIds start empty — write inferred zones into form once options load.
+  React.useEffect(() => {
+    if (loading || loadError || zones.length === 0) return
+    if (value.locationIds.length === 0) return
+    if (inferredZoneIds.length === 0) return
+    if (sameIdSet(value.zoneIds, inferredZoneIds)) return
+    // Prefer keeping an intentional user zone filter that still covers selected branches.
+    if (
+      value.zoneIds.length > 0 &&
+      inferredZoneIds.every(id => value.zoneIds.includes(id))
+    ) {
+      return
+    }
+    onChangeRef.current(
+      {
+        zoneIds: inferredZoneIds,
+        locationIds: value.locationIds,
+        serviceUserAreaIds: value.serviceUserAreaIds,
+      },
+      { source: 'hydrate' },
+    )
+  }, [
+    loading,
+    loadError,
+    zones.length,
+    inferredZoneIds,
+    value.zoneIds,
+    value.locationIds,
+    value.serviceUserAreaIds,
+  ])
 
   const selectedZones = zones.filter(z => zoneIds.includes(z.id))
   const branchOptions = (zoneIds.length ? selectedZones : zones).flatMap(z =>
@@ -61,10 +125,8 @@ export function EmployeeZoneBranchAreaMultiSelect({
   )
 
   const selectedBranches = branchOptions.filter(b => value.locationIds.includes(b.value))
-  const areaOptions = (
-    value.locationIds.length
-      ? selectedBranches
-      : branchOptions
+  const areaOptionsBase = (
+    value.locationIds.length ? selectedBranches : branchOptions
   ).flatMap(b =>
     b.areas.map(a => ({
       value: a.id,
@@ -72,13 +134,56 @@ export function EmployeeZoneBranchAreaMultiSelect({
     })),
   )
 
-  const emit = (patch: Partial<EmployeeZoneBranchAreaValue>) => {
-    onChange({
-      zoneIds,
-      locationIds: value.locationIds,
-      serviceUserAreaIds: value.serviceUserAreaIds,
-      ...patch,
-    })
+  const areaLabelLookup = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const z of zones) {
+      for (const b of z.branches) {
+        for (const a of b.areas ?? []) {
+          map.set(a.id, `${z.name} · ${b.name} · ${a.name}`)
+        }
+      }
+    }
+    return map
+  }, [zones])
+
+  const branchLabelLookup = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const z of zones) {
+      for (const b of z.branches) {
+        map.set(b.id, `${z.name} · ${b.name}`)
+      }
+    }
+    return map
+  }, [zones])
+
+  const zoneOptions = withOrphanOptions(
+    zones.map(z => ({ value: z.id, label: z.name })),
+    zoneIds,
+  )
+  const branchSelectOptions = withOrphanOptions(
+    branchOptions.map(({ value: v, label }) => ({ value: v, label })),
+    value.locationIds,
+    id => branchLabelLookup.get(id),
+  )
+  const areaSelectOptions = withOrphanOptions(
+    areaOptionsBase,
+    value.serviceUserAreaIds,
+    id => areaLabelLookup.get(id),
+  )
+
+  const emit = (
+    patch: Partial<EmployeeZoneBranchAreaValue>,
+    source: 'user' | 'hydrate' = 'user',
+  ) => {
+    onChange(
+      {
+        zoneIds,
+        locationIds: value.locationIds,
+        serviceUserAreaIds: value.serviceUserAreaIds,
+        ...patch,
+      },
+      { source },
+    )
   }
 
   return (
@@ -89,7 +194,7 @@ export function EmployeeZoneBranchAreaMultiSelect({
           Select one or more zones. Branches and areas update from your selection.
         </p>
         <MultiSelect
-          options={zones.map(z => ({ value: z.id, label: z.name }))}
+          options={zoneOptions}
           value={zoneIds}
           onChange={nextZones => {
             const allowedBranchIds = new Set(
@@ -104,11 +209,16 @@ export function EmployeeZoneBranchAreaMultiSelect({
                 .filter(b => nextLocations.includes(b.id))
                 .flatMap(b => (b.areas ?? []).map(a => a.id)),
             )
-            onChange({
-              zoneIds: nextZones,
-              locationIds: nextLocations,
-              serviceUserAreaIds: value.serviceUserAreaIds.filter(id => allowedAreaIds.has(id)),
-            })
+            onChange(
+              {
+                zoneIds: nextZones,
+                locationIds: nextLocations,
+                serviceUserAreaIds: value.serviceUserAreaIds.filter(id =>
+                  allowedAreaIds.has(id),
+                ),
+              },
+              { source: 'user' },
+            )
           }}
           placeholder={loading ? 'Loading zones…' : 'Select zones'}
           searchPlaceholder="Search zones…"
@@ -122,20 +232,26 @@ export function EmployeeZoneBranchAreaMultiSelect({
           First selected branch is the primary employment location; others are additional sites.
         </p>
         <MultiSelect
-          options={branchOptions.map(({ value: v, label }) => ({ value: v, label }))}
+          options={branchSelectOptions}
           value={value.locationIds}
           onChange={nextLocations => {
             const allowedAreaIds = new Set(
-              branchOptions
-                .filter(b => nextLocations.includes(b.value))
-                .flatMap(b => b.areas.map(a => a.id)),
+              zones
+                .flatMap(z => z.branches)
+                .filter(b => nextLocations.includes(b.id))
+                .flatMap(b => (b.areas ?? []).map(a => a.id)),
             )
-            const inferredZones = zoneIdsForLocations(zones, nextLocations)
-            emit({
-              zoneIds: zoneIds.length ? zoneIds : inferredZones,
-              locationIds: nextLocations,
-              serviceUserAreaIds: value.serviceUserAreaIds.filter(id => allowedAreaIds.has(id)),
-            })
+            const nextZones = zoneIdsForLocations(zones, nextLocations)
+            emit(
+              {
+                zoneIds: zoneIds.length ? zoneIds : nextZones,
+                locationIds: nextLocations,
+                serviceUserAreaIds: value.serviceUserAreaIds.filter(id =>
+                  allowedAreaIds.has(id),
+                ),
+              },
+              'user',
+            )
           }}
           placeholder={
             zoneIds.length === 0
@@ -153,13 +269,13 @@ export function EmployeeZoneBranchAreaMultiSelect({
           Monitoring areas under the selected branches. An employee can cover many areas.
         </p>
         <MultiSelect
-          options={areaOptions}
+          options={areaSelectOptions}
           value={value.serviceUserAreaIds}
-          onChange={nextAreas => emit({ serviceUserAreaIds: nextAreas })}
+          onChange={nextAreas => emit({ serviceUserAreaIds: nextAreas }, 'user')}
           placeholder={
             value.locationIds.length === 0
               ? 'Select branches first'
-              : areaOptions.length
+              : areaSelectOptions.length
                 ? 'Select service areas'
                 : 'No service areas on selected branches'
           }
@@ -172,6 +288,11 @@ export function EmployeeZoneBranchAreaMultiSelect({
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading zones, branches and areas…
+        </p>
+      ) : null}
+      {loadError ? (
+        <p className="text-xs text-destructive" role="alert">
+          Could not load location options. Check you have employees.read or lookups.read.
         </p>
       ) : null}
     </div>
