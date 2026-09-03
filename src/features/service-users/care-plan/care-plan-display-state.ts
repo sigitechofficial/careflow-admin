@@ -159,6 +159,7 @@ export const CARE_PLAN_PAGE_SECTION_ORDER = [
   'recommended',
   'in-progress',
   'live',
+  'monitor',
   'assessment-risk',
   'available',
   'declined',

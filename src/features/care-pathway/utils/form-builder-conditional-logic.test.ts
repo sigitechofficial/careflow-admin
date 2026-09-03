@@ -42,6 +42,22 @@ describe('form-builder-conditional-logic', () => {
     expect(isFieldVisible(target, { 'sec-1:ctrl': true })).toBe(true)
   })
 
+  it('hides Care 2020 area-risk follow-ups until the gate is YES', () => {
+    const followUp = field({
+      id: 'identify',
+      label: 'Identify the risk?',
+      fieldType: 'RICH_TEXT',
+      required: true,
+      conditionalLogicJson: {
+        showWhen: [{ sectionId: 'sec-needs', fieldId: 'area-risk', operator: 'is_true' }],
+      },
+    })
+    expect(isFieldVisible(followUp, {})).toBe(false)
+    expect(isFieldVisible(followUp, { 'sec-needs:area-risk': false })).toBe(false)
+    expect(isFieldVisible(followUp, { 'sec-needs:area-risk': true })).toBe(true)
+    expect(isFieldVisible(followUp, { 'sec-needs:area-risk': 'true' })).toBe(true)
+  })
+
   it('parses conditional logic safely', () => {
     expect(parseConditionalLogic(null)).toBeNull()
     expect(parseConditionalLogic({ showWhen: [{ sectionId: 'a', fieldId: 'b', operator: 'equals' }] })?.showWhen).toHaveLength(1)

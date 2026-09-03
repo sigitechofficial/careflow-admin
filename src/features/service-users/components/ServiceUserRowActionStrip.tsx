@@ -11,6 +11,22 @@ import {
   type ServiceUserFigmaActionId,
   type ServiceUserFigmaReportId,
 } from '@/features/service-users/figma-action-icons'
+import { carePlanListStatusPresentation } from '@/features/service-users/care-plans/care-plan-list-status'
+
+/** Locked destinations for list row actions — Profile work must not change these. */
+export const SERVICE_USER_ROW_ACTION_LINKS = {
+  overview: { to: '/service-users/$serviceUserId/view' as const },
+  carePlan: { to: '/service-users/$serviceUserId/care-plan' as const },
+  details: { to: '/service-users/$serviceUserId' as const, search: { tab: 'personal' } },
+  serviceManagement: { to: '/service-users/$serviceUserId' as const, search: { tab: 'dom' } },
+  calendar: { to: '/service-users/$serviceUserId' as const, search: { tab: 'calendar' } },
+  medication: { to: '/service-users/$serviceUserId/medication' as const },
+  flashFallback: { to: '/service-users/$serviceUserId/view' as const, search: { focus: 'flash' } },
+  absence: { to: '/service-users/$serviceUserId' as const, search: { tab: 'absences' } },
+  observationsReport: { to: '/service-users/$serviceUserId/observations' as const },
+  assessmentReport: { to: '/service-users/initial-assessment' as const },
+  carePlanReport: { to: '/service-users/$serviceUserId/care-plan' as const },
+} as const
 
 const iconSvg =
   '[&_svg]:block [&_svg]:shrink-0 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:stroke-[2.25px]'
@@ -47,6 +63,8 @@ function CircleLink({
   children,
   testId,
   figmaIcon,
+  figmaSrc,
+  carePlanListStatus,
 }: {
   to: string
   params: { serviceUserId: string }
@@ -56,8 +74,11 @@ function CircleLink({
   children?: React.ReactNode
   testId?: string
   figmaIcon?: ServiceUserFigmaActionId
+  figmaSrc?: string
+  carePlanListStatus?: string
 }) {
-  const className = figmaIcon ? figmaCircleBase() : circleBase(tone === 'alert' ? ICON_ALERT : ICON_BLUE)
+  const src = figmaSrc ?? (figmaIcon ? figmaActionIcon(figmaIcon) : undefined)
+  const className = src ? figmaCircleBase() : circleBase(tone === 'alert' ? ICON_ALERT : ICON_BLUE)
   return (
     <Link
       to={to}
@@ -65,13 +86,10 @@ function CircleLink({
       search={search}
       title={title}
       data-testid={testId}
+      data-care-plan-list-status={carePlanListStatus}
       className={className}
     >
-      {figmaIcon ? (
-        <FigmaActionIcon src={figmaActionIcon(figmaIcon)} title={title} />
-      ) : (
-        children
-      )}
+      {src ? <FigmaActionIcon src={src} title={title} /> : children}
     </Link>
   )
 }
@@ -161,6 +179,7 @@ type Props = {
 export function ServiceUserRowActionStrip({ user, className, archived, onFlashClick }: Props) {
   const id = user.id
   const params = { serviceUserId: id }
+  const carePlanIcon = carePlanListStatusPresentation(user.carePlanListStatus)
 
   if (archived) {
     return (
@@ -176,45 +195,46 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
       data-testid="service-user-row-actions"
     >
       <CircleLink
-        to="/service-users/$serviceUserId/view"
+        to={SERVICE_USER_ROW_ACTION_LINKS.overview.to}
         params={params}
         title="Overview"
         testId="su-action-overview"
         figmaIcon="overview"
       />
       <CircleLink
-        to="/service-users/$serviceUserId/care-plan"
+        to={SERVICE_USER_ROW_ACTION_LINKS.carePlan.to}
         params={params}
-        title="Care Plan"
+        title={carePlanIcon.title}
         testId="su-action-care-plan"
-        figmaIcon="carePlan"
+        figmaSrc={carePlanIcon.src}
+        carePlanListStatus={carePlanIcon.status}
       />
       <CircleLink
-        to="/service-users/$serviceUserId"
+        to={SERVICE_USER_ROW_ACTION_LINKS.details.to}
         params={params}
-        search={{ tab: 'personal' }}
+        search={SERVICE_USER_ROW_ACTION_LINKS.details.search}
         title="More Details"
         testId="su-action-details"
         figmaIcon="details"
       />
       <CircleLink
-        to="/service-users/$serviceUserId"
+        to={SERVICE_USER_ROW_ACTION_LINKS.serviceManagement.to}
         params={params}
-        search={{ tab: 'dom' }}
+        search={SERVICE_USER_ROW_ACTION_LINKS.serviceManagement.search}
         title="Service Management"
         testId="su-action-service-management"
         figmaIcon="serviceManagement"
       />
       <CircleLink
-        to="/service-users/$serviceUserId"
+        to={SERVICE_USER_ROW_ACTION_LINKS.calendar.to}
         params={params}
-        search={{ tab: 'calendar' }}
+        search={SERVICE_USER_ROW_ACTION_LINKS.calendar.search}
         title="Calendar"
         testId="su-action-calendar"
         figmaIcon="calendar"
       />
       <CircleLink
-        to="/service-users/$serviceUserId/medication"
+        to={SERVICE_USER_ROW_ACTION_LINKS.medication.to}
         params={params}
         title="Medication"
         testId="su-action-medication"
@@ -229,9 +249,9 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
         />
       ) : (
         <CircleLink
-          to="/service-users/$serviceUserId/view"
+          to={SERVICE_USER_ROW_ACTION_LINKS.flashFallback.to}
           params={params}
-          search={{ focus: 'flash' }}
+          search={SERVICE_USER_ROW_ACTION_LINKS.flashFallback.search}
           title={user.hasActiveFlashMessage ? 'Flash Message (active)' : 'Flash Message'}
           testId="su-action-flash"
           figmaIcon="flash"
@@ -239,9 +259,9 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
       )}
       <PlaceholderCircle title="Create Session" Icon={UserCheck} />
       <CircleLink
-        to="/service-users/$serviceUserId"
+        to={SERVICE_USER_ROW_ACTION_LINKS.absence.to}
         params={params}
-        search={{ tab: 'absences' }}
+        search={SERVICE_USER_ROW_ACTION_LINKS.absence.search}
         title={user.hasActiveAbsence ? 'Record Absence (active absence)' : 'Record Absence'}
         testId="su-action-absence"
         figmaIcon="absence"
@@ -252,20 +272,20 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
       <ReportCircleLink to="/in-progress" reportId="CS" title="Care summary" />
       <ReportCircleLink to="/in-progress" reportId="D" title="Detailed Care report" />
       <ReportCircleLink
-        to="/service-users/$serviceUserId/observations"
+        to={SERVICE_USER_ROW_ACTION_LINKS.observationsReport.to}
         params={params}
         reportId="O"
         title="Observation Report"
       />
       <ReportCircleLink
-        to="/service-users/initial-assessment"
+        to={SERVICE_USER_ROW_ACTION_LINKS.assessmentReport.to}
         params={params}
         search={{ serviceUserId: id }}
         reportId="A"
         title="Assessment report"
       />
       <ReportCircleLink
-        to="/service-users/$serviceUserId/care-plan"
+        to={SERVICE_USER_ROW_ACTION_LINKS.carePlanReport.to}
         params={params}
         reportId="C"
         title="Care plan report"

@@ -41,6 +41,9 @@ jobs:
           # Baked into the JS bundle at build time (Vite). Add this secret in the
           # care-admin GitHub repo → Settings → Secrets and variables → Actions.
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          # Not a secret. Shows IA QA Demo Data in the production Admin build for any
+          # Service User. Does not enable other Vite/dev tooling.
+          VITE_ENABLE_IA_QA_DEMO: "true"
 
       - name: Detect build folder
         run: |

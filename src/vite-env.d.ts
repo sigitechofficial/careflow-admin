@@ -8,6 +8,13 @@ interface ImportMetaEnv {
   readonly VITE_DEFAULT_LOGIN_EMAIL?: string
   /** Default staff password prefilled on the login page (baked at build time). */
   readonly VITE_DEFAULT_LOGIN_PASSWORD?: string
+  /** Google Maps JavaScript API key (Places Autocomplete for branch addresses). */
+  readonly VITE_GOOGLE_MAPS_API_KEY?: string
+  /**
+   * Show Initial Assessment QA Demo Data in production builds (`true` only).
+   * Not a secret. Hidden unless this is exactly `true` (or Vite DEV).
+   */
+  readonly VITE_ENABLE_IA_QA_DEMO?: string
 }
 
 interface ImportMeta {

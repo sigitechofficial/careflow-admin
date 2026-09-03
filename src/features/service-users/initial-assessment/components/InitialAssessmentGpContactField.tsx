@@ -113,6 +113,14 @@ function draftFromSources(
   return draftFromProfile(findGpContact(detail))
 }
 
+/** Widget source after Fill Demo Data: prefer structured IA text, else the GP contact record. */
+export function gpContactWidgetDraft(
+  detail: ServiceUserDetail | null | undefined,
+  textValue: string | undefined,
+): GpContactDraft {
+  return draftFromSources(detail, textValue)
+}
+
 function splitContactName(name: string): { firstName: string; lastName?: string } {
   const trimmed = name.trim()
   if (!trimmed) return { firstName: '' }

@@ -1,4 +1,5 @@
 ﻿import { InitialAssessmentCognitionChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCognitionChecklistPanel'
+import { InitialAssessmentMedicationSpecRefPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMedicationSpecRefPanel'
 import { InitialAssessmentMultiSelectOptionsGrid } from '@/features/service-users/initial-assessment/components/InitialAssessmentMultiSelectOptionsGrid'
 import { InitialAssessmentNoConcernGatePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentNoConcernGatePanel'
 import { InitialAssessmentPanelFieldList } from '@/features/service-users/initial-assessment/components/InitialAssessmentPanelFieldList'
@@ -104,7 +105,7 @@ import {
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 
 /** Sections using ┬º12 panel shell + field-row layout (batch rollout). */
-const PANEL_LAYOUT_SECTIONS = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14])
+const PANEL_LAYOUT_SECTIONS = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 18])
 
 const SIGN_OFF_WORKFLOW_SPEC_REFS = new Set(['14.3', '14.4', '14.7'])
 
@@ -188,6 +189,7 @@ export function InitialAssessmentSectionQuestions({
     ),
     holisticTab ?? {
       id: section.sectionNumber,
+      displayNumber: section.sectionNumber,
       title: section.title,
       kind: 'form-section' as const,
       enterpriseSection: section.sectionNumber,
@@ -438,14 +440,22 @@ export function InitialAssessmentSectionQuestions({
       )
     }
 
-    if (
-      group.specRef === '9.2' ||
-      group.specRef === '9.3' ||
-      group.specRef === '9.4' ||
-      group.specRef === '9.5' ||
-      group.specRef === '9.6'
-    ) {
-      return null
+    if (group.specRef === '9.2' || group.specRef === '9.3' || group.specRef === '9.4' || group.specRef === '9.5') {
+      return (
+        <InitialAssessmentMedicationSpecRefPanel
+          key={`${group.specRef}-${groupIndex}`}
+          title={group.label}
+          specRef={group.specRef}
+          questions={group.questions}
+          allSections={allSections}
+          draftAnswers={draftAnswers}
+          serviceUserId={serviceUserId}
+          disabled={disabled}
+          onMarkVerified={onMarkMedicationVerified ?? (() => undefined)}
+          renderField={renderField}
+          renderMultiSelect={renderMultiSelect}
+        />
+      )
     }
 
     if (group.specRef === '10.6a') {

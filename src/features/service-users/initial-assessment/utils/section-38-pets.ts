@@ -1,10 +1,9 @@
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 
-/** §3.8 — pets and smoking (enterprise YES/NO; legacy sec_pets superseded). */
+/** §3.8 — pets (enterprise YES/NO; smoking lives on Fire Safety §18). */
 export const SECTION_38_CANONICAL_QUESTION_TEXT = [
   'Pets present?',
   'Pets secured during visits?',
-  'Smoking in property?',
   'Pet infestation or hygiene risk?',
 ] as const
 

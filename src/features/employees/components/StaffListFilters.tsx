@@ -37,6 +37,7 @@ type Props = {
   searchInput: string
   onSearchInputChange: (value: string) => void
   disabled?: boolean
+  locationFilterDisabled?: boolean
 }
 
 const IN_COUNTRY_OPTIONS: { value: StaffListInCountryFilter; label: string }[] = [
@@ -100,6 +101,7 @@ export function StaffListFilters({
   searchInput,
   onSearchInputChange,
   disabled,
+  locationFilterDisabled = false,
 }: Props) {
   const allBranchesLabel = facets ? `All branches (${facets.branchCohortTotal})` : 'All branches'
 
@@ -148,8 +150,12 @@ export function StaffListFilters({
     [visaTypes],
   )
 
-  const chips = staffListFilterChips(filters, lookups, onFiltersChange, visaLabelMap)
-  const showClearAll = hasStaffListFilters(filters)
+  const chips = staffListFilterChips(filters, lookups, onFiltersChange, visaLabelMap).filter(
+    (chip) => !(locationFilterDisabled && chip.key.startsWith('branch-')),
+  )
+  const showClearAll = hasStaffListFilters(
+    locationFilterDisabled ? { ...filters, locationIds: [] } : filters,
+  )
   const filtersActive = showClearAll || searchInput.trim().length > 0
   const summaryParts = [
     filtersActive ? 'Filters active' : null,
@@ -194,22 +200,27 @@ export function StaffListFilters({
 
         <StaffListFilterField
           label="Branch"
-          hint="Organisation locations — same ids as Schedule Jobs"
+          hint={
+            locationFilterDisabled
+              ? 'Controlled by the header location selector'
+              : 'Organisation locations — same ids as Schedule Jobs'
+          }
         >
           {(anchorRef) => (
             <MultiSelect
               popoverAnchorRef={anchorRef}
               options={branchOptions}
               value={filters.locationIds}
-              onChange={(next) =>
+              onChange={(next) => {
+                if (locationFilterDisabled) return
                 onFiltersChange({
                   ...filters,
                   locationIds: normalizeScheduleJobsFilterChange(next),
                 })
-              }
+              }}
               placeholder="All branches"
               searchPlaceholder="Search branches…"
-              disabled={disabled}
+              disabled={disabled || locationFilterDisabled}
               checkPosition="right"
               className={filterComboboxClassName}
               isOptionSelected={(option, value) =>

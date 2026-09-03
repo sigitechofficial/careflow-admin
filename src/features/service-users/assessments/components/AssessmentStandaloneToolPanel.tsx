@@ -12,6 +12,9 @@ import { InitialAssessmentMovingHandlingOperationsPanel } from '@/features/servi
 import { InitialAssessmentMustPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMustPanel'
 import { InitialAssessmentPainAssessmentPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPainAssessmentPanel'
 import { InitialAssessmentPhotographyConsentPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPhotographyConsentPanel'
+import { InitialAssessmentPeepStandalonePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPeepStandalonePanel'
+import { InitialAssessmentEquipmentSelectionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentSelectionPanel'
+import { InitialAssessmentEquipmentChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentChecklistPanel'
 import { InitialAssessmentTherapyAideMemoirePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTherapyAideMemoirePanel'
 import { InitialAssessmentTotalSkinIntegrityCheckPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTotalSkinIntegrityCheckPanel'
 import { InitialAssessmentWaterlowPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentWaterlowPanel'
@@ -195,6 +198,35 @@ export function AssessmentStandaloneToolPanel({
         disabled={disabled}
         onChange={(photographyConsent) => onStateChange({ ...state, photographyConsent })}
       />,
+    )
+  }
+
+  if (panelId === 'peep') {
+    return shell(
+      <InitialAssessmentPeepStandalonePanel
+        value={state.peep}
+        disabled={disabled}
+        onChange={(peep) => onStateChange({ ...state, peep })}
+      />,
+    )
+  }
+
+  if (panelId === 'equipment-selection') {
+    return shell(
+      <div className="space-y-4 p-3">
+        <InitialAssessmentEquipmentSelectionPanel
+          value={state.equipmentSelection}
+          disabled={disabled}
+          onChange={(equipmentSelection) => onStateChange({ ...state, equipmentSelection })}
+        />
+        <InitialAssessmentEquipmentChecklistPanel
+          visible
+          embedded
+          value={state.equipmentChecklist}
+          disabled={disabled}
+          onChange={(equipmentChecklist) => onStateChange({ ...state, equipmentChecklist })}
+        />
+      </div>,
     )
   }
 

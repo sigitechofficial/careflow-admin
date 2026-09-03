@@ -64,6 +64,17 @@ export function ScheduleVisitWorkspaceSheet({
             {serviceUserLabel(job.serviceUser)}
             {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
             {formatJobTimeRange(job)}
+            {job.visitRef ? (
+              <>
+                <br />
+                <span
+                  className="font-mono text-xs tracking-tight text-foreground"
+                  title="Visit reference (EMONITORED) — same as visit reconciliation"
+                >
+                  {job.visitRef}
+                </span>
+              </>
+            ) : null}
           </SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">

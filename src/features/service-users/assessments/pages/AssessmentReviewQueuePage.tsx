@@ -5,14 +5,24 @@ import { Loader2 } from 'lucide-react'
 import { fetchAssessmentReviewQueue } from '@/features/service-users/assessments/api'
 import { AssessmentReviewBadge } from '@/features/service-users/assessments/components/AssessmentReviewBadge'
 import { serviceUserAssessmentKeys } from '@/features/service-users/assessments/keys'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { Button } from '@/shared/ui/button'
 import { formatDate } from '@/shared/lib/utils'
 
 export default function AssessmentReviewQueuePage() {
   const [overdueOnly, setOverdueOnly] = React.useState(false)
+  const { locationId: globalLocationId } = useGlobalLocationScope()
   const { data, isLoading, error } = useQuery({
-    queryKey: serviceUserAssessmentKeys.reviewQueue(overdueOnly),
-    queryFn: () => fetchAssessmentReviewQueue({ overdueOnly }),
+    queryKey: serviceUserAssessmentKeys.reviewQueue(
+      overdueOnly,
+      undefined,
+      globalLocationId ?? undefined,
+    ),
+    queryFn: () =>
+      fetchAssessmentReviewQueue({
+        overdueOnly,
+        locationId: globalLocationId ?? undefined,
+      }),
   })
 
   const items = data?.data ?? []
@@ -26,6 +36,9 @@ export default function AssessmentReviewQueuePage() {
           <p className="text-sm text-muted-foreground">
             CQC/NICE schedule reminders — overdue and due soon. Staff can still complete assessments
             at any time from the care plan.
+            {globalLocationId
+              ? ' Showing service users for the selected header location.'
+              : null}
           </p>
         </div>
         <label className="inline-flex items-center gap-2 text-sm">

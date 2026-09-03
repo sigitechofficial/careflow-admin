@@ -3,6 +3,7 @@ import {
   findQuestionByFieldKey,
   isExplicitNo,
   isYesAnswer,
+  specRefOf,
 } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import type {
   InitialAssessmentAnswerInput,
@@ -15,6 +16,7 @@ type ShowWhenRule = {
   gateFieldKey?: string
   yes?: boolean
   no?: boolean
+  selectedIncludes?: string
 }
 
 /** Follow-up questions in the enterprise seed that depend on a prior Yes/No gate. */
@@ -35,6 +37,14 @@ const INFERRED_RULES: { questionTextIncludes: string; when: ShowWhenRule }[] = [
   },
   { questionTextIncludes: 'key safe code', when: { gateTextIncludes: 'key safe present', yes: true } },
   { questionTextIncludes: 'key safe location', when: { gateTextIncludes: 'key safe present', yes: true } },
+  {
+    questionTextIncludes: 'other accommodation',
+    when: { gateFieldKey: 'accommodationType', selectedIncludes: 'other' },
+  },
+  {
+    questionTextIncludes: 'informal carer contact',
+    when: { gateFieldKey: 'informalCarerSupport', yes: true },
+  },
   { questionTextIncludes: 'pets secured during visits', when: { gateFieldKey: 'petsPresent', yes: true } },
   { questionTextIncludes: 'pet infestation', when: { gateFieldKey: 'petsPresent', yes: true } },
   { questionTextIncludes: 'oxygen care notes', when: { gateTextIncludes: 'oxygen dependent', yes: true } },
@@ -57,7 +67,6 @@ const INFERRED_RULES: { questionTextIncludes: string; when: ShowWhenRule }[] = [
   { questionTextIncludes: 'salt referral made', when: { gateTextIncludes: 'salt referral required', yes: true } },
   { questionTextIncludes: 'salt referral date', when: { gateTextIncludes: 'salt referral made', yes: true } },
   { questionTextIncludes: 'hydration comment', when: { gateTextIncludes: 'adequately hydrated', no: true } },
-  { questionTextIncludes: 'food allergy details', when: { gateTextIncludes: 'food allergies documented', yes: true } },
   { questionTextIncludes: 'bmi value', when: { gateTextIncludes: 'bmi completed', yes: true } },
   { questionTextIncludes: 'must score', when: { gateTextIncludes: 'must assessment completed', yes: true } },
   {
@@ -127,7 +136,16 @@ function parseMetadataShowWhen(metadata: Record<string, unknown> | null | undefi
     gateFieldKey,
     yes: row.yes === true ? true : undefined,
     no: row.no === true ? true : undefined,
+    selectedIncludes: typeof row.selectedIncludes === 'string' ? row.selectedIncludes : undefined,
   }
+}
+
+function selectedOptionValues(value: InitialAssessmentAnswerInput | undefined): string[] {
+  const opts = value?.selectedOptions
+  if (!opts) return []
+  if (Array.isArray(opts)) return opts.map(String)
+  if (typeof opts === 'string' && opts.trim()) return [opts.trim()]
+  return []
 }
 
 function gateAnswerMatches(
@@ -143,6 +161,10 @@ function gateAnswerMatches(
   if (!gate) return true
 
   const answer = draftAnswers[gate.id]
+  if (rule.selectedIncludes) {
+    const needle = rule.selectedIncludes.toLowerCase()
+    return selectedOptionValues(answer).some((v) => v.toLowerCase() === needle)
+  }
   if (rule.yes) return isYesAnswer(answer)
   if (rule.no) return isExplicitNo(answer)
   return true
@@ -161,6 +183,12 @@ export function shouldShowQuestion(
   sections: InitialAssessmentSection[],
   draftAnswers: Record<string, InitialAssessmentAnswerInput>,
 ): boolean {
+  if (specRefOf(q) === '2.mca') {
+    const requiredQ =
+      findQuestionByFieldKey(sections, 'mcaRequired') ?? findQuestionByTextIncludes(sections, 'mca required')
+    if (requiredQ && !isYesAnswer(draftAnswers[requiredQ.id])) return false
+  }
+
   const metaRule = parseMetadataShowWhen(q.metadata)
   if (metaRule) return gateAnswerMatches(sections, metaRule, draftAnswers)
 

@@ -4,6 +4,8 @@ import type {
   CarePlanInstance,
   CarePlanPublishedVersionDetail,
   CarePlanPublishedVersionSummary,
+  CarePlanReviewQueueItem,
+  CarePlanReviewSummary,
 } from '@/features/service-users/care-plans/types'
 import {
   clinicalValuesForCreatePlanDraft,
@@ -61,12 +63,42 @@ export async function fetchCarePlanCompose(
 export async function fetchCarePlanInstances(
   serviceUserId: string,
   options?: { signal?: AbortSignal },
-): Promise<CarePlanInstance[]> {
+): Promise<{ instances: CarePlanInstance[]; reviewSummary: CarePlanReviewSummary | null }> {
   const res = await apiJson<ApiEnvelope<CarePlanInstance[]>>(
     `/service-users/${serviceUserId}/care-plans`,
     { signal: options?.signal },
   )
-  return res.data ?? []
+  const meta = (res.meta ?? null) as CarePlanReviewSummary | null
+  return { instances: res.data ?? [], reviewSummary: meta }
+}
+
+export async function fetchCarePlanReviewQueue(params?: {
+  status?: 'all' | 'overdue' | 'due_soon' | 'ok'
+  serviceUserId?: string
+  signal?: AbortSignal
+}): Promise<{ items: CarePlanReviewQueueItem[]; meta: CarePlanReviewSummary & { total: number } }> {
+  const qs = new URLSearchParams()
+  if (params?.status && params.status !== 'all') qs.set('status', params.status)
+  if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
+  const suffix = qs.toString() ? `?${qs}` : ''
+  const res = await apiJson<
+    ApiEnvelope<CarePlanReviewQueueItem[]> & {
+      meta?: CarePlanReviewSummary & { total: number }
+    }
+  >(`/service-user-care-plans/review-queue${suffix}`, {
+    method: 'GET',
+    signal: params?.signal,
+  })
+  return {
+    items: res.data ?? [],
+    meta: res.meta ?? {
+      total: res.data?.length ?? 0,
+      carePlanReviewRequired: false,
+      overdueCount: 0,
+      dueSoonCount: 0,
+      upToDateCount: 0,
+    },
+  }
 }
 
 export async function fetchCarePlanInstance(

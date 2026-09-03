@@ -93,7 +93,9 @@ function useNavSearchHits() {
   const role = useAuthStore(s => s.user?.role)
   return React.useMemo(() => {
     const source = role === 'temporary_inspector' ? inspectorOnlyNavItems : adminNavItems
-    return flattenNavItems(filterNavByPermission(source, can))
+    const visible =
+      role === 'temporary_inspector' ? source : filterNavByPermission(source, can)
+    return flattenNavItems(visible)
   }, [can, role])
 }
 

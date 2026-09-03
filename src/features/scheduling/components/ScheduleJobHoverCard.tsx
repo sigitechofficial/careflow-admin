@@ -488,6 +488,14 @@ export function JobHoverPanel({
             <p className="text-base font-semibold leading-tight sm:text-lg">
               {serviceUserNameOnly(job.serviceUser)}
             </p>
+            {job.visitRef ? (
+              <p
+                className="mt-0.5 font-mono text-xs font-medium tracking-tight text-slate-600 dark:text-zinc-300"
+                title="Visit reference (EMONITORED) — same as visit reconciliation"
+              >
+                {job.visitRef}
+              </p>
+            ) : null}
             {metaLine ? (
               <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400">{metaLine}</p>
             ) : null}

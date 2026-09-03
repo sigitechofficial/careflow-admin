@@ -32,6 +32,7 @@ import {
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import type {
   InitialAssessmentAnswerInput,
+  InitialAssessmentSubmission,
   InitialAssessmentValidationResult,
 } from '@/features/service-users/initial-assessment/types'
 
@@ -158,7 +159,16 @@ export function useCreateInitialAssessmentSubmission(serviceUserId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => createInitialAssessmentSubmission(serviceUserId),
-    onSuccess: () => {
+    onSuccess: (created) => {
+      qc.setQueryData<InitialAssessmentSubmission[]>(
+        initialAssessmentKeys.submissions(serviceUserId),
+        (prev) => {
+          if (!created) return prev
+          if (!prev) return [created]
+          if (prev.some((row) => row.id === created.id)) return prev
+          return [created, ...prev]
+        },
+      )
       void qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) })
     },
   })

@@ -129,8 +129,20 @@ const inspectorOnlyNavItems: NavItem[] = [
     icon: <Users className="h-5 w-5" />,
     href: '/service-users',
     children: [
-      { label: 'All Service Users', icon: <Users className="h-4 w-4" />, href: '/service-users/all', navTestId: 'nav-service-users-all' },
-      { label: 'Calendar', icon: <CalendarDays className="h-4 w-4" />, href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
+      {
+        label: 'All Service Users',
+        icon: <Users className="h-4 w-4" />,
+        href: '/service-users/all',
+        permission: 'service_users.read',
+        navTestId: 'nav-service-users-all',
+      },
+      {
+        label: 'Calendar',
+        icon: <CalendarDays className="h-4 w-4" />,
+        href: '/service-users/calendar',
+        permission: 'service_users.calendar.read',
+        navTestId: 'nav-service-users-calendar',
+      },
     ],
   },
 ]
@@ -174,6 +186,13 @@ const navItems: NavItem[] = [
         permission: 'service_users.assessments.read',
         navTestId: 'nav-assessments-review-queue',
       },
+      {
+        label: 'Care plan reviews',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/care-plans/reviews',
+        permission: 'service_users.read',
+        navTestId: 'nav-care-plan-reviews',
+      },
       { label: 'Add Service User',              icon: <UserRoundPlus className="h-4 w-4" />, href: '/service-users/add', permission: 'service_users.create', navTestId: 'nav-service-users-add' },
       {
         label: 'Portal access',
@@ -191,7 +210,22 @@ const navItems: NavItem[] = [
     badge: '3',
     badgeVariant: 'warning',
     children: [
-      { label: 'Schedule Jobs',          icon: <Calendar className="h-4 w-4" />,   href: '/scheduling/schedule-jobs' },
+      {
+        label: 'Schedule Jobs',
+        icon: <Calendar className="h-4 w-4" />,
+        href: '/scheduling/schedule-jobs',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
       {
         label: 'Bulk generate rota',
         icon: <CalendarClock className="h-4 w-4" />,
@@ -202,9 +236,54 @@ const navItems: NavItem[] = [
           'scheduled_visits.create',
         ],
       },
-      { label: 'Report',                 icon: <FileText className="h-4 w-4" />,   href: '/scheduling/report' },
-      { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-4 w-4" />,  href: '/scheduling/jobs' },
-      { label: 'List View of Schedule',  icon: <List className="h-4 w-4" />,       href: '/scheduling/list' },
+      {
+        label: 'Report',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/scheduling/report',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
+      {
+        label: 'Manage Schedule Jobs',
+        icon: <Settings2 className="h-4 w-4" />,
+        href: '/scheduling/jobs',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
+      {
+        label: 'List View of Schedule',
+        icon: <List className="h-4 w-4" />,
+        href: '/scheduling/list',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
       // View Schedule, View Schedule (Mobile), Schedule Templates, Build Schedule: hidden; URLs still work.
     ],
   },
@@ -458,6 +537,13 @@ const navItems: NavItem[] = [
         icon: <Receipt className="h-4 w-4" />,
         href: '/billing',
         search: { tab: 'dashboard' },
+        anyPermission: [
+          'billing.visit_reconciliations.read',
+          'billing.payroll_runs.read',
+          'billing.invoice_runs.read',
+          'billing.employee_payouts.read',
+          'billing.payments.read',
+        ],
         navTestId: 'nav-billing-management',
       },
       {
@@ -549,6 +635,14 @@ const navItems: NavItem[] = [
         navTestId: 'nav-settings-location-management',
       },
       {
+        label: 'Roles & permissions',
+        icon: <ShieldCheck className="h-4 w-4" />,
+        href: '/settings/roles-permissions',
+        search: { sub: 'office-users' },
+        anyPermission: ['users.read', 'roles.manage', 'permissions.manage', 'lookups.read'],
+        navTestId: 'nav-settings-roles-permissions',
+      },
+      {
         label: 'Care Pathway',
         icon: <Route className="h-4 w-4" />,
         href: '/settings/care-pathway',
@@ -558,7 +652,7 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase' },
+  { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase', ready: false },
   {
     label: 'Administration',
     icon: <Shield className="h-5 w-5" />,
@@ -583,17 +677,30 @@ const navItems: NavItem[] = [
   },
 ]
 
+function navChildAllowed(
+  child: SubNavItem,
+  can: (p: Permission) => boolean,
+): boolean {
+  if (child.ready === false) return false
+  if (child.anyPermission?.length) return child.anyPermission.some((p) => can(p))
+  if (child.permission) return can(child.permission)
+  // No permission key → hide (prevents tabs for modules the user cannot access).
+  return false
+}
+
 function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean): NavItem[] {
   return items
     .map((item) => {
-      if (!item.children?.length) return item
-      const children = item.children.filter(ch => {
-        if (ch.anyPermission?.length) return ch.anyPermission.some(p => can(p))
-        return !ch.permission || can(ch.permission)
-      })
+      if (item.ready === false) return null
+      if (!item.children?.length) {
+        // Top-level leaves (Home): always keep. Stub leaves without children already handled.
+        return item
+      }
+      const children = item.children.filter((ch) => navChildAllowed(ch, can))
+      if (!children.length) return null
       return { ...item, children }
     })
-    .filter(item => !item.children?.length || item.children.length > 0)
+    .filter((item): item is NavItem => item != null)
 }
 
 export {
@@ -779,10 +886,12 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     : user?.role === 'temporary_inspector'
       ? inspectorOnlyNavItems
       : navItems
-  const navItemsFiltered = React.useMemo(
-    () => (isPortal ? navSource : filterNavByPermission(navSource, can)),
-    [can, isPortal, navSource],
-  )
+  const navItemsFiltered = React.useMemo(() => {
+    if (isPortal) return navSource
+    // Temporary inspector list is already curated; skip strict ACL filter.
+    if (user?.role === 'temporary_inspector') return navSource
+    return filterNavByPermission(navSource, can)
+  }, [can, isPortal, navSource, user?.role])
   const signOutRedirect = isPortal ? '/portal/login' : '/auth/login'
   const accountHref = isPortal ? '/portal/profile' : '/account'
 

@@ -34,3 +34,12 @@ export function isEquipmentSelectionComplete(meta: EquipmentSelectionMetadata | 
   if (!meta.selectedEquipment?.trim()) return false
   return true
 }
+
+export function formatEquipmentSelectionHistorySummary(
+  meta: EquipmentSelectionMetadata | undefined,
+): string | null {
+  if (!isEquipmentSelectionComplete(meta)) return null
+  const risk = meta!.selectedRiskLevel!.trim()
+  const equipment = meta!.selectedEquipment!.trim()
+  return `Equipment selection recorded (${risk}: ${equipment})`
+}

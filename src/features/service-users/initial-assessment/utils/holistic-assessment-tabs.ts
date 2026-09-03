@@ -9,7 +9,6 @@ import {
 } from '@/features/service-users/initial-assessment/utils/section-progress'
 import type { InitialAssessmentAnswerInput } from '@/features/service-users/initial-assessment/types'
 import type { Section12PanelBlock } from '@/features/service-users/initial-assessment/utils/section-12-display-order'
-import { listSection31FireQuestions } from '@/features/service-users/initial-assessment/utils/section-31-fire-safety'
 import { listSignOffQuestions } from '@/features/service-users/initial-assessment/utils/sign-off-questions'
 
 /** Tab content kinds aligned to the paper document Table of Contents (18 items). */
@@ -48,7 +47,17 @@ export type SectionQuestionFilter = {
 }
 
 export type HolisticAssessmentTab = {
+  /**
+   * Frozen internal tab id. Used by URL `section=`, section comments, registry,
+   * autofill, and save keys. Do not renumber persisted values 1–18 or 19–22.
+   */
   id: number
+  /**
+   * User-facing Table of Contents number. Independent of `id` and of
+   * `enterpriseSection` (catalogue §15 Infection / §16 PEEP / §17 Bed Rails /
+   * §18 Fire must not drive this label).
+   */
+  displayNumber: number
   title: string
   kind: DocumentTabKind
   /** Primary enterprise section (save, attachments, comments). */
@@ -66,11 +75,18 @@ export type HolisticAssessmentTab = {
   placeholderHint?: string
 }
 
+function defineHolisticTab(
+  tab: Omit<HolisticAssessmentTab, 'displayNumber'> & { displayNumber?: number },
+): HolisticAssessmentTab {
+  return { ...tab, displayNumber: tab.displayNumber ?? tab.id }
+}
+
 /**
- * Table of Contents ΓÇö Initial Holistic Assessment and Care Needs Assessment.
- * Order matches the reference document (image 1).
+ * Holistic document tabs. Array order is the visible navigation order:
+ * historical tabs 1–18, then PEEP, Bed Rails, Infection, Fire Safety.
+ * Do not sort this array by `enterpriseSection` or by numeric `id`.
  */
-export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
+const HOLISTIC_ASSESSMENT_TAB_DEFS: Array<Omit<HolisticAssessmentTab, 'displayNumber'>> = [
   {
     id: 1,
     title: 'Personal Details & Medical History',
@@ -140,6 +156,10 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
       },
       {
         sectionNumber: 10,
+        specRefs: ['10.6a'],
+      },
+      {
+        sectionNumber: 10,
         specRefs: ['10.4'],
         questionTextsOnly: ['Sleeping pattern'],
       },
@@ -163,7 +183,7 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
     title: 'Initial Mental Capacity Act Screening Tool',
     kind: 'mca-screening',
     enterpriseSection: 2,
-    specRefs: ['2.mca'],
+    specRefs: ['2.mca', '2.9'],
   },
   {
     id: 4,
@@ -255,9 +275,45 @@ export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] = [
     kind: 'photography-consent',
     enterpriseSection: 11,
   },
+  {
+    id: 19,
+    title: 'Personal Emergency Evacuation Plan (PEEP)',
+    kind: 'form-section',
+    enterpriseSection: 16,
+  },
+  {
+    id: 20,
+    title: 'Bed Rails',
+    kind: 'form-section',
+    enterpriseSection: 17,
+  },
+  {
+    id: 21,
+    title: 'Infection and Clinical Precautions',
+    kind: 'form-section',
+    enterpriseSection: 15,
+  },
+  {
+    id: 22,
+    title: 'Fire Safety',
+    kind: 'form-section',
+    enterpriseSection: 18,
+  },
 ]
 
+export const HOLISTIC_ASSESSMENT_TABS: HolisticAssessmentTab[] =
+  HOLISTIC_ASSESSMENT_TAB_DEFS.map(defineHolisticTab)
+
 export const HOLISTIC_TAB_COUNT = HOLISTIC_ASSESSMENT_TABS.length
+
+/** Frozen internal tab ids in visible navigation order (not enterpriseSection order). */
+export const HOLISTIC_REGISTERED_TAB_IDS = HOLISTIC_ASSESSMENT_TABS.map((tab) => tab.id)
+
+export const HOLISTIC_MAX_TAB_ID = Math.max(...HOLISTIC_REGISTERED_TAB_IDS)
+
+export function isRegisteredHolisticTabId(id: number): boolean {
+  return HOLISTIC_ASSESSMENT_TABS.some((tab) => tab.id === id)
+}
 
 export function holisticTabById(id: number): HolisticAssessmentTab | undefined {
   return HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === id)
@@ -265,6 +321,14 @@ export function holisticTabById(id: number): HolisticAssessmentTab | undefined {
 
 export function holisticTabTitle(id: number): string {
   return holisticTabById(id)?.title ?? `Section ${id}`
+}
+
+/** User-facing TOC number. Never derived from enterpriseSection. */
+export function holisticTabDisplayNumber(tab: HolisticAssessmentTab | number): number {
+  if (typeof tab === 'number') {
+    return holisticTabById(tab)?.displayNumber ?? tab
+  }
+  return tab.displayNumber
 }
 
 export function firstHolisticTabForEnterpriseSection(sectionNumber: number): number {
@@ -442,15 +506,6 @@ export function questionsForDocumentTab(
       }
       const visible = visibleQuestionsBySection.get(slice.sectionNumber) ?? []
       out.push(...filterQuestionsForHolisticTab(visible, slice))
-    }
-    if (tab.id === 1) {
-      const seen = new Set(out.map((q) => q.id))
-      for (const q of listSection31FireQuestions(sections)) {
-        if (!seen.has(q.id)) {
-          out.push(q)
-          seen.add(q.id)
-        }
-      }
     }
     return out
   }

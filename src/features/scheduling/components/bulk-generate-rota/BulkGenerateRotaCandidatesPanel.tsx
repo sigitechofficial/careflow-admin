@@ -9,6 +9,7 @@ type Props = {
   selectedCount: number
   search: string
   locationId: string
+  locationFilterDisabled?: boolean
   listReadyOnly: boolean
   locations: LocationLookup[]
   visibleCandidates: BulkVisitPlanScheduleCandidate[]
@@ -30,6 +31,7 @@ export function BulkGenerateRotaCandidatesPanel({
   selectedCount,
   search,
   locationId,
+  locationFilterDisabled = false,
   listReadyOnly,
   locations,
   visibleCandidates,
@@ -53,11 +55,13 @@ export function BulkGenerateRotaCandidatesPanel({
           <h2 className="text-sm font-semibold">Visit plans</h2>
           <p className="text-xs text-muted-foreground">
             {selectedCount} selected · ready = call pattern configured (carers assigned separately)
+            {locationFilterDisabled ? ' · filtered by header location' : null}
           </p>
         </div>
         <BulkGenerateRotaCandidatesToolbar
           search={search}
           locationId={locationId}
+          locationFilterDisabled={locationFilterDisabled}
           listReadyOnly={listReadyOnly}
           locations={locations}
           onSearchChange={onSearchChange}

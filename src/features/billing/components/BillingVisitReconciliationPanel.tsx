@@ -594,9 +594,9 @@ export function BillingVisitReconciliationPanel({
                 const pendingOverrun =
                   (row.overrunMinutes ?? 0) > 0 &&
                   (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
-                const locked = row.status === 'LOCKED' || row.status === 'APPROVED_FOR_BOTH'
-                // Keep All / Carer pay / Funders clickable even with exceptions or pending overrun;
-                // backend accepts these via managerOverride.
+                const locked = row.status === 'LOCKED'
+                // Keep All / Carer pay / Funders clickable after prior approval so finance
+                // can change the decision later; only LOCKED rows are frozen.
                 const approveDisabled = isMutating || locked
                 const managerOverride = needsManager || hasBlocking || pendingOverrun
                 const approveTitle = hasBlocking
@@ -605,7 +605,11 @@ export function BillingVisitReconciliationPanel({
                     ? 'Approve with pending overrun — manager override (or open Details to decide overrun first)'
                     : needsManager
                       ? 'Manager approve (pay & bill)'
-                      : 'Approve for carer pay and client / funder billing'
+                      : row.status === 'APPROVED_FOR_BOTH' ||
+                          row.status === 'APPROVED_FOR_PAY' ||
+                          row.status === 'APPROVED_FOR_INVOICE'
+                        ? 'Change approval — All / Carer pay / Funders'
+                        : 'Approve for carer pay and client / funder billing'
                 return (
                   <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     {canManage ? (

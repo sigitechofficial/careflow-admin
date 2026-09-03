@@ -1,32 +1,15 @@
 import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
 import {
-  AlertTriangle,
-  BedDouble,
   Calendar,
-  CalendarOff,
-  ClipboardList,
-  FileText,
-  Heart,
   HelpCircle,
-  Home,
-  Images,
-  Landmark,
   LayoutDashboard,
   Loader2,
-  Package,
-  Receipt,
-  ClipboardCheck,
-  Shield,
   Sparkles,
   User,
-  UserCircle,
-  Users,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
-import { type ServiceUserDetail, type ServiceUserLookupsBundle } from '@/features/service-users/types'
 import { type LookupRow } from '@/features/employees/types'
 import { resolveServiceUserIdFromParams } from '@/features/service-users/service-user-route-id'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
@@ -34,76 +17,14 @@ import { useServiceUserLookups } from '@/features/service-users/hooks/useService
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { useQueryClient } from '@tanstack/react-query'
 import { serviceUserKeys } from '@/features/service-users/keys'
-import { ServiceUserPersonalDetailsForm } from '@/features/service-users/components/ServiceUserPersonalDetailsForm'
-import { ServiceUserPhotosTab } from '@/features/service-users/components/ServiceUserPhotosTab'
-import { ServiceUserPortalAccessSection } from '@/features/service-users/components/ServiceUserPortalAccessSection'
-import { ServiceUserContactsTab } from '@/features/service-users/components/ServiceUserContactsTab'
-import { ServiceUserAboutMeForm } from '@/features/service-users/components/ServiceUserAboutMeForm'
-import { ServiceUserInventoryTab } from '@/features/service-users/components/ServiceUserInventoryTab'
-import { ServiceUserAllergiesTab } from '@/features/service-users/components/ServiceUserAllergiesTab'
-import { ServiceUserAbsencesTab } from '@/features/service-users/components/ServiceUserAbsencesTab'
-import { ServiceUserDomCareTab } from '@/features/service-users/components/ServiceUserDomCareTab'
-import { ServiceUserInitialAssessmentEnterpriseTab } from '@/features/service-users/initial-assessment/components/ServiceUserInitialAssessmentEnterpriseTab'
-import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
-import { ServiceUserEditChargeCardPanel } from '@/features/service-users/components/ServiceUserEditChargeCardPanel'
-import { ServiceUserEditVisitsPanel } from '@/features/service-users/components/ServiceUserEditVisitsPanel'
-import { ServiceUserEditInvoicesPanel } from '@/features/service-users/components/ServiceUserEditInvoicesPanel'
-import { ServiceUserLiveInProfileTab } from '@/features/service-users/components/ServiceUserLiveInProfileTab'
-import { ServiceUserCalendarTab } from '@/features/service-users/calendar/components/ServiceUserCalendarTab'
+import { ServiceUserProfileSectionContent } from '@/features/service-users/components/ServiceUserProfileSectionContent'
+import { ServiceUserSectionSideNav } from '@/features/service-users/components/ServiceUserSectionSideNav'
+import {
+  resolveServiceUserProfileTab,
+  SERVICE_USER_PROFILE_TABS,
+  type ServiceUserProfileTabId,
+} from '@/features/service-users/service-user-profile-tabs'
 import { Button } from '@/shared/ui/button'
-
-type ServiceUserEditTabId =
-  | 'personal'
-  | 'contacts'
-  | 'about'
-  | 'photos'
-  | 'inventory'
-  | 'allergies'
-  | 'absences'
-  | 'calendar'
-  | 'privacy'
-  | 'dom'
-  | 'assessment'
-  | 'funding'
-  | 'charge-card'
-  | 'visits'
-  | 'invoices'
-  | 'livein'
-
-const MAIN_TABS: { id: ServiceUserEditTabId; label: string; Icon: LucideIcon }[] = [
-  { id: 'personal', label: 'Personal Details', Icon: UserCircle },
-  { id: 'contacts', label: 'Contacts and Family', Icon: Users },
-  { id: 'about', label: 'About Me', Icon: Heart },
-  { id: 'photos', label: 'Photographs', Icon: Images },
-  { id: 'inventory', label: 'Personal Inventory', Icon: Package },
-  { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
-  { id: 'absences', label: 'Record Absences', Icon: CalendarOff },
-  { id: 'calendar', label: 'Calendar', Icon: Calendar },
-  { id: 'privacy', label: 'Privacy', Icon: Shield },
-  { id: 'dom', label: 'DOM Care', Icon: Home },
-  { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
-  { id: 'funding', label: 'Funding', Icon: Landmark },
-  { id: 'charge-card', label: 'Charge card', Icon: Receipt },
-  { id: 'visits', label: 'Visits', Icon: ClipboardCheck },
-  { id: 'invoices', label: 'Invoices', Icon: FileText },
-  { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
-]
-
-const EMPTY_SU_LOOKUPS: ServiceUserLookupsBundle = {
-  statuses: [],
-  titles: [],
-  genders: [],
-  maritalStatuses: [],
-  careTypes: [],
-  fundingTypes: [],
-  ethnicities: [],
-  languages: [],
-  riskLevels: [],
-  relationshipTypes: [],
-  allergies: [],
-  absenceReasons: [],
-  visitPlanPauseReasons: [],
-}
 
 function formatDob(iso: string | null): string {
   if (!iso) return '—'
@@ -115,26 +36,15 @@ function formatDob(iso: string | null): string {
   return `${dd}-${mm}-${yyyy}`
 }
 
-function PlaceholderTab({ title }: { title: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center text-sm text-muted-foreground">
-      {title} data is not available in the API yet. This section is reserved for future CareAdmin modules.
-    </div>
-  )
-}
-
 export default function EditServiceUserPage() {
   const navigate = useNavigate()
   const params = useParams({ strict: false }) as { serviceUserId?: string }
   const serviceUserId = resolveServiceUserIdFromParams(params.serviceUserId)
   const search = useSearch({ strict: false }) as { tab?: string }
-  const mainTab: ServiceUserEditTabId =
-    search.tab && MAIN_TABS.some(t => t.id === search.tab)
-      ? (search.tab as ServiceUserEditTabId)
-      : 'personal'
+  const mainTab: ServiceUserProfileTabId = resolveServiceUserProfileTab(search.tab)
 
   const setMainTab = React.useCallback(
-    (tab: ServiceUserEditTabId) => {
+    (tab: ServiceUserProfileTabId) => {
       if (!serviceUserId) return
       void navigate({
         to: '/service-users/$serviceUserId',
@@ -280,124 +190,24 @@ export default function EditServiceUserPage() {
             className="flex flex-col rounded-xl border border-border bg-card shadow-sm md:flex-row"
             data-testid="service-user-edit-layout"
           >
-            <nav
-              className={cn(
-                'flex shrink-0 gap-0.5 overflow-x-auto',
-                'border-b border-border bg-muted/30 p-2',
-                'md:sticky md:top-0 md:h-fit md:max-h-[calc(100dvh-5rem)] md:w-60 md:flex-col md:overflow-y-auto md:overflow-x-visible',
-                'md:border-b-0 md:border-r',
-              )}
-              aria-label="Service user sections"
-              data-testid="service-user-edit-tabs"
-            >
-              {MAIN_TABS.map(tab => {
-                const Icon = tab.Icon
-                const isActive = tab.id === mainTab
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    data-testid={`service-user-edit-tab-${tab.id}`}
-                    onClick={() => setMainTab(tab.id)}
-                    className={cn(
-                      'inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
-                      isActive
-                        ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
-                        : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
-                    <span className="whitespace-nowrap">{tab.label}</span>
-                  </button>
-                )
-              })}
-            </nav>
+            <ServiceUserSectionSideNav
+              tabs={SERVICE_USER_PROFILE_TABS}
+              activeId={mainTab}
+              onSelect={setMainTab}
+              ariaLabel="Service user sections"
+              testId="service-user-edit-tabs"
+              tabTestIdPrefix="service-user-edit-tab-"
+            />
 
             <div className="min-w-0 flex-1 space-y-6 p-5">
-              {mainTab === 'personal' && (
-                lookups ? (
-                  <>
-                    <ServiceUserPersonalDetailsForm
-                      detail={detail}
-                      lookups={lookups}
-                      locations={locations}
-                      serviceUserId={serviceUserId}
-                      onSaved={invalidateProfile}
-                    />
-                    <ServiceUserPortalAccessSection serviceUserId={serviceUserId} defaultEmail={detail.email} />
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Loading…</p>
-                )
-              )}
-
-              {mainTab === 'contacts' && (
-                lookups ? (
-                  <ServiceUserContactsTab
-                    serviceUserId={serviceUserId}
-                    detail={detail}
-                    lookups={lookups}
-                    onSaved={invalidateProfile}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Loading…</p>
-                )
-              )}
-
-              {mainTab === 'about' && (
-                <ServiceUserAboutMeForm serviceUserId={serviceUserId} detail={detail} onSaved={invalidateProfile} />
-              )}
-
-              {mainTab === 'photos' && <ServiceUserPhotosTab detail={detail} />}
-
-              {mainTab === 'inventory' && <ServiceUserInventoryTab serviceUserId={serviceUserId} />}
-
-              {mainTab === 'allergies' && (
-                <ServiceUserAllergiesTab serviceUserId={serviceUserId} allergyCatalog={lookups?.allergies ?? []} />
-              )}
-
-              {mainTab === 'absences' && (
-                <ServiceUserAbsencesTab
-                  serviceUserId={serviceUserId}
-                  absenceReasons={lookups?.absenceReasons ?? []}
-                />
-              )}
-
-              {mainTab === 'calendar' && <ServiceUserCalendarTab serviceUserId={serviceUserId} />}
-
-              {mainTab === 'privacy' && <PlaceholderTab title="Privacy" />}
-
-              {mainTab === 'dom' && <ServiceUserDomCareTab serviceUserId={serviceUserId} />}
-
-              {mainTab === 'assessment' && (
-                <ServiceUserInitialAssessmentEnterpriseTab
-                  serviceUserId={serviceUserId}
-                  displayName={(detail?.preferredName?.trim() || detail?.firstName || 'Client').trim()}
-                />
-              )}
-
-              {mainTab === 'funding' && (
-                <ServiceUserFundingTab
-                  serviceUserId={serviceUserId}
-                  displayName={(detail.preferredName?.trim() || [detail.firstName, detail.lastName].filter(Boolean).join(' ')).trim()}
-                  contacts={detail.contacts}
-                  initialNhsNumber={detail.nhsNumber}
-                  initialSocialServicesRef={detail.socialServicesRef}
-                  onDetailPatch={invalidateProfile}
-                />
-              )}
-
-              {mainTab === 'charge-card' && <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />}
-
-              {mainTab === 'visits' && <ServiceUserEditVisitsPanel serviceUserId={serviceUserId} />}
-
-              {mainTab === 'invoices' && <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />}
-
-              {mainTab === 'livein' && (
-                <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />
-              )}
+              <ServiceUserProfileSectionContent
+                tab={mainTab}
+                serviceUserId={serviceUserId}
+                detail={detail}
+                lookups={lookups}
+                locations={locations}
+                onSaved={invalidateProfile}
+              />
             </div>
           </div>
         </div>

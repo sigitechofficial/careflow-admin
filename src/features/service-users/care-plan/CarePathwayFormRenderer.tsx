@@ -248,6 +248,7 @@ export function CarePathwayFormRenderer({
   onUseSuggestion,
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
+  onEditSuggestion,
 }: {
   form: CareFormDetail
   values: CarePlanDraftValues
@@ -261,6 +262,7 @@ export function CarePathwayFormRenderer({
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onEditSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }) {
   const setFieldValue = (sectionId: string, field: CareFormFieldRow, next: string | boolean) => {
     onChange({ ...values, [fieldKey(sectionId, field.id)]: next })
@@ -339,6 +341,7 @@ export function CarePathwayFormRenderer({
                           onUseSuggestion={onUseSuggestion}
                           onDismissSuggestion={onIgnoreSuggestion}
                           onKeepCurrentSuggestion={onKeepCurrentSuggestion}
+                          onEditSuggestion={onEditSuggestion}
                           answerFooter={
                             composedFrom ? (
                               <CarePlanAutoPrefillIndicator composedFrom={composedFrom} fieldKey={key} />

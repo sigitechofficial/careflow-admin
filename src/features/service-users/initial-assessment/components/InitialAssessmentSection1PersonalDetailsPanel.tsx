@@ -3,6 +3,7 @@ import { cn } from '@/shared/lib/utils'
 import type { InitialAssessmentQuestion } from '@/features/service-users/initial-assessment/types'
 import { fieldKeyOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { prefillKeyForQuestion } from '@/features/service-users/initial-assessment/utils/question-prefill'
+import { isHolisticKeySafeQuestion } from '@/features/service-users/initial-assessment/utils/section-1-key-safe-fields'
 import { sortPersonalDetailsQuestions } from '@/features/service-users/initial-assessment/utils/section-1-personal-details-order'
 import { isMultiSelectOptionsGridQuestion } from '@/features/service-users/initial-assessment/utils/multi-select-options-grid'
 import type { InitialAssessmentFieldRenderOptions } from '@/features/service-users/initial-assessment/utils/field-render-options'
@@ -28,7 +29,6 @@ function gridItemClass(q: InitialAssessmentQuestion): string {
     prefillKeyForQuestion(q) === 'addressContact' ||
     fieldKeyOf(q) === 'gpContactDetails' ||
     fieldKeyOf(q) === 'lpoaContactDetails' ||
-    fieldKeyOf(q) === 'keySafeCodeHolistic' ||
     q.questionType === 'TEXTAREA'
 
   return cn('min-w-0', fullRow && 'sm:col-span-2')
@@ -40,7 +40,7 @@ export function InitialAssessmentSection1PersonalDetailsPanel({
   renderMultiSelect,
 }: Props) {
   const ordered = sortPersonalDetailsQuestions(
-    group.questions.filter((q) => fieldKeyOf(q) !== 'poNumber'),
+    group.questions.filter((q) => fieldKeyOf(q) !== 'poNumber' && !isHolisticKeySafeQuestion(q)),
   )
 
   if (ordered.length === 0) return null

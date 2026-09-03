@@ -27,8 +27,13 @@ import {
 import { CarePlanEvidencePanel } from '@/features/service-users/care-plans/components/CarePlanEvidencePanel'
 import { CarePlanFactsheetPanel } from '@/features/service-users/care-plans/components/CarePlanFactsheetPanel'
 import { CarePlanPublishDialog } from '@/features/service-users/care-plans/components/CarePlanPublishDialog'
-import { CarePlanIaHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanIaHistoryPanel'
 import { hasPublishableCarePlanValues } from '@/features/service-users/care-plans/care-plan-publish.util'
+import { CarePlanIaHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanIaHistoryPanel'
+import {
+  CARE_PLAN_META,
+  setMetaValue,
+} from '@/features/service-users/care-plan/care-plan-form-meta'
+import { resolveEditorNextReviewDate } from '@/features/service-users/care-plans/care-plan-review-frequency'
 import { CarePlanReviewBadge } from '@/features/service-users/care-plans/components/CarePlanReviewBadge'
 import { CarePlanVersionHistoryPanel } from '@/features/service-users/care-plans/components/CarePlanVersionHistoryPanel'
 import { Button } from '@/shared/ui/button'
@@ -41,6 +46,7 @@ import {
   isExplicitSuggestionCompose,
   isHybridCompose,
   markProvenanceEdited,
+  mergeComposedFromOnEdit,
   mergeComposedFromOnIgnore,
   mergeComposedFromOnUse,
   mergeHybridRefreshValues,
@@ -123,7 +129,18 @@ export default function ServiceUserCarePlanFormPage() {
       compose: composeQuery.data,
     })
     if (hydrated === 'wait') return
-    setValues(hydrated)
+    const seededDate = resolveEditorNextReviewDate({
+      metaDate: typeof hydrated[CARE_PLAN_META.nextReviewDate] === 'string'
+        ? (hydrated[CARE_PLAN_META.nextReviewDate] as string)
+        : '',
+      publishedNextReviewDueAt: instanceQuery.data?.nextReviewDueAt,
+      defaultNextReviewDate: instanceQuery.data?.defaultNextReviewDate,
+    })
+    setValues(
+      seededDate
+        ? setMetaValue(hydrated, CARE_PLAN_META.nextReviewDate, seededDate)
+        : hydrated,
+    )
     setComposedFrom(
       hydrateComposedFromForEditor({
         // Published snapshot is the source of truth once the draft was consumed.
@@ -218,6 +235,17 @@ export default function ServiceUserCarePlanFormPage() {
     void persistDraft(values, nextComposedFrom)
       .then(() => toastSuccess('Suggestion ignored', 'This suggestion is hidden for the current draft.'))
       .catch((e) => toastApiError(e, 'Could not save ignore'))
+  }
+
+  const onEditSuggestion = (suggestion: CarePlanFieldSuggestion) => {
+    const nextValues = applySuggestionToValues(values, suggestion)
+    const nextComposedFrom = mergeComposedFromOnEdit({
+      composedFrom,
+      suggestion,
+      acceptedById: actorId,
+    })
+    setValues(nextValues)
+    setComposedFrom(nextComposedFrom)
   }
 
   const onSaveDraft = () => {
@@ -379,6 +407,9 @@ export default function ServiceUserCarePlanFormPage() {
               onUseSuggestion={showIaSuggestions ? onUseSuggestion : undefined}
               onIgnoreSuggestion={showIaSuggestions ? onIgnoreSuggestion : undefined}
               onKeepCurrentSuggestion={showIaSuggestions ? onIgnoreSuggestion : undefined}
+              onEditSuggestion={showIaSuggestions ? onEditSuggestion : undefined}
+              defaultNextReviewDate={instanceQuery.data?.defaultNextReviewDate}
+              publishedNextReviewDueAt={instanceQuery.data?.nextReviewDueAt}
             />
 
             <CarePlanVersionHistoryPanel serviceUserId={serviceUserId} formId={formId} />

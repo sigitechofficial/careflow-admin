@@ -46,6 +46,7 @@ import {
   type CarePlanReviewStatus,
   type CarePlanRiskItem,
 } from '@/features/service-users/care-plan/care-plan-form-meta'
+import { resolveEditorNextReviewDate } from '@/features/service-users/care-plans/care-plan-review-frequency'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
 import { BodyMapCanvas } from '@/features/service-users/body-map/components/BodyMapCanvas'
@@ -137,12 +138,16 @@ function ReviewSummarySection({
   values,
   onChange,
   disabled,
+  defaultNextReviewDate,
+  publishedNextReviewDueAt,
 }: {
   serviceUserName: string
   consentDefaultName: string
   values: CarePlanDraftValues
   onChange: (v: CarePlanDraftValues) => void
   disabled?: boolean
+  defaultNextReviewDate?: string | null
+  publishedNextReviewDueAt?: string | null
 }) {
   const [summaryExpanded, setSummaryExpanded] = React.useState(false)
   const [signatureKey, setSignatureKey] = React.useState(0)
@@ -161,8 +166,11 @@ function ReviewSummarySection({
   const dependencyLevel =
     metaString(values, CARE_PLAN_META.dependencyLevel) || DEPENDENCY_LEVEL_OPTIONS[1]
   const nextReviewDate =
-    metaString(values, CARE_PLAN_META.nextReviewDate) ||
-    new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    resolveEditorNextReviewDate({
+      metaDate: metaString(values, CARE_PLAN_META.nextReviewDate),
+      publishedNextReviewDueAt: publishedNextReviewDueAt,
+      defaultNextReviewDate,
+    })
 
   const showViewMore = summary.trim().length > 280
 
@@ -317,6 +325,7 @@ function CarePlanMainSection({
   onUseSuggestion,
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
+  onEditSuggestion,
 }: {
   form: CareFormDetail
   values: CarePlanDraftValues
@@ -328,6 +337,7 @@ function CarePlanMainSection({
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onEditSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
 }) {
   return (
     <CarePathwayFormRenderer
@@ -342,6 +352,7 @@ function CarePlanMainSection({
       onUseSuggestion={onUseSuggestion}
       onIgnoreSuggestion={onIgnoreSuggestion}
       onKeepCurrentSuggestion={onKeepCurrentSuggestion}
+      onEditSuggestion={onEditSuggestion}
     />
   )
 }
@@ -1044,6 +1055,9 @@ export function CarePlanFormWorkspace({
   onUseSuggestion,
   onIgnoreSuggestion,
   onKeepCurrentSuggestion,
+  onEditSuggestion,
+  defaultNextReviewDate,
+  publishedNextReviewDueAt,
 }: {
   serviceUserId: string
   detail: ServiceUserDetail | null
@@ -1061,6 +1075,9 @@ export function CarePlanFormWorkspace({
   onUseSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onIgnoreSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
   onKeepCurrentSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  onEditSuggestion?: (suggestion: CarePlanFieldSuggestion) => void
+  defaultNextReviewDate?: string | null
+  publishedNextReviewDueAt?: string | null
 }) {
   const serviceUserName = serviceUserGivenName(detail)
   const consentDefaultName = serviceUserDisplayName(detail)
@@ -1125,6 +1142,8 @@ export function CarePlanFormWorkspace({
               values={values}
               onChange={onChange}
               disabled={disabled}
+              defaultNextReviewDate={defaultNextReviewDate}
+              publishedNextReviewDueAt={publishedNextReviewDueAt}
             />
           )}
           {activeSection === 'assessment' && (
@@ -1150,6 +1169,7 @@ export function CarePlanFormWorkspace({
               onUseSuggestion={onUseSuggestion}
               onIgnoreSuggestion={onIgnoreSuggestion}
               onKeepCurrentSuggestion={onKeepCurrentSuggestion}
+              onEditSuggestion={onEditSuggestion}
             />
           )}
           {activeSection === 'risk-profile' && (

@@ -37,6 +37,12 @@ export const CONSENT_CAPACITY_STEPS: ConsentCapacityStep[] = [
     description: 'GP, family, pharmacy and local authority sharing consent.',
     specRefs: ['2.8'],
   },
+  {
+    id: 'dols',
+    title: 'DoLS / LPS',
+    description: 'Record whether a DoLS or LPS authorisation is in place. Certificates stay in the document store.',
+    specRefs: ['2.9'],
+  },
 ]
 
 /** Spec-ref subtitles for step nav (e.g. `2.1 Consent to assessment · 2.2 Consent to receive care`). */

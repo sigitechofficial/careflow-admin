@@ -53,10 +53,13 @@ export function useEmployee(id: string, enabled = true) {
   })
 }
 
-export function useEmployeeDocumentsRegistry(enabled = true) {
+export function useEmployeeDocumentsRegistry(
+  enabled = true,
+  params?: { locationIds?: string[] },
+) {
   return useQuery({
-    queryKey: employeeKeys.documentsRegistry(),
-    queryFn: ({ signal }) => fetchEmployeeDocumentsRegistry({ signal }),
+    queryKey: employeeKeys.documentsRegistry(params),
+    queryFn: ({ signal }) => fetchEmployeeDocumentsRegistry(params, { signal }),
     enabled,
     staleTime: 30_000,
   })

@@ -10,6 +10,12 @@ export const serviceUserAssessmentKeys = {
     [...serviceUserAssessmentKeys.list(serviceUserId), 'catalogue'] as const,
   carePlanLinks: (serviceUserId: string, carePlanFormId: string) =>
     [...serviceUserAssessmentKeys.list(serviceUserId), 'care-plan-links', carePlanFormId] as const,
-  reviewQueue: (overdueOnly?: boolean, serviceUserId?: string) =>
-    [...serviceUserAssessmentKeys.all(), 'review-queue', overdueOnly ?? false, serviceUserId ?? ''] as const,
+  reviewQueue: (overdueOnly?: boolean, serviceUserId?: string, locationId?: string) =>
+    [
+      ...serviceUserAssessmentKeys.all(),
+      'review-queue',
+      overdueOnly ?? false,
+      serviceUserId ?? '',
+      locationId ?? '',
+    ] as const,
 }

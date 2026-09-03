@@ -16,7 +16,11 @@ function BulkGenerateRotaPageContent() {
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-5 md:p-6">
       <PageHeader
         title="Bulk generate rota"
-        description="Create scheduled jobs and visits from active visit plans. Carers are not assigned — allocate staff on Schedule Jobs after generating."
+        description={
+          page.locationFilterDisabled
+            ? 'Create scheduled jobs and visits from active visit plans for the selected header location. Carers are not assigned — allocate staff on Schedule Jobs after generating.'
+            : 'Create scheduled jobs and visits from active visit plans. Carers are not assigned — allocate staff on Schedule Jobs after generating.'
+        }
         breadcrumb={[
           { label: 'Home', href: '/' },
           { label: 'Scheduling', href: '/scheduling/view' },
@@ -41,7 +45,7 @@ function BulkGenerateRotaPageContent() {
         backfillDays={page.backfillDays}
         scheduleAreaId={page.scheduleAreaId}
         generateReadyOnly={page.generateReadyOnly}
-        scheduleAreas={page.scheduleAreasQuery.data ?? []}
+        scheduleAreas={page.scheduleAreas}
         onGenerateFromChange={page.setGenerateFrom}
         onGenerateToChange={page.setGenerateTo}
         onBackfillDaysChange={page.setBackfillDays}
@@ -53,6 +57,7 @@ function BulkGenerateRotaPageContent() {
         selectedCount={page.selectedPlanIds.size}
         search={page.search}
         locationId={page.locationId}
+        locationFilterDisabled={page.locationFilterDisabled}
         listReadyOnly={page.listReadyOnly}
         locations={page.locationsQuery.data?.locations ?? []}
         visibleCandidates={page.visibleCandidates}

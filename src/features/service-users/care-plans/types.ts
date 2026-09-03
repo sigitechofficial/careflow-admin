@@ -32,6 +32,8 @@ export type CarePlanInstance = {
   nextReviewDueAt?: string | null
   lastReviewedAt?: string | null
   lastReviewedById?: string | null
+  reviewFrequencyMonths?: number | null
+  defaultNextReviewDate?: string | null
   createdAt: string
   updatedAt: string
   draft?: CarePlanDraftPayload | null
@@ -54,8 +56,26 @@ export type CarePlanReviewState = {
   status: CarePlanReviewStatus
   nextReviewDueAt: string | null
   lastReviewedAt: string | null
-  intervalDays: number | null
+  intervalMonths: number | null
+  intervalDays?: number | null
   guidanceSummary: string | null
+}
+
+export type CarePlanReviewSummary = {
+  carePlanReviewRequired: boolean
+  overdueCount: number
+  dueSoonCount: number
+  upToDateCount: number
+}
+
+export type CarePlanReviewQueueItem = {
+  instanceId: string
+  serviceUserId: string
+  serviceUserName: string
+  carePathwayFormId: string
+  carePlanName: string
+  nextReviewDueAt: string | null
+  review: CarePlanReviewState
 }
 
 export type CarePlanComposeEvidence = {

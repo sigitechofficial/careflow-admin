@@ -105,6 +105,7 @@ test.describe('Major routes audit', () => {
       { path: '/service-users/add', label: 'Add service user' },
       { path: '/service-users/initial-assessment-checklist', label: 'Initial assessment' },
       { path: `/service-users/${suId}/view`, label: 'View service user' },
+      { path: `/service-users/${suId}/profile`, label: 'Service user profile' },
       { path: `/service-users/${suId}/care-plan`, label: 'Care plan' },
       { path: `/service-users/${suId}/medication`, label: 'Medication' },
       { path: `/service-users/${suId}/observations`, label: 'Observations' },

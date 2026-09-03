@@ -20,6 +20,7 @@ import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useAuthStore } from '@/features/auth/store'
 import { Label } from '@/shared/ui/form-field'
 import {
@@ -63,7 +64,10 @@ import { InitialAssessmentBlockingBanner } from '@/features/service-users/initia
 import { InitialAssessmentSignOffPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSignOffPanel'
 import { InitialAssessmentSectionQuestions } from '@/features/service-users/initial-assessment/components/InitialAssessmentSectionQuestions'
 import { signOffQuestionIds } from '@/features/service-users/initial-assessment/utils/sign-off-questions'
-import type { PainAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
+import {
+  isPainAssessmentComplete as isPainToolComplete,
+  type PainAssessmentMetadata,
+} from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 import { HOLISTIC_FORM_TITLE } from '@/features/service-users/initial-assessment/utils/holistic-assessment-labels'
 import { InitialAssessmentDocumentTabContent } from '@/features/service-users/initial-assessment/components/InitialAssessmentDocumentTabContent'
 import { SectionQaDemoDataPanel } from '@/features/service-users/initial-assessment/components/SectionQaDemoDataPanel'
@@ -73,13 +77,18 @@ import {
   HOLISTIC_ASSESSMENT_TABS,
   HOLISTIC_TAB_COUNT,
   holisticTabById,
+  holisticTabDisplayNumber,
   holisticTabTitle,
   questionsForDocumentTab,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import { getVisibleSectionQuestions } from '@/features/service-users/initial-assessment/utils/visible-section-questions'
+import { demoFillQuestionsForDocumentTab } from '@/features/service-users/initial-assessment/utils/demo-fill-tab-questions'
+import { iaDemoIdentityFromDetail, isIaDemoIdentityPrefillQuestion } from '@/features/service-users/initial-assessment/utils/ia-section-demo-dev'
 import { HOLISTIC_FORM_PAGE_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
+  iaAssessorNameDesignation,
   painPanelTemplateQuestionIds,
+  stampPainAssessmentCompletion,
   syncPainAssessmentAnswers,
 } from '@/features/service-users/initial-assessment/utils/pain-questions'
 import {
@@ -128,6 +137,7 @@ import {
   type EquipmentSelectionMetadata,
 } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import { syncFallsScreeningDerivedState } from '@/features/service-users/initial-assessment/utils/falls-screening-questions'
+import { syncFillDemoCatalogueAnswers } from '@/features/service-users/initial-assessment/utils/fill-demo-worksheet-sync'
 import {
   mustTemplateQuestionIds,
   syncMustAssessmentAnswers,
@@ -150,6 +160,7 @@ import { sectionProgress, overallAssessmentProgress, formatSectionNavMeta, type 
 import {
   applyPrefillToDraftAnswers,
   buildPrefillMap,
+  hasAssessmentAnswer,
 } from '@/features/service-users/initial-assessment/utils/question-prefill'
 import { formatAllergiesAssessmentText } from '@/features/service-users/utils/format-allergies-assessment-text'
 import { prepareAnswersForSave } from '@/features/service-users/initial-assessment/utils/secure-field'
@@ -192,7 +203,11 @@ import {
   parseInitialAssessmentEnterpriseSearch,
   type InitialAssessmentEnterpriseSearch,
 } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
-import { resolveInitialAssessmentSubmissionId } from '@/features/service-users/initial-assessment/utils/resolve-initial-assessment-submission-id.util'
+import {
+  isEditableInitialAssessmentStatus,
+  pickSubmissionFromList,
+  resolveInitialAssessmentSubmissionId,
+} from '@/features/service-users/initial-assessment/utils/resolve-initial-assessment-submission-id.util'
 import {
   useCreateInitialAssessmentSubmission,
   useDefaultInitialAssessmentTemplate,
@@ -215,21 +230,19 @@ import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
   InitialAssessmentSection,
-  InitialAssessmentStatus,
 } from '@/features/service-users/initial-assessment/types'
-import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import type { IaAutofillLevel } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
 import {
   IA_CONDITION_LEVEL_LABELS,
   IA_QA_DEMO_DATA_BUTTON_LABEL,
   IA_QA_DEMO_DATA_BUTTON_TOOLTIP,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
+import { isIaQaDemoUiEnabled } from '@/features/service-users/initial-assessment/utils/ia-qa-demo-enabled'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
 // const LEGACY_PATH = '/service-users/initial-assessment-checklist'
 
-const EDITABLE: InitialAssessmentStatus[] = ['DRAFT', 'IN_PROGRESS']
 const AUTOSAVE_MS = 400
 /** Stable fallback — avoid `?? []` creating a new array reference every render (infinite hydrate loops). */
 const EMPTY_SECTIONS: InitialAssessmentSection[] = []
@@ -354,9 +367,15 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     can('service_users.initial_assessment.read') ||
     can('service_users.read')
   const hasApi = !!getApiBaseUrl()
+  const { locationId: globalLocationId } = useGlobalLocationScope()
 
   const { data: listData, isLoading: listLoading } = useServiceUsers(
-    { limit: 100, sortBy: 'lastName', sortOrder: 'asc' },
+    {
+      limit: 100,
+      sortBy: 'lastName',
+      sortOrder: 'asc',
+      locationId: globalLocationId ?? undefined,
+    },
     hasApi && canRead,
   )
   const serviceUsers = listData?.rows ?? []
@@ -370,6 +389,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
   const suLookupsQuery = useServiceUserLookups()
   const allergiesQuery = useServiceUserAllergies(selectedId, hasApi && canRead && !!selectedId)
+  const qaDemoUiEnabled = isIaQaDemoUiEnabled()
   const autoSubmissionId = React.useMemo(
     () => resolveInitialAssessmentSubmissionId(submissionsQuery.data, urlSearch.submissionId),
     [submissionsQuery.data, urlSearch.submissionId],
@@ -460,6 +480,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const answersHydratedRef = React.useRef(false)
   const serverBaselineAnswersRef = React.useRef<Record<string, InitialAssessmentAnswerInput>>({})
   const dirtyAnswerQuestionIdsRef = React.useRef(new Set<string>())
+  // QA Demo Data: questionIds populated in-memory by "Fill Demo Data". NOT marked dirty (so the
+  // fill never auto-saves), but preserved across answer refetches so the values are not clobbered.
+  const demoFilledQuestionIdsRef = React.useRef(new Set<string>())
   const skipAutosaveRef = React.useRef(true)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
   const sectionContentRef = React.useRef<HTMLDivElement>(null)
@@ -535,7 +558,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const reopenMutation = useReopenInitialAssessment(selectedId, submissionId ?? '')
 
   const submission = React.useMemo(
-    () => submissionsQuery.data?.find((s) => s.id === submissionId) ?? submissionsQuery.data?.[0],
+    () => pickSubmissionFromList(submissionsQuery.data, submissionId),
     [submissionsQuery.data, submissionId],
   )
 
@@ -547,15 +570,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   // QA Demo Data (dev/QA only): a chosen scenario drives per-section "Fill Demo Data".
   const [qaDemoSeverity, setQaDemoSeverity] = React.useState<IaAutofillLevel | null>(null)
   const [qaDemoDialogOpen, setQaDemoDialogOpen] = React.useState(false)
-
-  const invalidateInitialAssessmentQueries = React.useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: initialAssessmentKeys.all() })
-    if (selectedId && submissionId) {
-      await queryClient.invalidateQueries({
-        queryKey: initialAssessmentKeys.submission(selectedId, submissionId),
-      })
-    }
-  }, [queryClient, selectedId, submissionId])
+  // Which holistic tabs have had demo data populated this session (drives the nav "filled" badges).
+  const [demoFilledTabs, setDemoFilledTabs] = React.useState<Set<number>>(() => new Set())
 
   const canExportSecure = can('service_users.initial_assessment.export')
 
@@ -682,7 +698,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     skipAutosaveRef.current = true
     const map = draftAnswersFromServerRows(answersQuery.data)
     serverBaselineAnswersRef.current = map
-    const submissionEditable = submission ? EDITABLE.includes(submission.status) : false
+    const submissionEditable = isEditableInitialAssessmentStatus(submission?.status)
     const prefill = buildPrefillMap({
       detail: detailQuery.data,
       domCare: domCareQuery.data,
@@ -703,12 +719,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       if (isFirstHydration) {
         next = gateSynced
       } else {
-        const dirty = dirtyAnswerQuestionIdsRef.current
-        if (!dirty.size) {
+        // Preserve locally-edited (dirty) AND in-memory demo-filled answers so a refetch does
+        // not clobber values the user has not saved yet.
+        const preserveIds = new Set<string>([
+          ...dirtyAnswerQuestionIdsRef.current,
+          ...demoFilledQuestionIdsRef.current,
+        ])
+        if (!preserveIds.size) {
           next = gateSynced
         } else {
           const merged = { ...gateSynced }
-          for (const id of dirty) {
+          for (const id of preserveIds) {
             if (prev[id]) merged[id] = prev[id]
           }
           next = syncDerivedConcernGates(sections, merged).answers
@@ -743,7 +764,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const currentSection = sections.find(
     (s) => s.sectionNumber === currentHolisticTab.enterpriseSection,
   )
-  const editable = submission ? EDITABLE.includes(submission.status) : false
+  const editable = isEditableInitialAssessmentStatus(submission?.status)
 
   const isAssessmentWorkspaceLoading = React.useMemo(() => {
     if (!selectedId) return false
@@ -916,7 +937,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         questionErrors: validationMaps.questionErrors,
         revealFieldErrors: validationRevealed,
         waterlowComplete: computeWaterlowScore(waterlow) > 0,
-        painToolComplete: painAssessment.nrsScore != null,
+        painToolComplete: isPainToolComplete(painAssessment),
         skinIntegrityCheckComplete: skinIntegrityCheckHasEntries(skinIntegrityCheck),
         mustToolComplete: isMustScoringComplete(mustAssessment),
         fallsScreeningComplete: isFallsScreeningComplete(fallsScreening),
@@ -1098,11 +1119,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     excludeQuestionIds,
   ])
 
+  const demoFillQuestions = React.useMemo(
+    () => demoFillQuestionsForDocumentTab(currentHolisticTab, sections),
+    [currentHolisticTab, sections],
+  )
+
   // QA Demo Data: does the ACTIVE tab already hold answers or worksheet data?
   // Drives the overwrite confirm; only ever inspects the current tab, never other sections.
   const currentTabHasDemoData = React.useMemo(() => {
-    if (!import.meta.env.DEV) return false
-    const answered = currentTabQuestions.some((q) => {
+    if (!qaDemoUiEnabled) return false
+    const answered = [...currentTabQuestions, ...demoFillQuestions].some((q) => {
       const a = draftAnswers[q.id]
       if (!a) return false
       return (
@@ -1138,6 +1164,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     return worksheetHasMeaningfulValue(worksheetByTab[currentHolisticTab.id])
   }, [
     currentTabQuestions,
+    demoFillQuestions,
     draftAnswers,
     currentHolisticTab.id,
     practicalCare,
@@ -1155,6 +1182,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     carePlanObjectives,
     mentalCapacityChecklist,
     photographyConsent,
+    qaDemoUiEnabled,
   ])
 
   const waterlowScore = React.useMemo(() => computeWaterlowScore(waterlow), [waterlow])
@@ -1189,6 +1217,157 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       })
     },
     [sections],
+  )
+
+  // QA Demo Data (dev/QA only): merge GENERATED section values into the editable form IN MEMORY.
+  // No persistence — nothing is saved, no submission is created, nothing is submitted. The user
+  // reviews/edits and saves via the normal controls.
+  const applyDemoDataToSection = React.useCallback(
+    (tabId: number, answers: InitialAssessmentAnswerInput[], metadata: Record<string, unknown>) => {
+      // 1) Answers → draft. NOT marked dirty (so the fill never auto-saves), but tracked in
+      // demoFilledQuestionIdsRef so a refetch does not clobber them; a manual Save still persists
+      // them because persistTabAnswers collects the tab's questions regardless of dirty state.
+      if (answers.length) {
+        setDraftAnswers((prev) => {
+          const next = { ...prev }
+          const questionsById = new Map(sections.flatMap((s) => s.questions.map((q) => [q.id, q] as const)))
+          for (const a of answers) {
+            if (!a?.questionId) continue
+            const question = questionsById.get(a.questionId)
+            if (
+              question &&
+              isIaDemoIdentityPrefillQuestion(question.metadata) &&
+              hasAssessmentAnswer(prev[a.questionId], question)
+            ) {
+              continue
+            }
+            demoFilledQuestionIdsRef.current.add(a.questionId)
+            next[a.questionId] = { ...next[a.questionId], ...a, questionId: a.questionId }
+          }
+          return syncDerivedConcernGates(sections, next).answers
+        })
+      }
+
+      // 2) Worksheet/tool-tab metadata → the matching client state via raw setters (no persist).
+      for (const [key, value] of Object.entries(metadata)) {
+        switch (key) {
+          case 'waterlow':
+            setWaterlow(value as Parameters<typeof setWaterlow>[0])
+            break
+          case 'painAssessment': {
+            const incoming = value as Partial<PainAssessmentMetadata>
+            setPainAssessment((prev) => ({
+              ...prev,
+              ...incoming,
+              abbey: incoming.abbey ?? prev.abbey,
+              therapyAideMemoire: incoming.therapyAideMemoire
+                ? {
+                    ...prev.therapyAideMemoire,
+                    ...(incoming.therapyAideMemoire as typeof prev.therapyAideMemoire),
+                  }
+                : prev.therapyAideMemoire,
+            }))
+            break
+          }
+          case 'therapyAideMemoire':
+            setPainAssessment((prev) => ({
+              ...prev,
+              therapyAideMemoire: {
+                ...prev.therapyAideMemoire,
+                ...(value as NonNullable<typeof prev.therapyAideMemoire>),
+              },
+            }))
+            break
+          case 'skinIntegrityCheck':
+            skinIntegrityLocalEditRef.current = true
+            setSkinIntegrityCheck(value as Parameters<typeof setSkinIntegrityCheck>[0])
+            break
+          case 'mustAssessment':
+            setMustAssessment(value as Parameters<typeof setMustAssessment>[0])
+            break
+          case 'fallsScreening':
+            setFallsScreening(value as Parameters<typeof setFallsScreening>[0])
+            break
+          case 'movingHandlingOperations':
+            setMovingHandlingOperations(value as Parameters<typeof setMovingHandlingOperations>[0])
+            break
+          case 'environmentAssessment':
+            setEnvironmentAssessment(value as Parameters<typeof setEnvironmentAssessment>[0])
+            break
+          case 'advanceCarePlanning':
+            setAdvanceCarePlanning(value as Parameters<typeof setAdvanceCarePlanning>[0])
+            break
+          case 'endOfLifeAssessment':
+            setEndOfLifeAssessment(value as Parameters<typeof setEndOfLifeAssessment>[0])
+            break
+          case 'clinicalOutcomeSummary':
+            setClinicalOutcomeSummary(value as Parameters<typeof setClinicalOutcomeSummary>[0])
+            break
+          case 'carePlanObjectives':
+            setCarePlanObjectives(value as Parameters<typeof setCarePlanObjectives>[0])
+            break
+          case 'mentalCapacityChecklist':
+            mentalCapacityLocalEditRef.current = true
+            setMentalCapacityChecklist(value as Parameters<typeof setMentalCapacityChecklist>[0])
+            break
+          case 'photographyConsent':
+            setPhotographyConsent(value as Parameters<typeof setPhotographyConsent>[0])
+            break
+          case 'equipmentSelection':
+            setEquipmentSelection(value as Parameters<typeof setEquipmentSelection>[0])
+            break
+          case 'adl':
+            setAdl(value as Parameters<typeof setAdl>[0])
+            break
+          case 'transfers':
+            setTransfers(value as Parameters<typeof setTransfers>[0])
+            break
+          case 'financeSupport':
+            setFinanceSupport(value as Parameters<typeof setFinanceSupport>[0])
+            break
+          case 'equipmentChecklist':
+            setEquipmentChecklist(value as Parameters<typeof setEquipmentChecklist>[0])
+            break
+          case 'dailyLivingAids':
+            setDailyLivingAids(value as Parameters<typeof setDailyLivingAids>[0])
+            break
+          case 'practicalCare':
+            setPracticalCare(value as Parameters<typeof setPracticalCare>[0])
+            break
+          default:
+            // sectionComments / sectionFooters are auxiliary and left untouched.
+            break
+        }
+      }
+
+      // 2b) Worksheet → catalogue dual-write (same helpers as live worksheet edits).
+      // Do not use onAnswerChange here: that marks answers dirty and would auto-save Fill Demo.
+      syncFillDemoCatalogueAnswers(
+        sections,
+        metadata,
+        (metadata.adl as typeof adl | undefined) ?? adl,
+        (nextAdl) => setAdl(nextAdl),
+        (questionId, patch) => {
+          demoFilledQuestionIdsRef.current.add(questionId)
+          setDraftAnswers((prev) => {
+            const next = {
+              ...prev,
+              [questionId]: { ...prev[questionId], ...patch, questionId },
+            }
+            return syncDerivedConcernGates(sections, next).answers
+          })
+        },
+      )
+
+      // 3) Mark this tab as filled (drives the nav "Demo data filled" badge).
+      setDemoFilledTabs((prev) => {
+        if (prev.has(tabId)) return prev
+        const next = new Set(prev)
+        next.add(tabId)
+        return next
+      })
+    },
+    [sections, adl],
   )
 
   const syncEmergencyContactFromProfile = React.useCallback(() => {
@@ -1256,11 +1435,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   const onPainAssessmentChange = React.useCallback(
     (next: PainAssessmentMetadata) => {
-      setPainAssessment(next)
-      void persistMetadata({ painAssessment: next })
-      syncPainAssessmentAnswers(sections, next, onAnswerChange)
+      const footer = sectionFooters['10']
+      const stamped = stampPainAssessmentCompletion(next, {
+        dateCompleted: footer?.dateCompleted || new Date().toISOString().slice(0, 10),
+        assessorNameDesignation:
+          footer?.assessorNameDesignation || iaAssessorNameDesignation(sections, draftAnswers),
+      })
+      setPainAssessment(stamped)
+      void persistMetadata({ painAssessment: stamped })
+      syncPainAssessmentAnswers(sections, stamped, onAnswerChange)
     },
-    [sections, persistMetadata, onAnswerChange],
+    [sections, persistMetadata, onAnswerChange, sectionFooters, draftAnswers],
   )
 
   const syncSkinIntegrityFromBodyMap = React.useCallback(async () => {
@@ -1696,18 +1881,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     dirtyAnswerQuestionIdsRef.current.clear()
   }
 
-  const startAssessment = async () => {
-    if (!canCreate) return
-    try {
-      const created = await createMutation.mutateAsync()
-      setManualSubmissionId(created.id)
-      patchUrlSearch({ section: 1, tab: 'form' })
-      toastSuccess('Assessment started', 'Enterprise initial assessment draft created.')
-    } catch (e) {
-      toastApiError(e, 'Could not start assessment')
-    }
-  }
-
   const saveSection = async () => {
     if (!currentSection) return
     saveSectionInProgressRef.current = true
@@ -1720,7 +1893,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       const commentText = resolveSectionCommentText(activeHolisticTab)
       await flushHolisticTabMetadata()
       await persistSectionComment(activeHolisticTab, commentText)
-      await persistTabAnswers(currentTabQuestions, false)
+      await persistTabAnswers(
+        [
+          ...currentTabQuestions,
+          ...demoFillQuestions.filter((q) => demoFilledQuestionIdsRef.current.has(q.id)),
+        ].filter((q, i, arr) => arr.findIndex((x) => x.id === q.id) === i),
+        false,
+      )
     } finally {
       saveSectionInProgressRef.current = false
       sectionCommentsLocalEditRef.current = false
@@ -1922,6 +2101,24 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     })
   }
 
+  const startAssessment = async () => {
+    if (!canCreate) return
+    const existingEditable = submissionsQuery.data?.find((s) =>
+      isEditableInitialAssessmentStatus(s.status),
+    )
+    if (existingEditable) {
+      selectSubmission(existingEditable.id)
+      return
+    }
+    try {
+      const created = await createMutation.mutateAsync()
+      selectSubmission(created.id)
+      toastSuccess('Assessment started', 'Enterprise initial assessment draft created.')
+    } catch (e) {
+      toastApiError(e, 'Could not start assessment')
+    }
+  }
+
   const confirmSubmit = async (skipIncompleteValidation = false) => {
     if (!submissionId) return
     if (!skipIncompleteValidation && !validation.canSubmit) return
@@ -1962,8 +2159,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           <h1 className="text-lg font-bold leading-snug md:text-xl">{HOLISTIC_FORM_TITLE}</h1>
         </div>
 
-        {/* QA Demo Data — dev/QA only; hidden entirely in production builds. */}
-        {import.meta.env.DEV && canUpdate ? (
+        {/* QA Demo Data — DEV, or production when VITE_ENABLE_IA_QA_DEMO=true (any Service User). */}
+        {qaDemoUiEnabled && canUpdate ? (
           <div className="flex flex-wrap items-center gap-3">
             <TooltipProvider delayDuration={250}>
               <Tooltip>
@@ -2056,8 +2253,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                   {saveIndicator === 'saving' ? 'Saving…' : saveIndicator === 'saved' ? 'All changes saved' : 'Save failed'}
                 </span>
               ) : null}
-              {!submission && canCreate ? (
-                <Button type="button" size="sm" onClick={() => void startAssessment()} disabled={createMutation.isPending}>
+              {canCreate && !editable ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid="ia-start-new-assessment"
+                  onClick={() => void startAssessment()}
+                  disabled={createMutation.isPending}
+                >
                   Start new assessment
                 </Button>
               ) : null}
@@ -2311,7 +2514,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onClick={() => goToHolisticTab(tab.id)}
                       >
                         <span className="flex items-center gap-1.5">
-                          <span className="font-semibold">{tab.id}.</span>
+                          <span className="font-semibold">{holisticTabDisplayNumber(tab)}.</span>
                           <span className="min-w-0 flex-1">{tab.title}</span>
                           {navStatus === 'blocking' ? (
                             <span
@@ -2325,6 +2528,23 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           ) : null}
                           {hasComment ? (
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" title="Section comment" />
+                          ) : null}
+                          {qaDemoUiEnabled ? (
+                            demoFilledTabs.has(tab.id) ? (
+                              <span
+                                className="shrink-0 text-[11px] font-bold leading-none text-emerald-400"
+                                title="Demo data filled"
+                                data-testid={`ia-nav-demo-filled-${tab.id}`}
+                              >
+                                ✓
+                              </span>
+                            ) : (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40"
+                                title="Demo data not filled"
+                                data-testid={`ia-nav-demo-unfilled-${tab.id}`}
+                              />
+                            )
                           ) : null}
                         </span>
                         <span className={IA_FORM_NAV_META_CLASS}>{formatSectionNavMeta(prog)}</span>
@@ -2358,15 +2578,29 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       HOLISTIC_FORM_PAGE_CLASS,
                     )}
                   >
-                  {import.meta.env.DEV && canUpdate && editable ? (
+                  {qaDemoUiEnabled && canUpdate ? (
                     <SectionQaDemoDataPanel
                       tabId={currentHolisticTab.id}
                       tabTitle={holisticTabTitle(currentHolisticTab.id)}
-                      serviceUserId={selectedId}
-                      questionIds={currentTabQuestions.map((q) => q.id)}
+                      questionIds={demoFillQuestions.map((q) => q.id)}
                       activeLevel={qaDemoSeverity}
+                      editable={editable}
                       sectionHasData={currentTabHasDemoData}
-                      onFilled={invalidateInitialAssessmentQueries}
+                      alreadyFilled={demoFilledTabs.has(currentHolisticTab.id)}
+                      identity={iaDemoIdentityFromDetail(detailQuery.data, {
+                        allergiesSummary: allergiesQuery.isSuccess
+                          ? formatAllergiesAssessmentText(allergiesQuery.data ?? [])
+                          : null,
+                        accessInstruction: domCareQuery.data?.accessInstruction ?? null,
+                      })}
+                      serviceUserId={selectedId}
+                      gpContactId={
+                        detailQuery.data?.contacts?.find((c) => c.relationshipType?.code === 'GP')?.id ?? null
+                      }
+                      onProfilePersisted={() =>
+                        queryClient.invalidateQueries({ queryKey: serviceUserKeys.detail(selectedId) })
+                      }
+                      onApply={applyDemoDataToSection}
                       onPickScenario={() => setQaDemoDialogOpen(true)}
                     />
                   ) : null}
@@ -2388,7 +2622,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       currentHolisticTab.kind !== 'mental-capacity-checklist' &&
                       currentHolisticTab.kind !== 'photography-consent' ? (
                         <h2 className={IA_SECTION_TITLE_CLASS}>
-                          {currentHolisticTab.id}. {holisticTabTitle(currentHolisticTab.id)}
+                          {holisticTabDisplayNumber(currentHolisticTab)}. {holisticTabTitle(currentHolisticTab.id)}
                         </h2>
                       ) : null}
                       <InitialAssessmentDocumentTabContent

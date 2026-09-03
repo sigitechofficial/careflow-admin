@@ -18,8 +18,6 @@ export const SECTION_1_1_PERSONAL_DETAILS_ORDER = [
   'Beliefs',
   'Communication needs',
   'Address and contact details',
-  'Key safe present?',
-  'Key safe code',
   'GP contact details',
   'Pendant / telecare in use?',
   'Assessment completed date and time',

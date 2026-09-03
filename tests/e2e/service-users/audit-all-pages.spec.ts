@@ -96,6 +96,7 @@ test.describe('Service users audit', () => {
 
     const suRoutes: { path: string; label: string }[] = [
       { path: `/service-users/${suId}/view`, label: 'View dashboard' },
+      { path: `/service-users/${suId}/profile`, label: 'Profile' },
       { path: `/service-users/${suId}/medication`, label: 'Medication' },
       { path: `/service-users/${suId}/care-plan`, label: 'Care plan' },
       { path: `/service-users/${suId}/observations`, label: 'Observations' },
@@ -106,6 +107,31 @@ test.describe('Service users audit', () => {
       await test.step(label, async () => {
         await page.goto(path, { waitUntil: 'domcontentloaded' })
         await assertPageHealthy(page, label)
+      })
+    }
+
+    const profileTabs = [
+      'personal',
+      'contacts',
+      'about',
+      'photos',
+      'inventory',
+      'allergies',
+      'absences',
+      'calendar',
+      'privacy',
+      'dom',
+      'assessment',
+      'funding',
+      'charge-card',
+      'visits',
+      'invoices',
+      'livein',
+    ]
+    for (const tab of profileTabs) {
+      await test.step(`Profile tab: ${tab}`, async () => {
+        await page.goto(`/service-users/${suId}/profile?tab=${tab}`, { waitUntil: 'domcontentloaded' })
+        await assertPageHealthy(page, `profile ${tab}`)
       })
     }
 

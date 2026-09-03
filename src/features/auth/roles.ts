@@ -290,6 +290,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'users.read',
     'users.write',
     'users.create',
+    'roles.manage',
     'schedule.read',
     'schedule.write',
     'employee.read',

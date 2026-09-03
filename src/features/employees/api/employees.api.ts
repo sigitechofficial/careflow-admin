@@ -331,6 +331,11 @@ export async function createEmployee(body: CreateEmployeePayload): Promise<{ id:
   return res.data
 }
 
+/** DELETE /employees/:id — soft-delete (requires employees.delete). */
+export async function deleteEmployee(employeeId: string): Promise<void> {
+  await apiJson(`/employees/${employeeId}`, { method: 'DELETE' })
+}
+
 export type PersonalDetailsPayload = {
   firstName?: string
   lastName?: string
@@ -788,11 +793,20 @@ export type EmployeeDocumentRegistryRow = {
 }
 
 /** GET /employees/documents-registry — all documents across staff (requires employees.documents.read). */
-export async function fetchEmployeeDocumentsRegistry(init?: RequestInit): Promise<EmployeeDocumentRegistryRow[]> {
-  const res = await apiJson<ApiEnvelope<EmployeeDocumentRegistryRow[]>>('/employees/documents-registry', {
-    method: 'GET',
-    ...init,
-  })
+export async function fetchEmployeeDocumentsRegistry(
+  params?: { locationIds?: string[] },
+  init?: RequestInit,
+): Promise<EmployeeDocumentRegistryRow[]> {
+  const qs = new URLSearchParams()
+  if (params?.locationIds?.length) qs.set('locationIds', params.locationIds.join(','))
+  const query = qs.toString()
+  const res = await apiJson<ApiEnvelope<EmployeeDocumentRegistryRow[]>>(
+    `/employees/documents-registry${query ? `?${query}` : ''}`,
+    {
+      method: 'GET',
+      ...init,
+    },
+  )
   return res.data
 }
 

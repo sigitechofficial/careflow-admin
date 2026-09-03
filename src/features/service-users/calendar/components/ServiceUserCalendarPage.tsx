@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { cn, formatDate } from '@/shared/lib/utils'
+import { cn } from '@/shared/lib/utils'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import type {
   CalendarEventStatus,
@@ -19,7 +19,9 @@ import type {
 } from '../types/service-user-calendar.types'
 import { useGlobalServiceUserCalendar } from '../hooks/useServiceUserCalendar'
 import { useCalendarEventTypes } from '../hooks/useCalendarEventTypes'
+import { countByMonth, nextMonthParts } from '../utils/calendar-summary.util'
 import { CalendarInfoTooltip } from './CalendarInfoTooltip'
+import { CalendarSummaryCards } from './CalendarSummaryCards'
 import { CalendarMonthView } from './CalendarMonthView'
 import { CalendarWeekView } from './CalendarWeekView'
 import { CalendarDayView } from './CalendarDayView'
@@ -54,6 +56,12 @@ function parseDateKey(dateKey: string): { year: number; month: number; day: numb
   return { year: y, month: m - 1, day: d }
 }
 
+function yearOptions(centerYear: number) {
+  const years: number[] = []
+  for (let y = centerYear - 5; y <= centerYear + 5; y += 1) years.push(y)
+  return years
+}
+
 export function ServiceUserCalendarPage({
   serviceUserId,
   embedded,
@@ -80,6 +88,9 @@ export function ServiceUserCalendarPage({
   const month = cursor.getMonth()
   const dateStr = toDateStr(new Date(year, month, selectedDay))
   const range = monthRange(year, month)
+  const next = nextMonthParts(year, month)
+  const nextRange = monthRange(next.year, next.month)
+  const years = React.useMemo(() => yearOptions(today.getFullYear()), [])
 
   const { data: eventTypes = [] } = useCalendarEventTypes()
   const globalQuery = useGlobalServiceUserCalendar({
@@ -88,9 +99,25 @@ export function ServiceUserCalendarPage({
     eventTypeId: eventTypeId || undefined,
     status: (statusFilter as CalendarEventStatus) || undefined,
     serviceUserId,
+    limit: 100,
+  })
+  const nextMonthQuery = useGlobalServiceUserCalendar({
+    dateFrom: nextRange.dateFrom,
+    dateTo: nextRange.dateTo,
+    eventTypeId: eventTypeId || undefined,
+    status: (statusFilter as CalendarEventStatus) || undefined,
+    serviceUserId,
+    limit: 100,
   })
 
   const events: ServiceUserCalendarEvent[] = globalQuery.data?.data ?? []
+  const nextMonthEvents: ServiceUserCalendarEvent[] = nextMonthQuery.data?.data ?? []
+  const thisMonthStats = React.useMemo(() => countByMonth(events, year, month), [events, year, month])
+  const nextMonthStats = React.useMemo(
+    () => countByMonth(nextMonthEvents, next.year, next.month),
+    [nextMonthEvents, next.year, next.month],
+  )
+
   const groupedByDate = React.useMemo(() => {
     const g: Record<string, ServiceUserCalendarEvent[]> = {}
     for (const e of events) {
@@ -107,9 +134,17 @@ export function ServiceUserCalendarPage({
     setSelectedDay(n.getDate())
   }
 
+  const setMonthYear = (nextYear: number, nextMonth: number) => {
+    const maxDay = new Date(nextYear, nextMonth + 1, 0).getDate()
+    const day = Math.min(selectedDay, maxDay)
+    setSelectedDay(day)
+    setCursor(new Date(nextYear, nextMonth, day))
+  }
+
   const shift = (dir: -1 | 1) => {
     if (view === 'MONTH') {
       setCursor(new Date(year, month + dir, 1))
+      setSelectedDay(1)
     } else if (view === 'WEEK') {
       const d = new Date(cursor)
       d.setDate(d.getDate() + dir * 7)
@@ -180,6 +215,7 @@ export function ServiceUserCalendarPage({
   const dayViewDateStr = view === 'DAY' ? toDateStr(cursor) : dateStr
   const selectedEvents = groupedByDate[dateStr] ?? []
   const dayViewEvents = groupedByDate[dayViewDateStr] ?? []
+  const summaryLoading = globalQuery.isLoading || nextMonthQuery.isLoading
 
   return (
     <div className={cn('flex flex-col gap-4', embedded ? 'p-0' : 'p-4 md:p-6')} data-testid="service-users-calendar-page">
@@ -207,6 +243,16 @@ export function ServiceUserCalendarPage({
 
       <p className="text-sm text-muted-foreground">Birthdays And Events</p>
 
+      <CalendarSummaryCards
+        year={year}
+        month={month}
+        thisMonthTotal={thisMonthStats.total}
+        thisMonthBirthdays={thisMonthStats.birthdays}
+        nextMonthTotal={nextMonthStats.total}
+        nextMonthBirthdays={nextMonthStats.birthdays}
+        loading={summaryLoading}
+      />
+
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={goToday}>
           Today
@@ -217,7 +263,34 @@ export function ServiceUserCalendarPage({
         <Button type="button" variant="outline" size="icon" onClick={() => shift(1)} aria-label="Next">
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <span className="min-w-[10rem] text-sm font-semibold">{headerLabel}</span>
+
+        <Select value={String(month)} onValueChange={v => setMonthYear(year, Number(v))}>
+          <SelectTrigger className="w-[140px]" data-testid="calendar-month-select">
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTH_NAMES.map((name, idx) => (
+              <SelectItem key={name} value={String(idx)}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={String(year)} onValueChange={v => setMonthYear(Number(v), month)}>
+          <SelectTrigger className="w-[110px]" data-testid="calendar-year-select">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map(y => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <span className="min-w-[8rem] text-sm font-semibold text-muted-foreground">{headerLabel}</span>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {(['DAY', 'WEEK', 'MONTH'] as const).map(v => (

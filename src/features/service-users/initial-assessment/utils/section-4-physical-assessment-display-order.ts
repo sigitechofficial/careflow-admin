@@ -56,7 +56,11 @@ export const SECTION_7_GROUP_ORDER = ['7.1', '7.2', '7.3', '7.4', '7.5', '7.6', 
 
 export const SECTION_8_GROUP_ORDER = ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6', '8.0'] as const
 
-export const SECTION_9_GROUP_ORDER = ['9.1'] as const
+export const SECTION_9_GROUP_ORDER = ['9.1', '9.2', '9.3', '9.4', '9.5'] as const
+
+export const SECTION_15_GROUP_ORDER = ['15.1', '15.2', '15.3'] as const
+
+export const SECTION_18_GROUP_ORDER = ['18.1', '18.2', '18.3', '18.4', '18.5', '18.6'] as const
 
 const GROUP_ORDER_BY_SECTION: Record<number, readonly string[]> = {
   4: SECTION_4_GROUP_ORDER,
@@ -65,6 +69,8 @@ const GROUP_ORDER_BY_SECTION: Record<number, readonly string[]> = {
   7: SECTION_7_GROUP_ORDER,
   8: SECTION_8_GROUP_ORDER,
   9: SECTION_9_GROUP_ORDER,
+  15: SECTION_15_GROUP_ORDER,
+  18: SECTION_18_GROUP_ORDER,
 }
 
 export function sectionGroupOrderIndex(sectionNumber: number, specRef: string): number {

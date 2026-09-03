@@ -49,11 +49,11 @@ describe('IARecommendationCard / banner adapter', () => {
     )
     expect(screen.getByText(/IA Recommendation/i)).toBeInTheDocument()
     expect(screen.getByText(/number of falls was not recorded/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /use suggestion/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
     expect(onUse).not.toHaveBeenCalled()
   })
 
-  it('shows Use suggestion, Dismiss, and source metadata', () => {
+  it('shows Accept, Edit, Dismiss, and source metadata', () => {
     render(
       <TooltipProvider>
         <IARecommendationCard
@@ -62,13 +62,66 @@ describe('IARecommendationCard / banner adapter', () => {
           onUse={() => undefined}
           onDismiss={() => undefined}
           onKeepCurrent={() => undefined}
+          onEdit={() => undefined}
         />
       </TooltipProvider>,
     )
-    expect(screen.getByRole('button', { name: /use suggestion/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /accept/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
     expect(screen.getByText(/Initial Assessment/i)).toBeInTheDocument()
     expect(screen.getByText('Mobility, ADL and Practical Support')).toBeInTheDocument()
+  })
+
+  it('renders existing Accept / Edit / Dismiss UI for a medication_support_level suggestion', () => {
+    const medicationSuggestion: CarePlanFieldSuggestion = {
+      ...valueSuggestion,
+      id: 'medication:support',
+      targetFieldKey: 'sec:medication_support_level',
+      targetLabel: 'Medication support level',
+      targetFieldType: 'SELECT',
+      suggestedValue: 'Administered by carer',
+      displayText: 'Administered by carer',
+      questionFieldKey: 'medicationSupportLevel',
+      specRef: '9.2',
+      sourceSection: 'Medication Support',
+    }
+    render(
+      <TooltipProvider>
+        <IARecommendationCard
+          suggestion={medicationSuggestion}
+          currentValue={undefined}
+          onUse={() => undefined}
+          onDismiss={() => undefined}
+          onKeepCurrent={() => undefined}
+          onEdit={() => undefined}
+        />
+      </TooltipProvider>,
+    )
+    expect(screen.getByTestId('care-plan-suggestion-sec:medication_support_level')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /accept/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('care-plan-prefill-sec:medication_support_level')).not.toBeInTheDocument()
+  })
+
+  it('hides Accept and Edit when the field already has a saved value', () => {
+    render(
+      <TooltipProvider>
+        <IARecommendationCard
+          suggestion={valueSuggestion}
+          currentValue="1"
+          onUse={() => undefined}
+          onDismiss={() => undefined}
+          onKeepCurrent={() => undefined}
+          onEdit={() => undefined}
+        />
+      </TooltipProvider>,
+    )
+    expect(screen.getByText(/already has a saved value/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
   })
 })
 
@@ -98,11 +151,32 @@ describe('CarePlanReviewRow layout', () => {
     expect(screen.getByText('Falls history')).toBeInTheDocument()
     expect(screen.getByText(/Number of falls recorded/i)).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: /use suggestion/i }))
+    await userEvent.click(screen.getByRole('button', { name: /accept/i }))
     expect(onUse).toHaveBeenCalledWith(valueSuggestion)
 
     await userEvent.click(screen.getByRole('button', { name: /dismiss/i }))
     expect(onDismiss).toHaveBeenCalledWith(valueSuggestion)
+  })
+
+  it('wires Edit so staff can amend the suggestion before save', async () => {
+    const onEdit = vi.fn()
+    render(
+      <TooltipProvider>
+        <CarePlanReviewRow
+          label="What are the service user needs?"
+          input={<input aria-label="What are the service user needs?" defaultValue="" />}
+          suggestion={valueSuggestion}
+          currentValue={undefined}
+          onUseSuggestion={() => undefined}
+          onDismissSuggestion={() => undefined}
+          onKeepCurrentSuggestion={() => undefined}
+          onEditSuggestion={onEdit}
+        />
+      </TooltipProvider>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(onEdit).toHaveBeenCalledWith(valueSuggestion)
   })
 
   it('shows a section-level recommendations badge', () => {

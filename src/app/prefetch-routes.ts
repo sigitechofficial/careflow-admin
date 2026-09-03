@@ -279,8 +279,8 @@ export function prefetchServiceUserCarePlanRoute(qc: QueryClient, serviceUserId:
     staleTime: ROUTE_STALE_MS,
   })
   void qc.prefetchQuery({
-    queryKey: carePathwayKeys.selectableForms('care-plans'),
-    queryFn: () => listSelectableForms('care-plans'),
+    queryKey: carePathwayKeys.selectableForms('care-plans', { limit: 100 }),
+    queryFn: () => listSelectableForms('care-plans', { limit: 100 }),
     staleTime: ROUTE_STALE_MS,
   })
   void qc.prefetchQuery({

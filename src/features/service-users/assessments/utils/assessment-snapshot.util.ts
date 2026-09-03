@@ -88,9 +88,8 @@ import {
 import {
 
   defaultPainAssessmentMetadata,
-
+  formatPainAssessmentHistorySummary,
   type PainAssessmentMetadata,
-
 } from '@/features/service-users/initial-assessment/utils/pain-assessment-scoring'
 
 import { isPainAssessmentComplete } from '@/features/service-users/initial-assessment/utils/pain-questions'
@@ -167,6 +166,36 @@ import {
 
 import {
 
+  defaultEquipmentSelectionMetadata,
+
+  formatEquipmentSelectionHistorySummary,
+
+  isEquipmentSelectionComplete,
+
+  normalizeEquipmentSelectionMetadata,
+
+  type EquipmentSelectionMetadata,
+
+} from '@/features/service-users/initial-assessment/utils/equipment-selection'
+
+import type { EquipmentChecklistMetadata } from '@/features/service-users/initial-assessment/utils/mobility-metadata'
+
+import {
+
+  defaultPeepSnapshot,
+
+  formatPeepHistorySummary,
+
+  isPeepSnapshotComplete,
+
+  normalizePeepSnapshot,
+
+  type PeepSnapshot,
+
+} from '@/features/service-users/initial-assessment/utils/peep-snapshot'
+
+import {
+
   getAssessmentToolDefinition,
 
   resolveAssessmentPanelId,
@@ -202,6 +231,12 @@ export type AssessmentToolCaptureState = {
   mentalCapacityChecklist: MentalCapacityChecklistMetadata
 
   photographyConsent: PhotographyConsentMetadata
+
+  peep: PeepSnapshot
+
+  equipmentSelection: EquipmentSelectionMetadata
+
+  equipmentChecklist: EquipmentChecklistMetadata
 
   formValues: CarePlanDraftValues
 
@@ -275,7 +310,11 @@ export function emptyToolCaptureState(
 
     therapyAideMemoire: normalizeTherapyAideMemoireMetadata(
 
-      extractSnapshotField(initialSnapshot, 'therapyAideMemoire'),
+      extractSnapshotField(initialSnapshot, 'therapyAideMemoire') ??
+
+        extractObjectField<{ therapyAideMemoire?: unknown }>(initialSnapshot, 'painAssessment')
+
+          ?.therapyAideMemoire,
 
     ),
 
@@ -308,6 +347,20 @@ export function emptyToolCaptureState(
       extractSnapshotField(initialSnapshot, 'photographyConsent'),
 
     ),
+
+    peep: normalizePeepSnapshot(extractSnapshotField(initialSnapshot, 'peep') ?? defaultPeepSnapshot()),
+
+    equipmentSelection: normalizeEquipmentSelectionMetadata(
+
+      extractSnapshotField(initialSnapshot, 'equipmentSelection') ?? defaultEquipmentSelectionMetadata(),
+
+    ),
+
+    equipmentChecklist:
+
+      (extractObjectField<EquipmentChecklistMetadata>(initialSnapshot, 'equipmentChecklist') ??
+
+        {}),
 
     formValues: extractPathwayFormValues(initialSnapshot),
 
@@ -409,6 +462,10 @@ const PANEL_SUMMARY_LABELS: Partial<Record<string, string>> = {
 
   'photography-consent': 'Photography consent completed',
 
+  peep: 'PEEP completed',
+
+  'equipment-selection': 'Equipment selection recorded',
+
 }
 
 
@@ -490,6 +547,20 @@ export function buildToolSnapshot(
   } else if (panelId === 'photography-consent') {
 
     core = { photographyConsent: state.photographyConsent }
+
+  } else if (panelId === 'peep') {
+
+    core = { peep: normalizePeepSnapshot(state.peep) }
+
+  } else if (panelId === 'equipment-selection') {
+
+    core = {
+
+      equipmentSelection: normalizeEquipmentSelectionMetadata(state.equipmentSelection),
+
+      equipmentChecklist: state.equipmentChecklist ?? {},
+
+    }
 
   } else if (panelId === 'pathway-form' && carePathwayFormId) {
 
@@ -597,6 +668,34 @@ export function buildAssessmentSummary(
 
   }
 
+  if (panelId === 'pain-tool') {
+
+    const pain = extractObjectField<PainAssessmentMetadata>(snapshot, 'painAssessment')
+
+    const summary = formatPainAssessmentHistorySummary(pain)
+
+    if (!summary) return null
+
+    return summary
+
+  }
+
+  if (panelId === 'peep') {
+
+    return formatPeepHistorySummary(normalizePeepSnapshot(extractSnapshotField(snapshot, 'peep')))
+
+  }
+
+  if (panelId === 'equipment-selection') {
+
+    return formatEquipmentSelectionHistorySummary(
+
+      normalizeEquipmentSelectionMetadata(extractSnapshotField(snapshot, 'equipmentSelection')),
+
+    )
+
+  }
+
   if (PANEL_SUMMARY_LABELS[panelId]) {
 
     const validationError = validateToolCapture(assessmentKey, null, snapshotToState(snapshot))
@@ -693,7 +792,7 @@ export function validateToolCapture(
 
   if (panelId === 'therapy-memoire' && !isTherapyAideMemoireComplete(state.therapyAideMemoire)) {
 
-    return 'Complete the therapy aide memoire referral section before saving.'
+    return 'Complete the six therapy aide memoire items and the referral questions before saving.'
 
   }
 
@@ -730,6 +829,18 @@ export function validateToolCapture(
   if (panelId === 'photography-consent' && !isPhotographyConsentComplete(state.photographyConsent)) {
 
     return 'Complete all photography consent fields before saving.'
+
+  }
+
+  if (panelId === 'peep' && !isPeepSnapshotComplete(state.peep)) {
+
+    return 'Complete the personal emergency evacuation plan before saving.'
+
+  }
+
+  if (panelId === 'equipment-selection' && !isEquipmentSelectionComplete(state.equipmentSelection)) {
+
+    return 'Record the selected risk level and equipment before saving.'
 
   }
 

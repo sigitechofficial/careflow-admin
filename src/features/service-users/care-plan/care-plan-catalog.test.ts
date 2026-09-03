@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   filterCarePlansByFormSelection,
   mergeFormsWithCarePlanInstances,
+  INACTIVE_CARE_PLAN_ORDER,
+  sortCarePlansByCatalogOrder,
 } from './care-plan-catalog'
 
 const catalogue = [
@@ -53,3 +55,26 @@ describe('mergeFormsWithCarePlanInstances', () => {
     )
   })
 })
+
+describe('Available Care Plans catalogue completeness', () => {
+  it('empty Form Selection keeps every template, including names beyond the first 20 alphabetically', () => {
+    const forms = INACTIVE_CARE_PLAN_ORDER.map((name, i) => ({ id: `id-${i}`, name }))
+    expect(forms).toHaveLength(29)
+
+    const filtered = filterCarePlansByFormSelection(forms, [])
+    expect(filtered).toHaveLength(29)
+
+    const names = sortCarePlansByCatalogOrder(filtered).map((f) => f.name)
+    expect(names).toEqual([...INACTIVE_CARE_PLAN_ORDER])
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'Pressure Ulcer',
+        'Psychological',
+        'Skin Integrity',
+        'Sleeping and Night',
+        'Washing and dressing',
+      ]),
+    )
+  })
+})
+

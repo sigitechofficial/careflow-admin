@@ -50,4 +50,10 @@ export const settingsKeys = {
   serviceUserLocations: () => [...settingsKeys.all(), 'location-management', 'service-users'] as const,
 
   employeeLocations: () => [...settingsKeys.all(), 'location-management', 'employees'] as const,
+
+  officeUsers: () => [...settingsKeys.all(), 'office-users'] as const,
+
+  identityRoles: () => [...settingsKeys.all(), 'identity-roles'] as const,
+
+  permissionsCatalog: () => [...settingsKeys.all(), 'permissions-catalog'] as const,
 } as const

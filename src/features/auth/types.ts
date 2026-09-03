@@ -85,13 +85,33 @@ export type Permission =
   | 'service_users.visit_plan.write'
   | 'service_users.visit_plan.activate'
   | 'scheduling.generate_from_visit_plan'
+  | 'schedules.read'
+  | 'schedules.create'
+  | 'schedules.update'
+  | 'schedules.delete'
   | 'schedules.build'
+  | 'schedules.status.read'
+  | 'schedule_areas.read'
+  | 'scheduled_jobs.read'
+  | 'scheduled_jobs.create'
+  | 'scheduled_jobs.update'
+  | 'scheduled_jobs.delete'
+  | 'scheduled_jobs.status.update'
+  | 'scheduled_jobs_housekeeping.read'
+  | 'scheduled_jobs_housekeeping.complete'
+  | 'scheduled_jobs_housekeeping.cancel'
+  | 'schedule_runs.read'
+  | 'schedule_timelines.read'
   | 'scheduled_visits.read'
   | 'scheduled_visits.create'
   | 'scheduled_visits.update'
   | 'scheduled_visits.delete'
   | 'scheduled_visits.status.update'
+  | 'job_allocations.read'
+  | 'job_allocations.create'
+  | 'job_allocations.delete'
   | 'job_allocations.confirm'
+  | 'call_off_visits.read'
   | 'service_users.initial_assessment.read'
   | 'service_users.initial_assessment.create'
   | 'service_users.initial_assessment.update'
@@ -281,6 +301,12 @@ export interface AuthUser {
   avatarUrl?: string
   /** null/undefined = unrestricted; string[] = header location options ACL */
   assignedLocationIds?: string[] | null
+  /** Assigned branches with display names (from /auth/me) */
+  assignedLocations?: Array<{ id: string; name: string }> | null
+  /** Nest org-scope: platform | company | branch */
+  scopeType?: 'platform' | 'company' | 'branch'
+  /** Raw Nest identity role names (e.g. "Branch Admin") */
+  backendRoles?: string[]
 }
 
 export interface AuthSession {
