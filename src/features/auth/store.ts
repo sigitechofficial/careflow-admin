@@ -14,6 +14,10 @@ import {
   backendUpdateProfile,
   type BackendMeUser,
 } from '@/features/auth/api'
+import {
+  clearHeaderLocationScope,
+  syncHeaderLocationToAuth,
+} from '@/features/locations/sync-header-location-scope'
 import type {
   AuditEvent,
   AuthSession,
@@ -227,15 +231,19 @@ function backendRolesToRoleId(roles: string[], accountKind?: string): RoleId {
   const lower = roles.map(r => r.toLowerCase())
   if (lower.some(r => r.includes('super') && r.includes('admin'))) return 'super_admin'
   if (lower.some(r => r === 'admin' || r === 'administrator' || r === 'system admin')) return 'admin'
+  if (lower.some(r => r === 'branch admin')) return 'manager'
   if (lower.some(r => r.includes('manager'))) return 'manager'
   if (lower.some(r => r.includes('auditor'))) return 'auditor'
   return 'staff'
 }
 
 function mergeBackendPermissions(mappedRole: RoleId, apiPermissions: string[]): Permission[] {
-  return Array.from(
-    new Set([...permissionsForRole(mappedRole), ...(apiPermissions as unknown as Permission[])]),
-  )
+  // API mode: trust server ACL only. Merging SPA role defaults inflated the sidebar
+  // (e.g. HR mapped to "staff" got service_users/scheduling tabs they cannot use).
+  const fromApi = (apiPermissions ?? []) as Permission[]
+  if (fromApi.length > 0) return Array.from(new Set(fromApi))
+  // Fallback for incomplete /me payloads (demo edge cases).
+  return permissionsForRole(mappedRole)
 }
 
 function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
@@ -264,6 +272,9 @@ function userFromMe(me: BackendMeUser, prev?: AuthUser | null): AuthUser {
     profilePhotoUrl: me.profilePhotoUrl,
     jobTitle: prev?.jobTitle,
     assignedLocationIds: me.assignedLocationIds ?? null,
+    assignedLocations: me.assignedLocations ?? null,
+    scopeType: me.scopeType,
+    backendRoles: me.roles,
   }
 }
 
@@ -325,6 +336,7 @@ export const useAuthStore = create<AuthState>()(
         const u = get().user
         if (!u) return false
         if (u.role === 'super_admin') return true
+        if (u.backendRoles?.includes('Super Admin')) return true
         return checkPerm(u.permissions, p)
       },
 
@@ -400,6 +412,7 @@ export const useAuthStore = create<AuthState>()(
               ...clearLoginFailures(key, get()),
               forgotMessage: null,
             })
+            syncHeaderLocationToAuth(user.assignedLocationIds)
             get().appendLocalAudit({
               at: Date.now(),
               actorId: user.id,
@@ -521,6 +534,7 @@ export const useAuthStore = create<AuthState>()(
           failedByEmail: { ...get().failedByEmail, [key]: 0 },
           forgotMessage: null,
         })
+        syncHeaderLocationToAuth(user.assignedLocationIds)
         get().appendLocalAudit({
           at: Date.now(),
           actorId: user.id,
@@ -586,6 +600,7 @@ export const useAuthStore = create<AuthState>()(
             failedByEmail: { ...get().failedByEmail, [key]: 0 },
             forgotMessage: null,
           })
+          syncHeaderLocationToAuth(user.assignedLocationIds)
           get().appendLocalAudit({
             at: Date.now(),
             actorId: user.id,
@@ -662,6 +677,7 @@ export const useAuthStore = create<AuthState>()(
           ip: nowIp(),
           meta: { reason },
         })
+        clearHeaderLocationScope()
         set({
           accessToken: null,
           refreshToken: null,
@@ -700,6 +716,9 @@ export const useAuthStore = create<AuthState>()(
               refreshExpiresAt,
               ...userPatch,
             })
+            if (userPatch.user) {
+              syncHeaderLocationToAuth(userPatch.user.assignedLocationIds)
+            }
             get().appendLocalAudit({
               at: t,
               actorId: s.user?.id ?? null,
@@ -796,7 +815,9 @@ export const useAuthStore = create<AuthState>()(
       applyMeUser: me => {
         const prev = get().user
         if (!prev || prev.id !== me.id) return
-        set({ user: userFromMe(me, prev) })
+        const user = userFromMe(me, prev)
+        set({ user })
+        syncHeaderLocationToAuth(user.assignedLocationIds)
       },
 
       updateProfile: async patch => {

@@ -213,6 +213,19 @@ export function ScheduleVisitWorkspaceContent({
               {formatJobTimeRange(job)} · {jobStatusLabel(job.status)}
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div className="flex items-center gap-2 text-muted-foreground sm:col-span-2">
+                <span className="text-muted-foreground">Visit ID:</span>
+                {(liveJob.visitRef ?? job.visitRef) ? (
+                  <span
+                    className="font-mono text-xs font-medium tracking-tight text-foreground"
+                    title="Visit reference (EMONITORED) — same as visit reconciliation"
+                  >
+                    {liveJob.visitRef ?? job.visitRef}
+                  </span>
+                ) : (
+                  <span title="Not synced to visit reconciliation yet">—</span>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" aria-hidden />
                 <span>

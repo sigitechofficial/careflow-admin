@@ -158,6 +158,7 @@ import GeneralSettingsPage from '@/features/settings/pages/GeneralSettingsPage'
 import type { GeneralSettingsTabId } from '@/features/settings/pages/GeneralSettingsPage'
 import CompanyDetailsPage from '@/features/settings/pages/CompanyDetailsPage'
 import LocationManagementPage from '@/features/settings/pages/LocationManagementPage'
+import RolesPermissionsPage from '@/features/settings/pages/RolesPermissionsPage'
 import CarePathwayPage from '@/features/settings/pages/CarePathwayPage'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 
@@ -168,6 +169,10 @@ import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
+import {
+  ROLES_PERMISSIONS_SUB_IDS,
+  type RolesPermissionsSubTab,
+} from '@/features/settings/roles-permissions/roles-permissions.types'
 import {
   CARE_PATHWAY_TAB_IDS,
   type CarePathwayTabId,
@@ -265,6 +270,8 @@ const pageTitles: Record<string, string> = {
   '/settings/company': 'Company Details',
   '/settings/general': 'General Settings',
   '/settings/location-management': 'Location Management',
+  '/settings/users-access': 'Users & access',
+  '/settings/roles-permissions': 'Roles & permissions',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/visit-reconciliation': 'Visit reconciliation',
@@ -1524,6 +1531,34 @@ const locationManagementRoute = createRoute({
   component: LocationManagementPage,
 })
 
+const usersAccessRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/users-access',
+  beforeLoad: () => {
+    throw redirect({
+      to: '/settings/roles-permissions',
+      search: { sub: 'office-users' },
+    })
+  },
+})
+
+const rolesPermissionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/roles-permissions',
+  validateSearch: (raw: Record<string, unknown>): { sub?: RolesPermissionsSubTab } => {
+    const sub = raw.sub
+    if (
+      typeof sub === 'string' &&
+      ROLES_PERMISSIONS_SUB_IDS.includes(sub as RolesPermissionsSubTab)
+    ) {
+      return { sub: sub as RolesPermissionsSubTab }
+    }
+    return { sub: 'office-users' }
+  },
+  beforeLoad: requireAnyPermission('users.read', 'roles.manage', 'permissions.manage'),
+  component: RolesPermissionsPage,
+})
+
 const billingRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing',
@@ -1910,6 +1945,8 @@ const routeTree = rootRoute.addChildren([
     companyDetailsRoute,
     generalSettingsRoute,
     locationManagementRoute,
+    usersAccessRoute,
+    rolesPermissionsRoute,
     carePathwayRoute,
     billingRoute,
     billingVisitReconciliationRoute,

@@ -24,6 +24,10 @@ export type BackendMeUser = {
   username?: string
   /** null/undefined = all locations; string[] = restrict header picker */
   assignedLocationIds?: string[] | null
+  /** Assigned branches with names for header label (null when unrestricted) */
+  assignedLocations?: Array<{ id: string; name: string }> | null
+  /** platform | company | branch — from Nest org-scope */
+  scopeType?: 'platform' | 'company' | 'branch'
 }
 
 export type LoginHistoryRow = {

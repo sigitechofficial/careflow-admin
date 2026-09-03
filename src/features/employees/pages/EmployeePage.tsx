@@ -563,6 +563,25 @@ function StaffListTab() {
   const { data: facets = null } = useEmployeeListFacets(facetParams, Boolean(lookups))
   const { data: listData, isLoading: listLoading, error: listError } = useEmployees(listParams)
 
+  const displayFilters = React.useMemo(
+    () =>
+      globalLocationScoped && globalLocationIds?.length
+        ? { ...filters, locationIds: globalLocationIds }
+        : filters,
+    [filters, globalLocationScoped, globalLocationIds],
+  )
+
+  const applyFiltersWithScope = React.useCallback(
+    (next: typeof filters) => {
+      applyFilters(
+        globalLocationScoped && globalLocationIds?.length
+          ? { ...next, locationIds: globalLocationIds }
+          : next,
+      )
+    },
+    [applyFilters, globalLocationScoped, globalLocationIds],
+  )
+
   const locationFilterKey = filters.locationIds.join(',')
   React.useEffect(() => {
     if (!facets) return
@@ -662,11 +681,12 @@ function StaffListTab() {
         lookups={lookups}
         visaTypes={visaTypes}
         facets={facets}
-        filters={filters}
-        onFiltersChange={applyFilters}
+        filters={displayFilters}
+        onFiltersChange={applyFiltersWithScope}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
         disabled={loading}
+        locationFilterDisabled={globalLocationScoped}
       />
 
       {error ? (

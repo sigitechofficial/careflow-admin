@@ -534,13 +534,16 @@ export async function downloadInitialAssessmentPdf(
 }
 
 export async function fetchInitialAssessmentReviewQueue(
-  options?: { overdueActionsOnly?: boolean },
+  options?: { overdueActionsOnly?: boolean; locationId?: string },
   init?: RequestInit,
 ): Promise<{ submissions: InitialAssessmentReviewQueueItem[]; total: number }> {
-  const qs = options?.overdueActionsOnly ? '?overdueActionsOnly=true' : ''
+  const qs = new URLSearchParams()
+  if (options?.overdueActionsOnly) qs.set('overdueActionsOnly', 'true')
+  if (options?.locationId) qs.set('locationId', options.locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<
     ApiEnvelope<{ submissions: InitialAssessmentReviewQueueItem[]; total: number }>
-  >(`/initial-assessments/review-queue${qs}`, { method: 'GET', ...init })
+  >(`/initial-assessments/review-queue${suffix}`, { method: 'GET', ...init })
   return res.data
 }
 

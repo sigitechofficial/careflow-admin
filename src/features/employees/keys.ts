@@ -34,7 +34,8 @@ export const employeeKeys = {
     [...employeeKeys.detail(id), 'profile'] as const,
 
   /** All-staff documents registry. */
-  documentsRegistry: () => [...employeeKeys.all(), 'documents-registry'] as const,
+  documentsRegistry: (params?: { locationIds?: string[] }) =>
+    [...employeeKeys.all(), 'documents-registry', params ?? null] as const,
 
   /** Skills list for one employee. */
   skills: (id: string) => [...employeeKeys.detail(id), 'skills'] as const,

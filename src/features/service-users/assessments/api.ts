@@ -193,12 +193,13 @@ export async function unlinkAssessmentFromCarePlan(
 }
 
 export async function fetchAssessmentReviewQueue(
-  params?: { overdueOnly?: boolean; serviceUserId?: string },
+  params?: { overdueOnly?: boolean; serviceUserId?: string; locationId?: string },
   init?: RequestInit,
 ): Promise<{ data: AssessmentReviewQueueItem[]; meta: AssessmentReviewQueueMeta }> {
   const qs = new URLSearchParams()
   if (params?.overdueOnly) qs.set('overdueOnly', 'true')
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<
     ApiEnvelope<AssessmentReviewQueueItem[]> & { meta?: AssessmentReviewQueueMeta }
