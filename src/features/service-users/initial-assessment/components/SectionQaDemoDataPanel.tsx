@@ -52,7 +52,7 @@ type Props = {
  * IA answers are generated (not saved as a submission) and merged into the editable form.
  * Empty Service User address/GP fields are persisted through the existing profile APIs
  * so the address and GP widgets have real values to display. Occupied profile values are never overwritten.
- * Callers must gate rendering behind `import.meta.env.DEV`.
+ * Callers must gate rendering behind `isIaQaDemoUiEnabled` (DEV or `VITE_ENABLE_IA_QA_DEMO=true`).
  */
 export function SectionQaDemoDataPanel({
   tabId,
@@ -81,6 +81,7 @@ export function SectionQaDemoDataPanel({
         tabId,
         questionIds,
         identity,
+        serviceUserId,
       )
       onApply(tabId, answers, metadata)
       if (serviceUserId && profilePatchHasValues(profilePatch)) {

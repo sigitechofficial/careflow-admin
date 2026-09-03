@@ -34,12 +34,6 @@ export type IaDemoProfilePatch = {
   }
 }
 
-/**
- * GENERATE (no-save) severity-aware demo values for a single holistic tab. The backend computes
- * the values for the supplied `questionIds` (excluding profile/secure fields) plus this tab's
- * worksheet metadata and RETURNS them — IA answers are not persisted. Empty profile address/GP
- * fields are returned as `profilePatch` for the client to apply via the existing profile APIs.
- */
 export type IaDemoIdentity = {
   firstName?: string | null
   middleName?: string | null
@@ -291,17 +285,31 @@ export async function persistIaDemoProfilePatch(
   }
 }
 
+/**
+ * GENERATE (no-save) severity-aware demo values for a single holistic tab. The backend computes
+ * the values for the supplied `questionIds` (excluding profile/secure fields) plus this tab's
+ * worksheet metadata and RETURNS them — IA answers are not persisted. Empty profile address/GP
+ * fields are returned as `profilePatch` for the client to apply via the existing profile APIs.
+ * `serviceUserId` is sent so production can enforce the designated QA Service User allow-list.
+ */
 export async function generateIaSectionDemoDev(
   level: IaAutofillLevel,
   tabId: number,
   questionIds: string[],
   identity?: IaDemoIdentity | null,
+  serviceUserId?: string,
 ): Promise<GenerateIaSectionResult> {
   const res = await apiJson<ApiEnvelope<GenerateIaSectionResult>>(
     IA_SECTION_GENERATE_PATH,
     {
       method: 'POST',
-      body: JSON.stringify({ level, tabId, questionIds, ...(identity ? { identity } : {}) }),
+      body: JSON.stringify({
+        level,
+        tabId,
+        questionIds,
+        ...(identity ? { identity } : {}),
+        ...(serviceUserId ? { serviceUserId } : {}),
+      }),
     },
     { timeoutMs: IA_SECTION_GENERATE_TIMEOUT_MS },
   )
