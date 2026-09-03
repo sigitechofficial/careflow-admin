@@ -382,9 +382,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
   const suLookupsQuery = useServiceUserLookups()
   const allergiesQuery = useServiceUserAllergies(selectedId, hasApi && canRead && !!selectedId)
-  const qaDemoUiEnabled = isIaQaDemoUiEnabled(
-    detailQuery.data?.serviceUserNumber ?? selected?.serviceUserNumber,
-  )
+  const qaDemoUiEnabled = isIaQaDemoUiEnabled()
   const autoSubmissionId = React.useMemo(
     () => resolveInitialAssessmentSubmissionId(submissionsQuery.data, urlSearch.submissionId),
     [submissionsQuery.data, urlSearch.submissionId],
@@ -2154,7 +2152,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           <h1 className="text-lg font-bold leading-snug md:text-xl">{HOLISTIC_FORM_TITLE}</h1>
         </div>
 
-        {/* QA Demo Data — DEV, or production when VITE_ENABLE_IA_QA_DEMO=true and designated QA SU. */}
+        {/* QA Demo Data — DEV, or production when VITE_ENABLE_IA_QA_DEMO=true (any Service User). */}
         {qaDemoUiEnabled && canUpdate ? (
           <div className="flex flex-wrap items-center gap-3">
             <TooltipProvider delayDuration={250}>

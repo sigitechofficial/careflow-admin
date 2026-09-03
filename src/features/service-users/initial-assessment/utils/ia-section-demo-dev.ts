@@ -290,7 +290,8 @@ export async function persistIaDemoProfilePatch(
  * the values for the supplied `questionIds` (excluding profile/secure fields) plus this tab's
  * worksheet metadata and RETURNS them — IA answers are not persisted. Empty profile address/GP
  * fields are returned as `profilePatch` for the client to apply via the existing profile APIs.
- * `serviceUserId` is sent so production can enforce the designated QA Service User allow-list.
+ * `serviceUserId` is sent so empty profile address/GP can be patched on the currently
+ * opened Service User. It is not an authorization allow-list.
  */
 export async function generateIaSectionDemoDev(
   level: IaAutofillLevel,

@@ -147,7 +147,7 @@ describe('generateIaSectionDemoDev', () => {
     })
   })
 
-  it('POSTs serviceUserId so production can enforce the designated QA SU allow-list', async () => {
+  it('POSTs serviceUserId for the currently opened Service User (not an allow-list)', async () => {
     mockApiJson.mockResolvedValue({
       success: true,
       message: 'ok',
