@@ -24,6 +24,46 @@ function permissionGroup(key: string): string {
   return i === -1 ? key : key.slice(0, i)
 }
 
+type PermQuickAction = 'all' | 'read' | 'edit' | 'delete' | 'add'
+
+function matchesPermAction(key: string, action: Exclude<PermQuickAction, 'all'>): boolean {
+  const lower = key.toLowerCase()
+  switch (action) {
+    case 'read':
+      return (
+        lower.includes('.read')
+        || lower.endsWith('_read')
+        || lower.includes('.view')
+        || lower.includes('_view')
+      )
+    case 'edit':
+      return (
+        lower.includes('.update')
+        || lower.includes('.edit')
+        || lower.includes('.manage')
+        || lower.includes('.write')
+        || lower.includes('.patch')
+      )
+    case 'delete':
+      return lower.includes('.delete') || lower.includes('.remove')
+    case 'add':
+      return (
+        lower.includes('.create')
+        || lower.includes('.add')
+        || lower.includes('.upload')
+        || lower.includes('.raise')
+      )
+  }
+}
+
+const QUICK_ACTIONS: { id: PermQuickAction; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'read', label: 'Read' },
+  { id: 'edit', label: 'Edit' },
+  { id: 'delete', label: 'Delete' },
+  { id: 'add', label: 'Add' },
+]
+
 export function RolesPanel() {
   const canManageRoles = useAuthStore(s => s.can('roles.manage'))
   const canManagePerms = useAuthStore(s => s.can('permissions.manage'))
@@ -78,6 +118,16 @@ export function RolesPanel() {
 
   const toggleKey = (key: string) => {
     setDraftKeys(prev => (prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]))
+  }
+
+  const allCatalogKeys = React.useMemo(() => catalog.map(p => p.key), [catalog])
+
+  const applyGlobalAction = (action: PermQuickAction) => {
+    if (action === 'all') {
+      setDraftKeys(allCatalogKeys)
+      return
+    }
+    setDraftKeys(allCatalogKeys.filter(k => matchesPermAction(k, action)))
   }
 
   return (
@@ -185,7 +235,30 @@ export function RolesPanel() {
                   <p className="text-xs text-muted-foreground">
                     View only. Requires permissions.manage to edit the matrix.
                   </p>
-                ) : null}
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {QUICK_ACTIONS.map(action => {
+                      const count =
+                        action.id === 'all'
+                          ? allCatalogKeys.length
+                          : allCatalogKeys.filter(k => matchesPermAction(k, action.id)).length
+                      return (
+                        <Button
+                          key={action.id}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={setPerms.isPending || count === 0}
+                          title={`Select ${action.label.toLowerCase()} permissions across all modules (${count})`}
+                          onClick={() => applyGlobalAction(action.id)}
+                        >
+                          {action.label}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                )}
                 <Input
                   placeholder="Filter permissions…"
                   value={permFilter}
