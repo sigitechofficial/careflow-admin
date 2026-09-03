@@ -331,6 +331,11 @@ export async function createEmployee(body: CreateEmployeePayload): Promise<{ id:
   return res.data
 }
 
+/** DELETE /employees/:id — soft-delete (requires employees.delete). */
+export async function deleteEmployee(employeeId: string): Promise<void> {
+  await apiJson(`/employees/${employeeId}`, { method: 'DELETE' })
+}
+
 export type PersonalDetailsPayload = {
   firstName?: string
   lastName?: string
