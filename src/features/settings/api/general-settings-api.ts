@@ -9,6 +9,14 @@ export type SalaryCalculationBasis = 'MONTHLY' | 'WEEKLY'
 export type MultiCarerFunderChargeMode = 'COMBINED' | 'FIXED'
 export type ComplianceRequiredBy = 'ROLE_WORK_AREA' | 'CITIZENSHIP'
 export type ComplianceApprovalType = 'MANAGER_APPROVAL' | 'HR_APPROVAL'
+export type ComplianceAllocationMode = 'WARN' | 'BLOCK'
+export type ComplianceBlockStatus =
+  | 'MISSING'
+  | 'EXPIRED'
+  | 'REJECTED'
+  | 'EXPIRING_SOON'
+  | 'PENDING_REVIEW'
+  | 'REQUIRED'
 export type WellbeingRegularity = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 export type ActionsDefaultView = 'TASK_LIST' | 'ACTIONS_LIST'
 export type AllocateEmployeeBy = 'FLOOR' | 'WARD' | 'ZONE' | 'UNIT'
@@ -165,6 +173,9 @@ export type OrganisationGeneralSettings = {
   recruitmentFunctionalityRequired: boolean
   complianceRequiredBy: ComplianceRequiredBy
   complianceApprovalForNewEmployee: ComplianceApprovalType
+  complianceAllocationMode: ComplianceAllocationMode
+  complianceBlockStatuses: ComplianceBlockStatus[]
+  includeLearningInAllocationBlock: boolean
   calculateSicknessBradfordScale: boolean
   recordServiceUserWellbeing: boolean
   recordEmployeeWellbeing: boolean

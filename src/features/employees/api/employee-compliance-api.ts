@@ -200,6 +200,7 @@ export async function downloadComplianceDocument(
   complianceId: string,
   documentId: string,
   downloadName: string,
+  mode: 'view' | 'download' = 'download',
 ): Promise<void> {
   const base = getApiBaseUrl()
   if (!base) throw new ApiError('API base URL is not configured.', 0)
@@ -215,10 +216,17 @@ export async function downloadComplianceDocument(
   }
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)
+  if (mode === 'view') {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    return
+  }
   const a = document.createElement('a')
   a.href = url
   a.download = downloadName
+  document.body.appendChild(a)
   a.click()
+  a.remove()
   URL.revokeObjectURL(url)
 }
 

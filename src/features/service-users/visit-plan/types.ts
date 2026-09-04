@@ -190,6 +190,8 @@ export type VisitPlanCarerCandidate = {
     missing: string[]
   }
   complianceIssues: number
+  /** True when org policy is BLOCK and this carer has blocking compliance. */
+  complianceBlocksAllocation?: boolean
   warnings: string[]
 }
 
