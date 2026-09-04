@@ -732,6 +732,14 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
               }
             />
             <InfoRow
+              label="Key safe number"
+              value={addr?.keySafeNumber?.trim() || '—'}
+            />
+            <InfoRow
+              label="Access instructions"
+              value={addr?.accessInstructions?.trim() || '—'}
+            />
+            <InfoRow
               label="Funding"
               value={primaryFunding?.fundingType.name ?? detail.fundingType?.name ?? '—'}
             />

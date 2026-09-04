@@ -1,6 +1,9 @@
+import * as React from 'react'
 import { useParams } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
+import { EcmExceptionQueueWorkspace } from '@/features/ecm/components/EcmExceptionQueueWorkspace'
 import { EcmLiveMonitoringPanel } from '@/features/ecm/components/EcmLiveMonitoringPanel'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import {
   SERVICE_USER_MODULE_PAGE_CLASS,
   ServiceUserModuleHeader,
@@ -17,6 +20,7 @@ export default function ServiceUserEcmPage() {
   const serviceUserId = params.serviceUserId ?? ''
   const apiConfigured = Boolean(getApiBaseUrl())
   const profileQuery = useServiceUser(serviceUserId)
+  const [tab, setTab] = React.useState('ecm')
 
   if (!apiConfigured) {
     return (
@@ -55,7 +59,26 @@ export default function ServiceUserEcmPage() {
             Live attendance and exceptions for this service user only.
           </p>
         </div>
-        <EcmLiveMonitoringPanel serviceUserId={serviceUserId} />
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList variant="underline" className="w-full justify-start">
+            <TabsTrigger variant="underline" value="ecm">
+              ECM
+            </TabsTrigger>
+            <TabsTrigger variant="underline" value="exceptions">
+              Exception queue
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="ecm" className="mt-4">
+            {tab === 'ecm' ? (
+              <EcmLiveMonitoringPanel serviceUserId={serviceUserId} />
+            ) : null}
+          </TabsContent>
+          <TabsContent value="exceptions" className="mt-4">
+            {tab === 'exceptions' ? (
+              <EcmExceptionQueueWorkspace serviceUserId={serviceUserId} />
+            ) : null}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

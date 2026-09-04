@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   acknowledgeEcmException,
+  allowVisitContinue,
   amendEcmAttendance,
   applyMissedTriage,
   closeEcmException,
@@ -181,6 +182,18 @@ function useInvalidateEcmExceptions() {
     void qc.invalidateQueries({ queryKey: [...ecmKeys.all, 'exceptions'] })
     void qc.invalidateQueries({ queryKey: ecmKeys.all })
   }
+}
+
+export function useAllowVisitContinue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, note }: { jobId: string; note?: string }) =>
+      allowVisitContinue(jobId, note),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+  })
 }
 
 export function useAcknowledgeEcmException() {
