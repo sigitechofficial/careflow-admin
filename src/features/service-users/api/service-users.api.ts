@@ -1775,10 +1775,22 @@ export type CreateServiceUserPayload = {
   }>
 }
 
+/** Drop blank optional dates — Nest @IsDateString rejects "". */
+function omitBlankDates<T extends CreateServiceUserPayload>(body: T): T {
+  const out = { ...body }
+  for (const key of ['dateOfBirth', 'serviceStartDate', 'serviceEndDate'] as const) {
+    const v = out[key]
+    if (v == null || (typeof v === 'string' && v.trim() === '')) {
+      delete out[key]
+    }
+  }
+  return out
+}
+
 export async function createServiceUser(body: CreateServiceUserPayload): Promise<{ id: string }> {
   const res = await apiJson<ApiEnvelope<{ id: string }>>('/service-users', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify(omitBlankDates(body)),
   })
   return res.data!
 }

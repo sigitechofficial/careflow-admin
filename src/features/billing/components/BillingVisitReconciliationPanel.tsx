@@ -595,14 +595,11 @@ export function BillingVisitReconciliationPanel({
                   (row.overrunMinutes ?? 0) > 0 &&
                   (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
                 const locked = row.status === 'LOCKED'
-                // Disable only the button that matches the current approval so finance can
-                // still switch to another scope later. LOCKED freezes everything.
-                const allDisabled =
-                  isMutating || locked || row.status === 'APPROVED_FOR_BOTH'
-                const payDisabled =
-                  isMutating || locked || row.status === 'APPROVED_FOR_PAY'
-                const invoiceDisabled =
-                  isMutating || locked || row.status === 'APPROVED_FOR_INVOICE'
+                // Keep All / Carer pay / Funders clickable after auto or manual approval so
+                // finance can switch scope later. Only LOCKED freezes actions.
+                const allDisabled = isMutating || locked
+                const payDisabled = isMutating || locked
+                const invoiceDisabled = isMutating || locked
                 const rejectDisabled = isMutating || locked
                 const managerOverride = needsManager || hasBlocking || pendingOverrun
                 const approveTitle = hasBlocking
@@ -752,7 +749,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={
                               row.status === 'APPROVED_FOR_BOTH'
-                                ? 'Already approved for both pay and billing'
+                                ? 'Currently approved for both — click to keep, or use Carer pay / Funders to change'
                                 : approveTitle
                             }
                             disabled={allDisabled}
@@ -767,7 +764,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={
                               row.status === 'APPROVED_FOR_PAY'
-                                ? 'Already approved for carer pay only'
+                                ? 'Currently carer pay only — click All or Funders to change'
                                 : 'Pay the carer only — client / funder is charged £0 for this visit'
                             }
                             disabled={payDisabled}
@@ -782,7 +779,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={
                               row.status === 'APPROVED_FOR_INVOICE'
-                                ? 'Already approved for funder billing only'
+                                ? 'Currently funder billing only — click All or Carer pay to change'
                                 : 'Charge the client / funder only — carer is paid £0 for this visit'
                             }
                             disabled={invoiceDisabled}
