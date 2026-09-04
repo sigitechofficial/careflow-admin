@@ -283,9 +283,13 @@ function buildPayload(f: FormState): CreateServiceUserPayload {
   p.email = opt(f.email)
   p.phone = opt(f.phone)
   p.mobile = opt(f.mobile)
-  p.dateOfBirth = opt(f.dateOfBirth)
-  p.serviceStartDate = opt(f.serviceStartDate)
-  p.serviceEndDate = opt(f.serviceEndDate)
+  // Date inputs are YYYY-MM-DD; omit blanks — empty string fails Nest @IsDateString.
+  const dateOfBirth = opt(f.dateOfBirth)
+  if (dateOfBirth) p.dateOfBirth = dateOfBirth
+  const serviceStartDate = opt(f.serviceStartDate)
+  if (serviceStartDate) p.serviceStartDate = serviceStartDate
+  const serviceEndDate = opt(f.serviceEndDate)
+  if (serviceEndDate) p.serviceEndDate = serviceEndDate
   p.serviceUserNumber = opt(f.serviceUserNumber)
   p.notes = opt(f.notes)
   p.titleId = optId(f.titleId)
