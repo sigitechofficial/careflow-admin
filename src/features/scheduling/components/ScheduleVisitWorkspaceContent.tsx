@@ -238,27 +238,77 @@ export function ScheduleVisitWorkspaceContent({
               </div>
             </dl>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1.5 border-t border-border/60 pt-3 text-sm">
-              <span className="flex items-center gap-1.5">
-                <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="text-muted-foreground">Clocked in:</span>
-                {clockInLabel ? (
-                  <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
-                ) : (
-                  <span className="font-medium text-amber-600 dark:text-amber-500">
-                    Carer not clocked in yet
-                  </span>
-                )}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <LogOut className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="text-muted-foreground">Clocked out:</span>
-                {clockOutLabel ? (
-                  <span className="font-medium tabular-nums text-foreground">{clockOutLabel}</span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </span>
+            <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
+                <span className="flex items-center gap-1.5">
+                  <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-muted-foreground">Clocked in:</span>
+                  {clockInLabel ? (
+                    <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
+                  ) : (
+                    <span className="font-medium text-amber-600 dark:text-amber-500">
+                      Carer not clocked in yet
+                    </span>
+                  )}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <LogOut className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-muted-foreground">Clocked out:</span>
+                  {clockOutLabel ? (
+                    <span className="font-medium tabular-nums text-foreground">{clockOutLabel}</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
+              </div>
+              {liveJob.checkIn ? (
+                <dl className="grid gap-1 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="inline text-muted-foreground">Method: </dt>
+                    <dd className="inline font-medium text-foreground">{liveJob.checkIn.methodLabel}</dd>
+                  </div>
+                  {liveJob.checkIn.reasonLabel ? (
+                    <div>
+                      <dt className="inline text-muted-foreground">Reason: </dt>
+                      <dd className="inline text-foreground">{liveJob.checkIn.reasonLabel}</dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.notes ? (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted-foreground">Clock in notes: </dt>
+                      <dd className="inline whitespace-pre-wrap text-foreground">{liveJob.checkIn.notes}</dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.timingExceptionReasonLabel ? (
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        {liveJob.checkIn.timingKindLabel ?? 'Arrival reason'}:{' '}
+                      </dt>
+                      <dd className="inline text-foreground">
+                        {liveJob.checkIn.timingExceptionReasonLabel}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.timingExceptionNotes ? (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted-foreground">
+                        {liveJob.checkIn.timingNotesLabel ?? 'More detail'}:{' '}
+                      </dt>
+                      <dd className="inline whitespace-pre-wrap text-foreground">
+                        {liveJob.checkIn.timingExceptionNotes}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.outsideGeofenceReason ? (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted-foreground">Outside area: </dt>
+                      <dd className="inline whitespace-pre-wrap text-foreground">
+                        {liveJob.checkIn.outsideGeofenceReason}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
             </div>
           </section>
 

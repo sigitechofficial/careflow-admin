@@ -71,6 +71,7 @@ export type EcmDashboardBucket =
   | 'missingCheckout'
   | 'outsideGeofence'
   | 'manualAttendance'
+  | 'leftVisitArea'
   | 'completed'
   | 'completedOnTime'
   | 'completedLate'
@@ -311,6 +312,7 @@ export type EcmExceptionKind =
   | 'CONFIRMED_MISSED'
   | 'MISSING_CHECKOUT'
   | 'OUTSIDE_GEOFENCE'
+  | 'LEFT_VISIT_AREA'
   | 'MANUAL_ATTENDANCE'
   | 'MOCK_LOCATION'
   | 'OTHER'
@@ -337,6 +339,17 @@ export type EcmExceptionRow = {
   carers?: Array<{ employeeId: string; name: string; isLeadCarer: boolean }>
   serviceUserId?: string
   serviceUserName: string
+  clockedInAt?: string | null
+  /** True when any check-in or check-out on this visit used a mock GPS. */
+  hasMockLocation?: boolean
+  areaLock?: {
+    status: 'LOCKED' | 'ALLOWED' | string
+    lockedAt: string
+    allowedAt: string | null
+    allowedByName: string | null
+    allowNote: string | null
+    employeeId: string
+  } | null
 }
 
 export type EcmReasonCode = {

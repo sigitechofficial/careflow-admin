@@ -26,7 +26,6 @@ import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalP
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
-import { EcmExceptionQueuePanel } from '@/features/ecm/components/EcmExceptionQueuePanel'
 import { EcmHealthBanner } from '@/features/ecm/components/EcmHealthBanner'
 import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
 import type {
@@ -115,6 +114,12 @@ const BUCKET_META: {
     icon: <MapPinOff className="h-4 w-4" aria-hidden />,
   },
   {
+    id: 'leftVisitArea',
+    label: 'Left visit area',
+    tone: 'danger',
+    icon: <MapPinOff className="h-4 w-4" aria-hidden />,
+  },
+  {
     id: 'manualAttendance',
     label: 'Admin completed',
     tone: 'neutral',
@@ -166,6 +171,8 @@ function bucketLabel(
       return 'Missing checkout (past end)'
     case 'outsideGeofence':
       return `Outside geofence (>${windows.geofenceRadiusMeters} m)`
+    case 'leftVisitArea':
+      return 'Left visit area (locked, per visit)'
     case 'manualAttendance':
       return 'Admin completed (schedule-jobs / office times)'
     default:
@@ -396,7 +403,7 @@ function summaryMetricClass(active: boolean): string {
 export function EcmLiveMonitoringPanel({
   serviceUserId,
 }: {
-  /** When set, scopes the live dashboard + exception queue to one service user. */
+  /** When set, scopes the live dashboard to one service user. */
   serviceUserId?: string
 } = {}) {
   const scoped = Boolean(serviceUserId)
@@ -1076,16 +1083,6 @@ export function EcmLiveMonitoringPanel({
               </Button>
             </div>
           ) : null}
-
-          <div className="border-t border-border pt-4">
-            <EcmExceptionQueuePanel
-              onOpenVisit={openVisit}
-              serviceUserId={serviceUserId}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              periodLabel={periodLabel}
-            />
-          </div>
         </>
       )}
 
