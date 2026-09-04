@@ -573,17 +573,17 @@ export function ServiceUserFundingTab({
 
       try {
         const basePriority = nextSplitPriority(rows)
-        for (let i = 0; i < form.mixedShares.length; i += 1) {
-          const share = form.mixedShares[i]
-          if (!share) continue
+        let shareIndex = 0
+        for (const share of form.mixedShares) {
           await createMutation.mutateAsync(
             mixedShareToBody(
               form,
               share,
-              basePriority + i,
-              form.isPrimary ? i === 0 : false,
+              basePriority + shareIndex,
+              form.isPrimary ? shareIndex === 0 : false,
             ),
           )
+          shareIndex += 1
         }
         toastSuccess(
           'Mixed funding created',
