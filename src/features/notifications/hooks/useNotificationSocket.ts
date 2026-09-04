@@ -8,6 +8,7 @@ import {
 } from '@/features/notifications/socket/notifications.socket'
 import type { NotificationNewEvent, NotificationSeverity } from '@/features/notifications/types/notification.types'
 import { useNotificationSound } from '@/features/notifications/hooks/useNotificationSound'
+import { ecmKeys } from '@/features/ecm/keys'
 
 function severityToToastVariant(
   s: NotificationSeverity,
@@ -50,6 +51,9 @@ export function useNotificationSocket() {
     const onNew = (payload: NotificationNewEvent) => {
       void qc.invalidateQueries({ queryKey: ['notifications'], exact: false })
       void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
+      if (payload.metadata?.kind === 'CARER_SOS') {
+        void qc.invalidateQueries({ queryKey: ecmKeys.all })
+      }
 
       const prefs = qc.getQueryData<Array<{ type: string; soundEnabled: boolean }>>(['notification-preferences'])
       const row = prefs?.find(p => p.type === payload.type)

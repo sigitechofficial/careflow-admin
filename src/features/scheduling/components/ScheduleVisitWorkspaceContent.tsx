@@ -54,6 +54,8 @@ import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
+import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
+import { formatOpsClockTime } from '@/shared/lib/operational-day.util'
 
 export type ScheduleVisitWorkspaceTab =
   | 'overview'
@@ -166,6 +168,26 @@ export function ScheduleVisitWorkspaceContent({
     [liveJob],
   )
 
+  const sosQuery = useEcmExceptions({
+    limit: 100,
+    serviceUserId: job.serviceUserId,
+    enabled: Boolean(job.serviceUserId),
+  })
+  const visitSos = (sosQuery.data ?? []).filter(
+    row => row.scheduledJobId === job.id && row.kind === 'CARER_SOS',
+  )
+  const visitSosAcknowledged =
+    visitSos.length > 0 &&
+    visitSos.every(
+      row =>
+        Boolean(row.sos?.acknowledgedAt || row.acknowledgedAt) ||
+        row.lifecycle === 'ACKNOWLEDGED' ||
+        row.lifecycle === 'RESOLVED' ||
+        row.lifecycle === 'MANAGER_REVIEWED' ||
+        row.lifecycle === 'CLOSED',
+    )
+  const visitSosAck = visitSos.find(row => row.sos?.acknowledgedAt || row.acknowledgedAt)
+
   const clockInLabel = liveJob.actualStartDateTime
     ? formatOrganisationIsoTime(liveJob.actualStartDateTime)
     : null
@@ -206,6 +228,63 @@ export function ScheduleVisitWorkspaceContent({
 
       {tab === 'overview' ? (
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+          {visitSos.length > 0 ? (
+            <section
+              className={
+                visitSosAcknowledged
+                  ? 'rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3'
+                  : 'rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3'
+              }
+              data-testid="visit-workspace-carer-sos"
+            >
+              <p
+                className={
+                  visitSosAcknowledged
+                    ? 'text-sm font-semibold text-emerald-800 dark:text-emerald-200'
+                    : 'text-sm font-semibold text-destructive'
+                }
+              >
+                {visitSosAcknowledged ? 'Carer SOS — acknowledged' : 'Carer SOS'}
+              </p>
+              <ul className="mt-2 space-y-2">
+                {visitSos.map(row => {
+                  const mapsHref =
+                    row.sos?.latitude != null && row.sos?.longitude != null
+                      ? `https://maps.google.com/?q=${row.sos.latitude},${row.sos.longitude}`
+                      : null
+                  return (
+                    <li key={row.id} className="text-sm text-foreground">
+                      <p className="font-medium">
+                        {row.sos?.employeeName || 'Carer'} · {formatOpsClockTime(row.createdAt)}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {row.sos?.message?.trim() || 'No message'}
+                      </p>
+                      {mapsHref ? (
+                        <a
+                          href={mapsHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-0.5 inline-flex text-xs font-medium underline-offset-2 hover:underline"
+                        >
+                          Open in Maps
+                        </a>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+              {visitSosAcknowledged && visitSosAck ? (
+                <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                  Acknowledged
+                  {visitSosAck.sos?.acknowledgedByName || visitSosAck.acknowledgedByName
+                    ? ` by ${visitSosAck.sos?.acknowledgedByName || visitSosAck.acknowledgedByName}`
+                    : ''}
+                  {` · ${formatOpsClockTime(visitSosAck.sos?.acknowledgedAt ?? visitSosAck.acknowledgedAt)}`}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
             <p className="text-base font-semibold text-foreground">{serviceUserLabel(job.serviceUser)}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
