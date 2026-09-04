@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,9 @@ import {
   ScheduleVisitWorkspaceContent,
   type ScheduleVisitWorkspaceTab,
 } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
+import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
+import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
+import { schedulingKeys } from '@/features/scheduling/keys'
 import { serviceUserLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 
@@ -51,8 +54,17 @@ export function ScheduleVisitWorkspaceSheet({
     })
   }, [open, jobId, queryClient])
 
+  const freshJobQuery = useQuery({
+    queryKey: schedulingKeys.job(jobId ?? ''),
+    queryFn: () => getScheduledJob(jobId!),
+    enabled: Boolean(open && jobId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+
   if (!job) return null
 
+  const visitRef = freshJobQuery.data?.visitRef ?? job.visitRef
   const returnTo = `/scheduling/schedule-jobs?date=${encodeURIComponent(date)}`
 
   return (
@@ -60,21 +72,15 @@ export function ScheduleVisitWorkspaceSheet({
       <SheetContent side="right" size="xl" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-border px-6 py-4 text-left">
           <SheetTitle>Visit workspace</SheetTitle>
-          <SheetDescription>
-            {serviceUserLabel(job.serviceUser)}
-            {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
-            {formatJobTimeRange(job)}
-            {job.visitRef ? (
-              <>
-                <br />
-                <span
-                  className="font-mono text-xs tracking-tight text-foreground"
-                  title="Visit reference (EMONITORED) — same as visit reconciliation"
-                >
-                  {job.visitRef}
-                </span>
-              </>
-            ) : null}
+          <SheetDescription asChild>
+            <div className="space-y-1.5 text-sm text-muted-foreground">
+              <p>
+                {serviceUserLabel(job.serviceUser)}
+                {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
+                {formatJobTimeRange(job)}
+              </p>
+              <VisitRefDisplay visitRef={visitRef} showEmpty size="md" />
+            </div>
           </SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
