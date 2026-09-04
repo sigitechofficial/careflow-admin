@@ -145,6 +145,13 @@ import LearningCertificatesPage from '@/features/learning/pages/LearningCertific
 import LearningExternalTrainingPage from '@/features/learning/pages/LearningExternalTrainingPage'
 import LearningReportsPage from '@/features/learning/pages/LearningReportsPage'
 import LearningSettingsPage from '@/features/learning/pages/LearningSettingsPage'
+import PoliciesLibraryPage from '@/features/policies/pages/PoliciesLibraryPage'
+import PolicyNewPage from '@/features/policies/pages/PolicyNewPage'
+import PolicyDetailPage from '@/features/policies/pages/PolicyDetailPage'
+import PolicyEditPage from '@/features/policies/pages/PolicyEditPage'
+import PolicyCategoriesPage from '@/features/policies/pages/PolicyCategoriesPage'
+import PolicyTagsPage from '@/features/policies/pages/PolicyTagsPage'
+import { validatePolicyLibrarySearch } from '@/features/policies/policy-routes'
 import {
   BILLING_SECTION_PATHS,
   BILLING_SETUP_TAB_IDS,
@@ -305,6 +312,12 @@ const pageTitles: Record<string, string> = {
   '/learning/external-training': 'External training',
   '/learning/reports': 'Learning reports',
   '/learning/settings': 'Learning settings',
+  '/policies': 'Policy Library',
+  '/policies/new': 'Create policy',
+  '/policies/$policyId': 'Policy',
+  '/policies/$policyId/edit': 'Edit policy',
+  '/policies/categories': 'Policy categories',
+  '/policies/tags': 'Policy tags',
 }
 
 const SETTINGS_TAB_IDS: SettingsTabId[] = [
@@ -1824,6 +1837,49 @@ const learningSettingsRoute = createRoute({
   component: LearningSettingsPage,
 })
 
+const policiesLibraryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies',
+  validateSearch: validatePolicyLibrarySearch,
+  beforeLoad: requirePermission('policies.read'),
+  component: PoliciesLibraryPage,
+})
+
+const policyNewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/new',
+  beforeLoad: requirePermission('policies.create'),
+  component: PolicyNewPage,
+})
+
+const policyCategoriesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/categories',
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyCategoriesPage,
+})
+
+const policyTagsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/tags',
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyTagsPage,
+})
+
+const policyDetailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/$policyId',
+  beforeLoad: requirePermission('policies.read'),
+  component: PolicyDetailPage,
+})
+
+const policyEditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/policies/$policyId/edit',
+  beforeLoad: requirePermission('policies.update'),
+  component: PolicyEditPage,
+})
+
 const carePathwayRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings/care-pathway',
@@ -1981,6 +2037,12 @@ const routeTree = rootRoute.addChildren([
     learningExternalTrainingRoute,
     learningReportsRoute,
     learningSettingsRoute,
+    policiesLibraryRoute,
+    policyNewRoute,
+    policyCategoriesRoute,
+    policyTagsRoute,
+    policyDetailRoute,
+    policyEditRoute,
   ]),
 ])
 

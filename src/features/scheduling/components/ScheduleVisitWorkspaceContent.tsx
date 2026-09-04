@@ -54,6 +54,7 @@ import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
+import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
 
 export type ScheduleVisitWorkspaceTab =
   | 'overview'
@@ -135,8 +136,12 @@ export function ScheduleVisitWorkspaceContent({
     queryKey: schedulingKeys.job(job.id),
     queryFn: () => getScheduledJob(job.id),
     enabled: Boolean(job.id),
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const liveJob = freshJobQuery.data ?? job
+  const visitRef = liveJob.visitRef ?? job.visitRef
+  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
 
   const careConsentQuery = useQuery({
     queryKey: schedulingKeys.careConsents(job.id),
@@ -213,18 +218,8 @@ export function ScheduleVisitWorkspaceContent({
               {formatJobTimeRange(job)} · {jobStatusLabel(job.status)}
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div className="flex items-center gap-2 text-muted-foreground sm:col-span-2">
-                <span className="text-muted-foreground">Visit ID:</span>
-                {(liveJob.visitRef ?? job.visitRef) ? (
-                  <span
-                    className="font-mono text-xs font-medium tracking-tight text-foreground"
-                    title="Visit reference (EMONITORED) — same as visit reconciliation"
-                  >
-                    {liveJob.visitRef ?? job.visitRef}
-                  </span>
-                ) : (
-                  <span title="Not synced to visit reconciliation yet">—</span>
-                )}
+              <div className="sm:col-span-2">
+                <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" aria-hidden />

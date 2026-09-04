@@ -212,6 +212,30 @@ const PAYROLL_ALL: Permission[] = [
   'payroll.runs.manage',
 ]
 
+const POLICY_ALL: Permission[] = [
+  'policies.read',
+  'policies.create',
+  'policies.update',
+  'policies.submit',
+  'policies.review',
+  'policies.approve',
+  'policies.publish',
+  'policies.archive',
+  'policies.categories.manage',
+  'policies.links.manage',
+  'policies.audit.read',
+  'policies.acknowledgements.manage',
+  'policies.acknowledgements.me',
+]
+
+const POLICY_COORDINATOR: Permission[] = [
+  'policies.read',
+  'policies.create',
+  'policies.update',
+  'policies.submit',
+  'policies.review',
+]
+
 const LEARNING_ALL: Permission[] = [
   'learning.dashboard.read',
   'learning.categories.read',
@@ -285,6 +309,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...ECM_ALL,
     ...PAYROLL_ALL,
     ...LEARNING_ALL,
+    ...POLICY_ALL,
   ],
   admin: [
     'users.read',
@@ -323,6 +348,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...ECM_ALL,
     ...PAYROLL_ALL,
     ...LEARNING_ALL,
+    ...POLICY_ALL,
   ],
   manager: [
     'users.read',
@@ -428,6 +454,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     ...NOTIFICATION_INAPP,
     ...ECM_ALL,
     ...PAYROLL_ALL,
+    ...POLICY_COORDINATOR,
   ],
   staff: [
     'schedule.read',
@@ -441,6 +468,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'service_users.documents.read',
     'service_users.absences.read',
     ...NOTIFICATION_INAPP,
+    'policies.read',
   ],
   auditor: [
     'users.read',
@@ -454,6 +482,8 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'service_users.body_map.read',
     'service_users.body_map.export',
     ...NOTIFICATION_INAPP,
+    'policies.read',
+    'policies.audit.read',
   ],
   temporary_inspector: ['temporary_inspector.session'],
   service_user: ['service_user.portal.session'],

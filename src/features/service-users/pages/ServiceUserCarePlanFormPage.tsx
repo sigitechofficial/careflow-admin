@@ -7,6 +7,7 @@ import type { ServiceUserDetail } from '@/features/service-users/types'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
 import { CarePlanFormWorkspace } from '@/features/service-users/care-plan/CarePlanFormWorkspace'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -357,6 +358,10 @@ export default function ServiceUserCarePlanFormPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
       <div className="mx-auto w-full max-w-7xl flex-1 space-y-4 px-3 py-6 sm:px-4">
+        <PolicyContextPanel
+          moduleType="CARE_PLAN"
+          recordId={instanceQuery.data?.id}
+        />
         {workspaceLoading && (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

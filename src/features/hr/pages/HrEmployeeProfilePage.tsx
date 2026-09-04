@@ -24,6 +24,7 @@ import {
   LIFECYCLE_STATUS_OPTIONS,
 } from '@/features/hr/utils/hr-display.util'
 import { PageHeader } from '@/shared/ui/page-elements'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { formatDate } from '@/shared/lib/utils'
@@ -141,6 +142,8 @@ export default function HrEmployeeProfilePage() {
             : []),
         ]}
       />
+
+      <PolicyContextPanel moduleType="HR" recordId={employeeId} />
 
       {profile ? (
         <div className="flex flex-wrap items-center gap-2">

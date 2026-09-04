@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { useAuthStore } from '@/features/auth/store'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { useIncidents, useIncidentCategories } from '@/features/incidents/hooks/useIncidents'
 import {
   INCIDENT_SEVERITY_BADGE,
@@ -96,6 +97,8 @@ export default function IncidentsListPage() {
             : []
         }
       />
+
+      <PolicyContextPanel moduleType="INCIDENT" />
 
       <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">

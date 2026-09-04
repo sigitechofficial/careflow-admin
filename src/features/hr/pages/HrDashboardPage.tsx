@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Briefcase, Users } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { HrEmployeeListTable } from '@/features/hr/components/HrEmployeeListTable'
 
 export default function HrDashboardPage() {
@@ -27,6 +28,8 @@ export default function HrDashboardPage() {
           },
         ]}
       />
+
+      <PolicyContextPanel moduleType="HR" />
 
       <div className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
         <HrEmployeeListTable />

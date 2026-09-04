@@ -46,6 +46,7 @@ import {
   activeJobAllocationCount,
   serviceUserNameOnly,
 } from '@/features/scheduling/utils/scheduling-format'
+import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
 import {
   isScheduleJobCancelled,
   isScheduleJobCompleted,
@@ -488,14 +489,10 @@ export function JobHoverPanel({
             <p className="text-base font-semibold leading-tight sm:text-lg">
               {serviceUserNameOnly(job.serviceUser)}
             </p>
-            {job.visitRef ? (
-              <p
-                className="mt-0.5 font-mono text-xs font-medium tracking-tight text-slate-600 dark:text-zinc-300"
-                title="Visit reference (EMONITORED) — same as visit reconciliation"
-              >
-                {job.visitRef}
-              </p>
-            ) : null}
+            <VisitRefDisplay
+              visitRef={job.visitRef}
+              className="mt-0.5 text-slate-600 dark:text-zinc-300"
+            />
             {metaLine ? (
               <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400">{metaLine}</p>
             ) : null}

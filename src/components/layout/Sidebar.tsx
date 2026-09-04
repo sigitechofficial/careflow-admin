@@ -466,6 +466,34 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'Policies',
+    icon: <FileText className="h-5 w-5" />,
+    href: '/policies',
+    children: [
+      {
+        label: 'Policy Library',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/policies',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-library',
+      },
+      {
+        label: 'Categories',
+        icon: <List className="h-4 w-4" />,
+        href: '/policies/categories',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-categories',
+      },
+      {
+        label: 'Tags',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/policies/tags',
+        permission: 'policies.read',
+        navTestId: 'nav-policies-tags',
+      },
+    ],
+  },
+  {
     label: 'UK Payroll',
     icon: <Landmark className="h-5 w-5" />,
     href: '/payroll',
@@ -597,7 +625,6 @@ const navItems: NavItem[] = [
       { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/incidents/analytics', permission: 'incidents.view_analytics' },
     ],
   },
-  { label: 'Policies',          icon: <BookOpen className="h-5 w-5" />,      href: '/in-progress', ready: false },
   {
     label: 'Settings',
     icon: <Settings className="h-5 w-5" />,
