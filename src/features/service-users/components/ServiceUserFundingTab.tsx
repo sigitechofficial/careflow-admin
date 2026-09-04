@@ -575,6 +575,7 @@ export function ServiceUserFundingTab({
         const basePriority = nextSplitPriority(rows)
         for (let i = 0; i < form.mixedShares.length; i += 1) {
           const share = form.mixedShares[i]
+          if (!share) continue
           await createMutation.mutateAsync(
             mixedShareToBody(
               form,
