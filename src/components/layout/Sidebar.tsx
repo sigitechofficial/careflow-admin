@@ -978,12 +978,61 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
           sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        {/* Logo / Brand */}
-        <div className={cn('flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-3 overflow-hidden')}>
-          <CompanyBrandMark collapsed={sidebarCollapsed} className="min-w-0 flex-1" />
-          <button className="ml-auto shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setSidebarMobileOpen(false)}>
-            <X className="h-5 w-5" />
-          </button>
+        {/* Logo / Brand + collapse (desktop, top) */}
+        <div
+          className={cn(
+            'flex shrink-0 flex-col border-b border-sidebar-border',
+            sidebarCollapsed ? 'items-center gap-1 px-1 py-2' : 'px-2',
+          )}
+        >
+          <div
+            className={cn(
+              'flex w-full items-center gap-1 overflow-hidden',
+              sidebarCollapsed ? 'justify-center' : 'h-14',
+            )}
+          >
+            <CompanyBrandMark
+              collapsed={sidebarCollapsed}
+              className={cn('min-w-0', !sidebarCollapsed && 'flex-1')}
+            />
+            {!sidebarCollapsed ? (
+              <button
+                type="button"
+                data-testid="sidebar-collapse-button"
+                aria-label="Collapse sidebar"
+                onClick={toggleSidebar}
+                className={cn(
+                  'hidden lg:inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-2',
+                  'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  'transition-colors',
+                )}
+              >
+                <ChevronLeft className="h-5 w-5" />
+                <span className="text-sm animate-fade-in">Collapse</span>
+              </button>
+            ) : null}
+            <button
+              className="ml-auto shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
+              onClick={() => setSidebarMobileOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              data-testid="sidebar-collapse-button"
+              aria-label="Expand sidebar"
+              onClick={toggleSidebar}
+              className={cn(
+                'hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-md',
+                'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                'transition-colors',
+              )}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          ) : null}
         </div>
 
         {/* Nav */}
@@ -1048,25 +1097,6 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
 
         {/* Bottom section */}
         <div className="shrink-0 border-t border-sidebar-border p-2 space-y-1">
-          <button
-            type="button"
-            data-testid="sidebar-collapse-button"
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={toggleSidebar}
-            className={cn(
-              'w-full hidden lg:flex items-center rounded-md px-2 py-1.5',
-              'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              'transition-colors text-sm gap-2',
-              sidebarCollapsed && 'justify-center'
-            )}
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <><ChevronLeft className="h-5 w-5" /><span className="text-sm animate-fade-in">Collapse</span></>
-            )}
-          </button>
-
           <Link
             to={accountHref}
             onClick={handleNav}
