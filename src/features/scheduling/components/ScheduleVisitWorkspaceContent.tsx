@@ -141,6 +141,7 @@ export function ScheduleVisitWorkspaceContent({
   })
   const liveJob = freshJobQuery.data ?? job
   const visitRef = liveJob.visitRef ?? job.visitRef
+  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
 
   const careConsentQuery = useQuery({
     queryKey: schedulingKeys.careConsents(job.id),
@@ -218,7 +219,7 @@ export function ScheduleVisitWorkspaceContent({
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <VisitRefDisplay visitRef={visitRef} showEmpty size="md" />
+                <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" aria-hidden />

@@ -65,6 +65,8 @@ export function ScheduleVisitWorkspaceSheet({
   if (!job) return null
 
   const visitRef = freshJobQuery.data?.visitRef ?? job.visitRef
+  const visitId =
+    freshJobQuery.data?.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
   const returnTo = `/scheduling/schedule-jobs?date=${encodeURIComponent(date)}`
 
   return (
@@ -79,7 +81,7 @@ export function ScheduleVisitWorkspaceSheet({
                 {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
                 {formatJobTimeRange(job)}
               </p>
-              <VisitRefDisplay visitRef={visitRef} showEmpty size="md" />
+              <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
             </div>
           </SheetDescription>
         </SheetHeader>
