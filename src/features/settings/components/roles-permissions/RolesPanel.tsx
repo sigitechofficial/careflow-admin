@@ -238,10 +238,11 @@ export function RolesPanel() {
                 ) : (
                   <div className="flex flex-wrap gap-1">
                     {QUICK_ACTIONS.map(action => {
+                      const actionId = action.id
                       const count =
-                        action.id === 'all'
+                        actionId === 'all'
                           ? allCatalogKeys.length
-                          : allCatalogKeys.filter(k => matchesPermAction(k, action.id)).length
+                          : allCatalogKeys.filter(k => matchesPermAction(k, actionId)).length
                       return (
                         <Button
                           key={action.id}
