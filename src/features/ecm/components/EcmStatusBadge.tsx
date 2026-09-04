@@ -63,6 +63,7 @@ const ARRIVAL_CLASS: Record<string, string> = {
   VERY_LATE_ARRIVAL: 'bg-destructive/10 text-destructive border-destructive/30',
   NOT_ASSESSED: 'bg-muted text-muted-foreground border-border',
   LEFT_VISIT_AREA: 'bg-destructive/10 text-destructive border-destructive/30',
+  CARER_SOS: 'bg-destructive/10 text-destructive border-destructive/30',
   MOCK_LOCATION: 'bg-violet-500/10 text-violet-800 border-violet-500/30 dark:text-violet-200',
 }
 
@@ -115,6 +116,7 @@ const GENERIC_CHIP_CLASS: Record<string, string> = {
 const ICON_BY_CODE: Record<string, LucideIcon> = {
   MOCK_LOCATION: Radar,
   LEFT_VISIT_AREA: MapPinOff,
+  CARER_SOS: Siren,
   OUTSIDE_GEOFENCE: LocateOff,
   MANUAL_ATTENDANCE: Hand,
   LOW_GPS_ACCURACY: Crosshair,
@@ -182,6 +184,7 @@ const ICON_TONE = {
 const ICON_COLOR_BY_CODE: Record<string, string> = {
   MOCK_LOCATION: ICON_TONE.purple,
   LEFT_VISIT_AREA: ICON_TONE.danger,
+  CARER_SOS: ICON_TONE.danger,
   OUTSIDE_GEOFENCE: ICON_TONE.danger,
   MANUAL_ATTENDANCE: ICON_TONE.info,
   LOW_GPS_ACCURACY: ICON_TONE.caution,
