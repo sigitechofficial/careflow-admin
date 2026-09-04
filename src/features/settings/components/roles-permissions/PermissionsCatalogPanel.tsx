@@ -42,7 +42,14 @@ export function PermissionsCatalogPanel() {
       <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">Permissions catalog</h2>
+            <h2 className="text-sm font-semibold">
+              Permissions catalog
+              {catalogQuery.data ? (
+                <span className="ml-1.5 font-normal text-muted-foreground">
+                  ({catalogQuery.data.length})
+                </span>
+              ) : null}
+            </h2>
             <p className="text-xs text-muted-foreground">
               All permission keys in the system. Assign them to roles on the Roles tab.
             </p>
