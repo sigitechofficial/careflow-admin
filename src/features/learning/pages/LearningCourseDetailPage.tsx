@@ -13,6 +13,7 @@ import {
 import { LearningStatusBadge } from '@/features/learning/components/LearningStatusBadge'
 import { Button } from '@/shared/ui/button'
 import { LEARNING_PATHS } from '@/features/learning/learning-routes'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { ApiError } from '@/shared/api/api-client'
@@ -85,6 +86,7 @@ export default function LearningCourseDetailPage() {
       description={course.shortDescription ?? 'Course builder and version management.'}
       testId="learning-course-detail-page"
     >
+      <PolicyContextPanel className="mb-6" moduleType="TRAINING" recordId={courseId} />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button size="sm" variant="outline" asChild>
           <Link to={LEARNING_PATHS.courses}>

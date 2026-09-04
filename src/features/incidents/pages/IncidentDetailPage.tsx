@@ -11,6 +11,7 @@ import {
   useChangeIncidentSeverity,
   useChangeIncidentStatus,
 } from '@/features/incidents/hooks/useIncidents'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { IncidentReviewSection } from '@/features/incidents/components/IncidentReviewSection'
 import { IncidentInvestigationSection } from '@/features/incidents/components/IncidentInvestigationSection'
 import { IncidentActionsSection } from '@/features/incidents/components/IncidentActionsSection'
@@ -109,6 +110,8 @@ export default function IncidentDetailPage() {
           { label: incident.referenceNumber },
         ]}
       />
+
+      <PolicyContextPanel moduleType="INCIDENT" recordId={incident.id} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Link to="/incidents/view">

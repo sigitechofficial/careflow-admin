@@ -10,6 +10,7 @@ import { cn, formatDate } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { serviceUserGivenName } from '@/features/service-users/lib/service-user-display'
 import { CarePlanCard } from '@/features/service-users/care-plan/CarePlanCard'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { CarePlanDeclinedHistory } from '@/features/service-users/care-plan/CarePlanDeclinedHistory'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 import type { SelectableForm } from '@/features/care-pathway/types/care-pathway.types'
@@ -281,6 +282,7 @@ export default function ServiceUserCarePlanPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
       <div className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-4">
+        <PolicyContextPanel moduleType="CARE_PLAN" className="mb-4" />
         {!apiConfigured && (
           <p className="text-sm text-muted-foreground">API base URL is not configured.</p>
         )}
