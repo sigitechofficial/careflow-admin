@@ -595,9 +595,15 @@ export function BillingVisitReconciliationPanel({
                   (row.overrunMinutes ?? 0) > 0 &&
                   (row.overrunDecision === 'PENDING' || row.overrunDecision == null)
                 const locked = row.status === 'LOCKED'
-                // Keep All / Carer pay / Funders clickable after prior approval so finance
-                // can change the decision later; only LOCKED rows are frozen.
-                const approveDisabled = isMutating || locked
+                // Disable only the button that matches the current approval so finance can
+                // still switch to another scope later. LOCKED freezes everything.
+                const allDisabled =
+                  isMutating || locked || row.status === 'APPROVED_FOR_BOTH'
+                const payDisabled =
+                  isMutating || locked || row.status === 'APPROVED_FOR_PAY'
+                const invoiceDisabled =
+                  isMutating || locked || row.status === 'APPROVED_FOR_INVOICE'
+                const rejectDisabled = isMutating || locked
                 const managerOverride = needsManager || hasBlocking || pendingOverrun
                 const approveTitle = hasBlocking
                   ? `Approve despite exceptions (${blockingCodes.join(', ')}) — manager override`
@@ -608,7 +614,7 @@ export function BillingVisitReconciliationPanel({
                       : row.status === 'APPROVED_FOR_BOTH' ||
                           row.status === 'APPROVED_FOR_PAY' ||
                           row.status === 'APPROVED_FOR_INVOICE'
-                        ? 'Change approval — All / Carer pay / Funders'
+                        ? 'Change approval — choose a different option'
                         : 'Approve for carer pay and client / funder billing'
                 return (
                   <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
@@ -741,33 +747,45 @@ export function BillingVisitReconciliationPanel({
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <Button
-                            variant="default"
+                            variant={row.status === 'APPROVED_FOR_BOTH' ? 'default' : 'outline'}
                             size="sm"
                             className="h-7 px-2 text-xs"
-                            title={approveTitle}
-                            disabled={approveDisabled}
+                            title={
+                              row.status === 'APPROVED_FOR_BOTH'
+                                ? 'Already approved for both pay and billing'
+                                : approveTitle
+                            }
+                            disabled={allDisabled}
                             onClick={() => void handleApprove(row.id, 'BOTH', managerOverride)}
                           >
                             <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden />
                             All
                           </Button>
                           <Button
-                            variant="outline"
+                            variant={row.status === 'APPROVED_FOR_PAY' ? 'default' : 'outline'}
                             size="sm"
                             className="h-7 px-2 text-xs"
-                            title="Pay the carer only — client / funder is charged £0 for this visit"
-                            disabled={approveDisabled}
+                            title={
+                              row.status === 'APPROVED_FOR_PAY'
+                                ? 'Already approved for carer pay only'
+                                : 'Pay the carer only — client / funder is charged £0 for this visit'
+                            }
+                            disabled={payDisabled}
                             onClick={() => void handleApprove(row.id, 'PAY', managerOverride)}
                           >
                             <Wallet className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
                             Carer pay
                           </Button>
                           <Button
-                            variant="outline"
+                            variant={row.status === 'APPROVED_FOR_INVOICE' ? 'default' : 'outline'}
                             size="sm"
                             className="h-7 px-2 text-xs"
-                            title="Charge the client / funder only — carer is paid £0 for this visit"
-                            disabled={approveDisabled}
+                            title={
+                              row.status === 'APPROVED_FOR_INVOICE'
+                                ? 'Already approved for funder billing only'
+                                : 'Charge the client / funder only — carer is paid £0 for this visit'
+                            }
+                            disabled={invoiceDisabled}
                             onClick={() => void handleApprove(row.id, 'INVOICE', managerOverride)}
                           >
                             <Landmark className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
@@ -778,7 +796,7 @@ export function BillingVisitReconciliationPanel({
                             size="sm"
                             className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                             title="Reject (no pay, no charge)"
-                            disabled={isMutating || locked}
+                            disabled={rejectDisabled}
                             aria-label="Reject visit"
                             onClick={() => void handleReject(row.id, 'BOTH')}
                           >
