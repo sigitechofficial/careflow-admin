@@ -2,7 +2,7 @@
 import { Link } from '@tanstack/react-router'
 import {
   MessageSquare, ClipboardList, LayoutDashboard,
-  AlertTriangle, Search, X, ChevronLeft,
+  Search, X, ChevronLeft,
   ChevronRight, ChevronsLeft, Dot,
   Filter, Globe, Loader2,
 } from 'lucide-react'
@@ -86,12 +86,6 @@ export default function HomePage() {
   const [appliedTo, setAppliedTo] = React.useState<string | undefined>(undefined)
   const [appliedName, setAppliedName] = React.useState('')
   const [page, setPage] = React.useState(1)
-  const [dismissed, setDismissed] = React.useState(false)
-
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => setDismissed(true), 3000)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   const handoverQuery = useHandoverReport({
     from: appliedFrom,
@@ -147,32 +141,6 @@ export default function HomePage() {
           </p>
         </div>
       </div>
-
-      {!dismissed && (
-        <div className="rounded-lg border border-warning/40 bg-warning/5 px-6 py-4 relative">
-          <button
-            onClick={() => setDismissed(true)}
-            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="flex flex-col items-center text-center gap-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-6 w-6 text-warning shrink-0" />
-              <h2 className="text-xl font-bold text-foreground">System Maintenance</h2>
-            </div>
-            <p className="text-sm text-muted-foreground max-w-3xl">
-              We'll be carrying out scheduled system maintenance on Monday 11th May. During this time, the system will be unavailable for approximately one hour between 4:00am and 6:00am.
-            </p>
-            <p className="text-sm text-muted-foreground max-w-3xl">
-              We recommend saving any work and ensuring you have the information you need in advance, as access will be temporarily interrupted.
-            </p>
-            <p className="text-sm text-muted-foreground max-w-3xl">
-              We apologise for any inconvenience this may cause and appreciate your understanding while we complete these essential updates.
-            </p>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
