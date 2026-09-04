@@ -1,5 +1,6 @@
 import { useParams } from '@tanstack/react-router'
 import AddEmployeePage from '@/features/employees/pages/AddEmployeePage'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 
 /** Route: `/employee/$employeeId/edit` — reuses the add-employee wizard in edit mode. */
 export default function EditEmployeePage() {
@@ -16,5 +17,10 @@ export default function EditEmployeePage() {
       </div>
     )
   }
-  return <AddEmployeePage editEmployeeId={employeeId} />
+  return (
+    <div className="space-y-4">
+      <PolicyContextPanel moduleType="EMPLOYEE" recordId={employeeId} />
+      <AddEmployeePage editEmployeeId={employeeId} />
+    </div>
+  )
 }

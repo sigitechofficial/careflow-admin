@@ -264,6 +264,19 @@ export type Permission =
   | 'learning.settings.manage'
   | 'learning.me.read'
   | 'learning.me.progress'
+  | 'policies.read'
+  | 'policies.create'
+  | 'policies.update'
+  | 'policies.submit'
+  | 'policies.review'
+  | 'policies.approve'
+  | 'policies.publish'
+  | 'policies.archive'
+  | 'policies.categories.manage'
+  | 'policies.links.manage'
+  | 'policies.audit.read'
+  | 'policies.acknowledgements.manage'
+  | 'policies.acknowledgements.me'
 
 export interface AuthUser {
   id: string

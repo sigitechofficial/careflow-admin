@@ -24,6 +24,7 @@ import { MedicationSupportProfileTab } from '@/features/service-users/medication
 import { RecordDetailDrawer } from '@/features/service-users/medication/RecordDetailDrawer'
 import { CorrectRecordDialog } from '@/features/service-users/medication/CorrectRecordDialog'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import type { ServiceUserDetail, ServiceUserMedicationRow } from '@/features/service-users/types'
 
 function displayName(d: ServiceUserDetail | null | undefined): string {
@@ -231,6 +232,11 @@ export default function ServiceUserMedicationPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+        <PolicyContextPanel
+          className="mb-4"
+          moduleType="MEDICATION"
+          recordId={editMedication?.id}
+        />
         <div className="mb-4">
           <BodyMapHandoverPreview serviceUserId={serviceUserId} compact />
         </div>

@@ -21,6 +21,7 @@ import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useAuthStore } from '@/features/auth/store'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { Label } from '@/shared/ui/form-field'
 import {
   InitialAssessmentTextarea as Textarea,
@@ -2153,6 +2154,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           <ClipboardCheck className="h-7 w-7 text-teal-700 dark:text-teal-400" aria-hidden />
           <h1 className="text-lg font-bold leading-snug md:text-xl">{HOLISTIC_FORM_TITLE}</h1>
         </div>
+
+        <PolicyContextPanel
+          moduleType="INITIAL_ASSESSMENT"
+          recordId={submissionId || undefined}
+          sectionKey={
+            currentHolisticTab.enterpriseSection != null
+              ? String(currentHolisticTab.enterpriseSection)
+              : undefined
+          }
+        />
 
         {/* QA Demo Data — dev/QA only; hidden entirely in production builds. */}
         {import.meta.env.DEV && canUpdate ? (

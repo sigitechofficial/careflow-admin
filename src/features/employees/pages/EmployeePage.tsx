@@ -10,6 +10,7 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { ApiError } from '@/shared/api/api-client'
 import { useAuthStore } from '@/features/auth/store'
+import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   type EmployeeChartSummary,
@@ -135,6 +136,8 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
           </p>
         </div>
       </div>
+
+      <PolicyContextPanel moduleType="EMPLOYEE" />
 
       {/* -- Top Charts ------------------------------------------- */}
       {chartSummary?.meta?.scope === 'filtered' ? (
