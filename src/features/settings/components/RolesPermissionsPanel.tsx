@@ -4,6 +4,8 @@ import type { RolesPermissionsSubTab } from '@/features/settings/roles-permissio
 import { OfficeUsersPanel } from '@/features/settings/components/roles-permissions/OfficeUsersPanel'
 import { RolesPanel } from '@/features/settings/components/roles-permissions/RolesPanel'
 import { PermissionsCatalogPanel } from '@/features/settings/components/roles-permissions/PermissionsCatalogPanel'
+import { usePermissionsCatalog } from '@/features/settings/hooks/useRolesPermissions'
+import { useAuthStore } from '@/features/auth/store'
 
 const SUB_TABS: { id: RolesPermissionsSubTab; label: string }[] = [
   { id: 'office-users', label: 'Office users' },
@@ -18,6 +20,10 @@ export function RolesPermissionsPanel() {
   })
   const activeSub: RolesPermissionsSubTab =
     search.sub === 'roles' || search.sub === 'permissions' ? search.sub : 'office-users'
+
+  const canViewCatalog = useAuthStore(s => s.can('permissions.manage') || s.can('roles.manage'))
+  const catalogQuery = usePermissionsCatalog(canViewCatalog)
+  const permissionCount = catalogQuery.data?.length
 
   const setSub = (sub: RolesPermissionsSubTab) => {
     void navigate({
@@ -34,6 +40,10 @@ export function RolesPermissionsPanel() {
       >
         {SUB_TABS.map(tab => {
           const isActive = tab.id === activeSub
+          const label =
+            tab.id === 'permissions' && permissionCount != null
+              ? `${tab.label} (${permissionCount})`
+              : tab.label
           return (
             <button
               key={tab.id}
@@ -49,7 +59,7 @@ export function RolesPermissionsPanel() {
                   : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
               )}
             >
-              {tab.label}
+              {label}
             </button>
           )
         })}
