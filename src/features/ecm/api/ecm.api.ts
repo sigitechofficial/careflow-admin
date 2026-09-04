@@ -241,6 +241,13 @@ export async function resolveEcmException(
   })
 }
 
+export async function allowVisitContinue(jobId: string, note?: string): Promise<unknown> {
+  return apiJson(`/ecm/visits/${jobId}/allow-continue`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note?.trim() || undefined }),
+  })
+}
+
 export async function closeEcmException(id: string, note?: string): Promise<unknown> {
   return apiJson(`/ecm/exceptions/${id}/close`, {
     method: 'PATCH',
