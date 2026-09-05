@@ -46,7 +46,7 @@ export function filterScheduleJobRecommendCarers(
   return candidates
     .filter((candidate) => {
       if (candidate.isBlocked && !options.showBlockedCarers) return false
-      if (candidate.hasRotaConflict) return false
+      if (candidate.hasRotaConflict || candidate.complianceBlocksAllocation) return false
       if (options.replacingEmployeeId) return candidate.employeeId !== options.replacingEmployeeId
       return !options.allocatedEmployeeIds.has(candidate.employeeId)
     })
@@ -62,7 +62,7 @@ export function filterScheduleRunRecommendCarers(
   return candidates
     .filter((candidate) => {
       if (candidate.isBlocked && !showBlockedCarers) return false
-      return !candidate.hasRotaConflict
+      return !candidate.hasRotaConflict && !candidate.complianceBlocksAllocation
     })
     .sort(sortVisitPlanCarerCandidates)
     .slice(0, limit)
@@ -75,9 +75,13 @@ export function scheduleRecommendCarersEmptyMessage(
   candidates: VisitPlanCarerCandidate[],
   fallbackMessage: string,
 ): string {
-  return candidates.some((candidate) => candidate.hasRotaConflict)
-    ? SCHEDULE_CARERS_BOOKED_AT_TIME_MESSAGE
-    : fallbackMessage
+  if (candidates.some((candidate) => candidate.hasRotaConflict)) {
+    return SCHEDULE_CARERS_BOOKED_AT_TIME_MESSAGE
+  }
+  if (candidates.some((candidate) => candidate.complianceBlocksAllocation)) {
+    return 'No available carers — others cannot be allocated until mandatory compliance is in order.'
+  }
+  return fallbackMessage
 }
 
 function normalizeLabel(value: string): string {

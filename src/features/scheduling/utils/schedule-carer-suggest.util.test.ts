@@ -46,6 +46,17 @@ describe('schedule-carer-suggest.util', () => {
     expect(rows.map((row) => row.employeeId)).toEqual(['free'])
   })
 
+  it('excludes carers blocked by compliance from job recommendations', () => {
+    const rows = filterScheduleJobRecommendCarers(
+      [
+        candidate({ employeeId: 'blocked-compliance', complianceBlocksAllocation: true }),
+        candidate({ employeeId: 'free' }),
+      ],
+      { showBlockedCarers: true, allocatedEmployeeIds: new Set() },
+    )
+    expect(rows.map((row) => row.employeeId)).toEqual(['free'])
+  })
+
   it('filters run recommendations and sorts preferred first', () => {
     const rows = filterScheduleRunRecommendCarers(
       [

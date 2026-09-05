@@ -75,9 +75,11 @@ function dayStatus(
 function ComplianceIssuesInfo({
   count,
   employeeId,
+  blocked,
 }: {
   count: number
   employeeId: string
+  blocked?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
 
@@ -87,8 +89,17 @@ function ComplianceIssuesInfo({
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="inline-flex shrink-0 rounded-sm text-amber-700 hover:bg-amber-100/80 hover:text-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-300 dark:hover:bg-amber-950/50 dark:hover:text-amber-100"
-            aria-label="What do compliance items need attention mean?"
+            className={cn(
+              'inline-flex shrink-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              blocked
+                ? 'text-red-700 hover:bg-red-100/80 hover:text-red-950 dark:text-red-300 dark:hover:bg-red-950/50 dark:hover:text-red-100'
+                : 'text-amber-700 hover:bg-amber-100/80 hover:text-amber-950 dark:text-amber-300 dark:hover:bg-amber-950/50 dark:hover:text-amber-100',
+            )}
+            aria-label={
+              blocked
+                ? 'Why can this carer not be allocated?'
+                : 'What do compliance items need attention mean?'
+            }
             onClick={(event) => {
               event.stopPropagation()
               setOpen((value) => !value)
@@ -98,10 +109,12 @@ function ComplianceIssuesInfo({
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" align="start" className="max-w-sm space-y-2 p-3 text-xs leading-relaxed">
-          <p className="font-semibold text-foreground">Compliance items need attention</p>
+          <p className="font-semibold text-foreground">
+            {blocked ? 'Cannot allocate — compliance' : 'Compliance items need attention'}
+          </p>
           <p className="text-muted-foreground">
             This count is how many of this employee&apos;s required compliance records are not fully in order
-            (for example DBS, training certificates, or right-to-work checks).
+            (for example DBS, training certificates, or right to work checks).
           </p>
           <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
             <li>
@@ -111,15 +124,19 @@ function ComplianceIssuesInfo({
               <span className="font-medium text-foreground">Expired</span> — past expiry date
             </li>
             <li>
-              <span className="font-medium text-foreground">Expiring soon</span> — due to expire shortly
+              <span className="font-medium text-foreground">Rejected</span> — submitted but not accepted
             </li>
             <li>
-              <span className="font-medium text-foreground">Rejected</span> — submitted but not accepted
+              <span className="font-medium text-foreground">Expiring soon</span> — due to expire shortly
+              (warning only)
             </li>
           </ul>
           <p className="text-muted-foreground">
             Showing <span className="font-medium text-foreground">{count}</span> item{count === 1 ? '' : 's'} for
-            this carer. You can still assign them, but review compliance before they visit.
+            this carer.{' '}
+            {blocked
+              ? 'Organisation settings block allocation until these are resolved.'
+              : 'You can still assign them, but review compliance before they visit.'}
           </p>
           <Link
             to="/employee/$employeeId/edit"
@@ -207,6 +224,12 @@ export function VisitPlanCarerCandidateDetails({
                 Already booked
               </span>
             ) : null}
+            {c.complianceBlocksAllocation ? (
+              <span className={cn('inline-flex items-center gap-0.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200', contentTagClass)}>
+                <ShieldAlert className="h-3 w-3" aria-hidden />
+                Cannot allocate
+              </span>
+            ) : null}
           </div>
           <p className={contentHelperClass}>
             {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
@@ -268,10 +291,23 @@ export function VisitPlanCarerCandidateDetails({
             </p>
           ) : null}
           {c.complianceIssues > 0 ? (
-            <p className="inline-flex items-center gap-1 text-amber-800 dark:text-amber-200">
+            <p
+              className={cn(
+                'inline-flex items-center gap-1',
+                c.complianceBlocksAllocation
+                  ? 'text-red-800 dark:text-red-200'
+                  : 'text-amber-800 dark:text-amber-200',
+              )}
+            >
               <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {c.complianceIssues} compliance item{c.complianceIssues === 1 ? '' : 's'} need attention
-              <ComplianceIssuesInfo count={c.complianceIssues} employeeId={c.employeeId} />
+              {c.complianceBlocksAllocation
+                ? `Cannot allocate — ${c.complianceIssues} compliance item${c.complianceIssues === 1 ? '' : 's'} blocking`
+                : `${c.complianceIssues} compliance item${c.complianceIssues === 1 ? '' : 's'} need attention`}
+              <ComplianceIssuesInfo
+                count={c.complianceIssues}
+                employeeId={c.employeeId}
+                blocked={c.complianceBlocksAllocation}
+              />
             </p>
           ) : null}
         </div>

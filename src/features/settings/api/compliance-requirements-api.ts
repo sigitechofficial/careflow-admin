@@ -10,6 +10,7 @@ export type ComplianceRequirementRow = {
   locationId: string | null
   zoneId: string | null
   isMandatory: boolean
+  blocksAllocation?: boolean
   renewalBeforeDays: number
   notes: string | null
   isActive: boolean
@@ -44,6 +45,7 @@ export async function createComplianceRequirement(body: {
   locationId?: string
   zoneId?: string
   isMandatory?: boolean
+  blocksAllocation?: boolean
   renewalBeforeDays?: number
   notes?: string
 }): Promise<ComplianceRequirementRow> {
@@ -68,6 +70,7 @@ export async function updateComplianceRequirement(
     renewalBeforeDays: number
     notes: string | null
     isActive: boolean
+    blocksAllocation: boolean
   }>,
 ): Promise<ComplianceRequirementRow> {
   const res = await apiJson<ApiEnvelope<ComplianceRequirementRow>>(`/compliance-requirements/${id}`, {
