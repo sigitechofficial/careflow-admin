@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   useDeleteEmployeeAbsence,
   useEmployeeAbsences,
@@ -186,6 +187,7 @@ export default function EmployeeAbsencesPage() {
   const [formOpen, setFormOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<EmployeeAbsenceRow | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null)
+  const { locationId: globalLocationId } = useGlobalLocationScope()
 
   const query = useEmployeeAbsences(
     {
@@ -193,6 +195,7 @@ export default function EmployeeAbsencesPage() {
       search: search.trim() || undefined,
       absenceType: absenceType || undefined,
       permissionStatus: permissionStatus || undefined,
+      locationId: globalLocationId ?? undefined,
       sponsoredOnly: sponsoredOnly || undefined,
       sicknessOnly: sicknessOnly || undefined,
       lastMinuteOnly: lastMinuteOnly || undefined,
@@ -269,7 +272,12 @@ export default function EmployeeAbsencesPage() {
     <div className="flex flex-col gap-4" data-testid="employee-absences-page">
       <PageHeader
         title="Absence tracker"
-        description="UKVI-aware absence records — durations, evidence, sponsor (SMS) reporting triggers and review actions."
+        description={[
+          'UKVI-aware absence records — durations, evidence, sponsor (SMS) reporting triggers and review actions.',
+          globalLocationId ? 'Showing employees for the selected header location.' : null,
+        ]
+          .filter(Boolean)
+          .join(' ')}
         icon={
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
             <CalendarOff className="h-4 w-4" aria-hidden />

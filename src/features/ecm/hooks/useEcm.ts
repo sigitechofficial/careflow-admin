@@ -79,12 +79,12 @@ export function useReevaluateEcmVisit() {
 }
 
 export function useEcmExceptions(
-  options?: { limit?: number; serviceUserId?: string; enabled?: boolean },
+  options?: { limit?: number; serviceUserId?: string; locationId?: string; enabled?: boolean },
 ) {
-  const { limit = 50, serviceUserId, enabled = true } = options ?? {}
+  const { limit = 50, serviceUserId, locationId, enabled = true } = options ?? {}
   return useQuery({
-    queryKey: ecmKeys.exceptions({ limit, serviceUserId }),
-    queryFn: () => fetchEcmExceptions({ limit, serviceUserId }),
+    queryKey: ecmKeys.exceptions({ limit, serviceUserId, locationId }),
+    queryFn: () => fetchEcmExceptions({ limit, serviceUserId, locationId }),
     enabled,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,

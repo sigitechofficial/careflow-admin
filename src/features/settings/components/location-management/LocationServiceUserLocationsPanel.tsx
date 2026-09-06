@@ -22,6 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { formatBranchDisplayName } from '@/features/settings/location-management/format-service-user-branch-label'
+import { formatLocationAuditLine } from '@/features/settings/location-management/location-management-audit'
+import type { LocationManagementHierarchyState } from '@/features/settings/hooks/useLocationManagementHierarchyFilters'
 import { cn } from '@/shared/lib/utils'
 import { useAuthStore } from '@/features/auth/store'
 
@@ -29,9 +32,13 @@ function normalizePostcodeKey(raw: string): string {
   return raw.replace(/\s+/g, '').toUpperCase()
 }
 
-export function LocationServiceUserLocationsPanel() {
+export function LocationServiceUserLocationsPanel({
+  filters,
+}: {
+  filters: LocationManagementHierarchyState
+}) {
   const canUpdate = useAuthStore(s => s.can('lookups.manage'))
-  const locationsQuery = useServiceUserLocations()
+  const locationsQuery = useServiceUserLocations(true, filters.listLocationId)
   const updateMutation = useUpdateServiceUserLocation()
   const [saving, setSaving] = React.useState(false)
   const [filter, setFilter] = React.useState('')
@@ -52,12 +59,19 @@ export function LocationServiceUserLocationsPanel() {
   const members = locationsQuery.data?.members ?? []
 
   const filtered = members.filter(m => {
+    if (filters.zoneName && !filters.listLocationId) {
+      if ((m.zoneName ?? '').trim().toLowerCase() !== filters.zoneName.trim().toLowerCase()) {
+        return false
+      }
+    }
+    if (filters.areaId && m.serviceUserAreaId !== filters.areaId) return false
     const q = filter.trim().toLowerCase()
     if (!q) return true
     return (
       m.fullName.toLowerCase().includes(q) ||
       (m.zoneName?.toLowerCase().includes(q) ?? false) ||
       (m.roomName?.toLowerCase().includes(q) ?? false) ||
+      (m.locationName?.toLowerCase().includes(q) ?? false) ||
       (m.serviceUserAreaName?.toLowerCase().includes(q) ?? false) ||
       (m.postcode?.toLowerCase().includes(q) ?? false)
     )
@@ -72,7 +86,8 @@ export function LocationServiceUserLocationsPanel() {
 
   function openEdit(row: ServiceUserLocationRow) {
     setEditing(row)
-    setDraftZoneKey(row.zoneName ?? '')
+    const zoneFromBranch = zones.find(z => z.branches.some(b => b.id === row.locationId))
+    setDraftZoneKey(zoneFromBranch?.id ?? row.zoneName ?? '')
     setDraftLocationId(row.locationId)
     setDraftAreaId(row.serviceUserAreaId)
     const pcs = row.serviceUserAreaPostcodes ?? []
@@ -147,46 +162,66 @@ export function LocationServiceUserLocationsPanel() {
         onChange={e => setFilter(e.target.value)}
         className="h-9 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
       />
-      <div className="overflow-hidden rounded-lg border border-border">
-        <div className="grid grid-cols-[1fr_7rem_7rem_7rem_6rem_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Service User Name</span>
-          <span>Zone</span>
-          <span>Branch</span>
-          <span>Area</span>
-          <span>Postcode</span>
-          <span className="sr-only">Edit</span>
-        </div>
-        <ul className="divide-y divide-border">
-          {filtered.map((m, i) => (
-            <li
-              key={m.id}
-              className={cn(
-                'grid grid-cols-[1fr_7rem_7rem_7rem_6rem_3rem] items-center gap-2 px-4 py-3 text-sm',
-                i % 2 === 1 && 'bg-muted/15',
-              )}
-            >
-              <span className={cn(!m.isActive && 'text-muted-foreground')}>{m.fullName}</span>
-              <span>{m.zoneName ?? '—'}</span>
-              <span>{m.roomName ?? '—'}</span>
-              <span>{m.serviceUserAreaName ?? '—'}</span>
-              <span>{m.postcode ?? '—'}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                disabled={!canUpdate}
-                aria-label={`Edit location for ${m.fullName}`}
-                onClick={() => openEdit(m)}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="min-w-[44rem]">
+          <div className="grid grid-cols-[minmax(12rem,1.4fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(6rem,0.6fr)_3rem] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>Service User Name</span>
+            <span>Zone</span>
+            <span>Branch</span>
+            <span>Area</span>
+            <span>Postcode</span>
+            <span className="sr-only">Edit</span>
+          </div>
+          <ul className="divide-y divide-border">
+            {filtered.map((m, i) => (
+              <li
+                key={m.id}
+                className={cn(
+                  'grid grid-cols-[minmax(12rem,1.4fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(6rem,0.6fr)_3rem] items-center gap-2 px-4 py-3 text-sm',
+                  i % 2 === 1 && 'bg-muted/15',
+                )}
               >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </li>
-          ))}
-          {filtered.length === 0 && (
-            <li className="px-4 py-8 text-center text-sm text-muted-foreground">No records found.</li>
-          )}
-        </ul>
+                <span className={cn('min-w-0', !m.isActive && 'text-muted-foreground')} title={m.fullName}>
+                  <span className="block truncate">{m.fullName}</span>
+                  {formatLocationAuditLine(m) ? (
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                      {formatLocationAuditLine(m)}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="truncate" title={m.zoneName ?? undefined}>
+                  {m.zoneName ?? '—'}
+                </span>
+                <span
+                  className="truncate"
+                  title={formatBranchDisplayName(m.roomName, m.locationName)}
+                >
+                  {formatBranchDisplayName(m.roomName, m.locationName)}
+                </span>
+                <span className="truncate" title={m.serviceUserAreaName ?? undefined}>
+                  {m.serviceUserAreaName ?? '—'}
+                </span>
+                <span className="truncate" title={m.postcode ?? undefined}>
+                  {m.postcode ?? '—'}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={!canUpdate}
+                  aria-label={`Edit location for ${m.fullName}`}
+                  onClick={() => openEdit(m)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+            {filtered.length === 0 && (
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">No records found.</li>
+            )}
+          </ul>
+        </div>
       </div>
 
       <Dialog open={!!editing} onOpenChange={open => !open && setEditing(null)}>
@@ -241,7 +276,7 @@ export function LocationServiceUserLocationsPanel() {
                     <SelectItem value="__none__">— Unassigned —</SelectItem>
                     {branchOptions.map(b => (
                       <SelectItem key={b.id} value={b.id}>
-                        {b.name}
+                        {formatBranchDisplayName(b.name)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -274,9 +309,15 @@ export function LocationServiceUserLocationsPanel() {
                     ))}
                   </SelectContent>
                 </Select>
+                {draftLocationId && areaOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    This branch has no areas yet. Add them under the Zones tab if the service user
+                    should appear in an area.
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Main postcode</label>
+                <label className="text-sm font-medium">Postcode</label>
                 <Select
                   value={draftPostcode ?? '__none__'}
                   onValueChange={v => setDraftPostcode(v === '__none__' ? null : v)}

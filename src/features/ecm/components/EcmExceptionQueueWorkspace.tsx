@@ -3,6 +3,7 @@ import { Loader2, RefreshCw } from 'lucide-react'
 import { EcmExceptionQueuePanel } from '@/features/ecm/components/EcmExceptionQueuePanel'
 import { EcmOperationalPeriodCard } from '@/features/ecm/components/EcmOperationalPeriodCard'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalPeriod'
 import { useInvalidateEcmQueries } from '@/features/ecm/hooks/useEcm'
 import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
@@ -25,6 +26,7 @@ export function EcmExceptionQueueWorkspace({
     operationalToday,
     multiDay,
   } = useEcmOperationalPeriod('today')
+  const { isScoped: globalLocationScoped } = useGlobalLocationScope()
   const invalidateEcm = useInvalidateEcmQueries()
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null)
   const [detailOpen, setDetailOpen] = React.useState(false)
@@ -43,6 +45,7 @@ export function EcmExceptionQueueWorkspace({
         onDateFromChange={setDateFrom}
         onDateToChange={setDateTo}
         hideLocation={Boolean(serviceUserId)}
+        locationFilterDisabled={!serviceUserId && globalLocationScoped}
         testIdPrefix="ecm-exception-queue"
         footnote={
           <>

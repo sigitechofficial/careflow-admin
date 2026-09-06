@@ -27,6 +27,7 @@ import {
 import { ContentCard } from '@/shared/ui/content-section'
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import {
   useAcknowledgeEcmException,
@@ -816,7 +817,9 @@ export function EcmExceptionQueuePanel({
   /** Human label for the active operational period (preset name or date span). */
   periodLabel?: string
 }) {
-  const exceptions = useEcmExceptions({ limit: 100, serviceUserId })
+  const { locationId: globalLocationId } = useGlobalLocationScope()
+  const locationId = serviceUserId ? undefined : (globalLocationId ?? undefined)
+  const exceptions = useEcmExceptions({ limit: 100, serviceUserId, locationId })
   /** `undefined` = auto-open first locked card; `null` = user collapsed all. */
   const [expandedId, setExpandedId] = React.useState<string | null | undefined>(
     undefined,
@@ -895,9 +898,12 @@ export function EcmExceptionQueuePanel({
   const firstSosKey = firstSosItem ? sosGroupKey(firstSosItem.jobId) : null
   const defaultExpandedId = firstSosKey ?? firstPendingLockId
 
-  const showingLabel = periodLabel
-    ? `Showing exceptions for ${periodLabel}`
-    : 'Showing all open exceptions'
+  const showingLabel = [
+    periodLabel ? `Showing exceptions for ${periodLabel}.` : 'Showing all open exceptions.',
+    locationId ? 'Showing exceptions for the selected header location.' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <ContentCard className="space-y-3 p-4" data-testid="ecm-exception-queue">

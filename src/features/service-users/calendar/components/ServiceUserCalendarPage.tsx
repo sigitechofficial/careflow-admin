@@ -17,6 +17,7 @@ import type {
   CalendarViewMode,
   ServiceUserCalendarEvent,
 } from '../types/service-user-calendar.types'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useGlobalServiceUserCalendar } from '../hooks/useServiceUserCalendar'
 import { useCalendarEventTypes } from '../hooks/useCalendarEventTypes'
 import { countByMonth, nextMonthParts } from '../utils/calendar-summary.util'
@@ -92,6 +93,8 @@ export function ServiceUserCalendarPage({
   const nextRange = monthRange(next.year, next.month)
   const years = React.useMemo(() => yearOptions(today.getFullYear()), [])
 
+  const { locationId: globalLocationId } = useGlobalLocationScope()
+  const scopedLocationId = serviceUserId ? undefined : (globalLocationId ?? undefined)
   const { data: eventTypes = [] } = useCalendarEventTypes()
   const globalQuery = useGlobalServiceUserCalendar({
     dateFrom: range.dateFrom,
@@ -99,6 +102,7 @@ export function ServiceUserCalendarPage({
     eventTypeId: eventTypeId || undefined,
     status: (statusFilter as CalendarEventStatus) || undefined,
     serviceUserId,
+    locationId: scopedLocationId,
     limit: 100,
   })
   const nextMonthQuery = useGlobalServiceUserCalendar({
@@ -107,6 +111,7 @@ export function ServiceUserCalendarPage({
     eventTypeId: eventTypeId || undefined,
     status: (statusFilter as CalendarEventStatus) || undefined,
     serviceUserId,
+    locationId: scopedLocationId,
     limit: 100,
   })
 
@@ -241,7 +246,14 @@ export function ServiceUserCalendarPage({
         ) : null}
       </div>
 
-      <p className="text-sm text-muted-foreground">Birthdays And Events</p>
+      <p className="text-sm text-muted-foreground">
+        {[
+          'Birthdays And Events',
+          scopedLocationId ? 'Showing service users for the selected header location.' : null,
+        ]
+          .filter(Boolean)
+          .join(' — ')}
+      </p>
 
       <CalendarSummaryCards
         year={year}

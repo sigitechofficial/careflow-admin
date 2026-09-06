@@ -127,7 +127,13 @@ export async function deleteServiceUserArea(areaId: string): Promise<void> {
   })
 }
 
-export async function fetchServiceUserLocations(): Promise<{
+function locationQuery(locationId?: string | null): string {
+  if (!locationId) return ''
+  const qs = new URLSearchParams({ locationId })
+  return `?${qs.toString()}`
+}
+
+export async function fetchServiceUserLocations(locationId?: string | null): Promise<{
   zones: LocationZoneOption[]
   locations: LocationLookup[]
   members: ServiceUserLocationRow[]
@@ -138,7 +144,7 @@ export async function fetchServiceUserLocations(): Promise<{
       locations: LocationLookup[]
       members: ServiceUserLocationRow[]
     }>
-  >('/location-management/service-users', { method: 'GET' })
+  >(`/location-management/service-users${locationQuery(locationId)}`, { method: 'GET' })
   return res.data
 }
 
@@ -160,7 +166,7 @@ export async function updateServiceUserLocation(
   return res.data
 }
 
-export async function fetchEmployeeLocations(): Promise<{
+export async function fetchEmployeeLocations(locationId?: string | null): Promise<{
   zones: LocationZoneOption[]
   locations: LocationLookup[]
   members: EmployeeLocationRow[]
@@ -171,7 +177,7 @@ export async function fetchEmployeeLocations(): Promise<{
       locations: LocationLookup[]
       members: EmployeeLocationRow[]
     }>
-  >('/location-management/employees', { method: 'GET' })
+  >(`/location-management/employees${locationQuery(locationId)}`, { method: 'GET' })
   return res.data
 }
 

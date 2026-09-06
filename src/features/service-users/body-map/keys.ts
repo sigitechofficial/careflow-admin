@@ -6,8 +6,14 @@ export const bodyMapKeys = {
   alerts: (serviceUserId: string) => [...bodyMapKeys.all, 'alerts', serviceUserId] as const,
   detail: (recordId: string) => [...bodyMapKeys.all, 'detail', recordId] as const,
   audit: (recordId: string) => [...bodyMapKeys.all, 'audit', recordId] as const,
-  reviewQueue: (overdueOnly?: boolean, serviceUserId?: string) =>
-    [...bodyMapKeys.all, 'review-queue', overdueOnly ?? false, serviceUserId ?? ''] as const,
+  reviewQueue: (overdueOnly?: boolean, serviceUserId?: string, locationId?: string) =>
+    [
+      ...bodyMapKeys.all,
+      'review-queue',
+      overdueOnly ?? false,
+      serviceUserId ?? '',
+      locationId ?? '',
+    ] as const,
   governanceAlerts: () => [...bodyMapKeys.all, 'governance-alerts'] as const,
   lookups: () => [...bodyMapKeys.all, 'lookups'] as const,
 }

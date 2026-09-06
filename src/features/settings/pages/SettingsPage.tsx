@@ -32,7 +32,6 @@ export type SettingsTabId =
   | 'contract-types'
   | 'immigration-statuses'
   | 'grades'
-  | 'locations'
   | 'certifications'
   | 'non-core'
   | 'leaving-reasons'
@@ -64,7 +63,6 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'contract-types', label: 'Contract types' },
   { id: 'immigration-statuses', label: 'Immigration statuses' },
   { id: 'grades', label: 'Grades' },
-  { id: 'locations', label: 'Locations' },
   { id: 'certifications', label: 'Certifications' },
   { id: 'non-core', label: 'Non-core activities' },
   { id: 'leaving-reasons', label: 'Leaving reasons' },
@@ -187,13 +185,6 @@ export default function SettingsPage() {
           {activeTab === 'immigration-statuses' && <GeneralSettingsEmployeeVisaPanel />}
           {activeTab === 'grades' && (
             <LookupNamePanel resource="grades" title="Grades" description="Pay grades on employee employment." />
-          )}
-          {activeTab === 'locations' && (
-            <LookupNamePanel
-              resource="locations"
-              title="Locations"
-              description="Base locations and zones used in scheduling and employment."
-            />
           )}
           {activeTab === 'certifications' && (
             <LookupIntervalPanel

@@ -47,9 +47,11 @@ export const settingsKeys = {
 
   locationActiveUsers: () => [...settingsKeys.all(), 'location-management', 'active-users'] as const,
 
-  serviceUserLocations: () => [...settingsKeys.all(), 'location-management', 'service-users'] as const,
+  serviceUserLocations: (locationId?: string | null) =>
+    [...settingsKeys.all(), 'location-management', 'service-users', locationId ?? 'all'] as const,
 
-  employeeLocations: () => [...settingsKeys.all(), 'location-management', 'employees'] as const,
+  employeeLocations: (locationId?: string | null) =>
+    [...settingsKeys.all(), 'location-management', 'employees', locationId ?? 'all'] as const,
 
   officeUsers: () => [...settingsKeys.all(), 'office-users'] as const,
 

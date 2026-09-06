@@ -35,19 +35,19 @@ export function useLocationActiveUsers(enabled = true) {
   })
 }
 
-export function useServiceUserLocations(enabled = true) {
+export function useServiceUserLocations(enabled = true, locationId?: string | null) {
   return useQuery({
-    queryKey: settingsKeys.serviceUserLocations(),
-    queryFn: fetchServiceUserLocations,
+    queryKey: settingsKeys.serviceUserLocations(locationId),
+    queryFn: () => fetchServiceUserLocations(locationId),
     enabled,
     staleTime: STALE_TIME,
   })
 }
 
-export function useEmployeeLocations(enabled = true) {
+export function useEmployeeLocations(enabled = true, locationId?: string | null) {
   return useQuery({
-    queryKey: settingsKeys.employeeLocations(),
-    queryFn: fetchEmployeeLocations,
+    queryKey: settingsKeys.employeeLocations(locationId),
+    queryFn: () => fetchEmployeeLocations(locationId),
     enabled,
     staleTime: STALE_TIME,
   })

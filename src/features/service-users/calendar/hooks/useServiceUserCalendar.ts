@@ -21,6 +21,7 @@ export function useGlobalServiceUserCalendar(params: {
   eventTypeId?: string
   status?: CalendarEventStatus
   serviceUserId?: string
+  locationId?: string
   limit?: number
   enabled?: boolean
 }) {

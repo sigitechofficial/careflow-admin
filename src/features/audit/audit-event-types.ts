@@ -72,5 +72,6 @@ export function resolveAuditEventTypeFallback(
   if (a.includes('viewed') || a.endsWith('_view') || a.includes('downloaded')) return 'VIEW'
   if (a.includes('deleted') || a.includes('archived') || a.includes('cleared')) return 'DELETE'
   if (a.includes('created') || a.includes('added') || a.includes('registered')) return 'CREATE'
+  if (a.includes('assigned') || a.includes('updated')) return 'UPDATE'
   return 'UPDATE'
 }

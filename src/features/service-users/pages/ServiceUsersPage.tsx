@@ -349,7 +349,14 @@ export default function ServiceUsersPage() {
               Service User Management
             </h1>
             <p className="text-sm text-muted-foreground">
-              Search, filter, and manage service users (live data from CareAdmin API).
+              {[
+                'Search, filter, and manage service users (live data from CareAdmin API).',
+                globalLocationId
+                  ? 'Showing service users for the selected header location.'
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' ')}
             </p>
           </div>
         </div>

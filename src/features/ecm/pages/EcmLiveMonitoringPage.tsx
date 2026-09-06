@@ -4,6 +4,7 @@ import { PageHeader } from '@/shared/ui/page-elements'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { EcmExceptionQueueWorkspace } from '@/features/ecm/components/EcmExceptionQueueWorkspace'
 import { EcmLiveMonitoringPanel } from '@/features/ecm/components/EcmLiveMonitoringPanel'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
 
 function isClosedLifecycle(lifecycle: string): boolean {
@@ -15,7 +16,11 @@ function isClosedLifecycle(lifecycle: string): boolean {
 }
 
 function useExceptionQueueTabFlags() {
-  const exceptions = useEcmExceptions({ limit: 100 })
+  const { locationId } = useGlobalLocationScope()
+  const exceptions = useEcmExceptions({
+    limit: 100,
+    locationId: locationId ?? undefined,
+  })
   return React.useMemo(() => {
     const sosJobs = new Set<string>()
     const lockedAreaJobs = new Set<string>()

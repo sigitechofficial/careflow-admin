@@ -41,6 +41,8 @@ export type EcmOperationalPeriodCardProps = {
   onDateToChange: (value: string) => void
   /** Hide location when scoped to a service user or when parent owns location elsewhere. */
   hideLocation?: boolean
+  /** Disable the page location dropdown when the header already owns the scope. */
+  locationFilterDisabled?: boolean
   /** Extra controls (search, branch, refresh) rendered in the same row. */
   children?: React.ReactNode
   /** Optional footnote under the controls. */
@@ -64,6 +66,7 @@ export function EcmOperationalPeriodCard({
   onDateFromChange,
   onDateToChange,
   hideLocation = false,
+  locationFilterDisabled = false,
   children,
   footnote,
   testIdPrefix = 'ecm-period',
@@ -117,17 +120,27 @@ export function EcmOperationalPeriodCard({
             <span className="inline-flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="h-3.5 w-3.5" aria-hidden />
               Location
+              {locationFilterDisabled ? (
+                <span className="font-normal text-[10px]">
+                  · Controlled by the header location selector
+                </span>
+              ) : null}
             </span>
             <select
-              className="flex h-9 w-[16rem] max-w-full rounded-md border border-input bg-background px-2 text-sm"
+              className="flex h-9 w-[16rem] max-w-full rounded-md border border-input bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               value={locationId ?? '__all__'}
-              disabled={locationTreeQuery.isLoading}
+              disabled={locationTreeQuery.isLoading || locationFilterDisabled}
               onChange={(e) => {
+                if (locationFilterDisabled) return
                 const v = e.target.value
                 setSelectedLocationId(v === '__all__' ? null : v)
               }}
               data-testid={`${testIdPrefix}-location`}
-              title={locationLabel}
+              title={
+                locationFilterDisabled
+                  ? 'Controlled by the header location selector'
+                  : locationLabel
+              }
             >
               {showAllLocationsOption ? <option value="__all__">All locations</option> : null}
               {locationOptions.map((o) => (
