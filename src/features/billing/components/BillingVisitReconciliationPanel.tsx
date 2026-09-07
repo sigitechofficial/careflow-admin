@@ -749,7 +749,7 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={
                               row.status === 'APPROVED_FOR_BOTH'
-                                ? 'Currently approved for both — click to keep, or use Carer pay / Funders to change'
+                                ? 'Currently approved for both — click to keep, or use Pay carer / Bill funders to change'
                                 : approveTitle
                             }
                             disabled={allDisabled}
@@ -764,14 +764,14 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={
                               row.status === 'APPROVED_FOR_PAY'
-                                ? 'Currently carer pay only — click All or Funders to change'
+                                ? 'Currently carer pay only — click All or Bill funders to change'
                                 : 'Pay the carer only — client / funder is charged £0 for this visit'
                             }
                             disabled={payDisabled}
                             onClick={() => void handleApprove(row.id, 'PAY', managerOverride)}
                           >
                             <Wallet className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
-                            Carer pay
+                            Pay carer
                           </Button>
                           <Button
                             variant={row.status === 'APPROVED_FOR_INVOICE' ? 'default' : 'outline'}
@@ -779,14 +779,14 @@ export function BillingVisitReconciliationPanel({
                             className="h-7 px-2 text-xs"
                             title={
                               row.status === 'APPROVED_FOR_INVOICE'
-                                ? 'Currently funder billing only — click All or Carer pay to change'
+                                ? 'Currently funder billing only — click All or Pay carer to change'
                                 : 'Charge the client / funder only — carer is paid £0 for this visit'
                             }
                             disabled={invoiceDisabled}
                             onClick={() => void handleApprove(row.id, 'INVOICE', managerOverride)}
                           >
                             <Landmark className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
-                            Funders
+                            Bill funders
                           </Button>
                           <Button
                             variant="ghost"
