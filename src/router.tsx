@@ -1670,6 +1670,10 @@ const billingServiceUserInvoicesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/service-user-invoices',
   beforeLoad: requirePermission('billing.invoice_runs.read'),
+  validateSearch: (raw: Record<string, unknown>): { serviceUserId?: string } => {
+    const id = typeof raw.serviceUserId === 'string' ? raw.serviceUserId.trim() : ''
+    return id ? { serviceUserId: id } : {}
+  },
   component: ServiceUserInvoicesPage,
 })
 

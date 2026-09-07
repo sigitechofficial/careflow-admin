@@ -347,9 +347,13 @@ export async function listEnterpriseFundingTypes(options?: { limit?: number }): 
   return res.data
 }
 
-export async function listEnterpriseFunders(options?: { limit?: number }): Promise<EnterpriseFunderRow[]> {
+export async function listEnterpriseFunders(options?: {
+  limit?: number
+  isActive?: boolean
+}): Promise<EnterpriseFunderRow[]> {
   const qs = new URLSearchParams()
-  qs.set('limit', String(options?.limit ?? 200))
+  qs.set('limit', String(Math.min(options?.limit ?? 200, 500)))
+  if (options?.isActive !== undefined) qs.set('isActive', String(options.isActive))
   const res = await apiJson<ApiEnvelope<EnterpriseFunderRow[]>>(`/funders?${qs}`, { method: 'GET' })
   return res.data
 }

@@ -239,9 +239,33 @@ export type PayCardAssignmentPreview = {
 }
 
 export type PayCardResolveResult = {
-  source: 'EXPLICIT' | 'MATCHED' | 'NONE'
+  source: 'EMPLOYEE_FUNDER' | 'EXPLICIT' | 'MATCHED' | 'NONE'
   payCard: PayCard | null
   matchedLevel: PayCardAssignmentLevel | null
+  funderId?: string | null
+}
+
+export type EmployeeFunderPayAssignment = {
+  id: string
+  employeeId: string
+  funderId: string
+  funder: { id: string; name: string; code: string | null } | null
+  payCardId: string
+  payCard: PayCard
+  effectiveFrom: string
+  effectiveTo: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type EmployeeFunderPayAssignmentInput = {
+  employeeId: string
+  funderId: string
+  payCardId: string
+  effectiveFrom?: string
+  effectiveTo?: string | null
+  notes?: string | null
 }
 
 export const CHARGE_CARD_ASSIGNMENT_OPTIONS: { value: ChargeCardAssignmentLevel; label: string }[] = [

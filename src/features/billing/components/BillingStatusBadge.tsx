@@ -39,6 +39,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   SENT: 'success',
   PAID: 'success',
   PART_PAID: 'warning',
+  UNPAID: 'muted',
   EXPORTED: 'success',
   COMPLETED: 'success',
   RENDERED: 'success',

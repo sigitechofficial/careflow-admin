@@ -5,8 +5,10 @@ export const billingKeys = {
   payCard: (id: string) => [...billingKeys.all, 'pay-card', id] as const,
   payCardAssignmentPreview: (id: string) =>
     [...billingKeys.all, 'pay-card-assignment-preview', id] as const,
-  payCardResolve: (employeeId: string) =>
-    [...billingKeys.all, 'pay-card-resolve', employeeId] as const,
+  payCardResolve: (employeeId: string, funderId?: string) =>
+    [...billingKeys.all, 'pay-card-resolve', employeeId, funderId ?? ''] as const,
+  employeeFunderPayAssignments: (employeeId: string) =>
+    [...billingKeys.all, 'employee-funder-pay-assignments', employeeId] as const,
   chargeCards: (filters?: { search?: string; status?: string }) =>
     [...billingKeys.all, 'charge-cards', filters ?? {}] as const,
   chargeCard: (id: string) => [...billingKeys.all, 'charge-card', id] as const,

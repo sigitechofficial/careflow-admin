@@ -1,13 +1,14 @@
 import * as React from 'react'
-import { CheckCircle2, ExternalLink, Eye, Loader2, Send } from 'lucide-react'
+import { Download, ExternalLink, Eye, Loader2, Mail, Send } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
-import {
-  useSendInvoiceRun,
-  useServiceUserInvoices,
-} from '@/features/billing/hooks/useInvoiceRuns'
+import { downloadInvoiceRunExport } from '@/features/billing/api/invoice-runs.api'
+import { useServiceUserInvoices } from '@/features/billing/hooks/useInvoiceRuns'
 import { useResolveServiceUserInvoiceTemplate } from '@/features/billing/hooks/useInvoiceTemplates'
-import { InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
+import {
+  BillingStatusBadge,
+  InvoiceRunStatusBadge,
+} from '@/features/billing/components/BillingStatusBadge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
@@ -24,25 +25,7 @@ type InvoiceRunRow = NonNullable<
 >['runs'][number]
 
 function PaymentBadge({ status }: { status: 'UNPAID' | 'PART_PAID' | 'PAID' }) {
-  if (status === 'PAID') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Paid
-      </span>
-    )
-  }
-  if (status === 'PART_PAID') {
-    return (
-      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-        Part paid
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      Unpaid
-    </span>
-  )
+  return <BillingStatusBadge status={status} />
 }
 
 function InvoiceDetailDialog({
@@ -141,10 +124,6 @@ function InvoiceDetailDialog({
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Payments are recorded against the whole invoice run and matched to the funder
-                  that sent them.
-                </p>
               </div>
             ) : null}
 
@@ -214,35 +193,33 @@ function StatCard({
 
 export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId: string }) {
   const canRead = useAuthStore(
-    s =>
+    (s) =>
       s.can('service_users.read') ||
       s.can('service_users.update') ||
       s.can('billing.invoice_runs.read' as never),
   )
-  const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
-  const canOpenBilling = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
+  const canManage = useAuthStore((s) => s.can('billing.invoice_runs.manage' as never))
+  const canOpenBilling = useAuthStore((s) => s.can('billing.invoice_runs.read' as never))
 
   const invoicesQuery = useServiceUserInvoices(serviceUserId, canRead)
   const templateQuery = useResolveServiceUserInvoiceTemplate(serviceUserId, undefined, canRead)
-  const sendMutation = useSendInvoiceRun()
   const [selectedRun, setSelectedRun] = React.useState<InvoiceRunRow | null>(null)
+  const [exportingRunId, setExportingRunId] = React.useState<string | null>(null)
 
   const data = invoicesQuery.data
   const runs = data?.runs ?? []
   const resolvedTemplate = templateQuery.data?.invoiceTemplate
   const templateSource = templateQuery.data?.source
 
-  const handleSend = async (runId: string, period: string) => {
-    const confirmed = window.confirm(
-      `Mark invoice run "${period}" as sent to funders?\n\nThis marks the whole run as sent (including any other service users on the same run).`,
-    )
-    if (!confirmed) return
+  const handleCsv = async (run: InvoiceRunRow) => {
+    setExportingRunId(run.id)
     try {
-      await sendMutation.mutateAsync(runId)
-      toastSuccess('Invoice run marked as sent to funders.')
-      void invoicesQuery.refetch()
-    } catch (err) {
-      toastApiError(err, 'Could not send invoice run.')
+      await downloadInvoiceRunExport(run.id, 'csv', { serviceUserId })
+      toastSuccess('CSV downloaded')
+    } catch (e) {
+      toastApiError(e, 'Could not download CSV')
+    } finally {
+      setExportingRunId(null)
     }
   }
 
@@ -258,15 +235,30 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
     <div className="space-y-6" data-testid="service-user-invoices-panel">
       <ContentSectionHeader
         title="Invoices"
-        description="Invoice runs that include this service user, with funder totals. Send locked runs to funders from here or open the full invoice run."
+        description="Invoice runs that include this service user. Download CSV here, or go to Service user invoices to email."
         action={
-          canOpenBilling ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/billing/invoice-runs">
-                All invoice runs
-                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
+          canOpenBilling || canManage ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {canManage || canOpenBilling ? (
+                <Button variant="default" size="sm" asChild>
+                  <Link
+                    to="/billing/service-user-invoices"
+                    search={{ serviceUserId }}
+                  >
+                    <Mail className="mr-1.5 h-3.5 w-3.5" />
+                    Email invoices
+                  </Link>
+                </Button>
+              ) : null}
+              {canOpenBilling ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/billing/invoice-runs">
+                    All invoice runs
+                    <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           ) : null
         }
       />
@@ -322,14 +314,24 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
           ) : null}
 
           <ContentCard className="space-y-3 p-4">
-            <h3 className="text-sm font-semibold text-foreground">Invoice runs for funders</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Invoice runs</h3>
+              {(canManage || canOpenBilling) && runs.length > 0 ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/billing/service-user-invoices" search={{ serviceUserId }}>
+                    <Send className="mr-1.5 h-3.5 w-3.5" />
+                    Send invoice by email
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
             {runs.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No invoice runs include this service user yet.
               </p>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[960px] text-sm">
+                <table className="w-full min-w-[1100px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
@@ -345,7 +347,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                         Lines
                       </th>
                       <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                        This client
+                        Amount
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Sent
@@ -353,101 +355,100 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Payment
                       </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="whitespace-nowrap px-3 py-2.5 text-right font-medium text-muted-foreground">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {runs.map(run => (
-                      <React.Fragment key={run.id}>
-                        <tr className="border-b border-border last:border-0 hover:bg-muted/20">
-                          <td className="px-3 py-2.5">
-                            <div className="font-medium">{run.period}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {run.periodStart} → {run.periodEnd}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <InvoiceRunStatusBadge status={run.status} />
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {run.funderSummaries.length === 0 ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : (
-                              <ul className="space-y-0.5 text-xs">
-                                {run.funderSummaries.map(f => (
-                                  <li key={f.funderId ?? f.funderName}>
-                                    <span className="font-medium text-foreground">
-                                      {f.funderName}
-                                    </span>
-                                    <span className="text-muted-foreground">
-                                      {' '}
-                                      · {f.subtotal} ({f.lineCount} line
-                                      {f.lineCount === 1 ? '' : 's'})
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{run.lineCount}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-medium">
-                            {run.subtotal}
-                          </td>
-                          <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                            {run.sentAt
-                              ? new Date(run.sentAt).toLocaleDateString('en-GB')
-                              : '—'}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {run.sent ? (
-                              <div className="space-y-0.5">
-                                <PaymentBadge status={run.paymentStatus} />
-                                <p className="text-[11px] text-muted-foreground">
-                                  {run.paymentStatus === 'PAID'
-                                    ? `Paid ${run.paid}`
-                                    : `${run.paid} paid · ${run.outstanding} due`}
-                                </p>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSelectedRun(run)}
-                              >
-                                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                                Detail
-                              </Button>
-                              {canOpenBilling ? (
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link
-                                    to="/billing/invoice-runs/$invoiceRunId"
-                                    params={{ invoiceRunId: run.id }}
-                                  >
-                                    Open run
-                                  </Link>
-                                </Button>
-                              ) : null}
-                              {canManage && run.canSend ? (
-                                <Button
-                                  size="sm"
-                                  disabled={sendMutation.isPending}
-                                  onClick={() => void handleSend(run.id, run.period)}
+                    {runs.map((run) => (
+                      <tr
+                        key={run.id}
+                        className="border-b border-border last:border-0 hover:bg-muted/20"
+                      >
+                        <td className="px-3 py-2.5">
+                          <div className="font-medium leading-tight">{run.period}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {run.periodStart} → {run.periodEnd}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 align-middle">
+                          <InvoiceRunStatusBadge status={run.status} />
+                        </td>
+                        <td className="max-w-[14rem] px-3 py-2.5">
+                          {run.funderSummaries.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <p className="truncate text-xs text-foreground" title={run.funderSummaries.map((f) => f.funderName).join(', ')}>
+                              {run.funderSummaries.map((f) => f.funderName).join(', ')}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums align-middle">
+                          {run.lineCount}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-medium align-middle">
+                          {run.subtotal}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-muted-foreground align-middle">
+                          {run.sentAt
+                            ? new Date(run.sentAt).toLocaleDateString('en-GB')
+                            : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 align-middle">
+                          {run.sent ? (
+                            <PaymentBadge status={run.paymentStatus} />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 align-middle">
+                          <div className="flex flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 shrink-0 px-2.5"
+                              onClick={() => setSelectedRun(run)}
+                            >
+                              <Eye className="mr-1 h-3.5 w-3.5" />
+                              Detail
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 shrink-0 px-2.5"
+                              leftIcon={<Download className="h-3.5 w-3.5" />}
+                              loading={exportingRunId === run.id}
+                              disabled={run.lineCount === 0 || exportingRunId !== null}
+                              onClick={() => void handleCsv(run)}
+                            >
+                              CSV
+                            </Button>
+                            {(canManage || canOpenBilling) ? (
+                              <Button variant="outline" size="sm" className="h-8 shrink-0 px-2.5" asChild>
+                                <Link
+                                  to="/billing/service-user-invoices"
+                                  search={{ serviceUserId }}
+                                  title="Email invoice from Service user invoices"
                                 >
-                                  <Send className="mr-1.5 h-3.5 w-3.5" />
-                                  Send to funders
-                                </Button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      </React.Fragment>
+                                  <Mail className="mr-1 h-3.5 w-3.5" />
+                                  Email
+                                </Link>
+                              </Button>
+                            ) : null}
+                            {canOpenBilling ? (
+                              <Button variant="outline" size="sm" className="h-8 shrink-0 px-2.5" asChild>
+                                <Link
+                                  to="/billing/invoice-runs/$invoiceRunId"
+                                  params={{ invoiceRunId: run.id }}
+                                >
+                                  Open
+                                </Link>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>

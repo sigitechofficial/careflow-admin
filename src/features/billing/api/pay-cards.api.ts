@@ -6,6 +6,8 @@ import type {
   PayCardRule,
   PayCardAssignmentPreview,
   PayCardResolveResult,
+  EmployeeFunderPayAssignment,
+  EmployeeFunderPayAssignmentInput,
 } from '@/features/billing/types/billing-cards.types'
 
 type PayCardApiRow = PayCard & {
@@ -130,13 +132,52 @@ export async function unassignPayCardEmployee(
   return res.data
 }
 
-export async function resolveEmployeePayCard(employeeId: string): Promise<PayCardResolveResult> {
+export async function resolveEmployeePayCard(
+  employeeId: string,
+  options?: { funderId?: string | null },
+): Promise<PayCardResolveResult> {
+  const qs = new URLSearchParams()
+  if (options?.funderId?.trim()) qs.set('funderId', options.funderId.trim())
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<PayCardResolveResult>>(
-    `/billing/pay-cards/resolve/${employeeId}`,
+    `/billing/pay-cards/resolve/${employeeId}${suffix}`,
     { method: 'GET' },
   )
   return {
     ...res.data,
     payCard: res.data.payCard ? normalizePayCard(res.data.payCard) : null,
   }
+}
+
+export async function fetchEmployeeFunderPayAssignments(
+  employeeId: string,
+): Promise<EmployeeFunderPayAssignment[]> {
+  const res = await apiJson<ApiEnvelope<EmployeeFunderPayAssignment[]>>(
+    `/billing/pay-cards/employee-funder-assignments/${employeeId}`,
+    { method: 'GET' },
+  )
+  return res.data.map(row => ({
+    ...row,
+    payCard: normalizePayCard(row.payCard as PayCard & { _count?: { defaultEmployments?: number } }),
+  }))
+}
+
+export async function upsertEmployeeFunderPayAssignment(
+  body: EmployeeFunderPayAssignmentInput,
+): Promise<EmployeeFunderPayAssignment> {
+  const res = await apiJson<ApiEnvelope<EmployeeFunderPayAssignment>>(
+    '/billing/pay-cards/employee-funder-assignments',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+  return {
+    ...res.data,
+    payCard: normalizePayCard(res.data.payCard as PayCard & { _count?: { defaultEmployments?: number } }),
+  }
+}
+
+export async function deleteEmployeeFunderPayAssignment(id: string): Promise<void> {
+  await apiJson(`/billing/pay-cards/employee-funder-assignments/${id}`, { method: 'DELETE' })
 }

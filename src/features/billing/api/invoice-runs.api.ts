@@ -129,14 +129,68 @@ export async function sendInvoiceRun(id: string): Promise<void> {
   await apiJson(`/billing/invoice-runs/${id}/send`, { method: 'POST' })
 }
 
+export type ServiceUserInvoiceEmailPreview = {
+  runId: string
+  period: string
+  periodStart: string
+  periodEnd: string
+  status: string
+  currency: string
+  serviceUserId: string
+  serviceUserName: string
+  serviceUserNumber: string | null
+  subtotal: string
+  subtotalValue: number
+  defaultToEmail: string | null
+  suggestions: Array<{ email: string; source: string; label: string }>
+  canMarkSent: boolean
+}
+
+export type EmailInvoiceToServiceUserResult = {
+  to: string
+  messageId: string
+  mode: 'smtp' | 'log'
+  markedSent: boolean
+  runId: string
+  serviceUserId: string
+}
+
+export async function fetchServiceUserInvoiceEmailPreview(
+  runId: string,
+  serviceUserId: string,
+): Promise<ServiceUserInvoiceEmailPreview> {
+  const qs = new URLSearchParams({ serviceUserId })
+  const res = await apiJson<ApiEnvelope<ServiceUserInvoiceEmailPreview>>(
+    `/billing/invoice-runs/${runId}/service-user-email-preview?${qs}`,
+  )
+  return res.data!
+}
+
+export async function emailInvoiceToServiceUser(
+  runId: string,
+  body: { serviceUserId: string; toEmail?: string; markSent?: boolean },
+): Promise<EmailInvoiceToServiceUserResult> {
+  const res = await apiJson<ApiEnvelope<EmailInvoiceToServiceUserResult>>(
+    `/billing/invoice-runs/${runId}/email-service-user`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data!
+}
+
 /** Download the invoice run as CSV or Excel (authenticated, streamed as a file). */
-export async function downloadInvoiceRunExport(id: string, format: 'csv' | 'xlsx'): Promise<void> {
+export async function downloadInvoiceRunExport(
+  id: string,
+  format: 'csv' | 'xlsx',
+  opts?: { serviceUserId?: string },
+): Promise<void> {
   const base = getApiBaseUrl()
   if (!base) throw new ApiError('API base URL is not configured.', 0)
   const token = useAuthStore.getState().accessToken
   const headers = new Headers()
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const res = await fetch(`${base}/billing/invoice-runs/${id}/export?format=${format}`, { headers })
+  const qs = new URLSearchParams({ format })
+  if (opts?.serviceUserId) qs.set('serviceUserId', opts.serviceUserId)
+  const res = await fetch(`${base}/billing/invoice-runs/${id}/export?${qs}`, { headers })
   if (!res.ok) throw new ApiError('Export failed', res.status)
   const disposition = res.headers.get('content-disposition') ?? ''
   const match = /filename="?([^"]+)"?/.exec(disposition)
