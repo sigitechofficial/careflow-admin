@@ -31,6 +31,12 @@ export const settingsKeys = {
 
   welfareOutcomes: () => [...settingsKeys.all(), 'welfare-outcomes'] as const,
 
+  clockInArrivalReasons: () => [...settingsKeys.all(), 'clock-in-arrival-reasons'] as const,
+
+  clockOutEndReasons: () => [...settingsKeys.all(), 'clock-out-end-reasons'] as const,
+
+  visitOutcomes: () => [...settingsKeys.all(), 'visit-outcomes'] as const,
+
   allergyCatalog: () => [...settingsKeys.all(), 'allergy-catalog'] as const,
 
   taskCatalogue: () => [...settingsKeys.all(), 'task-catalogue'] as const,
@@ -41,7 +47,15 @@ export const settingsKeys = {
 
   locationActiveUsers: () => [...settingsKeys.all(), 'location-management', 'active-users'] as const,
 
-  serviceUserLocations: () => [...settingsKeys.all(), 'location-management', 'service-users'] as const,
+  serviceUserLocations: (locationId?: string | null) =>
+    [...settingsKeys.all(), 'location-management', 'service-users', locationId ?? 'all'] as const,
 
-  employeeLocations: () => [...settingsKeys.all(), 'location-management', 'employees'] as const,
+  employeeLocations: (locationId?: string | null) =>
+    [...settingsKeys.all(), 'location-management', 'employees', locationId ?? 'all'] as const,
+
+  officeUsers: () => [...settingsKeys.all(), 'office-users'] as const,
+
+  identityRoles: () => [...settingsKeys.all(), 'identity-roles'] as const,
+
+  permissionsCatalog: () => [...settingsKeys.all(), 'permissions-catalog'] as const,
 } as const

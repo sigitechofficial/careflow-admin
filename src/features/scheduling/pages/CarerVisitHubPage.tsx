@@ -12,6 +12,7 @@ import {
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import { jobScheduleDateIso } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 
@@ -77,6 +78,7 @@ export default function CarerVisitHubPage() {
           </Button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold">{serviceUserLabel(job.serviceUser)}</p>
+            <VisitRefDisplay visitRef={job.visitRef} visitId={job.visits?.[0]?.id} className="mt-0.5" />
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Smartphone className="h-3.5 w-3.5" aria-hidden />
               Carer visit hub

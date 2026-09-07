@@ -5,6 +5,7 @@ import {
   createEmployeeNonCoreActivity,
   createEmployeeSkill,
   createJobTitle,
+  deleteEmployee,
   deleteEmployeeHoliday,
   deleteEmployeeNonCoreActivity,
   deleteEmployeeSkill,
@@ -114,6 +115,20 @@ export function usePatchAnyEmployeeStatus() {
       void qc.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) })
       void qc.invalidateQueries({ queryKey: employeeKeys.lists() })
       void qc.invalidateQueries({ queryKey: employeeKeys.chartSummary() })
+    },
+  })
+}
+
+/** Soft-delete from staff list / management views. */
+export function useDeleteEmployee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (employeeId: string) => deleteEmployee(employeeId),
+    onSuccess: (_data, employeeId) => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) })
+      void qc.invalidateQueries({ queryKey: employeeKeys.lists() })
+      void qc.invalidateQueries({ queryKey: employeeKeys.chartSummary() })
+      void qc.invalidateQueries({ queryKey: employeeKeys.listFacets() })
     },
   })
 }

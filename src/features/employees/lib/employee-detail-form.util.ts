@@ -34,6 +34,8 @@ export type EmployeeFormValues = {
   contractTypeId: string
   travelPaymentTypeId: string
   baseLocationIds: string[]
+  zoneIds: string[]
+  serviceUserAreaIds: string[]
   startDate: string
   endDate: string
   nationalInsuranceNo: string
@@ -86,6 +88,8 @@ type EmployeeDetailEmploymentApi = NonNullable<EmployeeDetail['employment']> & {
   baseLocations?: Array<{ location?: LookupRef }> | null
   floorLocations?: Array<{ locationId?: string | null; location?: LookupRef }> | null
   baseLocationIds?: string[] | null
+  serviceUserAreaIds?: string[] | null
+  serviceUserAreas?: Array<{ serviceUserAreaId?: string | null; serviceUserArea?: LookupRef }> | null
 }
 
 function pickLookupId(scalar: string | null | undefined, relation: LookupRef): string {
@@ -118,15 +122,25 @@ export function resolveOtherBranchLocationIds(
       ?.map((row) => pickLookupId(null, row.location))
       .filter((id) => id.length > 0) ?? []
   const fromFlat = (em.baseLocationIds ?? []).map((id) => String(id).trim()).filter(Boolean)
-  const legacy = pickLookupId(em.baseLocationId, em.baseLocation)
-
   const combined = [
     ...fromFloor,
     ...fromJoin,
     ...fromFlat,
-    ...(legacy ? [legacy] : []),
   ]
+  // Intentionally ignore legacy singular `baseLocationId` — it often equals primary or holds a
+  // stale second site that survived multi-branch saves. Floor join / baseLocationIds are source of truth.
   return [...new Set(combined)].filter((id) => id !== primaryId)
+}
+
+function resolveServiceUserAreaIds(
+  em: Pick<EmployeeDetailEmploymentApi, 'serviceUserAreaIds' | 'serviceUserAreas'>,
+): string[] {
+  const fromFlat = (em.serviceUserAreaIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+  const fromJoin =
+    em.serviceUserAreas
+      ?.map((row) => pickLookupId(row.serviceUserAreaId, row.serviceUserArea))
+      .filter((id) => id.length > 0) ?? []
+  return [...new Set([...fromFlat, ...fromJoin])]
 }
 
 function isoToDateInput(iso: string | null | undefined): string {
@@ -197,6 +211,8 @@ export function mapEmployeeDetailToFormValues(
         contractTypeId: pickLookupId(em.contractTypeId, em.contractType),
         travelPaymentTypeId: pickLookupId(em.travelPaymentTypeId, em.travelPaymentType),
         baseLocationIds: resolveOtherBranchLocationIds(em),
+        zoneIds: [],
+        serviceUserAreaIds: resolveServiceUserAreaIds(em),
         startDate: isoToDateInput(em.startDate ?? undefined),
         endDate: isoToDateInput(em.endDate ?? undefined),
         nationalInsuranceNo: em.nationalInsuranceNo ?? '',

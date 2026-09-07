@@ -4,6 +4,8 @@ import type { LocationManagementSubTab } from '@/features/settings/location-mana
 import { LocationManagementZonesPanel } from '@/features/settings/components/location-management/LocationManagementZonesPanel'
 import { LocationServiceUserLocationsPanel } from '@/features/settings/components/location-management/LocationServiceUserLocationsPanel'
 import { LocationEmployeeLocationsPanel } from '@/features/settings/components/location-management/LocationEmployeeLocationsPanel'
+import { LocationManagementHierarchyFilters } from '@/features/settings/components/location-management/LocationManagementHierarchyFilters'
+import { useLocationManagementHierarchyFilters } from '@/features/settings/hooks/useLocationManagementHierarchyFilters'
 
 const SUB_TABS: { id: LocationManagementSubTab; label: string }[] = [
   { id: 'zones', label: 'Location Management' },
@@ -19,12 +21,21 @@ export function LocationManagementPanel() {
   const activeSub: LocationManagementSubTab =
     search.sub === 'service-users' || search.sub === 'employees' ? search.sub : 'zones'
 
+  const filters = useLocationManagementHierarchyFilters()
   const setSub = (sub: LocationManagementSubTab) => {
     void navigate({
       to: '/settings/location-management',
       search: { sub } as Record<string, string>,
     })
   }
+  const headerHint =
+    filters.isHeaderScoped
+      ? activeSub === 'employees'
+        ? 'Showing employees for the selected header location.'
+        : activeSub === 'service-users'
+          ? 'Showing service users for the selected header location.'
+          : 'Showing locations for the selected header location.'
+      : null
 
   return (
     <div className="space-y-4" data-testid="location-management-panel">
@@ -55,9 +66,20 @@ export function LocationManagementPanel() {
         })}
       </nav>
 
-      {activeSub === 'zones' && <LocationManagementZonesPanel />}
-      {activeSub === 'service-users' && <LocationServiceUserLocationsPanel />}
-      {activeSub === 'employees' && <LocationEmployeeLocationsPanel />}
+      {headerHint ? (
+        <p className="text-sm text-muted-foreground" data-testid="location-management-header-scope-hint">
+          {headerHint}
+        </p>
+      ) : null}
+
+      <LocationManagementHierarchyFilters
+        filters={filters}
+        areaDisabled={activeSub === 'employees'}
+      />
+
+      {activeSub === 'zones' && <LocationManagementZonesPanel filters={filters} />}
+      {activeSub === 'service-users' && <LocationServiceUserLocationsPanel filters={filters} />}
+      {activeSub === 'employees' && <LocationEmployeeLocationsPanel filters={filters} />}
     </div>
   )
 }

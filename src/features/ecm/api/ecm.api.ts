@@ -212,10 +212,12 @@ export async function reevaluateEcmVisit(jobId: string): Promise<{
 export async function fetchEcmExceptions(params?: {
   limit?: number
   serviceUserId?: string
+  locationId?: string
 }): Promise<EcmExceptionRow[]> {
   const qs = new URLSearchParams()
   qs.set('limit', String(params?.limit ?? 50))
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const res = await apiJson<ApiEnvelope<EcmExceptionRow[]>>(
     `/ecm/exceptions?${qs.toString()}`,
     { method: 'GET' },
@@ -238,6 +240,13 @@ export async function resolveEcmException(
   return apiJson(`/ecm/exceptions/${id}/resolve`, {
     method: 'PATCH',
     body: JSON.stringify({ reasonCode, note: note ?? undefined }),
+  })
+}
+
+export async function allowVisitContinue(jobId: string, note?: string): Promise<unknown> {
+  return apiJson(`/ecm/visits/${jobId}/allow-continue`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note?.trim() || undefined }),
   })
 }
 

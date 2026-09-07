@@ -80,6 +80,7 @@ import { ScheduleJobsRouteError } from '@/features/scheduling/pages/ScheduleJobs
 
 // ΓöÇΓöÇ Auth pages ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import LoginPage from '@/features/auth/pages/LoginPage'
+import PrivacyPolicyPage from '@/features/legal/pages/PrivacyPolicyPage'
 import ForgotPasswordPage from '@/features/auth/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/pages/ResetPasswordPage'
 import BlockedIpPage from '@/features/auth/pages/BlockedIpPage'
@@ -164,6 +165,7 @@ import GeneralSettingsPage from '@/features/settings/pages/GeneralSettingsPage'
 import type { GeneralSettingsTabId } from '@/features/settings/pages/GeneralSettingsPage'
 import CompanyDetailsPage from '@/features/settings/pages/CompanyDetailsPage'
 import LocationManagementPage from '@/features/settings/pages/LocationManagementPage'
+import RolesPermissionsPage from '@/features/settings/pages/RolesPermissionsPage'
 import CarePathwayPage from '@/features/settings/pages/CarePathwayPage'
 import type { SettingsTabId } from '@/features/settings/pages/SettingsPage'
 
@@ -174,6 +176,10 @@ import TempInspectorPage from '@/features/employees/pages/TempInspectorPage'
 import EmployeeHoursPage from '@/features/employees/pages/EmployeeHoursPage'
 import EmployeeAbsencesPage from '@/features/employees/pages/EmployeeAbsencesPage'
 import type { LocationManagementSubTab } from '@/features/settings/location-management/location-management.types'
+import {
+  ROLES_PERMISSIONS_SUB_IDS,
+  type RolesPermissionsSubTab,
+} from '@/features/settings/roles-permissions/roles-permissions.types'
 import {
   CARE_PATHWAY_TAB_IDS,
   type CarePathwayTabId,
@@ -271,6 +277,8 @@ const pageTitles: Record<string, string> = {
   '/settings/company': 'Company Details',
   '/settings/general': 'General Settings',
   '/settings/location-management': 'Location Management',
+  '/settings/users-access': 'Users & access',
+  '/settings/roles-permissions': 'Roles & permissions',
   '/settings/care-pathway': 'Care Pathway',
   '/billing': 'Billing Management',
   '/billing/visit-reconciliation': 'Visit reconciliation',
@@ -319,10 +327,10 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'work-areas',
   'contract-types',
   'grades',
-  'locations',
   'certifications',
   'non-core',
   'leaving-reasons',
+  'visit-status-reasons',
   'review-types',
   'travel-payment',
   'medication',
@@ -333,6 +341,10 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'allergies',
   'tasks-planner',
   'vital-ranges',
+  'welfare-outcomes',
+  'clock-in-arrival-reasons',
+  'clock-out-end-reasons',
+  'outcome-reasons',
   'ecm-thresholds',
 ]
 
@@ -522,6 +534,12 @@ const authBlockedRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
   path: 'blocked-ip',
   component: BlockedIpPage,
+})
+
+const legalPrivacyPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/legal/privacy-policy',
+  component: PrivacyPolicyPage,
 })
 
 function PortalRootShell() {
@@ -1395,6 +1413,10 @@ const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
   beforeLoad: requireAnyPermission('audit.read', 'audit_logs.read'),
+  validateSearch: (raw: Record<string, unknown>): { search?: string; module?: string } => ({
+    search: typeof raw.search === 'string' ? raw.search : undefined,
+    module: typeof raw.module === 'string' ? raw.module : undefined,
+  }),
   // Audit buffer hydrated at app boot via loadAuditFromStorage()
   component: AuditLogPage,
 })
@@ -1422,17 +1444,46 @@ const showcaseRoute = createRoute({
   component: ComponentShowcase,
 })
 
+function locationManagementSearchFromLegacySettings(searchStr: string): {
+  sub?: LocationManagementSubTab
+} {
+  const params = new URLSearchParams(searchStr.startsWith('?') ? searchStr.slice(1) : searchStr)
+  const sub = params.get('sub')
+  if (sub && LOCATION_MANAGEMENT_SUB_IDS.includes(sub as LocationManagementSubTab)) {
+    return { sub: sub as LocationManagementSubTab }
+  }
+  return { sub: 'zones' }
+}
+
+function isLegacyLocationsSettingsTab(location: { search: unknown; searchStr?: string }): boolean {
+  if (typeof location.search === 'object' && location.search !== null && 'tab' in location.search) {
+    if ((location.search as { tab?: unknown }).tab === 'locations') return true
+  }
+  const raw = location.searchStr ?? ''
+  const params = new URLSearchParams(raw.startsWith('?') ? raw.slice(1) : raw)
+  return params.get('tab') === 'locations'
+}
+
 const settingsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings',
-  validateSearch: (raw: Record<string, unknown>): { tab?: SettingsTabId } => {
+  validateSearch: (raw: Record<string, unknown>): { tab?: SettingsTabId | 'locations' } => {
     const t = raw.tab
+    if (t === 'locations') return { tab: 'locations' }
     if (typeof t === 'string' && SETTINGS_TAB_IDS.includes(t as SettingsTabId)) {
       return { tab: t as SettingsTabId }
     }
     return {}
   },
-  beforeLoad: requirePermission('lookups.read'),
+  beforeLoad: ({ search, location }) => {
+    if (search.tab === 'locations' || isLegacyLocationsSettingsTab(location)) {
+      throw redirect({
+        to: '/settings/location-management',
+        search: locationManagementSearchFromLegacySettings(location.searchStr ?? ''),
+      })
+    }
+    requirePermission('lookups.read')()
+  },
   loader: ({ context: { queryClient: qc }, location }) => {
     const tab =
       typeof location.search === 'object' &&
@@ -1523,6 +1574,34 @@ const locationManagementRoute = createRoute({
     prefetchLocationManagement(qc, sub)
   },
   component: LocationManagementPage,
+})
+
+const usersAccessRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/users-access',
+  beforeLoad: () => {
+    throw redirect({
+      to: '/settings/roles-permissions',
+      search: { sub: 'office-users' },
+    })
+  },
+})
+
+const rolesPermissionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/settings/roles-permissions',
+  validateSearch: (raw: Record<string, unknown>): { sub?: RolesPermissionsSubTab } => {
+    const sub = raw.sub
+    if (
+      typeof sub === 'string' &&
+      ROLES_PERMISSIONS_SUB_IDS.includes(sub as RolesPermissionsSubTab)
+    ) {
+      return { sub: sub as RolesPermissionsSubTab }
+    }
+    return { sub: 'office-users' }
+  },
+  beforeLoad: requireAnyPermission('users.read', 'roles.manage', 'permissions.manage'),
+  component: RolesPermissionsPage,
 })
 
 const billingRoute = createRoute({
@@ -1867,6 +1946,7 @@ const routeTree = rootRoute.addChildren([
     authResetRoute,
     authBlockedRoute,
   ]),
+  legalPrivacyPolicyRoute,
   portalLoginRoute,
   portalShellRoute.addChildren([
     portalIndexRoute,
@@ -1953,6 +2033,8 @@ const routeTree = rootRoute.addChildren([
     companyDetailsRoute,
     generalSettingsRoute,
     locationManagementRoute,
+    usersAccessRoute,
+    rolesPermissionsRoute,
     carePathwayRoute,
     billingRoute,
     billingVisitReconciliationRoute,

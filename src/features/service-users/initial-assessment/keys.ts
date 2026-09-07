@@ -28,6 +28,11 @@ export const initialAssessmentKeys = {
   clinical: (serviceUserId: string, submissionId: string) =>
     [...initialAssessmentKeys.submission(serviceUserId, submissionId), 'clinical'] as const,
   agencySettings: () => [...initialAssessmentKeys.all(), 'agency-settings'] as const,
-  reviewQueue: (overdueActionsOnly?: boolean) =>
-    [...initialAssessmentKeys.all(), 'review-queue', overdueActionsOnly ?? false] as const,
+  reviewQueue: (overdueActionsOnly?: boolean, locationId?: string) =>
+    [
+      ...initialAssessmentKeys.all(),
+      'review-queue',
+      overdueActionsOnly ?? false,
+      locationId ?? '',
+    ] as const,
 }

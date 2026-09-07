@@ -7,7 +7,8 @@ import {
   Settings,
   Settings2,
   UserCheck,
-  UserPlus,
+  // UserPlus, // TODO(later): restore with HR sidebar tab
+
   BarChart3,
   AlertTriangle,
   BookOpen,
@@ -36,6 +37,7 @@ import {
   Route,
   CalendarClock,
   Clock,
+  Search,
   Globe,
   PoundSterling,
   Receipt,
@@ -47,13 +49,15 @@ import {
   GraduationCap,
   CalendarOff,
   Landmark,
-  Briefcase,
+  // Briefcase, // TODO(later): restore with HR sidebar tab
+
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
-import { UserAvatar } from '@/shared/ui/avatar'
+// import { UserAvatar } from '@/shared/ui/avatar' // TODO(later): restore with sidebar Super Admin / account card
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shared/ui/misc'
 import { Badge } from '@/shared/ui/badge'
+import { Input } from '@/shared/ui/input'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { Permission } from '@/features/auth/types'
 import { useAuthStore } from '@/features/auth/store'
@@ -129,8 +133,20 @@ const inspectorOnlyNavItems: NavItem[] = [
     icon: <Users className="h-5 w-5" />,
     href: '/service-users',
     children: [
-      { label: 'All Service Users', icon: <Users className="h-4 w-4" />, href: '/service-users/all', navTestId: 'nav-service-users-all' },
-      { label: 'Calendar', icon: <CalendarDays className="h-4 w-4" />, href: '/service-users/calendar', permission: 'service_users.calendar.read', navTestId: 'nav-service-users-calendar' },
+      {
+        label: 'All Service Users',
+        icon: <Users className="h-4 w-4" />,
+        href: '/service-users/all',
+        permission: 'service_users.read',
+        navTestId: 'nav-service-users-all',
+      },
+      {
+        label: 'Calendar',
+        icon: <CalendarDays className="h-4 w-4" />,
+        href: '/service-users/calendar',
+        permission: 'service_users.calendar.read',
+        navTestId: 'nav-service-users-calendar',
+      },
     ],
   },
 ]
@@ -198,7 +214,22 @@ const navItems: NavItem[] = [
     badge: '3',
     badgeVariant: 'warning',
     children: [
-      { label: 'Schedule Jobs',          icon: <Calendar className="h-4 w-4" />,   href: '/scheduling/schedule-jobs' },
+      {
+        label: 'Schedule Jobs',
+        icon: <Calendar className="h-4 w-4" />,
+        href: '/scheduling/schedule-jobs',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
       {
         label: 'Bulk generate rota',
         icon: <CalendarClock className="h-4 w-4" />,
@@ -209,9 +240,54 @@ const navItems: NavItem[] = [
           'scheduled_visits.create',
         ],
       },
-      { label: 'Report',                 icon: <FileText className="h-4 w-4" />,   href: '/scheduling/report' },
-      { label: 'Manage Schedule Jobs',   icon: <Settings2 className="h-4 w-4" />,  href: '/scheduling/jobs' },
-      { label: 'List View of Schedule',  icon: <List className="h-4 w-4" />,       href: '/scheduling/list' },
+      {
+        label: 'Report',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/scheduling/report',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
+      {
+        label: 'Manage Schedule Jobs',
+        icon: <Settings2 className="h-4 w-4" />,
+        href: '/scheduling/jobs',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
+      {
+        label: 'List View of Schedule',
+        icon: <List className="h-4 w-4" />,
+        href: '/scheduling/list',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+      },
       // View Schedule, View Schedule (Mobile), Schedule Templates, Build Schedule: hidden; URLs still work.
     ],
   },
@@ -251,41 +327,42 @@ const navItems: NavItem[] = [
       { label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
     ],
   },
-  {
-    label: 'HR',
-    icon: <Briefcase className="h-5 w-5" />,
-    href: '/hr/employees',
-    children: [
-      {
-        label: 'HR Dashboard',
-        icon: <Users className="h-4 w-4" />,
-        href: '/hr/employees',
-        permission: 'hr.read',
-        navTestId: 'nav-hr-employees',
-      },
-      {
-        label: 'Recruitment',
-        icon: <UserPlus className="h-4 w-4" />,
-        href: '/hr/recruitment',
-        anyPermission: ['hr.vacancies.read', 'hr.candidates.read'],
-        navTestId: 'nav-hr-recruitment',
-      },
-      {
-        label: 'Vacancies',
-        icon: <Briefcase className="h-4 w-4" />,
-        href: '/hr/vacancies',
-        permission: 'hr.vacancies.read',
-        navTestId: 'nav-hr-vacancies',
-      },
-      {
-        label: 'Candidates',
-        icon: <Users className="h-4 w-4" />,
-        href: '/hr/candidates',
-        permission: 'hr.candidates.read',
-        navTestId: 'nav-hr-candidates',
-      },
-    ],
-  },
+  // TODO(later): restore the HR sidebar tab (dashboard, recruitment, vacancies, candidates).
+  // {
+  //   label: 'HR',
+  //   icon: <Briefcase className="h-5 w-5" />,
+  //   href: '/hr/employees',
+  //   children: [
+  //     {
+  //       label: 'HR Dashboard',
+  //       icon: <Users className="h-4 w-4" />,
+  //       href: '/hr/employees',
+  //       permission: 'hr.read',
+  //       navTestId: 'nav-hr-employees',
+  //     },
+  //     {
+  //       label: 'Recruitment',
+  //       icon: <UserPlus className="h-4 w-4" />,
+  //       href: '/hr/recruitment',
+  //       anyPermission: ['hr.vacancies.read', 'hr.candidates.read'],
+  //       navTestId: 'nav-hr-recruitment',
+  //     },
+  //     {
+  //       label: 'Vacancies',
+  //       icon: <Briefcase className="h-4 w-4" />,
+  //       href: '/hr/vacancies',
+  //       permission: 'hr.vacancies.read',
+  //       navTestId: 'nav-hr-vacancies',
+  //     },
+  //     {
+  //       label: 'Candidates',
+  //       icon: <Users className="h-4 w-4" />,
+  //       href: '/hr/candidates',
+  //       permission: 'hr.candidates.read',
+  //       navTestId: 'nav-hr-candidates',
+  //     },
+  //   ],
+  // },
   {
     label: 'Reports',
     icon: <BarChart3 className="h-5 w-5" />,
@@ -493,6 +570,13 @@ const navItems: NavItem[] = [
         icon: <Receipt className="h-4 w-4" />,
         href: '/billing',
         search: { tab: 'dashboard' },
+        anyPermission: [
+          'billing.visit_reconciliations.read',
+          'billing.payroll_runs.read',
+          'billing.invoice_runs.read',
+          'billing.employee_payouts.read',
+          'billing.payments.read',
+        ],
         navTestId: 'nav-billing-management',
       },
       {
@@ -583,6 +667,14 @@ const navItems: NavItem[] = [
         navTestId: 'nav-settings-location-management',
       },
       {
+        label: 'Roles & permissions',
+        icon: <ShieldCheck className="h-4 w-4" />,
+        href: '/settings/roles-permissions',
+        search: { sub: 'office-users' },
+        anyPermission: ['users.read', 'roles.manage', 'permissions.manage', 'lookups.read'],
+        navTestId: 'nav-settings-roles-permissions',
+      },
+      {
         label: 'Care Pathway',
         icon: <Route className="h-4 w-4" />,
         href: '/settings/care-pathway',
@@ -592,7 +684,7 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase' },
+  { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase', ready: false },
   {
     label: 'Administration',
     icon: <Shield className="h-5 w-5" />,
@@ -617,17 +709,54 @@ const navItems: NavItem[] = [
   },
 ]
 
+function navChildAllowed(
+  child: SubNavItem,
+  can: (p: Permission) => boolean,
+): boolean {
+  if (child.ready === false) return false
+  if (child.anyPermission?.length) return child.anyPermission.some((p) => can(p))
+  if (child.permission) return can(child.permission)
+  // No permission key → hide (prevents tabs for modules the user cannot access).
+  return false
+}
+
 function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean): NavItem[] {
   return items
     .map((item) => {
-      if (!item.children?.length) return item
-      const children = item.children.filter(ch => {
-        if (ch.anyPermission?.length) return ch.anyPermission.some(p => can(p))
-        return !ch.permission || can(ch.permission)
-      })
+      if (item.ready === false) return null
+      if (!item.children?.length) {
+        // Top-level leaves (Home): always keep. Stub leaves without children already handled.
+        return item
+      }
+      const children = item.children.filter((ch) => navChildAllowed(ch, can))
+      if (!children.length) return null
       return { ...item, children }
     })
-    .filter(item => !item.children?.length || item.children.length > 0)
+    .filter((item): item is NavItem => item != null)
+}
+
+function labelMatchesQuery(label: string, query: string): boolean {
+  return label.toLowerCase().includes(query)
+}
+
+/** Client-side menu filter. Empty query returns items unchanged. */
+function filterNavByQuery(items: NavItem[], rawQuery: string): NavItem[] {
+  const query = rawQuery.trim().toLowerCase()
+  if (!query) return items
+
+  return items
+    .map((item) => {
+      const parentMatch = labelMatchesQuery(item.label, query)
+      if (!item.children?.length) {
+        return parentMatch ? item : null
+      }
+      const children = parentMatch
+        ? item.children
+        : item.children.filter((ch) => labelMatchesQuery(ch.label, query))
+      if (!parentMatch && !children.length) return null
+      return { ...item, children }
+    })
+    .filter((item): item is NavItem => item != null)
 }
 
 export {
@@ -813,12 +942,20 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     : user?.role === 'temporary_inspector'
       ? inspectorOnlyNavItems
       : navItems
-  const navItemsFiltered = React.useMemo(
-    () => (isPortal ? navSource : filterNavByPermission(navSource, can)),
-    [can, isPortal, navSource],
-  )
+  const navItemsFiltered = React.useMemo(() => {
+    if (isPortal) return navSource
+    // Temporary inspector list is already curated; skip strict ACL filter.
+    if (user?.role === 'temporary_inspector') return navSource
+    return filterNavByPermission(navSource, can)
+  }, [can, isPortal, navSource, user?.role])
+  const [menuQuery, setMenuQuery] = React.useState('')
+  const isMenuSearching = !sidebarCollapsed && menuQuery.trim().length > 0
+  const visibleNavItems = React.useMemo(() => {
+    if (sidebarCollapsed) return navItemsFiltered
+    return filterNavByQuery(navItemsFiltered, menuQuery)
+  }, [menuQuery, navItemsFiltered, sidebarCollapsed])
   const signOutRedirect = isPortal ? '/portal/login' : '/auth/login'
-  const accountHref = isPortal ? '/portal/profile' : '/account'
+  // const accountHref = isPortal ? '/portal/profile' : '/account' // TODO(later): restore with sidebar Super Admin / account card
 
   // Track which parent groups are open — open a group when its child route is active
   const [openGroups, setOpenGroups] = React.useState<Set<string>>(() => new Set())
@@ -876,23 +1013,95 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
           sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        {/* Logo / Brand */}
-        <div className={cn('flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-3 overflow-hidden')}>
-          <CompanyBrandMark collapsed={sidebarCollapsed} className="min-w-0 flex-1" />
-          <button className="ml-auto shrink-0 text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setSidebarMobileOpen(false)}>
-            <X className="h-5 w-5" />
-          </button>
+        {/* Logo / Brand + collapse (desktop, top) */}
+        <div
+          className={cn(
+            'flex shrink-0 flex-col border-b border-sidebar-border',
+            sidebarCollapsed ? 'items-center gap-1 px-1 py-2' : 'px-2',
+          )}
+        >
+          <div
+            className={cn(
+              'flex w-full items-center gap-1 overflow-hidden',
+              sidebarCollapsed ? 'justify-center' : 'h-14',
+            )}
+          >
+            <CompanyBrandMark
+              collapsed={sidebarCollapsed}
+              className={cn('min-w-0', !sidebarCollapsed && 'flex-1')}
+            />
+            {!sidebarCollapsed ? (
+              <button
+                type="button"
+                data-testid="sidebar-collapse-button"
+                aria-label="Collapse sidebar"
+                title="Collapse"
+                onClick={toggleSidebar}
+                className={cn(
+                  'hidden lg:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md',
+                  'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  'transition-colors',
+                )}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            ) : null}
+            <button
+              className="ml-auto shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
+              onClick={() => setSidebarMobileOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              data-testid="sidebar-collapse-button"
+              aria-label="Expand sidebar"
+              title="Expand"
+              onClick={toggleSidebar}
+              className={cn(
+                'hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-md',
+                'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                'transition-colors',
+              )}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          ) : null}
         </div>
+
+        {!sidebarCollapsed ? (
+          <div className="shrink-0 px-2 pt-2">
+            <Input
+              type="search"
+              value={menuQuery}
+              onChange={(e) => setMenuQuery(e.target.value)}
+              aria-label="Search menu"
+              placeholder="Search menu"
+              data-testid="sidebar-search"
+              leftElement={<Search className="h-4 w-4" />}
+              className="h-9 border-sidebar-border bg-sidebar text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
+            />
+          </div>
+        ) : null}
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2">
+          {visibleNavItems.length === 0 ? (
+            isMenuSearching ? (
+              <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">
+                No matching pages
+              </p>
+            ) : null
+          ) : (
           <ul className="flex flex-col gap-0.5">
-            {navItemsFiltered.map((item) => {
+            {visibleNavItems.map((item) => {
               const hasChildren = !!item.children?.length
               const isActive = hasChildren
                 ? item.children!.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search, c.search))
                 : matchNavTarget(item.label, item.href, item.ready, pathname, search)
-              const isOpen = openGroups.has(item.label)
+              const isOpen = isMenuSearching || openGroups.has(item.label)
 
               return (
                 <li key={item.label}>
@@ -912,7 +1121,10 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
                         isActive={!!isActive}
                         isOpen={isOpen}
                         hasChildren
-                        onClick={() => toggleGroup(item.label)}
+                        onClick={() => {
+                          if (isMenuSearching) return
+                          toggleGroup(item.label)
+                        }}
                       />
                       {isOpen && (
                         <ul className="mt-0.5 ml-3 pl-3 border-l border-sidebar-border space-y-0.5 pb-1">
@@ -942,29 +1154,12 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
               )
             })}
           </ul>
+          )}
         </nav>
 
         {/* Bottom section */}
         <div className="shrink-0 border-t border-sidebar-border p-2 space-y-1">
-          <button
-            type="button"
-            data-testid="sidebar-collapse-button"
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={toggleSidebar}
-            className={cn(
-              'w-full hidden lg:flex items-center rounded-md px-2 py-1.5',
-              'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              'transition-colors text-sm gap-2',
-              sidebarCollapsed && 'justify-center'
-            )}
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <><ChevronLeft className="h-5 w-5" /><span className="text-sm animate-fade-in">Collapse</span></>
-            )}
-          </button>
-
+          {/* TODO(later): restore sidebar Super Admin / account card — redundant with top-right user control.
           <Link
             to={accountHref}
             onClick={handleNav}
@@ -981,6 +1176,7 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
             )}
             {!sidebarCollapsed && <LogOut className="h-4 w-4 text-sidebar-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
           </Link>
+          */}
           <button
             type="button"
             data-testid="sidebar-sign-out-button"

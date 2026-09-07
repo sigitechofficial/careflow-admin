@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createLocationBranch,
+  createLocationZone,
+  createServiceUserArea,
+  deleteServiceUserArea,
   fetchEmployeeLocations,
   fetchLocationActiveUsers,
   fetchLocationManagementTree,
   fetchServiceUserLocations,
   updateEmployeeLocation,
   updateLocationZone,
+  updateServiceUserArea,
   updateServiceUserLocation,
 } from '@/features/settings/api/location-management.api'
 import { settingsKeys } from '@/features/settings/keys'
@@ -30,19 +35,19 @@ export function useLocationActiveUsers(enabled = true) {
   })
 }
 
-export function useServiceUserLocations(enabled = true) {
+export function useServiceUserLocations(enabled = true, locationId?: string | null) {
   return useQuery({
-    queryKey: settingsKeys.serviceUserLocations(),
-    queryFn: fetchServiceUserLocations,
+    queryKey: settingsKeys.serviceUserLocations(locationId),
+    queryFn: () => fetchServiceUserLocations(locationId),
     enabled,
     staleTime: STALE_TIME,
   })
 }
 
-export function useEmployeeLocations(enabled = true) {
+export function useEmployeeLocations(enabled = true, locationId?: string | null) {
   return useQuery({
-    queryKey: settingsKeys.employeeLocations(),
-    queryFn: fetchEmployeeLocations,
+    queryKey: settingsKeys.employeeLocations(locationId),
+    queryFn: () => fetchEmployeeLocations(locationId),
     enabled,
     staleTime: STALE_TIME,
   })
@@ -66,16 +71,62 @@ export function useUpdateLocationZone() {
   })
 }
 
+export function useCreateLocationZone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createLocationZone>[0]) => createLocationZone(body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useCreateLocationBranch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createLocationBranch>[0]) => createLocationBranch(body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useCreateServiceUserArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createServiceUserArea>[0]) => createServiceUserArea(body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useUpdateServiceUserArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      areaId,
+      body,
+    }: {
+      areaId: string
+      body: Parameters<typeof updateServiceUserArea>[1]
+    }) => updateServiceUserArea(areaId, body),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
+export function useDeleteServiceUserArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (areaId: string) => deleteServiceUserArea(areaId),
+    onSuccess: () => invalidateLocationManagement(qc),
+  })
+}
+
 export function useUpdateServiceUserLocation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({
       serviceUserId,
-      locationId,
+      body,
     }: {
       serviceUserId: string
-      locationId: string | null
-    }) => updateServiceUserLocation(serviceUserId, locationId),
+      body: Parameters<typeof updateServiceUserLocation>[1]
+    }) => updateServiceUserLocation(serviceUserId, body),
     onSuccess: () => invalidateLocationManagement(qc),
   })
 }

@@ -137,11 +137,13 @@ export async function fetchBodyMapGovernanceAlerts(
 export async function fetchBodyMapReviewQueue(opts?: {
   overdueOnly?: boolean
   serviceUserId?: string
+  locationId?: string
   signal?: AbortSignal
 }): Promise<{ records: BodyMapReviewQueueRecord[]; total: number }> {
   const params = new URLSearchParams()
   if (opts?.overdueOnly) params.set('overdueOnly', 'true')
   if (opts?.serviceUserId) params.set('serviceUserId', opts.serviceUserId)
+  if (opts?.locationId) params.set('locationId', opts.locationId)
   const q = params.toString() ? `?${params}` : ''
   const res = await apiJson<ApiEnvelope<{ records: BodyMapReviewQueueRecord[]; total: number }>>(
     `/body-map/review-queue${q}`,

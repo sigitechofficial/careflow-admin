@@ -268,6 +268,7 @@ export function useEmployeeVisits(employeeId: string, month: string, enabled = t
           scheduledEndDateTime: row.scheduledEndDateTime ?? row.job.scheduledEndDateTime,
           durationMinutes: row.plannedMinutes || row.job.durationMinutes,
           deliveryAssessment: row.deliveryAssessment ?? row.job.deliveryAssessment,
+          visitRef: row.visitRef ?? null,
         }))
         .slice()
         .sort(

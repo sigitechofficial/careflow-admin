@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Users, ShieldCheck, Star, Award, Activity, TrendingUp,
-  PenLine, Plus, X, Filter, FileText, Globe,
+  PenLine, Plus, X, Filter, FileText, Globe, Trash2,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react'
 import { cn, formatDate } from '@/shared/lib/utils'
@@ -23,7 +23,7 @@ import {
   useEmployeeLookups,
   useEmployeeListFacets,
 } from '@/features/employees/hooks/useEmployees'
-import { usePatchAnyEmployeeStatus } from '@/features/employees/hooks/useEmployeeMutations'
+import { usePatchAnyEmployeeStatus, useDeleteEmployee } from '@/features/employees/hooks/useEmployeeMutations'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { resolveEmployeeVisaTypes } from '@/features/settings/employee/employee-visa-defaults'
 import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
@@ -55,6 +55,7 @@ import {
 } from '@/features/employees/utils/staff-list-filter.util'
 import { pruneStaffListFiltersToFacets } from '@/features/employees/utils/staff-list-facet.util'
 import { Switch } from '@/shared/ui/toggle-controls'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/shared/ui/dialog'
@@ -508,8 +509,10 @@ function StaffListTab() {
   const urlSearch = useSearch({ strict: false }) as StaffListSearch
   const canCreateEmployee = useAuthStore(s => s.can('employees.create'))
   const canUpdateEmployee = useAuthStore(s => s.can('employees.update'))
+  const canDeleteEmployee = useAuthStore(s => s.can('employees.delete'))
   const canUpdateEmployeeStatus = useAuthStore(s => s.can('employees.status.update'))
   const patchStatus = usePatchAnyEmployeeStatus()
+  const deleteEmployeeMutation = useDeleteEmployee()
 
   const filters = React.useMemo(() => staffListSearchToFilters(urlSearch), [urlSearch])
   const sort = React.useMemo(() => staffListSearchToSort(urlSearch), [urlSearch])
@@ -542,6 +545,7 @@ function StaffListTab() {
 
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null)
   const [statusUpdateError, setStatusUpdateError] = React.useState<string | null>(null)
+  const [deleteBusyId, setDeleteBusyId] = React.useState<string | null>(null)
 
   const { data: lookups = null, isLoading: lookupsLoading, error: lookupsError } = useEmployeeLookups()
   const { data: generalSettings } = useGeneralSettings()
@@ -565,6 +569,25 @@ function StaffListTab() {
   }, [filters, lookups, globalLocationScoped, globalLocationIds])
   const { data: facets = null } = useEmployeeListFacets(facetParams, Boolean(lookups))
   const { data: listData, isLoading: listLoading, error: listError } = useEmployees(listParams)
+
+  const displayFilters = React.useMemo(
+    () =>
+      globalLocationScoped && globalLocationIds?.length
+        ? { ...filters, locationIds: globalLocationIds }
+        : filters,
+    [filters, globalLocationScoped, globalLocationIds],
+  )
+
+  const applyFiltersWithScope = React.useCallback(
+    (next: typeof filters) => {
+      applyFilters(
+        globalLocationScoped && globalLocationIds?.length
+          ? { ...next, locationIds: globalLocationIds }
+          : next,
+      )
+    },
+    [applyFilters, globalLocationScoped, globalLocationIds],
+  )
 
   const locationFilterKey = filters.locationIds.join(',')
   React.useEffect(() => {
@@ -629,6 +652,26 @@ function StaffListTab() {
     [lookups, patchStatus],
   )
 
+  const handleDeleteEmployee = React.useCallback(
+    async (emp: EmployeeListRow, displayName: string) => {
+      if (!canDeleteEmployee) return
+      const ok = window.confirm(
+        `Delete ${displayName}? They will be removed from the staff list and unallocated from future scheduled jobs. This can be reversed only from the database.`,
+      )
+      if (!ok) return
+      setDeleteBusyId(emp.id)
+      try {
+        await deleteEmployeeMutation.mutateAsync(emp.id)
+        toastSuccess('Employee deleted', `${displayName} was removed from the staff list.`)
+      } catch (e) {
+        toastApiError(e, 'Could not delete employee.')
+      } finally {
+        setDeleteBusyId(null)
+      }
+    },
+    [canDeleteEmployee, deleteEmployeeMutation],
+  )
+
   const { active: activeStatusLookup, inactive: inactiveStatusLookup } = activeInactiveLookups(lookups)
   const showStatusSwitch = Boolean(canUpdateEmployeeStatus && activeStatusLookup && inactiveStatusLookup)
   const locationNames = React.useMemo(() => {
@@ -665,11 +708,12 @@ function StaffListTab() {
         lookups={lookups}
         visaTypes={visaTypes}
         facets={facets}
-        filters={filters}
-        onFiltersChange={applyFilters}
+        filters={displayFilters}
+        onFiltersChange={applyFiltersWithScope}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
         disabled={loading}
+        locationFilterDisabled={globalLocationScoped}
       />
 
       {error ? (
@@ -818,22 +862,37 @@ function StaffListTab() {
                       {emp.contractType?.name ?? '?'}
                     </td>
                     <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        data-testid={`employee-edit-${emp.id}`}
-                        className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                        title="Edit employee"
-                        aria-label={`Edit ${name}`}
-                        disabled={!canUpdateEmployee}
-                        onClick={() =>
-                          navigate({
-                            to: '/employee/$employeeId/edit',
-                            params: { employeeId: emp.id },
-                          })
-                        }
-                      >
-                        <PenLine className="h-4 w-4" aria-hidden />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          data-testid={`employee-edit-${emp.id}`}
+                          className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                          title="Edit employee"
+                          aria-label={`Edit ${name}`}
+                          disabled={!canUpdateEmployee}
+                          onClick={() =>
+                            navigate({
+                              to: '/employee/$employeeId/edit',
+                              params: { employeeId: emp.id },
+                            })
+                          }
+                        >
+                          <PenLine className="h-4 w-4" aria-hidden />
+                        </button>
+                        {canDeleteEmployee ? (
+                          <button
+                            type="button"
+                            data-testid={`employee-delete-${emp.id}`}
+                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                            title="Delete employee"
+                            aria-label={`Delete ${name}`}
+                            disabled={deleteBusyId === emp.id || deleteEmployeeMutation.isPending}
+                            onClick={() => void handleDeleteEmployee(emp, name)}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 )

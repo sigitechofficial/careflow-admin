@@ -14,6 +14,7 @@ export const BULK_GENERATE_ROTA_LOCATION_ALL = '__all__'
 type Props = {
   search: string
   locationId: string
+  locationFilterDisabled?: boolean
   listReadyOnly: boolean
   locations: LocationLookup[]
   onSearchChange: (value: string) => void
@@ -24,6 +25,7 @@ type Props = {
 export function BulkGenerateRotaCandidatesToolbar({
   search,
   locationId,
+  locationFilterDisabled = false,
   listReadyOnly,
   locations,
   onSearchChange,
@@ -44,8 +46,9 @@ export function BulkGenerateRotaCandidatesToolbar({
       <Select
         value={locationId || BULK_GENERATE_ROTA_LOCATION_ALL}
         onValueChange={(v) => onLocationIdChange(v === BULK_GENERATE_ROTA_LOCATION_ALL ? '' : v)}
+        disabled={locationFilterDisabled}
       >
-        <SelectTrigger className="h-9 w-44">
+        <SelectTrigger className="h-9 w-44" data-testid="bulk-rota-location-filter">
           <SelectValue placeholder="All locations" />
         </SelectTrigger>
         <SelectContent>

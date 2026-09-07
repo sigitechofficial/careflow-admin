@@ -24,6 +24,7 @@ import {
 import { fetchAcceptedCarePlans } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { useCompleteHousekeepingJob } from '@/features/scheduling/hooks/useSchedulingMutations'
+import { useLookupList } from '@/features/settings/hooks/useLookupsAdmin'
 import { ScheduleJobCompleteCarerSection } from '@/features/scheduling/components/ScheduleJobCompleteCarerSection'
 import { ScheduleJobDeliveredCarePlans } from '@/features/scheduling/components/ScheduleJobDeliveredCarePlans'
 import { VisitJobTasksChecklist } from '@/features/scheduling/components/VisitJobTasksChecklist'
@@ -100,7 +101,10 @@ export function ScheduleJobCompleteDialog({
   onJobUpdated,
 }: Props) {
   const completeJob = useCompleteHousekeepingJob()
+  const visitStatusReasonsQuery = useLookupList('visit-status-reasons', open)
+  const visitStatusReasonOptions = visitStatusReasonsQuery.data ?? []
   const [notes, setNotes] = React.useState('')
+  const [statusReason, setStatusReason] = React.useState('')
   const [deliveredIds, setDeliveredIds] = React.useState<string[]>([])
   const [visitStatus, setVisitStatus] = React.useState<VisitPlanCalendarOutcomeStatus>('COMPLETED')
   const [actualStartTime, setActualStartTime] = React.useState('')
@@ -205,6 +209,7 @@ export function ScheduleJobCompleteDialog({
   React.useEffect(() => {
     if (!open || !job) return
     setNotes(job.notes?.trim() ?? '')
+    setStatusReason('')
     setDeliveredIds([])
     setVisitTasks([])
     setOverrunReason('')
@@ -376,6 +381,13 @@ export function ScheduleJobCompleteDialog({
       )
       return
     }
+    if (!statusReason.trim()) {
+      toastWarning(
+        'Reason required',
+        'Select a reason for this visit status before saving.',
+      )
+      return
+    }
     if (isStartedOutcome && multiCarerTiming) {
       const invalid = carerActualTimes.some((row) => !row.startHm || !/^\d{2}:\d{2}$/.test(row.startHm))
       if (invalid) {
@@ -480,10 +492,20 @@ export function ScheduleJobCompleteDialog({
             })
           : undefined
 
+      const statusLabel =
+        SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)?.label ??
+        visitStatus
+      const combinedNotes = [
+        statusReason.trim() ? `Reason (${statusLabel}): ${statusReason.trim()}` : '',
+        notes.trim(),
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+
       await completeJob.mutateAsync({
         jobId: job.id,
         status: visitStatus,
-        notes: notes.trim() || undefined,
+        notes: combinedNotes || undefined,
         deliveredCarePlanFormIds: requiresCarePlans ? deliveredIds : undefined,
         actualStartDateTime: isStartedOutcome
           ? actualStartDateTime
@@ -602,6 +624,53 @@ export function ScheduleJobCompleteDialog({
               {SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find((option) => option.value === visitStatus)
                 ?.description}
             </p>
+          </section>
+
+          <section className="space-y-2">
+            <Label
+              htmlFor="schedule-job-status-reason"
+              className="text-sm font-semibold text-foreground"
+            >
+              Reason <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={statusReason || undefined}
+              onValueChange={setStatusReason}
+              disabled={busy || visitStatusReasonsQuery.isLoading}
+            >
+              <SelectTrigger id="schedule-job-status-reason" data-testid="schedule-job-status-reason">
+                <SelectValue
+                  placeholder={
+                    visitStatusReasonsQuery.isLoading
+                      ? 'Loading reasons…'
+                      : visitStatusReasonOptions.length
+                        ? `Why is this visit "${
+                            SCHEDULE_JOB_VISIT_OUTCOME_OPTIONS.find(
+                              (option) => option.value === visitStatus,
+                            )?.label ?? visitStatus
+                          }"?`
+                        : 'No reasons configured — add them in Settings'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {visitStatusReasonOptions.map((reason) => (
+                  <SelectItem key={reason.id} value={reason.name}>
+                    {reason.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {visitStatusReasonsQuery.isError ? (
+              <p className="text-xs text-destructive" role="alert">
+                Could not load visit status reasons.
+              </p>
+            ) : null}
+            {!visitStatusReasonsQuery.isLoading && visitStatusReasonOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Add options under Settings → Visit status reasons.
+              </p>
+            ) : null}
           </section>
 
           <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-3">

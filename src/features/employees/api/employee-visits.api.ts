@@ -15,6 +15,8 @@ export type EmployeeVisitsSummary = {
 export type EmployeeVisitRow = {
   jobId: string
   visitId: string
+  /** Same EMONITORED visit reference as visit reconciliation (VIS-[BRANCH]-YYYYMMDD-NNNN). */
+  visitRef?: string | null
   allocationId: string
   bucket: EmployeeVisitBucket
   status: string

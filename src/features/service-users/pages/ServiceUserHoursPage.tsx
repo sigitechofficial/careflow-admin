@@ -38,6 +38,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
 
@@ -175,20 +176,23 @@ function FacetSelect({
   options,
   onChange,
   testId,
+  disabled,
 }: {
   label: string
   value: string
   options: ServiceUserHoursFacetOption[]
   onChange: (value: string) => void
   testId: string
+  disabled?: boolean
 }) {
   return (
     <select
-      className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm"
+      className="flex h-9 max-w-[13rem] rounded-md border border-input bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
       value={value}
       onChange={e => onChange(e.target.value)}
       data-testid={testId}
       aria-label={label}
+      disabled={disabled}
     >
       <option value="">{label}: all</option>
       {options.map(o => (
@@ -366,13 +370,26 @@ export default function ServiceUserHoursPage() {
     workedVisits: number
   } | null>(null)
 
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
+
+  React.useEffect(() => {
+    if (globalLocationScoped && globalLocationId) {
+      setLocationId(globalLocationId)
+    } else if (!globalLocationScoped) {
+      setLocationId('')
+    }
+  }, [globalLocationId, globalLocationScoped])
+
+  const effectiveLocationId = globalLocationScoped && globalLocationId ? globalLocationId : locationId
+
   const query = useServiceUserHoursWeeklySummary(
     {
       weekStart,
       hourBand: hourBand === 'all' ? undefined : hourBand,
       bandMetric,
       search: search.trim() || undefined,
-      locationId: locationId || undefined,
+      locationId: effectiveLocationId || undefined,
       careTypeId: careTypeId || undefined,
       fundingTypeId: fundingTypeId || undefined,
       statusId: statusId || undefined,
@@ -402,14 +419,16 @@ export default function ServiceUserHoursPage() {
   }, [data?.rows, sortKey, sortDir])
 
   const hasSecondaryFilters =
-    Boolean(locationId || careTypeId || fundingTypeId || statusId) ||
+    Boolean(
+      (!globalLocationScoped && locationId) || careTypeId || fundingTypeId || statusId,
+    ) ||
     overPackageOnly ||
     overWorkedOnly
 
   const clearFilters = () => {
     setHourBand('all')
     setSearch('')
-    setLocationId('')
+    if (!globalLocationScoped) setLocationId('')
     setCareTypeId('')
     setFundingTypeId('')
     setStatusId('')
@@ -620,10 +639,11 @@ export default function ServiceUserHoursPage() {
         <div className="flex flex-wrap items-center gap-2">
           <FacetSelect
             label="Branch"
-            value={locationId}
+            value={effectiveLocationId}
             options={facets?.locations ?? []}
             onChange={setLocationId}
             testId="service-user-hours-filter-branch"
+            disabled={globalLocationScoped}
           />
           <FacetSelect
             label="Care type"

@@ -2,7 +2,7 @@ function normalizeBranchLabelToken(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function parseLocationLabel(name: string): { zoneName: string; branchName: string } {
+export function parseLocationLabel(name: string): { zoneName: string; branchName: string } {
   if (!name.trim()) return { zoneName: '', branchName: '' }
   const idx = name.indexOf(' - ')
   if (idx === -1) return { zoneName: name.trim(), branchName: name.trim() }
@@ -10,6 +10,27 @@ function parseLocationLabel(name: string): { zoneName: string; branchName: strin
     zoneName: name.slice(0, idx).trim(),
     branchName: name.slice(idx + 3).trim(),
   }
+}
+
+/** Branch column / compact label: "Haringey - Haringey" → "Haringey". */
+export function formatBranchDisplayName(
+  branchName?: string | null,
+  locationName?: string | null,
+): string {
+  const raw = branchName?.trim() || locationName?.trim() || ''
+  if (!raw) return '—'
+  return parseLocationLabel(raw).branchName || raw
+}
+
+/** Closed-select label: collapse "Haringey - Haringey", keep "North · Branch A". */
+export function formatLocationOptionLabel(locationName: string | null | undefined): string {
+  const trimmed = locationName?.trim() ?? ''
+  if (!trimmed) return '—'
+  return formatServiceUserBranchLabel({
+    locationId: 'option',
+    locationName: trimmed,
+    notAssignedLabel: trimmed,
+  })
 }
 
 function pushLayer(layers: string[], value: string | null | undefined): void {

@@ -436,7 +436,7 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
                 variant="ghost"
                 onClick={() => {
                   setSearch('')
-                  setLocationId('')
+                  if (!globalLocationScoped) setLocationId('')
                   setComplianceStatus('')
                   setReviewFilter('all')
                   setSmsOnly(false)

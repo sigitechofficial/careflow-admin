@@ -17,6 +17,9 @@ import { TaskCatalogueSettingsPanel } from '@/features/settings/components/TaskC
 import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/BodyMapRecordTypesSettingsPanel'
 import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
 import { WelfareOutcomesSettingsPanel } from '@/features/settings/components/WelfareOutcomesSettingsPanel'
+import { ClockInArrivalReasonsSettingsPanel } from '@/features/settings/components/ClockInArrivalReasonsSettingsPanel'
+import { ClockOutEndReasonsSettingsPanel } from '@/features/settings/components/ClockOutEndReasonsSettingsPanel'
+import { VisitOutcomeReasonsSettingsPanel } from '@/features/settings/components/VisitOutcomeReasonsSettingsPanel'
 import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components/EcmThresholdLookupsSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
 
@@ -29,10 +32,10 @@ export type SettingsTabId =
   | 'contract-types'
   | 'immigration-statuses'
   | 'grades'
-  | 'locations'
   | 'certifications'
   | 'non-core'
   | 'leaving-reasons'
+  | 'visit-status-reasons'
   | 'review-types'
   | 'travel-payment'
   | 'medication'
@@ -46,6 +49,9 @@ export type SettingsTabId =
   | 'tasks-planner'
   | 'vital-ranges'
   | 'welfare-outcomes'
+  | 'clock-in-arrival-reasons'
+  | 'clock-out-end-reasons'
+  | 'outcome-reasons'
   | 'ecm-thresholds'
 
 const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
@@ -57,10 +63,10 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'contract-types', label: 'Contract types' },
   { id: 'immigration-statuses', label: 'Immigration statuses' },
   { id: 'grades', label: 'Grades' },
-  { id: 'locations', label: 'Locations' },
   { id: 'certifications', label: 'Certifications' },
   { id: 'non-core', label: 'Non-core activities' },
   { id: 'leaving-reasons', label: 'Leaving reasons' },
+  { id: 'visit-status-reasons', label: 'Visit status reasons' },
   { id: 'review-types', label: 'Review types' },
   { id: 'travel-payment', label: 'Travel payment' },
   { id: 'medication', label: 'Medication (MAR)' },
@@ -74,6 +80,9 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'allergies', label: 'Allergies' },
   { id: 'vital-ranges', label: 'Accepted ranges' },
   { id: 'welfare-outcomes', label: 'On-entry welfare outcomes' },
+  { id: 'clock-in-arrival-reasons', label: 'Clock-in arrival reasons' },
+  { id: 'clock-out-end-reasons', label: 'Clock-out end reasons' },
+  { id: 'outcome-reasons', label: 'Outcome reasons' },
   { id: 'ecm-thresholds', label: 'ECM thresholds' },
 ]
 
@@ -177,13 +186,6 @@ export default function SettingsPage() {
           {activeTab === 'grades' && (
             <LookupNamePanel resource="grades" title="Grades" description="Pay grades on employee employment." />
           )}
-          {activeTab === 'locations' && (
-            <LookupNamePanel
-              resource="locations"
-              title="Locations"
-              description="Base locations and zones used in scheduling and employment."
-            />
-          )}
           {activeTab === 'certifications' && (
             <LookupIntervalPanel
               resource="certification-types"
@@ -206,6 +208,13 @@ export default function SettingsPage() {
               resource="leaving-reasons"
               title="Leaving reasons"
               description="Options when an employee leaves the organisation."
+            />
+          )}
+          {activeTab === 'visit-status-reasons' && (
+            <LookupNamePanel
+              resource="visit-status-reasons"
+              title="Visit status reasons"
+              description="Reasons required when recording a visit outcome on the schedule."
             />
           )}
           {activeTab === 'review-types' && (
@@ -236,6 +245,9 @@ export default function SettingsPage() {
           {activeTab === 'tasks-planner' && <TaskCatalogueSettingsPanel />}
           {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
           {activeTab === 'welfare-outcomes' && <WelfareOutcomesSettingsPanel />}
+          {activeTab === 'clock-in-arrival-reasons' && <ClockInArrivalReasonsSettingsPanel />}
+          {activeTab === 'clock-out-end-reasons' && <ClockOutEndReasonsSettingsPanel />}
+          {activeTab === 'outcome-reasons' && <VisitOutcomeReasonsSettingsPanel />}
           {activeTab === 'ecm-thresholds' && <EcmThresholdLookupsSettingsPanel />}
         </div>
       </div>

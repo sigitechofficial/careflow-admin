@@ -33,9 +33,12 @@ import {
   buildBulkGenerateRotaConfirmMessage,
   buildBulkGenerateRotaSuccessToastMessage,
 } from '@/features/scheduling/utils/bulk-generate-rota-messages.util'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 export function useBulkGenerateRotaPage() {
   const hasApi = !!getApiBaseUrl()
+  const { locationId: globalLocationId, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
 
   const [locationId, setLocationId] = React.useState('')
   const [listReadyOnly, setListReadyOnly] = React.useState(false)
@@ -50,6 +53,17 @@ export function useBulkGenerateRotaPage() {
     null,
   )
   const [resultDialogOpen, setResultDialogOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    if (globalLocationScoped && globalLocationId) {
+      setLocationId(globalLocationId)
+    } else if (!globalLocationScoped) {
+      setLocationId('')
+    }
+  }, [globalLocationId, globalLocationScoped])
+
+  const effectiveLocationId =
+    globalLocationScoped && globalLocationId ? globalLocationId : locationId
 
   const locationsQuery = useServiceUserLocations(hasApi)
   const generalSettingsQuery = useGeneralSettings(hasApi)
@@ -79,8 +93,23 @@ export function useBulkGenerateRotaPage() {
     [defaultRotaToDate, generalSettingsQuery.data?.dateDisplayFormat],
   )
   const scheduleAreasQuery = useScheduleAreas()
+  const scheduleAreas = React.useMemo(() => {
+    const rows = scheduleAreasQuery.data ?? []
+    if (!effectiveLocationId) return rows
+    return rows.filter(
+      (area) => !area.locationId || area.locationId === effectiveLocationId,
+    )
+  }, [scheduleAreasQuery.data, effectiveLocationId])
+
+  React.useEffect(() => {
+    if (!scheduleAreaId) return
+    if (!scheduleAreas.some((area) => area.id === scheduleAreaId)) {
+      setScheduleAreaId('')
+    }
+  }, [scheduleAreaId, scheduleAreas])
+
   const candidatesQuery = useBulkVisitPlanScheduleCandidates({
-    locationId: locationId || undefined,
+    locationId: effectiveLocationId || undefined,
     readyOnly: listReadyOnly,
     enabled: hasApi,
   })
@@ -100,7 +129,7 @@ export function useBulkGenerateRotaPage() {
 
   React.useEffect(() => {
     setSelectedPlanIds(buildReadyPlanIdSet(candidates))
-  }, [candidatesQuery.dataUpdatedAt, locationId, listReadyOnly])
+  }, [candidatesQuery.dataUpdatedAt, effectiveLocationId, listReadyOnly])
 
   const togglePlan = React.useCallback((planId: string, ready: boolean) => {
     setSelectedPlanIds((prev) => toggleBulkGenerateRotaPlanSelection(prev, planId, ready))
@@ -135,7 +164,7 @@ export function useBulkGenerateRotaPage() {
         fromDate: generateFrom,
         toDate,
         planIds,
-        locationId: locationId || undefined,
+        locationId: effectiveLocationId || undefined,
         readyOnly: generateReadyOnly,
         backfillDays: backfillDays > 0 ? backfillDays : undefined,
         scheduleAreaId: scheduleAreaId || undefined,
@@ -153,11 +182,11 @@ export function useBulkGenerateRotaPage() {
   }, [
     backfillDays,
     candidatesQuery,
+    effectiveLocationId,
     generateFrom,
     generateMutation,
     generateReadyOnly,
     generateTo,
-    locationId,
     scheduleAreaId,
     selectedPlanIds,
     rotaHorizonOptions,
@@ -169,8 +198,9 @@ export function useBulkGenerateRotaPage() {
 
   return {
     hasApi,
-    locationId,
+    locationId: effectiveLocationId,
     setLocationId,
+    locationFilterDisabled: globalLocationScoped,
     listReadyOnly,
     setListReadyOnly,
     search,
@@ -196,6 +226,7 @@ export function useBulkGenerateRotaPage() {
     setResultDialogOpen,
     locationsQuery,
     scheduleAreasQuery,
+    scheduleAreas,
     candidatesQuery,
     generateMutation,
     summary,

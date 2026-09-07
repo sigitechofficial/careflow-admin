@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import {
+  Banknote,
   Calendar,
   CheckCircle2,
   ChevronRight,
@@ -13,13 +14,42 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
+import { Button } from '@/shared/ui/button'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
-import { useServiceUserInvoicesOverview } from '@/features/billing/hooks/useInvoiceRuns'
+import { RecordFunderPaymentDialog } from '@/features/billing/components/RecordFunderPaymentDialog'
+import { useSendInvoiceRun, useServiceUserInvoicesOverview } from '@/features/billing/hooks/useInvoiceRuns'
 import type {
+  InvoiceRunPaymentStatus,
   ServiceUserInvoiceMonthRow,
   ServiceUserInvoiceOverviewRow,
 } from '@/features/billing/types/service-user-invoices.types'
 import { useAuthStore } from '@/features/auth/store'
+
+function PaymentBadge({ status }: { status: InvoiceRunPaymentStatus }) {
+  if (status === 'PAID') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Paid
+      </span>
+    )
+  }
+  if (status === 'PART_PAID') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        Part paid
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      Unpaid
+    </span>
+  )
+}
+
+/** Invoice-run statuses that can be marked as sent (matches the backend markSent guard). */
+const SENDABLE_STATUSES = new Set(['LOCKED', 'APPROVED'])
 
 const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' })
 
@@ -141,57 +171,129 @@ function CountPill({ value, tone }: { value: number; tone: 'sent' | 'pending' })
 }
 
 /** The per-month invoice history rows for one service user. */
-function MonthTable({ months }: { months: ServiceUserInvoiceMonthRow[] }) {
+function MonthTable({
+  months,
+  serviceUserName,
+}: {
+  months: ServiceUserInvoiceMonthRow[]
+  serviceUserName?: string
+}) {
+  const canManage = useAuthStore((s) => s.can('billing.invoice_runs.manage' as never))
+  const canManagePayments = useAuthStore((s) => s.can('billing.payments.manage' as never))
+  const sendMutation = useSendInvoiceRun()
+  const [payInvoice, setPayInvoice] = React.useState<ServiceUserInvoiceMonthRow | null>(null)
+
+  const handleSend = (m: ServiceUserInvoiceMonthRow) => {
+    if (m.sent) return
+    const ok = window.confirm(
+      `Mark the "${m.period}" invoice run as sent to the funder?\n\nThis sends the whole run for that period — it applies to every service user included in it.`,
+    )
+    if (!ok) return
+    sendMutation.mutate(m.runId, {
+      onSuccess: () => toastSuccess('Invoice run marked as sent'),
+      onError: (e) => toastApiError(e),
+    })
+  }
+
   if (months.length === 0) {
     return <p className="px-1 py-2 text-sm text-muted-foreground">No invoices for this period.</p>
   }
   return (
+    <>
     <div className="overflow-x-auto rounded-md border border-border/70 bg-background">
-      <table className="w-full min-w-[720px] text-xs">
+      <table className="w-full min-w-[1000px] text-xs">
         <thead>
           <tr className="border-b border-border/70 text-muted-foreground">
             <th className="px-3 py-2 text-left font-medium">Month / period</th>
             <th className="px-3 py-2 text-left font-medium">Status</th>
             <th className="px-3 py-2 text-left font-medium">Sent?</th>
-            <th className="px-3 py-2 text-right font-medium">Lines</th>
             <th className="px-3 py-2 text-right font-medium">Amount</th>
-            <th className="px-3 py-2 text-left font-medium">Invoice run</th>
+            <th className="px-3 py-2 text-left font-medium">Payment</th>
+            <th className="px-3 py-2 text-right font-medium">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {months.map((m) => (
-            <tr key={m.runId} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-              <td className="px-3 py-2 font-medium">{m.period}</td>
-              <td className="px-3 py-2">
-                <InvoiceRunStatusBadge status={m.status} />
-              </td>
-              <td className="px-3 py-2">
-                {m.sent ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Sent
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-                    <Clock className="h-3.5 w-3.5" aria-hidden /> Remaining
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">{m.lineCount}</td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">{m.subtotal}</td>
-              <td className="px-3 py-2">
-                <Link
-                  to="/billing/invoice-runs/$invoiceRunId"
-                  params={{ invoiceRunId: m.runId }}
-                  className="text-primary hover:underline"
-                >
-                  Open run
-                </Link>
-              </td>
-            </tr>
-          ))}
+          {months.map((m) => {
+            const canSend = canManage && !m.sent && SENDABLE_STATUSES.has(m.status)
+            return (
+              <tr key={m.runId} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                <td className="px-3 py-2 font-medium">{m.period}</td>
+                <td className="px-3 py-2">
+                  <InvoiceRunStatusBadge status={m.status} />
+                </td>
+                <td className="px-3 py-2">
+                  {m.sent ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Sent
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+                      <Clock className="h-3.5 w-3.5" aria-hidden /> Remaining
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums font-medium">{m.subtotal}</td>
+                <td className="px-3 py-2">
+                  {m.sent ? (
+                    <div className="space-y-0.5">
+                      <PaymentBadge status={m.paymentStatus} />
+                      <p className="text-[11px] text-muted-foreground">
+                        {m.paymentStatus === 'PAID'
+                          ? `Paid ${m.paid}`
+                          : `${m.paid} paid · ${m.outstanding} due`}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center justify-end gap-2">
+                    {canSend ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<Send className="h-3.5 w-3.5" />}
+                        loading={sendMutation.isPending && sendMutation.variables === m.runId}
+                        onClick={() => handleSend(m)}
+                      >
+                        Send
+                      </Button>
+                    ) : null}
+                    {canManagePayments && m.canRecordPayment ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<Banknote className="h-3.5 w-3.5" />}
+                        onClick={() => setPayInvoice(m)}
+                      >
+                        Record payment
+                      </Button>
+                    ) : null}
+                    <Link
+                      to="/billing/invoice-runs/$invoiceRunId"
+                      params={{ invoiceRunId: m.runId }}
+                      className="text-primary hover:underline"
+                    >
+                      Open run
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
+    <RecordFunderPaymentDialog
+      open={payInvoice !== null}
+      onOpenChange={(open) => {
+        if (!open) setPayInvoice(null)
+      }}
+      invoice={payInvoice}
+      serviceUserName={serviceUserName}
+    />
+    </>
   )
 }
 
@@ -242,7 +344,7 @@ function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
       {open ? (
         <tr className="border-b border-border bg-muted/10 last:border-0">
           <td colSpan={7} className="px-3 py-2">
-            <MonthTable months={row.months} />
+            <MonthTable months={row.months} serviceUserName={row.serviceUserName} />
           </td>
         </tr>
       ) : null}
@@ -418,7 +520,7 @@ export function BillingServiceUserInvoicesPanel() {
 
           <SentProgress sent={selectedSummary.sentCount} remaining={selectedSummary.pendingCount} />
 
-          <MonthTable months={selectedMonths} />
+          <MonthTable months={selectedMonths} serviceUserName={selected.serviceUserName} />
         </div>
       ) : (
         <>

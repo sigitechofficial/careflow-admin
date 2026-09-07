@@ -107,11 +107,13 @@ export function useApproveVisitReconciliation() {
       id,
       scope,
       managerOverride,
+      exclusive,
     }: {
       id: string
       scope: ApproveScope
       managerOverride?: boolean
-    }) => approveVisitReconciliation(id, { scope, managerOverride }),
+      exclusive?: boolean
+    }) => approveVisitReconciliation(id, { scope, managerOverride, exclusive }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },

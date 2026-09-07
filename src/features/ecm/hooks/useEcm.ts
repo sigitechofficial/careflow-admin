@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   acknowledgeEcmException,
+  allowVisitContinue,
   amendEcmAttendance,
   applyMissedTriage,
   closeEcmException,
@@ -78,12 +79,12 @@ export function useReevaluateEcmVisit() {
 }
 
 export function useEcmExceptions(
-  options?: { limit?: number; serviceUserId?: string; enabled?: boolean },
+  options?: { limit?: number; serviceUserId?: string; locationId?: string; enabled?: boolean },
 ) {
-  const { limit = 50, serviceUserId, enabled = true } = options ?? {}
+  const { limit = 50, serviceUserId, locationId, enabled = true } = options ?? {}
   return useQuery({
-    queryKey: ecmKeys.exceptions({ limit, serviceUserId }),
-    queryFn: () => fetchEcmExceptions({ limit, serviceUserId }),
+    queryKey: ecmKeys.exceptions({ limit, serviceUserId, locationId }),
+    queryFn: () => fetchEcmExceptions({ limit, serviceUserId, locationId }),
     enabled,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -181,6 +182,18 @@ function useInvalidateEcmExceptions() {
     void qc.invalidateQueries({ queryKey: [...ecmKeys.all, 'exceptions'] })
     void qc.invalidateQueries({ queryKey: ecmKeys.all })
   }
+}
+
+export function useAllowVisitContinue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, note }: { jobId: string; note?: string }) =>
+      allowVisitContinue(jobId, note),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+  })
 }
 
 export function useAcknowledgeEcmException() {

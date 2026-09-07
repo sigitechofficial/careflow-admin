@@ -5,6 +5,7 @@ import type {
   LocationLookup,
   LocationZoneDetail,
   LocationZoneOption,
+  ServiceUserAreaDetail,
   ServiceUserLocationRow,
   EmployeeLocationRow,
 } from '@/features/settings/location-management/location-management.types'
@@ -30,6 +31,8 @@ export async function updateLocationZone(
     markerColorHex?: string
     incidentMessageUserIds?: string[]
     incidentEmailUserIds?: string[]
+    country?: string | null
+    city?: string | null
   },
 ): Promise<LocationZoneDetail> {
   const res = await apiJson<ApiEnvelope<LocationZoneDetail>>(`/location-management/zones/${zoneId}`, {
@@ -39,7 +42,98 @@ export async function updateLocationZone(
   return res.data
 }
 
-export async function fetchServiceUserLocations(): Promise<{
+export async function createLocationZone(payload: {
+  name: string
+  country?: string
+  city?: string
+  markerColorHex?: string
+}): Promise<LocationZoneDetail> {
+  const res = await apiJson<ApiEnvelope<LocationZoneDetail>>('/location-management/zones', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data
+}
+
+export async function createLocationBranch(payload: {
+  zoneId: string
+  name: string
+  address?: string
+  code?: string
+  visitRefCode?: string
+}): Promise<{
+  id: string
+  name: string
+  scheduleAreaId: string
+  locationId: string | null
+  locationName: string | null
+  address: string | null
+}> {
+  const res = await apiJson<
+    ApiEnvelope<{
+      id: string
+      name: string
+      scheduleAreaId: string
+      locationId: string | null
+      locationName: string | null
+      address: string | null
+    }>
+  >('/location-management/branches', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data
+}
+
+export async function createServiceUserArea(payload: {
+  scheduleAreaId: string
+  name: string
+  code?: string
+  description?: string
+  postcodes?: string[]
+  sortOrder?: number
+}): Promise<ServiceUserAreaDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserAreaDetail>>('/location-management/areas', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data
+}
+
+export async function updateServiceUserArea(
+  areaId: string,
+  payload: {
+    name?: string
+    code?: string
+    description?: string | null
+    postcodes?: string[]
+    sortOrder?: number
+    isActive?: boolean
+  },
+): Promise<ServiceUserAreaDetail> {
+  const res = await apiJson<ApiEnvelope<ServiceUserAreaDetail>>(
+    `/location-management/areas/${areaId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserArea(areaId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/location-management/areas/${areaId}`, {
+    method: 'DELETE',
+  })
+}
+
+function locationQuery(locationId?: string | null): string {
+  if (!locationId) return ''
+  const qs = new URLSearchParams({ locationId })
+  return `?${qs.toString()}`
+}
+
+export async function fetchServiceUserLocations(locationId?: string | null): Promise<{
   zones: LocationZoneOption[]
   locations: LocationLookup[]
   members: ServiceUserLocationRow[]
@@ -50,25 +144,29 @@ export async function fetchServiceUserLocations(): Promise<{
       locations: LocationLookup[]
       members: ServiceUserLocationRow[]
     }>
-  >('/location-management/service-users', { method: 'GET' })
+  >(`/location-management/service-users${locationQuery(locationId)}`, { method: 'GET' })
   return res.data
 }
 
 export async function updateServiceUserLocation(
   serviceUserId: string,
-  locationId: string | null,
+  payload: {
+    locationId?: string | null
+    serviceUserAreaId?: string | null
+    postcode?: string | null
+  },
 ): Promise<ServiceUserLocationRow> {
   const res = await apiJson<ApiEnvelope<ServiceUserLocationRow>>(
     `/location-management/service-users/${serviceUserId}/location`,
     {
       method: 'PATCH',
-      body: JSON.stringify({ locationId }),
+      body: JSON.stringify(payload),
     },
   )
   return res.data
 }
 
-export async function fetchEmployeeLocations(): Promise<{
+export async function fetchEmployeeLocations(locationId?: string | null): Promise<{
   zones: LocationZoneOption[]
   locations: LocationLookup[]
   members: EmployeeLocationRow[]
@@ -79,7 +177,7 @@ export async function fetchEmployeeLocations(): Promise<{
       locations: LocationLookup[]
       members: EmployeeLocationRow[]
     }>
-  >('/location-management/employees', { method: 'GET' })
+  >(`/location-management/employees${locationQuery(locationId)}`, { method: 'GET' })
   return res.data
 }
 

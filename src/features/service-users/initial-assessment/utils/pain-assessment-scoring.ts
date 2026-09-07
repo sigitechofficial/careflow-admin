@@ -179,7 +179,7 @@ export function abbeySeverityFromTotal(total: number): PainSeverityBand {
 /** Abbey is complete only when all six domains have a valid 0|1|2|3. All-zero is valid. */
 export function isAbbeyAssessmentComplete(
   abbey: AbbeyPainScores | AbbeyAssessmentMetadata | undefined,
-): boolean {
+): abbey is AbbeyAssessmentMetadata {
   if (!abbey) return false
   return ABBEY_DOMAIN_KEYS.every((key) => isValidAbbeyScore(abbey[key]))
 }

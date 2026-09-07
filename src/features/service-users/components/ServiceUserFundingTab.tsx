@@ -29,7 +29,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { Switch } from '@/shared/ui/toggle-controls'
+import { Switch, Checkbox } from '@/shared/ui/toggle-controls'
 import {
   Select,
   SelectContent,
@@ -93,6 +93,8 @@ function FundingFieldLabel({
 }
 
 const FUNDING_FIELD_TOOLTIPS = {
+  payerMode:
+    'Single Funder: one payer for this arrangement. Mixed Funding: select multiple funders and set each share of the invoice (split %).',
   fundingTypeId:
     'Classification of who pays (e.g. local authority, NHS, private). Required for each funding line.',
   funderId: 'The payer organisation invoiced for this share of care. Required for billing readiness.',
@@ -104,7 +106,7 @@ const FUNDING_FIELD_TOOLTIPS = {
   packageName: 'Care package or contract name shown on invoices and reports.',
   weeklyBudget: 'Maximum weekly amount authorised by the funder for this package (informational). Visit charges come from the charge card.',
   splitPercent:
-    'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits cannot exceed 100%. The lowest-priority funder receives any remainder.',
+    'Share of invoice lines allocated to this funder when multiple funders apply. Combined splits must total 100% for Mixed Funding.',
   splitPriority: 'Billing order when multiple funders apply — 1 is invoiced first; highest number receives the remainder.',
   purchaseOrderNumber: 'Purchase order number that must appear on invoices for this funder.',
   purchaseOrderExpiresAt: 'Date after which the purchase order is no longer valid for billing.',
@@ -122,6 +124,13 @@ const FUNDING_FIELD_TOOLTIPS = {
   isPrimary:
     'Primary funding is used first when resolving charge cards and is highlighted on the funding list. At least one active funding must stay primary.',
 } as const
+
+type FundingPayerMode = 'SINGLE' | 'MIXED'
+
+type MixedFunderShare = {
+  funderId: string
+  splitPercent: string
+}
 
 function chargeCardOptionLabel(card: ChargeCard): string {
   return `${card.name} (${card.code})`
@@ -187,6 +196,8 @@ function nextSplitPriority(fundings: EnterpriseServiceUserFundingRow[]): number 
 }
 
 type FundingForm = {
+  payerMode: FundingPayerMode
+  mixedShares: MixedFunderShare[]
   fundingTypeId: string
   funderId: string
   status: EnterpriseFundingStatus
@@ -215,6 +226,8 @@ type FundingForm = {
 
 function emptyForm(): FundingForm {
   return {
+    payerMode: 'SINGLE',
+    mixedShares: [],
     fundingTypeId: '',
     funderId: '',
     status: 'UNKNOWN',
@@ -244,6 +257,8 @@ function emptyForm(): FundingForm {
 
 function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
   return {
+    payerMode: 'SINGLE',
+    mixedShares: [],
     fundingTypeId: row.fundingTypeId,
     funderId: row.funderId ?? '',
     status: row.status,
@@ -299,6 +314,51 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     reviewDate: f.reviewDate || null,
     notes: f.notes || null,
   }
+}
+
+function mixedShareToBody(
+  f: FundingForm,
+  share: MixedFunderShare,
+  splitPriority: number,
+  isPrimary: boolean,
+): CreateEnterpriseServiceUserFundingBody {
+  return {
+    ...formToBody({
+      ...f,
+      payerMode: 'MIXED',
+      funderId: share.funderId,
+      splitPercent: share.splitPercent,
+      splitPriority: String(splitPriority),
+      isPrimary,
+    }),
+  }
+}
+
+function sumMixedSharePercents(shares: MixedFunderShare[]): number {
+  return shares.reduce((sum, share) => {
+    const pct = parseSplitPercentValue(share.splitPercent)
+    return pct != null ? sum + pct : sum
+  }, 0)
+}
+
+function toggleMixedFunder(
+  shares: MixedFunderShare[],
+  funderId: string,
+  checked: boolean,
+): MixedFunderShare[] {
+  if (checked) {
+    if (shares.some((s) => s.funderId === funderId)) return shares
+    return [...shares, { funderId, splitPercent: '' }]
+  }
+  return shares.filter((s) => s.funderId !== funderId)
+}
+
+function setMixedSharePercent(
+  shares: MixedFunderShare[],
+  funderId: string,
+  splitPercent: string,
+): MixedFunderShare[] {
+  return shares.map((s) => (s.funderId === funderId ? { ...s, splitPercent } : s))
 }
 
 export function ServiceUserFundingTab({
@@ -436,10 +496,45 @@ export function ServiceUserFundingTab({
     [rows, editingId, form.splitPercent],
   )
 
+  const mixedSplitTotal = React.useMemo(
+    () => sumMixedSharePercents(form.mixedShares),
+    [form.mixedShares],
+  )
+
+  const isCreateMixed = !editingId && form.payerMode === 'MIXED'
+
   const openEdit = (row: EnterpriseServiceUserFundingRow) => {
     setEditingId(row.id)
     setForm(rowToForm(row))
     setDialogOpen(true)
+  }
+
+  const setPayerMode = (mode: FundingPayerMode) => {
+    setForm((f) => {
+      if (mode === f.payerMode) return f
+      if (mode === 'MIXED') {
+        return {
+          ...f,
+          payerMode: 'MIXED',
+          funderId: '',
+          splitPercent: '',
+          mixedShares:
+            f.funderId !== ''
+              ? [{ funderId: f.funderId, splitPercent: '' }]
+              : f.mixedShares.length
+                ? f.mixedShares
+                : [],
+        }
+      }
+      return {
+        ...f,
+        payerMode: 'SINGLE',
+        mixedShares: [],
+        funderId: f.mixedShares[0]?.funderId ?? f.funderId,
+        splitPercent: '',
+        splitPriority: '1',
+      }
+    })
   }
 
   const saveFunding = async () => {
@@ -447,7 +542,63 @@ export function ServiceUserFundingTab({
       toastApiError(new Error('Funding type is required'), 'Validation')
       return
     }
-    if (form.splitPercent !== '') {
+
+    if (isCreateMixed) {
+      if (form.mixedShares.length < 2) {
+        toastApiError(
+          new Error('Mixed Funding requires at least two funders'),
+          'Validation',
+        )
+        return
+      }
+      for (const share of form.mixedShares) {
+        const pct = parseSplitPercentValue(share.splitPercent)
+        if (pct == null || pct <= 0 || pct > 100) {
+          toastApiError(
+            new Error('Each selected funder needs a split % between 0 and 100 (greater than 0)'),
+            'Validation',
+          )
+          return
+        }
+      }
+      if (Math.abs(mixedSplitTotal - 100) > 0.001) {
+        toastApiError(
+          new Error(
+            `Mixed Funding splits must total 100% (currently ${mixedSplitTotal.toFixed(1)}%)`,
+          ),
+          'Validation',
+        )
+        return
+      }
+
+      try {
+        const basePriority = nextSplitPriority(rows)
+        let shareIndex = 0
+        for (const share of form.mixedShares) {
+          await createMutation.mutateAsync(
+            mixedShareToBody(
+              form,
+              share,
+              basePriority + shareIndex,
+              form.isPrimary ? shareIndex === 0 : false,
+            ),
+          )
+          shareIndex += 1
+        }
+        toastSuccess(
+          'Mixed funding created',
+          `${form.mixedShares.length} funder lines saved with invoice splits.`,
+        )
+        setDialogOpen(false)
+        void fundingsQuery.refetch()
+      } catch (e) {
+        toastApiError(e, 'Save failed — some funder lines may already have been created')
+        void fundingsQuery.refetch()
+      }
+      return
+    }
+
+    if (form.splitPercent !== '' && editingId) {
       const pct = Number(form.splitPercent)
       if (Number.isNaN(pct) || pct < 0 || pct > 100) {
         toastApiError(new Error('Split percentage must be between 0 and 100'), 'Validation')
@@ -461,8 +612,14 @@ export function ServiceUserFundingTab({
         return
       }
     }
+
     try {
-      const body = formToBody(form)
+      const body = formToBody({
+        ...form,
+        // New Single Funder lines never store a split %.
+        splitPercent: editingId ? form.splitPercent : '',
+        splitPriority: editingId ? form.splitPriority : '1',
+      })
       const editingRow = editingId ? rows.find((row) => row.id === editingId) : null
       const wasSolePrimary =
         Boolean(
@@ -753,6 +910,28 @@ export function ServiceUserFundingTab({
             <TooltipProvider delayDuration={200}>
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground">Funding details</h4>
+            {!editingId ? (
+              <div>
+                <FundingFieldLabel
+                  className="mb-1"
+                  label="Funding arrangement"
+                  tooltip={FUNDING_FIELD_TOOLTIPS.payerMode}
+                  required
+                />
+                <Select
+                  value={form.payerMode}
+                  onValueChange={(v) => setPayerMode(v as FundingPayerMode)}
+                >
+                  <SelectTrigger data-testid="funding-payer-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SINGLE">Single Funder</SelectItem>
+                    <SelectItem value="MIXED">Mixed Funding</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div>
               <FundingFieldLabel
                 className="mb-1"
@@ -773,22 +952,115 @@ export function ServiceUserFundingTab({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <FundingFieldLabel className="mb-1" label="Funder" tooltip={FUNDING_FIELD_TOOLTIPS.funderId} />
-              <Select value={form.funderId || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, funderId: v === '__none__' ? '' : v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {funders.map((x) => (
-                    <SelectItem key={x.id} value={x.id}>
-                      {x.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isCreateMixed ? (
+              <div className="space-y-2">
+                <FundingFieldLabel
+                  className="mb-1"
+                  label="Funders"
+                  tooltip={FUNDING_FIELD_TOOLTIPS.funderId}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Select each funder and set their invoice split %. Splits must total 100%.
+                </p>
+                <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                  {funders.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No funders available.</p>
+                  ) : (
+                    funders.map((funder) => {
+                      const share = form.mixedShares.find((s) => s.funderId === funder.id)
+                      const checked = Boolean(share)
+                      return (
+                        <div
+                          key={funder.id}
+                          className="flex flex-wrap items-center gap-3 border-b border-border/60 pb-2 last:border-0 last:pb-0"
+                        >
+                          <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(value) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  mixedShares: toggleMixedFunder(
+                                    f.mixedShares,
+                                    funder.id,
+                                    value === true,
+                                  ),
+                                }))
+                              }
+                              aria-label={`Select funder ${funder.name}`}
+                            />
+                            <span className="truncate">{funder.name}</span>
+                          </label>
+                          {checked ? (
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                className="h-8 w-20"
+                                inputMode="decimal"
+                                placeholder="%"
+                                value={share?.splitPercent ?? ''}
+                                onChange={(e) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    mixedShares: setMixedSharePercent(
+                                      f.mixedShares,
+                                      funder.id,
+                                      e.target.value,
+                                    ),
+                                  }))
+                                }
+                                aria-label={`Split percent for ${funder.name}`}
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+                {form.mixedShares.length > 0 ? (
+                  <p
+                    className={cn(
+                      'text-xs',
+                      Math.abs(mixedSplitTotal - 100) > 0.001 && mixedSplitTotal > 0
+                        ? 'text-amber-800 dark:text-amber-200'
+                        : null,
+                      Math.abs(mixedSplitTotal - 100) <= 0.001
+                        ? 'text-teal-800 dark:text-teal-200'
+                        : null,
+                      mixedSplitTotal > 100 ? 'text-destructive' : null,
+                    )}
+                  >
+                    Selected {form.mixedShares.length} funder
+                    {form.mixedShares.length === 1 ? '' : 's'} · Combined split:{' '}
+                    {mixedSplitTotal.toFixed(mixedSplitTotal % 1 === 0 ? 0 : 1)}%
+                    {Math.abs(mixedSplitTotal - 100) <= 0.001
+                      ? ' — fully allocated'
+                      : mixedSplitTotal > 100
+                        ? ' — exceeds 100%'
+                        : ' — must total 100%'}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div>
+                <FundingFieldLabel className="mb-1" label="Funder" tooltip={FUNDING_FIELD_TOOLTIPS.funderId} />
+                <Select value={form.funderId || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, funderId: v === '__none__' ? '' : v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {funders.map((x) => (
+                      <SelectItem key={x.id} value={x.id}>
+                        {x.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <FundingFieldLabel className="mb-1" label="Status" tooltip={FUNDING_FIELD_TOOLTIPS.status} />
               <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v as EnterpriseFundingStatus }))}>
@@ -837,8 +1109,12 @@ export function ServiceUserFundingTab({
             <div className="space-y-3 border-t border-border pt-4">
               <h4 className="text-sm font-semibold text-foreground">Billing & invoicing</h4>
               <p className="text-xs text-muted-foreground">
-                Split percentages, purchase orders, and billing contacts are used when generating invoice runs.
+                Purchase orders, charge cards, and billing contacts are used when generating invoice runs.
+                {isCreateMixed
+                  ? ' Invoice splits are set next to each funder above.'
+                  : null}
               </p>
+              {!isCreateMixed && editingId ? (
               <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">Funding split</p>
@@ -886,6 +1162,13 @@ export function ServiceUserFundingTab({
                   </p>
                 ) : null}
               </div>
+              ) : null}
+              {!isCreateMixed && !editingId && form.payerMode === 'SINGLE' ? (
+                <p className="text-xs text-muted-foreground">
+                  Single Funder does not use split percentages. Use Mixed Funding when more than one funder shares
+                  the invoice.
+                </p>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <FundingFieldLabel className="mb-1" label="PO number" tooltip={FUNDING_FIELD_TOOLTIPS.purchaseOrderNumber} />
@@ -1002,7 +1285,14 @@ export function ServiceUserFundingTab({
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.isPrimary} onCheckedChange={(v) => setForm((f) => ({ ...f, isPrimary: v }))} />
-              <FundingFieldLabel label="Primary funding" tooltip={FUNDING_FIELD_TOOLTIPS.isPrimary} />
+              <FundingFieldLabel
+                label={isCreateMixed ? 'Mark first funder as primary' : 'Primary funding'}
+                tooltip={
+                  isCreateMixed
+                    ? 'When enabled, the first selected funder in the list becomes the primary funding line.'
+                    : FUNDING_FIELD_TOOLTIPS.isPrimary
+                }
+              />
             </div>
             {rows.filter(isPrimaryEligibleFunding).length > 1 ? (
               <p className="text-xs text-muted-foreground">
@@ -1018,7 +1308,13 @@ export function ServiceUserFundingTab({
               Cancel
             </Button>
             <Button type="button" disabled={saving} onClick={() => void saveFunding()}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isCreateMixed ? (
+                `Save ${Math.max(form.mixedShares.length, 2)} funders`
+              ) : (
+                'Save'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

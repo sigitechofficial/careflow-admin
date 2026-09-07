@@ -246,16 +246,15 @@ export const employmentStepSchema = z
       v => emptyToUndef(v),
       z.string({ required_error: 'Select a role' }).uuid('Select a role')
     ),
-    locationId: z.preprocess(
-      v => emptyToUndef(v),
-      z.string({ required_error: 'Select a location' }).uuid('Select a location')
-    ),
+    locationId: uuidOpt,
     jobTitleId: uuidOpt,
     rbacLevelId: uuidOpt,
     gradeId: uuidOpt,
     contractTypeId: uuidOpt,
     travelPaymentTypeId: uuidOpt,
     baseLocationIds: z.array(z.string().uuid()).optional().default([]),
+    zoneIds: z.array(z.string()).optional().default([]),
+    serviceUserAreaIds: z.array(z.string().uuid()).optional().default([]),
     startDate: optionalDateString,
     endDate: optionalDateString,
     nationalInsuranceNo: optionalNiNumber,
@@ -315,6 +314,13 @@ export const employmentStepSchema = z
   .superRefine((data, ctx) => {
     refineEmploymentDates(data, ctx)
     refineWeeklyHours(data, ctx)
+    if (!data.accessAllZones && !data.locationId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select at least one branch',
+        path: ['locationId'],
+      })
+    }
     const capOverride = parseOptionalDecimal(data.weeklyHoursCapOverride)
     if (capOverride !== undefined) {
       if (!data.weeklyHoursCapOverrideReason?.trim()) {

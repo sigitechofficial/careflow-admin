@@ -21,16 +21,20 @@ export function useGlobalServiceUserCalendar(params: {
   eventTypeId?: string
   status?: CalendarEventStatus
   serviceUserId?: string
+  locationId?: string
+  limit?: number
+  enabled?: boolean
 }) {
   const hasApi = !!getApiBaseUrl()
   const can = useAuthStore(s => s.can('service_users.calendar.read'))
+  const { enabled = true, limit = 100, ...queryParams } = params
 
   return useQuery({
-    queryKey: ['service-users-calendar', params],
+    queryKey: ['service-users-calendar', { ...queryParams, limit }],
     queryFn: async () => {
       const { getGlobalServiceUsersCalendarEvents } = await import('@/features/service-users/api/service-user-calendar.api')
-      return getGlobalServiceUsersCalendarEvents(params)
+      return getGlobalServiceUsersCalendarEvents({ ...queryParams, limit })
     },
-    enabled: hasApi && can && !!params.dateFrom && !!params.dateTo,
+    enabled: enabled && hasApi && can && !!params.dateFrom && !!params.dateTo,
   })
 }

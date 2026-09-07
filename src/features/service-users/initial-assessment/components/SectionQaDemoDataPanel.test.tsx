@@ -83,8 +83,8 @@ describe('SectionQaDemoDataPanel', () => {
 
     await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
 
-    // Called with (level, tabId, questionIds) — no serviceUserId, nothing persisted.
-    expect(mockGenerate).toHaveBeenCalledWith('critical', 10, ['q1', 'q2'], undefined)
+    // Called with (level, tabId, questionIds, identity, serviceUserId) — IA answers are not saved.
+    expect(mockGenerate).toHaveBeenCalledWith('critical', 10, ['q1', 'q2'], undefined, undefined)
     await waitFor(() =>
       expect(onApply).toHaveBeenCalledWith(
         10,
@@ -106,7 +106,7 @@ describe('SectionQaDemoDataPanel', () => {
     ).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /replace/i }))
-    expect(mockGenerate).toHaveBeenCalledWith('normal', 10, ['q1', 'q2'], undefined)
+    expect(mockGenerate).toHaveBeenCalledWith('normal', 10, ['q1', 'q2'], undefined, undefined)
   })
 
   it('Cancel on the overwrite confirm generates nothing and applies nothing', async () => {
@@ -137,7 +137,7 @@ describe('SectionQaDemoDataPanel', () => {
     await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
     await userEvent.click(screen.getByRole('button', { name: /replace/i }))
 
-    expect(mockGenerate).toHaveBeenCalledWith('normal', 10, ['q1', 'q2'], undefined)
+    expect(mockGenerate).toHaveBeenCalledWith('normal', 10, ['q1', 'q2'], undefined, undefined)
     await waitFor(() =>
       expect(onApply).toHaveBeenCalledWith(
         10,
@@ -157,7 +157,7 @@ describe('SectionQaDemoDataPanel', () => {
     const identity = { firstName: 'Helen', lastName: 'Wright', preferredName: 'Helen' }
     renderPanel({ identity })
     await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
-    expect(mockGenerate).toHaveBeenCalledWith('critical', 10, ['q1', 'q2'], identity)
+    expect(mockGenerate).toHaveBeenCalledWith('critical', 10, ['q1', 'q2'], identity, undefined)
   })
 
   it('renders but disables Fill on a read-only (submitted) assessment, with a reopen hint', async () => {
@@ -184,6 +184,7 @@ describe('SectionQaDemoDataPanel', () => {
 
     await userEvent.click(screen.getByTestId('ia-section-demo-fill-10'))
 
+    expect(mockGenerate).toHaveBeenCalledWith('critical', 10, ['q1', 'q2'], undefined, 'su-1')
     await waitFor(() =>
       expect(mockPersist).toHaveBeenCalledWith('su-1', profilePatch, { gpContactId: null }),
     )

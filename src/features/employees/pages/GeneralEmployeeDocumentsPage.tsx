@@ -5,6 +5,7 @@ import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmployeeDocumentsRegistry } from '@/features/employees/hooks/useEmployees'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { Input } from '@/shared/ui/input'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -18,10 +19,25 @@ function formatBytes(n: number): string {
 
 export default function GeneralEmployeeDocumentsPage() {
   const apiConfigured = Boolean(getApiBaseUrl())
-  const tokenReady = Boolean(useAuthStore(s => s.accessToken)?.includes('.'))
+  const tokenReady = Boolean(useAuthStore((s) => s.accessToken)?.includes('.'))
   const enabled = apiConfigured && tokenReady
+  const { locationIds: globalLocationIds, isScoped: globalLocationScoped } =
+    useGlobalLocationScope()
 
-  const { data: rows = [], isLoading: loading, error: queryError, refetch } = useEmployeeDocumentsRegistry(enabled)
+  const registryParams = React.useMemo(
+    () =>
+      globalLocationScoped && globalLocationIds?.length
+        ? { locationIds: globalLocationIds }
+        : undefined,
+    [globalLocationScoped, globalLocationIds],
+  )
+
+  const {
+    data: rows = [],
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useEmployeeDocumentsRegistry(enabled, registryParams)
   const [query, setQuery] = React.useState('')
 
   const error =
@@ -35,10 +51,10 @@ export default function GeneralEmployeeDocumentsPage() {
     const q = query.trim().toLowerCase()
     if (!q) return rows
     return rows.filter(
-      r =>
+      (r) =>
         r.name.toLowerCase().includes(q) ||
         r.employeeName.toLowerCase().includes(q) ||
-        r.tags.some(t => t.toLowerCase().includes(q)),
+        r.tags.some((t) => t.toLowerCase().includes(q)),
     )
   }, [rows, query])
 
@@ -56,7 +72,9 @@ export default function GeneralEmployeeDocumentsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">General Employee Documents</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            All uploaded employee documents across the organisation.
+            {globalLocationScoped
+              ? 'Uploaded employee documents for the selected header location.'
+              : 'All uploaded employee documents across the organisation.'}
           </p>
         </div>
         <div className="relative w-full max-w-xs">
@@ -64,7 +82,7 @@ export default function GeneralEmployeeDocumentsPage() {
           <Input
             placeholder="Search documents…"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -101,7 +119,7 @@ export default function GeneralEmployeeDocumentsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(row => (
+              {filtered.map((row) => (
                 <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                   <td className="px-4 py-3">
                     <Link
@@ -129,11 +147,13 @@ export default function GeneralEmployeeDocumentsPage() {
                       )
                     })()}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatBytes(row.fileSize)}</td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                    {formatBytes(row.fileSize)}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{row.uploadedDate}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {row.tags.map(tag => (
+                      {row.tags.map((tag) => (
                         <span
                           key={tag}
                           className={cn(

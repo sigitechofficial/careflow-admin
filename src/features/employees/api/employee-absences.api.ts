@@ -86,6 +86,7 @@ export type EmployeeAbsencesParams = {
   absenceType?: AbsenceType
   permissionStatus?: AbsencePermissionStatus
   search?: string
+  locationId?: string
   sponsoredOnly?: boolean
   sicknessOnly?: boolean
   lastMinuteOnly?: boolean
@@ -101,6 +102,7 @@ export async function fetchEmployeeAbsences(
   if (params?.absenceType) qs.set('absenceType', params.absenceType)
   if (params?.permissionStatus) qs.set('permissionStatus', params.permissionStatus)
   if (params?.search?.trim()) qs.set('search', params.search.trim())
+  if (params?.locationId) qs.set('locationId', params.locationId)
   if (params?.sponsoredOnly) qs.set('sponsoredOnly', 'true')
   if (params?.sicknessOnly) qs.set('sicknessOnly', 'true')
   if (params?.lastMinuteOnly) qs.set('lastMinuteOnly', 'true')

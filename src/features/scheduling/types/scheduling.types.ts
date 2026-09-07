@@ -116,6 +116,11 @@ export type TimelineJob = {
     actualStartDateTime?: string | null
     actualEndDateTime?: string | null
   }>
+  /**
+   * EMONITORED visit reference from visit reconciliation when available
+   * (VIS-[BRANCH]-YYYYMMDD-NNNN). Attached on employee visits responses.
+   */
+  visitRef?: string | null
   actualStartDateTime?: string | null
   actualEndDateTime?: string | null
   /** Derived lifecycle / timing / duration classification (API or client). */
@@ -125,6 +130,21 @@ export type TimelineJob = {
     reasonLabel?: string | null
     notes?: string | null
     overrunReason?: string | null
+  } | null
+  /** Carer-app clock-in method, manual reason, and notes. */
+  checkIn?: {
+    method: string
+    methodLabel: string
+    reasonCode?: string | null
+    reasonLabel?: string | null
+    notes?: string | null
+    timingStatus?: 'early' | 'late' | null
+    timingKindLabel?: string | null
+    timingNotesLabel?: string | null
+    timingExceptionReasonCode?: string | null
+    timingExceptionReasonLabel?: string | null
+    timingExceptionNotes?: string | null
+    outsideGeofenceReason?: string | null
   } | null
   /** Carer attended (COMPLETED) but care was not delivered — SU unavailable / not home. */
   careNotDelivered?: {
@@ -268,6 +288,7 @@ export type ScheduleAreaRow = {
   name: string
   code: string
   description?: string | null
+  locationId?: string | null
   location?: { id: string; name: string } | null
   zone?: { id: string; name: string } | null
 }

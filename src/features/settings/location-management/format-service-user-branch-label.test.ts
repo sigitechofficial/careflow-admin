@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { formatServiceUserBranchLabel } from '@/features/settings/location-management/format-service-user-branch-label'
+import {
+  formatBranchDisplayName,
+  formatLocationOptionLabel,
+  formatServiceUserBranchLabel,
+} from '@/features/settings/location-management/format-service-user-branch-label'
 
 describe('formatServiceUserBranchLabel', () => {
   it('formats flat locationName (zone - branch)', () => {
@@ -32,5 +36,25 @@ describe('formatServiceUserBranchLabel', () => {
 
   it('returns Not assigned when no location is present', () => {
     expect(formatServiceUserBranchLabel({})).toBe('Not assigned')
+  })
+})
+
+describe('formatBranchDisplayName', () => {
+  it('collapses duplicated zone-branch strings', () => {
+    expect(formatBranchDisplayName('Haringey - Haringey')).toBe('Haringey')
+  })
+
+  it('keeps the branch part of a location name', () => {
+    expect(formatBranchDisplayName(null, 'North - Branch A')).toBe('Branch A')
+  })
+})
+
+describe('formatLocationOptionLabel', () => {
+  it('collapses duplicated zone-branch strings', () => {
+    expect(formatLocationOptionLabel('Haringey - Haringey')).toBe('Haringey')
+  })
+
+  it('keeps distinct zone and branch', () => {
+    expect(formatLocationOptionLabel('North - Branch A')).toBe('North · Branch A')
   })
 })

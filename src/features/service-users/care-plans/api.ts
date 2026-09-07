@@ -75,11 +75,13 @@ export async function fetchCarePlanInstances(
 export async function fetchCarePlanReviewQueue(params?: {
   status?: 'all' | 'overdue' | 'due_soon' | 'ok'
   serviceUserId?: string
+  locationId?: string
   signal?: AbortSignal
 }): Promise<{ items: CarePlanReviewQueueItem[]; meta: CarePlanReviewSummary & { total: number } }> {
   const qs = new URLSearchParams()
   if (params?.status && params.status !== 'all') qs.set('status', params.status)
   if (params?.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs}` : ''
   const res = await apiJson<
     ApiEnvelope<CarePlanReviewQueueItem[]> & {

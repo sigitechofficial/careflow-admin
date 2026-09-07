@@ -5,14 +5,20 @@ import { Loader2 } from 'lucide-react'
 import { fetchInitialAssessmentReviewQueue } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import { InitialAssessmentStatusBadge } from '@/features/service-users/initial-assessment/components/InitialAssessmentStatusBadge'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { Button } from '@/shared/ui/button'
 import { formatInitialAssessmentDate } from '@/features/service-users/initial-assessment/utils/submission-display'
 
 export default function InitialAssessmentReviewQueuePage() {
   const [overdueActionsOnly, setOverdueActionsOnly] = React.useState(false)
+  const { locationId: globalLocationId } = useGlobalLocationScope()
   const { data, isLoading, error } = useQuery({
-    queryKey: initialAssessmentKeys.reviewQueue(overdueActionsOnly),
-    queryFn: () => fetchInitialAssessmentReviewQueue({ overdueActionsOnly }),
+    queryKey: initialAssessmentKeys.reviewQueue(overdueActionsOnly, globalLocationId ?? undefined),
+    queryFn: () =>
+      fetchInitialAssessmentReviewQueue({
+        overdueActionsOnly,
+        locationId: globalLocationId ?? undefined,
+      }),
   })
 
   const submissions = data?.submissions ?? []
@@ -24,6 +30,9 @@ export default function InitialAssessmentReviewQueuePage() {
           <h1 className="text-xl font-semibold">Initial assessment — manager review queue</h1>
           <p className="text-sm text-muted-foreground">
             Submitted assessments awaiting review and items with overdue follow-up actions
+            {globalLocationId
+              ? ' · filtered to the selected header location'
+              : null}
           </p>
         </div>
         <label className="inline-flex items-center gap-2 text-sm">

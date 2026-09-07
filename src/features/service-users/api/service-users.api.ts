@@ -153,6 +153,7 @@ export type ServiceUserDetailAddress = {
   county: string | null
   country: string | null
   postcode: string | null
+  secondaryPostcode: string | null
   latitude: unknown
   longitude: unknown
   accessInstructions: string | null
@@ -209,6 +210,14 @@ export type ServiceUserDetail = {
     branchName?: string | null
     branchLayers?: string[]
     displayLabel?: string
+  } | null
+  serviceUserAreaId?: string | null
+  serviceUserArea?: {
+    id: string
+    name: string
+    code: string
+    scheduleAreaId: string
+    postcodes: string[]
   } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
@@ -1619,6 +1628,7 @@ export type UpdateServiceUserPayload = {
   fundingTypeId?: string | null
   riskLevelId?: string | null
   locationId?: string | null
+  serviceUserAreaId?: string | null
   keyWorkerId?: string | null
   namedNurseId?: string | null
   notes?: string | null
@@ -1719,7 +1729,10 @@ export type PatchServiceUserAddressPayload = {
   town?: string
   county?: string
   country?: string
+  /** Main postcode (usually from the assigned area). */
   postcode?: string
+  /** Secondary postcode from the searched street address. */
+  secondaryPostcode?: string
   latitude?: number
   longitude?: number
   accessInstructions?: string
@@ -1748,6 +1761,7 @@ export type CreateServiceUserPayload = {
   fundingTypeId?: string
   riskLevelId?: string
   locationId?: string
+  serviceUserAreaId?: string
   keyWorkerId?: string
   namedNurseId?: string
   notes?: string
@@ -1761,10 +1775,22 @@ export type CreateServiceUserPayload = {
   }>
 }
 
+/** Drop blank optional dates — Nest @IsDateString rejects "". */
+function omitBlankDates<T extends CreateServiceUserPayload>(body: T): T {
+  const out = { ...body }
+  for (const key of ['dateOfBirth', 'serviceStartDate', 'serviceEndDate'] as const) {
+    const v = out[key]
+    if (v == null || (typeof v === 'string' && v.trim() === '')) {
+      delete out[key]
+    }
+  }
+  return out
+}
+
 export async function createServiceUser(body: CreateServiceUserPayload): Promise<{ id: string }> {
   const res = await apiJson<ApiEnvelope<{ id: string }>>('/service-users', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify(omitBlankDates(body)),
   })
   return res.data!
 }

@@ -322,3 +322,9 @@
     display: none !important;
   }
 }
+
+/* Google Places Autocomplete dropdown above Radix dialogs */
+.pac-container {
+  z-index: 10050 !important;
+}
+

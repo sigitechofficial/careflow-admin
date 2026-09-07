@@ -3,6 +3,7 @@ import {
   approveInvoiceRun,
   calculateInvoiceRun,
   createInvoiceRun,
+  deleteAllInvoiceRuns,
   fetchInvoiceRun,
   fetchInvoiceRuns,
   fetchInvoiceRunsSummary,
@@ -54,6 +55,14 @@ export function useCreateInvoiceRun() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: createInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useDeleteAllInvoiceRuns() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteAllInvoiceRuns,
     onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
   })
 }

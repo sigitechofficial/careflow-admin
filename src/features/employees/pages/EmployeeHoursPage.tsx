@@ -399,7 +399,7 @@ export default function EmployeeHoursPage() {
     setRoleId('')
     setJobTitleId('')
     setContractTypeId('')
-    setLocationId('')
+    if (!globalLocationScoped) setLocationId('')
     setVisaTypeId('')
     setStaffKind('all')
     setOverContractOnly(false)

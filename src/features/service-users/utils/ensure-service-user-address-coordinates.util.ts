@@ -17,7 +17,11 @@ export async function ensureServiceUserAddressCoordinates(
 ): Promise<PatchServiceUserAddressPayload> {
   if (hasFiniteCoords(address)) return address
 
-  const query = formatAddressLines(address)
+  const query = formatAddressLines({
+    ...address,
+    // Prefer street (secondary) postcode for geocoding the home address.
+    postcode: address.secondaryPostcode || address.postcode,
+  })
   if (!query.trim()) return address
 
   try {

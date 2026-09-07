@@ -7,7 +7,6 @@ import type {
   ServiceUserDetail,
   ServiceUserDetailReference,
   ServiceUserLookupsBundle,
-  ServiceUserReferenceItemPayload,
   UpdateServiceUserPayload,
 } from '@/features/service-users/types'
 import { useUpdateServiceUser, usePatchServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserMutations'
@@ -37,25 +36,13 @@ import {
   profileLookupSelectRows,
   resolveStoredLookupCode,
 } from '@/features/service-users/utils/service-user-profile-lookup-rows'
+import {
+  buildSuProfileReferences,
+  SU_PROFILE_REF,
+} from '@/features/service-users/utils/service-user-profile-refs'
 
-/** Stored in `ServiceUserReference` for fields not on core `ServiceUser` model. */
-const PROFILE_REF = {
-  suffix: 'SU_PROFILE_SUFFIX',
-  maidenName: 'SU_PROFILE_MAIDEN_NAME',
-  placeOfBirth: 'SU_PROFILE_PLACE_OF_BIRTH',
-  religion: 'SU_PROFILE_RELIGION',
-  ethnicity: 'SU_PROFILE_ETHNICITY',
-  sexualOrientation: 'SU_PROFILE_SEXUAL_ORIENTATION',
-  disability: 'SU_PROFILE_DISABILITY',
-  maternity: 'SU_PROFILE_MATERNITY',
-  language: 'SU_PROFILE_LANGUAGE',
-  preferredContactMethod: 'SU_PROFILE_PREF_CONTACT',
-  emailType: 'SU_PROFILE_EMAIL_TYPE',
-  otherContactMethod: 'SU_PROFILE_OTHER_CONTACT',
-  dateOfDeath: 'SU_PROFILE_DATE_OF_DEATH',
-} as const
-
-const PROFILE_REF_TYPES = new Set<string>(Object.values(PROFILE_REF))
+/** @deprecated use SU_PROFILE_REF — kept for local aliases in this file */
+const PROFILE_REF = SU_PROFILE_REF
 
 /** Short help shown next to each field (hover or focus the info icon). */
 const FIELD_HELP = {
@@ -82,7 +69,8 @@ const FIELD_HELP = {
   town: 'Town or city for the service address.',
   county: 'County, region, or state if used in your address format.',
   country: 'Country for the service address.',
-  postcode: 'Postal or ZIP code for routing and validation.',
+  postcode: 'Main postcode from the assigned service area (monitoring).',
+  secondaryPostcode: 'Secondary postcode from the home / searched street address.',
   latitude: 'Optional latitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   longitude: 'Optional longitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   keySafeNumber:
@@ -140,29 +128,9 @@ function employeeLabel(e: { firstName: string | null; lastName: string | null; i
   return n || e.id
 }
 
-function buildReferencesPayload(
-  existing: ServiceUserDetailReference[],
-  profile: Record<string, string>,
-): ServiceUserReferenceItemPayload[] {
-  const kept = existing.filter((r) => !PROFILE_REF_TYPES.has(r.referenceType))
-  const base: ServiceUserReferenceItemPayload[] = kept.map((r) => ({
-    id: r.id,
-    referenceType: r.referenceType,
-    referenceValue: r.referenceValue,
-    notes: r.notes ?? undefined,
-  }))
-  for (const type of Object.values(PROFILE_REF)) {
-    const v = (profile[type] ?? '').trim()
-    const prev = existing.find((r) => r.referenceType === type)
-    if (!v) continue
-    if (prev) base.push({ id: prev.id, referenceType: type, referenceValue: v })
-    else base.push({ referenceType: type, referenceValue: v })
-  }
-  return base
-}
-
 type FormState = {
   nhsNumber: string
+  nhsNumberStatus: string
   statusId: string
   firstName: string
   middleName: string
@@ -177,12 +145,16 @@ type FormState = {
   placeOfBirth: string
   religion: string
   ethnicity: string
+  sex: string
   sexualOrientation: string
   disability: string
   maternity: string
   language: string
   preferredContactMethod: string
   emailType: string
+  phoneType: string
+  phonePreference: boolean
+  emailPreference: boolean
   otherContactMethod: string
   email: string
   phone: string
@@ -193,12 +165,14 @@ type FormState = {
   county: string
   country: string
   postcode: string
+  secondaryPostcode: string
   latitude: string
   longitude: string
   accessInstructions: string
   keySafeNumber: string
   serviceUserNumber: string
   locationId: string
+  serviceUserAreaId: string
   serviceStartDate: string
   serviceEndDate: string
   dateOfDeath: string
@@ -209,6 +183,14 @@ type FormState = {
   riskLevelId: string
   nationalInsuranceNumber: string
   asNumber: string
+  changePreference: string
+  orderNumber: string
+  scanType: string
+  scanCode: string
+  caseNumber: string
+  sprocNumber: string
+  lasNumber: string
+  nhsReferences: string
   residentId: string
   residentGuid: string
 }
@@ -217,6 +199,7 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
   const r = d.references
   return {
     nhsNumber: d.nhsNumber ?? '',
+    nhsNumberStatus: extValue(r, PROFILE_REF.nhsNumberStatus),
     statusId: d.status?.id ?? '',
     firstName: d.firstName,
     middleName: d.middleName ?? '',
@@ -233,6 +216,7 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     ethnicity: lookups
       ? resolveStoredLookupCode(extValue(r, PROFILE_REF.ethnicity), lookups.ethnicities)
       : extValue(r, PROFILE_REF.ethnicity),
+    sex: extValue(r, PROFILE_REF.sex),
     sexualOrientation: extValue(r, PROFILE_REF.sexualOrientation),
     disability: extValue(r, PROFILE_REF.disability),
     maternity: extValue(r, PROFILE_REF.maternity),
@@ -241,6 +225,9 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
       : extValue(r, PROFILE_REF.language),
     preferredContactMethod: extValue(r, PROFILE_REF.preferredContactMethod),
     emailType: extValue(r, PROFILE_REF.emailType),
+    phoneType: extValue(r, PROFILE_REF.phoneType),
+    phonePreference: extValue(r, PROFILE_REF.phonePreference) === 'true',
+    emailPreference: extValue(r, PROFILE_REF.emailPreference) === 'true',
     otherContactMethod: extValue(r, PROFILE_REF.otherContactMethod),
     email: d.email ?? '',
     phone: d.phone ?? '',
@@ -251,12 +238,14 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     county: d.address?.county ?? '',
     country: d.address?.country ?? '',
     postcode: d.address?.postcode ?? '',
+    secondaryPostcode: d.address?.secondaryPostcode ?? '',
     latitude: decStr(d.address?.latitude),
     longitude: decStr(d.address?.longitude),
     accessInstructions: d.address?.accessInstructions ?? '',
     keySafeNumber: d.address?.keySafeNumber ?? '',
     serviceUserNumber: d.serviceUserNumber ?? '',
     locationId: d.location?.id ?? '',
+    serviceUserAreaId: d.serviceUserAreaId ?? d.serviceUserArea?.id ?? '',
     serviceStartDate: toInputDate(d.serviceStartDate),
     serviceEndDate: toInputDate(d.serviceEndDate),
     dateOfDeath: extValue(r, PROFILE_REF.dateOfDeath),
@@ -266,7 +255,15 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     careTypeId: d.careType?.id ?? '',
     riskLevelId: d.riskLevel?.id ?? '',
     nationalInsuranceNumber: d.nationalInsuranceNumber ?? '',
-    asNumber: extValue(r, 'AS_NUMBER'),
+    asNumber: extValue(r, PROFILE_REF.asNumber),
+    changePreference: extValue(r, PROFILE_REF.changePreference),
+    orderNumber: extValue(r, PROFILE_REF.orderNumber),
+    scanType: extValue(r, PROFILE_REF.scanType) || 'None',
+    scanCode: extValue(r, PROFILE_REF.scanCode),
+    caseNumber: extValue(r, PROFILE_REF.caseNumber),
+    sprocNumber: extValue(r, PROFILE_REF.sprocNumber),
+    lasNumber: extValue(r, PROFILE_REF.lasNumber),
+    nhsReferences: extValue(r, PROFILE_REF.nhsReferences),
     residentId: d.residentId ?? '',
     residentGuid: d.residentGuid ?? '',
   }
@@ -504,31 +501,38 @@ export function ServiceUserPersonalDetailsForm({
       return
     }
     try {
-      const profileMap: Record<string, string> = {
-        [PROFILE_REF.suffix]: form.suffix,
-        [PROFILE_REF.maidenName]: form.maidenName,
-        [PROFILE_REF.placeOfBirth]: form.placeOfBirth,
-        [PROFILE_REF.religion]: form.religion,
-        [PROFILE_REF.ethnicity]: form.ethnicity,
-        [PROFILE_REF.sexualOrientation]: form.sexualOrientation,
-        [PROFILE_REF.disability]: form.disability,
-        [PROFILE_REF.maternity]: form.maternity,
-        [PROFILE_REF.language]: form.language,
-        [PROFILE_REF.preferredContactMethod]: form.preferredContactMethod,
-        [PROFILE_REF.emailType]: form.emailType,
-        [PROFILE_REF.otherContactMethod]: form.otherContactMethod,
-        [PROFILE_REF.dateOfDeath]: form.dateOfDeath,
-      }
-
-      const refs = buildReferencesPayload(detail.references, profileMap)
-
-      const asTrim = form.asNumber.trim()
-      const withoutAs = refs.filter((r) => r.referenceType !== 'AS_NUMBER')
-      const asPrev = detail.references.find((r) => r.referenceType === 'AS_NUMBER')
-      if (asTrim) {
-        if (asPrev) withoutAs.push({ id: asPrev.id, referenceType: 'AS_NUMBER', referenceValue: asTrim })
-        else withoutAs.push({ referenceType: 'AS_NUMBER', referenceValue: asTrim })
-      }
+      const withoutAs = buildSuProfileReferences(
+        {
+          [PROFILE_REF.suffix]: form.suffix,
+          [PROFILE_REF.maidenName]: form.maidenName,
+          [PROFILE_REF.placeOfBirth]: form.placeOfBirth,
+          [PROFILE_REF.religion]: form.religion,
+          [PROFILE_REF.ethnicity]: form.ethnicity,
+          [PROFILE_REF.sexualOrientation]: form.sexualOrientation,
+          [PROFILE_REF.disability]: form.disability,
+          [PROFILE_REF.maternity]: form.maternity,
+          [PROFILE_REF.language]: form.language,
+          [PROFILE_REF.preferredContactMethod]: form.preferredContactMethod,
+          [PROFILE_REF.emailType]: form.emailType,
+          [PROFILE_REF.otherContactMethod]: form.otherContactMethod,
+          [PROFILE_REF.dateOfDeath]: form.dateOfDeath,
+          [PROFILE_REF.nhsNumberStatus]: form.nhsNumberStatus,
+          [PROFILE_REF.sex]: form.sex,
+          [PROFILE_REF.phoneType]: form.phoneType,
+          [PROFILE_REF.phonePreference]: form.phonePreference ? 'true' : '',
+          [PROFILE_REF.emailPreference]: form.emailPreference ? 'true' : '',
+          [PROFILE_REF.changePreference]: form.changePreference,
+          [PROFILE_REF.orderNumber]: form.orderNumber,
+          [PROFILE_REF.scanType]: form.scanType === 'None' ? '' : form.scanType,
+          [PROFILE_REF.scanCode]: form.scanCode,
+          [PROFILE_REF.caseNumber]: form.caseNumber,
+          [PROFILE_REF.sprocNumber]: form.sprocNumber,
+          [PROFILE_REF.lasNumber]: form.lasNumber,
+          [PROFILE_REF.nhsReferences]: form.nhsReferences,
+          [PROFILE_REF.asNumber]: form.asNumber,
+        },
+        detail.references,
+      )
 
       const payload: UpdateServiceUserPayload = {
         firstName: form.firstName.trim(),
@@ -554,6 +558,7 @@ export function ServiceUserPersonalDetailsForm({
         fundingTypeId: form.fundingTypeId || undefined,
         riskLevelId: form.riskLevelId || undefined,
         locationId: form.locationId || undefined,
+        serviceUserAreaId: form.serviceUserAreaId || null,
         keyWorkerId: form.keyWorkerId || undefined,
         namedNurseId: form.namedNurseId || undefined,
         references: withoutAs,
@@ -569,6 +574,7 @@ export function ServiceUserPersonalDetailsForm({
               county: form.county.trim() || undefined,
               country: form.country.trim() || undefined,
               postcode: form.postcode.trim() || undefined,
+              secondaryPostcode: form.secondaryPostcode.trim() || undefined,
               accessInstructions: form.accessInstructions.trim() || undefined,
               keySafeNumber: form.keySafeNumber.trim() || undefined,
               latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
@@ -607,12 +613,18 @@ export function ServiceUserPersonalDetailsForm({
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">Picture & identifiers</h2>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           <FieldEditable
             label="NHS Number"
             tooltip={FIELD_HELP.nhsNumber}
             value={form.nhsNumber}
             onChange={set('nhsNumber')}
+          />
+          <FieldEditable
+            label="NHS Number Status"
+            tooltip="Verification status of the NHS number."
+            value={form.nhsNumberStatus}
+            onChange={set('nhsNumberStatus')}
           />
           <LookupSelect
             label="Status"
@@ -711,6 +723,24 @@ export function ServiceUserPersonalDetailsForm({
             placeholder="Select ethnicity"
             emptyHint="No ethnicities yet. Add them in Settings → Lookup data → Ethnicities."
           />
+          <FieldEditable
+            label="Pregnant"
+            tooltip={FIELD_HELP.maternity}
+            value={form.maternity}
+            onChange={set('maternity')}
+          />
+          <FieldEditable
+            label="Sex"
+            tooltip="Sex recorded separately from gender identity where collected."
+            value={form.sex}
+            onChange={set('sex')}
+          />
+          <FieldEditable
+            label="Sexual Orientation"
+            tooltip={FIELD_HELP.sexualOrientation}
+            value={form.sexualOrientation}
+            onChange={set('sexualOrientation')}
+          />
         </div>
       </section>
 
@@ -724,9 +754,37 @@ export function ServiceUserPersonalDetailsForm({
             onChange={set('preferredContactMethod')}
           />
           <FieldEditable label="Phone Number" tooltip={FIELD_HELP.phone} value={form.phone} onChange={set('phone')} />
+          <FieldEditable
+            label="Phone Type"
+            tooltip="Classifies the phone number (mobile, home, work)."
+            value={form.phoneType}
+            onChange={set('phoneType')}
+          />
+          <div className="flex items-end gap-2 pb-1">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={form.phonePreference}
+                onChange={(e) => setForm((p) => ({ ...p, phonePreference: e.target.checked }))}
+                className="h-4 w-4 rounded border-border"
+              />
+              Phone preference
+            </label>
+          </div>
           <FieldEditable label="Mobile" tooltip={FIELD_HELP.mobile} value={form.mobile} onChange={set('mobile')} />
           <FieldEditable label="Email" tooltip={FIELD_HELP.email} value={form.email} onChange={set('email')} type="email" />
           <FieldEditable label="Email type" tooltip={FIELD_HELP.emailType} value={form.emailType} onChange={set('emailType')} />
+          <div className="flex items-end gap-2 pb-1">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={form.emailPreference}
+                onChange={(e) => setForm((p) => ({ ...p, emailPreference: e.target.checked }))}
+                className="h-4 w-4 rounded border-border"
+              />
+              Email preference
+            </label>
+          </div>
           <FieldEditable
             label="Other Contact Method"
             tooltip={FIELD_HELP.otherContactMethod}
@@ -738,20 +796,49 @@ export function ServiceUserPersonalDetailsForm({
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
+          Service location
+        </h2>
+        <div className="space-y-1.5">
+          <LabelWithTooltip label="Zone, branch & area" required tooltip={FIELD_HELP.location} />
+          <ServiceUserZoneBranchSelect
+            value={form.locationId}
+            areaId={form.serviceUserAreaId}
+            mainPostcode={form.postcode}
+            onChange={({ locationId, serviceUserAreaId }) =>
+              setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
+            }
+            onApplyMainPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
+            required
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
           Address (optional — includes map coordinates)
         </h2>
         <AddressPlacesField
+          postcodeLabel="Secondary postcode"
           value={{
             addressLine1: form.addressLine1,
             addressLine2: form.addressLine2,
             town: form.town,
             county: form.county,
             country: form.country,
-            postcode: form.postcode,
+            postcode: form.secondaryPostcode,
             latitude: form.latitude,
             longitude: form.longitude,
           }}
-          onChange={(patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch }))}
+          onChange={(patch) =>
+            setForm((prev) => {
+              const { postcode, ...rest } = patch
+              return {
+                ...prev,
+                ...rest,
+                ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+              }
+            })
+          }
           disabled={!canAddress}
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -796,14 +883,6 @@ export function ServiceUserPersonalDetailsForm({
             value={form.serviceUserNumber}
             onChange={set('serviceUserNumber')}
           />
-          <div className="sm:col-span-2 space-y-1.5">
-            <LabelWithTooltip label="Zone & branch" required tooltip={FIELD_HELP.location} />
-            <ServiceUserZoneBranchSelect
-              value={form.locationId}
-              onChange={set('locationId')}
-              required
-            />
-          </div>
           <FieldEditable
             label="Service Start Date"
             tooltip={FIELD_HELP.serviceStartDate}
@@ -940,7 +1019,65 @@ export function ServiceUserPersonalDetailsForm({
             value={form.nationalInsuranceNumber}
             onChange={set('nationalInsuranceNumber')}
           />
+          <div className="sm:col-span-2 space-y-1">
+            <LabelWithTooltip
+              label="Change Preference"
+              tooltip="Notes about change preferences for this person."
+            />
+            <textarea
+              rows={3}
+              className={cn(
+                'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
+                'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              )}
+              value={form.changePreference}
+              onChange={(e) => set('changePreference')(e.target.value)}
+            />
+          </div>
+          <FieldEditable
+            label="Order Number"
+            tooltip="Purchase or order reference if used."
+            value={form.orderNumber}
+            onChange={set('orderNumber')}
+          />
           <FieldEditable label="AS Number" tooltip={FIELD_HELP.asNumber} value={form.asNumber} onChange={set('asNumber')} />
+          <FieldEditable
+            label="Scan Type"
+            tooltip="Scan method used for this service user."
+            value={form.scanType}
+            onChange={set('scanType')}
+          />
+          <FieldEditable
+            label="Scan Code"
+            tooltip="Scan code value when Scan Type is set."
+            value={form.scanCode}
+            onChange={set('scanCode')}
+            disabled={form.scanType === 'None' || !form.scanType}
+          />
+          <FieldEditable
+            label="Case Number"
+            tooltip="External case number."
+            value={form.caseNumber}
+            onChange={set('caseNumber')}
+          />
+          <FieldEditable
+            label="SPROC Number"
+            tooltip="SPROC system reference."
+            value={form.sprocNumber}
+            onChange={set('sprocNumber')}
+          />
+          <FieldEditable
+            label="LAS number"
+            tooltip="LAS system reference."
+            value={form.lasNumber}
+            onChange={set('lasNumber')}
+          />
+          <FieldEditable
+            label="NHS references"
+            tooltip="Additional NHS reference numbers."
+            value={form.nhsReferences}
+            onChange={set('nhsReferences')}
+          />
           <FieldEditable label="Resident ID" tooltip={FIELD_HELP.residentId} value={form.residentId} onChange={set('residentId')} />
           <FieldEditable
             label="Resident GUID"
@@ -954,14 +1091,7 @@ export function ServiceUserPersonalDetailsForm({
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">Additional demographics</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FieldEditable
-            label="Sexual Orientation"
-            tooltip={FIELD_HELP.sexualOrientation}
-            value={form.sexualOrientation}
-            onChange={set('sexualOrientation')}
-          />
           <FieldEditable label="Disability" tooltip={FIELD_HELP.disability} value={form.disability} onChange={set('disability')} />
-          <FieldEditable label="Pregnant/Maternity" tooltip={FIELD_HELP.maternity} value={form.maternity} onChange={set('maternity')} />
           <LookupSelect
             label="Language"
             tooltip={FIELD_HELP.language}

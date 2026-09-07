@@ -1,5 +1,12 @@
 export type LocationManagementSubTab = 'zones' | 'service-users' | 'employees'
 
+export type LocationAuditFields = {
+  createdAt?: string | null
+  updatedAt?: string | null
+  createdByName?: string | null
+  updatedByName?: string | null
+}
+
 export type LocationTreeChild = {
   id: string
   type: 'service_user' | 'employee'
@@ -7,19 +14,37 @@ export type LocationTreeChild = {
   label: string
 }
 
-export type LocationTreeBranch = {
+export type LocationTreeArea = LocationAuditFields & {
+  id: string
+  name: string
+  code?: string
+  scheduleAreaId?: string
+  postcodes: string[]
+  children: LocationTreeChild[]
+}
+
+export type LocationTreeBranch = LocationAuditFields & {
   id: string
   name: string
   scheduleAreaId: string
   locationId: string | null
   locationName: string | null
+  address: string | null
+  /** 3-character visit reference branch code, e.g. L09. */
+  visitRefCode?: string | null
+  areas: LocationTreeArea[]
+  /** Unassigned service users + employees (area members nest under areas). */
   children: LocationTreeChild[]
 }
 
-export type LocationTreeZone = {
+export type LocationTreeZone = LocationAuditFields & {
   id: string
+  /** Real lookups.Zone id when known (for Add Branch). */
+  lookupZoneId: string | null
   name: string
   code: string
+  country: string | null
+  city: string | null
   markerColorHex: string
   locationId: string | null
   locationName: string | null
@@ -44,8 +69,11 @@ export type LocationActiveUser = {
 
 export type LocationZoneDetail = {
   id: string
+  lookupZoneId?: string | null
   name: string
   code: string
+  country?: string | null
+  city?: string | null
   markerColorHex: string
   locationId: string | null
   locationName: string | null
@@ -53,15 +81,39 @@ export type LocationZoneDetail = {
   incidentEmailUserIds: string[]
 }
 
+export type ServiceUserAreaDetail = {
+  id: string
+  scheduleAreaId: string
+  scheduleAreaName: string | null
+  locationId: string | null
+  name: string
+  code: string
+  description: string | null
+  sortOrder: number
+  isActive: boolean
+  postcodes: string[]
+}
+
 export type LocationLookup = { id: string; name: string }
+
+export type LocationAreaOption = {
+  id: string
+  name: string
+  postcodes: string[]
+}
 
 export type LocationZoneOption = {
   id: string
   name: string
-  branches: { id: string; name: string }[]
+  branches: {
+    id: string
+    name: string
+    scheduleAreaId?: string | null
+    areas: LocationAreaOption[]
+  }[]
 }
 
-export type ServiceUserLocationRow = {
+export type ServiceUserLocationRow = LocationAuditFields & {
   id: string
   fullName: string
   isActive: boolean
@@ -69,9 +121,14 @@ export type ServiceUserLocationRow = {
   locationName: string | null
   zoneName: string | null
   roomName: string | null
+  serviceUserAreaId: string | null
+  serviceUserAreaName: string | null
+  serviceUserAreaPostcodes: string[]
+  /** Home address postcode (from ServiceUserAddress). */
+  postcode: string | null
 }
 
-export type EmployeeLocationRow = {
+export type EmployeeLocationRow = LocationAuditFields & {
   id: string
   fullName: string
   isActive: boolean

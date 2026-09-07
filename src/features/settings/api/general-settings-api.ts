@@ -201,6 +201,10 @@ export type OrganisationGeneralSettings = {
   domEmailTomorrowsSchedule: boolean
   domAppShowHoursBefore: number
   domRestrictJobOutsideGeofence: boolean
+  domCheckInGpsEnabled: boolean
+  domCheckInManualEnabled: boolean
+  domCheckInNfcEnabled: boolean
+  domCheckInQrEnabled: boolean
   domGeofenceToleranceMeters: number
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number

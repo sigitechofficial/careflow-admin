@@ -16,7 +16,7 @@ import {
 } from '@/features/settings/hooks/useGeneralSettings'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
-import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
@@ -52,6 +52,8 @@ const TOOLTIPS = {
   downloadAllSu: 'Allow the mobile app to download all service user records for offline use.',
   showBlockedCarersInSchedule:
     'When enabled, carers blocked by a service user still appear in schedule carer lists (marked as blocked and not assignable). When disabled, blocked carers are hidden from schedule pickers.',
+  checkInNfc: 'Shows NFC on the carer clock-in sheet. Tag scanning is not shipped yet.',
+  checkInQr: 'Shows QR on the carer clock-in sheet. Camera scanning is not shipped yet.',
   lateVisitRequired: 'Enable alerts when a carer is late checking in to a scheduled visit.',
   lateVisitMinutes: 'Number of minutes after the scheduled start time before a late visit alert is raised.',
   lateVisitNotification: 'Send late visit alerts as in-app notifications to selected staff per zone.',
@@ -76,6 +78,10 @@ type DomCareDraft = {
   domEmailTomorrowsSchedule: boolean
   domAppShowHoursBefore: number
   domRestrictJobOutsideGeofence: boolean
+  domCheckInGpsEnabled: boolean
+  domCheckInManualEnabled: boolean
+  domCheckInNfcEnabled: boolean
+  domCheckInQrEnabled: boolean
   domGeofenceToleranceMeters: number
   domDownloadAllServiceUsers: boolean
   domFutureVisitsDays: number
@@ -106,6 +112,10 @@ const DEFAULTS: DomCareDraft = {
   domEmailTomorrowsSchedule: false,
   domAppShowHoursBefore: 48,
   domRestrictJobOutsideGeofence: true,
+  domCheckInGpsEnabled: true,
+  domCheckInManualEnabled: false,
+  domCheckInNfcEnabled: false,
+  domCheckInQrEnabled: false,
   domGeofenceToleranceMeters: 150,
   domDownloadAllServiceUsers: false,
   domFutureVisitsDays: 14,
@@ -169,6 +179,10 @@ function toDraft(s: OrganisationGeneralSettings, scheduleAreas: ScheduleAreaRow[
     domEmailTomorrowsSchedule: s.domEmailTomorrowsSchedule,
     domAppShowHoursBefore: s.domAppShowHoursBefore,
     domRestrictJobOutsideGeofence: s.domRestrictJobOutsideGeofence,
+    domCheckInGpsEnabled: s.domCheckInGpsEnabled ?? true,
+    domCheckInManualEnabled: s.domCheckInManualEnabled ?? false,
+    domCheckInNfcEnabled: s.domCheckInNfcEnabled ?? false,
+    domCheckInQrEnabled: s.domCheckInQrEnabled ?? false,
     domGeofenceToleranceMeters: s.domGeofenceToleranceMeters,
     domDownloadAllServiceUsers: s.domDownloadAllServiceUsers,
     domFutureVisitsDays: s.domFutureVisitsDays,
@@ -340,6 +354,15 @@ export function GeneralSettingsDomCarePanel() {
 
   async function onSave() {
     if (!canUpdate) return
+    if (
+      !draft.domCheckInGpsEnabled &&
+      !draft.domCheckInManualEnabled &&
+      !draft.domCheckInNfcEnabled &&
+      !draft.domCheckInQrEnabled
+    ) {
+      toastError('Leave at least one check-in method on')
+      return
+    }
     try {
       const {
         domTextAlertsSentThisMonth: _thisMonth,
@@ -689,6 +712,35 @@ export function GeneralSettingsDomCarePanel() {
               <SettingsNoYesToggle
                 value={draft.domRestrictJobOutsideGeofence}
                 onChange={v => setDraft(d => ({ ...d, domRestrictJobOutsideGeofence: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <p className="text-sm font-medium text-primary">Carer app check-in methods</p>
+            <SettingsRow label="GPS check-in">
+              <SettingsNoYesToggle
+                value={draft.domCheckInGpsEnabled}
+                onChange={v => setDraft(d => ({ ...d, domCheckInGpsEnabled: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <SettingsRow label="Manual check-in">
+              <SettingsNoYesToggle
+                value={draft.domCheckInManualEnabled}
+                onChange={v => setDraft(d => ({ ...d, domCheckInManualEnabled: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <SettingsRow label="NFC tag check-in" hint={TOOLTIPS.checkInNfc}>
+              <SettingsNoYesToggle
+                value={draft.domCheckInNfcEnabled}
+                onChange={v => setDraft(d => ({ ...d, domCheckInNfcEnabled: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
+            <SettingsRow label="QR scan check-in" hint={TOOLTIPS.checkInQr}>
+              <SettingsNoYesToggle
+                value={draft.domCheckInQrEnabled}
+                onChange={v => setDraft(d => ({ ...d, domCheckInQrEnabled: v }))}
                 disabled={!canUpdate}
               />
             </SettingsRow>

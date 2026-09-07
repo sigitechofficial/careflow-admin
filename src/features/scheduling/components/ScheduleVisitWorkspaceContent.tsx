@@ -35,6 +35,7 @@ import { VisitObservationsPanel } from '@/features/scheduling/components/VisitOb
 import { VisitLogTimelinePanel } from '@/features/scheduling/components/VisitLogTimelinePanel'
 import {
   fetchVisitObservations,
+  fetchVisitCareConsents,
   getScheduledJob,
   type VisitObservationRecordedRow,
 } from '@/features/scheduling/api/scheduling.api'
@@ -52,6 +53,10 @@ import {
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
+import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
+import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
+import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
+import { formatOpsClockTime } from '@/shared/lib/operational-day.util'
 
 export type ScheduleVisitWorkspaceTab =
   | 'overview'
@@ -133,8 +138,20 @@ export function ScheduleVisitWorkspaceContent({
     queryKey: schedulingKeys.job(job.id),
     queryFn: () => getScheduledJob(job.id),
     enabled: Boolean(job.id),
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const liveJob = freshJobQuery.data ?? job
+  const visitRef = liveJob.visitRef ?? job.visitRef
+  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
+
+  const careConsentQuery = useQuery({
+    queryKey: schedulingKeys.careConsents(job.id),
+    queryFn: () => fetchVisitCareConsents(job.id),
+    enabled: Boolean(job.id),
+    refetchOnMount: 'always',
+    staleTime: 0,
+  })
 
   const visitSlot = timelineJobVisitPlanSlot(job)
   const deliveryAssessment = React.useMemo(
@@ -155,6 +172,26 @@ export function ScheduleVisitWorkspaceContent({
       }),
     [liveJob],
   )
+
+  const sosQuery = useEcmExceptions({
+    limit: 100,
+    serviceUserId: job.serviceUserId,
+    enabled: Boolean(job.serviceUserId),
+  })
+  const visitSos = (sosQuery.data ?? []).filter(
+    row => row.scheduledJobId === job.id && row.kind === 'CARER_SOS',
+  )
+  const visitSosAcknowledged =
+    visitSos.length > 0 &&
+    visitSos.every(
+      row =>
+        Boolean(row.sos?.acknowledgedAt || row.acknowledgedAt) ||
+        row.lifecycle === 'ACKNOWLEDGED' ||
+        row.lifecycle === 'RESOLVED' ||
+        row.lifecycle === 'MANAGER_REVIEWED' ||
+        row.lifecycle === 'CLOSED',
+    )
+  const visitSosAck = visitSos.find(row => row.sos?.acknowledgedAt || row.acknowledgedAt)
 
   const clockInLabel = liveJob.actualStartDateTime
     ? formatOrganisationIsoTime(liveJob.actualStartDateTime)
@@ -196,6 +233,63 @@ export function ScheduleVisitWorkspaceContent({
 
       {tab === 'overview' ? (
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+          {visitSos.length > 0 ? (
+            <section
+              className={
+                visitSosAcknowledged
+                  ? 'rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3'
+                  : 'rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3'
+              }
+              data-testid="visit-workspace-carer-sos"
+            >
+              <p
+                className={
+                  visitSosAcknowledged
+                    ? 'text-sm font-semibold text-emerald-800 dark:text-emerald-200'
+                    : 'text-sm font-semibold text-destructive'
+                }
+              >
+                {visitSosAcknowledged ? 'Carer SOS — acknowledged' : 'Carer SOS'}
+              </p>
+              <ul className="mt-2 space-y-2">
+                {visitSos.map(row => {
+                  const mapsHref =
+                    row.sos?.latitude != null && row.sos?.longitude != null
+                      ? `https://maps.google.com/?q=${row.sos.latitude},${row.sos.longitude}`
+                      : null
+                  return (
+                    <li key={row.id} className="text-sm text-foreground">
+                      <p className="font-medium">
+                        {row.sos?.employeeName || 'Carer'} · {formatOpsClockTime(row.createdAt)}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {row.sos?.message?.trim() || 'No message'}
+                      </p>
+                      {mapsHref ? (
+                        <a
+                          href={mapsHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-0.5 inline-flex text-xs font-medium underline-offset-2 hover:underline"
+                        >
+                          Open in Maps
+                        </a>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+              {visitSosAcknowledged && visitSosAck ? (
+                <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                  Acknowledged
+                  {visitSosAck.sos?.acknowledgedByName || visitSosAck.acknowledgedByName
+                    ? ` by ${visitSosAck.sos?.acknowledgedByName || visitSosAck.acknowledgedByName}`
+                    : ''}
+                  {` · ${formatOpsClockTime(visitSosAck.sos?.acknowledgedAt ?? visitSosAck.acknowledgedAt)}`}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
             <p className="text-base font-semibold text-foreground">{serviceUserLabel(job.serviceUser)}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -203,6 +297,9 @@ export function ScheduleVisitWorkspaceContent({
               {formatJobTimeRange(job)} · {jobStatusLabel(job.status)}
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
+              </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" aria-hidden />
                 <span>
@@ -215,29 +312,85 @@ export function ScheduleVisitWorkspaceContent({
               </div>
             </dl>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1.5 border-t border-border/60 pt-3 text-sm">
-              <span className="flex items-center gap-1.5">
-                <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="text-muted-foreground">Clocked in:</span>
-                {clockInLabel ? (
-                  <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
-                ) : (
-                  <span className="font-medium text-amber-600 dark:text-amber-500">
-                    Carer not clocked in yet
-                  </span>
-                )}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <LogOut className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="text-muted-foreground">Clocked out:</span>
-                {clockOutLabel ? (
-                  <span className="font-medium tabular-nums text-foreground">{clockOutLabel}</span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </span>
+            <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
+                <span className="flex items-center gap-1.5">
+                  <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-muted-foreground">Clocked in:</span>
+                  {clockInLabel ? (
+                    <span className="font-medium tabular-nums text-foreground">{clockInLabel}</span>
+                  ) : (
+                    <span className="font-medium text-amber-600 dark:text-amber-500">
+                      Carer not clocked in yet
+                    </span>
+                  )}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <LogOut className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-muted-foreground">Clocked out:</span>
+                  {clockOutLabel ? (
+                    <span className="font-medium tabular-nums text-foreground">{clockOutLabel}</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
+              </div>
+              {liveJob.checkIn ? (
+                <dl className="grid gap-1 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="inline text-muted-foreground">Method: </dt>
+                    <dd className="inline font-medium text-foreground">{liveJob.checkIn.methodLabel}</dd>
+                  </div>
+                  {liveJob.checkIn.reasonLabel ? (
+                    <div>
+                      <dt className="inline text-muted-foreground">Reason: </dt>
+                      <dd className="inline text-foreground">{liveJob.checkIn.reasonLabel}</dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.notes ? (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted-foreground">Clock in notes: </dt>
+                      <dd className="inline whitespace-pre-wrap text-foreground">{liveJob.checkIn.notes}</dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.timingExceptionReasonLabel ? (
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        {liveJob.checkIn.timingKindLabel ?? 'Arrival reason'}:{' '}
+                      </dt>
+                      <dd className="inline text-foreground">
+                        {liveJob.checkIn.timingExceptionReasonLabel}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.timingExceptionNotes ? (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted-foreground">
+                        {liveJob.checkIn.timingNotesLabel ?? 'More detail'}:{' '}
+                      </dt>
+                      <dd className="inline whitespace-pre-wrap text-foreground">
+                        {liveJob.checkIn.timingExceptionNotes}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {liveJob.checkIn.outsideGeofenceReason ? (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted-foreground">Outside area: </dt>
+                      <dd className="inline whitespace-pre-wrap text-foreground">
+                        {liveJob.checkIn.outsideGeofenceReason}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
             </div>
           </section>
+
+          <VisitCareConsentSection
+            jobId={job.id}
+            consents={careConsentQuery.data?.consents ?? []}
+            loading={careConsentQuery.isLoading}
+          />
 
           <VisitDeliveryStatusPanel
             assessment={deliveryAssessment}

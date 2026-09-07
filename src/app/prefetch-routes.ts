@@ -66,6 +66,8 @@ import {
   listServiceUserMedications,
   listServiceUsers,
 } from '@/features/service-users/api'
+import { resolveScopedLocationId } from '@/features/locations/sync-header-location-scope'
+import { useUIStore } from '@/store/ui.store'
 import { fetchServiceUserDocumentStore } from '@/features/service-users/documents/service-user-document-store.api'
 import { getCalendarEventTypes } from '@/features/service-users/api/service-user-calendar.api'
 import {
@@ -103,10 +105,10 @@ const SETTINGS_TAB_LOOKUP: Partial<Record<SettingsTabId, LookupResource>> = {
   'work-areas': 'work-areas',
   'contract-types': 'contract-types',
   grades: 'grades',
-  locations: 'locations',
   certifications: 'certification-types',
   'non-core': 'non-core-activity-reasons',
   'leaving-reasons': 'leaving-reasons',
+  'visit-status-reasons': 'visit-status-reasons',
   'review-types': 'review-types',
   'travel-payment': 'travel-payment-types',
 }
@@ -119,22 +121,30 @@ export type EmployeeRouteTabId =
   | 'non-core-activity'
   | 'reports'
 
+function prefetchHeaderLocationId(): string | null {
+  return resolveScopedLocationId(
+    useAuthStore.getState().user?.assignedLocationIds,
+    useUIStore.getState().selectedLocationId,
+  )
+}
+
 export function prefetchLocationManagement(
   qc: QueryClient,
   sub: LocationManagementSubTab = 'zones',
 ) {
+  const locationId = prefetchHeaderLocationId()
   if (sub === 'service-users') {
     void qc.prefetchQuery({
-      queryKey: settingsKeys.serviceUserLocations(),
-      queryFn: fetchServiceUserLocations,
+      queryKey: settingsKeys.serviceUserLocations(locationId),
+      queryFn: () => fetchServiceUserLocations(locationId),
       staleTime: ROUTE_STALE_MS,
     })
     return
   }
   if (sub === 'employees') {
     void qc.prefetchQuery({
-      queryKey: settingsKeys.employeeLocations(),
-      queryFn: fetchEmployeeLocations,
+      queryKey: settingsKeys.employeeLocations(locationId),
+      queryFn: () => fetchEmployeeLocations(locationId),
       staleTime: ROUTE_STALE_MS,
     })
     return

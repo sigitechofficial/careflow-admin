@@ -117,7 +117,6 @@ describe('generateIaSectionDemoDev', () => {
     const [path, init] = mockApiJson.mock.calls[0]!
     expect(path).toBe('/dev/generate-ia-section')
     expect(init?.method).toBe('POST')
-    // No serviceUserId — nothing is persisted, so none is needed.
     expect(JSON.parse(init?.body as string)).toEqual({
       level: 'critical',
       tabId: 10,
@@ -145,6 +144,22 @@ describe('generateIaSectionDemoDev', () => {
       tabId: 18,
       questionIds: [],
       identity: { firstName: 'Helen', lastName: 'Wright', preferredName: 'Helen' },
+    })
+  })
+
+  it('POSTs serviceUserId for the currently opened Service User (not an allow-list)', async () => {
+    mockApiJson.mockResolvedValue({
+      success: true,
+      message: 'ok',
+      data: { answers: [], metadata: {} },
+    })
+    await generateIaSectionDemoDev('critical', 10, ['q1'], null, '11111111-1111-4111-8111-111111111111')
+    const [, init] = mockApiJson.mock.calls[0]!
+    expect(JSON.parse(init?.body as string)).toEqual({
+      level: 'critical',
+      tabId: 10,
+      questionIds: ['q1'],
+      serviceUserId: '11111111-1111-4111-8111-111111111111',
     })
   })
 
