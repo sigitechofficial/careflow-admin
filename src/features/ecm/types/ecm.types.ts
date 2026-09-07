@@ -315,6 +315,7 @@ export type EcmExceptionKind =
   | 'LEFT_VISIT_AREA'
   | 'MANUAL_ATTENDANCE'
   | 'MOCK_LOCATION'
+  | 'CARER_SOS'
   | 'OTHER'
 
 export type EcmExceptionRow = {
@@ -328,6 +329,8 @@ export type EcmExceptionRow = {
   responseTargetMinutes: number | null
   escalationDeadlineAt: string | null
   acknowledgedAt: string | null
+  acknowledgedById?: string | null
+  acknowledgedByName?: string | null
   createdAt: string
   jobName: string
   /** Scheduled job status when returned by open-exception list. */
@@ -349,6 +352,23 @@ export type EcmExceptionRow = {
     allowedByName: string | null
     allowNote: string | null
     employeeId: string
+  } | null
+  sos?: {
+    id: string
+    createdAt: string
+    lifecycle: string
+    title: string
+    message: string | null
+    latitude: number | null
+    longitude: number | null
+    accuracyMeters: number | null
+    locationUnavailable: boolean
+    isMockedLocation?: boolean
+    employeeId: string
+    employeeName: string
+    acknowledgedAt?: string | null
+    acknowledgedById?: string | null
+    acknowledgedByName?: string | null
   } | null
 }
 

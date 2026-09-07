@@ -1,5 +1,12 @@
 export type LocationManagementSubTab = 'zones' | 'service-users' | 'employees'
 
+export type LocationAuditFields = {
+  createdAt?: string | null
+  updatedAt?: string | null
+  createdByName?: string | null
+  updatedByName?: string | null
+}
+
 export type LocationTreeChild = {
   id: string
   type: 'service_user' | 'employee'
@@ -7,7 +14,7 @@ export type LocationTreeChild = {
   label: string
 }
 
-export type LocationTreeArea = {
+export type LocationTreeArea = LocationAuditFields & {
   id: string
   name: string
   code?: string
@@ -16,19 +23,21 @@ export type LocationTreeArea = {
   children: LocationTreeChild[]
 }
 
-export type LocationTreeBranch = {
+export type LocationTreeBranch = LocationAuditFields & {
   id: string
   name: string
   scheduleAreaId: string
   locationId: string | null
   locationName: string | null
   address: string | null
+  /** 3-character visit reference branch code, e.g. L09. */
+  visitRefCode?: string | null
   areas: LocationTreeArea[]
   /** Unassigned service users + employees (area members nest under areas). */
   children: LocationTreeChild[]
 }
 
-export type LocationTreeZone = {
+export type LocationTreeZone = LocationAuditFields & {
   id: string
   /** Real lookups.Zone id when known (for Add Branch). */
   lookupZoneId: string | null
@@ -104,7 +113,7 @@ export type LocationZoneOption = {
   }[]
 }
 
-export type ServiceUserLocationRow = {
+export type ServiceUserLocationRow = LocationAuditFields & {
   id: string
   fullName: string
   isActive: boolean
@@ -119,7 +128,7 @@ export type ServiceUserLocationRow = {
   postcode: string | null
 }
 
-export type EmployeeLocationRow = {
+export type EmployeeLocationRow = LocationAuditFields & {
   id: string
   fullName: string
   isActive: boolean

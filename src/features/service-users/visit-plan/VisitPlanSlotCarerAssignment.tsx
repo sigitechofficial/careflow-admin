@@ -12,7 +12,7 @@ import { Checkbox, RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-control
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
 import { suggestVisitPlanCarers } from '@/features/service-users/visit-plan/api'
-import { showCarerNotAssignedRotaConflictToast } from '@/features/scheduling/utils/schedule-carer-rota-toast.util'
+import { showCarerNotAssignedRotaConflictToast, showCarerNotAssignedComplianceToast } from '@/features/scheduling/utils/schedule-carer-rota-toast.util'
 import { visitPlanCarerCandidateCardClass } from '@/features/service-users/visit-plan/visit-plan-carer-candidate-card.util'
 import { useShowBlockedCarersInSchedule } from '@/features/scheduling/hooks/useSchedulingSettings'
 import type { VisitPlanCarerCandidate, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
@@ -51,6 +51,7 @@ function candidateCardClass(options: {
   selected: boolean
   blocked: boolean
   rotaConflict: boolean
+  complianceBlocked?: boolean
   atLimit?: boolean
   justAssigned?: boolean
 }) {
@@ -138,6 +139,10 @@ export function VisitPlanSlotCarerAssignment({
     showCarerNotAssignedRotaConflictToast()
   }, [])
 
+  const notifyComplianceBlock = React.useCallback(() => {
+    showCarerNotAssignedComplianceToast()
+  }, [])
+
   const loadSuggestions = React.useCallback(async () => {
     if (!serviceUserId) return
     setLoading(true)
@@ -180,9 +185,10 @@ export function VisitPlanSlotCarerAssignment({
     void loadSuggestions()
   }, [active, loadSuggestions])
 
-  const toggle = (employeeId: string, blocked: boolean, rotaConflict: boolean) => {
-    if (disabled || blocked || rotaConflict) {
+  const toggle = (employeeId: string, blocked: boolean, rotaConflict: boolean, complianceBlocked: boolean) => {
+    if (disabled || blocked || rotaConflict || complianceBlocked) {
       if (rotaConflict) notifyRotaConflict()
+      else if (complianceBlocked) notifyComplianceBlock()
       return
     }
     if (maxCarers === 1) {
@@ -221,6 +227,7 @@ export function VisitPlanSlotCarerAssignment({
         },
         skills: { matched: [], missing: [] },
         complianceIssues: 0,
+        complianceBlocksAllocation: false,
         warnings: ['Currently assigned to this slot'],
       })
     }
@@ -484,6 +491,10 @@ export function VisitPlanSlotCarerAssignment({
                   notifyRotaConflict()
                   return
                 }
+                if (candidate?.complianceBlocksAllocation) {
+                  notifyComplianceBlock()
+                  return
+                }
                 applyAssignment(employeeId ? [employeeId] : [])
               }}
               className="space-y-2"
@@ -491,9 +502,10 @@ export function VisitPlanSlotCarerAssignment({
               {searchFilteredCandidates.map((c) => {
                 const blocked = c.isBlocked
                 const rotaConflict = Boolean(c.hasRotaConflict)
+                const complianceBlocked = Boolean(c.complianceBlocksAllocation)
                 const isSelected = singleSelectValue === c.employeeId
                 const justAssigned = justAssignedIds.has(c.employeeId)
-                const selectable = !disabled && !blocked && !rotaConflict
+                const selectable = !disabled && !blocked && !rotaConflict && !complianceBlocked
                 return (
                   <li
                     key={c.employeeId}
@@ -501,11 +513,13 @@ export function VisitPlanSlotCarerAssignment({
                       selected: isSelected,
                       blocked,
                       rotaConflict,
+                      complianceBlocked,
                       justAssigned,
                     })}
                     onClick={() => {
                       if (!selectable) {
                         if (rotaConflict) notifyRotaConflict()
+                        else if (complianceBlocked) notifyComplianceBlock()
                         return
                       }
                       applyAssignment(isSelected ? [] : [c.employeeId])
@@ -514,7 +528,7 @@ export function VisitPlanSlotCarerAssignment({
                     <div className="flex items-start gap-3">
                       <RadioGroupItem
                         value={c.employeeId}
-                        disabled={disabled || blocked || rotaConflict}
+                        disabled={disabled || blocked || rotaConflict || complianceBlocked}
                         className="mt-1.5 shrink-0"
                         aria-label={`Assign ${c.displayName}`}
                         onClick={(event) => event.stopPropagation()}
@@ -537,9 +551,10 @@ export function VisitPlanSlotCarerAssignment({
               const checked = selected.has(c.employeeId)
               const blocked = c.isBlocked
               const rotaConflict = Boolean(c.hasRotaConflict)
+              const complianceBlocked = Boolean(c.complianceBlocksAllocation)
               const atLimit = !checked && selected.size >= maxCarers
               const justAssigned = justAssignedIds.has(c.employeeId)
-              const selectable = !disabled && !blocked && !rotaConflict && !atLimit
+              const selectable = !disabled && !blocked && !rotaConflict && !complianceBlocked && !atLimit
               return (
                 <li
                   key={c.employeeId}
@@ -547,26 +562,28 @@ export function VisitPlanSlotCarerAssignment({
                     selected: checked,
                     blocked,
                     rotaConflict,
+                    complianceBlocked,
                     atLimit,
                     justAssigned,
                   })}
                   onClick={() => {
                     if (checked) {
-                      toggle(c.employeeId, blocked, rotaConflict)
+                      toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
                       return
                     }
                     if (!selectable) {
                       if (rotaConflict) notifyRotaConflict()
+                      else if (complianceBlocked) notifyComplianceBlock()
                       return
                     }
-                    toggle(c.employeeId, blocked, rotaConflict)
+                    toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)
                   }}
                 >
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={checked}
-                      disabled={disabled || blocked || rotaConflict || atLimit}
-                      onCheckedChange={() => toggle(c.employeeId, blocked, rotaConflict)}
+                      disabled={disabled || blocked || rotaConflict || complianceBlocked || atLimit}
+                      onCheckedChange={() => toggle(c.employeeId, blocked, rotaConflict, complianceBlocked)}
                       className="mt-1.5 shrink-0"
                       aria-label={`Assign ${c.displayName}`}
                       onClick={(event) => event.stopPropagation()}

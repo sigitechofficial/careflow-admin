@@ -7,7 +7,8 @@ import {
   Settings,
   Settings2,
   UserCheck,
-  UserPlus,
+  // UserPlus, // TODO(later): restore with HR sidebar tab
+
   BarChart3,
   AlertTriangle,
   BookOpen,
@@ -36,6 +37,7 @@ import {
   Route,
   CalendarClock,
   Clock,
+  Search,
   Globe,
   PoundSterling,
   Receipt,
@@ -47,13 +49,15 @@ import {
   GraduationCap,
   CalendarOff,
   Landmark,
-  Briefcase,
+  // Briefcase, // TODO(later): restore with HR sidebar tab
+
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useUIStore } from '@/store/ui.store'
-import { UserAvatar } from '@/shared/ui/avatar'
+// import { UserAvatar } from '@/shared/ui/avatar' // TODO(later): restore with sidebar Super Admin / account card
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shared/ui/misc'
 import { Badge } from '@/shared/ui/badge'
+import { Input } from '@/shared/ui/input'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { Permission } from '@/features/auth/types'
 import { useAuthStore } from '@/features/auth/store'
@@ -323,41 +327,42 @@ const navItems: NavItem[] = [
       { label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
     ],
   },
-  {
-    label: 'HR',
-    icon: <Briefcase className="h-5 w-5" />,
-    href: '/hr/employees',
-    children: [
-      {
-        label: 'HR Dashboard',
-        icon: <Users className="h-4 w-4" />,
-        href: '/hr/employees',
-        permission: 'hr.read',
-        navTestId: 'nav-hr-employees',
-      },
-      {
-        label: 'Recruitment',
-        icon: <UserPlus className="h-4 w-4" />,
-        href: '/hr/recruitment',
-        anyPermission: ['hr.vacancies.read', 'hr.candidates.read'],
-        navTestId: 'nav-hr-recruitment',
-      },
-      {
-        label: 'Vacancies',
-        icon: <Briefcase className="h-4 w-4" />,
-        href: '/hr/vacancies',
-        permission: 'hr.vacancies.read',
-        navTestId: 'nav-hr-vacancies',
-      },
-      {
-        label: 'Candidates',
-        icon: <Users className="h-4 w-4" />,
-        href: '/hr/candidates',
-        permission: 'hr.candidates.read',
-        navTestId: 'nav-hr-candidates',
-      },
-    ],
-  },
+  // TODO(later): restore the HR sidebar tab (dashboard, recruitment, vacancies, candidates).
+  // {
+  //   label: 'HR',
+  //   icon: <Briefcase className="h-5 w-5" />,
+  //   href: '/hr/employees',
+  //   children: [
+  //     {
+  //       label: 'HR Dashboard',
+  //       icon: <Users className="h-4 w-4" />,
+  //       href: '/hr/employees',
+  //       permission: 'hr.read',
+  //       navTestId: 'nav-hr-employees',
+  //     },
+  //     {
+  //       label: 'Recruitment',
+  //       icon: <UserPlus className="h-4 w-4" />,
+  //       href: '/hr/recruitment',
+  //       anyPermission: ['hr.vacancies.read', 'hr.candidates.read'],
+  //       navTestId: 'nav-hr-recruitment',
+  //     },
+  //     {
+  //       label: 'Vacancies',
+  //       icon: <Briefcase className="h-4 w-4" />,
+  //       href: '/hr/vacancies',
+  //       permission: 'hr.vacancies.read',
+  //       navTestId: 'nav-hr-vacancies',
+  //     },
+  //     {
+  //       label: 'Candidates',
+  //       icon: <Users className="h-4 w-4" />,
+  //       href: '/hr/candidates',
+  //       permission: 'hr.candidates.read',
+  //       navTestId: 'nav-hr-candidates',
+  //     },
+  //   ],
+  // },
   {
     label: 'Reports',
     icon: <BarChart3 className="h-5 w-5" />,
@@ -730,6 +735,30 @@ function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean
     .filter((item): item is NavItem => item != null)
 }
 
+function labelMatchesQuery(label: string, query: string): boolean {
+  return label.toLowerCase().includes(query)
+}
+
+/** Client-side menu filter. Empty query returns items unchanged. */
+function filterNavByQuery(items: NavItem[], rawQuery: string): NavItem[] {
+  const query = rawQuery.trim().toLowerCase()
+  if (!query) return items
+
+  return items
+    .map((item) => {
+      const parentMatch = labelMatchesQuery(item.label, query)
+      if (!item.children?.length) {
+        return parentMatch ? item : null
+      }
+      const children = parentMatch
+        ? item.children
+        : item.children.filter((ch) => labelMatchesQuery(ch.label, query))
+      if (!parentMatch && !children.length) return null
+      return { ...item, children }
+    })
+    .filter((item): item is NavItem => item != null)
+}
+
 export {
   navItems as adminNavItems,
   inspectorOnlyNavItems,
@@ -919,8 +948,14 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     if (user?.role === 'temporary_inspector') return navSource
     return filterNavByPermission(navSource, can)
   }, [can, isPortal, navSource, user?.role])
+  const [menuQuery, setMenuQuery] = React.useState('')
+  const isMenuSearching = !sidebarCollapsed && menuQuery.trim().length > 0
+  const visibleNavItems = React.useMemo(() => {
+    if (sidebarCollapsed) return navItemsFiltered
+    return filterNavByQuery(navItemsFiltered, menuQuery)
+  }, [menuQuery, navItemsFiltered, sidebarCollapsed])
   const signOutRedirect = isPortal ? '/portal/login' : '/auth/login'
-  const accountHref = isPortal ? '/portal/profile' : '/account'
+  // const accountHref = isPortal ? '/portal/profile' : '/account' // TODO(later): restore with sidebar Super Admin / account card
 
   // Track which parent groups are open — open a group when its child route is active
   const [openGroups, setOpenGroups] = React.useState<Set<string>>(() => new Set())
@@ -1000,15 +1035,15 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
                 type="button"
                 data-testid="sidebar-collapse-button"
                 aria-label="Collapse sidebar"
+                title="Collapse"
                 onClick={toggleSidebar}
                 className={cn(
-                  'hidden lg:inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-2',
+                  'hidden lg:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md',
                   'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                   'transition-colors',
                 )}
               >
                 <ChevronLeft className="h-5 w-5" />
-                <span className="text-sm animate-fade-in">Collapse</span>
               </button>
             ) : null}
             <button
@@ -1023,6 +1058,7 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
               type="button"
               data-testid="sidebar-collapse-button"
               aria-label="Expand sidebar"
+              title="Expand"
               onClick={toggleSidebar}
               className={cn(
                 'hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-md',
@@ -1035,15 +1071,37 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
           ) : null}
         </div>
 
+        {!sidebarCollapsed ? (
+          <div className="shrink-0 px-2 pt-2">
+            <Input
+              type="search"
+              value={menuQuery}
+              onChange={(e) => setMenuQuery(e.target.value)}
+              aria-label="Search menu"
+              placeholder="Search menu"
+              data-testid="sidebar-search"
+              leftElement={<Search className="h-4 w-4" />}
+              className="h-9 border-sidebar-border bg-sidebar text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
+            />
+          </div>
+        ) : null}
+
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2">
+          {visibleNavItems.length === 0 ? (
+            isMenuSearching ? (
+              <p className="px-2 py-6 text-center text-sm text-sidebar-foreground/70">
+                No matching pages
+              </p>
+            ) : null
+          ) : (
           <ul className="flex flex-col gap-0.5">
-            {navItemsFiltered.map((item) => {
+            {visibleNavItems.map((item) => {
               const hasChildren = !!item.children?.length
               const isActive = hasChildren
                 ? item.children!.some(c => matchNavTarget(c.label, c.href, c.ready, pathname, search, c.search))
                 : matchNavTarget(item.label, item.href, item.ready, pathname, search)
-              const isOpen = openGroups.has(item.label)
+              const isOpen = isMenuSearching || openGroups.has(item.label)
 
               return (
                 <li key={item.label}>
@@ -1063,7 +1121,10 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
                         isActive={!!isActive}
                         isOpen={isOpen}
                         hasChildren
-                        onClick={() => toggleGroup(item.label)}
+                        onClick={() => {
+                          if (isMenuSearching) return
+                          toggleGroup(item.label)
+                        }}
                       />
                       {isOpen && (
                         <ul className="mt-0.5 ml-3 pl-3 border-l border-sidebar-border space-y-0.5 pb-1">
@@ -1093,10 +1154,12 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
               )
             })}
           </ul>
+          )}
         </nav>
 
         {/* Bottom section */}
         <div className="shrink-0 border-t border-sidebar-border p-2 space-y-1">
+          {/* TODO(later): restore sidebar Super Admin / account card — redundant with top-right user control.
           <Link
             to={accountHref}
             onClick={handleNav}
@@ -1113,6 +1176,7 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
             )}
             {!sidebarCollapsed && <LogOut className="h-4 w-4 text-sidebar-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
           </Link>
+          */}
           <button
             type="button"
             data-testid="sidebar-sign-out-button"

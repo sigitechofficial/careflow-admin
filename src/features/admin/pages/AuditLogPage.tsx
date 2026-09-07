@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { Loader2, FileText, Trash2 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/shared/ui/page-elements'
@@ -49,18 +49,28 @@ function formatWhen(iso: string): string {
 }
 
 export default function AuditLogPage() {
+  const routeSearch = useSearch({ strict: false }) as { search?: string; module?: string }
   const canClearLog = useAuthStore(s => s.can('audit_logs.delete'))
   const queryClient = useQueryClient()
   const [clearOpen, setClearOpen] = React.useState(false)
-  const [search, setSearch] = React.useState('')
-  const [debouncedSearch, setDebouncedSearch] = React.useState('')
+  const [search, setSearch] = React.useState(routeSearch.search?.trim() ?? '')
+  const [debouncedSearch, setDebouncedSearch] = React.useState(routeSearch.search?.trim() ?? '')
   const [ipFilter, setIpFilter] = React.useState('')
   const [debouncedIp, setDebouncedIp] = React.useState('')
   const [dateFrom, setDateFrom] = React.useState('')
   const [dateTo, setDateTo] = React.useState('')
-  const [module, setModule] = React.useState(MODULE_FILTER_ALL)
+  const [module, setModule] = React.useState(routeSearch.module?.trim() || MODULE_FILTER_ALL)
   const [eventType, setEventType] = React.useState(EVENT_TYPE_FILTER_ALL)
   const [page, setPage] = React.useState(1)
+
+  React.useEffect(() => {
+    const nextSearch = routeSearch.search?.trim() ?? ''
+    const nextModule = routeSearch.module?.trim() || MODULE_FILTER_ALL
+    setSearch(nextSearch)
+    setDebouncedSearch(nextSearch)
+    setModule(nextModule)
+    setPage(1)
+  }, [routeSearch.search, routeSearch.module])
 
   React.useEffect(() => {
     const t = window.setTimeout(() => {

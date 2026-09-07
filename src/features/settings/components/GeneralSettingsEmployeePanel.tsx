@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import {
   type ComplianceApprovalType,
+  type ComplianceAllocationMode,
   type ComplianceRequiredBy,
   type DefaultCarerStatus,
   type HolidayUnit,
@@ -45,6 +46,8 @@ type EmployeeDraft = {
   recruitmentFunctionalityRequired: boolean
   complianceRequiredBy: ComplianceRequiredBy
   complianceApprovalForNewEmployee: ComplianceApprovalType
+  complianceAllocationMode: ComplianceAllocationMode
+  includeLearningInAllocationBlock: boolean
   calculateSicknessBradfordScale: boolean
   recordServiceUserWellbeing: boolean
   recordEmployeeWellbeing: boolean
@@ -63,6 +66,8 @@ const EMPLOYEE_DEFAULTS: EmployeeDraft = {
   recruitmentFunctionalityRequired: true,
   complianceRequiredBy: 'ROLE_WORK_AREA',
   complianceApprovalForNewEmployee: 'MANAGER_APPROVAL',
+  complianceAllocationMode: 'WARN',
+  includeLearningInAllocationBlock: false,
   calculateSicknessBradfordScale: false,
   recordServiceUserWellbeing: false,
   recordEmployeeWellbeing: true,
@@ -82,6 +87,8 @@ function toEmployeeDraft(s: OrganisationGeneralSettings): EmployeeDraft {
     recruitmentFunctionalityRequired: s.recruitmentFunctionalityRequired,
     complianceRequiredBy: s.complianceRequiredBy,
     complianceApprovalForNewEmployee: s.complianceApprovalForNewEmployee,
+    complianceAllocationMode: s.complianceAllocationMode ?? 'WARN',
+    includeLearningInAllocationBlock: s.includeLearningInAllocationBlock ?? false,
     calculateSicknessBradfordScale: s.calculateSicknessBradfordScale,
     recordServiceUserWellbeing: s.recordServiceUserWellbeing,
     recordEmployeeWellbeing: s.recordEmployeeWellbeing,
@@ -289,6 +296,44 @@ export function GeneralSettingsEmployeePanel() {
                 </label>
               </RadioGroup>
             </div>
+            <div className="space-y-2">
+              <p className="text-sm text-foreground">Compliance on allocation</p>
+              <p className="text-xs text-muted-foreground">
+                Warn keeps today&apos;s behaviour: carers with missing, expired, or rejected checks can
+                still be assigned. Block prevents allocation. Expiring soon is always a warning.
+                Existing organisations stay on Warn until you opt in.
+              </p>
+              <RadioGroup
+                value={draft.complianceAllocationMode}
+                onValueChange={v =>
+                  setDraft(d => ({
+                    ...d,
+                    complianceAllocationMode: v as ComplianceAllocationMode,
+                  }))
+                }
+                disabled={!canUpdate}
+                className="space-y-2"
+              >
+                <label className="flex cursor-pointer items-center gap-2">
+                  <RadioGroupItem value="WARN" />
+                  <span className="text-sm">Warn only</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <RadioGroupItem value="BLOCK" />
+                  <span className="text-sm">Block allocation</span>
+                </label>
+              </RadioGroup>
+            </div>
+            <SettingsRow
+              label="Include learning in allocation checks"
+              helperText="When on, overdue or expired mandatory learning is treated like a compliance check."
+            >
+              <SettingsNoYesToggle
+                value={draft.includeLearningInAllocationBlock}
+                onChange={v => setDraft(d => ({ ...d, includeLearningInAllocationBlock: v }))}
+                disabled={!canUpdate}
+              />
+            </SettingsRow>
           </GeneralSettingsCard>
 
           <GeneralSettingsCard title="Absence Management">

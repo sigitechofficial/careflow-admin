@@ -327,7 +327,6 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'work-areas',
   'contract-types',
   'grades',
-  'locations',
   'certifications',
   'non-core',
   'leaving-reasons',
@@ -1414,6 +1413,10 @@ const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
   beforeLoad: requireAnyPermission('audit.read', 'audit_logs.read'),
+  validateSearch: (raw: Record<string, unknown>): { search?: string; module?: string } => ({
+    search: typeof raw.search === 'string' ? raw.search : undefined,
+    module: typeof raw.module === 'string' ? raw.module : undefined,
+  }),
   // Audit buffer hydrated at app boot via loadAuditFromStorage()
   component: AuditLogPage,
 })
@@ -1441,17 +1444,46 @@ const showcaseRoute = createRoute({
   component: ComponentShowcase,
 })
 
+function locationManagementSearchFromLegacySettings(searchStr: string): {
+  sub?: LocationManagementSubTab
+} {
+  const params = new URLSearchParams(searchStr.startsWith('?') ? searchStr.slice(1) : searchStr)
+  const sub = params.get('sub')
+  if (sub && LOCATION_MANAGEMENT_SUB_IDS.includes(sub as LocationManagementSubTab)) {
+    return { sub: sub as LocationManagementSubTab }
+  }
+  return { sub: 'zones' }
+}
+
+function isLegacyLocationsSettingsTab(location: { search: unknown; searchStr?: string }): boolean {
+  if (typeof location.search === 'object' && location.search !== null && 'tab' in location.search) {
+    if ((location.search as { tab?: unknown }).tab === 'locations') return true
+  }
+  const raw = location.searchStr ?? ''
+  const params = new URLSearchParams(raw.startsWith('?') ? raw.slice(1) : raw)
+  return params.get('tab') === 'locations'
+}
+
 const settingsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/settings',
-  validateSearch: (raw: Record<string, unknown>): { tab?: SettingsTabId } => {
+  validateSearch: (raw: Record<string, unknown>): { tab?: SettingsTabId | 'locations' } => {
     const t = raw.tab
+    if (t === 'locations') return { tab: 'locations' }
     if (typeof t === 'string' && SETTINGS_TAB_IDS.includes(t as SettingsTabId)) {
       return { tab: t as SettingsTabId }
     }
     return {}
   },
-  beforeLoad: requirePermission('lookups.read'),
+  beforeLoad: ({ search, location }) => {
+    if (search.tab === 'locations' || isLegacyLocationsSettingsTab(location)) {
+      throw redirect({
+        to: '/settings/location-management',
+        search: locationManagementSearchFromLegacySettings(location.searchStr ?? ''),
+      })
+    }
+    requirePermission('lookups.read')()
+  },
   loader: ({ context: { queryClient: qc }, location }) => {
     const tab =
       typeof location.search === 'object' &&

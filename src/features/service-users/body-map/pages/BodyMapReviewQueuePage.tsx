@@ -8,27 +8,37 @@ import {
   recordTypeLabel,
   type BodyMapRecordTypeCode,
 } from '@/features/service-users/body-map/catalog/record-types'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { Button } from '@/shared/ui/button'
 import { BodyMapAnalyticsPanel } from '@/features/service-users/body-map/components/BodyMapAnalyticsPanel'
 import { BodyMapGovernanceAlertsPanel } from '@/features/service-users/body-map/components/BodyMapGovernanceAlertsPanel'
 
 export default function BodyMapReviewQueuePage() {
   const [overdueOnly, setOverdueOnly] = React.useState(false)
+  const { locationId: globalLocationId } = useGlobalLocationScope()
   const { data, isLoading, error } = useQuery({
-    queryKey: bodyMapKeys.reviewQueue(overdueOnly),
-    queryFn: () => fetchBodyMapReviewQueue({ overdueOnly }),
+    queryKey: bodyMapKeys.reviewQueue(overdueOnly, undefined, globalLocationId ?? undefined),
+    queryFn: () =>
+      fetchBodyMapReviewQueue({
+        overdueOnly,
+        locationId: globalLocationId ?? undefined,
+      }),
   })
 
   const records = data?.records ?? []
+  const description = [
+    'Safeguarding triggers, manager review required, and overdue reviews.',
+    globalLocationId ? 'Showing service users for the selected header location.' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Body map — manager review queue</h1>
-          <p className="text-sm text-muted-foreground">
-            Safeguarding triggers, manager review required, and overdue reviews
-          </p>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <label className="inline-flex items-center gap-2 text-sm">
           <input

@@ -12,7 +12,7 @@ export function auditActorLabel(user: AuditLogRow['user']): string {
 }
 
 export function formatAuditAction(action: string): string {
-  return action.replace(/_/g, ' ')
+  return action.replace(/[._]/g, ' ')
 }
 
 function resolveServiceUserId(row: AuditLogRow): string | null {
@@ -56,6 +56,13 @@ function pickSubject(row: AuditLogRow): string | null {
       : `${obsType.name}: ${snap.numericValue}`
   }
   if (obsType?.name) return obsType.name
+  if (row.action.startsWith('location.')) {
+    if (typeof snap.name === 'string' && snap.name.trim()) return snap.name.trim()
+    const parts = [snap.zoneName, snap.branchName, snap.areaName, snap.postcode]
+      .filter((v): v is string => typeof v === 'string' && Boolean(v.trim()))
+      .map(v => v.trim())
+    if (parts.length) return parts.join(' / ')
+  }
   return null
 }
 
@@ -65,6 +72,17 @@ const EVENT_LABELS: Record<string, string> = {
   service_user_profile_viewed: 'Opened profile',
   medication_chart_viewed: 'Opened MAR chart',
   medication_restored: 'Restored medication',
+  'location.zone.created': 'Created zone',
+  'location.zone.updated': 'Updated zone',
+  'location.branch.created': 'Created branch',
+  'location.branch.updated': 'Updated branch',
+  'location.branch.deleted': 'Deleted branch',
+  'location.area.created': 'Created area',
+  'location.area.updated': 'Updated area',
+  'location.area.deleted': 'Deleted area',
+  'location.area.postcodes.updated': 'Updated area postcodes',
+  'location.service_user.assigned': 'Assigned service user location',
+  'location.employee.assigned': 'Assigned employee location',
 }
 
 function eventLabel(row: AuditLogRow): string {

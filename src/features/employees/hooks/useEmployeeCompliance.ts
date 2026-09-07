@@ -103,12 +103,14 @@ export function useDownloadComplianceDocument() {
       complianceId,
       documentId,
       downloadName,
+      mode = 'download',
     }: {
       employeeId: string
       complianceId: string
       documentId: string
       downloadName: string
-    }) => downloadComplianceDocument(employeeId, complianceId, documentId, downloadName),
+      mode?: 'view' | 'download'
+    }) => downloadComplianceDocument(employeeId, complianceId, documentId, downloadName, mode),
   })
 }
 
