@@ -550,26 +550,39 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   const applyPeriodToRule = (index: number, code: PayTimePeriodCode): boolean => {
     const period = getPayTimePeriodByCode(code)
     if (!period) return false
+    const current = rules[index] as PayCardRule
+    const presetStart = period.startTime ?? '00:00'
+    const presetEnd = period.endTime ?? '23:59'
+    // Custom From/Until (e.g. 01:00–23:59) must stay when picking a named period like
+    // "Weekday daytime". Only apply the preset clock window when the row is still on
+    // a standard period (or has no times yet).
+    const keepCustomTimes = Boolean(forceCustomPeriod[index])
+    const nextStart = keepCustomTimes
+      ? (current.startTime?.trim() || presetStart)
+      : presetStart
+    const nextEnd = keepCustomTimes
+      ? (current.endTime?.trim() || presetEnd)
+      : presetEnd
     const candidate: PayCardRule = {
-      ...(rules[index] as PayCardRule),
+      ...current,
       label: period.label,
       dayType: period.dayType,
-      startTime: period.startTime ?? '00:00',
-      endTime: period.endTime ?? '23:59',
+      startTime: nextStart,
+      endTime: nextEnd,
       priority: period.priority,
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
     }
     const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
     if (overlap) {
+      // Allow the selection — finance may use priority/stacking. Warn so overlaps are visible.
       toastWarning('Overlapping period', formatHourlyOverlapMessage(candidate, overlap.rule))
-      return false
     }
     updateRule(index, {
       label: period.label,
       dayType: period.dayType,
-      startTime: period.startTime ?? '00:00',
-      endTime: period.endTime ?? '23:59',
+      startTime: nextStart,
+      endTime: nextEnd,
       priority: period.priority,
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
@@ -588,8 +601,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     const candidate = { ...current, ...patch }
     const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
     if (overlap) {
+      // Do not block custom From/Until (e.g. 01:00–23:59). Warn only.
       toastWarning('Overlapping period', formatHourlyOverlapMessage(candidate, overlap.rule))
-      return false
     }
     updateRule(index, patch)
     return true
@@ -1059,21 +1072,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     const fieldLabelClass = 'text-xs font-medium text-foreground/90'
     const isPeriodTaken = (code: PayTimePeriodCode) => {
       if (matched?.code === code) return false
-      const period = getPayTimePeriodByCode(code)
-      if (!period) return false
-      return Boolean(
-        findOverlappingHourlyPayRule(
-          rules as PayCardRule[],
-          {
-            label: period.label,
-            dayType: period.dayType,
-            startTime: period.startTime ?? '00:00',
-            endTime: period.endTime ?? '23:59',
-            rateType: 'HOURLY',
-          },
-          index,
-        ),
-      )
+      // Only treat a named period as taken when another rule is already that period
+      // (same label/day+times). Do not disable Daytime just because a Custom window
+      // like 01:00–23:59 overlaps the default 07:00–19:00 band.
+      return (rules as PayCardRule[]).some((other, otherIndex) => {
+        if (otherIndex === index || !isHourlyRule(other, mode)) return false
+        return matchPayTimePeriod(other)?.code === code
+      })
     }
 
     return (
