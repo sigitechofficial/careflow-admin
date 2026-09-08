@@ -43,6 +43,9 @@ function RateBreakdownCard({
   unavailableReason,
   icon,
   compact = false,
+  /** When set (e.g. funder split share), shown as Total instead of card-gross breakdown.amount. */
+  chargedTotal,
+  chargedTotalNote,
 }: {
   title: string
   subtitle: string
@@ -55,11 +58,14 @@ function RateBreakdownCard({
   icon?: React.ReactNode
   /** Summary-only card (e.g. multi-funder total when per-funder cards follow). */
   compact?: boolean
+  chargedTotal?: string | null
+  chargedTotalNote?: string | null
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
   const appliedRules = breakdown?.appliedRules?.filter(r => r.label.trim() || r.detail.trim()) ?? []
   // Banded visits already show the charged slice in Calculation — don't repeat Applied rule + Time.
   const showAppliedRules = !compact && appliedRules.length > 0 && segments.length === 0
+  const displayTotal = chargedTotal?.trim() || breakdown?.amount || fallbackAmount || '—'
 
   return (
     <ContentCard className="p-4 space-y-3">
@@ -161,14 +167,15 @@ function RateBreakdownCard({
               {segments.length > 1 ? (
                 <p className="text-xs text-muted-foreground">{breakdown.formula}</p>
               ) : null}
+              {chargedTotalNote ? (
+                <p className="text-xs text-muted-foreground">{chargedTotalNote}</p>
+              ) : null}
             </div>
           ) : null}
 
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-2">
-            <span className="font-medium">Total</span>
-            <span className="text-lg font-semibold tabular-nums text-primary">
-              {breakdown.amount ?? '—'}
-            </span>
+            <span className="font-medium">{chargedTotal ? 'Charged to this funder' : 'Total'}</span>
+            <span className="text-lg font-semibold tabular-nums text-primary">{displayTotal}</span>
           </div>
         </div>
       ) : (
@@ -509,7 +516,9 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   title="Client charge"
                   subtitle={
                     preview?.funderClientCharges?.length
-                      ? 'Total across funders (each funder priced with its own rate card). Details per funder below.'
+                      ? `Sum of each funder’s share: ${preview.funderClientCharges
+                          .map((f) => f.shareAmount)
+                          .join(' + ')} = ${preview.clientCharge?.amount ?? detail.billableAmount ?? '—'}`
                       : preview?.funderChargeNote?.trim() ||
                         'Invoice — based on approved billable time (org multi-carer funder setting)'
                   }
@@ -527,7 +536,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     title={funderCharge.funderName}
                     subtitle={
                       funderCharge.splitPercent != null && funderCharge.splitPercent > 0
-                        ? `${funderCharge.cardGrossAmount ?? '—'} visit price × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount}`
+                        ? `This funder’s share of the visit (${funderCharge.splitPercent}%)`
                         : funderCharge.reason ?? 'Funder charge'
                     }
                     timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
@@ -535,6 +544,14 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     breakdown={funderCharge.breakdown}
                     fallbackAmount={funderCharge.shareAmount}
                     unavailableReason={funderCharge.reason}
+                    chargedTotal={funderCharge.shareAmount}
+                    chargedTotalNote={
+                      funderCharge.splitPercent != null &&
+                      funderCharge.splitPercent > 0 &&
+                      funderCharge.cardGrossAmount
+                        ? `Card visit price ${funderCharge.cardGrossAmount} × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount} charged`
+                        : null
+                    }
                     icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                   />
                 ))}
