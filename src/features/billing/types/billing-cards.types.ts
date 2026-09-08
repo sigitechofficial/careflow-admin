@@ -49,6 +49,8 @@ export type BillingRateType =
   | 'UPLIFT'
   | 'PREMIUM'
   | 'DEDUCTION'
+  | 'SLEEP_IN'
+  | 'WAKING_NIGHT'
 
 export type BillingDayType =
   | 'WEEKDAY'
@@ -456,8 +458,8 @@ export function formatPayCardRuleAmount(
 ): string {
   const amount = Number(rule.amount)
   const symbol = formatBillingCurrencyDisplay(currency)
-  if (rule.chargeMethod === 'SLEEP_IN') return `${symbol}${amount.toFixed(2)} per night`
-  if (rule.chargeMethod === 'WAKING_NIGHT') return `${symbol}${amount.toFixed(2)}/hr`
+  if (rule.chargeMethod === 'SLEEP_IN' || rule.rateType === 'SLEEP_IN') return `${symbol}${amount.toFixed(2)} per night`
+  if (rule.chargeMethod === 'WAKING_NIGHT' || rule.rateType === 'WAKING_NIGHT') return `${symbol}${amount.toFixed(2)}/hr`
   const durationLabel = formatVisitDurationLabel(rule.minimumMinutes)
   if (
     (rule.rateType === 'FIXED' || rule.rateType === 'PER_VISIT_FEE')
@@ -501,6 +503,9 @@ export function categorizePayCardRule(
     case 'PREMIUM':
     case 'UPLIFT':
       return 'Premiums & overtime'
+    case 'SLEEP_IN':
+    case 'WAKING_NIGHT':
+      return 'Time of day & night'
     case 'FIXED':
       // Fixed visit slots are visit pay, not time-of-day bands.
       if (rule.dayType === 'BANK_HOLIDAY' || rule.dayType === 'SATURDAY' || rule.dayType === 'SUNDAY') {

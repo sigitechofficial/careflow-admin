@@ -27,7 +27,13 @@ export function isNightDutyChargeRule(
   rule: Pick<ChargeCardRule, 'chargeMethod'> | Pick<PayCardRule, 'rateType'>,
 ): boolean {
   const method = 'chargeMethod' in rule ? rule.chargeMethod : undefined
-  return method === 'SLEEP_IN' || method === 'WAKING_NIGHT'
+  if (method === 'SLEEP_IN' || method === 'WAKING_NIGHT') return true
+  const rateType = 'rateType' in rule ? rule.rateType : undefined
+  return rateType === 'SLEEP_IN' || rateType === 'WAKING_NIGHT'
+}
+
+export function isNightDutyPayRule(rule: Pick<PayCardRule, 'rateType'>): boolean {
+  return rule.rateType === 'SLEEP_IN' || rule.rateType === 'WAKING_NIGHT'
 }
 
 export function isDurationBandRule(minimumMinutes?: number | null): boolean {
@@ -98,8 +104,10 @@ export function resolveRuleRateType(
     chargeMethod?: BillingChargeMethod
   },
 ): BillingRateType {
+  // Charge cards keep FIXED/HOURLY + chargeMethod; pay cards use rateType SLEEP_IN/WAKING_NIGHT.
   if (rule.chargeMethod === 'SLEEP_IN') return 'FIXED'
   if (rule.chargeMethod === 'WAKING_NIGHT') return 'HOURLY'
+  if (rule.rateType === 'SLEEP_IN' || rule.rateType === 'WAKING_NIGHT') return rule.rateType
   if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return rule.rateType
   if (rule.rateType === 'PREMIUM' || rule.rateType === 'UPLIFT' || rule.rateType === 'BANDED') return rule.rateType
   if (rule.rateType === 'HOURLY' || isHourlyLongVisitRule(rule) || isTimeBandRule(rule)) return 'HOURLY'
@@ -130,8 +138,8 @@ export function getRuleRateTypeLabel(
     chargeMethod?: BillingChargeMethod
   },
 ): string {
-  if (rule.chargeMethod === 'SLEEP_IN') return 'Sleeping night (£/night)'
-  if (rule.chargeMethod === 'WAKING_NIGHT') return 'Waking night (£/hr)'
+  if (rule.chargeMethod === 'SLEEP_IN' || rule.rateType === 'SLEEP_IN') return 'Sleeping night (£/night)'
+  if (rule.chargeMethod === 'WAKING_NIGHT' || rule.rateType === 'WAKING_NIGHT') return 'Waking night (£/hr)'
   if (isMileageRule(rule)) return 'Mileage (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time (£/hr)'
   if (isWaitingTimeRule(rule)) return 'Waiting time (£/hr)'
@@ -157,8 +165,8 @@ export function getRuleAmountFieldLabel(
     chargeMethod?: BillingChargeMethod
   },
 ): string {
-  if (rule.chargeMethod === 'SLEEP_IN') return 'Sleeping night rate (£/night)'
-  if (rule.chargeMethod === 'WAKING_NIGHT') return 'Waking night rate (£/hr)'
+  if (rule.chargeMethod === 'SLEEP_IN' || rule.rateType === 'SLEEP_IN') return 'Sleeping night rate (£/night)'
+  if (rule.chargeMethod === 'WAKING_NIGHT' || rule.rateType === 'WAKING_NIGHT') return 'Waking night rate (£/hr)'
   if (isMileageRule(rule)) return 'Mileage rate (£/mile)'
   if (isTravelTimeRule(rule)) return 'Travel time rate (£/hr)'
   if (isWaitingTimeRule(rule)) return 'Waiting time rate (£/hr)'
@@ -176,6 +184,14 @@ function withDefaultDuration(rule: PayCardRule): PayCardRule {
 
 /** Normalise card rules for the editor — preserve hourly rules for visits over 1 hour. */
 export function normalizePayCardRuleForEditor(rule: PayCardRule): PayCardRule {
+  if (rule.rateType === 'SLEEP_IN' || rule.rateType === 'WAKING_NIGHT') {
+    return {
+      ...rule,
+      minimumMinutes: null,
+      startTime: null,
+      endTime: null,
+    }
+  }
   if (NON_VISIT_RATE_TYPES.has(rule.rateType)) return rule
   if (rule.rateType === 'HOURLY' || isHourlyLongVisitRule(rule)) {
     return { ...rule, rateType: 'HOURLY', minimumMinutes: null }

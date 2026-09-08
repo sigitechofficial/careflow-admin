@@ -175,21 +175,6 @@ function parseSplitPercentValue(v: string | null | undefined): number | null {
   return Number.isNaN(n) ? null : n
 }
 
-function computeCombinedSplitPercent(
-  fundings: EnterpriseServiceUserFundingRow[],
-  editingId: string | null,
-  nextSplitPercent: string,
-): number {
-  let total = 0
-  for (const row of fundings) {
-    if (!isSplitEligibleFunding(row)) continue
-    const pct =
-      row.id === editingId ? parseSplitPercentValue(nextSplitPercent) : parseSplitPercentValue(row.splitPercent)
-    if (pct != null && pct > 0) total += pct
-  }
-  return total
-}
-
 function nextSplitPriority(fundings: EnterpriseServiceUserFundingRow[]): number {
   const priorities = fundings.filter(isSplitEligibleFunding).map((r) => r.splitPriority ?? 1)
   return priorities.length ? Math.max(...priorities) + 1 : 1
@@ -285,6 +270,37 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     isPrimary: row.isPrimary,
     reviewDate: row.reviewDate ? row.reviewDate.slice(0, 10) : '',
     notes: row.notes ?? '',
+  }
+}
+
+/** Open edit with the same Single / Mixed layout as Add, seeded from existing rows. */
+function rowToEditForm(
+  row: EnterpriseServiceUserFundingRow,
+  allRows: EnterpriseServiceUserFundingRow[],
+): { form: FundingForm; groupIds: string[] } {
+  const splitRows = allRows.filter((r) => {
+    if (!isSplitEligibleFunding(r)) return false
+    const pct = parseSplitPercentValue(r.splitPercent)
+    return pct != null && pct > 0 && Boolean(r.funderId)
+  })
+  const isMixed = splitRows.length >= 2
+  if (!isMixed) {
+    return { form: rowToForm(row), groupIds: [row.id] }
+  }
+  const base = rowToForm(row)
+  return {
+    form: {
+      ...base,
+      payerMode: 'MIXED',
+      funderId: '',
+      splitPercent: '',
+      mixedShares: splitRows.map((r) => ({
+        funderId: r.funderId!,
+        splitPercent: r.splitPercent != null ? String(Number(r.splitPercent)) : '',
+      })),
+      isPrimary: splitRows.some((r) => r.isPrimary),
+    },
+    groupIds: splitRows.map((r) => r.id),
   }
 }
 
@@ -419,8 +435,11 @@ export function ServiceUserFundingTab({
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingId, setEditingId] = React.useState<string | null>(null)
+  /** Funding row ids belonging to the arrangement being edited (1 for Single, N for Mixed). */
+  const [editingGroupIds, setEditingGroupIds] = React.useState<string[]>([])
   const [form, setForm] = React.useState<FundingForm>(() => emptyForm())
-  const saving = createMutation.isPending || updateMutation.isPending
+  const saving =
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   const chargeCardOptions = React.useMemo(() => {
     const options = chargeCards.map(card => ({
@@ -464,6 +483,7 @@ export function ServiceUserFundingTab({
   const openCreate = () => {
     const primaryEligible = rows.filter(isPrimaryEligibleFunding)
     setEditingId(null)
+    setEditingGroupIds([])
     setForm({
       ...emptyForm(),
       splitPriority: String(nextSplitPriority(rows)),
@@ -491,21 +511,18 @@ export function ServiceUserFundingTab({
     [configuredSplitRows],
   )
 
-  const formSplitTotal = React.useMemo(
-    () => computeCombinedSplitPercent(rows, editingId, form.splitPercent),
-    [rows, editingId, form.splitPercent],
-  )
-
   const mixedSplitTotal = React.useMemo(
     () => sumMixedSharePercents(form.mixedShares),
     [form.mixedShares],
   )
 
-  const isCreateMixed = !editingId && form.payerMode === 'MIXED'
+  const isMixedMode = form.payerMode === 'MIXED'
 
   const openEdit = (row: EnterpriseServiceUserFundingRow) => {
+    const { form: nextForm, groupIds } = rowToEditForm(row, rows)
     setEditingId(row.id)
-    setForm(rowToForm(row))
+    setEditingGroupIds(groupIds)
+    setForm(nextForm)
     setDialogOpen(true)
   }
 
@@ -543,7 +560,7 @@ export function ServiceUserFundingTab({
       return
     }
 
-    if (isCreateMixed) {
+    if (isMixedMode) {
       if (form.mixedShares.length < 2) {
         toastApiError(
           new Error('Mixed Funding requires at least two funders'),
@@ -572,53 +589,93 @@ export function ServiceUserFundingTab({
       }
 
       try {
-        const basePriority = nextSplitPriority(rows)
-        let shareIndex = 0
-        for (const share of form.mixedShares) {
-          await createMutation.mutateAsync(
-            mixedShareToBody(
+        if (!editingId) {
+          const basePriority = nextSplitPriority(rows)
+          let shareIndex = 0
+          for (const share of form.mixedShares) {
+            await createMutation.mutateAsync(
+              mixedShareToBody(
+                form,
+                share,
+                basePriority + shareIndex,
+                form.isPrimary ? shareIndex === 0 : false,
+              ),
+            )
+            shareIndex += 1
+          }
+          toastSuccess(
+            'Mixed funding created',
+            `${form.mixedShares.length} funder lines saved with invoice splits.`,
+          )
+        } else {
+          const groupRows = rows.filter((r) => editingGroupIds.includes(r.id))
+          const byFunder = new Map(
+            groupRows
+              .filter((r) => r.funderId)
+              .map((r) => [r.funderId as string, r] as const),
+          )
+          let shareIndex = 0
+          for (const share of form.mixedShares) {
+            const existing = byFunder.get(share.funderId)
+            const body = mixedShareToBody(
               form,
               share,
-              basePriority + shareIndex,
+              shareIndex + 1,
               form.isPrimary ? shareIndex === 0 : false,
-            ),
+            )
+            if (existing) {
+              await updateMutation.mutateAsync({ fundingId: existing.id, body })
+              byFunder.delete(share.funderId)
+            } else {
+              await createMutation.mutateAsync(body)
+            }
+            shareIndex += 1
+          }
+          for (const leftover of byFunder.values()) {
+            if (canDelete) {
+              await deleteMutation.mutateAsync(leftover.id)
+            } else {
+              await updateMutation.mutateAsync({
+                fundingId: leftover.id,
+                body: {
+                  ...formToBody({
+                    ...form,
+                    funderId: leftover.funderId ?? '',
+                    splitPercent: '',
+                    splitPriority: '1',
+                    isPrimary: false,
+                  }),
+                  status: 'ENDED',
+                  endDate: form.endDate || new Date().toISOString().slice(0, 10),
+                },
+              })
+            }
+          }
+          toastSuccess(
+            'Mixed funding updated',
+            `${form.mixedShares.length} funder lines saved with invoice splits.`,
           )
-          shareIndex += 1
         }
-        toastSuccess(
-          'Mixed funding created',
-          `${form.mixedShares.length} funder lines saved with invoice splits.`,
-        )
         setDialogOpen(false)
         void fundingsQuery.refetch()
       } catch (e) {
-        toastApiError(e, 'Save failed — some funder lines may already have been created')
+        toastApiError(
+          e,
+          editingId
+            ? 'Save failed — some funder lines may already have been updated'
+            : 'Save failed — some funder lines may already have been created',
+        )
         void fundingsQuery.refetch()
       }
       return
     }
 
-    if (form.splitPercent !== '' && editingId) {
-      const pct = Number(form.splitPercent)
-      if (Number.isNaN(pct) || pct < 0 || pct > 100) {
-        toastApiError(new Error('Split percentage must be between 0 and 100'), 'Validation')
-        return
-      }
-      if (formSplitTotal > 100.001) {
-        toastApiError(
-          new Error(`Combined split would be ${formSplitTotal.toFixed(1)}%. Total cannot exceed 100%.`),
-          'Validation',
-        )
-        return
-      }
-    }
-
     try {
       const body = formToBody({
         ...form,
-        // New Single Funder lines never store a split %.
-        splitPercent: editingId ? form.splitPercent : '',
-        splitPriority: editingId ? form.splitPriority : '1',
+        // Single Funder lines never store a split % (same as Add).
+        splitPercent: '',
+        splitPriority: '1',
       })
       const editingRow = editingId ? rows.find((row) => row.id === editingId) : null
       const wasSolePrimary =
@@ -628,6 +685,13 @@ export function ServiceUserFundingTab({
         )
       if (editingId) {
         await updateMutation.mutateAsync({ fundingId: editingId, body })
+        // If this row used to be part of a Mixed group, remove the other funder lines.
+        for (const groupId of editingGroupIds) {
+          if (groupId === editingId) continue
+          if (canDelete) {
+            await deleteMutation.mutateAsync(groupId)
+          }
+        }
         if (wasSolePrimary && !form.isPrimary) {
           toastSuccess('Funding updated. Another funding was set as primary.')
         } else {
@@ -638,6 +702,7 @@ export function ServiceUserFundingTab({
         toastSuccess('Funding created')
       }
       setDialogOpen(false)
+      void fundingsQuery.refetch()
     } catch (e) {
       toastApiError(e, 'Save failed')
     }
@@ -910,8 +975,7 @@ export function ServiceUserFundingTab({
             <TooltipProvider delayDuration={200}>
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground">Funding details</h4>
-            {!editingId ? (
-              <div>
+            <div>
                 <FundingFieldLabel
                   className="mb-1"
                   label="Funding arrangement"
@@ -931,7 +995,6 @@ export function ServiceUserFundingTab({
                   </SelectContent>
                 </Select>
               </div>
-            ) : null}
             <div>
               <FundingFieldLabel
                 className="mb-1"
@@ -952,7 +1015,7 @@ export function ServiceUserFundingTab({
                 </SelectContent>
               </Select>
             </div>
-            {isCreateMixed ? (
+            {isMixedMode ? (
               <div className="space-y-2">
                 <FundingFieldLabel
                   className="mb-1"
@@ -1110,60 +1173,11 @@ export function ServiceUserFundingTab({
               <h4 className="text-sm font-semibold text-foreground">Billing & invoicing</h4>
               <p className="text-xs text-muted-foreground">
                 Purchase orders, charge cards, and billing contacts are used when generating invoice runs.
-                {isCreateMixed
+                {isMixedMode
                   ? ' Invoice splits are set next to each funder above.'
                   : null}
               </p>
-              {!isCreateMixed && editingId ? (
-              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Funding split</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    When more than one funder pays, set a split % on each line. Priority 1 is invoiced first; the
-                    lowest-priority funder receives any remainder.
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <FundingFieldLabel className="mb-1" label="Split %" tooltip={FUNDING_FIELD_TOOLTIPS.splitPercent} />
-                    <Input
-                      inputMode="decimal"
-                      placeholder="e.g. 70"
-                      value={form.splitPercent}
-                      onChange={(e) => setForm((f) => ({ ...f, splitPercent: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <FundingFieldLabel className="mb-1" label="Split priority" tooltip={FUNDING_FIELD_TOOLTIPS.splitPriority} />
-                    <Input
-                      inputMode="numeric"
-                      value={form.splitPriority}
-                      onChange={(e) => setForm((f) => ({ ...f, splitPriority: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                {form.splitPercent !== '' || configuredSplitRows.length > 0 ? (
-                  <p
-                    className={cn(
-                      'text-xs',
-                      formSplitTotal > 100 && 'text-destructive',
-                      formSplitTotal < 100 && formSplitTotal > 0 && 'text-amber-800 dark:text-amber-200',
-                      formSplitTotal === 100 && 'text-teal-800 dark:text-teal-200',
-                    )}
-                  >
-                    Combined split: {formSplitTotal.toFixed(formSplitTotal % 1 === 0 ? 0 : 1)}%
-                    {formSplitTotal > 100
-                      ? ' — exceeds 100%'
-                      : formSplitTotal < 100 && formSplitTotal > 0
-                        ? ' — remainder goes to lowest-priority funder'
-                        : formSplitTotal === 100
-                          ? ' — fully allocated'
-                          : ''}
-                  </p>
-                ) : null}
-              </div>
-              ) : null}
-              {!isCreateMixed && !editingId && form.payerMode === 'SINGLE' ? (
+              {form.payerMode === 'SINGLE' ? (
                 <p className="text-xs text-muted-foreground">
                   Single Funder does not use split percentages. Use Mixed Funding when more than one funder shares
                   the invoice.
@@ -1286,9 +1300,9 @@ export function ServiceUserFundingTab({
             <div className="flex items-center gap-2">
               <Switch checked={form.isPrimary} onCheckedChange={(v) => setForm((f) => ({ ...f, isPrimary: v }))} />
               <FundingFieldLabel
-                label={isCreateMixed ? 'Mark first funder as primary' : 'Primary funding'}
+                label={isMixedMode ? 'Mark first funder as primary' : 'Primary funding'}
                 tooltip={
-                  isCreateMixed
+                  isMixedMode
                     ? 'When enabled, the first selected funder in the list becomes the primary funding line.'
                     : FUNDING_FIELD_TOOLTIPS.isPrimary
                 }
@@ -1310,7 +1324,7 @@ export function ServiceUserFundingTab({
             <Button type="button" disabled={saving} onClick={() => void saveFunding()}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isCreateMixed ? (
+              ) : isMixedMode ? (
                 `Save ${Math.max(form.mixedShares.length, 2)} funders`
               ) : (
                 'Save'
