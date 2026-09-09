@@ -178,12 +178,29 @@ export function visitTaskCompletionInputMissing(
     ? ''
     : (recordedValue?.trim() ?? '')
   const note = stripVisitTaskOutcomeNotes(notes)?.trim() ?? ''
-  if (spec.inputMode === 'value' && !value) return 'Enter a recorded value'
-  if (spec.inputMode === 'note' && !note) return 'Enter a description'
+  const enterField = (label: string | undefined, fallback: string) => {
+    const raw = label?.trim()
+    if (!raw) return fallback
+    return `Enter ${raw.charAt(0).toLowerCase()}${raw.slice(1)}`
+  }
+  if (spec.inputMode === 'value' && !value) {
+    return enterField(spec.valueLabel, 'Enter a recorded value')
+  }
+  if (spec.inputMode === 'note' && !note) {
+    return enterField(spec.noteLabel, 'Enter a description')
+  }
   if (spec.inputMode === 'value_and_note') {
-    if (!value && !note) return 'Enter a value and description'
-    if (!value) return 'Enter a recorded value'
-    if (!note) return 'Enter a description'
+    if (!value && !note) {
+      const valueBit = spec.valueLabel?.trim()
+        ? spec.valueLabel.trim().charAt(0).toLowerCase() + spec.valueLabel.trim().slice(1)
+        : 'a value'
+      const noteBit = spec.noteLabel?.trim()
+        ? spec.noteLabel.trim().charAt(0).toLowerCase() + spec.noteLabel.trim().slice(1)
+        : 'a description'
+      return `Enter ${valueBit} and ${noteBit}`
+    }
+    if (!value) return enterField(spec.valueLabel, 'Enter a recorded value')
+    if (!note) return enterField(spec.noteLabel, 'Enter a description')
   }
   return null
 }
