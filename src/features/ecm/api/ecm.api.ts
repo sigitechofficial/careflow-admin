@@ -250,6 +250,28 @@ export async function allowVisitContinue(jobId: string, note?: string): Promise<
   })
 }
 
+export async function authoriseCheckInMethodGrant(
+  jobId: string,
+  grantId: string,
+  note?: string,
+): Promise<unknown> {
+  return apiJson(`/ecm/visits/${jobId}/check-in-method-grants/${grantId}/authorise`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note?.trim() || undefined }),
+  })
+}
+
+export async function rejectCheckInMethodGrant(
+  jobId: string,
+  grantId: string,
+  note?: string,
+): Promise<unknown> {
+  return apiJson(`/ecm/visits/${jobId}/check-in-method-grants/${grantId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note?.trim() || undefined }),
+  })
+}
+
 export async function closeEcmException(id: string, note?: string): Promise<unknown> {
   return apiJson(`/ecm/exceptions/${id}/close`, {
     method: 'PATCH',

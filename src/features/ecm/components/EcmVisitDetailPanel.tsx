@@ -7,12 +7,14 @@ import {
   ChevronRight,
   Clock3,
   ExternalLink,
+  Hash,
   HelpCircle,
   History,
   ListChecks,
   Loader2,
   LogIn,
   LogOut,
+  MapPin,
   Moon,
   Phone,
   Scale,
@@ -25,12 +27,20 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
+import { FormField, Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
+import { EcmCarerCapturedLocation } from '@/features/ecm/components/EcmCarerCapturedLocation'
 import { EcmScheduleHistoryPanel } from '@/features/ecm/components/EcmScheduleHistoryPanel'
 import { EcmAuditTrailPanel } from '@/features/ecm/components/EcmAuditTrailPanel'
 import { EcmNotificationEvidenceForm } from '@/features/ecm/components/EcmOpsActions'
-import { useEcmNotifications, useEcmVisitDetail } from '@/features/ecm/hooks/useEcm'
+import {
+  useAuthoriseCheckInMethodGrant,
+  useEcmNotifications,
+  useEcmVisitDetail,
+  useRejectCheckInMethodGrant,
+} from '@/features/ecm/hooks/useEcm'
+import type { EcmCheckInMethodGrant } from '@/features/ecm/types/ecm.types'
 
 function visitTypeLabel(jobName: string, serviceUserName: string): string {
   const raw = (jobName ?? '').trim()
@@ -278,6 +288,146 @@ function SectionTitle({
   )
 }
 
+function VisitDetailCheckInGrants({
+  jobId,
+  grants,
+}: {
+  jobId: string
+  grants: EcmCheckInMethodGrant[]
+}) {
+  const open = grants.filter(
+    (grant) => grant.status === 'PENDING' || grant.manualEnabled,
+  )
+  if (open.length === 0) return null
+  return (
+    <div className="space-y-3">
+      {open.map((grant) => (
+        <VisitDetailCheckInGrantCard key={grant.id} jobId={jobId} grant={grant} />
+      ))}
+    </div>
+  )
+}
+
+function VisitDetailCheckInGrantCard({
+  jobId,
+  grant,
+}: {
+  jobId: string
+  grant: EcmCheckInMethodGrant
+}) {
+  const authorise = useAuthoriseCheckInMethodGrant()
+  const reject = useRejectCheckInMethodGrant()
+  const [note, setNote] = React.useState('')
+  const pending = grant.status === 'PENDING'
+  const authorised = grant.manualEnabled
+  const busy = authorise.isPending || reject.isPending
+  const mapsHref =
+    grant.latitude != null && grant.longitude != null && !grant.locationUnavailable
+      ? `https://maps.google.com/?q=${grant.latitude},${grant.longitude}`
+      : null
+  const distance =
+    grant.distanceMeters != null ? `${grant.distanceMeters} m from address` : null
+
+  return (
+    <section
+      className={cn(
+        'space-y-3 rounded-lg border bg-card p-3.5',
+        pending ? 'border-amber-500/50 dark:border-amber-500/40' : 'border-border',
+      )}
+      data-testid="ecm-visit-check-in-method-grant"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">Outside area check-in</h4>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {grant.employeeName || 'Carer'}
+            {distance ? ` · ${distance}` : grant.locationUnavailable ? ' · GPS unavailable' : ''}
+          </p>
+        </div>
+        <EcmStatusBadge code="OUTSIDE_AREA_CHECK_IN_REQUEST" kind="generic" />
+      </div>
+      {grant.carerNote ? (
+        <p className="text-sm text-foreground">
+          <span className="font-medium text-foreground/80">Carer note</span>
+          <span className="mx-1.5 text-muted-foreground/80">·</span>
+          {grant.carerNote}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">No note from the carer.</p>
+      )}
+      {mapsHref ? (
+        <a
+          href={mapsHref}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+        >
+          <MapPin className="h-4 w-4" aria-hidden />
+          Open GPS snapshot
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      ) : null}
+      {authorised ? (
+        <p className="text-sm text-foreground">
+          Authorised{grant.decidedByName ? ` by ${grant.decidedByName}` : ''} — Manual is
+          enabled for this carer on this visit today.
+        </p>
+      ) : pending ? (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Authorise enables Manual check-in for this carer, this visit, and this operational
+            day only. Organisation check-in settings stay unchanged.
+          </p>
+          <FormField label="Note (optional)" htmlFor={`visit-grant-note-${grant.id}`}>
+            <Textarea
+              id={`visit-grant-note-${grant.id}`}
+              rows={2}
+              className="min-h-[64px]"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Traffic, wait at the gate"
+            />
+          </FormField>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy}
+              onClick={() =>
+                authorise.mutate({
+                  jobId,
+                  grantId: grant.id,
+                  note: note.trim() || undefined,
+                })
+              }
+            >
+              {authorise.isPending ? 'Authorising…' : 'Authorise Manual'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                reject.mutate({
+                  jobId,
+                  grantId: grant.id,
+                  note: note.trim() || undefined,
+                })
+              }
+            >
+              {reject.isPending ? 'Rejecting…' : 'Reject'}
+            </Button>
+          </div>
+          {authorise.isError || reject.isError ? (
+            <p className="text-sm text-destructive">Could not update this request. Try again.</p>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  )
+}
+
 export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
   const navigate = useNavigate()
   const detailQuery = useEcmVisitDetail(jobId)
@@ -489,6 +639,22 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
           </p>
         )}
 
+        {d.visit?.visitRef?.trim() ? (
+          <p
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+            title="Same Visit ID as the carer app"
+          >
+            <Hash className="h-4 w-4 shrink-0" aria-hidden />
+            <span>
+              <span className="font-medium text-foreground/80">Visit ID</span>
+              <span className="mx-1.5 text-muted-foreground/80">·</span>
+              <span className="font-mono text-[13px] font-semibold tracking-tight text-foreground">
+                {d.visit.visitRef.trim()}
+              </span>
+            </span>
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
           <Users className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           <span className="text-sm font-semibold text-muted-foreground">Carers</span>
@@ -546,6 +712,8 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
           </div>
         </div>
       </section>
+
+      <VisitDetailCheckInGrants jobId={jobId} grants={d.checkInMethodGrants ?? []} />
 
       {/* 3. Primary action — visit workspace owns happened / missed / times */}
       <section className="space-y-3 rounded-lg border border-border bg-card p-3.5">
@@ -715,6 +883,25 @@ export function EcmVisitDetailPanel({ jobId }: { jobId: string }) {
                       {ev.outsideGeofenceReason ? ` — ${ev.outsideGeofenceReason}` : ''}
                     </p>
                   )}
+                  {ev.latitude != null && ev.longitude != null ? (
+                    <div className="mt-2">
+                      <EcmCarerCapturedLocation
+                        point={{
+                          id: ev.id,
+                          label:
+                            ev.eventType === 'CHECK_IN'
+                              ? 'Clock-in location'
+                              : ev.eventType === 'CHECK_OUT'
+                                ? 'Clock-out location'
+                                : 'Captured location',
+                          latitude: ev.latitude,
+                          longitude: ev.longitude,
+                          distanceMeters: ev.distanceMeters,
+                        }}
+                        showMap={ev.outsideGeofence}
+                      />
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   acknowledgeEcmException,
   allowVisitContinue,
+  authoriseCheckInMethodGrant,
+  rejectCheckInMethodGrant,
   amendEcmAttendance,
   applyMissedTriage,
   closeEcmException,
@@ -189,6 +191,44 @@ export function useAllowVisitContinue() {
   return useMutation({
     mutationFn: ({ jobId, note }: { jobId: string; note?: string }) =>
       allowVisitContinue(jobId, note),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+  })
+}
+
+export function useAuthoriseCheckInMethodGrant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      grantId,
+      note,
+    }: {
+      jobId: string
+      grantId: string
+      note?: string
+    }) => authoriseCheckInMethodGrant(jobId, grantId, note),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+  })
+}
+
+export function useRejectCheckInMethodGrant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      grantId,
+      note,
+    }: {
+      jobId: string
+      grantId: string
+      note?: string
+    }) => rejectCheckInMethodGrant(jobId, grantId, note),
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
       void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
