@@ -187,3 +187,38 @@ export async function searchPhotonAddresses(
   const data = (await res.json()) as PhotonSearchResponse
   return filterAndRankFeatures(data.features ?? [], options)
 }
+
+const PHOTON_REVERSE = 'https://photon.komoot.io/reverse'
+
+function formatPhotonFeature(feature: PhotonFeature): string {
+  const p = feature.properties
+  const streetLine = [p.housenumber, p.street].filter(Boolean).join(' ').trim()
+  const name = p.name?.trim() || ''
+  const place = name && name !== streetLine ? name : streetLine || name
+  return [place, p.locality || p.district, p.city, p.county, p.postcode, p.country]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
+/** Reverse-geocode coordinates to a street address via Photon (no API key). */
+export async function reversePhotonAddress(
+  latitude: number,
+  longitude: number,
+): Promise<string | null> {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+    lang: 'en',
+  })
+  const res = await fetch(`${PHOTON_REVERSE}?${params.toString()}`)
+  if (!res.ok) return null
+  const data = (await res.json()) as PhotonSearchResponse
+  const feature = data.features?.[0]
+  if (!feature) return null
+  const formatted = formatPhotonFeature(feature)
+  return formatted || null
+}
+
+export { formatPhotonFeature }

@@ -68,6 +68,7 @@ export type GoogleGeocoderApi = {
   geocode: (
     request: {
       address?: string
+      location?: { lat: number; lng: number }
       componentRestrictions?: { country: string | string[] }
     },
     callback: (results: GoogleGeocodeResult[] | null, status: string) => void,

@@ -64,6 +64,7 @@ const ARRIVAL_CLASS: Record<string, string> = {
   NOT_ASSESSED: 'bg-muted text-muted-foreground border-border',
   LEFT_VISIT_AREA: 'bg-destructive/10 text-destructive border-destructive/30',
   CARER_SOS: 'bg-destructive/10 text-destructive border-destructive/30',
+  OUTSIDE_AREA_CHECK_IN_REQUEST: 'bg-amber-500/10 text-amber-800 border-amber-500/30 dark:text-amber-200',
   MOCK_LOCATION: 'bg-violet-500/10 text-violet-800 border-violet-500/30 dark:text-violet-200',
 }
 
@@ -117,6 +118,7 @@ const ICON_BY_CODE: Record<string, LucideIcon> = {
   MOCK_LOCATION: Radar,
   LEFT_VISIT_AREA: MapPinOff,
   CARER_SOS: Siren,
+  OUTSIDE_AREA_CHECK_IN_REQUEST: Navigation,
   OUTSIDE_GEOFENCE: LocateOff,
   MANUAL_ATTENDANCE: Hand,
   LOW_GPS_ACCURACY: Crosshair,
@@ -185,6 +187,7 @@ const ICON_COLOR_BY_CODE: Record<string, string> = {
   MOCK_LOCATION: ICON_TONE.purple,
   LEFT_VISIT_AREA: ICON_TONE.danger,
   CARER_SOS: ICON_TONE.danger,
+  OUTSIDE_AREA_CHECK_IN_REQUEST: ICON_TONE.caution,
   OUTSIDE_GEOFENCE: ICON_TONE.danger,
   MANUAL_ATTENDANCE: ICON_TONE.info,
   LOW_GPS_ACCURACY: ICON_TONE.caution,
@@ -240,6 +243,7 @@ const ICON_COLOR_BY_CODE: Record<string, string> = {
 }
 
 function humanize(code: string): string {
+  if (code === 'OUTSIDE_AREA_CHECK_IN_REQUEST') return 'Outside area check-in'
   return code
     .replace(/_/g, ' ')
     .toLowerCase()
