@@ -41,18 +41,27 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 
-function PaymentBadge({ status }: { status: InvoiceRunPaymentStatus }) {
+function PaymentBadge({
+  status,
+  paid,
+}: {
+  status: InvoiceRunPaymentStatus
+  /** When part-paid / in progress, show how much has already been paid. */
+  paid?: string
+}) {
   if (status === 'PAID') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
         <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Paid
+        {paid ? <span className="tabular-nums">· {paid}</span> : null}
       </span>
     )
   }
   if (status === 'PART_PAID') {
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-        Part paid
+      <span className="inline-flex max-w-full flex-wrap items-center gap-x-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        In progress
+        {paid ? <span className="tabular-nums">· {paid} paid</span> : null}
       </span>
     )
   }
@@ -212,15 +221,44 @@ function SentProgress({ sent, remaining }: { sent: number; remaining: number }) 
   )
 }
 
-/** Compact per-row sent ratio. */
-function MiniRatio({ sent, total }: { sent: number; total: number }) {
-  const pct = total > 0 ? Math.round((sent / total) * 100) : 0
+/** Paid amount attributed to this service user on one invoice month. */
+function paidTowardServiceUser(m: ServiceUserInvoiceMonthRow): number {
+  if (m.funders.length > 0) {
+    const fromFunders = m.funders.reduce((s, f) => s + f.paidValue, 0)
+    return Math.round(Math.min(Math.max(0, fromFunders), m.subtotalValue) * 100) / 100
+  }
+  if (m.runNetTotalValue > 0.001) {
+    const share = (m.paidValue * m.subtotalValue) / m.runNetTotalValue
+    return Math.round(Math.min(Math.max(0, share), m.subtotalValue) * 100) / 100
+  }
+  return Math.round(Math.min(Math.max(0, m.paidValue), m.subtotalValue) * 100) / 100
+}
+
+function totalPaidForServiceUser(row: ServiceUserInvoiceOverviewRow): number {
+  return Math.round(row.months.reduce((s, m) => s + paidTowardServiceUser(m), 0) * 100) / 100
+}
+
+/** Compact per-row paid-vs-invoiced progress. */
+function PaidProgressBar({ paid, total }: { paid: number; total: number }) {
+  const safeTotal = Math.max(0, total)
+  const safePaid = Math.min(Math.max(0, paid), safeTotal)
+  const pct = safeTotal > 0 ? Math.round((safePaid / safeTotal) * 100) : 0
   return (
-    <div className="ml-auto flex w-28 items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-950/50">
-        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+    <div className="min-w-[9.5rem] max-w-[14rem]">
+      <div className="mb-0.5 flex items-center justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
+        <span>
+          {gbp.format(safePaid)}
+          <span className="text-muted-foreground/80"> / {gbp.format(safeTotal)}</span>
+        </span>
+        <span className="font-medium text-foreground">{pct}%</span>
       </div>
-      <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">{pct}%</span>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-950/50">
+        <div
+          className="h-full rounded-full bg-emerald-500 transition-all"
+          style={{ width: `${pct}%` }}
+          title={`${gbp.format(safePaid)} paid of ${gbp.format(safeTotal)}`}
+        />
+      </div>
     </div>
   )
 }
@@ -263,7 +301,7 @@ function InvoiceDetailDialog({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="text-muted-foreground">{serviceUserName}</span>
               <InvoiceRunStatusBadge status={run.status} />
-              {run.sent ? <PaymentBadge status={run.paymentStatus} /> : null}
+              {run.sent ? <PaymentBadge status={run.paymentStatus} paid={run.paid} /> : null}
               <span className="text-muted-foreground">
                 {run.periodStart} → {run.periodEnd}
               </span>
@@ -329,7 +367,7 @@ function InvoiceDetailDialog({
                           </td>
                           <td className="px-3 py-2">
                             {run.sent ? (
-                              <PaymentBadge status={f.paymentStatus} />
+                              <PaymentBadge status={f.paymentStatus} paid={f.paid} />
                             ) : (
                               <span className="text-muted-foreground">Not sent</span>
                             )}
@@ -459,7 +497,15 @@ function MonthTable({
               <tr key={m.runId} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                 <td className="px-3 py-2 font-medium">{m.period}</td>
                 <td className="px-3 py-2">
-                  <InvoiceRunStatusBadge status={m.status} />
+                  <div className="space-y-0.5">
+                    <InvoiceRunStatusBadge status={m.status} />
+                    {m.status === 'PART_PAID' || m.paymentStatus === 'PART_PAID' ? (
+                      <p className="text-[11px] tabular-nums text-muted-foreground">
+                        {m.paid} paid
+                        {m.outstandingValue > 0.001 ? ` · ${m.outstanding} due` : null}
+                      </p>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="px-3 py-2">
                   {m.sent ? (
@@ -476,12 +522,18 @@ function MonthTable({
                 <td className="px-3 py-2">
                   {m.sent ? (
                     <div className="space-y-0.5">
-                      <PaymentBadge status={m.paymentStatus} />
-                      <p className="text-[11px] text-muted-foreground">
-                        {m.paymentStatus === 'PAID'
-                          ? `Paid ${m.paid}`
-                          : `${m.paid} paid · ${m.outstanding} due`}
-                      </p>
+                      <PaymentBadge status={m.paymentStatus} paid={m.paid} />
+                      {m.paymentStatus !== 'PART_PAID' ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          {m.paymentStatus === 'PAID'
+                            ? `Paid ${m.paid}`
+                            : `${m.paid} paid · ${m.outstanding} due`}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground">
+                          {m.outstanding} still due
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <span className="text-muted-foreground">—</span>
@@ -616,7 +668,7 @@ function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
           <CountPill value={row.pendingCount} tone="pending" />
         </td>
         <td className="px-3 py-2.5">
-          <MiniRatio sent={row.sentCount} total={row.invoiceCount} />
+          <PaidProgressBar paid={totalPaidForServiceUser(row)} total={row.totalInvoicedValue} />
         </td>
         <td className="px-3 py-2.5 text-right tabular-nums font-medium">{row.totalInvoiced}</td>
         <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
@@ -680,6 +732,7 @@ export function BillingServiceUserInvoicesPanel() {
           invoiceCount: s.invoiceCount,
           sentCount: s.sentCount,
           pendingCount: s.pendingCount,
+          totalInvoicedValue: s.totalValue,
           totalInvoiced: gbp.format(s.totalValue),
           lastPeriodEnd: months[0]?.periodEnd ?? su.lastPeriodEnd,
         }
@@ -894,7 +947,12 @@ export function BillingServiceUserInvoicesPanel() {
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Invoices</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Sent</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Remaining</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Progress</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      Progress
+                      <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground/80">
+                        Paid of invoiced
+                      </span>
+                    </th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Total invoiced</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Last period</th>
                   </tr>
