@@ -11,8 +11,8 @@ import {
 } from '@/shared/ui/dialog'
 import type {
   InvoiceRunDetail,
-  InvoiceRunFunderSummary,
   InvoiceRunLine,
+  InvoiceRunServiceUserSummary,
 } from '@/features/billing/api/invoice-runs.api'
 import {
   InvoiceBrandedFooter,
@@ -29,8 +29,8 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   invoiceRun: InvoiceRunDetail | null
-  /** When set, preview only this authority's invoice (match on funder id; null = direct / family). */
-  funderIdFilter?: string | null
+  /** When set, preview only this service user's invoice. */
+  serviceUserIdFilter?: string
 }
 
 function formatHours(minutes: number | null): string {
@@ -44,30 +44,6 @@ function lineRate(line: InvoiceRunLine): string {
   return `£${hourly.toFixed(2)}`
 }
 
-function matchesFunderFilter(
-  groupFunderId: string | null,
-  filter: string | null | undefined,
-): boolean {
-  if (filter === undefined) return true
-  return (groupFunderId ?? null) === (filter ?? null)
-}
-
-function clientSummary(lines: InvoiceRunLine[]): { label: string; detail: string } {
-  const uniqueClients = [...new Set(lines.map(line => line.serviceUserName))]
-  if (uniqueClients.length === 1) {
-    const line = lines[0]
-    const clientName = uniqueClients[0] ?? line?.serviceUserName ?? 'Unknown client'
-    return {
-      label: clientName,
-      detail: line?.serviceUserNumber ? `Ref ${line.serviceUserNumber}` : '',
-    }
-  }
-  return {
-    label: 'Multiple clients',
-    detail: `${uniqueClients.length} service users on this invoice`,
-  }
-}
-
 function LiveInvoiceDocument({
   invoiceRun,
   group,
@@ -76,13 +52,15 @@ function LiveInvoiceDocument({
   org,
 }: {
   invoiceRun: InvoiceRunDetail
-  group: InvoiceRunFunderSummary
+  group: InvoiceRunServiceUserSummary
   invoiceIndex: number
   invoiceTotal: number
   org: InvoiceOrganisation
 }) {
-  const client = clientSummary(group.lines)
-  const invoiceNumber = invoiceRunRef(invoiceRun, group.funderCode)
+  const invoiceNumber = invoiceRunRef(
+    invoiceRun,
+    group.serviceUserNumber || group.serviceUserId.slice(0, 8).toUpperCase(),
+  )
   const issueDate = formatUkDate(invoiceRun.periodEnd)
 
   return (
@@ -98,7 +76,7 @@ function LiveInvoiceDocument({
               <dd className="font-mono text-xs">{invoiceNumber}</dd>
             </div>
             <div className="flex gap-3">
-              <dt className="w-28 shrink-0 font-semibold">Date of issue</dt>
+              <dt className="w-28 shrink-0 font-semibold">Issue date</dt>
               <dd>{issueDate}</dd>
             </div>
             <div className="flex gap-3">
@@ -107,93 +85,77 @@ function LiveInvoiceDocument({
                 {formatUkDate(invoiceRun.periodStart)} – {formatUkDate(invoiceRun.periodEnd)}
               </dd>
             </div>
-            {invoiceTotal > 1 ? (
-              <div className="flex gap-3">
-                <dt className="w-28 shrink-0 font-semibold">Invoice</dt>
-                <dd>
-                  {invoiceIndex + 1} of {invoiceTotal}
-                </dd>
-              </div>
-            ) : null}
+            <div className="flex gap-3">
+              <dt className="w-28 shrink-0 font-semibold">Invoice</dt>
+              <dd>
+                {invoiceIndex + 1} of {invoiceTotal}
+              </dd>
+            </div>
           </dl>
         </div>
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-foreground">Bill to</p>
-          <div className="mt-3 text-sm leading-relaxed">
-            <p className="font-bold uppercase">{group.funderName}</p>
-            {group.funderCode ? (
-              <p className="text-muted-foreground">Funder ref: {group.funderCode}</p>
+          <div className="mt-3 space-y-1 text-sm">
+            <p className="font-semibold text-foreground">{group.serviceUserName}</p>
+            {group.serviceUserNumber ? (
+              <p className="text-muted-foreground">Ref {group.serviceUserNumber}</p>
             ) : null}
-          </div>
-          <div className="mt-4 border-t border-border pt-3 text-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</p>
-            <p className="mt-1 font-semibold">{client.label}</p>
-            {client.detail ? <p className="text-muted-foreground">{client.detail}</p> : null}
+            <p className="text-muted-foreground">Funded by: {group.funderLabel}</p>
           </div>
         </div>
       </div>
 
-      <div className="px-8 py-5">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+      <div className="px-8 py-6">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b-2 border-primary text-left text-xs font-bold uppercase tracking-wide">
-              <th className="pb-3 pr-4">Item / service</th>
-              <th className="pb-3 pr-4">Description</th>
-              <th className="pb-3 pr-4 text-right">Qty / hrs</th>
-              <th className="pb-3 pr-4 text-right">Rate</th>
-              <th className="pb-3 text-right">Amount</th>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="pb-2 pr-4 font-semibold">Visit</th>
+              <th className="pb-2 pr-4 font-semibold">Service user</th>
+              <th className="pb-2 pr-4 font-semibold">Funder</th>
+              <th className="pb-2 pr-4 font-semibold">Description</th>
+              <th className="pb-2 pr-4 text-right font-semibold">Hours</th>
+              <th className="pb-2 pr-4 text-right font-semibold">Rate</th>
+              <th className="pb-2 text-right font-semibold">Amount</th>
             </tr>
           </thead>
           <tbody>
             {group.lines.map(line => (
-              <tr key={line.id} className="border-b border-border/80">
-                <td className="py-3 pr-4 align-top font-semibold">{line.serviceUserName}</td>
-                <td className="py-3 pr-4 align-top text-muted-foreground">
-                  {line.visitRef ? `${line.visitRef} · ` : ''}
-                  {line.description}
-                  {line.splitPercent != null ? ` (${line.splitPercent}%)` : ''}
-                </td>
-                <td className="py-3 pr-4 align-top text-right tabular-nums">
-                  {formatHours(line.minutes)}
-                </td>
-                <td className="py-3 pr-4 align-top text-right tabular-nums">{lineRate(line)}</td>
-                <td className="py-3 align-top text-right font-medium tabular-nums">{line.amount}</td>
+              <tr key={line.id} className="border-b border-border/60 align-top">
+                <td className="py-3 pr-4 font-mono text-xs">{line.visitRef ?? '—'}</td>
+                <td className="py-3 pr-4 font-semibold">{line.serviceUserName}</td>
+                <td className="py-3 pr-4 text-muted-foreground">{line.funderName}</td>
+                <td className="py-3 pr-4 text-muted-foreground">{line.description}</td>
+                <td className="py-3 pr-4 text-right tabular-nums">{formatHours(line.minutes)}</td>
+                <td className="py-3 pr-4 text-right tabular-nums">{lineRate(line)}</td>
+                <td className="py-3 text-right font-medium tabular-nums">{line.amount}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
 
-      <div className="grid gap-8 px-8 pb-6 pt-2 sm:grid-cols-2">
-        <div className="space-y-5 text-sm">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider">Terms</p>
-            <p className="mt-2 text-muted-foreground">30 days from invoice date</p>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider">Conditions / instructions</p>
-            <p className="mt-2 text-muted-foreground">
-              Care services billed for the period {formatUkDate(invoiceRun.periodStart)} to{' '}
-              {formatUkDate(invoiceRun.periodEnd)}.
-            </p>
+        <div className="mt-6 flex justify-end">
+          <div className="w-full max-w-xs space-y-2 text-sm">
+            <div className="flex justify-between gap-6 border-t border-border pt-3">
+              <span className="font-semibold">Invoice total</span>
+              <span className="font-semibold tabular-nums">{group.subtotal}</span>
+            </div>
+            {group.funders.length > 1 ? (
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {group.funders.map(f => (
+                  <div key={f.funderId ?? f.funderName} className="flex justify-between gap-4">
+                    <span>{f.funderName}</span>
+                    <span className="tabular-nums">{f.invoiced}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
-        <div className="sm:justify-self-end">
-          <dl className="min-w-[240px] space-y-2 text-sm">
-            <div className="flex justify-between gap-6">
-              <dt className="font-semibold">Subtotal</dt>
-              <dd className="tabular-nums">{group.subtotal}</dd>
-            </div>
-            <div className="flex justify-between gap-6">
-              <dt className="font-semibold">VAT</dt>
-              <dd className="tabular-nums">£0.00</dd>
-            </div>
-            <div className="flex justify-between gap-6 border-t-2 border-primary pt-3 text-lg font-bold">
-              <dt>Total</dt>
-              <dd className="tabular-nums">{group.subtotal}</dd>
-            </div>
-          </dl>
-        </div>
+
+        <p className="mt-6 text-xs text-muted-foreground">
+          Care services billed for the period {formatUkDate(invoiceRun.periodStart)} to{' '}
+          {formatUkDate(invoiceRun.periodEnd)}.
+        </p>
       </div>
 
       <InvoiceBrandedFooter org={org} />
@@ -205,16 +167,20 @@ export function InvoiceRunPreviewDialog({
   open,
   onOpenChange,
   invoiceRun,
-  funderIdFilter,
+  serviceUserIdFilter,
 }: Props) {
   const org = useInvoiceOrganisation(open)
 
   if (!invoiceRun) return null
 
-  const authorityInvoices = invoiceRun.funderSummaries.filter(group =>
-    matchesFunderFilter(group.funderId, funderIdFilter),
-  )
-  const hasLines = authorityInvoices.length > 0
+  const allSu =
+    invoiceRun.serviceUserSummaries && invoiceRun.serviceUserSummaries.length > 0
+      ? invoiceRun.serviceUserSummaries
+      : []
+  const invoices = serviceUserIdFilter
+    ? allSu.filter(g => g.serviceUserId === serviceUserIdFilter)
+    : allSu
+  const hasLines = invoices.length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,16 +196,16 @@ export function InvoiceRunPreviewDialog({
             <span className="font-mono text-xs text-muted-foreground">
               {invoiceRunRef(invoiceRun)}
             </span>
-            {authorityInvoices.length > 0 ? (
+            {invoices.length > 0 ? (
               <Badge variant="secondary" size="sm">
-                {authorityInvoices.length} authority invoice{authorityInvoices.length === 1 ? '' : 's'}
+                {invoices.length} service user invoice{invoices.length === 1 ? '' : 's'}
               </Badge>
             ) : null}
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Each local authority and funder receives its own separate invoice with a unique invoice
-            number. Provider details are loaded from Settings → Company.
+            Each service user receives their own invoice. Provider details are loaded from Settings →
+            Company.
           </p>
 
           {!hasLines ? (
@@ -247,28 +213,26 @@ export function InvoiceRunPreviewDialog({
               No invoice lines yet. Calculate the run to generate charges from approved visits.
             </div>
           ) : (
-            authorityInvoices.map(group => {
-              const originalIndex = invoiceRun.funderSummaries.findIndex(
-                row => (row.funderId ?? null) === (group.funderId ?? null),
-              )
+            invoices.map(group => {
+              const originalIndex = allSu.findIndex(row => row.serviceUserId === group.serviceUserId)
               return (
-              <div key={group.funderId ?? 'direct'} className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" size="sm">
-                    Authority invoice — {group.funderName}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {group.lineCount} line{group.lineCount === 1 ? '' : 's'} · {group.subtotal}
-                  </span>
+                <div key={group.serviceUserId} className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" size="sm">
+                      Service user invoice — {group.serviceUserName}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {group.lineCount} line{group.lineCount === 1 ? '' : 's'} · {group.subtotal}
+                    </span>
+                  </div>
+                  <LiveInvoiceDocument
+                    invoiceRun={invoiceRun}
+                    group={group}
+                    invoiceIndex={originalIndex}
+                    invoiceTotal={allSu.length}
+                    org={org}
+                  />
                 </div>
-                <LiveInvoiceDocument
-                  invoiceRun={invoiceRun}
-                  group={group}
-                  invoiceIndex={originalIndex}
-                  invoiceTotal={invoiceRun.funderSummaries.length}
-                  org={org}
-                />
-              </div>
               )
             })
           )}
@@ -280,7 +244,7 @@ export function InvoiceRunPreviewDialog({
                 <span className="text-lg font-semibold tabular-nums">{invoiceRun.netTotal}</span>
               </div>
               {invoiceRun.outstandingValue < invoiceRun.netTotalValue ? (
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
                   <span>Paid: {invoiceRun.paidAmount}</span>
                   <span>Outstanding: {invoiceRun.outstanding}</span>
                 </div>

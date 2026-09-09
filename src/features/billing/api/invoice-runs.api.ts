@@ -45,12 +45,64 @@ export type InvoiceRunFunderSummary = {
   lineCount: number
   subtotal: string
   subtotalValue: number
+  paid?: string
+  paidValue?: number
+  outstanding?: string
+  outstandingValue?: number
+  paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
+  lines: InvoiceRunLine[]
+}
+
+/** One invoice document per service user on the run. */
+export type InvoiceRunServiceUserHistoryEvent = {
+  id: string
+  type: 'CREATED' | 'APPROVED' | 'LOCKED' | 'SENT' | 'PAYMENT'
+  at: string
+  label: string
+  detail: string | null
+  amount: string | null
+  amountValue: number | null
+  reference: string | null
+  funderName: string | null
+}
+
+export type InvoiceRunServiceUserFunderShare = {
+  funderId: string | null
+  funderName: string
+  funderCode: string | null
+  invoiced: string
+  invoicedValue: number
+  paid?: string
+  paidValue?: number
+  outstanding?: string
+  outstandingValue?: number
+  paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
+}
+
+/** One invoice document per service user on the run. */
+export type InvoiceRunServiceUserSummary = {
+  serviceUserId: string
+  serviceUserName: string
+  serviceUserNumber: string | null
+  lineCount: number
+  funderCount: number
+  funderLabel: string
+  funders: InvoiceRunServiceUserFunderShare[]
+  subtotal: string
+  subtotalValue: number
+  paid?: string
+  paidValue?: number
+  outstanding?: string
+  outstandingValue?: number
+  paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
+  history?: InvoiceRunServiceUserHistoryEvent[]
   lines: InvoiceRunLine[]
 }
 
 export type InvoiceRunDetail = InvoiceRunRow & {
   notes: string | null
   lineCount: number
+  createdAt?: string | null
   approvedAt: string | null
   lockedAt: string | null
   sentAt: string | null
@@ -61,6 +113,7 @@ export type InvoiceRunDetail = InvoiceRunRow & {
   netTotalValue: number
   lines: InvoiceRunLine[]
   funderSummaries: InvoiceRunFunderSummary[]
+  serviceUserSummaries?: InvoiceRunServiceUserSummary[]
 }
 
 export async function fetchInvoiceRuns(params?: {
@@ -229,6 +282,17 @@ export type ServiceUserInvoiceLine = {
   amount: string
   amountValue: number
   exceptionMessage: string | null
+  date?: string | null
+  slot?: string | null
+  carerName?: string | null
+  plannedStart?: string | null
+  plannedEnd?: string | null
+  actualStart?: string | null
+  actualEnd?: string | null
+  plannedDuration?: string | null
+  actualDuration?: string | null
+  durationVariance?: string | null
+  address?: string | null
 }
 
 export type ServiceUserInvoiceRunRow = {

@@ -34,6 +34,8 @@ export type ServiceUserInvoiceMonthRow = {
   outstandingValue: number
   paymentStatus: InvoiceRunPaymentStatus
   canRecordPayment: boolean
+  /** Set when recording from a service-user invoice so paid is attributed to that person. */
+  serviceUserId?: string
   funders: ServiceUserInvoiceFunderShare[]
 }
 

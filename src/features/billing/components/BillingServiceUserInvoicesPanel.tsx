@@ -59,8 +59,8 @@ function PaymentBadge({
   }
   if (status === 'PART_PAID') {
     return (
-      <span className="inline-flex max-w-full flex-wrap items-center gap-x-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-        In progress
+      <span className="inline-flex max-w-full items-center gap-x-1 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        Partial paid
         {paid ? <span className="tabular-nums">· {paid} paid</span> : null}
       </span>
     )
@@ -225,6 +225,7 @@ function SentProgress({ sent, remaining }: { sent: number; remaining: number }) 
 function paidTowardServiceUser(m: ServiceUserInvoiceMonthRow): number {
   if (m.funders.length > 0) {
     const fromFunders = m.funders.reduce((s, f) => s + f.paidValue, 0)
+    // Only count amounts tagged to this service user's funders (not other funders on the run).
     return Math.round(Math.min(Math.max(0, fromFunders), m.subtotalValue) * 100) / 100
   }
   if (m.runNetTotalValue > 0.001) {
@@ -236,31 +237,6 @@ function paidTowardServiceUser(m: ServiceUserInvoiceMonthRow): number {
 
 function totalPaidForServiceUser(row: ServiceUserInvoiceOverviewRow): number {
   return Math.round(row.months.reduce((s, m) => s + paidTowardServiceUser(m), 0) * 100) / 100
-}
-
-/** Compact per-row paid-vs-invoiced progress. */
-function PaidProgressBar({ paid, total }: { paid: number; total: number }) {
-  const safeTotal = Math.max(0, total)
-  const safePaid = Math.min(Math.max(0, paid), safeTotal)
-  const pct = safeTotal > 0 ? Math.round((safePaid / safeTotal) * 100) : 0
-  return (
-    <div className="min-w-[9.5rem] max-w-[14rem]">
-      <div className="mb-0.5 flex items-center justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
-        <span>
-          {gbp.format(safePaid)}
-          <span className="text-muted-foreground/80"> / {gbp.format(safeTotal)}</span>
-        </span>
-        <span className="font-medium text-foreground">{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-950/50">
-        <div
-          className="h-full rounded-full bg-emerald-500 transition-all"
-          style={{ width: `${pct}%` }}
-          title={`${gbp.format(safePaid)} paid of ${gbp.format(safeTotal)}`}
-        />
-      </div>
-    </div>
-  )
 }
 
 function CountPill({ value, tone }: { value: number; tone: 'sent' | 'pending' }) {
@@ -292,7 +268,7 @@ function InvoiceDetailDialog({
 }) {
   return (
     <Dialog open={run !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent size="full" className="max-w-[min(98vw,88rem)]">
         <DialogHeader>
           <DialogTitle>{run ? `Invoice — ${run.period}` : 'Invoice'}</DialogTitle>
         </DialogHeader>
@@ -380,44 +356,79 @@ function InvoiceDetailDialog({
               </div>
             ) : null}
 
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[560px] text-xs">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-muted-foreground">
-                    <th className="px-3 py-2 text-left font-medium">Visit</th>
-                    <th className="px-3 py-2 text-left font-medium">Funder</th>
-                    <th className="px-3 py-2 text-left font-medium">Description</th>
-                    <th className="px-3 py-2 text-right font-medium">Mins</th>
-                    <th className="px-3 py-2 text-right font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {run.lines.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">
-                        No invoice lines for this client on this run.
-                      </td>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Visits
+              </p>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[1480px] text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                      <th className="px-3 py-2 text-left font-medium">Visit reference</th>
+                      <th className="px-3 py-2 text-left font-medium">Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Slot</th>
+                      <th className="px-3 py-2 text-left font-medium">Carer</th>
+                      <th className="px-3 py-2 text-left font-medium">Planned start</th>
+                      <th className="px-3 py-2 text-left font-medium">Planned end</th>
+                      <th className="px-3 py-2 text-left font-medium">Actual start</th>
+                      <th className="px-3 py-2 text-left font-medium">Actual end</th>
+                      <th className="px-3 py-2 text-left font-medium">Planned duration</th>
+                      <th className="px-3 py-2 text-left font-medium">Actual duration</th>
+                      <th className="px-3 py-2 text-left font-medium">Duration variance</th>
+                      <th className="px-3 py-2 text-left font-medium">Address</th>
+                      <th className="px-3 py-2 text-left font-medium">Funder</th>
+                      <th className="px-3 py-2 text-right font-medium">Amount</th>
                     </tr>
-                  ) : (
-                    run.lines.map((line) => (
-                      <tr key={line.id} className="border-b border-border/60 last:border-0">
-                        <td className="px-3 py-2 font-medium">{line.visitRef ?? '—'}</td>
-                        <td className="px-3 py-2">{line.funderName}</td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {line.description}
-                          {line.exceptionMessage ? (
-                            <span className="ml-1 text-amber-600 dark:text-amber-400">
-                              · {line.exceptionMessage}
-                            </span>
-                          ) : null}
+                  </thead>
+                  <tbody>
+                    {run.lines.length === 0 ? (
+                      <tr>
+                        <td colSpan={14} className="px-3 py-4 text-center text-muted-foreground">
+                          No invoice lines for this client on this run.
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{line.minutes ?? '—'}</td>
-                        <td className="px-3 py-2 text-right tabular-nums font-medium">{line.amount}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      run.lines.map((line) => (
+                        <tr key={line.id} className="border-b border-border/60 last:border-0 align-top">
+                          <td className="whitespace-nowrap px-3 py-2 font-medium">
+                            {line.visitRef ?? '—'}
+                            {line.exceptionMessage ? (
+                              <p className="mt-0.5 max-w-[12rem] text-[10px] font-normal text-amber-600 dark:text-amber-400">
+                                {line.exceptionMessage}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.date ?? '—'}</td>
+                          <td className="px-3 py-2">{line.slot ?? '—'}</td>
+                          <td className="px-3 py-2">{line.carerName ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.plannedStart ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.plannedEnd ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.actualStart ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.actualEnd ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.plannedDuration ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.actualDuration ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.durationVariance ?? '—'}</td>
+                          <td className="max-w-[14rem] px-3 py-2" title={line.address ?? undefined}>
+                            <span className="line-clamp-2">{line.address ?? '—'}</span>
+                          </td>
+                          <td className="px-3 py-2">{line.funderName}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">
+                            {line.amount}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </DialogBody>
         ) : null}
@@ -610,6 +621,7 @@ function MonthTable({
       }}
       invoice={payInvoice}
       serviceUserName={serviceUserName}
+      serviceUserId={serviceUserId}
     />
     <SendServiceUserInvoiceEmailDialog
       open={emailInvoice !== null}
@@ -633,6 +645,8 @@ function MonthTable({
 
 function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
   const [open, setOpen] = React.useState(false)
+  const paid = totalPaidForServiceUser(row)
+  const remaining = Math.max(0, Math.round((row.totalInvoicedValue - paid) * 100) / 100)
   return (
     <>
       <tr
@@ -667,17 +681,27 @@ function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
         <td className="px-3 py-2.5 text-right">
           <CountPill value={row.pendingCount} tone="pending" />
         </td>
-        <td className="px-3 py-2.5">
-          <PaidProgressBar paid={totalPaidForServiceUser(row)} total={row.totalInvoicedValue} />
-        </td>
         <td className="px-3 py-2.5 text-right tabular-nums font-medium">{row.totalInvoiced}</td>
+        <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+          {gbp.format(paid)}
+        </td>
+        <td
+          className={cn(
+            'px-3 py-2.5 text-right tabular-nums font-medium',
+            remaining > 0.001
+              ? 'text-amber-600 dark:text-amber-400'
+              : 'text-muted-foreground',
+          )}
+        >
+          {gbp.format(remaining)}
+        </td>
         <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
           {row.lastPeriodEnd ?? '—'}
         </td>
       </tr>
       {open ? (
         <tr className="border-b border-border bg-muted/10 last:border-0">
-          <td colSpan={7} className="px-3 py-2">
+          <td colSpan={8} className="px-3 py-2">
             <MonthTable
               months={row.months}
               serviceUserId={row.serviceUserId}
@@ -940,20 +964,16 @@ export function BillingServiceUserInvoicesPanel() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[960px] text-sm">
+              <table className="w-full min-w-[1040px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Service user</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Invoices</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Sent</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Remaining</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                      Progress
-                      <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground/80">
-                        Paid of invoiced
-                      </span>
-                    </th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Total invoiced</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Balance</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Last period</th>
                   </tr>
                 </thead>
