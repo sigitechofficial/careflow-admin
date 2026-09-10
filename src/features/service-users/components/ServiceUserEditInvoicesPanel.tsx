@@ -39,7 +39,7 @@ function InvoiceDetailDialog({
 }) {
   return (
     <Dialog open={run !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent size="full" className="max-w-[min(98vw,88rem)]">
         <DialogHeader>
           <DialogTitle>{run ? `Invoice — ${run.period}` : 'Invoice'}</DialogTitle>
         </DialogHeader>
@@ -127,44 +127,79 @@ function InvoiceDetailDialog({
               </div>
             ) : null}
 
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[560px] text-xs">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-muted-foreground">
-                    <th className="px-3 py-2 text-left font-medium">Visit</th>
-                    <th className="px-3 py-2 text-left font-medium">Funder</th>
-                    <th className="px-3 py-2 text-left font-medium">Description</th>
-                    <th className="px-3 py-2 text-right font-medium">Mins</th>
-                    <th className="px-3 py-2 text-right font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {run.lines.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">
-                        No invoice lines for this client on this run.
-                      </td>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Visits
+              </p>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[1480px] text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                      <th className="px-3 py-2 text-left font-medium">Visit reference</th>
+                      <th className="px-3 py-2 text-left font-medium">Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Slot</th>
+                      <th className="px-3 py-2 text-left font-medium">Carer</th>
+                      <th className="px-3 py-2 text-left font-medium">Planned start</th>
+                      <th className="px-3 py-2 text-left font-medium">Planned end</th>
+                      <th className="px-3 py-2 text-left font-medium">Actual start</th>
+                      <th className="px-3 py-2 text-left font-medium">Actual end</th>
+                      <th className="px-3 py-2 text-left font-medium">Planned duration</th>
+                      <th className="px-3 py-2 text-left font-medium">Actual duration</th>
+                      <th className="px-3 py-2 text-left font-medium">Duration variance</th>
+                      <th className="px-3 py-2 text-left font-medium">Address</th>
+                      <th className="px-3 py-2 text-left font-medium">Funder</th>
+                      <th className="px-3 py-2 text-right font-medium">Amount</th>
                     </tr>
-                  ) : (
-                    run.lines.map((line) => (
-                      <tr key={line.id} className="border-b border-border/60 last:border-0">
-                        <td className="px-3 py-2 font-medium">{line.visitRef ?? '—'}</td>
-                        <td className="px-3 py-2">{line.funderName}</td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {line.description}
-                          {line.exceptionMessage ? (
-                            <span className="ml-1 text-amber-600 dark:text-amber-400">
-                              · {line.exceptionMessage}
-                            </span>
-                          ) : null}
+                  </thead>
+                  <tbody>
+                    {run.lines.length === 0 ? (
+                      <tr>
+                        <td colSpan={14} className="px-3 py-4 text-center text-muted-foreground">
+                          No invoice lines for this client on this run.
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{line.minutes ?? '—'}</td>
-                        <td className="px-3 py-2 text-right tabular-nums font-medium">{line.amount}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      run.lines.map((line) => (
+                        <tr key={line.id} className="border-b border-border/60 last:border-0 align-top">
+                          <td className="whitespace-nowrap px-3 py-2 font-medium">
+                            {line.visitRef ?? '—'}
+                            {line.exceptionMessage ? (
+                              <p className="mt-0.5 max-w-[12rem] text-[10px] font-normal text-amber-600 dark:text-amber-400">
+                                {line.exceptionMessage}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.date ?? '—'}</td>
+                          <td className="px-3 py-2">{line.slot ?? '—'}</td>
+                          <td className="px-3 py-2">{line.carerName ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.plannedStart ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.plannedEnd ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.actualStart ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {line.actualEnd ?? '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.plannedDuration ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.actualDuration ?? '—'}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{line.durationVariance ?? '—'}</td>
+                          <td className="max-w-[14rem] px-3 py-2" title={line.address ?? undefined}>
+                            <span className="line-clamp-2">{line.address ?? '—'}</span>
+                          </td>
+                          <td className="px-3 py-2">{line.funderName}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">
+                            {line.amount}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </DialogBody>
         ) : null}

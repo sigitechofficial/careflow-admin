@@ -23,6 +23,10 @@ export function formatBillingLabel(value: string): string {
     return trimmed
   }
 
+  const key = trimmed.toUpperCase().replace(/\s+/g, '_')
+  // Partial payment on an invoice = payment still in progress.
+  if (key === 'PART_PAID') return 'Partial paid'
+
   return trimmed
     .toLowerCase()
     .replace(/_/g, ' ')

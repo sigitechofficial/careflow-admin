@@ -34,6 +34,7 @@ import {
   type PayCardWorkerTypeKey,
 } from '@/features/billing/types/billing-cards.types'
 import { serializePayCardRulesForApi, normalizePayCardRulesForEditor } from '@/features/billing/utils/billing-card-payload.util'
+import { isNightDutyPayRule } from '@/features/billing/utils/billing-card-rule.util'
 import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 
 type PayCardFormDialogProps = {
@@ -238,6 +239,7 @@ export function PayCardFormDialog({ open, onOpenChange, card }: PayCardFormDialo
         rule.rateType === 'MILEAGE'
         || rule.rateType === 'TRAVEL_TIME'
         || rule.rateType === 'WAITING_TIME'
+        || isNightDutyPayRule(rule)
       if (!(Number(rule.amount) > 0)) {
         setError('Every rate rule needs an amount greater than zero.')
         return
