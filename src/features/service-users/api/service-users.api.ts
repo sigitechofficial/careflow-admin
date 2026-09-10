@@ -1763,7 +1763,7 @@ export type PatchServiceUserAddressPayload = {
   latitude?: number
   longitude?: number
   accessInstructions?: string
-  keySafeNumber?: string
+  keySafeNumber?: string | null
   accessMethod?: string | null
   keySafeLocation?: string | null
 }
