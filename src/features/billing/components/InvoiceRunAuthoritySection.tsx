@@ -34,9 +34,10 @@ export function InvoiceRunAuthoritySection({
   onRecordPayment,
 }: Props) {
   const [open, setOpen] = React.useState(false)
+  const lines = group.lines ?? []
   const invoiceNumber = invoiceRunRef(invoiceRun, group.funderCode)
-  const clientCount = new Set(group.lines.map((line) => line.serviceUserId)).size
-  const exceptionCount = group.lines.filter((line) => line.exceptionMessage).length
+  const clientCount = new Set(lines.map((line) => line.serviceUserId)).size
+  const exceptionCount = lines.filter((line) => line.exceptionMessage).length
   const paid = group.paid ?? '£0.00'
   const outstanding = group.outstanding ?? group.subtotal
   const outstandingValue = group.outstandingValue ?? group.subtotalValue
@@ -152,7 +153,7 @@ export function InvoiceRunAuthoritySection({
                   </tr>
                 </thead>
                 <tbody>
-                  {group.lines.map((line) => (
+                  {lines.map((line) => (
                     <tr key={line.id} className="border-b border-border/60 last:border-0">
                       <td className="px-3 py-2 font-mono">{line.visitRef ?? '—'}</td>
                       <td className="px-3 py-2">
