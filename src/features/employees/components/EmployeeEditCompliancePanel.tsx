@@ -67,7 +67,7 @@ function statusBadge(item: ComplianceChecklistItem) {
   }
   return (
     <Badge variant="muted" size="sm">
-      {status.replaceAll('_', ' ').toLowerCase()}
+      {status.replace(/_/g, ' ').toLowerCase()}
     </Badge>
   )
 }
