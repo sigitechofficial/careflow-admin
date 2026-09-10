@@ -31,10 +31,10 @@ test.describe('Employees: table', () => {
         await employees.filterStatus('All')
       })
 
-      await test.step('Compliance tab', async () => {
+      await test.step('Compliance board tab', async () => {
         await employees.openTab('employee-tab-compliance')
-        await page.getByTestId('employee-compliance-panel').waitFor({ state: 'visible' })
-        await page.getByRole('heading', { name: 'Employee Compliance' }).waitFor({ state: 'visible' })
+        await page.getByTestId('compliance-board').waitFor({ state: 'visible' })
+        await page.getByRole('heading', { name: 'Staff Compliance Board' }).waitFor({ state: 'visible' })
       })
 
       await test.step('Skills tab', async () => {

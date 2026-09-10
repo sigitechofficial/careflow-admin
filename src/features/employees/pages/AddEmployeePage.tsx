@@ -471,7 +471,7 @@ function LookupSelect({
 
 export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: string } = {}) {
   const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as { tab?: string }
+  const search = useSearch({ strict: false }) as { tab?: string; complianceType?: string }
   const isEditMode = Boolean(editEmployeeId)
   const [tab, setTab] = React.useState<TabId>('personal')
   const editTab: EditEmployeeTabId = isEditMode
@@ -2129,7 +2129,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             ) : null}
 
             {isEditMode && editTab === 'employment-compliance' && editEmployeeId ? (
-              <EmployeeEditCompliancePanel employeeId={editEmployeeId} />
+              <EmployeeEditCompliancePanel
+                employeeId={editEmployeeId}
+                initialComplianceTypeCode={search.complianceType}
+              />
             ) : null}
 
             {isEditMode && editTab === 'learning' && editEmployeeId ? (

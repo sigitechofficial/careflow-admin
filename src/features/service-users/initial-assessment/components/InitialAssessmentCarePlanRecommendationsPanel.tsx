@@ -157,7 +157,7 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
     if (lifecycle) {
       return (
         <p className="text-sm text-muted-foreground" data-testid="ia-care-plan-recommendations-empty">
-          No pending care plan recommendations from the latest Initial Assessment.
+          No pending care plan recommendations.
         </p>
       )
     }

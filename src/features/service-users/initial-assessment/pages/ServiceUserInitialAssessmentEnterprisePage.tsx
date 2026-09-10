@@ -20,7 +20,6 @@ import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
-import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useAuthStore } from '@/features/auth/store'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { Label } from '@/shared/ui/form-field'
@@ -238,7 +237,6 @@ import {
   IA_QA_DEMO_DATA_BUTTON_LABEL,
   IA_QA_DEMO_DATA_BUTTON_TOOLTIP,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
-import { isIaQaDemoUiEnabled } from '@/features/service-users/initial-assessment/utils/ia-qa-demo-enabled'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
@@ -368,15 +366,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     can('service_users.initial_assessment.read') ||
     can('service_users.read')
   const hasApi = !!getApiBaseUrl()
-  const { locationId: globalLocationId } = useGlobalLocationScope()
 
   const { data: listData, isLoading: listLoading } = useServiceUsers(
-    {
-      limit: 100,
-      sortBy: 'lastName',
-      sortOrder: 'asc',
-      locationId: globalLocationId ?? undefined,
-    },
+    { limit: 100, sortBy: 'lastName', sortOrder: 'asc' },
     hasApi && canRead,
   )
   const serviceUsers = listData?.rows ?? []
@@ -390,7 +382,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const domCareQuery = useServiceUserDomCare(selectedId, hasApi && canRead && !!selectedId)
   const suLookupsQuery = useServiceUserLookups()
   const allergiesQuery = useServiceUserAllergies(selectedId, hasApi && canRead && !!selectedId)
-  const qaDemoUiEnabled = isIaQaDemoUiEnabled()
   const autoSubmissionId = React.useMemo(
     () => resolveInitialAssessmentSubmissionId(submissionsQuery.data, urlSearch.submissionId),
     [submissionsQuery.data, urlSearch.submissionId],
@@ -1128,7 +1119,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   // QA Demo Data: does the ACTIVE tab already hold answers or worksheet data?
   // Drives the overwrite confirm; only ever inspects the current tab, never other sections.
   const currentTabHasDemoData = React.useMemo(() => {
-    if (!qaDemoUiEnabled) return false
+    if (!import.meta.env.DEV) return false
     const answered = [...currentTabQuestions, ...demoFillQuestions].some((q) => {
       const a = draftAnswers[q.id]
       if (!a) return false
@@ -1183,7 +1174,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     carePlanObjectives,
     mentalCapacityChecklist,
     photographyConsent,
-    qaDemoUiEnabled,
   ])
 
   const waterlowScore = React.useMemo(() => computeWaterlowScore(waterlow), [waterlow])
@@ -2170,8 +2160,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           }
         />
 
-        {/* QA Demo Data — DEV, or production when VITE_ENABLE_IA_QA_DEMO=true (any Service User). */}
-        {qaDemoUiEnabled && canUpdate ? (
+        {/* QA Demo Data — dev/QA only; hidden entirely in production builds. */}
+        {import.meta.env.DEV && canUpdate ? (
           <div className="flex flex-wrap items-center gap-3">
             <TooltipProvider delayDuration={250}>
               <Tooltip>
@@ -2540,7 +2530,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           {hasComment ? (
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" title="Section comment" />
                           ) : null}
-                          {qaDemoUiEnabled ? (
+                          {import.meta.env.DEV ? (
                             demoFilledTabs.has(tab.id) ? (
                               <span
                                 className="shrink-0 text-[11px] font-bold leading-none text-emerald-400"
@@ -2589,7 +2579,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       HOLISTIC_FORM_PAGE_CLASS,
                     )}
                   >
-                  {qaDemoUiEnabled && canUpdate ? (
+                  {import.meta.env.DEV && canUpdate ? (
                     <SectionQaDemoDataPanel
                       tabId={currentHolisticTab.id}
                       tabTitle={holisticTabTitle(currentHolisticTab.id)}

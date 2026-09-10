@@ -5,6 +5,7 @@ import { getCareForm } from '@/features/care-pathway/api/form-builder.api'
 import { listSelectableForms } from '@/features/care-pathway/api/form-selection.api'
 import { carePathwayKeys } from '@/features/care-pathway/keys'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
+import { CarePlanRichTextField } from '@/features/service-users/care-plan/CarePlanRichTextField'
 import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
 import { CarePlanFormAccordion } from '@/features/service-users/care-plan/CarePlanFormAccordion'
 import {
@@ -96,14 +97,13 @@ function MedicationAssessmentFields({
             <Label className="text-sm font-normal text-muted-foreground">{field.label}</Label>
             <FieldHelp text={field.help} />
           </div>
-          <textarea
-            rows={field.rows ?? 3}
+          <CarePlanRichTextField
             disabled={disabled}
             value={getAssessmentField(values, assessmentId, field.id)}
-            onChange={(e) =>
-              onChange(setAssessmentField(values, assessmentId, field.id, e.target.value))
+            onChange={(html) =>
+              onChange(setAssessmentField(values, assessmentId, field.id, html))
             }
-            className="min-h-[76px] w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            minHeight={Math.max(76, (field.rows ?? 3) * 28)}
           />
         </div>
       )
@@ -135,14 +135,13 @@ function MedicationAssessmentFields({
                 <Label className="text-sm font-normal text-muted-foreground">{follow.label}</Label>
                 <FieldHelp text={follow.help} />
               </div>
-              <textarea
-                rows={3}
+              <CarePlanRichTextField
                 disabled={disabled}
                 value={getAssessmentField(values, assessmentId, follow.id)}
-                onChange={(e) =>
-                  onChange(setAssessmentField(values, assessmentId, follow.id, e.target.value))
+                onChange={(html) =>
+                  onChange(setAssessmentField(values, assessmentId, follow.id, html))
                 }
-                className="min-h-[76px] w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                minHeight={96}
               />
             </div>
           ))}

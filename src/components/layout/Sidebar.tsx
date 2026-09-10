@@ -308,6 +308,17 @@ const navItems: NavItem[] = [
     children: [
       { label: 'All Employee', icon: <Users className="h-4 w-4" />, href: '/employee/staff-list', permission: 'employees.read', navTestId: 'nav-employee-staff-list' },
       {
+        label: 'Compliance board',
+        icon: <ShieldCheck className="h-4 w-4" />,
+        href: '/employee/compliance',
+        anyPermission: [
+          'employees.read',
+          'employees.compliance.read',
+          'employees.compliance.reports.read',
+        ],
+        navTestId: 'nav-employee-compliance-board',
+      },
+      {
         label: 'Employee hours',
         icon: <Clock className="h-4 w-4" />,
         href: '/employee/hours',

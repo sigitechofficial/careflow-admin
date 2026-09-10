@@ -3,11 +3,9 @@ import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/Care
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 
 vi.mock('@/shared/ui/summernote-editor', () => ({
-  SummernoteEditor: () => null,
-}))
-
-vi.mock('@/shared/ui/rich-text-editor', () => ({
-  RichTextEditor: () => <div data-testid="rich-text-stub" />,
+  SummernoteEditor: ({ value }: { value?: string }) => (
+    <textarea data-testid="summernote-stub" readOnly value={value ?? ''} />
+  ),
 }))
 
 const eatingForm: CareFormDetail = {

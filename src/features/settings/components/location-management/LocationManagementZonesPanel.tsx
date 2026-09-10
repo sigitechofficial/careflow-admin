@@ -113,7 +113,8 @@ function branchLocationSubtitle(branch: LocationTreeBranch): string | null {
   if (!raw) return null
   if (namesEqual(raw, branch.name)) return null
   const parts = raw.split(/\s+-\s+/).map(p => p.trim()).filter(Boolean)
-  if (parts.length >= 2 && parts.every(p => namesEqual(p, parts[0]))) return null
+  const first = parts[0]
+  if (parts.length >= 2 && first && parts.every(p => namesEqual(p, first))) return null
   return raw
 }
 

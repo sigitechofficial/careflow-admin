@@ -65,6 +65,7 @@ export function ComplianceRequirementsSettingsPanel() {
   const [workAreaId, setWorkAreaId] = React.useState(NONE)
   const [renewalBeforeDays, setRenewalBeforeDays] = React.useState('30')
   const [isMandatory, setIsMandatory] = React.useState(true)
+  const [blocksAllocation, setBlocksAllocation] = React.useState(true)
   const [actionError, setActionError] = React.useState<string | null>(null)
 
   const filtered = React.useMemo(() => {
@@ -86,6 +87,7 @@ export function ComplianceRequirementsSettingsPanel() {
     setWorkAreaId(NONE)
     setRenewalBeforeDays('30')
     setIsMandatory(true)
+    setBlocksAllocation(true)
     setActionError(null)
     setDialogOpen(true)
   }
@@ -97,6 +99,7 @@ export function ComplianceRequirementsSettingsPanel() {
     setWorkAreaId(row.workAreaId ?? NONE)
     setRenewalBeforeDays(String(row.renewalBeforeDays))
     setIsMandatory(row.isMandatory)
+    setBlocksAllocation(row.blocksAllocation ?? row.isMandatory)
     setActionError(null)
     setDialogOpen(true)
   }
@@ -117,6 +120,7 @@ export function ComplianceRequirementsSettingsPanel() {
       roleId: roleId === NONE ? undefined : roleId,
       workAreaId: workAreaId === NONE ? undefined : workAreaId,
       isMandatory,
+      blocksAllocation,
       renewalBeforeDays: renewal,
     }
     try {
@@ -169,8 +173,9 @@ export function ComplianceRequirementsSettingsPanel() {
       <div>
         <h2 className="text-base font-semibold text-foreground">Compliance requirements</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Matrix of which compliance types apply by role, work area, and other employment dimensions. Drives
-          mandatory checklist and renewal alert windows.
+          Which compliance types apply by role and work area. Controls the employee checklist, board
+          columns, renewal alerts, and whether a gap can block rostering (with General Settings →
+          Employee allocation mode).
         </p>
       </div>
 
@@ -195,7 +200,7 @@ export function ComplianceRequirementsSettingsPanel() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              {['Compliance type', 'Role', 'Work area', 'Mandatory', 'Alert days', ''].map(h => (
+              {['Compliance type', 'Role', 'Work area', 'Mandatory', 'Blocks rota', 'Alert days', ''].map(h => (
                 <th key={h} className="text-left px-3 py-2.5 font-medium text-muted-foreground whitespace-nowrap">
                   {h}
                 </th>
@@ -205,13 +210,13 @@ export function ComplianceRequirementsSettingsPanel() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-muted-foreground">
+                <td colSpan={7} className="px-3 py-6 text-muted-foreground">
                   Loading…
                 </td>
               </tr>
             ) : pagination.paginatedItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-muted-foreground">
+                <td colSpan={7} className="px-3 py-6 text-muted-foreground">
                   No requirements configured.
                 </td>
               </tr>
@@ -222,6 +227,9 @@ export function ComplianceRequirementsSettingsPanel() {
                   <td className="px-3 py-2.5 text-muted-foreground">{dimLabel(row.roleId, roles)}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{dimLabel(row.workAreaId, workAreas)}</td>
                   <td className="px-3 py-2.5">{row.isMandatory ? 'Yes' : 'No'}</td>
+                  <td className="px-3 py-2.5">
+                    {(row.blocksAllocation ?? row.isMandatory) ? 'Yes' : 'No'}
+                  </td>
                   <td className="px-3 py-2.5">{row.renewalBeforeDays}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1">
@@ -314,7 +322,11 @@ export function ComplianceRequirementsSettingsPanel() {
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={isMandatory} onCheckedChange={setIsMandatory} />
-              <span className="text-sm">Mandatory</span>
+              <span className="text-sm">Mandatory on checklist</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={blocksAllocation} onCheckedChange={setBlocksAllocation} />
+              <span className="text-sm">Blocks rostering when missing / expired</span>
             </div>
             {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
           </DialogBody>

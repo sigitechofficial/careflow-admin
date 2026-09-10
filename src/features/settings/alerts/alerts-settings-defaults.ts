@@ -12,17 +12,19 @@ export const DEFAULT_ALERTS_SETTINGS: OrganisationAlertsSettings = {
 
 export const ALERTS_TOOLTIPS = {
   actionsOverdue:
-    "If yes, actions with times will appear on the manager's dashboard when they are overdue by the time defined below.",
+    'Organisation setting for incident follow-up overdue timing. Independent notification behaviour is unchanged.',
   actionsOverdueMinutes:
-    'Number of minutes after the scheduled time before an overdue action appears on the manager dashboard.',
+    'Stored threshold (minutes) for incident follow-up overdue timing.',
   requiredCheckNotTicked:
-    "If yes, required checks not ticked off with times will appear on the manager's dashboard.",
+    'Persisted organisation setting. Existing independent notification behaviour is unchanged.',
   requiredMedicationNotGiven:
-    'If yes, alerts appear when required medication has not been given as scheduled.',
+    'Persisted organisation setting for medication not-given handling. Existing MAR notifications are unchanged.',
   scheduleJobsBeforeHours:
-    'How many hours before the start time schedule jobs are retrieved for the operations dashboard.',
-  beepOnNewAlert: 'Sound Alerts on Operations Dashboard when new alert arrives.',
-  fluidAlerts: 'Enable fluid intake and output alerting for service users.',
+    'Persisted setting for operations dashboards.',
+  beepOnNewAlert:
+    'Persisted setting for operations dashboard sound.',
+  fluidAlerts:
+    'Persisted organisation setting for fluid-alert preferences.',
 } as const
 
 export function alertsSettingsToPayload(s: OrganisationAlertsSettings) {

@@ -112,6 +112,7 @@ import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
 import MyActionsPage from '@/features/incidents/pages/MyActionsPage'
 import IncidentAnalyticsPage from '@/features/incidents/pages/IncidentAnalyticsPage'
+import ServiceUserAlertsPage from '@/features/alerts/pages/ServiceUserAlertsPage'
 import BillingManagementPage from '@/features/billing/pages/BillingManagementPage'
 import InvoiceRunDetailPage from '@/features/billing/pages/InvoiceRunDetailPage'
 import VisitReconciliationPage from '@/features/billing/pages/VisitReconciliationPage'
@@ -238,6 +239,7 @@ const pageTitles: Record<string, string> = {
   // '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
   '/service-users/add': 'Add Service User',
   '/service-users/$serviceUserId/profile': 'Profile',
+  '/service-users/$serviceUserId/alerts': 'Medical & alerts',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
@@ -252,7 +254,7 @@ const pageTitles: Record<string, string> = {
   '/employee/staff-list': 'Employee',
   '/employee/hours': 'Employee hours',
   '/employee/absences': 'Absence tracker',
-  '/employee/compliance': 'Employee',
+  '/employee/compliance': 'Compliance board',
   '/employee/review-status': 'Employee',
   '/employee/skills': 'Employee',
   '/employee/non-core-activity': 'Employee',
@@ -951,6 +953,13 @@ const serviceUsersBodyMapRoute = createRoute({
   component: ServiceUserBodyMapPage,
 })
 
+const serviceUsersAlertsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/alerts',
+  beforeLoad: requirePermission('service_users.read'),
+  component: ServiceUserAlertsPage,
+})
+
 const serviceUsersDocumentsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/documents',
@@ -1183,7 +1192,11 @@ const employeeAbsencesRoute = createRoute({
 const employeeComplianceRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/compliance',
-  beforeLoad: requirePermission('employees.read'),
+  beforeLoad: requireAnyPermission(
+    'employees.read',
+    'employees.compliance.read',
+    'employees.compliance.reports.read',
+  ),
   loader: ({ context: { queryClient: qc } }) => {
     prefetchEmployeeTab(qc, 'compliance')
   },
@@ -1267,11 +1280,18 @@ const employeeAddRoute = createRoute({
 const employeeEditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/employee/$employeeId/edit',
-  validateSearch: (raw: Record<string, unknown>): { tab?: string } => {
+  validateSearch: (raw: Record<string, unknown>): { tab?: string; complianceType?: string } => {
     const tab = typeof raw.tab === 'string' && raw.tab.trim() ? raw.tab.trim() : undefined
-    return tab ? { tab } : {}
+    const complianceType =
+      typeof raw.complianceType === 'string' && raw.complianceType.trim()
+        ? raw.complianceType.trim().toUpperCase()
+        : undefined
+    return {
+      ...(tab ? { tab } : {}),
+      ...(complianceType ? { complianceType } : {}),
+    }
   },
-  beforeLoad: requirePermission('employees.update'),
+  beforeLoad: requireAnyPermission('employees.update', 'employees.compliance.update'),
   loader: ({ context: { queryClient: qc }, params: { employeeId } }) => {
     prefetchEmployeeEditRoute(qc, employeeId)
   },
@@ -1980,6 +2000,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersObservationsRoute,
     serviceUsersEcmRoute,
     serviceUsersBodyMapRoute,
+    serviceUsersAlertsRoute,
     serviceUsersDocumentsRoute,
     bodyMapReviewQueueRoute,
     initialAssessmentReviewQueueRoute,

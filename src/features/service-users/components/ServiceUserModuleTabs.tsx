@@ -9,6 +9,8 @@ import {
   figmaModuleTabIcon,
   type ServiceUserModuleTabIconId,
 } from '@/features/service-users/figma-action-icons'
+import { useAuthStore } from '@/features/auth/store'
+import type { Permission } from '@/features/auth/types'
 
 type ModuleTab = {
   id: ServiceUserModuleTabIconId
@@ -25,6 +27,9 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/body-map'
     | '/service-users/$serviceUserId/documents'
     | '/service-users/$serviceUserId/activity'
+    | '/service-users/$serviceUserId/alerts'
+  /** When set, tab is hidden unless the user has this permission. */
+  permission?: Permission
 }
 
 /** Light circle behind glyph exports that omit a filled disc (meds includes its own). */
@@ -97,7 +102,11 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
     label: 'Body Map',
     to: '/service-users/$serviceUserId/body-map',
   },
-  { id: 'alerts', label: 'Alerts' },
+  {
+    id: 'alerts',
+    label: 'Medical & Alerts',
+    to: '/service-users/$serviceUserId/alerts',
+  },
   {
     id: 'activity',
     label: 'Activity',
@@ -118,10 +127,17 @@ export function isServiceUserModuleTabActive(tab: ModuleTab, pathname: string): 
   if (tab.id === 'body-map') return pathname.includes('/body-map')
   if (tab.id === 'documents') return pathname.includes('/documents')
   if (tab.id === 'activity') return pathname.includes('/activity')
+  if (tab.id === 'alerts') return /\/service-users\/[^/]+\/alerts\/?$/.test(pathname)
   return false
 }
 
-function TabContent({ tab, active }: { tab: ModuleTab; active: boolean }) {
+function TabContent({
+  tab,
+  active,
+}: {
+  tab: ModuleTab
+  active: boolean
+}) {
   const circleBg = MODULE_TAB_CIRCLE_BG[tab.id]
   const fullTile = circleBg === null
 
@@ -129,7 +145,7 @@ function TabContent({ tab, active }: { tab: ModuleTab; active: boolean }) {
     <div className="flex flex-col items-center gap-1.5">
       <span
         className={cn(
-          'flex h-11 w-11 items-center justify-center overflow-hidden rounded-full shadow-sm',
+          'relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full shadow-sm',
           active && 'ring-2 ring-teal-500 ring-offset-2',
         )}
         style={circleBg ? { backgroundColor: circleBg } : undefined}
@@ -161,7 +177,8 @@ export function ServiceUserModuleTabs({
   serviceUserId: string
   shellLayout?: ServiceUserModuleShellLayout
 }) {
-  const pathname = useRouterState({ select: s => s.location.pathname })
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const can = useAuthStore((s) => s.can)
 
   return (
     <div className="border-b border-border bg-card">
@@ -171,7 +188,9 @@ export function ServiceUserModuleTabs({
           serviceUserModuleShellClass(shellLayout),
         )}
       >
-        {SERVICE_USER_MODULE_TABS.map(tab => {
+        {SERVICE_USER_MODULE_TABS.map((tab) => {
+          if (tab.permission && !can(tab.permission)) return null
+          if (tab.id === 'alerts' && !can('service_users.read')) return null
           const active = isServiceUserModuleTabActive(tab, pathname)
           const content = <TabContent tab={tab} active={active} />
 

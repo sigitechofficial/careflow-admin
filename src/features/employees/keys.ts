@@ -90,6 +90,10 @@ export const employeeKeys = {
   complianceChecklist: (id: string, ensure: boolean) =>
     [...employeeKeys.detail(id), 'compliance-checklist', { ensure }] as const,
 
+  /** Staff compliance board matrix. */
+  complianceBoard: (params?: Record<string, string | boolean | undefined>) =>
+    [...employeeKeys.all(), 'compliance-board', params ?? {}] as const,
+
   /** Staff reviews for one employee. */
   reviews: (id: string) => [...employeeKeys.detail(id), 'reviews'] as const,
 

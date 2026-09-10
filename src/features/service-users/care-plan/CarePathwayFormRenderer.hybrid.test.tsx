@@ -4,7 +4,9 @@ import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.
 import type { CarePlanFieldSuggestion } from '@/features/service-users/care-plans/types'
 
 vi.mock('@/shared/ui/summernote-editor', () => ({
-  SummernoteEditor: () => null,
+  SummernoteEditor: ({ value }: { value?: string }) => (
+    <textarea data-testid="summernote-stub" readOnly value={value ?? ''} />
+  ),
 }))
 
 const form: CareFormDetail = {
@@ -211,5 +213,18 @@ describe('CarePathwayFormRenderer hybrid UI', () => {
     expect(screen.queryByTestId('care-plan-suggestion-sec-access:personal-care')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /use suggestion/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /ignore/i })).not.toBeInTheDocument()
+  })
+
+  it('renders TEXTAREA fields with the IA Summernote rich-text editor', () => {
+    render(
+      <CarePathwayFormRenderer
+        form={form}
+        values={{ 'sec-access:personal-care': 'line 1\nline 2\nline 3' }}
+        onChange={() => undefined}
+      />,
+    )
+
+    expect(document.querySelector('[data-care-plan-rich-text]')).toBeInTheDocument()
+    expect(screen.getByTestId('summernote-stub')).toHaveValue('line 1\nline 2\nline 3')
   })
 })
