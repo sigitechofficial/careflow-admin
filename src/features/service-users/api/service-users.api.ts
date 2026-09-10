@@ -158,6 +158,8 @@ export type ServiceUserDetailAddress = {
   longitude: unknown
   accessInstructions: string | null
   keySafeNumber: string | null
+  accessMethod: string | null
+  keySafeLocation: string | null
 } | null
 
 export type ServiceUserDetailPhoto = {
@@ -1741,6 +1743,8 @@ export type PatchServiceUserAddressPayload = {
   longitude?: number
   accessInstructions?: string
   keySafeNumber?: string
+  accessMethod?: string | null
+  keySafeLocation?: string | null
 }
 
 /** Payload aligned with Nest `CreateServiceUserDto` (optional fields omitted when empty). */

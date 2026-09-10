@@ -39,13 +39,15 @@ export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
     const map: Record<string, RecordedObservation> = {}
     for (const row of observationsQuery.data?.recordedThisVisit ?? []) {
       const key = normalizeObservationCode(row.observationTypeCode)
-      const value = row.valueLabel?.trim()
-      if (key && value)
-        map[key] = {
-          label: row.title?.trim() || 'Observation',
-          value,
-          notes: row.notes?.trim() || null,
-        }
+      const value = row.valueLabel?.trim() ?? ''
+      const photos = row.photos ?? []
+      if (!key || (!value && photos.length === 0 && !row.notes?.trim())) continue
+      map[key] = {
+        label: row.title?.trim() || 'Observation',
+        value,
+        notes: row.notes?.trim() || null,
+        photos,
+      }
     }
     return map
   }, [observationsQuery.data])

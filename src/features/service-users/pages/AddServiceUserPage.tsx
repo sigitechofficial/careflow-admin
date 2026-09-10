@@ -47,6 +47,7 @@ import {
   buildSuProfileReferences,
   SU_PROFILE_REF,
 } from '@/features/service-users/utils/service-user-profile-refs'
+import { HomeAccessFields } from '@/features/service-users/components/HomeAccessFields'
 
 type FormState = {
   firstName: string
@@ -106,6 +107,8 @@ type FormState = {
   accessServiceUserApp: boolean
   keySafeNumber: string
   accessInstructions: string
+  accessMethod: string
+  keySafeLocation: string
   postcode: string
   secondaryPostcode: string
 } & Omit<AddressPlacesValue, 'postcode'>
@@ -168,6 +171,8 @@ const emptyForm: FormState = {
   accessServiceUserApp: false,
   keySafeNumber: '',
   accessInstructions: '',
+  accessMethod: '',
+  keySafeLocation: '',
   postcode: '',
   secondaryPostcode: '',
   addressLine1: '',
@@ -352,6 +357,8 @@ function hasAddressData(f: FormState): boolean {
     f.longitude,
     f.keySafeNumber,
     f.accessInstructions,
+    f.accessMethod,
+    f.keySafeLocation,
   ].some((s) => s.trim() !== '')
 }
 
@@ -370,6 +377,8 @@ function buildAddressPayload(f: FormState) {
     longitude: lng != null && Number.isFinite(lng) ? lng : undefined,
     keySafeNumber: f.keySafeNumber.trim() || undefined,
     accessInstructions: f.accessInstructions.trim() || undefined,
+    accessMethod: f.accessMethod.trim() || null,
+    keySafeLocation: f.keySafeLocation.trim() || null,
   }
 }
 
@@ -902,29 +911,24 @@ export default function AddServiceUserPage() {
                     }
                   })
                 }
-              >
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <LabelWithTip tip="Key safe code where consented.">Key safe number</LabelWithTip>
-                    <Input
-                      value={form.keySafeNumber}
-                      onChange={(e) => set('keySafeNumber')(e.target.value)}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <LabelWithTip tip="Access instructions for staff.">Access instructions</LabelWithTip>
-                    <textarea
-                      rows={2}
-                      className={cn(
-                        'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
-                        'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                      )}
-                      value={form.accessInstructions}
-                      onChange={(e) => set('accessInstructions')(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </AddressPlacesField>
+              />
+            </div>
+
+            <div>
+              <LabelWithTip tip="Separate from the service address. Choose how carers get in.">
+                How to enter the home
+              </LabelWithTip>
+              <div className="mt-2 rounded-xl border border-border bg-card p-4">
+                <HomeAccessFields
+                  value={{
+                    accessMethod: form.accessMethod,
+                    keySafeLocation: form.keySafeLocation,
+                    keySafeNumber: form.keySafeNumber,
+                    accessInstructions: form.accessInstructions,
+                  }}
+                  onChange={patch => setForm(prev => ({ ...prev, ...patch }))}
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3">

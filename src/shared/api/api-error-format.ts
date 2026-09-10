@@ -33,8 +33,10 @@ const FIELD_LABELS: Record<string, string> = {
   postcode: 'Postcode',
   latitude: 'Latitude',
   longitude: 'Longitude',
-  keySafeNumber: 'Key safe number',
-  accessInstructions: 'Access instructions',
+  keySafeNumber: 'Key safe code',
+  keySafeLocation: 'Key safe location',
+  accessMethod: 'Access method',
+  accessInstructions: 'How to enter the property',
   username: 'Username',
 }
 

@@ -40,6 +40,7 @@ import {
   listServiceUserEnterpriseFundings,
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { homeAccessMethodLabel } from '@/features/service-users/home-access'
 import { Loader2 } from 'lucide-react'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 import {
@@ -687,10 +688,18 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
             ) : (
               <p className="text-sm">{detail.location?.name ?? '—'}</p>
             )}
-            {addr?.keySafeNumber || addr?.accessInstructions ? (
+            {addr?.keySafeNumber ||
+            addr?.accessInstructions ||
+            addr?.accessMethod ||
+            addr?.keySafeLocation ? (
               <p className="mt-1 flex items-start gap-1 text-sm text-muted-foreground">
                 <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                {[addr.keySafeNumber && `Key safe: ${addr.keySafeNumber}`, addr.accessInstructions]
+                {[
+                  homeAccessMethodLabel(addr.accessMethod),
+                  addr.keySafeLocation && `Key safe: ${addr.keySafeLocation}`,
+                  addr.keySafeNumber && `Code: ${addr.keySafeNumber}`,
+                  addr.accessInstructions,
+                ]
                   .filter(Boolean)
                   .join(' · ')}
               </p>
