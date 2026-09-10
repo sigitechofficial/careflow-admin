@@ -143,8 +143,10 @@ function ProtocolEditor({
               <Input
                 value={step.action}
                 onChange={e => {
+                  const current = steps[i]
+                  if (!current) return
                   const next = [...steps]
-                  next[i] = { ...next[i], action: e.target.value }
+                  next[i] = { ...current, action: e.target.value }
                   setSteps(next)
                 }}
                 placeholder="Action"
@@ -153,8 +155,10 @@ function ProtocolEditor({
               <textarea
                 value={step.detail}
                 onChange={e => {
+                  const current = steps[i]
+                  if (!current) return
                   const next = [...steps]
-                  next[i] = { ...next[i], detail: e.target.value }
+                  next[i] = { ...current, detail: e.target.value }
                   setSteps(next)
                 }}
                 placeholder="Detail"
