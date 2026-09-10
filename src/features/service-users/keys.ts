@@ -47,6 +47,8 @@ export const serviceUserKeys = {
   /** Allergies list. */
   allergies: (id: string) =>
     [...serviceUserKeys.detail(id), 'allergies'] as const,
+  medicationAllergies: (id: string) =>
+    [...serviceUserKeys.detail(id), 'medication-allergies'] as const,
 
   /** Personal inventory. */
   inventory: (id: string) =>

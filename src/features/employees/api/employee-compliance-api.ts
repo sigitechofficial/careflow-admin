@@ -15,6 +15,13 @@ export type EmployeeComplianceStatus =
   | 'NOT_REQUIRED'
   | 'NO_LONGER_REQUIRED'
 
+export type EmployeeComplianceUploader = {
+  id: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+}
+
 export type EmployeeComplianceDocumentRow = {
   id: string
   employeeComplianceId: string
@@ -24,6 +31,8 @@ export type EmployeeComplianceDocumentRow = {
   mimeType: string
   fileSize: number
   uploadedAt: string
+  uploadedById?: string | null
+  uploadedBy?: EmployeeComplianceUploader | null
 }
 
 export type EmployeeComplianceRow = {
@@ -37,6 +46,7 @@ export type EmployeeComplianceRow = {
   notes: string | null
   isNoLongerRequired: boolean
   noLongerRequiredReason: string | null
+  updatedAt?: string | null
   complianceType: { id: string; name: string; hasExpiry?: boolean; requiresDocument?: boolean } | null
   documents: EmployeeComplianceDocumentRow[]
 }
@@ -182,7 +192,11 @@ export async function uploadComplianceDocument(
   if (typeof body !== 'object' || body === null || !('data' in body)) {
     throw new ApiError('Unexpected API response', 0)
   }
-  return (body as ApiEnvelope<EmployeeComplianceDocumentRow>).data
+  const data = (body as ApiEnvelope<EmployeeComplianceDocumentRow | { document: EmployeeComplianceDocumentRow }>).data
+  if (data && typeof data === 'object' && 'document' in data && data.document) {
+    return data.document
+  }
+  return data as EmployeeComplianceDocumentRow
 }
 
 export async function deleteComplianceDocument(
@@ -243,6 +257,141 @@ export function complianceDatesToPayload(issueDate: string, expiryDate: string):
   if (expiryDate.trim()) body.expiryDate = new Date(`${expiryDate.trim()}T12:00:00.000Z`).toISOString()
   else body.expiryDate = null
   return body
+}
+
+export type ComplianceBoardCellStatus = EmployeeComplianceStatus | 'NOT_APPLICABLE'
+
+export type ComplianceBoardDisplayStatus = 'BLOCKED' | 'ATTENTION' | 'COMPLIANT'
+
+export type ComplianceBoardColumn = {
+  code: string
+  shortLabel: string
+  name: string
+  complianceTypeId: string
+  group?: string
+}
+
+export type ComplianceBoardCell = {
+  code: string
+  typeName?: string | null
+  complianceTypeId: string
+  applicable: boolean
+  effectiveStatus: ComplianceBoardCellStatus
+  employeeComplianceId: string | null
+  expiryDate: string | null
+  daysRemaining: number | null
+  critical: boolean
+  blocksRostering?: boolean
+  isMandatory?: boolean
+}
+
+export type ComplianceBoardNextAction = {
+  typeCode: string | null
+  typeName: string | null
+  kind: string
+  expiryDate: string | null
+  daysRemaining: number | null
+  blocksAllocation: boolean
+  primary: string
+  secondary: string | null
+}
+
+export type ComplianceBoardRow = {
+  employeeId: string
+  employeeName: string
+  jobTitle: string | null
+  roleName: string | null
+  locationId?: string | null
+  visaTypeId?: string | null
+  needsImmigrationRtw?: boolean
+  blocksAllocation: boolean
+  attentionCount: number
+  compliancePercent?: number | null
+  overallDisplayStatus?: ComplianceBoardDisplayStatus
+  blockingIssueCount?: number
+  warningIssueCount?: number
+  totalIssueCount?: number
+  additionalOffBoardIssueCount?: number
+  nextAction?: ComplianceBoardNextAction
+  nearestExpiryDate?: string | null
+  nearestExpiryDays?: number | null
+  cells: ComplianceBoardCell[]
+}
+
+export type ComplianceBoardAlert = {
+  employeeId: string
+  employeeName: string
+  message: string
+  severity: 'critical' | 'warning'
+  complianceTypeCode?: string | null
+}
+
+export type ComplianceBoardData = {
+  columns: ComplianceBoardColumn[]
+  rows: ComplianceBoardRow[]
+  alerts: ComplianceBoardAlert[]
+  allocationPolicy?: {
+    mode: 'WARN' | 'BLOCK'
+    blockStatuses: string[]
+    includeLearning: boolean
+  }
+  summary: {
+    employeeCount: number
+    blockedCount: number
+    clearCount: number
+    criticalAlertCount: number
+    warningAlertCount?: number
+    gapCellCount?: number
+    alertTotal?: number
+    needsActionCount?: number
+    expiredCount?: number
+    expiring7Count?: number
+    expiring8To30Count?: number
+    fullyCompliantCount?: number
+  }
+  asOf: string
+}
+
+export type ComplianceBoardQueryParams = {
+  hideNoLongerRequired?: boolean
+  includeInactiveEmployees?: boolean
+  visaTypeIds?: string[]
+  needsImmigrationRtw?: boolean
+  search?: string
+  displayStatus?: ComplianceBoardDisplayStatus
+  documentState?: 'expired' | 'expiring_7' | 'expiring_8_30' | 'missing' | 'valid'
+  issuesOnly?: boolean
+  boardSort?: 'urgent' | 'nearest_expiry' | 'name'
+  locationId?: string
+  signal?: AbortSignal
+}
+
+export async function fetchComplianceBoard(
+  params?: ComplianceBoardQueryParams,
+): Promise<ComplianceBoardData> {
+  const qs = new URLSearchParams()
+  if (params?.hideNoLongerRequired === false) qs.set('hideNoLongerRequired', 'false')
+  if (params?.includeInactiveEmployees) qs.set('includeInactiveEmployees', 'true')
+  if (params?.visaTypeIds?.length) {
+    for (const id of params.visaTypeIds) qs.append('visaTypeIds', id)
+  }
+  if (params?.needsImmigrationRtw === true) qs.set('needsImmigrationRtw', 'true')
+  if (params?.needsImmigrationRtw === false) qs.set('needsImmigrationRtw', 'false')
+  if (params?.search?.trim()) qs.set('search', params.search.trim())
+  if (params?.displayStatus) qs.set('displayStatus', params.displayStatus)
+  if (params?.documentState) qs.set('documentState', params.documentState)
+  if (params?.issuesOnly) qs.set('issuesOnly', 'true')
+  if (params?.boardSort) qs.set('boardSort', params.boardSort)
+  if (params?.locationId) qs.set('locationId', params.locationId)
+  qs.set('limit', '100')
+  qs.set('page', '1')
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<ComplianceBoardData>>(
+    `/employee-compliance/board${q ? `?${q}` : ''}`,
+    { method: 'GET', signal: params?.signal },
+  )
+  if (res && typeof res === 'object' && 'data' in res) return res.data
+  return res as unknown as ComplianceBoardData
 }
 
 export { isoToDateInput as complianceIsoToDateInput }

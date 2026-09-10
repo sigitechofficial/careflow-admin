@@ -158,7 +158,7 @@ export type CarePlanRecommendation = {
   decidedAt?: string | null
   carePathwayFormId?: string
   carePathwayFormName?: string
-  source?: 'rule' | 'legacy'
+  source?: 'rule' | 'legacy' | 'medical_condition'
   ruleId?: string
 }
 

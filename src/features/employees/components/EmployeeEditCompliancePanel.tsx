@@ -1,63 +1,42 @@
 import * as React from 'react'
-import { Download, Eye, Save, Trash2, Upload } from 'lucide-react'
+import { Download, Eye, Pencil, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useAuthStore } from '@/features/auth/store'
 import type {
   ComplianceChecklistItem,
   EmployeeComplianceDocumentRow,
-  EmployeeComplianceRow,
 } from '@/features/employees/types'
-import { parseComplianceNotes, serializeComplianceNotes } from '@/features/employees/compliance/compliance-dbs-notes'
+import { parseComplianceNotes } from '@/features/employees/compliance/compliance-dbs-notes'
+import { complianceIsoToDateInput } from '@/features/employees/compliance/compliance-form-utils'
 import {
-  complianceDatesToPayload,
-  complianceIsoToDateInput,
-} from '@/features/employees/compliance/compliance-form-utils'
+  COMPLIANCE_DOCUMENT_VERSION_OPTIONS,
+  COMPLIANCE_STATUS_FILTER_OPTIONS,
+  docsForVersionFilter,
+  filterComplianceChecklistItems,
+  formatComplianceUploaderLabel,
+  sortDocsNewestFirst,
+  type ComplianceDocumentVersionFilter,
+  type ComplianceStatusFilter,
+} from '@/features/employees/compliance/compliance-document-filters'
 import {
-  useCreateEmployeeCompliance,
   useDeleteComplianceDocument,
   useDownloadComplianceDocument,
   useEmployeeComplianceChecklist,
-  useUpdateEmployeeCompliance,
-  useUploadComplianceDocument,
 } from '@/features/employees/hooks/useEmployeeCompliance'
+import { EmployeeComplianceEditSheet } from '@/features/employees/components/EmployeeComplianceEditSheet'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
 import { Switch } from '@/shared/ui/toggle-controls'
 import { cn, formatDate } from '@/shared/lib/utils'
-
-const ACCEPT =
-  'application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-
-type ItemDraft = {
-  issueDate: string
-  expiryDate: string
-  notes: string
-  dbsCode: string
-  transferable: boolean
-}
-
-function draftFromItem(item: ComplianceChecklistItem): ItemDraft {
-  const row = item.record
-  const parsed = parseComplianceNotes(row?.notes, item.code)
-  return {
-    issueDate: complianceIsoToDateInput(row?.issueDate),
-    expiryDate: complianceIsoToDateInput(row?.expiryDate),
-    notes: parsed.userNotes,
-    dbsCode: parsed.dbsCode,
-    transferable: parsed.transferable,
-  }
-}
-
-function sortDocsNewestFirst(docs: EmployeeComplianceDocumentRow[]): EmployeeComplianceDocumentRow[] {
-  return [...docs].sort((a, b) => {
-    const ta = Date.parse(a.uploadedAt)
-    const tb = Date.parse(b.uploadedAt)
-    if (Number.isFinite(tb) && Number.isFinite(ta) && tb !== ta) return tb - ta
-    return b.id.localeCompare(a.id)
-  })
-}
 
 function canPreviewComplianceFile(doc: EmployeeComplianceDocumentRow): boolean {
   const mime = (doc.mimeType ?? '').toLowerCase()
@@ -65,7 +44,42 @@ function canPreviewComplianceFile(doc: EmployeeComplianceDocumentRow): boolean {
   return mime.includes('pdf') || mime.startsWith('image/') || name.endsWith('.pdf') || /\.(jpe?g|png|gif|webp)$/.test(name)
 }
 
-export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string }) {
+function statusBadge(item: ComplianceChecklistItem) {
+  const status = item.record?.isNoLongerRequired ? 'NO_LONGER_REQUIRED' : item.record?.status
+  if (!status) {
+    return (
+      <Badge variant="muted" size="sm">
+        Missing
+      </Badge>
+    )
+  }
+  if (status === 'EXPIRED') return <Badge variant="destructive" size="sm">Expired</Badge>
+  if (status === 'EXPIRING_SOON') return <Badge variant="warning" size="sm">Near expiry</Badge>
+  if (status === 'MISSING' || status === 'REQUIRED') {
+    return <Badge variant="muted" size="sm">Missing</Badge>
+  }
+  if (status === 'PENDING_REVIEW') return <Badge variant="warning" size="sm">Pending</Badge>
+  if (status === 'NO_LONGER_REQUIRED' || status === 'NOT_REQUIRED') {
+    return <Badge variant="muted" size="sm">Not required</Badge>
+  }
+  if (status === 'VALID' || status === 'SUBMITTED') {
+    return <Badge variant="success" size="sm">Provided</Badge>
+  }
+  return (
+    <Badge variant="muted" size="sm">
+      {status.replace(/_/g, ' ').toLowerCase()}
+    </Badge>
+  )
+}
+
+export function EmployeeEditCompliancePanel({
+  employeeId,
+  initialComplianceTypeCode,
+}: {
+  employeeId: string
+  /** From board deep-link `?complianceType=DBS` — opens that checklist item. */
+  initialComplianceTypeCode?: string | null
+}) {
   const apiConfigured = Boolean(getApiBaseUrl())
   const accessToken = useAuthStore(s => s.accessToken)
   const jwtPresent = Boolean(accessToken?.includes('.'))
@@ -76,9 +90,6 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
   const canDownload = useAuthStore(s => s.can('employees.compliance.documents.download'))
   const canDeleteDoc = useAuthStore(s => s.can('employees.compliance.documents.delete'))
 
-  const createMutation = useCreateEmployeeCompliance()
-  const updateMutation = useUpdateEmployeeCompliance()
-  const uploadMutation = useUploadComplianceDocument()
   const deleteDocMutation = useDeleteComplianceDocument()
   const downloadMutation = useDownloadComplianceDocument()
   const checklistQuery = useEmployeeComplianceChecklist(
@@ -89,29 +100,25 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
 
   const [workAreaName, setWorkAreaName] = React.useState('—')
   const [items, setItems] = React.useState<ComplianceChecklistItem[]>([])
-  const [drafts, setDrafts] = React.useState<Record<string, ItemDraft>>({})
   const [error, setError] = React.useState<string | null>(null)
   const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [hideNoLongerRequired, setHideNoLongerRequired] = React.useState(true)
-  const [savingKey, setSavingKey] = React.useState<string | null>(null)
-  const [uploadingKey, setUploadingKey] = React.useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = React.useState<ComplianceStatusFilter>('all')
+  const [versionFilter, setVersionFilter] = React.useState<ComplianceDocumentVersionFilter>('new')
+  const [editingTypeId, setEditingTypeId] = React.useState<string | null>(null)
   const [docActionKey, setDocActionKey] = React.useState<string | null>(null)
+  const deepLinkApplied = React.useRef(false)
+
+  React.useEffect(() => {
+    deepLinkApplied.current = false
+  }, [employeeId, initialComplianceTypeCode])
 
   const loading = checklistQuery.isLoading
 
-  const applyChecklist = React.useCallback((data: { workAreaName: string | null; items: ComplianceChecklistItem[] }) => {
-    setWorkAreaName(data.workAreaName ?? '—')
-    setItems(data.items)
-    const next: Record<string, ItemDraft> = {}
-    for (const item of data.items) {
-      next[item.complianceTypeId] = draftFromItem(item)
-    }
-    setDrafts(next)
-  }, [])
-
   React.useEffect(() => {
     if (checklistQuery.data) {
-      applyChecklist(checklistQuery.data)
+      setWorkAreaName(checklistQuery.data.workAreaName ?? '—')
+      setItems(checklistQuery.data.items)
       setError(null)
     } else if (checklistQuery.error) {
       setError(
@@ -121,14 +128,32 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
       )
       setItems([])
     }
-  }, [checklistQuery.data, checklistQuery.error, applyChecklist])
+  }, [checklistQuery.data, checklistQuery.error])
+
+  React.useEffect(() => {
+    if (deepLinkApplied.current) return
+    const code = initialComplianceTypeCode?.trim().toUpperCase()
+    if (!code || items.length === 0) return
+    const match = items.find((i) => (i.code ?? '').toUpperCase() === code)
+    if (!match) return
+    deepLinkApplied.current = true
+    setEditingTypeId(match.complianceTypeId)
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `[data-testid="compliance-item-${match.code ?? match.complianceTypeId}"]`,
+      )
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [initialComplianceTypeCode, items])
 
   const visibleItems = React.useMemo(
     () =>
-      hideNoLongerRequired
-        ? items.filter(i => !i.record?.isNoLongerRequired)
-        : items,
-    [hideNoLongerRequired, items],
+      filterComplianceChecklistItems(items, {
+        statusFilter,
+        versionFilter,
+        hideNoLongerRequired,
+      }),
+    [hideNoLongerRequired, items, statusFilter, versionFilter],
   )
 
   const hasDbsRow = React.useMemo(
@@ -136,65 +161,10 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
     [visibleItems],
   )
 
-  const setDraft = (typeId: string, patch: Partial<ItemDraft>) => {
-    setDrafts(prev => {
-      const current = prev[typeId]
-      if (!current) return prev
-      return { ...prev, [typeId]: { ...current, ...patch } }
-    })
-  }
-
-  const ensureRecord = async (item: ComplianceChecklistItem): Promise<EmployeeComplianceRow> => {
-    if (item.record) return item.record
-    if (!canCreate) throw new ApiError('You cannot create compliance records.', 403)
-    return createMutation.mutateAsync({
-      employeeId,
-      body: {
-        complianceTypeId: item.complianceTypeId,
-        requirementId: item.requirementId ?? undefined,
-      },
-    })
-  }
-
-  const onSaveItem = async (item: ComplianceChecklistItem) => {
-    if (!canUpdate && !canCreate) return
-    const d = drafts[item.complianceTypeId]
-    if (!d) return
-    setSavingKey(item.complianceTypeId)
-    setBanner(null)
-    try {
-      const row = await ensureRecord(item)
-      const notes = serializeComplianceNotes(item.code, d.notes, d.dbsCode, d.transferable)
-      await updateMutation.mutateAsync({
-        employeeId,
-        complianceId: row.id,
-        body: {
-          ...complianceDatesToPayload(d.issueDate, d.expiryDate),
-          notes,
-        },
-      })
-      setBanner({ type: 'success', text: `${item.name} saved.` })
-    } catch (e) {
-      setBanner({ type: 'error', text: e instanceof ApiError ? e.message : 'Save failed.' })
-    } finally {
-      setSavingKey(null)
-    }
-  }
-
-  const onUpload = async (item: ComplianceChecklistItem, file: File) => {
-    if (!canUpload) return
-    setUploadingKey(item.complianceTypeId)
-    setBanner(null)
-    try {
-      const row = await ensureRecord(item)
-      await uploadMutation.mutateAsync({ employeeId, complianceId: row.id, file })
-      setBanner({ type: 'success', text: 'Document uploaded. Previous files stay on this record.' })
-    } catch (e) {
-      setBanner({ type: 'error', text: e instanceof ApiError ? e.message : 'Upload failed.' })
-    } finally {
-      setUploadingKey(null)
-    }
-  }
+  const editingItem = React.useMemo(
+    () => items.find(i => i.complianceTypeId === editingTypeId) ?? null,
+    [editingTypeId, items],
+  )
 
   const onDocumentFileAction = async (
     item: ComplianceChecklistItem,
@@ -243,7 +213,8 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
       )
   }
 
-  const showRowActions = canUpdate || canCreate || canDownload || canDeleteDoc
+  const canEdit = canUpdate || canCreate || canUpload
+  const showRowActions = canEdit || canDownload || canDeleteDoc
 
   if (!apiConfigured || !jwtPresent) {
     return (
@@ -266,8 +237,8 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
       <div>
         <h2 className="text-sm font-semibold text-foreground">Compliance Document</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Uploading a new file keeps previous files on this item. The newest is marked Current; older files stay listed
-          so you can view or download them.
+          Use Edit to open the side sheet for notes, dates, DBS details, and uploads. The newest file is Current; older
+          files stay listed as Previous.
         </p>
       </div>
 
@@ -287,12 +258,45 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="flex flex-wrap items-end gap-6">
+      <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[12rem] space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Work area</label>
           <Input value={workAreaName} readOnly className="h-9 bg-muted/30" />
         </div>
-        <label className="flex items-center gap-2 text-sm">
+        <div className="min-w-[12rem] space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Status</label>
+          <Select value={statusFilter} onValueChange={v => setStatusFilter(v as ComplianceStatusFilter)}>
+            <SelectTrigger className="h-9 w-[12rem]" data-testid="compliance-status-filter">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {COMPLIANCE_STATUS_FILTER_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[12rem] space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Document version</label>
+          <Select
+            value={versionFilter}
+            onValueChange={v => setVersionFilter(v as ComplianceDocumentVersionFilter)}
+          >
+            <SelectTrigger className="h-9 w-[12rem]" data-testid="compliance-version-filter">
+              <SelectValue placeholder="Version" />
+            </SelectTrigger>
+            <SelectContent>
+              {COMPLIANCE_DOCUMENT_VERSION_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <label className="flex h-9 items-center gap-2 text-sm">
           <Switch checked={hideNoLongerRequired} onCheckedChange={setHideNoLongerRequired} />
           Hide no longer required
         </label>
@@ -300,11 +304,15 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
 
       {loading ? <p className="text-sm text-muted-foreground">Loading compliance checklist…</p> : null}
 
-      {!loading && visibleItems.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No compliance items are required for this employee&apos;s work area. Assign a work area on the Employment tab
           and re-open this page.
         </p>
+      ) : null}
+
+      {!loading && items.length > 0 && visibleItems.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No compliance items match the selected filters.</p>
       ) : null}
 
       {!loading && visibleItems.length > 0 ? (
@@ -316,6 +324,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-3 py-2 font-medium">Document</th>
+                <th className="px-3 py-2 font-medium">Status</th>
                 {hasDbsRow ? <th className="px-3 py-2 font-medium">DBS code</th> : null}
                 {hasDbsRow ? <th className="px-3 py-2 font-medium">Transferable</th> : null}
                 <th className="px-3 py-2 font-medium">File</th>
@@ -329,14 +338,13 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
             </thead>
             <tbody>
               {visibleItems.map(item => {
-                const d = drafts[item.complianceTypeId] ?? draftFromItem(item)
                 const row = item.record
+                const parsed = parseComplianceNotes(row?.notes, item.code)
                 const isDbsCode = item.code === 'DBS_CODE'
-                const busy = savingKey === item.complianceTypeId || uploadingKey === item.complianceTypeId
                 const docs = sortDocsNewestFirst(row?.documents ?? [])
-                const currentDoc = docs[0]
-                const previousDocs = docs.slice(1)
-                const locked = busy || (!canUpdate && !canCreate)
+                const { current: currentDoc, previous: previousDocs } = docsForVersionFilter(docs, versionFilter)
+                const startDate = complianceIsoToDateInput(row?.issueDate)
+                const expiryDate = complianceIsoToDateInput(row?.expiryDate)
                 const currentBusy = currentDoc ? docActionKey?.startsWith(`${currentDoc.id}:`) : false
 
                 return (
@@ -353,16 +361,11 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                         </span>
                       ) : null}
                     </td>
+                    <td className="px-3 py-2">{statusBadge(item)}</td>
                     {hasDbsRow ? (
                       <td className="px-3 py-2">
                         {isDbsCode ? (
-                          <Input
-                            className="h-8 min-w-[10rem]"
-                            value={d.dbsCode}
-                            disabled={locked}
-                            placeholder="e.g. 001840292079"
-                            onChange={e => setDraft(item.complianceTypeId, { dbsCode: e.target.value })}
-                          />
+                          <span className="text-sm">{parsed.dbsCode || '—'}</span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -371,14 +374,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                     {hasDbsRow ? (
                       <td className="px-3 py-2">
                         {isDbsCode ? (
-                          <label className="flex h-8 items-center gap-2 text-sm">
-                            <Switch
-                              checked={d.transferable}
-                              disabled={locked}
-                              onCheckedChange={v => setDraft(item.complianceTypeId, { transferable: v })}
-                            />
-                            {d.transferable ? 'Yes' : 'No'}
-                          </label>
+                          <span className="text-sm">{parsed.transferable ? 'Yes' : 'No'}</span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -386,29 +382,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                     ) : null}
                     <td className="px-3 py-2">
                       <div className="min-w-[18rem] space-y-1">
-                        {canUpload ? (
-                          <label
-                            className={cn(
-                              'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2 text-xs text-muted-foreground hover:border-primary/50 hover:bg-muted/30',
-                              busy && 'pointer-events-none opacity-60',
-                            )}
-                          >
-                            <Upload className="h-3.5 w-3.5 shrink-0" />
-                            {uploadingKey === item.complianceTypeId ? 'Uploading…' : 'Upload'}
-                            <input
-                              type="file"
-                              accept={ACCEPT}
-                              className="sr-only"
-                              disabled={busy}
-                              onChange={e => {
-                                const f = e.target.files?.[0]
-                                e.target.value = ''
-                                if (f) void onUpload(item, f)
-                              }}
-                            />
-                          </label>
-                        ) : null}
-                        {docs.length === 0 && !canUpload ? (
+                        {!currentDoc && previousDocs.length === 0 ? (
                           <span className="text-xs text-muted-foreground">No document uploaded</span>
                         ) : null}
                         {currentDoc ? (
@@ -421,16 +395,6 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                 <Badge variant="success" size="sm">
                                   Current
                                 </Badge>
-                                {row?.status === 'EXPIRED' ? (
-                                  <Badge variant="destructive" size="sm">
-                                    Expired
-                                  </Badge>
-                                ) : null}
-                                {row?.status === 'EXPIRING_SOON' ? (
-                                  <Badge variant="warning" size="sm">
-                                    Expiring
-                                  </Badge>
-                                ) : null}
                                 <span
                                   className="truncate text-xs font-medium text-foreground"
                                   title={currentDoc.originalName || currentDoc.fileName}
@@ -439,7 +403,8 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                 </span>
                               </div>
                               <p className="pl-0.5 text-[11px] text-muted-foreground">
-                                {formatDate(currentDoc.uploadedAt) || '—'}
+                                {formatDate(currentDoc.uploadedAt) || '—'} ·{' '}
+                                {formatComplianceUploaderLabel(currentDoc.uploadedBy)}
                               </p>
                             </div>
                           </div>
@@ -465,7 +430,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                   </span>
                                 </div>
                                 <p className="pl-0.5 text-[11px] text-muted-foreground">
-                                  {formatDate(doc.uploadedAt) || '—'}
+                                  {formatDate(doc.uploadedAt) || '—'} · {formatComplianceUploaderLabel(doc.uploadedBy)}
                                 </p>
                               </div>
                               <div className="flex shrink-0 items-center">
@@ -476,7 +441,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                     variant="ghost"
                                     title={viewing ? 'Opening…' : 'View'}
                                     aria-label={`View ${fileName}`}
-                                    disabled={busy || fileBusy}
+                                    disabled={fileBusy}
                                     onClick={() => void onDocumentFileAction(item, doc, 'view')}
                                   >
                                     <Eye className="h-3.5 w-3.5" />
@@ -489,7 +454,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                     variant="ghost"
                                     title={downloading ? 'Downloading…' : 'Download'}
                                     aria-label={`Download ${fileName}`}
-                                    disabled={busy || fileBusy}
+                                    disabled={fileBusy}
                                     onClick={() => void onDocumentFileAction(item, doc, 'download')}
                                   >
                                     <Download className="h-3.5 w-3.5" />
@@ -503,7 +468,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                     title="Delete"
                                     aria-label={`Delete ${fileName}`}
                                     className="text-muted-foreground hover:text-destructive"
-                                    disabled={busy || deleteDocMutation.isPending}
+                                    disabled={deleteDocMutation.isPending}
                                     onClick={() => onRemoveDocument(item, doc)}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -516,30 +481,13 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                       </div>
                     </td>
                     <td className="px-3 py-2">
-                      <Input
-                        className="h-8 min-w-[10rem]"
-                        value={d.notes}
-                        disabled={locked}
-                        onChange={e => setDraft(item.complianceTypeId, { notes: e.target.value })}
-                      />
+                      <span className="text-sm">{parsed.userNotes || '—'}</span>
                     </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="date"
-                        className="h-8 w-[10.5rem]"
-                        value={d.issueDate}
-                        disabled={locked}
-                        onChange={e => setDraft(item.complianceTypeId, { issueDate: e.target.value })}
-                      />
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {startDate ? formatDate(`${startDate}T12:00:00.000Z`) || startDate : '—'}
                     </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="date"
-                        className="h-8 w-[10.5rem]"
-                        value={d.expiryDate}
-                        disabled={locked}
-                        onChange={e => setDraft(item.complianceTypeId, { expiryDate: e.target.value })}
-                      />
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {expiryDate ? formatDate(`${expiryDate}T12:00:00.000Z`) || expiryDate : '—'}
                     </td>
                     {showRowActions ? (
                       <td className="px-2 py-2">
@@ -561,7 +509,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                   ? `View ${currentDoc.originalName || currentDoc.fileName}`
                                   : 'View'
                               }
-                              disabled={busy || !currentDoc || currentBusy}
+                              disabled={!currentDoc || currentBusy}
                               onClick={() => currentDoc && void onDocumentFileAction(item, currentDoc, 'view')}
                             >
                               <Eye className="h-4 w-4" />
@@ -584,7 +532,7 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                   ? `Download ${currentDoc.originalName || currentDoc.fileName}`
                                   : 'Download'
                               }
-                              disabled={busy || !currentDoc || currentBusy}
+                              disabled={!currentDoc || currentBusy}
                               onClick={() => currentDoc && void onDocumentFileAction(item, currentDoc, 'download')}
                             >
                               <Download className="h-4 w-4" />
@@ -602,23 +550,23 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
                                   : 'Delete'
                               }
                               className="text-muted-foreground hover:text-destructive"
-                              disabled={busy || !currentDoc || deleteDocMutation.isPending}
+                              disabled={!currentDoc || deleteDocMutation.isPending}
                               onClick={() => currentDoc && onRemoveDocument(item, currentDoc)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           ) : null}
-                          {canUpdate || canCreate ? (
+                          {canEdit ? (
                             <Button
                               type="button"
                               size="icon-sm"
                               variant="ghost"
-                              title={savingKey === item.complianceTypeId ? 'Saving…' : 'Save'}
-                              aria-label={`Save ${item.name}`}
-                              disabled={busy}
-                              onClick={() => void onSaveItem(item)}
+                              title="Edit"
+                              aria-label={`Edit ${item.name}`}
+                              data-testid={`compliance-edit-${item.code ?? item.complianceTypeId}`}
+                              onClick={() => setEditingTypeId(item.complianceTypeId)}
                             >
-                              <Save className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
                           ) : null}
                         </div>
@@ -631,6 +579,21 @@ export function EmployeeEditCompliancePanel({ employeeId }: { employeeId: string
           </table>
         </div>
       ) : null}
+
+      <EmployeeComplianceEditSheet
+        open={Boolean(editingTypeId)}
+        onOpenChange={open => {
+          if (!open) setEditingTypeId(null)
+        }}
+        employeeId={employeeId}
+        item={editingItem}
+        canCreate={canCreate}
+        canUpdate={canUpdate}
+        canUpload={canUpload}
+        canDownload={canDownload}
+        canDeleteDoc={canDeleteDoc}
+        onBanner={setBanner}
+      />
     </div>
   )
 }

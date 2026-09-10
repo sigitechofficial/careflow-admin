@@ -101,6 +101,26 @@ export type ListServiceUsersParams = {
   sortOrder?: 'asc' | 'desc'
   /** Branch / location scope (singular). */
   locationId?: string
+  riskLevelId?: string
+  ageMin?: number
+  ageMax?: number
+  hasActiveFlashMessage?: boolean
+  hospitalisedOnly?: boolean
+  unassignedKeyWorker?: boolean
+  carePlanListStatus?: CarePlanListStatus
+  medicalConditionId?: string
+  initialAssessmentStatus?: 'none' | 'in_progress' | 'awaiting_review' | 'completed'
+  missedVisitsMin?: number
+  missedVisitsFrom?: string
+  missedVisitsTo?: string
+  loneWorkerRisk?: boolean
+  verbalAltercation?: boolean
+  physicalAltercation?: boolean
+  dateOfDeathFrom?: string
+  dateOfDeathTo?: string
+  physicalAbuseToSu?: boolean
+  domesticViolence?: boolean
+  safeguardingHistory?: boolean
 }
 
 export type ServiceUserDetailContact = {
@@ -1731,6 +1751,26 @@ export async function listServiceUsers(
   if (params.sortBy) qs.set('sortBy', params.sortBy)
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
   if (params.locationId) qs.set('locationId', params.locationId)
+  if (params.riskLevelId) qs.set('riskLevelId', params.riskLevelId)
+  if (params.ageMin != null) qs.set('ageMin', String(params.ageMin))
+  if (params.ageMax != null) qs.set('ageMax', String(params.ageMax))
+  if (params.hasActiveFlashMessage === true) qs.set('hasActiveFlashMessage', 'true')
+  if (params.hospitalisedOnly === true) qs.set('hospitalisedOnly', 'true')
+  if (params.unassignedKeyWorker === true) qs.set('unassignedKeyWorker', 'true')
+  if (params.carePlanListStatus) qs.set('carePlanListStatus', params.carePlanListStatus)
+  if (params.medicalConditionId) qs.set('medicalConditionId', params.medicalConditionId)
+  if (params.initialAssessmentStatus) qs.set('initialAssessmentStatus', params.initialAssessmentStatus)
+  if (params.missedVisitsMin != null) qs.set('missedVisitsMin', String(params.missedVisitsMin))
+  if (params.missedVisitsFrom) qs.set('missedVisitsFrom', params.missedVisitsFrom)
+  if (params.missedVisitsTo) qs.set('missedVisitsTo', params.missedVisitsTo)
+  if (params.loneWorkerRisk === true) qs.set('loneWorkerRisk', 'true')
+  if (params.verbalAltercation === true) qs.set('verbalAltercation', 'true')
+  if (params.physicalAltercation === true) qs.set('physicalAltercation', 'true')
+  if (params.dateOfDeathFrom) qs.set('dateOfDeathFrom', params.dateOfDeathFrom)
+  if (params.dateOfDeathTo) qs.set('dateOfDeathTo', params.dateOfDeathTo)
+  if (params.physicalAbuseToSu === true) qs.set('physicalAbuseToSu', 'true')
+  if (params.domesticViolence === true) qs.set('domesticViolence', 'true')
+  if (params.safeguardingHistory === true) qs.set('safeguardingHistory', 'true')
   const q = qs.toString()
   const res = await apiJson<ApiEnvelope<ServiceUserListRow[]>>(`/service-users${q ? `?${q}` : ''}`, {
     method: 'GET',

@@ -7,7 +7,9 @@ import {
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 
 vi.mock('@/shared/ui/summernote-editor', () => ({
-  SummernoteEditor: () => null,
+  SummernoteEditor: ({ value }: { value?: string }) => (
+    <textarea data-testid="summernote-stub" readOnly value={value ?? ''} />
+  ),
 }))
 
 const form: CareFormDetail = {

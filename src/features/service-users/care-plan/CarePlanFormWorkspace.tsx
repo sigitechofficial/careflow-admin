@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.types'
 import type { ServiceUserDetail } from '@/features/service-users/types'
+import { CarePlanRichTextField } from '@/features/service-users/care-plan/CarePlanRichTextField'
 import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
 import { CarePlanAssessmentSection } from '@/features/service-users/care-plan/CarePlanAssessmentSection'
 import { CarePlanConsentCapacitySection } from '@/features/service-users/care-plan/CarePlanConsentCapacitySection'
@@ -149,7 +150,6 @@ function ReviewSummarySection({
   defaultNextReviewDate?: string | null
   publishedNextReviewDueAt?: string | null
 }) {
-  const [summaryExpanded, setSummaryExpanded] = React.useState(false)
   const [signatureKey, setSignatureKey] = React.useState(0)
 
   const status = (metaString(values, CARE_PLAN_META.reviewStatus, 'Active') ||
@@ -172,8 +172,6 @@ function ReviewSummarySection({
       defaultNextReviewDate,
     })
 
-  const showViewMore = summary.trim().length > 280
-
   const clearSignature = () => {
     onChange(setMetaValue(values, CARE_PLAN_META.signature, ''))
     setSignatureKey((k) => k + 1)
@@ -194,38 +192,27 @@ function ReviewSummarySection({
         <FieldLabel required info>
           Review and Evaluation Summary
         </FieldLabel>
-        <textarea
-          className={cn(
-            'w-full resize-y rounded-sm border border-sky-200 bg-background px-3 py-2 text-sm leading-relaxed text-muted-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
-            summaryExpanded ? 'min-h-[280px]' : 'max-h-[180px] min-h-[120px] overflow-y-auto',
-          )}
+        <CarePlanRichTextField
+          className="[&_.note-editor]:rounded-sm [&_.note-editor]:border-sky-200"
           value={summary}
           disabled={disabled}
           placeholder={REVIEW_SUMMARY_PLACEHOLDER}
-          onChange={(e) =>
-            onChange(setMetaValue(values, CARE_PLAN_META.reviewSummary, e.target.value))
+          minHeight={120}
+          onChange={(html) =>
+            onChange(setMetaValue(values, CARE_PLAN_META.reviewSummary, html))
           }
         />
-        {showViewMore ? (
-          <button
-            type="button"
-            className="mt-1 text-sm font-medium text-destructive hover:underline"
-            onClick={() => setSummaryExpanded((v) => !v)}
-          >
-            {summaryExpanded ? 'View less' : 'View more'}
-          </button>
-        ) : null}
       </div>
 
       <div>
         <FieldLabel>Care Plan Summary</FieldLabel>
-        <textarea
-          className="min-h-[120px] w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-sm leading-relaxed ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        <CarePlanRichTextField
           value={carePlanSummary}
           disabled={disabled}
           placeholder={CARE_PLAN_SUMMARY_PLACEHOLDER}
-          onChange={(e) =>
-            onChange(setMetaValue(values, CARE_PLAN_META.carePlanSummary, e.target.value))
+          minHeight={120}
+          onChange={(html) =>
+            onChange(setMetaValue(values, CARE_PLAN_META.carePlanSummary, html))
           }
         />
       </div>

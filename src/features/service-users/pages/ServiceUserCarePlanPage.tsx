@@ -11,6 +11,7 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { serviceUserGivenName } from '@/features/service-users/lib/service-user-display'
 import { CarePlanCard } from '@/features/service-users/care-plan/CarePlanCard'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
+import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
 import { CarePlanDeclinedHistory } from '@/features/service-users/care-plan/CarePlanDeclinedHistory'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 import type { SelectableForm } from '@/features/care-pathway/types/care-pathway.types'
@@ -37,7 +38,7 @@ import { CarePlanReviewBadge } from '@/features/service-users/care-plans/compone
 import { useCarePlanInstances, useCarePlanReviewSummary } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlan } from '@/features/service-users/hooks/useServiceUserCarePlan'
-import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
+import { useCarePlanRecommendations } from '@/features/service-users/hooks/useCarePlanRecommendations'
 import { ServiceUserAssessmentsPanel } from '@/features/service-users/assessments/components/ServiceUserAssessmentsPanel'
 import {
   CarePlanIaRecommendationsBody,
@@ -136,7 +137,7 @@ export default function ServiceUserCarePlanPage() {
   const { formSelections, carePlanCatalogue, acceptedCarePlans } = useServiceUserCarePlan(serviceUserId)
   const instancesQuery = useCarePlanInstances(serviceUserId, apiConfigured)
   const reviewSummaryQuery = useCarePlanReviewSummary(serviceUserId, apiConfigured)
-  const iaSource = useCarePlanIaSource(serviceUserId)
+  const carePlanRecs = useCarePlanRecommendations(serviceUserId)
   const { riskTitle } = useCarePlanIaAccordionTitles(serviceUserId)
   const [availableSearch, setAvailableSearch] = React.useState('')
 
@@ -147,8 +148,7 @@ export default function ServiceUserCarePlanPage() {
     carePlanCatalogue.isLoading ||
     acceptedCarePlans.isLoading ||
     instancesQuery.isLoading ||
-    iaSource.submissionsQuery.isLoading ||
-    Boolean(iaSource.submission && iaSource.summaryQuery.isLoading)
+    carePlanRecs.isLoading
   const error = profileQuery.error instanceof Error ? profileQuery.error.message : null
 
   const carePlanForms: SelectableForm[] = React.useMemo(() => {
@@ -179,7 +179,7 @@ export default function ServiceUserCarePlanPage() {
     [instancesQuery.data],
   )
 
-  const recommendations = iaSource.summaryQuery.data?.carePlanRecommendations ?? []
+  const recommendations = carePlanRecs.recommendations
 
   const buckets = React.useMemo(() => {
     const grouped = groupFormsByDisplayState(carePlanForms, (form) =>
@@ -283,6 +283,10 @@ export default function ServiceUserCarePlanPage() {
 
       <div className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-4">
         <PolicyContextPanel moduleType="CARE_PLAN" className="mb-4" />
+        <ServiceUserSafetySummary
+          serviceUserId={serviceUserId}
+          className="mb-4"
+        />
         {!apiConfigured && (
           <p className="text-sm text-muted-foreground">API base URL is not configured.</p>
         )}
@@ -318,7 +322,7 @@ export default function ServiceUserCarePlanPage() {
 
             <CarePlanLifecycleSection
               title="Recommended"
-              description="Care plans recommended from the latest Initial Assessment."
+              description="Care plans recommended from medical conditions and the latest Initial Assessment."
               testId="recommended-care-plans"
               headingId="care-plans-recommended"
             >
