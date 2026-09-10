@@ -31,6 +31,7 @@ export type VisitTaskAssignment = {
   medicationRoundCode: string
   sortOrder: number
   carerInstructions: string | null
+  bodyMapRequired?: boolean
   priority: string
   schedule: import('@/features/service-users/visit-tasks/visit-task-schedule.util').VisitTaskSchedule
   isEmarPrompt?: boolean

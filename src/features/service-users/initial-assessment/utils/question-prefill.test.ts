@@ -58,6 +58,8 @@ function minimalDetail(overrides: Partial<ServiceUserDetail> = {}): ServiceUserD
       longitude: null,
       accessInstructions: null,
       keySafeNumber: null,
+      accessMethod: null,
+      keySafeLocation: null,
     },
     contacts: [
       {

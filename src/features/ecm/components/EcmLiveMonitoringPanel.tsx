@@ -400,6 +400,21 @@ function summaryMetricClass(active: boolean): string {
   )
 }
 
+/** Join address + postcode without duplicating a postcode already present in the address line. */
+function formatEcmVisitAddress(address?: string | null, postcode?: string | null): string {
+  const addr = address?.replace(/\s+/g, ' ').trim() ?? ''
+  const pc = postcode?.replace(/\s+/g, ' ').trim() ?? ''
+  if (!addr && !pc) return '—'
+  if (!pc) return addr
+  if (!addr) return pc
+  const norm = (s: string) => s.toUpperCase()
+  if (norm(addr) === norm(pc)) return addr
+  const parts = addr.split(',').map((p) => p.trim()).filter(Boolean)
+  if (parts.length > 0 && norm(parts[parts.length - 1]!) === norm(pc)) return addr
+  if (norm(addr).endsWith(norm(pc))) return addr
+  return `${addr}, ${pc}`
+}
+
 export function EcmLiveMonitoringPanel({
   serviceUserId,
 }: {
@@ -878,7 +893,7 @@ export function EcmLiveMonitoringPanel({
                   <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                     Exceptions
                   </th>
-                  <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
+                  <th className="min-w-[12rem] max-w-[16rem] border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
                     Address
                   </th>
                   <th className="border-b border-border px-3 py-2.5 text-left font-medium text-muted-foreground">
@@ -931,6 +946,7 @@ export function EcmLiveMonitoringPanel({
                     const startPunctuality = punctualityLabel(row.arrivalClassification)
                     const endPunctuality = punctualityLabel(row.departureClassification)
                     const durationLabel = durationVarianceLabel(row.durationClassification)
+                    const addressLabel = formatEcmVisitAddress(row.address, row.postcode)
 
                     return (
                       <tr
@@ -1045,8 +1061,13 @@ export function EcmLiveMonitoringPanel({
                             )}
                           </div>
                         </td>
-                        <td className="border-b border-border px-3 py-2.5 text-muted-foreground">
-                          {[row.address, row.postcode].filter(Boolean).join(', ') || '—'}
+                        <td className="min-w-[12rem] max-w-[16rem] border-b border-border px-3 py-2.5 text-muted-foreground">
+                          <span
+                            className="line-clamp-2 break-words"
+                            title={addressLabel === '—' ? undefined : addressLabel}
+                          >
+                            {addressLabel}
+                          </span>
                         </td>
                         <td className="border-b border-border px-3 py-2.5">
                           <Button

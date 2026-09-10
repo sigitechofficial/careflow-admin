@@ -178,6 +178,8 @@ export type ServiceUserDetailAddress = {
   longitude: unknown
   accessInstructions: string | null
   keySafeNumber: string | null
+  accessMethod: string | null
+  keySafeLocation: string | null
 } | null
 
 export type ServiceUserDetailPhoto = {
@@ -213,6 +215,8 @@ export type ServiceUserDetail = {
   notes: string | null
   defaultChargeCardId?: string | null
   defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
+  /** How often this client is invoiced: WEEKLY or MONTHLY. */
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY' | string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -296,6 +300,12 @@ export type EnterpriseFunderRow = {
   name: string
   code: string | null
   fundingType?: { id: string; name: string; code: string } | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  town?: string | null
+  county?: string | null
+  country?: string | null
+  postcode?: string | null
 }
 
 export type EnterpriseServiceUserFundingRow = {
@@ -320,6 +330,12 @@ export type EnterpriseServiceUserFundingRow = {
   billingContactName: string | null
   billingContactEmail: string | null
   billingContactPhone: string | null
+  billingAddressLine1: string | null
+  billingAddressLine2: string | null
+  billingTown: string | null
+  billingCounty: string | null
+  billingCountry: string | null
+  billingPostcode: string | null
   invoiceGroupingRule: string | null
   defaultChargeCardId: string | null
   defaultInvoiceTemplateId: string | null
@@ -367,9 +383,13 @@ export async function listEnterpriseFundingTypes(options?: { limit?: number }): 
   return res.data
 }
 
-export async function listEnterpriseFunders(options?: { limit?: number }): Promise<EnterpriseFunderRow[]> {
+export async function listEnterpriseFunders(options?: {
+  limit?: number
+  isActive?: boolean
+}): Promise<EnterpriseFunderRow[]> {
   const qs = new URLSearchParams()
-  qs.set('limit', String(options?.limit ?? 200))
+  qs.set('limit', String(Math.min(options?.limit ?? 200, 500)))
+  if (options?.isActive !== undefined) qs.set('isActive', String(options.isActive))
   const res = await apiJson<ApiEnvelope<EnterpriseFunderRow[]>>(`/funders?${qs}`, { method: 'GET' })
   return res.data
 }
@@ -431,6 +451,12 @@ export type CreateEnterpriseServiceUserFundingBody = {
   billingContactName?: string | null
   billingContactEmail?: string | null
   billingContactPhone?: string | null
+  billingAddressLine1?: string | null
+  billingAddressLine2?: string | null
+  billingTown?: string | null
+  billingCounty?: string | null
+  billingCountry?: string | null
+  billingPostcode?: string | null
   invoiceGroupingRule?: string | null
   defaultChargeCardId?: string | null
   defaultInvoiceTemplateId?: string | null
@@ -1653,6 +1679,7 @@ export type UpdateServiceUserPayload = {
   namedNurseId?: string | null
   notes?: string | null
   defaultChargeCardId?: string | null
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY'
   serviceUserNumber?: string | null
   residentId?: string | null
   residentGuid?: string | null
@@ -1776,7 +1803,9 @@ export type PatchServiceUserAddressPayload = {
   latitude?: number
   longitude?: number
   accessInstructions?: string
-  keySafeNumber?: string
+  keySafeNumber?: string | null
+  accessMethod?: string | null
+  keySafeLocation?: string | null
 }
 
 /** Payload aligned with Nest `CreateServiceUserDto` (optional fields omitted when empty). */

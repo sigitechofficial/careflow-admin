@@ -28,6 +28,7 @@ import {
   listServiceUserEnterpriseFundings,
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { homeAccessMethodLabel } from '@/features/service-users/home-access'
 import {
   employeeDisplayName,
   formatFlashUntil,
@@ -753,11 +754,19 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
               }
             />
             <InfoRow
-              label="Key safe number"
+              label="Access method"
+              value={homeAccessMethodLabel(addr?.accessMethod) || '—'}
+            />
+            <InfoRow
+              label="Key safe location"
+              value={addr?.keySafeLocation?.trim() || '—'}
+            />
+            <InfoRow
+              label="Key safe code"
               value={addr?.keySafeNumber?.trim() || '—'}
             />
             <InfoRow
-              label="Access instructions"
+              label="How to enter"
               value={addr?.accessInstructions?.trim() || '—'}
             />
             <InfoRow

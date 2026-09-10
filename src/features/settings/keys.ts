@@ -31,6 +31,8 @@ export const settingsKeys = {
 
   welfareOutcomes: () => [...settingsKeys.all(), 'welfare-outcomes'] as const,
 
+  emergencyProtocols: () => [...settingsKeys.all(), 'emergency-protocols'] as const,
+
   clockInArrivalReasons: () => [...settingsKeys.all(), 'clock-in-arrival-reasons'] as const,
 
   clockOutEndReasons: () => [...settingsKeys.all(), 'clock-out-end-reasons'] as const,

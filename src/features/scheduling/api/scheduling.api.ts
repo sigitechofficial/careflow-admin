@@ -291,6 +291,12 @@ export type VisitObservationRecordedRow = {
   recordedAt: string
   statusLabel?: string | null
   bodyMapPins?: VisitObservationBodyMapPin[]
+  photos?: Array<{
+    id: string
+    fileUrl: string
+    caption?: string | null
+    consentStatus?: string
+  }>
 }
 
 export type VisitObservationsResponse = {
@@ -340,6 +346,11 @@ export type VisitTimelineItem = {
   type: string
   occurredAt: string
   sourceType: string
+  photos?: Array<{
+    id: string
+    fileUrl: string
+    caption?: string | null
+  }>
 }
 
 export type VisitTimelineResponse = { jobId: string; timeline: VisitTimelineItem[] }

@@ -24,6 +24,7 @@ function useExceptionQueueTabFlags() {
   return React.useMemo(() => {
     const sosJobs = new Set<string>()
     const lockedAreaJobs = new Set<string>()
+    const checkInRequestJobs = new Set<string>()
     for (const row of exceptions.data ?? []) {
       if (
         row.kind === 'CARER_SOS' &&
@@ -37,20 +38,32 @@ function useExceptionQueueTabFlags() {
       if (row.kind === 'LEFT_VISIT_AREA' && row.areaLock?.status !== 'ALLOWED') {
         lockedAreaJobs.add(row.scheduledJobId)
       }
+      if (
+        row.kind === 'OUTSIDE_AREA_CHECK_IN_REQUEST' &&
+        (row.checkInMethodRequest?.status ?? 'PENDING') === 'PENDING' &&
+        !isClosedLifecycle(row.lifecycle)
+      ) {
+        checkInRequestJobs.add(row.scheduledJobId)
+      }
     }
     return {
       sosVisitCount: sosJobs.size,
       lockedAreaVisitCount: lockedAreaJobs.size,
+      checkInRequestVisitCount: checkInRequestJobs.size,
     }
   }, [exceptions.data])
 }
 
 export default function EcmLiveMonitoringPage() {
   const [tab, setTab] = React.useState('ecm')
-  const { sosVisitCount, lockedAreaVisitCount } = useExceptionQueueTabFlags()
+  const { sosVisitCount, lockedAreaVisitCount, checkInRequestVisitCount } =
+    useExceptionQueueTabFlags()
   const flagBits = [
     sosVisitCount > 0 ? `${sosVisitCount} carer SOS` : null,
     lockedAreaVisitCount > 0 ? `${lockedAreaVisitCount} left visit area` : null,
+    checkInRequestVisitCount > 0
+      ? `${checkInRequestVisitCount} outside area check-in`
+      : null,
   ].filter(Boolean)
 
   return (
@@ -95,6 +108,14 @@ export default function EcmLiveMonitoringPage() {
                 data-testid="ecm-exception-queue-area-lock-flag"
               >
                 Left area {lockedAreaVisitCount}
+              </span>
+            ) : null}
+            {checkInRequestVisitCount > 0 ? (
+              <span
+                className="ml-1.5 inline-flex items-center rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white"
+                data-testid="ecm-exception-queue-check-in-request-flag"
+              >
+                Check-in {checkInRequestVisitCount}
               </span>
             ) : null}
           </TabsTrigger>

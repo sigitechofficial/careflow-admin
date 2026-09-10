@@ -38,6 +38,7 @@ export async function replaceServiceUserVisitTasks(
       tasks: Array<{
         taskCatalogueTaskId: string
         carerInstructions?: string | null
+        bodyMapRequired?: boolean
         priority?: string
         schedule?: VisitTaskSchedule
       }>

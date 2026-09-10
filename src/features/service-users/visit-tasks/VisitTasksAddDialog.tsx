@@ -27,6 +27,7 @@ import {
   PLANNER_STAT_VISUALS,
 } from '@/features/service-users/visit-tasks/visit-task-planner-visual.util'
 import { VisitTaskPriorityPicker } from '@/features/service-users/visit-tasks/VisitTaskPriorityPicker'
+import { VisitTaskBodyMapRequiredField } from '@/features/service-users/visit-tasks/VisitTaskBodyMapRequiredField'
 import { VisitTaskSchedulePanel } from '@/features/service-users/visit-tasks/VisitTaskSchedulePanel'
 import {
   DEFAULT_VISIT_TASK_PRIORITY,
@@ -37,6 +38,7 @@ import {
   mergeVisitTaskSchedule,
   type VisitTaskSchedule,
 } from '@/features/service-users/visit-tasks/visit-task-schedule.util'
+import { catalogueFeedsBodyMap } from '@/features/service-users/visit-tasks/visit-task-body-map.util'
 import type { TaskCatalogueGroup } from '@/features/service-users/visit-tasks/types'
 
 const GROUP_LABELS: Record<string, string> = {
@@ -52,6 +54,7 @@ export type VisitTaskAddItem = {
   carerInstructions: string
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
+  bodyMapRequired: boolean
 }
 
 type ReviewDraft = {
@@ -63,6 +66,7 @@ type ReviewDraft = {
   carerInstructions: string
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
+  bodyMapRequired: boolean
 }
 
 type Props = {
@@ -78,7 +82,13 @@ type Props = {
 function buildTaskLookup(catalogue: TaskCatalogueGroup[]) {
   const map = new Map<
     string,
-    { name: string; categoryName: string; consentRequired: boolean; groupCode: string }
+    {
+      name: string
+      categoryName: string
+      consentRequired: boolean
+      groupCode: string
+      bodyMapRequiredDefault: boolean
+    }
   >()
   for (const group of catalogue) {
     for (const category of group.categories) {
@@ -88,6 +98,7 @@ function buildTaskLookup(catalogue: TaskCatalogueGroup[]) {
           categoryName: category.name,
           consentRequired: task.consentRequired,
           groupCode: group.code,
+          bodyMapRequiredDefault: catalogueFeedsBodyMap(task.flagsJson),
         })
       }
     }
@@ -167,6 +178,7 @@ export function VisitTasksAddDialog({
           carerInstructions: '',
           priority: DEFAULT_VISIT_TASK_PRIORITY,
           schedule: { ...DEFAULT_VISIT_TASK_SCHEDULE },
+          bodyMapRequired: meta.bodyMapRequiredDefault,
         }
       })
       .filter((row): row is ReviewDraft => row != null)
@@ -199,6 +211,12 @@ export function VisitTasksAddDialog({
     )
   }
 
+  const updateReviewBodyMapRequired = (taskId: string, bodyMapRequired: boolean) => {
+    setReviewDrafts((prev) =>
+      prev.map((draft) => (draft.taskId === taskId ? { ...draft, bodyMapRequired } : draft)),
+    )
+  }
+
   const removeReviewDraft = (taskId: string) => {
     setReviewDrafts((prev) => {
       const next = prev.filter((draft) => draft.taskId !== taskId)
@@ -222,6 +240,7 @@ export function VisitTasksAddDialog({
           carerInstructions: draft.carerInstructions.trim(),
           priority: draft.priority,
           schedule: draft.schedule,
+          bodyMapRequired: draft.bodyMapRequired,
         })),
       )
     } finally {
@@ -431,6 +450,16 @@ export function VisitTasksAddDialog({
                         className="w-full resize-y rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) =>
                           updateReviewInstructions(draft.taskId, event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-3">
+                      <VisitTaskBodyMapRequiredField
+                        id={`add-body-map-${draft.taskId}`}
+                        checked={draft.bodyMapRequired}
+                        onCheckedChange={(checked) =>
+                          updateReviewBodyMapRequired(draft.taskId, checked)
                         }
                       />
                     </div>

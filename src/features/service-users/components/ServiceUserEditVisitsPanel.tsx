@@ -12,6 +12,7 @@ import {
   useVisitReconciliations,
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
+import type { VisitReconciliationStatus } from '@/features/billing/types/billing.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
@@ -35,6 +36,21 @@ function parseMoney(value: string | null | undefined): number {
 
 function formatGbp(amount: number): string {
   return `£${amount.toFixed(2)}`
+}
+
+/** Pay-only / invoice-rejected: funders are not billed (priced amount is reference only). */
+function isFunderNotCharged(status: VisitReconciliationStatus): boolean {
+  return status === 'APPROVED_FOR_PAY' || status === 'REJECTED_FOR_INVOICE'
+}
+
+/** Invoice-only / pay-rejected: carer is not paid (priced amount is reference only). */
+function isCarerNotPaid(status: VisitReconciliationStatus): boolean {
+  return status === 'APPROVED_FOR_INVOICE' || status === 'REJECTED_FOR_PAY'
+}
+
+function effectiveFunderCharge(row: VisitReconciliationRow): number {
+  if (isFunderNotCharged(row.status)) return 0
+  return parseMoney(row.billableAmount)
 }
 
 function StatCard({
@@ -92,7 +108,11 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
     let withCharge = 0
     let missingCharge = 0
     for (const row of rows) {
-      const amount = parseMoney(row.billableAmount)
+      if (isFunderNotCharged(row.status)) {
+        // Explicitly not billed — do not count priced reference amounts.
+        continue
+      }
+      const amount = effectiveFunderCharge(row)
       if (amount > 0) {
         charged += amount
         withCharge += 1
@@ -204,7 +224,7 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
             <StatCard
               title="Total charged"
               value={formatGbp(totals.charged)}
-              hint="Sum of funder / client charges"
+              hint="Sum actually billed to funders (excludes carer-pay-only visits)"
             />
             <StatCard
               title="Visits"
@@ -214,7 +234,7 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
             <StatCard
               title="With charge"
               value={totals.withCharge}
-              hint="Visits with a calculated funder amount"
+              hint="Visits approved for funder billing with an amount"
             />
             <StatCard
               title="Missing charge"
@@ -275,17 +295,39 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
                         {row.actual || '—'}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className="font-medium tabular-nums text-foreground">
-                          {row.billableAmount ?? '—'}
-                        </span>
-                        {row.approvedBillable && row.approvedBillable !== '—' ? (
-                          <div className="text-[11px] text-muted-foreground">
-                            {row.approvedBillable}
+                        {isFunderNotCharged(row.status) ? (
+                          <div>
+                            <span className="font-medium tabular-nums text-foreground">£0.00</span>
+                            <div className="text-[11px] text-muted-foreground">
+                              Not billed
+                              {row.billableAmount ? ` · priced ${row.billableAmount}` : ''}
+                            </div>
                           </div>
-                        ) : null}
+                        ) : (
+                          <>
+                            <span className="font-medium tabular-nums text-foreground">
+                              {row.billableAmount ?? '—'}
+                            </span>
+                            {row.approvedBillable && row.approvedBillable !== '—' ? (
+                              <div className="text-[11px] text-muted-foreground">
+                                {row.approvedBillable}
+                              </div>
+                            ) : null}
+                          </>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                        {row.payableAmount ?? '—'}
+                        {isCarerNotPaid(row.status) ? (
+                          <div>
+                            <span className="font-medium text-foreground">£0.00</span>
+                            <div className="text-[11px]">
+                              Not paid
+                              {row.payableAmount ? ` · priced ${row.payableAmount}` : ''}
+                            </div>
+                          </div>
+                        ) : (
+                          (row.payableAmount ?? '—')
+                        )}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <VisitReconStatusBadge status={row.status} />

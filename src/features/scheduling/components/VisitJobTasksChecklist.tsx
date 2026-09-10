@@ -16,6 +16,7 @@ import {
   type VisitJobTaskOutcome,
   type VisitJobTaskRow,
 } from '@/features/scheduling/types/visit-job-tasks.types'
+import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 import {
   normalizeVisitTaskPriority,
   visitTaskPriorityBadgeClass,
@@ -50,7 +51,12 @@ type Props = {
   observationsByType?: Record<string, RecordedObservation>
 }
 
-export type RecordedObservation = { label: string; value: string; notes?: string | null }
+export type RecordedObservation = {
+  label: string
+  value: string
+  notes?: string | null
+  photos?: Array<{ id: string; fileUrl: string; caption?: string | null }>
+}
 
 /** Normalise an observation type code so `skin_integrity` == `SKIN_INTEGRITY`. */
 export function normalizeObservationCode(code: string | null | undefined): string {
@@ -64,7 +70,7 @@ function observationForTask(
   if (!observationsByType) return null
   for (const code of [task.observationTypeCode, task.linkedTypeCode]) {
     const key = normalizeObservationCode(code)
-    if (key && observationsByType[key]?.value?.trim()) return observationsByType[key]
+    if (key && observationsByType[key]) return observationsByType[key]
   }
   return null
 }
@@ -230,6 +236,7 @@ function VisitJobTaskCarerRecord({
             {observation.notes?.trim() ? (
               <CarerField label="Observation notes" value={observation.notes} />
             ) : null}
+            <VisitPhotoThumbnails photos={observation.photos} />
           </>
         ) : null}
         {/* Task value only when NOT obs-linked (the observation already carries

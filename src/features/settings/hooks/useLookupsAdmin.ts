@@ -18,6 +18,10 @@ import {
   updateWelfareOutcome,
   deleteWelfareOutcome,
   type WelfareOutcomeTone,
+  fetchEmergencyProtocols,
+  createEmergencyProtocol,
+  updateEmergencyProtocol,
+  deleteEmergencyProtocol,
   fetchClockInArrivalReasons,
   createClockInArrivalReason,
   updateClockInArrivalReason,
@@ -531,6 +535,67 @@ export function useDeleteWelfareOutcome() {
     mutationFn: (id: string) => deleteWelfareOutcome(id),
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: settingsKeys.welfareOutcomes() }),
+  })
+}
+
+// ─── Emergency protocols (carer-app runner) ─────────────────────────────────
+
+export function useEmergencyProtocols(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.emergencyProtocols(),
+    queryFn: () => fetchEmergencyProtocols(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateEmergencyProtocol() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      code: string
+      title: string
+      subtitle?: string
+      version?: string
+      iconKey?: string
+      sortOrder?: number
+      steps: { action: string; detail?: string }[]
+    }) => createEmergencyProtocol(body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.emergencyProtocols() }),
+  })
+}
+
+export function useUpdateEmergencyProtocol() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        code?: string
+        title?: string
+        subtitle?: string
+        version?: string
+        iconKey?: string
+        sortOrder?: number
+        isActive?: boolean
+        steps?: { action: string; detail?: string }[]
+      }
+    }) => updateEmergencyProtocol(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.emergencyProtocols() }),
+  })
+}
+
+export function useDeleteEmergencyProtocol() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteEmergencyProtocol(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.emergencyProtocols() }),
   })
 }
 

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { fetchVisitTimeline } from '@/features/scheduling/api/scheduling.api'
+import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 
 /** Tone → dot colour, mirroring the carer-app visit timeline. */
 const TONE_DOT: Record<string, string> = {
@@ -77,6 +78,7 @@ export function VisitLogTimelinePanel({ jobId }: { jobId: string }) {
                     {item.detail}
                   </p>
                 ) : null}
+                <VisitPhotoThumbnails photos={item.photos} />
               </div>
             </li>
           ))}

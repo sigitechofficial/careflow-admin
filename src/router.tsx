@@ -348,6 +348,7 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'clock-out-end-reasons',
   'outcome-reasons',
   'ecm-thresholds',
+  'emergency-protocols',
 ]
 
 const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [
@@ -1690,6 +1691,10 @@ const billingServiceUserInvoicesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/service-user-invoices',
   beforeLoad: requirePermission('billing.invoice_runs.read'),
+  validateSearch: (raw: Record<string, unknown>): { serviceUserId?: string } => {
+    const id = typeof raw.serviceUserId === 'string' ? raw.serviceUserId.trim() : ''
+    return id ? { serviceUserId: id } : {}
+  },
   component: ServiceUserInvoicesPage,
 })
 

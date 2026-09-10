@@ -11,6 +11,7 @@ import {
   fetchServiceUserInvoicesOverview,
   lockInvoiceRun,
   sendInvoiceRun,
+  emailInvoiceToServiceUser,
 } from '@/features/billing/api/invoice-runs.api'
 import { billingKeys } from '@/features/billing/keys'
 
@@ -95,6 +96,24 @@ export function useSendInvoiceRun() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: sendInvoiceRun,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
+  })
+}
+
+export function useEmailInvoiceToServiceUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (args: {
+      runId: string
+      serviceUserId: string
+      toEmail?: string
+      markSent?: boolean
+    }) =>
+      emailInvoiceToServiceUser(args.runId, {
+        serviceUserId: args.serviceUserId,
+        toEmail: args.toEmail,
+        markSent: args.markSent,
+      }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: billingKeys.all }),
   })
 }
