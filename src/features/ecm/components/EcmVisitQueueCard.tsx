@@ -552,6 +552,7 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
   const [busy, setBusy] = React.useState(false)
   const [actionError, setActionError] = React.useState(false)
   const toAck = rows.filter(row => !isSosAcknowledged(row))
+  const missingLocation = rows.filter(row => !mapsHrefFor(row))
 
   const runAll = async (fn: () => Promise<unknown>) => {
     setBusy(true)
@@ -570,28 +571,18 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Carer SOS
       </p>
-      <div className="space-y-2">
-        {rows.map(row => {
-          const href = mapsHrefFor(row)
-          const label = formatOpsClockTime(row.sos?.createdAt ?? row.createdAt)
-          return href ? (
-            <a
-              key={row.id}
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:underline"
-            >
-              <MapPin className="h-3.5 w-3.5" aria-hidden />
-              Open in Maps{rows.length > 1 ? ` · ${label}` : ''}
-            </a>
-          ) : (
-            <p key={row.id} className="text-sm text-muted-foreground">
-              Location was not available{rows.length > 1 ? ` · ${label}` : ''}.
-            </p>
-          )
-        })}
-      </div>
+      {missingLocation.length > 0 ? (
+        <div className="space-y-2">
+          {missingLocation.map(row => {
+            const label = formatOpsClockTime(row.sos?.createdAt ?? row.createdAt)
+            return (
+              <p key={row.id} className="text-sm text-muted-foreground">
+                Location was not available{rows.length > 1 ? ` · ${label}` : ''}.
+              </p>
+            )
+          })}
+        </div>
+      ) : null}
       {toAck.length > 0 ? (
         <Button
           type="button"
@@ -912,7 +903,7 @@ export function VisitQueueCard({
       {expanded ? (
         <div className="space-y-4 border-t border-border px-4 py-3">
           {gpsPoints.length > 0 ? (
-            <EcmCarerCapturedLocationList points={gpsPoints} showMap />
+            <EcmCarerCapturedLocationList points={gpsPoints} showOpenInMaps />
           ) : null}
           {sosRows.length > 0 ? <SosActions rows={sosRows} /> : null}
           {lockRow ? <AreaLockActions row={lockRow} /> : null}

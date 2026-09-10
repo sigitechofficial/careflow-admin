@@ -47,13 +47,30 @@ function distanceLabel(distanceMeters: number | null | undefined): string | null
   return `${Math.round(distanceMeters)} m from visit address`
 }
 
+function OpenInMapsLink({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+    >
+      Open in Maps
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+    </a>
+  )
+}
+
 export function EcmCarerCapturedLocation({
   point,
   showMap = false,
+  showOpenInMaps = showMap,
 }: {
   point: CapturedGpsPoint
-  /** OSM map + open-in-maps. Keep false inside a toggle `<button>`. */
+  /** OSM preview. Keep false inside a toggle `<button>`. */
   showMap?: boolean
+  /** External Maps link. Defaults on when `showMap` is on. */
+  showOpenInMaps?: boolean
 }) {
   const { address, loading } = useReverseGeocodedAddress(point.latitude, point.longitude)
   const distance = distanceLabel(point.distanceMeters)
@@ -84,9 +101,16 @@ export function EcmCarerCapturedLocation({
 
   if (!showMap) {
     return (
-      <div className="flex items-start gap-2 text-left" data-testid="ecm-carer-location">
+      <div
+        className="flex items-start gap-2 text-left"
+        data-testid="ecm-carer-location"
+        onClick={showOpenInMaps ? e => e.stopPropagation() : undefined}
+      >
         <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        {summary}
+        <div className="min-w-0 space-y-1.5">
+          {summary}
+          {showOpenInMaps ? <OpenInMapsLink href={href} /> : null}
+        </div>
       </div>
     )
   }
@@ -113,15 +137,7 @@ export function EcmCarerCapturedLocation({
         overlayOnMap={false}
         height={180}
       />
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-      >
-        Open in Maps
-        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-      </a>
+      {showOpenInMaps ? <OpenInMapsLink href={href} /> : null}
     </div>
   )
 }
@@ -129,17 +145,24 @@ export function EcmCarerCapturedLocation({
 export function EcmCarerCapturedLocationList({
   points,
   showMap,
+  showOpenInMaps,
   className,
 }: {
   points: CapturedGpsPoint[]
   showMap?: boolean
+  showOpenInMaps?: boolean
   className?: string
 }) {
   if (points.length === 0) return null
   return (
     <div className={cn('space-y-3', className)}>
       {points.map(point => (
-        <EcmCarerCapturedLocation key={point.id} point={point} showMap={showMap} />
+        <EcmCarerCapturedLocation
+          key={point.id}
+          point={point}
+          showMap={showMap}
+          showOpenInMaps={showOpenInMaps ?? showMap}
+        />
       ))}
     </div>
   )

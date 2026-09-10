@@ -346,6 +346,7 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'clock-out-end-reasons',
   'outcome-reasons',
   'ecm-thresholds',
+  'emergency-protocols',
 ]
 
 const LOCATION_MANAGEMENT_SUB_IDS: LocationManagementSubTab[] = [

@@ -166,6 +166,7 @@ type RoundTaskDraft = {
   carerInstructions: string
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
+  bodyMapRequired: boolean
 }
 
 type DraftByRound = Map<string, Map<string, RoundTaskDraft>>
@@ -181,6 +182,7 @@ function buildDraftFromAssignments(
         carerInstructions: row.carerInstructions ?? '',
         priority: normalizeVisitTaskPriority(row.priority),
         schedule: mergeVisitTaskSchedule(row.schedule),
+        bodyMapRequired: Boolean(row.bodyMapRequired),
       })
     }
     map.set(roundCode, roundMap)
@@ -198,6 +200,7 @@ function buildVisitTasksSavePayload(draft: DraftByRound, rounds: Array<{ code: s
           carerInstructions: taskDraft.carerInstructions.trim() || null,
           priority: taskDraft.priority,
           schedule: taskDraft.schedule,
+          bodyMapRequired: Boolean(taskDraft.bodyMapRequired),
         }),
       ),
     })),
@@ -216,6 +219,7 @@ function mergeTasksIntoDraft(
       carerInstructions: item.carerInstructions,
       priority: item.priority,
       schedule: item.schedule ?? { ...DEFAULT_VISIT_TASK_SCHEDULE },
+      bodyMapRequired: Boolean(item.bodyMapRequired),
     })
   }
   nextDraft.set(roundCode, roundDraft)
@@ -351,6 +355,7 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
         carerInstructions: string
         priority: VisitTaskPriorityCode
         schedule: VisitTaskSchedule
+        bodyMapRequired: boolean
         isEmarPrompt: boolean
       }
     > => {
@@ -361,6 +366,7 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           carerInstructions: string
           priority: VisitTaskPriorityCode
           schedule: VisitTaskSchedule
+          bodyMapRequired: boolean
           isEmarPrompt: boolean
         }
       > = []
@@ -382,6 +388,7 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           carerInstructions: draft.carerInstructions,
           priority: draft.priority,
           schedule: draft.schedule,
+          bodyMapRequired: Boolean(draft.bodyMapRequired),
           isEmarPrompt: isEmarMedicationPromptTask(meta.task),
         })
       }
@@ -735,12 +742,14 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
                   carerInstructions: draft?.carerInstructions ?? '',
                   priority: draft?.priority ?? DEFAULT_VISIT_TASK_PRIORITY,
                   schedule: draft?.schedule ?? DEFAULT_VISIT_TASK_SCHEDULE,
+                  bodyMapRequired: Boolean(draft?.bodyMapRequired),
                 } satisfies VisitTaskEditValues
               })()
             : {
                 carerInstructions: '',
                 priority: DEFAULT_VISIT_TASK_PRIORITY,
                 schedule: DEFAULT_VISIT_TASK_SCHEDULE,
+                bodyMapRequired: false,
               }
         }
         onOpenChange={(open) => {
@@ -748,14 +757,21 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
         }}
         onSave={(values) => {
           if (!taskEditTarget) return
-          updateRoundDraft(taskEditTarget.roundCode, (roundDraft) => {
-            const existing = roundDraft.get(taskEditTarget.taskId)
-            if (!existing) return
-            roundDraft.set(taskEditTarget.taskId, {
-              carerInstructions: values.carerInstructions,
-              priority: values.priority,
-              schedule: mergeVisitTaskSchedule(values.schedule),
-            })
+          const next = new Map(draftByRound)
+          const roundDraft = new Map(next.get(taskEditTarget.roundCode) ?? [])
+          const existing = roundDraft.get(taskEditTarget.taskId)
+          if (!existing) return
+          roundDraft.set(taskEditTarget.taskId, {
+            carerInstructions: values.carerInstructions,
+            priority: values.priority,
+            schedule: mergeVisitTaskSchedule(values.schedule),
+            bodyMapRequired: Boolean(values.bodyMapRequired),
+          })
+          next.set(taskEditTarget.roundCode, roundDraft)
+          setDraftByRound(next)
+          void saveMutation.mutateAsync({
+            draft: next,
+            successMessage: 'Task updated',
           })
         }}
       />
@@ -767,6 +783,7 @@ type PlannerTaskRow = TaskMeta & {
   carerInstructions: string
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
+  bodyMapRequired: boolean
   isEmarPrompt: boolean
 }
 
@@ -959,6 +976,11 @@ function PlannerRoundListSection({
                             {needsInput ? (
                               <span className="inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                 Needs reading / notes
+                              </span>
+                            ) : null}
+                            {meta.bodyMapRequired ? (
+                              <span className="inline-flex rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                                Body map required
                               </span>
                             ) : null}
                           </div>
