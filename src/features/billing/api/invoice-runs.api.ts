@@ -108,6 +108,16 @@ export type InvoiceRunServiceUserSummary = {
   outstanding?: string
   outstandingValue?: number
   paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
+  /** ISO datetime of the last payment allocated to this service-user invoice. */
+  paidAt?: string | null
+  /** ISO datetime of the last email send for this service-user invoice. */
+  sentAt?: string | null
+  /** YYYY-MM-DD due date (invoice date + payment terms). */
+  dueDate?: string | null
+  /** YYYY-MM-DD invoice date when the document was created. */
+  invoiceDate?: string | null
+  /** Snapshot of charge-card payment terms (e.g. Net 30). */
+  paymentTerms?: string | null
   exceptionCount?: number
   history?: InvoiceRunServiceUserHistoryEvent[]
   /** Present when attached client-side for Preview; omitted from list API payload. */
@@ -320,6 +330,10 @@ export type ServiceUserInvoiceRunRow = {
   sentAt: string | null
   lockedAt: string | null
   invoiceNumber?: string | null
+  /** YYYY-MM-DD due date (invoice date + payment terms). */
+  dueDate?: string | null
+  invoiceDate?: string | null
+  paymentTerms?: string | null
   lineCount: number
   subtotal: string
   subtotalValue: number

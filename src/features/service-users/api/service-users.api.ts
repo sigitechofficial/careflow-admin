@@ -300,6 +300,7 @@ export type EnterpriseFunderRow = {
   name: string
   code: string | null
   fundingType?: { id: string; name: string; code: string } | null
+  paymentTerms?: string | null
   addressLine1?: string | null
   addressLine2?: string | null
   town?: string | null
@@ -352,6 +353,7 @@ export type EnterpriseServiceUserFundingRow = {
     id: string
     name: string
     code: string | null
+    paymentTerms?: string | null
     defaultChargeCardId?: string | null
     defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
   } | null
@@ -391,6 +393,30 @@ export async function listEnterpriseFunders(options?: {
   qs.set('limit', String(Math.min(options?.limit ?? 200, 500)))
   if (options?.isActive !== undefined) qs.set('isActive', String(options.isActive))
   const res = await apiJson<ApiEnvelope<EnterpriseFunderRow[]>>(`/funders?${qs}`, { method: 'GET' })
+  return res.data
+}
+
+export type UpdateEnterpriseFunderBody = {
+  name?: string
+  code?: string | null
+  fundingTypeId?: string | null
+  contactName?: string | null
+  email?: string | null
+  phone?: string | null
+  notes?: string | null
+  paymentTerms?: string | null
+  defaultChargeCardId?: string | null
+  defaultInvoiceTemplateId?: string | null
+}
+
+export async function updateEnterpriseFunder(
+  funderId: string,
+  body: UpdateEnterpriseFunderBody,
+): Promise<EnterpriseFunderRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseFunderRow>>(`/funders/${funderId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
   return res.data
 }
 

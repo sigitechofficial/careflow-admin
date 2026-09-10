@@ -62,6 +62,7 @@ const SETUP_STEPS: FlowStep[] = [
     details: [
       'Record local authority, NHS, private, and split-funding packages.',
       'Set purchase order numbers, council references, and billing contacts.',
+      'Set payment terms on the funder from the service user Funding tab (due date = invoice date + terms).',
       'Funding splits determine how each visit charge is divided across payers.',
     ],
   },

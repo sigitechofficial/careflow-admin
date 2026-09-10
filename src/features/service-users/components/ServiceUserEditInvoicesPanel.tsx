@@ -89,6 +89,7 @@ type TransactionRow = {
   id: string
   sortDate: string
   dateLabel: string
+  dueDateLabel: string
   type: 'Invoice' | 'Payment'
   number: string
   customer: string
@@ -143,10 +144,12 @@ function buildTransactions(
   for (const run of runs) {
     const invoiceNo = run.invoiceNumber?.trim() || run.period
     const sortDate = run.sentAt ?? run.lockedAt ?? run.periodEnd
+    const dueDateLabel = formatDisplayDate(run.dueDate ?? null)
     rows.push({
       id: `invoice-${run.id}`,
       sortDate,
       dateLabel: formatDisplayDate(sortDate),
+      dueDateLabel,
       type: 'Invoice',
       number: invoiceNo,
       customer: customerName,
@@ -161,6 +164,7 @@ function buildTransactions(
         id: `payment-${run.id}`,
         sortDate,
         dateLabel: formatDisplayDate(sortDate),
+        dueDateLabel: '—',
         type: 'Payment',
         number: run.invoiceNumber?.trim() ? `PAY-${run.invoiceNumber}` : '—',
         customer: customerName,
@@ -457,14 +461,27 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
   )
   const overdueValue = React.useMemo(() => {
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const todayUtc = Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate(),
+    )
     return (
       Math.round(
         runs.reduce((sum, r) => {
           const outstanding = runOutstandingValue(r)
           if (outstanding <= 0.001) return sum
-          const end = new Date(`${r.periodEnd}T00:00:00Z`)
-          if (Number.isNaN(end.getTime()) || end >= today) return sum
+          const dueRaw = r.dueDate ?? r.periodEnd
+          const due = new Date(
+            dueRaw.includes('T') ? dueRaw : `${dueRaw}T00:00:00Z`,
+          )
+          if (Number.isNaN(due.getTime())) return sum
+          const dueUtc = Date.UTC(
+            due.getUTCFullYear(),
+            due.getUTCMonth(),
+            due.getUTCDate(),
+          )
+          if (dueUtc >= todayUtc) return sum
           return sum + outstanding
         }, 0) * 100,
       ) / 100
@@ -854,10 +871,6 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              Batch actions
-              <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-60" aria-hidden />
-            </Button>
             <Select
               value={typeFilter}
               onValueChange={(v) => setTypeFilter(v as TxnTypeFilter)}
@@ -926,7 +939,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <table className="w-full min-w-[960px] text-sm">
+              <table className="w-full min-w-[1080px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-muted-foreground">
                     <th className="w-10 px-3 py-2.5">
@@ -943,6 +956,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                     <th className="px-3 py-2.5 text-left font-medium">No.</th>
                     <th className="px-3 py-2.5 text-left font-medium">Customer</th>
                     <th className="px-3 py-2.5 text-left font-medium">Memo</th>
+                    <th className="px-3 py-2.5 text-left font-medium">Due date</th>
                     <th className="px-3 py-2.5 text-right font-medium">Amount</th>
                     <th className="px-3 py-2.5 text-center font-medium">Status</th>
                     <th className="px-3 py-2.5 text-right font-medium">Actions</th>
@@ -973,6 +987,9 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                       </td>
                       <td className="max-w-[16rem] truncate px-3 py-2.5 text-muted-foreground" title={txn.memo}>
                         {txn.memo}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground">
+                        {txn.dueDateLabel}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-right font-medium tabular-nums text-foreground">
                         {txn.amount}

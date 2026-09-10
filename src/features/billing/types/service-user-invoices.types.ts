@@ -25,6 +25,10 @@ export type ServiceUserInvoiceMonthRow = {
   sentAt: string | null
   /** QBO-style sequential number, e.g. INV-1001 */
   invoiceNumber?: string | null
+  /** YYYY-MM-DD due date (invoice date + payment terms). */
+  dueDate?: string | null
+  invoiceDate?: string | null
+  paymentTerms?: string | null
   lineCount: number
   subtotal: string
   subtotalValue: number

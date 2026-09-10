@@ -7,7 +7,6 @@ import { ServiceUserCalendarTab } from '@/features/service-users/calendar/compon
 import { ServiceUserContactsTab } from '@/features/service-users/components/ServiceUserContactsTab'
 import { ServiceUserDomCareTab } from '@/features/service-users/components/ServiceUserDomCareTab'
 import { ServiceUserEditChargeCardPanel } from '@/features/service-users/components/ServiceUserEditChargeCardPanel'
-import { ServiceUserEditInvoicesPanel } from '@/features/service-users/components/ServiceUserEditInvoicesPanel'
 import { ServiceUserEditVisitsPanel } from '@/features/service-users/components/ServiceUserEditVisitsPanel'
 import { ServiceUserFundingTab } from '@/features/service-users/components/ServiceUserFundingTab'
 import { ServiceUserInventoryTab } from '@/features/service-users/components/ServiceUserInventoryTab'
@@ -120,8 +119,6 @@ export function ServiceUserProfileSectionContent({
       {tab === 'charge-card' && <ServiceUserEditChargeCardPanel serviceUserId={serviceUserId} />}
 
       {tab === 'visits' && <ServiceUserEditVisitsPanel serviceUserId={serviceUserId} />}
-
-      {tab === 'invoices' && <ServiceUserEditInvoicesPanel serviceUserId={serviceUserId} />}
 
       {tab === 'livein' && (
         <ServiceUserLiveInProfileTab serviceUserId={serviceUserId} contacts={detail.contacts ?? []} />

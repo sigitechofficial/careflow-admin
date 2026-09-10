@@ -99,6 +99,7 @@ const moduleTabsBase = '/care-plan-icons/module-tabs'
 export type ServiceUserModuleTabIconId =
   | 'profile'
   | 'overview'
+  | 'invoices'
   | 'ecm'
   | 'observations'
   | 'comms'
@@ -115,6 +116,7 @@ export type ServiceUserModuleTabIconId =
 export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, string> = {
   profile: `${moduleTabsBase}/profile.svg`,
   overview: `${base}/view.svg`,
+  invoices: `${moduleTabsBase}/documents.svg`,
   ecm: `${moduleTabsBase}/alerts.svg`,
   observations: `${moduleTabsBase}/observations.svg`,
   comms: `${moduleTabsBase}/comms.svg`,

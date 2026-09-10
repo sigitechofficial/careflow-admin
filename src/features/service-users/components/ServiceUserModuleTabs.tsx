@@ -18,6 +18,7 @@ type ModuleTab = {
   to?:
     | '/service-users/$serviceUserId/profile'
     | '/service-users/$serviceUserId/view'
+    | '/service-users/$serviceUserId/invoices'
     | '/service-users/$serviceUserId/ecm'
     | '/service-users/$serviceUserId/tasks-planner'
     | '/service-users/$serviceUserId/visit-plan'
@@ -36,6 +37,7 @@ type ModuleTab = {
 const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = {
   profile: null,
   overview: '#E8F0FE',
+  invoices: '#E8F7EE',
   ecm: '#FEF3E8',
   observations: '#E8F5F2',
   comms: '#F4EDF9',
@@ -60,6 +62,11 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
     id: 'overview',
     label: 'Overview',
     to: '/service-users/$serviceUserId/view',
+  },
+  {
+    id: 'invoices',
+    label: 'Invoices',
+    to: '/service-users/$serviceUserId/invoices',
   },
   {
     id: 'ecm',
@@ -118,6 +125,7 @@ export function isServiceUserModuleTabActive(tab: ModuleTab, pathname: string): 
   if (!tab.to) return false
   if (tab.id === 'profile') return /\/service-users\/[^/]+\/profile\/?$/.test(pathname)
   if (tab.id === 'overview') return /\/service-users\/[^/]+\/view\/?$/.test(pathname)
+  if (tab.id === 'invoices') return /\/service-users\/[^/]+\/invoices\/?$/.test(pathname)
   if (tab.id === 'ecm') return /\/service-users\/[^/]+\/ecm\/?$/.test(pathname)
   if (tab.id === 'meds') return pathname.includes('/medication')
   if (tab.id === 'observations') return pathname.includes('/observations')

@@ -49,6 +49,7 @@ import ServiceUserActivityPage from '@/features/service-users/pages/ServiceUserA
 import ServiceUserEcmPage from '@/features/service-users/pages/ServiceUserEcmPage'
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
 import ServiceUserDocumentsModulePage from '@/features/service-users/pages/ServiceUserDocumentsModulePage'
+import ServiceUserInvoicesModulePage from '@/features/service-users/pages/ServiceUserInvoicesModulePage'
 import BodyMapReviewQueuePage from '@/features/service-users/body-map/pages/BodyMapReviewQueuePage'
 import InitialAssessmentReviewQueuePage from '@/features/service-users/initial-assessment/pages/InitialAssessmentReviewQueuePage'
 import AssessmentReviewQueuePage from '@/features/service-users/assessments/pages/AssessmentReviewQueuePage'
@@ -240,6 +241,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/add': 'Add Service User',
   '/service-users/$serviceUserId/profile': 'Profile',
   '/service-users/$serviceUserId/alerts': 'Medical & alerts',
+  '/service-users/$serviceUserId/invoices': 'Invoices',
   '/service-users/$serviceUserId': 'Edit Service User',
   '/scheduling/view': 'View Schedule',
   '/scheduling/schedule-jobs': 'Schedule Jobs',
@@ -407,6 +409,8 @@ function AppRootShell() {
         ? 'Profile'
       : /^\/service-users\/[^/]+\/view$/.test(pathname)
         ? 'Service User'
+      : /^\/service-users\/[^/]+\/invoices$/.test(pathname)
+        ? 'Invoices'
         : /^\/service-users\/[^/]+\/medication$/.test(pathname)
           ? 'Medication'
           : /^\/service-users\/[^/]+\/observations$/.test(pathname)
@@ -439,6 +443,7 @@ function AppRootShell() {
     pathname === '/scheduling/schedule-jobs' ||
     /^\/service-users\/[^/]+\/profile$/.test(pathname) ||
     /^\/service-users\/[^/]+\/view$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/invoices$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
     /^\/service-users\/[^/]+\/ecm$/.test(pathname) ||
@@ -781,6 +786,16 @@ const serviceUsersProfileRoute = createRoute({
     prefetchServiceUserEditRoute(qc, serviceUserId)
   },
   component: ServiceUserProfilePage,
+})
+
+const serviceUsersInvoicesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/invoices',
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserEditRoute(qc, serviceUserId)
+  },
+  component: ServiceUserInvoicesModulePage,
 })
 
 const serviceUsersMedicationRoute = createRoute({
@@ -1996,6 +2011,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersAddRoute,
     serviceUsersViewRoute,
     serviceUsersProfileRoute,
+    serviceUsersInvoicesRoute,
     serviceUsersMedicationRoute,
     serviceUsersCarePlanRoute,
     serviceUsersCarePlanFormRoute,

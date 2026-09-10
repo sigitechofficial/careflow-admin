@@ -6,7 +6,6 @@ import {
   CalendarOff,
   ClipboardCheck,
   ClipboardList,
-  FileText,
   Heart,
   Home,
   Images,
@@ -34,7 +33,6 @@ export const SERVICE_USER_PROFILE_TAB_IDS = [
   'funding',
   'charge-card',
   'visits',
-  'invoices',
   'livein',
 ] as const
 
@@ -55,7 +53,6 @@ export const SERVICE_USER_PROFILE_TABS: { id: ServiceUserProfileTabId; label: st
   { id: 'funding', label: 'Funding', Icon: Landmark },
   { id: 'charge-card', label: 'Charge card', Icon: Receipt },
   { id: 'visits', label: 'Visits', Icon: ClipboardCheck },
-  { id: 'invoices', label: 'Invoices', Icon: FileText },
   { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
 ]
 

@@ -1,4 +1,5 @@
 import { Banknote, CheckCircle2, Download, History, Send } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import type { InvoiceRunServiceUserSummary } from '@/features/billing/api/invoice-runs.api'
@@ -14,6 +15,18 @@ type Props = {
   onDownloadCsv?: () => void
   onSendInvoice?: () => void
   onRecordPayment?: () => void
+}
+
+function formatDueDate(value: string | null): string {
+  if (!value) return '—'
+  const d = new Date(value.includes('T') ? value : `${value}T00:00:00Z`)
+  if (Number.isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(d)
 }
 
 function InvoicePaymentStatusBadge({
@@ -72,7 +85,13 @@ export function InvoiceRunServiceUserSection({
         <p className="min-w-0 font-mono text-sm font-medium text-foreground">{invoiceNumber}</p>
       </td>
       <td className="px-3 py-2.5">
-        <p className="font-medium text-foreground">{group.serviceUserName}</p>
+        <Link
+          to="/service-users/$serviceUserId/invoices"
+          params={{ serviceUserId: group.serviceUserId }}
+          className="font-medium text-foreground underline-offset-2 hover:underline"
+        >
+          {group.serviceUserName}
+        </Link>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
           {group.serviceUserNumber ? (
             <span className="font-mono">{group.serviceUserNumber}</span>
@@ -110,6 +129,15 @@ export function InvoiceRunServiceUserSection({
       </td>
       <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
         {formatTimestamp(createdAt ?? null)}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+        {formatDueDate(group.dueDate ?? null)}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+        {formatTimestamp(group.sentAt ?? null)}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+        {formatTimestamp(group.paidAt ?? null)}
       </td>
       <td className="px-3 py-2.5 text-right">
         <div className="flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">

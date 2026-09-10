@@ -352,7 +352,7 @@ export default function InvoiceRunDetailPage() {
   const hasExceptions = run.exceptions > 0
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-10">
+    <div className="min-w-0 space-y-6 pb-10">
       <div className="space-y-4">
         <Link
           to="/billing/invoice-runs"
@@ -664,7 +664,7 @@ export default function InvoiceRunDetailPage() {
             </ContentCard>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[1000px] text-sm">
+              <table className="w-full min-w-[1280px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Invoice</th>
@@ -675,6 +675,9 @@ export default function InvoiceRunDetailPage() {
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Balance</th>
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Created</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Due date</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Sent at</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid at</th>
                     <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
