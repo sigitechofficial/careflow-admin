@@ -15,6 +15,15 @@ export type InvoiceRunRow = {
   netTotal: string
   exceptions: number
   exportStatus: ExportStatus
+  /** Per–service-user invoices fully paid. */
+  invoicesPaid?: number
+  /** Per–service-user invoices with no payment. */
+  invoicesUnpaid?: number
+  /** Per–service-user invoices partially paid. */
+  invoicesPartPaid?: number
+  /** Total payment allocations on the run. */
+  paidAmount?: string
+  paidAmountValue?: number
 }
 
 export type InvoiceRunsSummary = {
@@ -50,7 +59,7 @@ export type InvoiceRunFunderSummary = {
   outstanding?: string
   outstandingValue?: number
   paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
-  lines: InvoiceRunLine[]
+  lines?: InvoiceRunLine[]
 }
 
 /** One invoice document per service user on the run. */
@@ -84,6 +93,10 @@ export type InvoiceRunServiceUserSummary = {
   serviceUserId: string
   serviceUserName: string
   serviceUserNumber: string | null
+  /** How often this client is invoiced: WEEKLY or MONTHLY. */
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY' | string | null
+  /** QBO-style sequential number, e.g. INV-1001 */
+  invoiceNumber?: string | null
   lineCount: number
   funderCount: number
   funderLabel: string
@@ -95,8 +108,10 @@ export type InvoiceRunServiceUserSummary = {
   outstanding?: string
   outstandingValue?: number
   paymentStatus?: 'UNPAID' | 'PART_PAID' | 'PAID'
+  exceptionCount?: number
   history?: InvoiceRunServiceUserHistoryEvent[]
-  lines: InvoiceRunLine[]
+  /** Present when attached client-side for Preview; omitted from list API payload. */
+  lines?: InvoiceRunLine[]
 }
 
 export type InvoiceRunDetail = InvoiceRunRow & {
@@ -304,6 +319,7 @@ export type ServiceUserInvoiceRunRow = {
   exportStatus: ExportStatus
   sentAt: string | null
   lockedAt: string | null
+  invoiceNumber?: string | null
   lineCount: number
   subtotal: string
   subtotalValue: number
@@ -329,6 +345,10 @@ export type ServiceUserInvoicesSummary = {
   readyToInvoiceCount: number
   totalInvoiced: string
   totalInvoicedValue: number
+  totalPaid?: string
+  totalPaidValue?: number
+  openBalance?: string
+  openBalanceValue?: number
   runCount: number
   runs: ServiceUserInvoiceRunRow[]
 }

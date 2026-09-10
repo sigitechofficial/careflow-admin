@@ -118,6 +118,14 @@ const FUNDING_FIELD_TOOLTIPS = {
   billingContactName: 'Person or team named on invoices. Required for billing readiness.',
   billingContactEmail: 'Email address for sending invoices to this funder or appointee.',
   billingContactPhone: 'Phone number for billing queries.',
+  billingAddress:
+    'Postal address printed on / used for invoices for this funding line. Can differ from the funder organisation address.',
+  billingAddressLine1: 'First line of the invoice billing address.',
+  billingAddressLine2: 'Second line of the invoice billing address (optional).',
+  billingTown: 'Town or city for the invoice billing address.',
+  billingCounty: 'County or region for the invoice billing address.',
+  billingCountry: 'Country for the invoice billing address.',
+  billingPostcode: 'Postcode for the invoice billing address.',
   invoiceGroupingRule: 'How invoice lines are grouped — e.g. one invoice per service user or per PO.',
   reviewDate: 'Date when this funding arrangement should be reviewed.',
   notes: 'Internal notes for staff. Not shown on invoices.',
@@ -201,6 +209,12 @@ type FundingForm = {
   billingContactName: string
   billingContactEmail: string
   billingContactPhone: string
+  billingAddressLine1: string
+  billingAddressLine2: string
+  billingTown: string
+  billingCounty: string
+  billingCountry: string
+  billingPostcode: string
   invoiceGroupingRule: string
   defaultChargeCardId: string
   defaultInvoiceTemplateId: string
@@ -231,6 +245,12 @@ function emptyForm(): FundingForm {
     billingContactName: '',
     billingContactEmail: '',
     billingContactPhone: '',
+    billingAddressLine1: '',
+    billingAddressLine2: '',
+    billingTown: '',
+    billingCounty: '',
+    billingCountry: '',
+    billingPostcode: '',
     invoiceGroupingRule: '',
     defaultChargeCardId: '',
     defaultInvoiceTemplateId: '',
@@ -263,6 +283,12 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     billingContactName: row.billingContactName ?? '',
     billingContactEmail: row.billingContactEmail ?? '',
     billingContactPhone: row.billingContactPhone ?? '',
+    billingAddressLine1: row.billingAddressLine1 ?? '',
+    billingAddressLine2: row.billingAddressLine2 ?? '',
+    billingTown: row.billingTown ?? '',
+    billingCounty: row.billingCounty ?? '',
+    billingCountry: row.billingCountry ?? '',
+    billingPostcode: row.billingPostcode ?? '',
     invoiceGroupingRule: row.invoiceGroupingRule ?? '',
     defaultChargeCardId: row.defaultChargeCardId ?? row.defaultChargeCard?.id ?? '',
     defaultInvoiceTemplateId:
@@ -323,6 +349,12 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     billingContactName: f.billingContactName || null,
     billingContactEmail: f.billingContactEmail || null,
     billingContactPhone: f.billingContactPhone || null,
+    billingAddressLine1: f.billingAddressLine1 || null,
+    billingAddressLine2: f.billingAddressLine2 || null,
+    billingTown: f.billingTown || null,
+    billingCounty: f.billingCounty || null,
+    billingCountry: f.billingCountry || null,
+    billingPostcode: f.billingPostcode || null,
     invoiceGroupingRule: f.invoiceGroupingRule || null,
     defaultChargeCardId: f.defaultChargeCardId || null,
     defaultInvoiceTemplateId: f.defaultInvoiceTemplateId || null,
@@ -517,6 +549,31 @@ export function ServiceUserFundingTab({
   )
 
   const isMixedMode = form.payerMode === 'MIXED'
+
+  const selectedFunder = React.useMemo(
+    () => (form.funderId ? funders.find((f) => f.id === form.funderId) : undefined),
+    [form.funderId, funders],
+  )
+  const selectedFunderHasAddress = Boolean(
+    selectedFunder?.addressLine1?.trim() ||
+      selectedFunder?.addressLine2?.trim() ||
+      selectedFunder?.town?.trim() ||
+      selectedFunder?.county?.trim() ||
+      selectedFunder?.postcode?.trim() ||
+      selectedFunder?.country?.trim(),
+  )
+  const applyFunderBillingAddress = () => {
+    if (!selectedFunder) return
+    setForm((f) => ({
+      ...f,
+      billingAddressLine1: selectedFunder.addressLine1 ?? '',
+      billingAddressLine2: selectedFunder.addressLine2 ?? '',
+      billingTown: selectedFunder.town ?? '',
+      billingCounty: selectedFunder.county ?? '',
+      billingCountry: selectedFunder.country ?? '',
+      billingPostcode: selectedFunder.postcode ?? '',
+    }))
+  }
 
   const openEdit = (row: EnterpriseServiceUserFundingRow) => {
     const { form: nextForm, groupIds } = rowToEditForm(row, rows)
@@ -911,6 +968,21 @@ export function ServiceUserFundingTab({
                     {row.billingContactName ? (
                       <p className="text-sm text-muted-foreground">Billing: {row.billingContactName}</p>
                     ) : null}
+                    {row.billingAddressLine1 || row.billingPostcode ? (
+                      <p className="text-sm text-muted-foreground">
+                        Invoice address:{' '}
+                        {[
+                          row.billingAddressLine1,
+                          row.billingAddressLine2,
+                          row.billingTown,
+                          row.billingCounty,
+                          row.billingPostcode,
+                          row.billingCountry,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </p>
+                    ) : null}
                     <p className="mt-2 text-xs text-muted-foreground">
                       {fmtDate(row.startDate)} → {fmtDate(row.endDate)}
                       {row.weeklyBudget != null && row.weeklyBudget !== ''
@@ -1272,6 +1344,102 @@ export function ServiceUserFundingTab({
                   value={form.billingContactPhone}
                   onChange={(e) => setForm((f) => ({ ...f, billingContactPhone: e.target.value }))}
                 />
+              </div>
+              <div className="space-y-3 sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <FundingFieldLabel
+                      label="Billing address"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddress}
+                    />
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Postal address where invoices for this funder should be sent.
+                    </p>
+                  </div>
+                  {selectedFunderHasAddress ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={applyFunderBillingAddress}
+                    >
+                      Use funder address
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Address line 1"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddressLine1}
+                    />
+                    <Input
+                      value={form.billingAddressLine1}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, billingAddressLine1: e.target.value }))
+                      }
+                      placeholder="Building / street"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Address line 2"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddressLine2}
+                    />
+                    <Input
+                      value={form.billingAddressLine2}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, billingAddressLine2: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Town / city"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingTown}
+                    />
+                    <Input
+                      value={form.billingTown}
+                      onChange={(e) => setForm((f) => ({ ...f, billingTown: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="County"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingCounty}
+                    />
+                    <Input
+                      value={form.billingCounty}
+                      onChange={(e) => setForm((f) => ({ ...f, billingCounty: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Postcode"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingPostcode}
+                    />
+                    <Input
+                      value={form.billingPostcode}
+                      onChange={(e) => setForm((f) => ({ ...f, billingPostcode: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Country"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingCountry}
+                    />
+                    <Input
+                      value={form.billingCountry}
+                      onChange={(e) => setForm((f) => ({ ...f, billingCountry: e.target.value }))}
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <FundingFieldLabel

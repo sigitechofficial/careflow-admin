@@ -193,6 +193,8 @@ export type ServiceUserDetail = {
   notes: string | null
   defaultChargeCardId?: string | null
   defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
+  /** How often this client is invoiced: WEEKLY or MONTHLY. */
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY' | string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -276,6 +278,12 @@ export type EnterpriseFunderRow = {
   name: string
   code: string | null
   fundingType?: { id: string; name: string; code: string } | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  town?: string | null
+  county?: string | null
+  country?: string | null
+  postcode?: string | null
 }
 
 export type EnterpriseServiceUserFundingRow = {
@@ -300,6 +308,12 @@ export type EnterpriseServiceUserFundingRow = {
   billingContactName: string | null
   billingContactEmail: string | null
   billingContactPhone: string | null
+  billingAddressLine1: string | null
+  billingAddressLine2: string | null
+  billingTown: string | null
+  billingCounty: string | null
+  billingCountry: string | null
+  billingPostcode: string | null
   invoiceGroupingRule: string | null
   defaultChargeCardId: string | null
   defaultInvoiceTemplateId: string | null
@@ -415,6 +429,12 @@ export type CreateEnterpriseServiceUserFundingBody = {
   billingContactName?: string | null
   billingContactEmail?: string | null
   billingContactPhone?: string | null
+  billingAddressLine1?: string | null
+  billingAddressLine2?: string | null
+  billingTown?: string | null
+  billingCounty?: string | null
+  billingCountry?: string | null
+  billingPostcode?: string | null
   invoiceGroupingRule?: string | null
   defaultChargeCardId?: string | null
   defaultInvoiceTemplateId?: string | null
@@ -1637,6 +1657,7 @@ export type UpdateServiceUserPayload = {
   namedNurseId?: string | null
   notes?: string | null
   defaultChargeCardId?: string | null
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY'
   serviceUserNumber?: string | null
   residentId?: string | null
   residentGuid?: string | null

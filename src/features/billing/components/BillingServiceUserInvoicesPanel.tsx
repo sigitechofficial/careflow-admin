@@ -503,10 +503,22 @@ function MonthTable({
         </thead>
         <tbody>
           {months.map((m) => {
-            const canEmail = canManage && m.lineCount > 0
+            const canEmail =
+              canManage &&
+              m.lineCount > 0 &&
+              (m.status === 'APPROVED' ||
+                m.status === 'LOCKED' ||
+                m.status === 'SENT' ||
+                m.status === 'PART_PAID' ||
+                m.status === 'PAID')
             return (
               <tr key={m.runId} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-                <td className="px-3 py-2 font-medium">{m.period}</td>
+                <td className="px-3 py-2">
+                  <p className="font-medium">{m.period}</p>
+                  {m.invoiceNumber ? (
+                    <p className="font-mono text-[11px] text-muted-foreground">{m.invoiceNumber}</p>
+                  ) : null}
+                </td>
                 <td className="px-3 py-2">
                   <div className="space-y-0.5">
                     <InvoiceRunStatusBadge status={m.status} />

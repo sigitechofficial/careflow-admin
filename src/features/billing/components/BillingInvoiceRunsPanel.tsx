@@ -1,20 +1,17 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Eye, Loader2, Plus, Send, Lock, Calculator, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Send, Lock, Calculator, Trash2 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
-import { Dialog, DialogContent } from '@/shared/ui/dialog'
 import { ExportStatusBadge, InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { BillingRunPeriodDialog } from '@/features/billing/components/BillingRunPeriodDialog'
-import { InvoiceRunPreviewDialog } from '@/features/billing/components/InvoiceRunPreviewDialog'
 import {
   useApproveInvoiceRun,
   useCalculateInvoiceRun,
   useCreateInvoiceRun,
   useDeleteAllInvoiceRuns,
-  useInvoiceRun,
   useInvoiceRuns,
   useLockInvoiceRun,
   useSendInvoiceRun,
@@ -61,40 +58,6 @@ function CadenceBadge({ startIso, endIso }: { startIso: string; endIso: string }
     >
       {label}
     </span>
-  )
-}
-
-function InvoiceRunPreviewButton({ id }: { id: string }) {
-  const [open, setOpen] = React.useState(false)
-  const detailQuery = useInvoiceRun(open ? id : undefined)
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        leftIcon={<Eye className="h-3.5 w-3.5" />}
-        onClick={() => setOpen(true)}
-      >
-        Preview
-      </Button>
-      {open && detailQuery.isLoading ? (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-md">
-            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading invoice preview…
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : (
-        <InvoiceRunPreviewDialog
-          open={open}
-          onOpenChange={setOpen}
-          invoiceRun={detailQuery.data ?? null}
-        />
-      )}
-    </>
   )
 }
 
@@ -189,7 +152,7 @@ export function BillingInvoiceRunsPanel() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[1140px] text-sm">
+          <table className="w-full min-w-[1400px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Period</th>
@@ -197,6 +160,10 @@ export function BillingInvoiceRunsPanel() {
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Service users</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Invoices</th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid</th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Partial</th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Unpaid</th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Amount paid</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Net total</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Exceptions</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Export</th>
@@ -226,6 +193,18 @@ export function BillingInvoiceRunsPanel() {
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.serviceUsers}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.funders}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400">
+                    {row.invoicesPaid ?? 0}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-amber-700 dark:text-amber-400">
+                    {row.invoicesPartPaid ?? 0}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                    {row.invoicesUnpaid ?? 0}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums font-medium">
+                    {row.paidAmount ?? '£0.00'}
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums font-medium">{row.netTotal}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.exceptions}</td>
                   <td className="px-3 py-2.5">
@@ -238,7 +217,6 @@ export function BillingInvoiceRunsPanel() {
                           View
                         </Link>
                       </Button>
-                      <InvoiceRunPreviewButton id={row.id} />
                       {canManage && (row.status === 'DRAFT' || row.status === 'EXCEPTION_FOUND') ? (
                         <Button
                           variant="outline"

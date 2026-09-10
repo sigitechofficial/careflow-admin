@@ -23,6 +23,8 @@ export type ServiceUserInvoiceMonthRow = {
   exportStatus: ExportStatus
   sent: boolean
   sentAt: string | null
+  /** QBO-style sequential number, e.g. INV-1001 */
+  invoiceNumber?: string | null
   lineCount: number
   subtotal: string
   subtotalValue: number

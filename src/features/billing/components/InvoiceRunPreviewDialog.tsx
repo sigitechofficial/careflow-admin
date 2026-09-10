@@ -57,10 +57,12 @@ function LiveInvoiceDocument({
   invoiceTotal: number
   org: InvoiceOrganisation
 }) {
-  const invoiceNumber = invoiceRunRef(
-    invoiceRun,
-    group.serviceUserNumber || group.serviceUserId.slice(0, 8).toUpperCase(),
-  )
+  const invoiceNumber =
+    group.invoiceNumber?.trim() ||
+    invoiceRunRef(
+      invoiceRun,
+      group.serviceUserNumber || group.serviceUserId.slice(0, 8).toUpperCase(),
+    )
   const issueDate = formatUkDate(invoiceRun.periodEnd)
 
   return (
@@ -119,7 +121,7 @@ function LiveInvoiceDocument({
             </tr>
           </thead>
           <tbody>
-            {group.lines.map(line => (
+            {(group.lines ?? []).map(line => (
               <tr key={line.id} className="border-b border-border/60 align-top">
                 <td className="py-3 pr-4 font-mono text-xs">{line.visitRef ?? '—'}</td>
                 <td className="py-3 pr-4 font-semibold">{line.serviceUserName}</td>
@@ -175,12 +177,17 @@ export function InvoiceRunPreviewDialog({
 
   const allSu =
     invoiceRun.serviceUserSummaries && invoiceRun.serviceUserSummaries.length > 0
-      ? invoiceRun.serviceUserSummaries
+      ? invoiceRun.serviceUserSummaries.map((group) => ({
+          ...group,
+          lines:
+            group.lines ??
+            invoiceRun.lines.filter((line) => line.serviceUserId === group.serviceUserId),
+        }))
       : []
   const invoices = serviceUserIdFilter
     ? allSu.filter(g => g.serviceUserId === serviceUserIdFilter)
     : allSu
-  const hasLines = invoices.length > 0
+  const hasLines = invoices.some((g) => (g.lines?.length ?? 0) > 0 || g.lineCount > 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -222,7 +229,8 @@ export function InvoiceRunPreviewDialog({
                       Service user invoice — {group.serviceUserName}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {group.lineCount} line{group.lineCount === 1 ? '' : 's'} · {group.subtotal}
+                      {group.invoiceNumber ? `${group.invoiceNumber} · ` : ''}
+                      {group.subtotal}
                     </span>
                   </div>
                   <LiveInvoiceDocument
