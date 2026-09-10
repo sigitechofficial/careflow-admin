@@ -19,6 +19,9 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { ExportStatus } from '@/features/billing/types/billing.types'
+import type { InvoiceRunRow } from '@/features/billing/api/invoice-runs.api'
+
+type CadenceTab = 'weekly' | 'monthly'
 
 function fmtDate(iso: string): string {
   const d = new Date(iso)
@@ -61,11 +64,16 @@ function CadenceBadge({ startIso, endIso }: { startIso: string; endIso: string }
   )
 }
 
+function filterRowsByCadence(rows: InvoiceRunRow[], tab: CadenceTab): InvoiceRunRow[] {
+  return rows.filter((row) => periodCadence(row.periodStart, row.periodEnd).tone === tab)
+}
+
 export function BillingInvoiceRunsPanel() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const { locationId } = useGlobalLocationScope()
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [cadenceTab, setCadenceTab] = React.useState<CadenceTab>('weekly')
 
   const query = useInvoiceRuns({ locationId: locationId ?? undefined })
   const createMutation = useCreateInvoiceRun()
@@ -76,6 +84,14 @@ export function BillingInvoiceRunsPanel() {
   const deleteAllMutation = useDeleteAllInvoiceRuns()
 
   const rows = query.data ?? []
+  const weeklyRows = React.useMemo(() => filterRowsByCadence(rows, 'weekly'), [rows])
+  const monthlyRows = React.useMemo(() => filterRowsByCadence(rows, 'monthly'), [rows])
+  const customCount = React.useMemo(
+    () => rows.filter((row) => periodCadence(row.periodStart, row.periodEnd).tone === 'custom').length,
+    [rows],
+  )
+  const visibleRows = cadenceTab === 'weekly' ? weeklyRows : monthlyRows
+
   const isMutating =
     createMutation.isPending ||
     calculateMutation.isPending ||
@@ -88,6 +104,8 @@ export function BillingInvoiceRunsPanel() {
     const created = await createMutation.mutateAsync(values)
     setCreateOpen(false)
     await calculateMutation.mutateAsync(created.id)
+    const tone = periodCadence(values.periodStart, values.periodEnd).tone
+    if (tone === 'weekly' || tone === 'monthly') setCadenceTab(tone)
   }
 
   const handleDeleteAll = () => {
@@ -141,6 +159,51 @@ export function BillingInvoiceRunsPanel() {
         }
       />
 
+      <div className="border-b border-border">
+        <nav className="-mb-px flex flex-wrap gap-1" aria-label="Invoice run cadence">
+          {(
+            [
+              { id: 'weekly' as const, label: 'Weekly', count: weeklyRows.length },
+              { id: 'monthly' as const, label: 'Monthly', count: monthlyRows.length },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setCadenceTab(tab.id)}
+              className={cn(
+                'relative px-3 py-2.5 text-sm font-medium transition-colors',
+                cadenceTab === tab.id
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tab.label}
+              <span
+                className={cn(
+                  'ml-1.5 inline-flex min-w-[1.25rem] justify-center rounded-full px-1.5 py-0.5 text-[11px] tabular-nums',
+                  cadenceTab === tab.id
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted text-muted-foreground',
+                )}
+              >
+                {tab.count}
+              </span>
+              {cadenceTab === tab.id ? (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
+              ) : null}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {customCount > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {customCount} custom-period run{customCount === 1 ? '' : 's'} hidden from these tabs
+          (period is neither ~1 week nor ~1 month).
+        </p>
+      ) : null}
+
       {query.isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -148,7 +211,14 @@ export function BillingInvoiceRunsPanel() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No invoice runs yet. Create a run for a completed calendar month with approved billable visit times.
+          No invoice runs yet. Create a weekly (~7 day) or monthly period with approved billable visit times.
+        </div>
+      ) : visibleRows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          No {cadenceTab} invoice runs yet.
+          {cadenceTab === 'weekly'
+            ? ' Create a run with a ~7 day period.'
+            : ' Create a run with a ~28–31 day period.'}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -171,7 +241,7 @@ export function BillingInvoiceRunsPanel() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
+              {visibleRows.map(row => (
                 <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                   <td className="px-3 py-2.5 font-medium">
                     <Link
@@ -285,7 +355,7 @@ export function BillingInvoiceRunsPanel() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="New invoice run"
-        description="Select the billing period. Visits with approved billable time in this range will be charged with funder splits applied."
+        description="Select the billing period. Weekly (~7 days) or monthly (~28–31 days) periods appear on the matching tab."
         isPending={createMutation.isPending || calculateMutation.isPending}
         onSubmit={handleCreate}
       />

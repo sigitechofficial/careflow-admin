@@ -58,6 +58,8 @@ type TxnStatusFilter = 'all' | 'PAID' | 'PART_PAID' | 'UNPAID' | 'DRAFT'
 type TxnDateFilter = 'all' | '30' | '90' | '365'
 
 const RECEIVABLE_INVOICE_STATUSES = new Set([
+  'READY_FOR_REVIEW',
+  'EXCEPTION_FOUND',
   'APPROVED',
   'LOCKED',
   'SENT',
@@ -67,6 +69,20 @@ const RECEIVABLE_INVOICE_STATUSES = new Set([
 
 function isReceivableInvoice(status: string): boolean {
   return RECEIVABLE_INVOICE_STATUSES.has(status)
+}
+
+/** Prefer API outstanding; fall back to subtotal − paid when value is missing. */
+function runOutstandingValue(run: {
+  outstandingValue?: number
+  subtotalValue?: number
+  paidValue?: number
+}): number {
+  if (typeof run.outstandingValue === 'number' && Number.isFinite(run.outstandingValue)) {
+    return run.outstandingValue
+  }
+  const sub = run.subtotalValue ?? 0
+  const paid = run.paidValue ?? 0
+  return Math.max(0, Math.round((sub - paid) * 100) / 100)
 }
 
 type TransactionRow = {
@@ -416,34 +432,26 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
   const resolvedTemplate = templateQuery.data?.invoiceTemplate
   const templateSource = templateQuery.data?.source
 
-  /** Amount still owed on receivable invoices (approved / locked / sent / part-paid). */
+  /**
+   * Open balance = money still owed across this client's invoices.
+   * Overdue = unpaid only after the billing period end date has passed.
+   */
   const openBalanceValue = React.useMemo(
     () =>
-      Math.round(
-        runs.reduce((sum, r) => {
-          if (!isReceivableInvoice(r.status)) return sum
-          return sum + (r.outstandingValue ?? 0)
-        }, 0) * 100,
-      ) / 100,
+      Math.round(runs.reduce((sum, r) => sum + runOutstandingValue(r), 0) * 100) / 100,
     [runs],
   )
   const totalInvoicedValue = React.useMemo(
     () =>
       Math.round(
-        runs.reduce((sum, r) => {
-          if (!isReceivableInvoice(r.status)) return sum
-          return sum + (r.subtotalValue ?? 0)
-        }, 0) * 100,
+        runs.reduce((sum, r) => sum + Math.max(0, r.subtotalValue ?? 0), 0) * 100,
       ) / 100,
     [runs],
   )
   const totalPaidValue = React.useMemo(
     () =>
       Math.round(
-        runs.reduce((sum, r) => {
-          if (!isReceivableInvoice(r.status)) return sum
-          return sum + (r.paidValue ?? 0)
-        }, 0) * 100,
+        runs.reduce((sum, r) => sum + Math.max(0, r.paidValue ?? 0), 0) * 100,
       ) / 100,
     [runs],
   )
@@ -453,12 +461,11 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
     return (
       Math.round(
         runs.reduce((sum, r) => {
-          if (!isReceivableInvoice(r.status) || (r.outstandingValue ?? 0) <= 0.001) {
-            return sum
-          }
+          const outstanding = runOutstandingValue(r)
+          if (outstanding <= 0.001) return sum
           const end = new Date(`${r.periodEnd}T00:00:00Z`)
           if (Number.isNaN(end.getTime()) || end >= today) return sum
-          return sum + r.outstandingValue
+          return sum + outstanding
         }, 0) * 100,
       ) / 100
     )
