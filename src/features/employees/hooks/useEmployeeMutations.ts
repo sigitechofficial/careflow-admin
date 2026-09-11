@@ -3,9 +3,11 @@ import {
   createEmployee,
   createEmployeeHoliday,
   createEmployeeNonCoreActivity,
+  createEmployeeCertification,
   createEmployeeSkill,
   createJobTitle,
   deleteEmployee,
+  deleteEmployeeCertification,
   deleteEmployeeHoliday,
   deleteEmployeeNonCoreActivity,
   deleteEmployeeSkill,
@@ -14,13 +16,16 @@ import {
   patchPersonalDetails,
   updateEmployeeHoliday,
   updateEmployeeNonCoreActivity,
+  updateEmployeeSkill,
   uploadEmployeePhoto,
   type CreateEmployeeHolidayPayload,
+  type CreateEmployeeCertificationPayload,
   type CreateEmployeePayload,
   type CreateEmployeeSkillPayload,
   type CreateNonCoreActivityPayload,
   type EmploymentPayload,
   type PersonalDetailsPayload,
+  type UpdateEmployeeSkillPayload,
 } from '@/features/employees/api'
 import { employeeKeys } from '@/features/employees/keys'
 
@@ -140,6 +145,7 @@ export function useCreateEmployeeSkill(employeeId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.skills(employeeId) })
       void qc.invalidateQueries({ queryKey: employeeKeys.skillsOverview() })
+      void qc.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
     },
   })
 }
@@ -152,6 +158,7 @@ export function useCreateEmployeeSkillMutation() {
     onSuccess: (_data, { employeeId }) => {
       void qc.invalidateQueries({ queryKey: employeeKeys.skills(employeeId) })
       void qc.invalidateQueries({ queryKey: employeeKeys.skillsOverview() })
+      void qc.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
     },
   })
 }
@@ -163,6 +170,60 @@ export function useDeleteEmployeeSkill(employeeId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeeKeys.skills(employeeId) })
       void qc.invalidateQueries({ queryKey: employeeKeys.skillsOverview() })
+    },
+  })
+}
+
+export function useUpdateEmployeeSkill(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ skillId, body }: { skillId: string; body: UpdateEmployeeSkillPayload }) =>
+      updateEmployeeSkill(employeeId, skillId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.skills(employeeId) })
+      void qc.invalidateQueries({ queryKey: employeeKeys.skillsOverview() })
+      void qc.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
+    },
+  })
+}
+
+export function useUpdateEmployeeSkillMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      skillId,
+      body,
+    }: {
+      employeeId: string
+      skillId: string
+      body: UpdateEmployeeSkillPayload
+    }) => updateEmployeeSkill(employeeId, skillId, body),
+    onSuccess: (_data, { employeeId }) => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.skills(employeeId) })
+      void qc.invalidateQueries({ queryKey: employeeKeys.skillsOverview() })
+      void qc.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
+    },
+  })
+}
+
+export function useCreateEmployeeCertification(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreateEmployeeCertificationPayload) => createEmployeeCertification(employeeId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.certifications(employeeId) })
+      void qc.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
+    },
+  })
+}
+
+export function useDeleteEmployeeCertification(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (certificationId: string) => deleteEmployeeCertification(employeeId, certificationId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeeKeys.certifications(employeeId) })
     },
   })
 }

@@ -27,6 +27,13 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { cn, formatDate } from '@/shared/lib/utils'
+import { EmployeeEditCertificationsPanel } from '@/features/employees/components/EmployeeEditCertificationsPanel'
+import { EmployeeSkillTypePicker } from '@/features/employees/components/EmployeeSkillTypePicker'
+import {
+  EmployeeSkillDocumentCell,
+  SKILL_DOCUMENT_ACCEPT,
+  uploadSkillEvidence,
+} from '@/features/employees/components/EmployeeSkillDocumentCell'
 
 function employeeDisplayName(emp: EmployeeListRow): string {
   return emp.fullName?.trim() || [emp.firstName, emp.lastName].filter(Boolean).join(' ').trim() || '—'
@@ -41,11 +48,13 @@ export function EmployeeSkillsTab() {
   const accessToken = useAuthStore(s => s.accessToken)
   const jwtPresent = Boolean(accessToken?.includes('.'))
   const canUpdate = useAuthStore(s => s.can('employees.update'))
+  const canUploadDocs = useAuthStore(s => s.can('employees.documents.upload'))
   const queryEnabled = apiConfigured && jwtPresent
 
   const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState<string[]>([])
   const [activeEmployeeId, setActiveEmployeeId] = React.useState<string>('')
   const [skillsSubTab, setSkillsSubTab] = React.useState<'manage' | 'overview'>('manage')
+  const [manageKind, setManageKind] = React.useState<'skills' | 'certifications'>('skills')
 
   const lookupsQuery = useEmployeeLookups(queryEnabled)
   const employeesQuery = useAllEmployees({ sortOrder: 'desc' }, queryEnabled)
@@ -92,8 +101,11 @@ export function EmployeeSkillsTab() {
   const [skillTypeId, setSkillTypeId] = React.useState('')
   const [expiryDate, setExpiryDate] = React.useState('')
   const [notes, setNotes] = React.useState('')
+  const [skillFile, setSkillFile] = React.useState<File | null>(null)
+  const skillFileRef = React.useRef<HTMLInputElement>(null)
   const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const saving = createSkillMutation.isPending
+  const [adding, setAdding] = React.useState(false)
+  const saving = adding || createSkillMutation.isPending
   const [overviewNameFilter, setOverviewNameFilter] = React.useState('')
   const [nameFilterOpen, setNameFilterOpen] = React.useState(false)
 
@@ -113,6 +125,9 @@ export function EmployeeSkillsTab() {
       if (prev && ids.includes(prev)) return prev
       return ids[0] ?? ''
     })
+    setSkillTypeId('')
+    setSkillFile(null)
+    if (skillFileRef.current) skillFileRef.current.value = ''
     setBanner(null)
   }
 
@@ -121,31 +136,44 @@ export function EmployeeSkillsTab() {
     [skills],
   )
 
-  const skillTypeOptions = React.useMemo(() => {
-    const types = lookups?.skillTypes ?? []
-    return types.filter(t => !assignedSkillTypeIds.has(t.id))
-  }, [lookups?.skillTypes, assignedSkillTypeIds])
+  const skillTypes = lookups?.skillTypes ?? []
 
   const onAddSkill = async () => {
     if (!activeEmployeeId || !skillTypeId.trim()) {
       setBanner({ type: 'error', text: 'Select an employee and a skill type.' })
       return
     }
+    if (assignedSkillTypeIds.has(skillTypeId.trim())) {
+      setBanner({ type: 'error', text: 'That skill is already on this record.' })
+      return
+    }
     setBanner(null)
+    setAdding(true)
     try {
-      const body: { skillTypeId: string; expiryDate?: string; notes?: string } = {
+      const body: { skillTypeId: string; expiryDate?: string; notes?: string; documentUrl?: string } = {
         skillTypeId: skillTypeId.trim(),
       }
       if (expiryDate.trim()) body.expiryDate = `${expiryDate.trim()}T12:00:00.000Z`
       if (notes.trim()) body.notes = notes.trim()
+      if (skillFile) {
+        if (!canUploadDocs) {
+          setBanner({ type: 'error', text: 'You do not have permission to upload documents.' })
+          return
+        }
+        body.documentUrl = await uploadSkillEvidence(activeEmployeeId, skillFile)
+      }
       await createSkillMutation.mutateAsync({ employeeId: activeEmployeeId, body })
       setSkillTypeId('')
       setExpiryDate('')
       setNotes('')
+      setSkillFile(null)
+      if (skillFileRef.current) skillFileRef.current.value = ''
       setBanner({ type: 'success', text: 'Skill added.' })
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'Could not add skill.'
       setBanner({ type: 'error', text: msg })
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -200,7 +228,7 @@ export function EmployeeSkillsTab() {
         ))}
       </div>
 
-      {banner && skillsSubTab === 'manage' ? (
+      {banner && skillsSubTab === 'manage' && manageKind === 'skills' ? (
         <div
           role="status"
           className={cn(
@@ -220,9 +248,9 @@ export function EmployeeSkillsTab() {
             <div className="flex items-start gap-2">
               <Award className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Select one or more employees from the dropdown (search inside the panel), then pick who you are viewing in
-                the skills section if several are selected. Add skills from your organisation&apos;s skill types (lookups).
-                Expiry and notes are optional.
+                Select one or more employees from the dropdown (search inside the panel), then pick who you are viewing
+                if several are selected. Use Skills for operational capabilities and Work Certification for qualification
+                proof. Expiry, notes, and documentation are optional.
                 Requires <span className="font-mono text-foreground">employees.read</span> to view and{' '}
                 <span className="font-mono text-foreground">employees.update</span> to add or remove.
               </p>
@@ -233,7 +261,7 @@ export function EmployeeSkillsTab() {
             <p className="text-sm text-amber-800 dark:text-amber-200">{empError}</p>
           ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-foreground">1. Select employees</h3>
           {empLoading ? (
@@ -272,12 +300,21 @@ export function EmployeeSkillsTab() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">2. Skills for selected employee</h3>
+          <h3 className="text-sm font-semibold text-foreground">2. Skills & work certification</h3>
 
           {selectedEmpsInOrder.length > 1 ? (
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Viewing skills for</label>
-              <Select value={activeEmployeeId} onValueChange={id => { setActiveEmployeeId(id); setBanner(null) }}>
+              <label className="text-xs text-muted-foreground">Viewing record for</label>
+              <Select
+                value={activeEmployeeId}
+                onValueChange={id => {
+                  setActiveEmployeeId(id)
+                  setSkillTypeId('')
+                  setSkillFile(null)
+                  if (skillFileRef.current) skillFileRef.current.value = ''
+                  setBanner(null)
+                }}
+              >
                 <SelectTrigger className="h-9 w-full" aria-label="Employee to view skills for">
                   <SelectValue placeholder="Choose employee" />
                 </SelectTrigger>
@@ -294,6 +331,34 @@ export function EmployeeSkillsTab() {
 
           {!activeEmployeeId ? (
             <p className="text-sm text-muted-foreground">Select at least one employee above.</p>
+          ) : (
+            <>
+          <div className="flex gap-1 border-b border-border" role="tablist" aria-label="Skills sections">
+            {(['skills', 'certifications'] as const).map(tab => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={manageKind === tab}
+                data-testid={`employee-skills-manage-subtab-${tab}`}
+                onClick={() => {
+                  setManageKind(tab)
+                  setBanner(null)
+                }}
+                className={cn(
+                  'text-sm px-3 pb-2 border-b-2 -mb-px transition-colors font-medium',
+                  manageKind === tab
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab === 'skills' ? 'Skills' : 'Work Certification'}
+              </button>
+            ))}
+          </div>
+
+          {manageKind === 'certifications' ? (
+            <EmployeeEditCertificationsPanel employeeId={activeEmployeeId} showHeading={false} />
           ) : skillsError ? (
             <p className="text-sm text-destructive">{skillsError}</p>
           ) : skillsLoading ? (
@@ -306,13 +371,14 @@ export function EmployeeSkillsTab() {
                     <th className="px-3 py-2 font-medium">Skill</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap">Expiry</th>
                     <th className="px-3 py-2 font-medium">Notes</th>
+                    <th className="px-3 py-2 font-medium">Skill Documentation</th>
                     {canUpdate ? <th className="w-12 px-3 py-2" /> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {skills.length === 0 ? (
                     <tr>
-                      <td colSpan={canUpdate ? 4 : 3} className="px-3 py-6 text-center text-muted-foreground">
+                      <td colSpan={canUpdate ? 5 : 4} className="px-3 py-6 text-center text-muted-foreground">
                         No skills recorded yet.
                       </td>
                     </tr>
@@ -325,6 +391,15 @@ export function EmployeeSkillsTab() {
                         </td>
                         <td className="px-3 py-2 text-muted-foreground max-w-[12rem] truncate" title={row.notes ?? ''}>
                           {row.notes?.trim() ? row.notes : '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <EmployeeSkillDocumentCell
+                            employeeId={activeEmployeeId}
+                            skillId={row.id}
+                            documentUrl={row.documentUrl}
+                            canUpdate={canUpdate}
+                            onError={text => setBanner({ type: 'error', text })}
+                          />
                         </td>
                         {canUpdate ? (
                           <td className="px-3 py-2 text-right">
@@ -346,24 +421,17 @@ export function EmployeeSkillsTab() {
             </div>
           )}
 
-          {activeEmployeeId && canUpdate ? (
+          {manageKind === 'skills' && activeEmployeeId && canUpdate ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/10 p-4 space-y-3">
               <p className="text-xs font-medium text-foreground">Add skill</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs text-muted-foreground">Skill type</label>
-                  <Select value={skillTypeId} onValueChange={setSkillTypeId}>
-                    <SelectTrigger className="h-9 w-full" aria-label="Skill type">
-                      <SelectValue placeholder={skillTypeOptions.length ? 'Select skill type' : 'All types assigned'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {skillTypeOptions.map(t => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <EmployeeSkillTypePicker
+                    types={skillTypes}
+                    assignedIds={assignedSkillTypeIds}
+                    value={skillTypeId}
+                    onChange={setSkillTypeId}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs text-muted-foreground">Expiry (optional)</label>
@@ -378,14 +446,32 @@ export function EmployeeSkillsTab() {
                     className="h-9"
                   />
                 </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs text-muted-foreground">Skill documentation (optional)</label>
+              <Input
+                ref={skillFileRef}
+                type="file"
+                accept={SKILL_DOCUMENT_ACCEPT}
+                className="h-9"
+                disabled={!canUploadDocs}
+                onChange={e => setSkillFile(e.target.files?.[0] ?? null)}
+              />
+                </div>
               </div>
-              <Button type="button" size="sm" disabled={saving || !skillTypeId.trim()} onClick={() => void onAddSkill()}>
+              <Button
+                type="button"
+                size="sm"
+                disabled={saving || !skillTypeId.trim() || assignedSkillTypeIds.has(skillTypeId)}
+                onClick={() => void onAddSkill()}
+              >
                 {saving ? 'Saving…' : 'Add skill'}
               </Button>
             </div>
-          ) : activeEmployeeId && !canUpdate ? (
+          ) : manageKind === 'skills' && activeEmployeeId && !canUpdate ? (
             <p className="text-xs text-muted-foreground">You do not have permission to add or remove skills.</p>
           ) : null}
+            </>
+          )}
         </div>
       </div>
         </>

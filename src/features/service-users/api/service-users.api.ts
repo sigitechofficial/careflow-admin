@@ -108,7 +108,9 @@ export type ListServiceUsersParams = {
   hospitalisedOnly?: boolean
   unassignedKeyWorker?: boolean
   carePlanListStatus?: CarePlanListStatus
+  carePlanFormIds?: string[]
   medicalConditionId?: string
+  medicalConditionIds?: string[]
   initialAssessmentStatus?: 'none' | 'in_progress' | 'awaiting_review' | 'completed'
   missedVisitsMin?: number
   missedVisitsFrom?: string
@@ -1784,7 +1786,9 @@ export async function listServiceUsers(
   if (params.hospitalisedOnly === true) qs.set('hospitalisedOnly', 'true')
   if (params.unassignedKeyWorker === true) qs.set('unassignedKeyWorker', 'true')
   if (params.carePlanListStatus) qs.set('carePlanListStatus', params.carePlanListStatus)
+  if (params.carePlanFormIds?.length) qs.set('carePlanFormIds', params.carePlanFormIds.join(','))
   if (params.medicalConditionId) qs.set('medicalConditionId', params.medicalConditionId)
+  if (params.medicalConditionIds?.length) qs.set('medicalConditionIds', params.medicalConditionIds.join(','))
   if (params.initialAssessmentStatus) qs.set('initialAssessmentStatus', params.initialAssessmentStatus)
   if (params.missedVisitsMin != null) qs.set('missedVisitsMin', String(params.missedVisitsMin))
   if (params.missedVisitsFrom) qs.set('missedVisitsFrom', params.missedVisitsFrom)
