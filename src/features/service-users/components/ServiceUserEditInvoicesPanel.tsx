@@ -281,57 +281,6 @@ function InvoiceDetailDialog({
               </div>
             </div>
 
-            {run.funderSummaries.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Paid by funder
-                </p>
-                <div className="overflow-hidden rounded-lg border border-border">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/40 text-muted-foreground">
-                        <th className="px-3 py-2 text-left font-medium">Funder</th>
-                        <th className="px-3 py-2 text-right font-medium">Invoiced</th>
-                        <th className="px-3 py-2 text-right font-medium">Paid</th>
-                        <th className="px-3 py-2 text-right font-medium">Remaining</th>
-                        <th className="px-3 py-2 text-left font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {run.funderSummaries.map((f) => (
-                        <tr
-                          key={f.funderId ?? f.funderName}
-                          className="border-b border-border/60 last:border-0"
-                        >
-                          <td className="px-3 py-2 font-medium text-foreground">{f.funderName}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{f.subtotal}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
-                            {f.paid}
-                          </td>
-                          <td
-                            className={
-                              f.outstandingValue > 0.001
-                                ? 'px-3 py-2 text-right tabular-nums font-medium text-amber-600 dark:text-amber-400'
-                                : 'px-3 py-2 text-right tabular-nums text-muted-foreground'
-                            }
-                          >
-                            {f.outstanding}
-                          </td>
-                          <td className="px-3 py-2">
-                            {run.sent ? (
-                              <PaymentBadge status={f.paymentStatus} />
-                            ) : (
-                              <span className="text-muted-foreground">Not sent</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null}
-
             <div className="space-y-1.5">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Visits</p>
               <div className="overflow-x-auto rounded-lg border border-border">
