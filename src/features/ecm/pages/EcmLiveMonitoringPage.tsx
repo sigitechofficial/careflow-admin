@@ -81,12 +81,13 @@ export default function EcmLiveMonitoringPage() {
   ].filter(Boolean)
 
   const setTab = (next: string) => {
+    const nextTab: EcmLiveUrlSearch['tab'] = next === 'exceptions' ? 'exceptions' : 'ecm'
     void navigate({
       to: '/ecm/live',
-      search: (prev: EcmLiveUrlSearch) => ({
+      search: ((prev: Record<string, unknown>) => ({
         ...prev,
-        tab: next === 'exceptions' ? 'exceptions' : 'ecm',
-      }),
+        tab: nextTab,
+      })) as never,
       replace: true,
     })
   }
