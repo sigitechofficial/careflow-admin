@@ -4,7 +4,6 @@ import type {
   CreateEnterpriseServiceUserFundingBody,
   EnterpriseFundingStatus,
   EnterpriseFunderRow,
-  EnterpriseFundingTypeRow,
   EnterpriseServiceUserFundingRow,
 } from '@/features/service-users/types'
 import { updateEnterpriseFunder } from '@/features/service-users/api/service-users.api'
@@ -23,7 +22,6 @@ import {
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import {
   useEnterpriseFunders,
-  useEnterpriseFundingTypes,
   useServiceUserEnterpriseFundings,
 } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useChargeCards } from '@/features/billing/hooks/useChargeCards'
@@ -377,17 +375,28 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
   }
 }
 
+function fundingTypeIdForFunder(
+  funderId: string,
+  funders: EnterpriseFunderRow[],
+  fallback?: string | null,
+): string {
+  const fromFunder = funders.find((f) => f.id === funderId)?.fundingType?.id
+  return fromFunder || fallback || ''
+}
+
 function mixedShareToBody(
   f: FundingForm,
   share: MixedFunderShare,
   splitPriority: number,
   isPrimary: boolean,
+  fundingTypeId: string,
 ): CreateEnterpriseServiceUserFundingBody {
   return {
     ...formToBody({
       ...f,
       payerMode: 'MIXED',
       funderId: share.funderId,
+      fundingTypeId,
       splitPercent: share.splitPercent,
       splitPriority: String(splitPriority),
       isPrimary,
@@ -467,7 +476,6 @@ export function ServiceUserFundingTab({
   const canSetPrimary = can('service_users.funding.set_primary')
 
   const fundingsQuery = useServiceUserEnterpriseFundings(serviceUserId, canRead)
-  const typesQuery = useEnterpriseFundingTypes(canRead)
   const fundersQuery = useEnterpriseFunders(canRead)
   const chargeCardsQuery = useChargeCards()
   const invoiceTemplatesQuery = useInvoiceTemplates()
@@ -481,12 +489,10 @@ export function ServiceUserFundingTab({
 
   const loading =
     fundingsQuery.isLoading ||
-    typesQuery.isLoading ||
     fundersQuery.isLoading ||
     chargeCardsQuery.isLoading ||
     invoiceTemplatesQuery.isLoading
   const rows = fundingsQuery.data?.rows ?? []
-  const types = typesQuery.data ?? []
   const funders = fundersQuery.data ?? []
   const chargeCards = chargeCardsQuery.data ?? []
   const invoiceTemplates = invoiceTemplatesQuery.data ?? []
@@ -653,11 +659,6 @@ export function ServiceUserFundingTab({
   }
 
   const saveFunding = async () => {
-    if (!form.fundingTypeId) {
-      toastApiError(new Error('Funding type is required'), 'Validation')
-      return
-    }
-
     if (isMixedMode) {
       if (form.mixedShares.length < 2) {
         toastApiError(
@@ -671,6 +672,14 @@ export function ServiceUserFundingTab({
         if (pct == null || pct <= 0 || pct > 100) {
           toastApiError(
             new Error('Each selected funder needs a split % between 0 and 100 (greater than 0)'),
+            'Validation',
+          )
+          return
+        }
+        if (!fundingTypeIdForFunder(share.funderId, funders)) {
+          const name = funders.find((f) => f.id === share.funderId)?.name ?? 'Selected funder'
+          toastApiError(
+            new Error(`${name} has no funding type configured — update the funder record first`),
             'Validation',
           )
           return
@@ -704,6 +713,7 @@ export function ServiceUserFundingTab({
                 share,
                 basePriority + shareIndex,
                 form.isPrimary ? shareIndex === 0 : false,
+                fundingTypeIdForFunder(share.funderId, funders),
               ),
             )
             shareIndex += 1
@@ -727,6 +737,11 @@ export function ServiceUserFundingTab({
               share,
               shareIndex + 1,
               form.isPrimary ? shareIndex === 0 : false,
+              fundingTypeIdForFunder(
+                share.funderId,
+                funders,
+                existing?.fundingTypeId,
+              ),
             )
             if (existing) {
               await updateMutation.mutateAsync({ fundingId: existing.id, body })
@@ -746,6 +761,7 @@ export function ServiceUserFundingTab({
                   ...formToBody({
                     ...form,
                     funderId: leftover.funderId ?? '',
+                    fundingTypeId: leftover.fundingTypeId,
                     splitPercent: '',
                     splitPriority: '1',
                     isPrimary: false,
@@ -776,9 +792,27 @@ export function ServiceUserFundingTab({
       return
     }
 
+    if (!form.funderId) {
+      toastApiError(new Error('Funder is required'), 'Validation')
+      return
+    }
+    const resolvedFundingTypeId = fundingTypeIdForFunder(
+      form.funderId,
+      funders,
+      form.fundingTypeId,
+    )
+    if (!resolvedFundingTypeId) {
+      toastApiError(
+        new Error('This funder has no funding type configured — update the funder record first'),
+        'Validation',
+      )
+      return
+    }
+
     try {
       const body = formToBody({
         ...form,
+        fundingTypeId: resolvedFundingTypeId,
         // Single Funder lines never store a split % (same as Add).
         splitPercent: '',
         splitPriority: '1',
@@ -1127,26 +1161,6 @@ export function ServiceUserFundingTab({
                   </SelectContent>
                 </Select>
               </div>
-            <div>
-              <FundingFieldLabel
-                className="mb-1"
-                label="Funding type"
-                tooltip={FUNDING_FIELD_TOOLTIPS.fundingTypeId}
-                required
-              />
-              <Select value={form.fundingTypeId} onValueChange={(v) => setForm((f) => ({ ...f, fundingTypeId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             {isMixedMode ? (
               <div className="space-y-2">
                 <FundingFieldLabel
@@ -1287,25 +1301,29 @@ export function ServiceUserFundingTab({
             ) : (
               <div className="space-y-3">
                 <div>
-                  <FundingFieldLabel className="mb-1" label="Funder" tooltip={FUNDING_FIELD_TOOLTIPS.funderId} />
+                  <FundingFieldLabel
+                    className="mb-1"
+                    label="Funder"
+                    tooltip={FUNDING_FIELD_TOOLTIPS.funderId}
+                    required
+                  />
                   <Select
-                    value={form.funderId || '__none__'}
+                    value={form.funderId || undefined}
                     onValueChange={(v) => {
-                      const funderId = v === '__none__' ? '' : v
-                      const funder = funders.find((x) => x.id === funderId)
+                      const funder = funders.find((x) => x.id === v)
                       setForm((f) => ({
                         ...f,
-                        funderId,
+                        funderId: v,
+                        fundingTypeId: funder?.fundingType?.id ?? '',
                         paymentTerms:
                           funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
                       }))
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Optional" />
+                      <SelectValue placeholder="Select funder" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
                       {funders.map((x) => (
                         <SelectItem key={x.id} value={x.id}>
                           {x.name}
