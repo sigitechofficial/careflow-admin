@@ -712,7 +712,7 @@ function StaffListTab() {
         <p className="mb-3 text-sm text-destructive">{statusUpdateError}</p>
       ) : null}
       {!loading && !error ? (
-        <p className="mb-3 text-xs text-muted-foreground">
+        <p className="mb-3 mt-3 text-xs text-muted-foreground">
           Showing {rows.length} of {meta.total} employee{meta.total === 1 ? '' : 's'} (up to 100 per page).
           {filtersActive ? ' Filters applied.' : ''}
         </p>
