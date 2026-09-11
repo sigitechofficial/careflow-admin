@@ -228,6 +228,9 @@ export function StaffListFilters({
   const draftChips = describeStaffListFilterChips(draft, lookups, visaLabelMap, chipOptions)
   const draftCount = countActiveStaffListFilters(draft, chipOptions)
   const activeGroup = FILTER_GROUPS.find((item) => item.id === group) ?? FILTER_GROUPS[0]
+  if (!activeGroup) {
+    throw new Error('Staff list filter groups must not be empty')
+  }
 
   const handleApply = () => {
     onFiltersChange({ ...draft, search: filters.search })

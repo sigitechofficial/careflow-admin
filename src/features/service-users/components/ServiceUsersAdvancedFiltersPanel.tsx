@@ -281,6 +281,9 @@ export function ServiceUsersAdvancedFiltersPanel({
   const rangeErrors = advancedFilterRangeErrors(draft)
   const saveBlocked = hasAdvancedFilterRangeErrors(rangeErrors)
   const activeGroup = FILTER_GROUPS.find(item => item.id === group) ?? FILTER_GROUPS[0]
+  if (!activeGroup) {
+    throw new Error('Service user filter groups must not be empty')
+  }
 
   const handleApply = () => {
     if (saveBlocked) return

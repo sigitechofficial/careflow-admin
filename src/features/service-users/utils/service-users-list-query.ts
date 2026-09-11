@@ -34,7 +34,6 @@ export type ServiceUsersAdvancedFilters = {
   medicalConditionIds?: string[]
   /** Display-only names keyed by condition id (not sent to API). */
   medicalConditionLabels?: Record<string, string>
-  medicalConditionLabel?: string
   initialAssessmentStatus?: InitialAssessmentStatusFilter
   missedVisitsMin?: number
   missedVisitsFrom?: string
