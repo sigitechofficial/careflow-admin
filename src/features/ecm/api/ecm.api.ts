@@ -225,11 +225,40 @@ export async function fetchEcmExceptions(params?: {
   return res.data
 }
 
-export async function acknowledgeEcmException(id: string, note?: string): Promise<unknown> {
-  return apiJson(`/ecm/exceptions/${id}/acknowledge`, {
-    method: 'PATCH',
-    body: JSON.stringify({ note: note ?? undefined }),
-  })
+export type FcmSendReason =
+  | 'SENT'
+  | 'FIREBASE_NOT_READY'
+  | 'NO_DEVICE_TOKEN'
+  | 'NO_EMPLOYEE'
+  | 'SEND_FAILED'
+  | 'NOT_FIRST_ACK'
+  | 'NOT_SOS'
+
+export type FcmSendReport = {
+  ready: boolean
+  tokens: number
+  sent: number
+  skipped: number
+  reason: FcmSendReason
+  error?: string
+}
+
+export type AcknowledgeEcmExceptionResult = {
+  fcm?: FcmSendReport
+}
+
+export async function acknowledgeEcmException(
+  id: string,
+  note?: string,
+): Promise<AcknowledgeEcmExceptionResult> {
+  const res = await apiJson<ApiEnvelope<AcknowledgeEcmExceptionResult>>(
+    `/ecm/exceptions/${id}/acknowledge`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ note: note ?? undefined }),
+    },
+  )
+  return res.data ?? {}
 }
 
 export async function resolveEcmException(

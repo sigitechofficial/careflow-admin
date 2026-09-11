@@ -26,6 +26,7 @@ import {
   updateEcmThresholdLookup,
 } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
+import { toastSosAckFcm } from '@/features/ecm/utils/sos-ack-fcm-toast'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 export function useEcmLiveDashboard(filters?: {
@@ -246,7 +247,11 @@ export function useAcknowledgeEcmException() {
   return useMutation({
     mutationFn: ({ id, note }: { id: string; note?: string }) =>
       acknowledgeEcmException(id, note),
-    onSuccess: invalidate,
+    onSuccess: data => {
+      toastSosAckFcm(data.fcm)
+      invalidate()
+    },
+    onError: e => toastApiError(e, 'Could not acknowledge this SOS'),
   })
 }
 
