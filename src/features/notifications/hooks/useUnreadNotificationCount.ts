@@ -9,7 +9,9 @@ export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: fetchNotificationUnreadCount,
-    staleTime: 15_000,
+    staleTime: 5_000,
+    refetchInterval: 8_000,
+    refetchOnWindowFocus: true,
     enabled: hasApi && can,
   })
 }

@@ -6,6 +6,7 @@ import {
   parseEcmPeriodPreset,
   resolveEcmPeriodFromSearch,
   shouldUpdateEcmPeriodSearch,
+  validateEcmLiveSearch,
   validateEcmPeriodSearch,
 } from './ecm-period-url-state.util'
 
@@ -30,6 +31,26 @@ describe('validateEcmPeriodSearch', () => {
 
   it('rejects unknown presets', () => {
     expect(validateEcmPeriodSearch({ period: 'next_week' })).toEqual({})
+  })
+})
+
+describe('validateEcmLiveSearch', () => {
+  it('keeps exception-queue tab and uuid jobId', () => {
+    expect(
+      validateEcmLiveSearch({
+        period: 'today',
+        tab: 'exceptions',
+        jobId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      }),
+    ).toEqual({
+      period: 'today',
+      tab: 'exceptions',
+      jobId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    })
+  })
+
+  it('drops invalid tab and jobId', () => {
+    expect(validateEcmLiveSearch({ tab: 'reports', jobId: 'not-uuid' })).toEqual({})
   })
 })
 

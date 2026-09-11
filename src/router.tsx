@@ -127,7 +127,7 @@ import AuditExportPage from '@/features/billing/pages/AuditExportPage'
 import EcmLiveMonitoringPage from '@/features/ecm/pages/EcmLiveMonitoringPage'
 import EcmGraphPage from '@/features/ecm/pages/EcmGraphPage'
 import EcmReportsPage from '@/features/ecm/pages/EcmReportsPage'
-import { validateEcmPeriodSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
+import { validateEcmLiveSearch, validateEcmPeriodSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
 import PayrollOverviewPage from '@/features/payroll/pages/PayrollOverviewPage'
 import PayrollTaxYearsPage from '@/features/payroll/pages/PayrollTaxYearsPage'
 import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
@@ -1743,7 +1743,7 @@ const billingAuditExportRoute = createRoute({
 const ecmLiveRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/ecm/live',
-  validateSearch: validateEcmPeriodSearch,
+  validateSearch: validateEcmLiveSearch,
   beforeLoad: requireAnyPermission('ecm.read', 'ecm.monitor'),
   component: EcmLiveMonitoringPage,
 })

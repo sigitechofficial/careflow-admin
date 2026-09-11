@@ -7,9 +7,10 @@ type Props = {
   error?: Error | null
   onMarkRead: (id: string) => void
   onDismiss: (id: string) => void
+  onOpen?: (item: NotificationListItem) => void
 }
 
-export function NotificationList({ items, loading, error, onMarkRead, onDismiss }: Props) {
+export function NotificationList({ items, loading, error, onMarkRead, onDismiss, onOpen }: Props) {
   if (loading) {
     return (
       <div className="py-10 text-center text-xs text-muted-foreground">Loading notifications…</div>
@@ -28,7 +29,13 @@ export function NotificationList({ items, loading, error, onMarkRead, onDismiss 
   return (
     <div className="flex max-h-80 flex-col gap-1 overflow-y-auto px-1 py-1">
       {items.map(n => (
-        <NotificationItem key={n.id} item={n} onMarkRead={onMarkRead} onDismiss={onDismiss} />
+        <NotificationItem
+          key={n.id}
+          item={n}
+          onMarkRead={onMarkRead}
+          onDismiss={onDismiss}
+          onOpen={onOpen}
+        />
       ))}
     </div>
   )

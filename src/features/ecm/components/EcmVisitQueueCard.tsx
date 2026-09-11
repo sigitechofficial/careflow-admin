@@ -82,6 +82,7 @@ function visitTypeFromJobName(jobName: string, serviceUserName: string): string 
 
 function humanizeTag(code: string): string {
   if (code === 'OUTSIDE_AREA_CHECK_IN_REQUEST') return 'Outside area check-in'
+  if (code === 'UNABLE_TO_START') return 'Unable to start'
   return code
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -98,6 +99,10 @@ function isOutsideAreaCheckInRequest(row: EcmExceptionRow): boolean {
 
 function isCarerSos(row: EcmExceptionRow): boolean {
   return row.kind === 'CARER_SOS'
+}
+
+function isUnableToStart(row: EcmExceptionRow): boolean {
+  return row.kind === 'UNABLE_TO_START'
 }
 
 function isSosAcknowledged(row: EcmExceptionRow): boolean {
@@ -593,9 +598,14 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
 function VisitBadges({ rows }: { rows: EcmExceptionRow[] }) {
   const sosRows = rows.filter(isCarerSos)
   const lockRow = rows.find(isLeftVisitArea)
+  const unableRows = rows.filter(isUnableToStart)
   const checkInRows = rows.filter(isOutsideAreaCheckInRequest)
   const otherRows = rows.filter(
-    row => !isCarerSos(row) && !isLeftVisitArea(row) && !isOutsideAreaCheckInRequest(row),
+    row =>
+      !isCarerSos(row) &&
+      !isLeftVisitArea(row) &&
+      !isOutsideAreaCheckInRequest(row) &&
+      !isUnableToStart(row),
   )
   const unackedSos = sosRows.some(row => !isSosAcknowledged(row))
   const allowed = lockRow?.areaLock?.status === 'ALLOWED'
@@ -622,6 +632,7 @@ function VisitBadges({ rows }: { rows: EcmExceptionRow[] }) {
           }
         />
       ) : null}
+      {unableRows.length > 0 ? <EcmStatusBadge code="UNABLE_TO_START" kind="generic" /> : null}
       {lockRow ? (
         allowed ? (
           <>
@@ -699,14 +710,22 @@ function VisitBadges({ rows }: { rows: EcmExceptionRow[] }) {
 export function VisitQueueCard({
   rows,
   expanded,
+  focused,
   onToggle,
   onOpenVisit,
 }: {
   rows: EcmExceptionRow[]
   expanded: boolean
+  focused?: boolean
   onToggle: () => void
   onOpenVisit: (jobId: string) => void
 }) {
+  const cardRef = React.useRef<HTMLElement | null>(null)
+  React.useEffect(() => {
+    if (!focused || !cardRef.current) return
+    cardRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [focused])
+
   const row = rows[0]
   if (!row) return null
 
@@ -715,8 +734,12 @@ export function VisitQueueCard({
   )
   const lockRow = rows.find(isLeftVisitArea)
   const checkInRows = rows.filter(isOutsideAreaCheckInRequest)
+  const unableRows = rows.filter(isUnableToStart)
   const otherRows = rows.filter(
-    r => !isCarerSos(r) && !isLeftVisitArea(r) && !isOutsideAreaCheckInRequest(r),
+    r =>
+      !isCarerSos(r) &&
+      !isLeftVisitArea(r) &&
+      !isOutsideAreaCheckInRequest(r),
   )
   const actionsRow =
     rows.find(r => isVisitOutcomeKind(r.kind)) ?? otherRows[0] ?? row
@@ -725,6 +748,7 @@ export function VisitQueueCard({
   const when = formatVisitWhen(row.plannedStartDateTime, row.plannedEndDateTime)
   const unackedSos = sosRows.some(r => !isSosAcknowledged(r))
   const lockPending = Boolean(lockRow && lockRow.areaLock?.status !== 'ALLOWED')
+  const unableToStart = unableRows.length > 0
   const checkInPending = checkInRows.some(
     r => (r.checkInMethodRequest?.status ?? 'PENDING') === 'PENDING',
   )
@@ -756,6 +780,12 @@ export function VisitQueueCard({
           label: 'Action needed — operations blocked',
           icon: 'dot' as const,
         })
+      : unableToStart
+        ? ({
+            className: 'bg-amber-600 text-white',
+            label: 'Unable to start — care not delivered',
+            icon: 'dot' as const,
+          })
       : checkInPending
         ? ({
             className: 'bg-amber-600 text-white',
@@ -766,11 +796,13 @@ export function VisitQueueCard({
 
   return (
     <article
+      ref={cardRef}
       className={cn(
         'overflow-hidden rounded-xl border bg-card shadow-sm',
+        focused && 'ring-2 ring-destructive/70',
         unackedSos || lockPending
           ? 'border-destructive/50 dark:border-destructive/40'
-          : checkInPending
+          : unableToStart || checkInPending
             ? 'border-amber-500/50 dark:border-amber-500/40'
             : overdue
               ? 'border-orange-300/60 dark:border-orange-800/50'

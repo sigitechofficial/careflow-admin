@@ -1,5 +1,6 @@
 ﻿import * as React from 'react'
-import { AlertCircle, Check, CheckCircle2, Copy, Info, XCircle } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { AlertCircle, AlertTriangle, Check, CheckCircle2, Copy, Info } from 'lucide-react'
 import {
   ToastProvider,
   ToastViewport,
@@ -11,12 +12,13 @@ import {
 import { useToastStore } from '@/store/toast.store'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { parseEcmLiveHref } from '@/features/notifications/utils/notification-deep-link'
 
 const iconMap = {
   default: Info,
   success: CheckCircle2,
   warning: AlertCircle,
-  destructive: XCircle,
+  destructive: AlertTriangle,
 } as const
 
 function toastCopyText(title: string, description?: string): string {
@@ -24,6 +26,7 @@ function toastCopyText(title: string, description?: string): string {
 }
 
 export function AppToaster() {
+  const navigate = useNavigate()
   const toasts = useToastStore((s) => s.toasts)
   const dismiss = useToastStore((s) => s.dismiss)
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
@@ -72,7 +75,36 @@ export function AppToaster() {
                 t.variant === 'default' && 'text-muted-foreground',
               )}
             />
-            <div className="flex-1 min-w-0 cursor-text select-text pe-14">
+            <div
+              className={cn(
+                'flex-1 min-w-0 pe-14',
+                t.href ? 'cursor-pointer' : 'cursor-text select-text',
+              )}
+              role={t.href ? 'link' : undefined}
+              tabIndex={t.href ? 0 : undefined}
+              onClick={() => {
+                if (!t.href) return
+                const search = parseEcmLiveHref(t.href)
+                dismiss(t.id)
+                if (search) {
+                  void navigate({ to: '/ecm/live', search })
+                  return
+                }
+                void navigate({ to: t.href as never })
+              }}
+              onKeyDown={event => {
+                if (!t.href) return
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                const search = parseEcmLiveHref(t.href)
+                dismiss(t.id)
+                if (search) {
+                  void navigate({ to: '/ecm/live', search })
+                  return
+                }
+                void navigate({ to: t.href as never })
+              }}
+            >
               <ToastTitle>{t.title}</ToastTitle>
               {t.description ? <ToastDescription>{t.description}</ToastDescription> : null}
             </div>

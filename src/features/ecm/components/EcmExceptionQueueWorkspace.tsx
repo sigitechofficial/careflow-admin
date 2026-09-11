@@ -11,8 +11,10 @@ import { Button } from '@/shared/ui/button'
 
 export function EcmExceptionQueueWorkspace({
   serviceUserId,
+  focusJobId,
 }: {
   serviceUserId?: string
+  focusJobId?: string | null
 }) {
   const {
     preset,
@@ -95,6 +97,7 @@ export function EcmExceptionQueueWorkspace({
         dateFrom={dateFrom}
         dateTo={dateTo}
         periodLabel={periodLabel}
+        focusJobId={focusJobId}
       />
       <EcmVisitDetailDialog
         open={detailOpen}

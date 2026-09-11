@@ -1,4 +1,5 @@
 import { Settings2 } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { useAuthStore } from '@/features/auth/store'
 import { useNotifications } from '@/features/notifications/hooks/useNotifications'
@@ -8,12 +9,16 @@ import {
   useMarkNotificationRead,
 } from '@/features/notifications/hooks/useNotificationMutations'
 import { NotificationList } from '@/features/notifications/components/NotificationList'
+import { notificationEcmLiveSearch } from '@/features/notifications/utils/notification-deep-link'
+import type { NotificationListItem } from '@/features/notifications/types/notification.types'
 
 type Props = {
   onOpenPreferences: () => void
+  onNavigate?: () => void
 }
 
-export function NotificationDropdown({ onOpenPreferences }: Props) {
+export function NotificationDropdown({ onOpenPreferences, onNavigate }: Props) {
+  const navigate = useNavigate()
   const canUpdate = useAuthStore(s => s.can('notifications.update'))
   const canDismiss = useAuthStore(s => s.can('notifications.dismiss'))
   const canPrefs = useAuthStore(s => s.can('notifications.preferences.read'))
@@ -37,6 +42,14 @@ export function NotificationDropdown({ onOpenPreferences }: Props) {
   const onMarkAll = async () => {
     if (!canUpdate) return
     await markAllReadMutation.mutateAsync()
+  }
+
+  const onOpen = (item: NotificationListItem) => {
+    const search = notificationEcmLiveSearch(item)
+    if (!search) return
+    if (canUpdate && !item.readAt) void onMarkRead(item.id)
+    onNavigate?.()
+    void navigate({ to: '/ecm/live', search })
   }
 
   return (
@@ -63,6 +76,7 @@ export function NotificationDropdown({ onOpenPreferences }: Props) {
         error={error instanceof Error ? error : error ? new Error(String(error)) : null}
         onMarkRead={id => void onMarkRead(id)}
         onDismiss={id => void onDismiss(id)}
+        onOpen={onOpen}
       />
     </div>
   )

@@ -345,6 +345,7 @@ export type EcmExceptionKind =
   | 'MOCK_LOCATION'
   | 'CARER_SOS'
   | 'OUTSIDE_AREA_CHECK_IN_REQUEST'
+  | 'UNABLE_TO_START'
   | 'OTHER'
 
 export type EcmExceptionRow = {

@@ -123,7 +123,11 @@ export function useEcmOperationalPeriod(
       lastWrittenSearchRef.current = key
       void navigate({
         to: pathname as never,
-        search: desired as never,
+        search: ((prev: Record<string, unknown>) => ({
+          ...desired,
+          ...(typeof prev.tab === 'string' ? { tab: prev.tab } : {}),
+          ...(typeof prev.jobId === 'string' ? { jobId: prev.jobId } : {}),
+        })) as never,
         replace: true,
       })
     },
