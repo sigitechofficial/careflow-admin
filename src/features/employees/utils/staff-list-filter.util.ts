@@ -228,10 +228,228 @@ export function staffListFiltersToCohortParams(
   return cohort
 }
 
+export type StaffListFilterChipKey =
+  | 'locationIds'
+  | 'branchScopeKinds'
+  | 'roleIds'
+  | 'jobTitleIds'
+  | 'gradeIds'
+  | 'contractTypeIds'
+  | 'statusIds'
+  | 'visaTypeIds'
+  | 'inCountry'
+  | 'compliance'
+
+export type StaffListFilterGroupId = 'organisation' | 'job' | 'status' | 'immigration'
+
 export type StaffListFilterChip = {
-  key: string
+  key: StaffListFilterChipKey
   label: string
+}
+
+export type StaffListRemovableFilterChip = StaffListFilterChip & {
   onRemove: () => void
+}
+
+export const STAFF_LIST_FILTER_GROUPS = ['organisation', 'job', 'status', 'immigration'] as const
+
+export const STAFF_LIST_FILTER_GROUP_CHIP_KEYS: Record<StaffListFilterGroupId, StaffListFilterChipKey[]> = {
+  organisation: ['locationIds', 'branchScopeKinds'],
+  job: ['roleIds', 'jobTitleIds', 'gradeIds', 'contractTypeIds'],
+  status: ['statusIds', 'compliance'],
+  immigration: ['visaTypeIds', 'inCountry'],
+}
+
+const BRANCH_SCOPE_CHIP_LABELS: Record<EmployeeBranchScopeKind, string> = {
+  'all-zones': 'All branches scope',
+  single: 'Single branch scope',
+  multiple: 'Multiple branches scope',
+  none: 'No branch assigned',
+}
+
+function lookupNameMap(rows?: { id: string; name: string }[]): Record<string, string> {
+  return Object.fromEntries((rows ?? []).map((row) => [row.id, row.name]))
+}
+
+function formatNamedIdChipLabel(
+  ids: string[],
+  labels: Record<string, string>,
+  empty: { one: string; many: (n: number) => string },
+): string {
+  const names = ids.map((id) => labels[id]?.trim()).filter((name): name is string => Boolean(name))
+  if (names.length === 0) {
+    return ids.length === 1 ? empty.one : empty.many(ids.length)
+  }
+  if (names.length <= 2) return names.join(', ')
+  return `${names[0]}, ${names[1]} +${names.length - 2}`
+}
+
+function prefixedNamedChip(
+  prefix: string,
+  ids: string[],
+  labels: Record<string, string>,
+  empty: { one: string; many: (n: number) => string },
+): string {
+  return `${prefix}: ${formatNamedIdChipLabel(ids, labels, empty)}`
+}
+
+export function describeStaffListFilterChips(
+  filters: StaffListFiltersState,
+  lookups?: EmployeeLookupsBundle | null,
+  visaLabels?: Map<string, string>,
+  options?: { omitLocation?: boolean },
+): StaffListFilterChip[] {
+  const chips: StaffListFilterChip[] = []
+
+  if (!options?.omitLocation && filters.locationIds.length) {
+    chips.push({
+      key: 'locationIds',
+      label: prefixedNamedChip('Branch', filters.locationIds, lookupNameMap(lookups?.locations), {
+        one: '1 branch',
+        many: (n) => `${n} branches`,
+      }),
+    })
+  }
+
+  if (filters.branchScopeKinds.length) {
+    const labels = Object.fromEntries(
+      filters.branchScopeKinds.map((kind) => [kind, BRANCH_SCOPE_CHIP_LABELS[kind]]),
+    )
+    chips.push({
+      key: 'branchScopeKinds',
+      label: formatNamedIdChipLabel(filters.branchScopeKinds, labels, {
+        one: '1 branch scope',
+        many: (n) => `${n} branch scopes`,
+      }),
+    })
+  }
+
+  if (filters.roleIds.length) {
+    chips.push({
+      key: 'roleIds',
+      label: prefixedNamedChip('Role', filters.roleIds, lookupNameMap(lookups?.roles), {
+        one: '1 role',
+        many: (n) => `${n} roles`,
+      }),
+    })
+  }
+
+  if (filters.jobTitleIds.length) {
+    chips.push({
+      key: 'jobTitleIds',
+      label: prefixedNamedChip('Job title', filters.jobTitleIds, lookupNameMap(lookups?.jobTitles), {
+        one: '1 job title',
+        many: (n) => `${n} job titles`,
+      }),
+    })
+  }
+
+  if (filters.gradeIds.length) {
+    chips.push({
+      key: 'gradeIds',
+      label: prefixedNamedChip('Grade', filters.gradeIds, lookupNameMap(lookups?.grades), {
+        one: '1 grade',
+        many: (n) => `${n} grades`,
+      }),
+    })
+  }
+
+  if (filters.contractTypeIds.length) {
+    chips.push({
+      key: 'contractTypeIds',
+      label: prefixedNamedChip(
+        'Employment',
+        filters.contractTypeIds,
+        lookupNameMap(lookups?.contractTypes),
+        { one: '1 type', many: (n) => `${n} types` },
+      ),
+    })
+  }
+
+  if (!filters.allStatuses && filters.statusIds.length) {
+    chips.push({
+      key: 'statusIds',
+      label: prefixedNamedChip('Status', filters.statusIds, lookupNameMap(lookups?.employeeStatuses), {
+        one: '1 status',
+        many: (n) => `${n} statuses`,
+      }),
+    })
+  }
+
+  if (filters.visaTypeIds.length) {
+    const labels = Object.fromEntries(
+      filters.visaTypeIds.map((id) => [id, visaLabels?.get(id) ?? id]),
+    )
+    chips.push({
+      key: 'visaTypeIds',
+      label: prefixedNamedChip('Immigration', filters.visaTypeIds, labels, {
+        one: '1 immigration type',
+        many: (n) => `${n} immigration types`,
+      }),
+    })
+  }
+
+  if (filters.inCountry === 'in') {
+    chips.push({ key: 'inCountry', label: 'In country' })
+  }
+  if (filters.inCountry === 'out') {
+    chips.push({ key: 'inCountry', label: 'Out of country' })
+  }
+
+  if (filters.compliance === 'needs_attention') {
+    chips.push({ key: 'compliance', label: 'Compliance: needs attention' })
+  }
+  if (filters.compliance === 'up_to_date') {
+    chips.push({ key: 'compliance', label: 'Compliance: up to date' })
+  }
+
+  return chips
+}
+
+export function clearStaffListFilterChip(
+  filters: StaffListFiltersState,
+  key: StaffListFilterChipKey,
+): StaffListFiltersState {
+  switch (key) {
+    case 'locationIds':
+      return { ...filters, locationIds: [] }
+    case 'branchScopeKinds':
+      return { ...filters, branchScopeKinds: [] }
+    case 'roleIds':
+      return { ...filters, roleIds: [] }
+    case 'jobTitleIds':
+      return { ...filters, jobTitleIds: [] }
+    case 'gradeIds':
+      return { ...filters, gradeIds: [] }
+    case 'contractTypeIds':
+      return { ...filters, contractTypeIds: [] }
+    case 'statusIds':
+      return { ...filters, statusIds: [], allStatuses: true }
+    case 'visaTypeIds':
+      return { ...filters, visaTypeIds: [] }
+    case 'inCountry':
+      return { ...filters, inCountry: 'all' }
+    case 'compliance':
+      return { ...filters, compliance: 'all' }
+  }
+}
+
+export function countActiveStaffListFilters(
+  filters: StaffListFiltersState,
+  options?: { omitLocation?: boolean },
+): number {
+  return describeStaffListFilterChips(filters, null, undefined, options).length
+}
+
+export function countStaffListFiltersInGroup(
+  filters: StaffListFiltersState,
+  group: StaffListFilterGroupId,
+  options?: { omitLocation?: boolean },
+): number {
+  const keys = new Set<StaffListFilterChipKey>(STAFF_LIST_FILTER_GROUP_CHIP_KEYS[group])
+  return describeStaffListFilterChips(filters, null, undefined, options).filter((chip) =>
+    keys.has(chip.key),
+  ).length
 }
 
 export function staffListFilterChips(
@@ -239,161 +457,14 @@ export function staffListFilterChips(
   lookups: EmployeeLookupsBundle | null,
   onChange: (next: StaffListFiltersState) => void,
   visaLabels?: Map<string, string>,
-): StaffListFilterChip[] {
-  const chips: StaffListFilterChip[] = []
-  const nameFor = (rows: { id: string; name: string }[], id: string) =>
-    rows.find((row) => row.id === id)?.name ?? id
-
-  if (filters.search.trim()) {
-    chips.push({
-      key: 'search',
-      label: `Search: ${filters.search.trim()}`,
-      onRemove: () => onChange({ ...filters, search: '' }),
-    })
-  }
-
-  if (filters.allStatuses) {
-    // Default — no chip
-  } else if (filters.statusIds.length) {
-    for (const id of filters.statusIds) {
-      chips.push({
-        key: `status-${id}`,
-        label: `Status: ${nameFor(lookups?.employeeStatuses ?? [], id)}`,
-        onRemove: () => {
-          const nextIds = filters.statusIds.filter((value) => value !== id)
-          onChange({
-            ...filters,
-            statusIds: nextIds,
-            allStatuses: nextIds.length === 0,
-          })
-        },
-      })
-    }
-  }
-
-  for (const id of filters.locationIds) {
-    chips.push({
-      key: `branch-${id}`,
-      label: `Branch: ${nameFor(lookups?.locations ?? [], id)}`,
-      onRemove: () =>
-        onChange({
-          ...filters,
-          locationIds: filters.locationIds.filter((value) => value !== id),
-        }),
-    })
-  }
-
-  for (const id of filters.roleIds) {
-    chips.push({
-      key: `role-${id}`,
-      label: `Role: ${nameFor(lookups?.roles ?? [], id)}`,
-      onRemove: () =>
-        onChange({
-          ...filters,
-          roleIds: filters.roleIds.filter((value) => value !== id),
-        }),
-    })
-  }
-
-  for (const id of filters.jobTitleIds) {
-    chips.push({
-      key: `job-${id}`,
-      label: `Job title: ${nameFor(lookups?.jobTitles ?? [], id)}`,
-      onRemove: () =>
-        onChange({
-          ...filters,
-          jobTitleIds: filters.jobTitleIds.filter((value) => value !== id),
-        }),
-    })
-  }
-
-  for (const id of filters.gradeIds) {
-    chips.push({
-      key: `grade-${id}`,
-      label: `Grade: ${nameFor(lookups?.grades ?? [], id)}`,
-      onRemove: () =>
-        onChange({
-          ...filters,
-          gradeIds: filters.gradeIds.filter((value) => value !== id),
-        }),
-    })
-  }
-
-  for (const id of filters.contractTypeIds) {
-    chips.push({
-      key: `contract-${id}`,
-      label: `Employment: ${nameFor(lookups?.contractTypes ?? [], id)}`,
-      onRemove: () =>
-        onChange({
-          ...filters,
-          contractTypeIds: filters.contractTypeIds.filter((value) => value !== id),
-        }),
-    })
-  }
-
-  for (const id of filters.visaTypeIds) {
-    chips.push({
-      key: `visa-${id}`,
-      label: `Immigration: ${visaLabels?.get(id) ?? id}`,
-      onRemove: () =>
-        onChange({
-          ...filters,
-          visaTypeIds: filters.visaTypeIds.filter((value) => value !== id),
-        }),
-    })
-  }
-
-  if (filters.inCountry === 'in') {
-    chips.push({
-      key: 'in-country',
-      label: 'In country',
-      onRemove: () => onChange({ ...filters, inCountry: 'all' }),
-    })
-  }
-  if (filters.inCountry === 'out') {
-    chips.push({
-      key: 'out-country',
-      label: 'Out of country',
-      onRemove: () => onChange({ ...filters, inCountry: 'all' }),
-    })
-  }
-
-  const branchScopeLabels: Record<EmployeeBranchScopeKind, string> = {
-    'all-zones': 'All branches scope',
-    single: 'Single branch scope',
-    multiple: 'Multiple branches scope',
-    none: 'No branch assigned',
-  }
-  for (const kind of filters.branchScopeKinds) {
-    chips.push({
-      key: `scope-${kind}`,
-      label: branchScopeLabels[kind],
-      onRemove: () =>
-        onChange({
-          ...filters,
-          branchScopeKinds: filters.branchScopeKinds.filter((value) => value !== kind),
-        }),
-    })
-  }
-
-  if (filters.compliance === 'needs_attention') {
-    chips.push({
-      key: 'compliance-attention',
-      label: 'Compliance: needs attention',
-      onRemove: () => onChange({ ...filters, compliance: 'all' }),
-    })
-  }
-  if (filters.compliance === 'up_to_date') {
-    chips.push({
-      key: 'compliance-ok',
-      label: 'Compliance: up to date',
-      onRemove: () => onChange({ ...filters, compliance: 'all' }),
-    })
-  }
-
-  return chips
+  options?: { omitLocation?: boolean },
+): StaffListRemovableFilterChip[] {
+  return describeStaffListFilterChips(filters, lookups, visaLabels, options).map((chip) => ({
+    ...chip,
+    onRemove: () => onChange(clearStaffListFilterChip(filters, chip.key)),
+  }))
 }
 
 export function hasStaffListFilters(filters: StaffListFiltersState): boolean {
-  return staffListFilterChips(filters, null, () => {}).length > 0
+  return Boolean(filters.search.trim()) || countActiveStaffListFilters(filters) > 0
 }

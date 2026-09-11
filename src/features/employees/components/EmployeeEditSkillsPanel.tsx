@@ -12,21 +12,21 @@ import { useEmployeeLookups } from '@/features/employees/hooks/useEmployees'
 import { useEmployeeSkills } from '@/features/employees/hooks/useEmployeeTabs'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { cn, formatDate } from '@/shared/lib/utils'
+import { EmployeeEditCertificationsPanel } from '@/features/employees/components/EmployeeEditCertificationsPanel'
+import { EmployeeSkillTypePicker } from '@/features/employees/components/EmployeeSkillTypePicker'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
-
-import { formatDate } from '@/shared/lib/utils'
+  EmployeeSkillDocumentCell,
+  SKILL_DOCUMENT_ACCEPT,
+  uploadSkillEvidence,
+} from '@/features/employees/components/EmployeeSkillDocumentCell'
 
 function formatSkillExpiry(iso: string | null | undefined): string {
   return formatDate(iso)
 }
 
 export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) {
+  const [subTab, setSubTab] = React.useState<'skills' | 'certifications'>('skills')
   const apiConfigured = Boolean(getApiBaseUrl())
   const accessToken = useAuthStore(s => s.accessToken)
   const jwtPresent = Boolean(accessToken?.includes('.'))
@@ -51,38 +51,55 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
   const [skillTypeId, setSkillTypeId] = React.useState('')
   const [expiryDate, setExpiryDate] = React.useState('')
   const [notes, setNotes] = React.useState('')
+  const [skillFile, setSkillFile] = React.useState<File | null>(null)
+  const skillFileRef = React.useRef<HTMLInputElement>(null)
   const [banner, setBanner] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const saving = createMutation.isPending
+  const canUploadDocs = useAuthStore(s => s.can('employees.documents.upload'))
+  const [adding, setAdding] = React.useState(false)
+  const saving = adding || createMutation.isPending
 
   const assignedSkillTypeIds = React.useMemo(
     () => new Set(skills.map(s => s.skillTypeId).filter(Boolean) as string[]),
     [skills],
   )
 
-  const skillTypeOptions = React.useMemo(() => {
-    const types = lookups?.skillTypes ?? []
-    return types.filter(t => !assignedSkillTypeIds.has(t.id))
-  }, [lookups?.skillTypes, assignedSkillTypeIds])
+  const skillTypes = lookups?.skillTypes ?? []
 
   const onAddSkill = async () => {
     if (!skillTypeId.trim()) {
       setBanner({ type: 'error', text: 'Select a skill type.' })
       return
     }
+    if (assignedSkillTypeIds.has(skillTypeId.trim())) {
+      setBanner({ type: 'error', text: 'That skill is already on this record.' })
+      return
+    }
     setBanner(null)
+    setAdding(true)
     try {
-      const body: { skillTypeId: string; expiryDate?: string; notes?: string } = {
+      const body: { skillTypeId: string; expiryDate?: string; notes?: string; documentUrl?: string } = {
         skillTypeId: skillTypeId.trim(),
       }
       if (expiryDate.trim()) body.expiryDate = `${expiryDate.trim()}T12:00:00.000Z`
       if (notes.trim()) body.notes = notes.trim()
+      if (skillFile) {
+        if (!canUploadDocs) {
+          setBanner({ type: 'error', text: 'You do not have permission to upload documents.' })
+          return
+        }
+        body.documentUrl = await uploadSkillEvidence(employeeId, skillFile)
+      }
       await createMutation.mutateAsync(body)
       setSkillTypeId('')
       setExpiryDate('')
       setNotes('')
+      setSkillFile(null)
+      if (skillFileRef.current) skillFileRef.current.value = ''
       setBanner({ type: 'success', text: 'Skill added.' })
     } catch (e) {
       setBanner({ type: 'error', text: e instanceof ApiError ? e.message : 'Could not add skill.' })
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -99,6 +116,30 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
 
   return (
     <div className="space-y-4" data-testid="employee-edit-skills-panel">
+      <div className="flex gap-1 border-b border-border" role="tablist" aria-label="Skills sections">
+        {(['skills', 'certifications'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={subTab === tab}
+            data-testid={`employee-edit-skills-subtab-${tab}`}
+            onClick={() => setSubTab(tab)}
+            className={cn(
+              'text-sm px-4 pb-2 border-b-2 -mb-px transition-colors font-medium',
+              subTab === tab
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {tab === 'skills' ? 'Skills' : 'Work Certification'}
+          </button>
+        ))}
+      </div>
+      {subTab === 'certifications' ? (
+        <EmployeeEditCertificationsPanel employeeId={employeeId} />
+      ) : (
+        <div className="space-y-4">
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold text-foreground">Skills</h2>
         {canUpdate ? (
@@ -148,7 +189,15 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
                       {formatSkillExpiry(row.expiryDate)}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{row.notes?.trim() ? row.notes : '—'}</td>
-                    <td className="px-3 py-2 text-muted-foreground">—</td>
+                    <td className="px-3 py-2">
+                      <EmployeeSkillDocumentCell
+                        employeeId={employeeId}
+                        skillId={row.id}
+                        documentUrl={row.documentUrl}
+                        canUpdate={canUpdate}
+                        onError={text => setBanner({ type: 'error', text })}
+                      />
+                    </td>
                     {canUpdate ? (
                       <td className="px-3 py-2 text-right">
                         <button
@@ -173,19 +222,12 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
           <p className="text-xs font-medium text-foreground">Add skill</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs text-muted-foreground">Skill type</label>
-              <Select value={skillTypeId} onValueChange={setSkillTypeId}>
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder={skillTypeOptions.length ? 'Select skill type' : 'All types assigned'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {skillTypeOptions.map(t => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeeSkillTypePicker
+                types={skillTypes}
+                assignedIds={assignedSkillTypeIds}
+                value={skillTypeId}
+                onChange={setSkillTypeId}
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Expiry (optional)</label>
@@ -195,12 +237,30 @@ export function EmployeeEditSkillsPanel({ employeeId }: { employeeId: string }) 
               <label className="text-xs text-muted-foreground">Notes (optional)</label>
               <Input value={notes} onChange={e => setNotes(e.target.value)} className="h-9" />
             </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs text-muted-foreground">Skill documentation (optional)</label>
+              <Input
+                ref={skillFileRef}
+                type="file"
+                accept={SKILL_DOCUMENT_ACCEPT}
+                className="h-9"
+                disabled={!canUploadDocs}
+                onChange={e => setSkillFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
           </div>
-          <Button type="button" size="sm" disabled={saving || !skillTypeId.trim()} onClick={() => void onAddSkill()}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving || !skillTypeId.trim() || assignedSkillTypeIds.has(skillTypeId)}
+            onClick={() => void onAddSkill()}
+          >
             {saving ? 'Saving…' : 'Add skill'}
           </Button>
         </div>
       ) : null}
+    </div>
+      )}
     </div>
   )
 }

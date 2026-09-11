@@ -3,6 +3,7 @@ import {
   fetchEmployeeSkillsOverview,
   fetchNonCoreActivitiesRegistry,
   listAllEmployees,
+  listEmployeeCertifications,
   listEmployeeHolidays,
   listEmployeeNonCoreActivities,
   listEmployeeSkills,
@@ -35,6 +36,14 @@ export function useEmployeeSkillsOverview(enabled = true) {
     queryKey: employeeKeys.skillsOverview(),
     queryFn: () => fetchEmployeeSkillsOverview(),
     enabled,
+  })
+}
+
+export function useEmployeeCertifications(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: employeeKeys.certifications(employeeId),
+    queryFn: () => listEmployeeCertifications(employeeId),
+    enabled: enabled && Boolean(employeeId),
   })
 }
 
