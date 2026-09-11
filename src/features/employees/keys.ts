@@ -40,6 +40,9 @@ export const employeeKeys = {
   /** Skills list for one employee. */
   skills: (id: string) => [...employeeKeys.detail(id), 'skills'] as const,
 
+  /** Work certifications for one employee. */
+  certifications: (id: string) => [...employeeKeys.detail(id), 'certifications'] as const,
+
   /** Organisation-wide skills overview. */
   skillsOverview: () => [...employeeKeys.all(), 'skills-overview'] as const,
 

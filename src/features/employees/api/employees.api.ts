@@ -552,6 +552,70 @@ export async function deleteEmployeeSkill(employeeId: string, skillId: string): 
   await apiJson(`/employees/${employeeId}/skills/${skillId}`, { method: 'DELETE' })
 }
 
+export type UpdateEmployeeSkillPayload = {
+  skillTypeId?: string
+  expiryDate?: string | null
+  notes?: string | null
+  documentUrl?: string | null
+}
+
+export async function updateEmployeeSkill(
+  employeeId: string,
+  skillId: string,
+  body: UpdateEmployeeSkillPayload,
+): Promise<EmployeeSkillRow> {
+  const res = await apiJson<ApiEnvelope<EmployeeSkillRow>>(`/employees/${employeeId}/skills/${skillId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+/* ─── Employee work certifications ───────────────────────────── */
+
+export type EmployeeCertificationRow = {
+  id: string
+  employeeId: string
+  certificationTypeId: string | null
+  reference?: string | null
+  issueDate?: string | null
+  expiryDate?: string | null
+  notes?: string | null
+  certificateUrl?: string | null
+  certificationType?: { id: string; name: string } | null
+}
+
+export async function listEmployeeCertifications(employeeId: string): Promise<EmployeeCertificationRow[]> {
+  const res = await apiJson<ApiEnvelope<EmployeeCertificationRow[]>>(`/employees/${employeeId}/certifications`, {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export type CreateEmployeeCertificationPayload = {
+  certificationTypeId: string
+  reference?: string
+  issueDate?: string
+  expiryDate?: string
+  notes?: string
+  certificateUrl?: string
+}
+
+export async function createEmployeeCertification(
+  employeeId: string,
+  body: CreateEmployeeCertificationPayload,
+): Promise<EmployeeCertificationRow> {
+  const res = await apiJson<ApiEnvelope<EmployeeCertificationRow>>(`/employees/${employeeId}/certifications`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function deleteEmployeeCertification(employeeId: string, certificationId: string): Promise<void> {
+  await apiJson(`/employees/${employeeId}/certifications/${certificationId}`, { method: 'DELETE' })
+}
+
 /* ─── Employee non-core activities ───────────────────────────── */
 
 export type ScheduleImpactSummary = {
