@@ -7,8 +7,6 @@ import {
   Calculator,
   CalendarRange,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Info,
   Loader2,
   FileJson,
@@ -78,7 +76,6 @@ export default function UkPayrollRunDetailPage() {
   const cancelMut = useCancelUkPayrollRun(runId)
   const reactivateMut = useReactivateUkPayrollRun(runId)
   const createPayout = useCreateEmployeePayoutBatch()
-  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
   const [fpsExcelDownloading, setFpsExcelDownloading] = React.useState(false)
 
   const open =
@@ -783,8 +780,7 @@ export default function UkPayrollRunDetailPage() {
               <table className="w-full min-w-[1200px] text-left text-sm">
                 <thead className="border-b border-border bg-muted/20 text-muted-foreground">
                   <tr>
-                    <th className="w-8 py-2.5 pl-4 pr-2 font-medium" />
-                    <th className="py-2.5 pr-3 font-medium">Employee</th>
+                    <th className="py-2.5 pl-4 pr-3 font-medium">Employee</th>
                     <th className="py-2.5 pr-3 font-medium">Payroll no.</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Visit pay</th>
                     <th className="py-2.5 pr-3 text-right font-medium">Salary</th>
@@ -799,127 +795,49 @@ export default function UkPayrollRunDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.employees.map((e) => {
-                    const isOpen = !!expanded[e.id]
-                    return (
-                      <React.Fragment key={e.id}>
-                        <tr className="border-b border-border/70 transition-colors hover:bg-muted/20">
-                          <td className="py-3 pl-4 pr-2">
-                            {e.inputLineCount > 0 ? (
-                              <button
-                                type="button"
-                                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                aria-label={isOpen ? 'Hide lines' : 'Show lines'}
-                                onClick={() =>
-                                  setExpanded((prev) => ({ ...prev, [e.id]: !prev[e.id] }))
-                                }
-                              >
-                                {isOpen ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </button>
-                            ) : null}
-                          </td>
-                          <td className="py-3 pr-3">
-                            <div className="font-medium text-foreground">{e.displayName}</div>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              {e.hasProvisionalInputs ? (
-                                <Badge variant="secondary" className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                                  provisional
-                                </Badge>
-                              ) : null}
-                              {e.taxCodeApplied ? (
-                                <span className="text-xs text-muted-foreground">
-                                  {e.taxCodeApplied}
-                                  {e.niCategoryApplied ? ` · NI ${e.niCategoryApplied}` : ''}
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="py-3 pr-3 text-muted-foreground">{e.payrollNumber ?? '—'}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.visitPay)}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.salaryPay)}</td>
-                          <td className="py-3 pr-3 text-right font-medium tabular-nums">
-                            {formatGbp(e.totalGross)}
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.incomeTax)}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.employeeNi)}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
-                            {formatGbp(e.employerNi)}
-                          </td>
-                          <td className="bg-emerald-50/40 py-3 pr-3 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
-                            {formatGbp(e.netPay)}
-                          </td>
-                          <td className="py-3 pr-4 text-right tabular-nums text-muted-foreground">
-                            {e.ytd ? formatGbp(e.ytd.incomeTaxYtd) : '—'}
-                          </td>
-                        </tr>
-                        {isOpen ? (
-                          <tr className="border-b border-border/70 bg-muted/15">
-                            <td colSpan={11} className="px-4 py-4">
-                              {e.ytd ? (
-                                <div className="mb-3 grid gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs sm:grid-cols-3">
-                                  <p>
-                                    Gross YTD:{' '}
-                                    <span className="font-medium tabular-nums">
-                                      {formatGbp(e.ytd.grossPayYtd)}
-                                    </span>
-                                  </p>
-                                  <p>
-                                    Tax YTD:{' '}
-                                    <span className="font-medium tabular-nums">
-                                      {formatGbp(e.ytd.incomeTaxYtd)}
-                                    </span>
-                                  </p>
-                                  <p>
-                                    Emp NI YTD:{' '}
-                                    <span className="font-medium tabular-nums">
-                                      {formatGbp(e.ytd.employeeNiYtd)}
-                                    </span>
-                                  </p>
-                                </div>
-                              ) : null}
-                              {e.statutoryExplanation ? (
-                                <div className="mb-3 flex gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground">
-                                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                                  <p>{e.statutoryExplanation}</p>
-                                </div>
-                              ) : null}
-                              <table className="w-full text-left text-xs">
-                                <thead className="text-muted-foreground">
-                                  <tr>
-                                    <th className="py-1.5 pr-3 font-medium">Type</th>
-                                    <th className="py-1.5 pr-3 font-medium">Description</th>
-                                    <th className="py-1.5 pr-3 text-right font-medium">Minutes</th>
-                                    <th className="py-1.5 text-right font-medium">Amount</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {e.inputLines.map((line) => (
-                                    <tr key={line.id} className="border-t border-border/50">
-                                      <td className="py-1.5 pr-3">
-                                        {line.lineType.replace(/_/g, ' ')}
-                                        {line.isProvisional ? ' · provisional' : ''}
-                                      </td>
-                                      <td className="py-1.5 pr-3">{line.description}</td>
-                                      <td className="py-1.5 pr-3 text-right tabular-nums">
-                                        {line.minutes ?? '—'}
-                                      </td>
-                                      <td className="py-1.5 text-right tabular-nums font-medium">
-                                        {formatGbp(line.amount)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </React.Fragment>
-                    )
-                  })}
+                  {data.employees.map((e) => (
+                    <tr
+                      key={e.id}
+                      className="border-b border-border/70 transition-colors hover:bg-muted/20"
+                    >
+                      <td className="py-3 pl-4 pr-3">
+                        <div className="font-medium text-foreground">{e.displayName}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {e.hasProvisionalInputs ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                            >
+                              provisional
+                            </Badge>
+                          ) : null}
+                          {e.taxCodeApplied ? (
+                            <span className="text-xs text-muted-foreground">
+                              {e.taxCodeApplied}
+                              {e.niCategoryApplied ? ` · NI ${e.niCategoryApplied}` : ''}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="py-3 pr-3 text-muted-foreground">{e.payrollNumber ?? '—'}</td>
+                      <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.visitPay)}</td>
+                      <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.salaryPay)}</td>
+                      <td className="py-3 pr-3 text-right font-medium tabular-nums">
+                        {formatGbp(e.totalGross)}
+                      </td>
+                      <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.incomeTax)}</td>
+                      <td className="py-3 pr-3 text-right tabular-nums">{formatGbp(e.employeeNi)}</td>
+                      <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
+                        {formatGbp(e.employerNi)}
+                      </td>
+                      <td className="bg-emerald-50/40 py-3 pr-3 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
+                        {formatGbp(e.netPay)}
+                      </td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-muted-foreground">
+                        {e.ytd ? formatGbp(e.ytd.incomeTaxYtd) : '—'}
+                      </td>
+                    </tr>
+                  ))}
                   {data.employees.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
