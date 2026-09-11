@@ -6,6 +6,7 @@ import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/servic
 import { InitialAssessmentRiskRecordsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRiskRecordsPanel'
 import { buildInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
 import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
+import { useCarePlanRecommendations } from '@/features/service-users/hooks/useCarePlanRecommendations'
 import type { InitialAssessmentStatus } from '@/features/service-users/initial-assessment/types'
 
 const EDITABLE: InitialAssessmentStatus[] = ['DRAFT', 'IN_PROGRESS']
@@ -108,58 +109,102 @@ export function CarePlanIaRecommendationsBody({
   cataloguedFormIds?: ReadonlySet<string>
 }) {
   const navigate = useNavigate()
-  const { canRead, canUpdate, canReview, canCreateCarePlan, submissionsQuery, summaryQuery, submission } =
-    useCarePlanIaSource(serviceUserId)
+  const {
+    canRead,
+    canUpdate,
+    canReview,
+    canCreateCarePlan,
+    submission,
+    recommendations,
+    isLoading,
+  } = useCarePlanRecommendations(serviceUserId)
 
-  if (submissionsQuery.isLoading || (submission && summaryQuery.isLoading)) return <SourceLoading />
+  if (isLoading) return <SourceLoading />
   if (!canRead) {
     return (
       <p className="text-sm text-muted-foreground">You do not have permission to view care plan recommendations.</p>
     )
   }
-  if (!submission) return <SourceEmpty serviceUserId={serviceUserId} canRead={canRead} />
+
+  if (!submission && recommendations.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="care-plan-ia-empty">
+        No care plans recommended yet. Save medical conditions (for example High Risk of Falls) or{' '}
+        {canRead ? (
+          <OpenIaLink serviceUserId={serviceUserId}>open an initial assessment</OpenIaLink>
+        ) : (
+          'complete an initial assessment'
+        )}
+        .
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-3" data-testid="care-plan-ia-recommendations">
       {layout === 'lifecycle' ? null : (
         <p className="text-xs text-muted-foreground">
-          Triggered from the latest initial assessment ·{' '}
-          <OpenIaLink serviceUserId={serviceUserId} submissionId={submission.id} tab="schedule">
-            Open IA recommendations
-          </OpenIaLink>
+          {submission ? (
+            <>
+              Triggered from the latest initial assessment and medical conditions ·{' '}
+              <OpenIaLink serviceUserId={serviceUserId} submissionId={submission.id} tab="schedule">
+                Open IA recommendations
+              </OpenIaLink>
+            </>
+          ) : (
+            <>
+              Recommended from medical conditions ·{' '}
+              <Link
+                to="/service-users/$serviceUserId/alerts"
+                params={{ serviceUserId }}
+                className="font-medium text-teal-800 underline-offset-2 hover:underline dark:text-teal-300"
+              >
+                Medical &amp; Alerts
+              </Link>
+            </>
+          )}
         </p>
       )}
       <InitialAssessmentCarePlanRecommendationsPanel
         serviceUserId={serviceUserId}
-        submissionId={submission.id}
-        recommendations={summaryQuery.data?.carePlanRecommendations ?? []}
-        submissionStatus={submission.status}
-        canDecide={(canReview || canUpdate) && submission.status === 'REVIEWED'}
+        submissionId={submission?.id ?? null}
+        recommendations={recommendations}
+        submissionStatus={submission?.status}
+        canDecide={Boolean(
+          (canReview || canUpdate) && submission && submission.status === 'REVIEWED',
+        )}
         canCreate={canCreateCarePlan}
         layout={layout}
         includePendingFormIds={includePendingFormIds}
         cataloguedFormIds={cataloguedFormIds}
-        onGoToSection={(sectionNumber) => {
-          void navigate({
-            to: '/service-users/initial-assessment',
-            search: buildInitialAssessmentEnterpriseSearch({
-              serviceUserId,
-              submissionId: submission.id,
-              section: sectionNumber,
-              tab: 'form',
-            }),
-          })
-        }}
+        onGoToSection={
+          submission
+            ? (sectionNumber) => {
+                void navigate({
+                  to: '/service-users/initial-assessment',
+                  search: buildInitialAssessmentEnterpriseSearch({
+                    serviceUserId,
+                    submissionId: submission.id,
+                    section: sectionNumber,
+                    tab: 'form',
+                  }),
+                })
+              }
+            : undefined
+        }
       />
     </div>
   )
 }
 
 export function useCarePlanIaAccordionTitles(serviceUserId: string) {
-  const { summaryQuery, submission } = useCarePlanIaSource(serviceUserId)
+  const { recommendations, submission } = useCarePlanRecommendations(serviceUserId)
+  const recCount = recommendations.length
+  const pendingCount = recommendations.filter((r) => r.status === 'pending').length
+
+  const { summaryQuery } = useCarePlanIaSource(serviceUserId)
   const riskCount = summaryQuery.data?.riskCount
   const actionCount = summaryQuery.data?.openActionsCount
-  const recCount = summaryQuery.data?.carePlanRecommendations?.length
 
   const riskTitle =
     submission && riskCount != null
@@ -168,11 +213,12 @@ export function useCarePlanIaAccordionTitles(serviceUserId: string) {
         })`
       : 'Risk Profile'
 
-  const pendingCount = summaryQuery.data?.carePlanRecommendations?.filter((r) => r.status === 'pending').length
   const recTitle =
-    submission && recCount != null
-      ? `Recommended Care Plans from Initial Assessment (${pendingCount ?? recCount} pending)`
-      : 'Recommended Care Plans from Initial Assessment'
+    recCount > 0
+      ? `Recommended Care Plans (${pendingCount} pending)`
+      : submission
+        ? 'Recommended Care Plans from Initial Assessment'
+        : 'Recommended Care Plans'
 
   return { riskTitle, recTitle }
 }

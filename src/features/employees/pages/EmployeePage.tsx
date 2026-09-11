@@ -28,6 +28,7 @@ import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings
 import { resolveEmployeeVisaTypes } from '@/features/settings/employee/employee-visa-defaults'
 import { useEmployeeReviewsOverview } from '@/features/employees/hooks/useEmployeeReviews'
 import { EmployeeSkillsTab } from '@/features/employees/components/EmployeeSkillsTab'
+import { ComplianceBoardPanel } from '@/features/employees/components/ComplianceBoardPanel'
 import { StaffListBranchesCell } from '@/features/employees/components/StaffListBranchesCell'
 import { StaffListFilters } from '@/features/employees/components/StaffListFilters'
 import { EmployeeNonCoreActivityTab } from '@/features/employees/components/EmployeeNonCoreActivityTab'
@@ -86,7 +87,7 @@ const employeeReports = [
 /* --- Tab config ----------------------------------------------- */
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'staff-list',        label: 'Staff List',        icon: <Users className="h-5 w-5" /> },
-  { id: 'compliance',        label: 'Compliance',        icon: <ShieldCheck className="h-5 w-5" /> },
+  { id: 'compliance',        label: 'Compliance Board',  icon: <ShieldCheck className="h-5 w-5" /> },
   { id: 'review-status',     label: 'Review Status',     icon: <Star className="h-5 w-5" /> },
   { id: 'skills',            label: 'Skills',            icon: <Award className="h-5 w-5" /> },
   { id: 'non-core-activity', label: 'Non Core Activity', icon: <Activity className="h-5 w-5" /> },
@@ -96,9 +97,6 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
 /* --- Main Component ------------------------------------------- */
 export default function EmployeePage({ activeTab: initialTab = 'staff-list', onTabChange }: EmployeePageProps) {
   const [activeTab, setActiveTab] = React.useState<TabId>(initialTab)
-  const [allEmployee, setAllEmployee] = React.useState(false)
-  const [hideNoLonger, setHideNoLonger] = React.useState(true)
-  const [complianceSelect, setComplianceSelect] = React.useState('Expired')
 
   React.useEffect(() => {
     setActiveTab(initialTab)
@@ -192,16 +190,7 @@ export default function EmployeePage({ activeTab: initialTab = 'staff-list', onT
         {/* Content area */}
         <div className="p-5" role="tabpanel" aria-labelledby={`employee-tab-${activeTab}`}>
           {activeTab === 'staff-list' && <StaffListTab />}
-          {activeTab === 'compliance' && (
-            <ComplianceTab
-              allEmployee={allEmployee}
-              setAllEmployee={setAllEmployee}
-              hideNoLonger={hideNoLonger}
-              setHideNoLonger={setHideNoLonger}
-              complianceSelect={complianceSelect}
-              setComplianceSelect={setComplianceSelect}
-            />
-          )}
+          {activeTab === 'compliance' && <ComplianceBoardPanel />}
           {activeTab === 'review-status' && <ReviewStatusTab />}
           {activeTab === 'skills' && <EmployeeSkillsTab />}
           {activeTab === 'non-core-activity' && <EmployeeNonCoreActivityTab />}
@@ -900,91 +889,6 @@ function StaffListTab() {
             )}
           </tbody>
         </table>
-      </div>
-    </div>
-  )
-}
-
-/* --- Compliance Tab ------------------------------------------- */
-function ComplianceTab({ allEmployee, setAllEmployee, hideNoLonger, setHideNoLonger, complianceSelect, setComplianceSelect }: {
-  allEmployee: boolean
-  setAllEmployee: (v: boolean) => void
-  hideNoLonger: boolean
-  setHideNoLonger: (v: boolean) => void
-  complianceSelect: string
-  setComplianceSelect: (v: string) => void
-}) {
-  return (
-    <div data-testid="employee-compliance-panel">
-      <h2 className="font-bold text-base mb-5">Employee Compliance</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5">
-        {/* Left column */}
-        <div className="space-y-5">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="radio" checked={allEmployee} onChange={() => setAllEmployee(true)} className="h-4 w-4 accent-primary" />
-            <span className="text-sm">All Employee</span>
-          </label>
-
-          <div className="space-y-1.5">
-            <label className="text-sm text-muted-foreground">Select Type</label>
-            <select className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring">
-              <option>All</option>
-              <option>Certification</option>
-              <option>Skill</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-sm">Hide No Longer Required Compliances</span>
-            <button
-              type="button"
-              data-testid="employee-compliance-hide-no-longer-toggle"
-              aria-pressed={hideNoLonger}
-              aria-label={hideNoLonger ? 'Hide no longer required compliances: on' : 'Hide no longer required compliances: off'}
-              onClick={() => setHideNoLonger(!hideNoLonger)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors shrink-0',
-                hideNoLonger ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground'
-              )}
-            >
-              {hideNoLonger ? 'YES' : 'NO'}
-              <span className="h-3.5 w-3.5 rounded-full bg-white shadow-sm" />
-            </button>
-          </div>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-3 cursor-pointer shrink-0">
-              <input type="radio" checked={!allEmployee} onChange={() => setAllEmployee(false)} className="h-4 w-4 accent-primary" />
-              <span className="text-sm">Select Employee</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Search Employee..."
-              className="flex-1 min-w-[160px] border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm text-muted-foreground">Select</label>
-            <select
-              value={complianceSelect}
-              onChange={e => setComplianceSelect(e.target.value)}
-              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {['Expired', 'Nearing', 'All'].map(o => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-
-          <div className="flex justify-end">
-            <Button size="sm" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Generate Report
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -26,6 +26,15 @@ export function isScheduleJobCompleted(job: Pick<TimelineJob, 'status'>): boolea
   return job.status === 'COMPLETED'
 }
 
+/** Carer attended (usually COMPLETED) but care did not start — carer-app Unable to start. */
+export function isScheduleJobCareNotDelivered(
+  job: Pick<TimelineJob, 'careNotDelivered'>,
+): boolean {
+  const recorded = job.careNotDelivered
+  if (!recorded) return false
+  return Boolean(recorded.reasonCode?.trim() || recorded.reasonLabel?.trim())
+}
+
 export function isScheduleJobReinstatable(job: Pick<TimelineJob, 'status'>): boolean {
   return job.status === 'CANCELLED' || job.status === 'CALLED_OFF'
 }

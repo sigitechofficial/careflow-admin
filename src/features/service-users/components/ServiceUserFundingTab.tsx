@@ -4,9 +4,13 @@ import type {
   CreateEnterpriseServiceUserFundingBody,
   EnterpriseFundingStatus,
   EnterpriseFunderRow,
-  EnterpriseFundingTypeRow,
   EnterpriseServiceUserFundingRow,
 } from '@/features/service-users/types'
+import { updateEnterpriseFunder } from '@/features/service-users/api/service-users.api'
+import {
+  DEFAULT_PAYMENT_TERMS,
+  PAYMENT_TERMS_OPTIONS,
+} from '@/features/billing/data/payment-terms.options'
 import {
   useApproveServiceUserEnterpriseFunding,
   useCreateServiceUserEnterpriseFunding,
@@ -18,7 +22,6 @@ import {
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import {
   useEnterpriseFunders,
-  useEnterpriseFundingTypes,
   useServiceUserEnterpriseFundings,
 } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useChargeCards } from '@/features/billing/hooks/useChargeCards'
@@ -98,6 +101,8 @@ const FUNDING_FIELD_TOOLTIPS = {
   fundingTypeId:
     'Classification of who pays (e.g. local authority, NHS, private). Required for each funding line.',
   funderId: 'The payer organisation invoiced for this share of care. Required for billing readiness.',
+  paymentTerms:
+    'QBO-style terms for this funder (Net 30, Due on receipt, …). Invoice due date = invoice date + term days. Saved on the funder, not the charge card.',
   status: 'Lifecycle of this funding line — e.g. pending approval, active, suspended, or ended.',
   startDate: 'Date this funding arrangement becomes effective.',
   endDate: 'Date funding ends. Leave blank if the contract is open-ended.',
@@ -118,6 +123,14 @@ const FUNDING_FIELD_TOOLTIPS = {
   billingContactName: 'Person or team named on invoices. Required for billing readiness.',
   billingContactEmail: 'Email address for sending invoices to this funder or appointee.',
   billingContactPhone: 'Phone number for billing queries.',
+  billingAddress:
+    'Postal address printed on / used for invoices for this funding line. Can differ from the funder organisation address.',
+  billingAddressLine1: 'First line of the invoice billing address.',
+  billingAddressLine2: 'Second line of the invoice billing address (optional).',
+  billingTown: 'Town or city for the invoice billing address.',
+  billingCounty: 'County or region for the invoice billing address.',
+  billingCountry: 'Country for the invoice billing address.',
+  billingPostcode: 'Postcode for the invoice billing address.',
   invoiceGroupingRule: 'How invoice lines are grouped — e.g. one invoice per service user or per PO.',
   reviewDate: 'Date when this funding arrangement should be reviewed.',
   notes: 'Internal notes for staff. Not shown on invoices.',
@@ -130,6 +143,7 @@ type FundingPayerMode = 'SINGLE' | 'MIXED'
 type MixedFunderShare = {
   funderId: string
   splitPercent: string
+  paymentTerms: string
 }
 
 function chargeCardOptionLabel(card: ChargeCard): string {
@@ -175,21 +189,6 @@ function parseSplitPercentValue(v: string | null | undefined): number | null {
   return Number.isNaN(n) ? null : n
 }
 
-function computeCombinedSplitPercent(
-  fundings: EnterpriseServiceUserFundingRow[],
-  editingId: string | null,
-  nextSplitPercent: string,
-): number {
-  let total = 0
-  for (const row of fundings) {
-    if (!isSplitEligibleFunding(row)) continue
-    const pct =
-      row.id === editingId ? parseSplitPercentValue(nextSplitPercent) : parseSplitPercentValue(row.splitPercent)
-    if (pct != null && pct > 0) total += pct
-  }
-  return total
-}
-
 function nextSplitPriority(fundings: EnterpriseServiceUserFundingRow[]): number {
   const priorities = fundings.filter(isSplitEligibleFunding).map((r) => r.splitPriority ?? 1)
   return priorities.length ? Math.max(...priorities) + 1 : 1
@@ -200,6 +199,8 @@ type FundingForm = {
   mixedShares: MixedFunderShare[]
   fundingTypeId: string
   funderId: string
+  /** Payment terms for the selected funder (saved on Funder). */
+  paymentTerms: string
   status: EnterpriseFundingStatus
   fundingReference: string
   approvalReference: string
@@ -216,6 +217,12 @@ type FundingForm = {
   billingContactName: string
   billingContactEmail: string
   billingContactPhone: string
+  billingAddressLine1: string
+  billingAddressLine2: string
+  billingTown: string
+  billingCounty: string
+  billingCountry: string
+  billingPostcode: string
   invoiceGroupingRule: string
   defaultChargeCardId: string
   defaultInvoiceTemplateId: string
@@ -230,6 +237,7 @@ function emptyForm(): FundingForm {
     mixedShares: [],
     fundingTypeId: '',
     funderId: '',
+    paymentTerms: DEFAULT_PAYMENT_TERMS,
     status: 'UNKNOWN',
     fundingReference: '',
     approvalReference: '',
@@ -246,6 +254,12 @@ function emptyForm(): FundingForm {
     billingContactName: '',
     billingContactEmail: '',
     billingContactPhone: '',
+    billingAddressLine1: '',
+    billingAddressLine2: '',
+    billingTown: '',
+    billingCounty: '',
+    billingCountry: '',
+    billingPostcode: '',
     invoiceGroupingRule: '',
     defaultChargeCardId: '',
     defaultInvoiceTemplateId: '',
@@ -261,6 +275,7 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     mixedShares: [],
     fundingTypeId: row.fundingTypeId,
     funderId: row.funderId ?? '',
+    paymentTerms: row.funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
     status: row.status,
     fundingReference: row.fundingReference ?? '',
     approvalReference: row.approvalReference ?? '',
@@ -278,6 +293,12 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     billingContactName: row.billingContactName ?? '',
     billingContactEmail: row.billingContactEmail ?? '',
     billingContactPhone: row.billingContactPhone ?? '',
+    billingAddressLine1: row.billingAddressLine1 ?? '',
+    billingAddressLine2: row.billingAddressLine2 ?? '',
+    billingTown: row.billingTown ?? '',
+    billingCounty: row.billingCounty ?? '',
+    billingCountry: row.billingCountry ?? '',
+    billingPostcode: row.billingPostcode ?? '',
     invoiceGroupingRule: row.invoiceGroupingRule ?? '',
     defaultChargeCardId: row.defaultChargeCardId ?? row.defaultChargeCard?.id ?? '',
     defaultInvoiceTemplateId:
@@ -285,6 +306,38 @@ function rowToForm(row: EnterpriseServiceUserFundingRow): FundingForm {
     isPrimary: row.isPrimary,
     reviewDate: row.reviewDate ? row.reviewDate.slice(0, 10) : '',
     notes: row.notes ?? '',
+  }
+}
+
+/** Open edit with the same Single / Mixed layout as Add, seeded from existing rows. */
+function rowToEditForm(
+  row: EnterpriseServiceUserFundingRow,
+  allRows: EnterpriseServiceUserFundingRow[],
+): { form: FundingForm; groupIds: string[] } {
+  const splitRows = allRows.filter((r) => {
+    if (!isSplitEligibleFunding(r)) return false
+    const pct = parseSplitPercentValue(r.splitPercent)
+    return pct != null && pct > 0 && Boolean(r.funderId)
+  })
+  const isMixed = splitRows.length >= 2
+  if (!isMixed) {
+    return { form: rowToForm(row), groupIds: [row.id] }
+  }
+  const base = rowToForm(row)
+  return {
+    form: {
+      ...base,
+      payerMode: 'MIXED',
+      funderId: '',
+      splitPercent: '',
+      mixedShares: splitRows.map((r) => ({
+        funderId: r.funderId!,
+        splitPercent: r.splitPercent != null ? String(Number(r.splitPercent)) : '',
+        paymentTerms: r.funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
+      })),
+      isPrimary: splitRows.some((r) => r.isPrimary),
+    },
+    groupIds: splitRows.map((r) => r.id),
   }
 }
 
@@ -307,6 +360,12 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
     billingContactName: f.billingContactName || null,
     billingContactEmail: f.billingContactEmail || null,
     billingContactPhone: f.billingContactPhone || null,
+    billingAddressLine1: f.billingAddressLine1 || null,
+    billingAddressLine2: f.billingAddressLine2 || null,
+    billingTown: f.billingTown || null,
+    billingCounty: f.billingCounty || null,
+    billingCountry: f.billingCountry || null,
+    billingPostcode: f.billingPostcode || null,
     invoiceGroupingRule: f.invoiceGroupingRule || null,
     defaultChargeCardId: f.defaultChargeCardId || null,
     defaultInvoiceTemplateId: f.defaultInvoiceTemplateId || null,
@@ -316,17 +375,28 @@ function formToBody(f: FundingForm): CreateEnterpriseServiceUserFundingBody {
   }
 }
 
+function fundingTypeIdForFunder(
+  funderId: string,
+  funders: EnterpriseFunderRow[],
+  fallback?: string | null,
+): string {
+  const fromFunder = funders.find((f) => f.id === funderId)?.fundingType?.id
+  return fromFunder || fallback || ''
+}
+
 function mixedShareToBody(
   f: FundingForm,
   share: MixedFunderShare,
   splitPriority: number,
   isPrimary: boolean,
+  fundingTypeId: string,
 ): CreateEnterpriseServiceUserFundingBody {
   return {
     ...formToBody({
       ...f,
       payerMode: 'MIXED',
       funderId: share.funderId,
+      fundingTypeId,
       splitPercent: share.splitPercent,
       splitPriority: String(splitPriority),
       isPrimary,
@@ -345,10 +415,18 @@ function toggleMixedFunder(
   shares: MixedFunderShare[],
   funderId: string,
   checked: boolean,
+  paymentTerms: string = DEFAULT_PAYMENT_TERMS,
 ): MixedFunderShare[] {
   if (checked) {
     if (shares.some((s) => s.funderId === funderId)) return shares
-    return [...shares, { funderId, splitPercent: '' }]
+    return [
+      ...shares,
+      {
+        funderId,
+        splitPercent: '',
+        paymentTerms: paymentTerms.trim() || DEFAULT_PAYMENT_TERMS,
+      },
+    ]
   }
   return shares.filter((s) => s.funderId !== funderId)
 }
@@ -359,6 +437,18 @@ function setMixedSharePercent(
   splitPercent: string,
 ): MixedFunderShare[] {
   return shares.map((s) => (s.funderId === funderId ? { ...s, splitPercent } : s))
+}
+
+function setMixedSharePaymentTerms(
+  shares: MixedFunderShare[],
+  funderId: string,
+  paymentTerms: string,
+): MixedFunderShare[] {
+  return shares.map((s) =>
+    s.funderId === funderId
+      ? { ...s, paymentTerms: paymentTerms.trim() || DEFAULT_PAYMENT_TERMS }
+      : s,
+  )
 }
 
 export function ServiceUserFundingTab({
@@ -386,7 +476,6 @@ export function ServiceUserFundingTab({
   const canSetPrimary = can('service_users.funding.set_primary')
 
   const fundingsQuery = useServiceUserEnterpriseFundings(serviceUserId, canRead)
-  const typesQuery = useEnterpriseFundingTypes(canRead)
   const fundersQuery = useEnterpriseFunders(canRead)
   const chargeCardsQuery = useChargeCards()
   const invoiceTemplatesQuery = useInvoiceTemplates()
@@ -400,12 +489,10 @@ export function ServiceUserFundingTab({
 
   const loading =
     fundingsQuery.isLoading ||
-    typesQuery.isLoading ||
     fundersQuery.isLoading ||
     chargeCardsQuery.isLoading ||
     invoiceTemplatesQuery.isLoading
   const rows = fundingsQuery.data?.rows ?? []
-  const types = typesQuery.data ?? []
   const funders = fundersQuery.data ?? []
   const chargeCards = chargeCardsQuery.data ?? []
   const invoiceTemplates = invoiceTemplatesQuery.data ?? []
@@ -419,8 +506,11 @@ export function ServiceUserFundingTab({
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingId, setEditingId] = React.useState<string | null>(null)
+  /** Funding row ids belonging to the arrangement being edited (1 for Single, N for Mixed). */
+  const [editingGroupIds, setEditingGroupIds] = React.useState<string[]>([])
   const [form, setForm] = React.useState<FundingForm>(() => emptyForm())
-  const saving = createMutation.isPending || updateMutation.isPending
+  const saving =
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   const chargeCardOptions = React.useMemo(() => {
     const options = chargeCards.map(card => ({
@@ -464,6 +554,7 @@ export function ServiceUserFundingTab({
   const openCreate = () => {
     const primaryEligible = rows.filter(isPrimaryEligibleFunding)
     setEditingId(null)
+    setEditingGroupIds([])
     setForm({
       ...emptyForm(),
       splitPriority: String(nextSplitPriority(rows)),
@@ -491,21 +582,43 @@ export function ServiceUserFundingTab({
     [configuredSplitRows],
   )
 
-  const formSplitTotal = React.useMemo(
-    () => computeCombinedSplitPercent(rows, editingId, form.splitPercent),
-    [rows, editingId, form.splitPercent],
-  )
-
   const mixedSplitTotal = React.useMemo(
     () => sumMixedSharePercents(form.mixedShares),
     [form.mixedShares],
   )
 
-  const isCreateMixed = !editingId && form.payerMode === 'MIXED'
+  const isMixedMode = form.payerMode === 'MIXED'
+
+  const selectedFunder = React.useMemo(
+    () => (form.funderId ? funders.find((f) => f.id === form.funderId) : undefined),
+    [form.funderId, funders],
+  )
+  const selectedFunderHasAddress = Boolean(
+    selectedFunder?.addressLine1?.trim() ||
+      selectedFunder?.addressLine2?.trim() ||
+      selectedFunder?.town?.trim() ||
+      selectedFunder?.county?.trim() ||
+      selectedFunder?.postcode?.trim() ||
+      selectedFunder?.country?.trim(),
+  )
+  const applyFunderBillingAddress = () => {
+    if (!selectedFunder) return
+    setForm((f) => ({
+      ...f,
+      billingAddressLine1: selectedFunder.addressLine1 ?? '',
+      billingAddressLine2: selectedFunder.addressLine2 ?? '',
+      billingTown: selectedFunder.town ?? '',
+      billingCounty: selectedFunder.county ?? '',
+      billingCountry: selectedFunder.country ?? '',
+      billingPostcode: selectedFunder.postcode ?? '',
+    }))
+  }
 
   const openEdit = (row: EnterpriseServiceUserFundingRow) => {
+    const { form: nextForm, groupIds } = rowToEditForm(row, rows)
     setEditingId(row.id)
-    setForm(rowToForm(row))
+    setEditingGroupIds(groupIds)
+    setForm(nextForm)
     setDialogOpen(true)
   }
 
@@ -520,7 +633,13 @@ export function ServiceUserFundingTab({
           splitPercent: '',
           mixedShares:
             f.funderId !== ''
-              ? [{ funderId: f.funderId, splitPercent: '' }]
+              ? [
+                  {
+                    funderId: f.funderId,
+                    splitPercent: '',
+                    paymentTerms: f.paymentTerms || DEFAULT_PAYMENT_TERMS,
+                  },
+                ]
               : f.mixedShares.length
                 ? f.mixedShares
                 : [],
@@ -531,6 +650,8 @@ export function ServiceUserFundingTab({
         payerMode: 'SINGLE',
         mixedShares: [],
         funderId: f.mixedShares[0]?.funderId ?? f.funderId,
+        paymentTerms:
+          f.mixedShares[0]?.paymentTerms || f.paymentTerms || DEFAULT_PAYMENT_TERMS,
         splitPercent: '',
         splitPriority: '1',
       }
@@ -538,12 +659,7 @@ export function ServiceUserFundingTab({
   }
 
   const saveFunding = async () => {
-    if (!form.fundingTypeId) {
-      toastApiError(new Error('Funding type is required'), 'Validation')
-      return
-    }
-
-    if (isCreateMixed) {
+    if (isMixedMode) {
       if (form.mixedShares.length < 2) {
         toastApiError(
           new Error('Mixed Funding requires at least two funders'),
@@ -560,6 +676,14 @@ export function ServiceUserFundingTab({
           )
           return
         }
+        if (!fundingTypeIdForFunder(share.funderId, funders)) {
+          const name = funders.find((f) => f.id === share.funderId)?.name ?? 'Selected funder'
+          toastApiError(
+            new Error(`${name} has no funding type configured — update the funder record first`),
+            'Validation',
+          )
+          return
+        }
       }
       if (Math.abs(mixedSplitTotal - 100) > 0.001) {
         toastApiError(
@@ -572,53 +696,126 @@ export function ServiceUserFundingTab({
       }
 
       try {
-        const basePriority = nextSplitPriority(rows)
-        let shareIndex = 0
         for (const share of form.mixedShares) {
-          await createMutation.mutateAsync(
-            mixedShareToBody(
+          if (share.paymentTerms.trim()) {
+            await updateEnterpriseFunder(share.funderId, {
+              paymentTerms: share.paymentTerms.trim(),
+            })
+          }
+        }
+        if (!editingId) {
+          const basePriority = nextSplitPriority(rows)
+          let shareIndex = 0
+          for (const share of form.mixedShares) {
+            await createMutation.mutateAsync(
+              mixedShareToBody(
+                form,
+                share,
+                basePriority + shareIndex,
+                form.isPrimary ? shareIndex === 0 : false,
+                fundingTypeIdForFunder(share.funderId, funders),
+              ),
+            )
+            shareIndex += 1
+          }
+          toastSuccess(
+            'Mixed funding created',
+            `${form.mixedShares.length} funder lines saved with invoice splits.`,
+          )
+        } else {
+          const groupRows = rows.filter((r) => editingGroupIds.includes(r.id))
+          const byFunder = new Map(
+            groupRows
+              .filter((r) => r.funderId)
+              .map((r) => [r.funderId as string, r] as const),
+          )
+          let shareIndex = 0
+          for (const share of form.mixedShares) {
+            const existing = byFunder.get(share.funderId)
+            const body = mixedShareToBody(
               form,
               share,
-              basePriority + shareIndex,
+              shareIndex + 1,
               form.isPrimary ? shareIndex === 0 : false,
-            ),
+              fundingTypeIdForFunder(
+                share.funderId,
+                funders,
+                existing?.fundingTypeId,
+              ),
+            )
+            if (existing) {
+              await updateMutation.mutateAsync({ fundingId: existing.id, body })
+              byFunder.delete(share.funderId)
+            } else {
+              await createMutation.mutateAsync(body)
+            }
+            shareIndex += 1
+          }
+          for (const leftover of byFunder.values()) {
+            if (canDelete) {
+              await deleteMutation.mutateAsync(leftover.id)
+            } else {
+              await updateMutation.mutateAsync({
+                fundingId: leftover.id,
+                body: {
+                  ...formToBody({
+                    ...form,
+                    funderId: leftover.funderId ?? '',
+                    fundingTypeId: leftover.fundingTypeId,
+                    splitPercent: '',
+                    splitPriority: '1',
+                    isPrimary: false,
+                  }),
+                  status: 'ENDED',
+                  endDate: form.endDate || new Date().toISOString().slice(0, 10),
+                },
+              })
+            }
+          }
+          toastSuccess(
+            'Mixed funding updated',
+            `${form.mixedShares.length} funder lines saved with invoice splits.`,
           )
-          shareIndex += 1
         }
-        toastSuccess(
-          'Mixed funding created',
-          `${form.mixedShares.length} funder lines saved with invoice splits.`,
-        )
         setDialogOpen(false)
         void fundingsQuery.refetch()
+        void fundersQuery.refetch()
       } catch (e) {
-        toastApiError(e, 'Save failed — some funder lines may already have been created')
+        toastApiError(
+          e,
+          editingId
+            ? 'Save failed — some funder lines may already have been updated'
+            : 'Save failed — some funder lines may already have been created',
+        )
         void fundingsQuery.refetch()
       }
       return
     }
 
-    if (form.splitPercent !== '' && editingId) {
-      const pct = Number(form.splitPercent)
-      if (Number.isNaN(pct) || pct < 0 || pct > 100) {
-        toastApiError(new Error('Split percentage must be between 0 and 100'), 'Validation')
-        return
-      }
-      if (formSplitTotal > 100.001) {
-        toastApiError(
-          new Error(`Combined split would be ${formSplitTotal.toFixed(1)}%. Total cannot exceed 100%.`),
-          'Validation',
-        )
-        return
-      }
+    if (!form.funderId) {
+      toastApiError(new Error('Funder is required'), 'Validation')
+      return
+    }
+    const resolvedFundingTypeId = fundingTypeIdForFunder(
+      form.funderId,
+      funders,
+      form.fundingTypeId,
+    )
+    if (!resolvedFundingTypeId) {
+      toastApiError(
+        new Error('This funder has no funding type configured — update the funder record first'),
+        'Validation',
+      )
+      return
     }
 
     try {
       const body = formToBody({
         ...form,
-        // New Single Funder lines never store a split %.
-        splitPercent: editingId ? form.splitPercent : '',
-        splitPriority: editingId ? form.splitPriority : '1',
+        fundingTypeId: resolvedFundingTypeId,
+        // Single Funder lines never store a split % (same as Add).
+        splitPercent: '',
+        splitPriority: '1',
       })
       const editingRow = editingId ? rows.find((row) => row.id === editingId) : null
       const wasSolePrimary =
@@ -626,8 +823,20 @@ export function ServiceUserFundingTab({
           editingRow?.isPrimary
           && rows.filter(isPrimaryEligibleFunding).filter((row) => row.isPrimary).length === 1,
         )
+      if (form.funderId && form.paymentTerms.trim()) {
+        await updateEnterpriseFunder(form.funderId, {
+          paymentTerms: form.paymentTerms.trim(),
+        })
+      }
       if (editingId) {
         await updateMutation.mutateAsync({ fundingId: editingId, body })
+        // If this row used to be part of a Mixed group, remove the other funder lines.
+        for (const groupId of editingGroupIds) {
+          if (groupId === editingId) continue
+          if (canDelete) {
+            await deleteMutation.mutateAsync(groupId)
+          }
+        }
         if (wasSolePrimary && !form.isPrimary) {
           toastSuccess('Funding updated. Another funding was set as primary.')
         } else {
@@ -638,6 +847,8 @@ export function ServiceUserFundingTab({
         toastSuccess('Funding created')
       }
       setDialogOpen(false)
+      void fundingsQuery.refetch()
+      void fundersQuery.refetch()
     } catch (e) {
       toastApiError(e, 'Save failed')
     }
@@ -838,6 +1049,11 @@ export function ServiceUserFundingTab({
                         Charge card (funder): {row.funder.defaultChargeCard.name}
                       </p>
                     ) : null}
+                    {row.funder?.paymentTerms ? (
+                      <p className="text-sm text-muted-foreground">
+                        Payment terms: {row.funder.paymentTerms}
+                      </p>
+                    ) : null}
                     {row.defaultInvoiceTemplate ? (
                       <p className="text-sm text-muted-foreground">
                         Invoice template: {row.defaultInvoiceTemplate.name}
@@ -845,6 +1061,21 @@ export function ServiceUserFundingTab({
                     ) : null}
                     {row.billingContactName ? (
                       <p className="text-sm text-muted-foreground">Billing: {row.billingContactName}</p>
+                    ) : null}
+                    {row.billingAddressLine1 || row.billingPostcode ? (
+                      <p className="text-sm text-muted-foreground">
+                        Invoice address:{' '}
+                        {[
+                          row.billingAddressLine1,
+                          row.billingAddressLine2,
+                          row.billingTown,
+                          row.billingCounty,
+                          row.billingPostcode,
+                          row.billingCountry,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </p>
                     ) : null}
                     <p className="mt-2 text-xs text-muted-foreground">
                       {fmtDate(row.startDate)} → {fmtDate(row.endDate)}
@@ -910,8 +1141,7 @@ export function ServiceUserFundingTab({
             <TooltipProvider delayDuration={200}>
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground">Funding details</h4>
-            {!editingId ? (
-              <div>
+            <div>
                 <FundingFieldLabel
                   className="mb-1"
                   label="Funding arrangement"
@@ -931,28 +1161,7 @@ export function ServiceUserFundingTab({
                   </SelectContent>
                 </Select>
               </div>
-            ) : null}
-            <div>
-              <FundingFieldLabel
-                className="mb-1"
-                label="Funding type"
-                tooltip={FUNDING_FIELD_TOOLTIPS.fundingTypeId}
-                required
-              />
-              <Select value={form.fundingTypeId} onValueChange={(v) => setForm((f) => ({ ...f, fundingTypeId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {isCreateMixed ? (
+            {isMixedMode ? (
               <div className="space-y-2">
                 <FundingFieldLabel
                   className="mb-1"
@@ -961,9 +1170,10 @@ export function ServiceUserFundingTab({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Select each funder and set their invoice split %. Splits must total 100%.
+                  Select each funder, set their invoice split %, and payment terms. Splits must
+                  total 100%.
                 </p>
-                <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
                   {funders.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No funders available.</p>
                   ) : (
@@ -973,45 +1183,90 @@ export function ServiceUserFundingTab({
                       return (
                         <div
                           key={funder.id}
-                          className="flex flex-wrap items-center gap-3 border-b border-border/60 pb-2 last:border-0 last:pb-0"
+                          className="space-y-2 border-b border-border/60 pb-2 last:border-0 last:pb-0"
                         >
-                          <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(value) =>
-                                setForm((f) => ({
-                                  ...f,
-                                  mixedShares: toggleMixedFunder(
-                                    f.mixedShares,
-                                    funder.id,
-                                    value === true,
-                                  ),
-                                }))
-                              }
-                              aria-label={`Select funder ${funder.name}`}
-                            />
-                            <span className="truncate">{funder.name}</span>
-                          </label>
-                          {checked ? (
-                            <div className="flex items-center gap-1.5">
-                              <Input
-                                className="h-8 w-20"
-                                inputMode="decimal"
-                                placeholder="%"
-                                value={share?.splitPercent ?? ''}
-                                onChange={(e) =>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(value) =>
                                   setForm((f) => ({
                                     ...f,
-                                    mixedShares: setMixedSharePercent(
+                                    mixedShares: toggleMixedFunder(
                                       f.mixedShares,
                                       funder.id,
-                                      e.target.value,
+                                      value === true,
+                                      funder.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
                                     ),
                                   }))
                                 }
-                                aria-label={`Split percent for ${funder.name}`}
+                                aria-label={`Select funder ${funder.name}`}
                               />
-                              <span className="text-xs text-muted-foreground">%</span>
+                              <span className="truncate">{funder.name}</span>
+                            </label>
+                            {checked ? (
+                              <div className="flex items-center gap-1.5">
+                                <Input
+                                  className="h-8 w-20"
+                                  inputMode="decimal"
+                                  placeholder="%"
+                                  value={share?.splitPercent ?? ''}
+                                  onChange={(e) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      mixedShares: setMixedSharePercent(
+                                        f.mixedShares,
+                                        funder.id,
+                                        e.target.value,
+                                      ),
+                                    }))
+                                  }
+                                  aria-label={`Split percent for ${funder.name}`}
+                                />
+                                <span className="text-xs text-muted-foreground">%</span>
+                              </div>
+                            ) : null}
+                          </div>
+                          {checked ? (
+                            <div className="pl-7">
+                              <FundingFieldLabel
+                                className="mb-1"
+                                label="Payment terms"
+                                tooltip={FUNDING_FIELD_TOOLTIPS.paymentTerms}
+                              />
+                              <Select
+                                value={share?.paymentTerms || DEFAULT_PAYMENT_TERMS}
+                                onValueChange={(v) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    mixedShares: setMixedSharePaymentTerms(
+                                      f.mixedShares,
+                                      funder.id,
+                                      v,
+                                    ),
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {!PAYMENT_TERMS_OPTIONS.some(
+                                    (o) =>
+                                      o.value ===
+                                      (share?.paymentTerms || DEFAULT_PAYMENT_TERMS),
+                                  ) && share?.paymentTerms ? (
+                                    <SelectItem value={share.paymentTerms}>
+                                      {share.paymentTerms}
+                                    </SelectItem>
+                                  ) : null}
+                                  {PAYMENT_TERMS_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           ) : null}
                         </div>
@@ -1044,21 +1299,75 @@ export function ServiceUserFundingTab({
                 ) : null}
               </div>
             ) : (
-              <div>
-                <FundingFieldLabel className="mb-1" label="Funder" tooltip={FUNDING_FIELD_TOOLTIPS.funderId} />
-                <Select value={form.funderId || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, funderId: v === '__none__' ? '' : v }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Optional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {funders.map((x) => (
-                      <SelectItem key={x.id} value={x.id}>
-                        {x.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <div>
+                  <FundingFieldLabel
+                    className="mb-1"
+                    label="Funder"
+                    tooltip={FUNDING_FIELD_TOOLTIPS.funderId}
+                    required
+                  />
+                  <Select
+                    value={form.funderId || undefined}
+                    onValueChange={(v) => {
+                      const funder = funders.find((x) => x.id === v)
+                      setForm((f) => ({
+                        ...f,
+                        funderId: v,
+                        fundingTypeId: funder?.fundingType?.id ?? '',
+                        paymentTerms:
+                          funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select funder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {funders.map((x) => (
+                        <SelectItem key={x.id} value={x.id}>
+                          {x.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.funderId ? (
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Payment terms"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.paymentTerms}
+                    />
+                    <Select
+                      value={form.paymentTerms || DEFAULT_PAYMENT_TERMS}
+                      onValueChange={(v) =>
+                        setForm((f) => ({ ...f, paymentTerms: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {!PAYMENT_TERMS_OPTIONS.some(
+                          (o) => o.value === (form.paymentTerms || DEFAULT_PAYMENT_TERMS),
+                        ) && form.paymentTerms ? (
+                          <SelectItem value={form.paymentTerms}>
+                            {form.paymentTerms}
+                          </SelectItem>
+                        ) : null}
+                        {PAYMENT_TERMS_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Saved on this funder. Invoice due date = invoice date + these terms.
+                    </p>
+                  </div>
+                ) : null}
               </div>
             )}
             <div>
@@ -1110,60 +1419,11 @@ export function ServiceUserFundingTab({
               <h4 className="text-sm font-semibold text-foreground">Billing & invoicing</h4>
               <p className="text-xs text-muted-foreground">
                 Purchase orders, charge cards, and billing contacts are used when generating invoice runs.
-                {isCreateMixed
+                {isMixedMode
                   ? ' Invoice splits are set next to each funder above.'
                   : null}
               </p>
-              {!isCreateMixed && editingId ? (
-              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Funding split</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    When more than one funder pays, set a split % on each line. Priority 1 is invoiced first; the
-                    lowest-priority funder receives any remainder.
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <FundingFieldLabel className="mb-1" label="Split %" tooltip={FUNDING_FIELD_TOOLTIPS.splitPercent} />
-                    <Input
-                      inputMode="decimal"
-                      placeholder="e.g. 70"
-                      value={form.splitPercent}
-                      onChange={(e) => setForm((f) => ({ ...f, splitPercent: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <FundingFieldLabel className="mb-1" label="Split priority" tooltip={FUNDING_FIELD_TOOLTIPS.splitPriority} />
-                    <Input
-                      inputMode="numeric"
-                      value={form.splitPriority}
-                      onChange={(e) => setForm((f) => ({ ...f, splitPriority: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                {form.splitPercent !== '' || configuredSplitRows.length > 0 ? (
-                  <p
-                    className={cn(
-                      'text-xs',
-                      formSplitTotal > 100 && 'text-destructive',
-                      formSplitTotal < 100 && formSplitTotal > 0 && 'text-amber-800 dark:text-amber-200',
-                      formSplitTotal === 100 && 'text-teal-800 dark:text-teal-200',
-                    )}
-                  >
-                    Combined split: {formSplitTotal.toFixed(formSplitTotal % 1 === 0 ? 0 : 1)}%
-                    {formSplitTotal > 100
-                      ? ' — exceeds 100%'
-                      : formSplitTotal < 100 && formSplitTotal > 0
-                        ? ' — remainder goes to lowest-priority funder'
-                        : formSplitTotal === 100
-                          ? ' — fully allocated'
-                          : ''}
-                  </p>
-                ) : null}
-              </div>
-              ) : null}
-              {!isCreateMixed && !editingId && form.payerMode === 'SINGLE' ? (
+              {form.payerMode === 'SINGLE' ? (
                 <p className="text-xs text-muted-foreground">
                   Single Funder does not use split percentages. Use Mixed Funding when more than one funder shares
                   the invoice.
@@ -1259,6 +1519,102 @@ export function ServiceUserFundingTab({
                   onChange={(e) => setForm((f) => ({ ...f, billingContactPhone: e.target.value }))}
                 />
               </div>
+              <div className="space-y-3 sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <FundingFieldLabel
+                      label="Billing address"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddress}
+                    />
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Postal address where invoices for this funder should be sent.
+                    </p>
+                  </div>
+                  {selectedFunderHasAddress ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={applyFunderBillingAddress}
+                    >
+                      Use funder address
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Address line 1"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddressLine1}
+                    />
+                    <Input
+                      value={form.billingAddressLine1}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, billingAddressLine1: e.target.value }))
+                      }
+                      placeholder="Building / street"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Address line 2"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddressLine2}
+                    />
+                    <Input
+                      value={form.billingAddressLine2}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, billingAddressLine2: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Town / city"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingTown}
+                    />
+                    <Input
+                      value={form.billingTown}
+                      onChange={(e) => setForm((f) => ({ ...f, billingTown: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="County"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingCounty}
+                    />
+                    <Input
+                      value={form.billingCounty}
+                      onChange={(e) => setForm((f) => ({ ...f, billingCounty: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Postcode"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingPostcode}
+                    />
+                    <Input
+                      value={form.billingPostcode}
+                      onChange={(e) => setForm((f) => ({ ...f, billingPostcode: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <FundingFieldLabel
+                      className="mb-1"
+                      label="Country"
+                      tooltip={FUNDING_FIELD_TOOLTIPS.billingCountry}
+                    />
+                    <Input
+                      value={form.billingCountry}
+                      onChange={(e) => setForm((f) => ({ ...f, billingCountry: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                 <FundingFieldLabel
                   className="mb-1"
@@ -1286,9 +1642,9 @@ export function ServiceUserFundingTab({
             <div className="flex items-center gap-2">
               <Switch checked={form.isPrimary} onCheckedChange={(v) => setForm((f) => ({ ...f, isPrimary: v }))} />
               <FundingFieldLabel
-                label={isCreateMixed ? 'Mark first funder as primary' : 'Primary funding'}
+                label={isMixedMode ? 'Mark first funder as primary' : 'Primary funding'}
                 tooltip={
-                  isCreateMixed
+                  isMixedMode
                     ? 'When enabled, the first selected funder in the list becomes the primary funding line.'
                     : FUNDING_FIELD_TOOLTIPS.isPrimary
                 }
@@ -1310,7 +1666,7 @@ export function ServiceUserFundingTab({
             <Button type="button" disabled={saving} onClick={() => void saveFunding()}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isCreateMixed ? (
+              ) : isMixedMode ? (
                 `Save ${Math.max(form.mixedShares.length, 2)} funders`
               ) : (
                 'Save'

@@ -40,6 +40,7 @@ import {
   buildSuProfileReferences,
   SU_PROFILE_REF,
 } from '@/features/service-users/utils/service-user-profile-refs'
+import { HomeAccessFields } from '@/features/service-users/components/HomeAccessFields'
 
 /** @deprecated use SU_PROFILE_REF — kept for local aliases in this file */
 const PROFILE_REF = SU_PROFILE_REF
@@ -74,8 +75,10 @@ const FIELD_HELP = {
   latitude: 'Optional latitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   longitude: 'Optional longitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   keySafeNumber:
-    'Key safe code or location reference only where there is consent and a secure process. Restrict visibility to staff who need it for safe access.',
-  accessInstructions: 'Practical instructions for staff to enter safely (codes, dogs, hazards). Avoid unnecessary personal detail.',
+    'Key safe code only where there is consent and a secure process. Restrict visibility to staff who need it for safe access.',
+  keySafeLocation: 'Where the key safe is fitted (for example left of the front door). Do not put the code here.',
+  accessMethod: 'How carers usually enter this property for scheduled visits.',
+  accessInstructions: 'Practical notes for staff to enter safely (which door, dogs, parking, call on arrival). Avoid unnecessary personal detail.',
   phone: 'Main landline or fixed contact number, if used.',
   mobile: 'Mobile number for calls or SMS where your service uses them.',
   email: 'Email address for notifications and written contact.',
@@ -170,6 +173,8 @@ type FormState = {
   longitude: string
   accessInstructions: string
   keySafeNumber: string
+  accessMethod: string
+  keySafeLocation: string
   serviceUserNumber: string
   locationId: string
   serviceUserAreaId: string
@@ -243,6 +248,8 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     longitude: decStr(d.address?.longitude),
     accessInstructions: d.address?.accessInstructions ?? '',
     keySafeNumber: d.address?.keySafeNumber ?? '',
+    accessMethod: d.address?.accessMethod ?? '',
+    keySafeLocation: d.address?.keySafeLocation ?? '',
     serviceUserNumber: d.serviceUserNumber ?? '',
     locationId: d.location?.id ?? '',
     serviceUserAreaId: d.serviceUserAreaId ?? d.serviceUserArea?.id ?? '',
@@ -576,7 +583,9 @@ export function ServiceUserPersonalDetailsForm({
               postcode: form.postcode.trim() || undefined,
               secondaryPostcode: form.secondaryPostcode.trim() || undefined,
               accessInstructions: form.accessInstructions.trim() || undefined,
-              keySafeNumber: form.keySafeNumber.trim() || undefined,
+              keySafeNumber: form.keySafeNumber.trim() || null,
+              accessMethod: form.accessMethod.trim() || null,
+              keySafeLocation: form.keySafeLocation.trim() || null,
               latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
               longitude: form.longitude.trim() ? Number(form.longitude) : undefined,
             }
@@ -840,38 +849,31 @@ export function ServiceUserPersonalDetailsForm({
             })
           }
           disabled={!canAddress}
-        >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldEditable
-              label="Key safe number"
-              tooltip={FIELD_HELP.keySafeNumber}
-              value={form.keySafeNumber}
-              onChange={set('keySafeNumber')}
-              disabled={!canAddress}
-            />
-            <div className="md:col-span-2">
-              <div className="space-y-1">
-                <LabelWithTooltip label="Access instructions" tooltip={FIELD_HELP.accessInstructions} />
-                <textarea
-                  rows={2}
-                  className={cn(
-                    'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
-                    'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                    !canAddress && 'cursor-not-allowed opacity-60',
-                  )}
-                  value={form.accessInstructions}
-                  onChange={(e) => set('accessInstructions')(e.target.value)}
-                  disabled={!canAddress}
-                />
-              </div>
-            </div>
-          </div>
-        </AddressPlacesField>
+        />
         {!canAddress && (
           <p className="mt-3 text-xs text-muted-foreground">
             Address fields require the service_users.address.update permission to save.
           </p>
         )}
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <h2 className="mb-1 text-sm font-semibold text-sky-600 dark:text-sky-400">
+          How to enter the home
+        </h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Separate from the service address. Choose how carers get in, then add only the details they need.
+        </p>
+        <HomeAccessFields
+          value={{
+            accessMethod: form.accessMethod,
+            keySafeLocation: form.keySafeLocation,
+            keySafeNumber: form.keySafeNumber,
+            accessInstructions: form.accessInstructions,
+          }}
+          onChange={patch => setForm(prev => ({ ...prev, ...patch }))}
+          disabled={!canAddress}
+        />
       </section>
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">

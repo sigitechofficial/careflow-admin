@@ -107,6 +107,7 @@ export async function createPayment(body: {
   receivedDate?: string
   recordStatus?: PaymentRecordStatus
   funderId?: string
+  serviceUserId?: string
   notes?: string
   allocations?: PaymentAllocationInput[]
 }): Promise<PaymentRow> {

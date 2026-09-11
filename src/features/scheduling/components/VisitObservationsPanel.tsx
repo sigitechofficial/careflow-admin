@@ -20,6 +20,7 @@ import {
   type VisitObservationDefinition,
   type VisitObservationFormField,
 } from '@/features/scheduling/api/scheduling.api'
+import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 import { useCreateServiceUserObservation } from '@/features/service-users/hooks/useServiceUserObservations'
 import type { CreateServiceUserObservationPayload } from '@/features/service-users/api/observations-api'
 
@@ -406,6 +407,7 @@ export function VisitObservationsPanel({
                     </ul>
                   </div>
                 ) : null}
+                <VisitPhotoThumbnails photos={row.photos} />
               </li>
             ))}
           </ul>

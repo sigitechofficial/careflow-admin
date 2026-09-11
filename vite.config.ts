@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   server: {
+    host: true,
     // Proxy API traffic through the dev server so the browser sees same-origin
     // requests — no CORS preflights in local development.
     // Set VITE_API_BASE_URL=/api in .env (see .env.example).

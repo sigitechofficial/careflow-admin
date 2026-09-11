@@ -21,6 +21,7 @@ import { ClockInArrivalReasonsSettingsPanel } from '@/features/settings/componen
 import { ClockOutEndReasonsSettingsPanel } from '@/features/settings/components/ClockOutEndReasonsSettingsPanel'
 import { VisitOutcomeReasonsSettingsPanel } from '@/features/settings/components/VisitOutcomeReasonsSettingsPanel'
 import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components/EcmThresholdLookupsSettingsPanel'
+import { EmergencyProtocolsSettingsPanel } from '@/features/settings/components/EmergencyProtocolsSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
 
 export type SettingsTabId =
@@ -53,6 +54,7 @@ export type SettingsTabId =
   | 'clock-out-end-reasons'
   | 'outcome-reasons'
   | 'ecm-thresholds'
+  | 'emergency-protocols'
 
 const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'job-titles', label: 'Job titles' },
@@ -84,6 +86,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'clock-out-end-reasons', label: 'Clock-out end reasons' },
   { id: 'outcome-reasons', label: 'Outcome reasons' },
   { id: 'ecm-thresholds', label: 'ECM thresholds' },
+  { id: 'emergency-protocols', label: 'Emergency protocols' },
 ]
 
 export default function SettingsPage() {
@@ -249,6 +252,7 @@ export default function SettingsPage() {
           {activeTab === 'clock-out-end-reasons' && <ClockOutEndReasonsSettingsPanel />}
           {activeTab === 'outcome-reasons' && <VisitOutcomeReasonsSettingsPanel />}
           {activeTab === 'ecm-thresholds' && <EcmThresholdLookupsSettingsPanel />}
+          {activeTab === 'emergency-protocols' && <EmergencyProtocolsSettingsPanel />}
         </div>
       </div>
     </div>

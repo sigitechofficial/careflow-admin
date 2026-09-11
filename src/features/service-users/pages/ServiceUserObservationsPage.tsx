@@ -8,7 +8,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
-import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastError, toastSuccess, toastWarning } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -22,6 +22,21 @@ import type {
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { WellbeingRadarChart } from '@/components/observations/WellbeingRadarChart'
 import { ObservationTypeFields } from '@/components/observations/ObservationTypeFields'
+import { ObservationParameterContext } from '@/components/observations/ObservationParameterContext'
+import {
+  useMedicalClinicalPermissions,
+  useMonitoringConfig,
+  useUsualParameters,
+} from '@/features/alerts/hooks/useMedicalClinical'
+import {
+  checkNumericAgainstUsualBands,
+  findUsualParameterForType,
+  findWeightChangeThresholdKg,
+  formatFluidTargetHint,
+  formatUsualParameterHint,
+  formatWeightThresholdHint,
+  isFluidTargetRequired,
+} from '@/features/service-users/observations/usual-parameter-hint'
 import {
   buildWellbeingRadarData,
   computeAverageWellbeingLevels,
@@ -86,6 +101,10 @@ export default function ServiceUserObservationsPage() {
     const p = (permissions ?? []) as string[]
     return p.includes('service_users.update') || p.includes('service_users.observations.create')
   }, [permissions])
+
+  const clinicalPerms = useMedicalClinicalPermissions()
+  const usualQuery = useUsualParameters(serviceUserId, clinicalPerms.usual.read)
+  const monitoringQuery = useMonitoringConfig(serviceUserId, clinicalPerms.monitoring.read)
 
   // ─── Data via Query ───────────────────────────────────────────────────────
   const profileQuery = useServiceUser(serviceUserId)
@@ -160,6 +179,27 @@ export default function ServiceUserObservationsPage() {
     () => (activeType ? historyColumnsForType(activeType.code) : []),
     [activeType],
   )
+
+  const activeUsual = React.useMemo(
+    () => findUsualParameterForType(usualQuery.data, activeTypeCode),
+    [usualQuery.data, activeTypeCode],
+  )
+
+  const parameterContextLines = React.useMemo(() => {
+    const lines: string[] = []
+    const usualHint = formatUsualParameterHint(activeUsual)
+    if (usualHint) lines.push(usualHint)
+
+    if (activeTypeCode === 'WEIGHT') {
+      const weightHint = formatWeightThresholdHint(findWeightChangeThresholdKg(monitoringQuery.data))
+      if (weightHint) lines.push(weightHint)
+    }
+    if (formVariant === 'fluid_monitor') {
+      const fluidHint = formatFluidTargetHint(isFluidTargetRequired(monitoringQuery.data))
+      if (fluidHint) lines.push(fluidHint)
+    }
+    return lines
+  }, [activeUsual, activeTypeCode, formVariant, monitoringQuery.data])
 
   const applyLatestWellbeingToForm = React.useCallback(
     (rows: ServiceUserObservationRow[], scale: WellbeingScaleDimension[]) => {
@@ -283,6 +323,16 @@ export default function ServiceUserObservationsPage() {
           payload: built.payload,
           shareTargetCodes: shareTargetCodes.length ? shareTargetCodes : undefined,
         }
+
+        const band = checkNumericAgainstUsualBands(activeUsual, built.numericValue)
+        if (band === 'below' || band === 'above') {
+          toastWarning(
+            'Outside usual range',
+            band === 'below'
+              ? `This reading is below the configured lower band (${activeUsual?.lowerBand}). It will still be saved.`
+              : `This reading is above the configured upper band (${activeUsual?.upperBand}). It will still be saved.`,
+          )
+        }
       }
 
       const saved = await createMutation.mutateAsync({ serviceUserId, body })
@@ -393,6 +443,10 @@ export default function ServiceUserObservationsPage() {
             </nav>
 
             <div className="min-w-0 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+            <ObservationParameterContext
+              serviceUserId={serviceUserId}
+              lines={parameterContextLines}
+            />
             {formVariant === 'wellbeing' ? (
               <div className="space-y-4">
                 <div className="grid gap-8 lg:grid-cols-2">

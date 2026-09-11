@@ -28,6 +28,7 @@ import {
   listServiceUserEnterpriseFundings,
 } from '@/features/service-users/api'
 import { serviceUserKeys } from '@/features/service-users/keys'
+import { homeAccessMethodLabel } from '@/features/service-users/home-access'
 import {
   employeeDisplayName,
   formatFlashUntil,
@@ -43,6 +44,7 @@ import {
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { Button } from '@/shared/ui/button'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
+import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
 
 type AttentionSeverity = 'red' | 'amber' | 'blue'
 
@@ -517,6 +519,11 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
           </div>
         ) : null}
 
+        <ServiceUserSafetySummary
+          serviceUserId={serviceUserId}
+          omitFlashFromImmediate={Boolean(flashData)}
+        />
+
         {attentionItems.length > 0 ? (
           <SimpleCard title="Needs attention">
             <ul className="space-y-2">
@@ -747,11 +754,19 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
               }
             />
             <InfoRow
-              label="Key safe number"
+              label="Access method"
+              value={homeAccessMethodLabel(addr?.accessMethod) || '—'}
+            />
+            <InfoRow
+              label="Key safe location"
+              value={addr?.keySafeLocation?.trim() || '—'}
+            />
+            <InfoRow
+              label="Key safe code"
               value={addr?.keySafeNumber?.trim() || '—'}
             />
             <InfoRow
-              label="Access instructions"
+              label="How to enter"
               value={addr?.accessInstructions?.trim() || '—'}
             />
             <InfoRow
@@ -877,6 +892,9 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             <QuickLink to="/service-users/$serviceUserId/medication" serviceUserId={serviceUserId}>
               Medication
             </QuickLink>
+            <QuickLink to="/service-users/$serviceUserId/alerts" serviceUserId={serviceUserId}>
+              Medical & Alerts
+            </QuickLink>
             <QuickLink to="/service-users/$serviceUserId/body-map" serviceUserId={serviceUserId}>
               Body map
             </QuickLink>
@@ -919,6 +937,7 @@ function QuickLink({
     | '/service-users/$serviceUserId/tasks-planner'
     | '/service-users/$serviceUserId/ecm'
     | '/service-users/$serviceUserId/activity'
+    | '/service-users/$serviceUserId/alerts'
     | '/service-users/$serviceUserId'
   serviceUserId: string
   search?: Record<string, string>

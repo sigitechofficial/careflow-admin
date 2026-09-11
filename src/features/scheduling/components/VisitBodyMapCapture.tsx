@@ -2,9 +2,11 @@ import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { toastApiError, toastInfo, toastSuccess } from '@/shared/lib/toast'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import { Button } from '@/shared/ui/button'
 import { fetchVisitObservations } from '@/features/scheduling/api/scheduling.api'
 import { flattenVisitObservationBodyMapPins } from '@/features/scheduling/utils/visit-observation-body-map-pins.util'
+import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 import {
   AddBodyMapRecordWizard,
   type PendingMarker,
@@ -17,6 +19,8 @@ import {
   BODY_MAP_DIAGRAM_TABS,
   type BodyMapDiagramTab,
 } from '@/features/service-users/body-map/catalog/body-map-views'
+import { recordTypeLabel } from '@/features/service-users/body-map/catalog/record-types'
+import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
 import { useBodyMapMutations, useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
 import type { BodyMapSafeguardingCheckPayload } from '@/features/service-users/body-map/types'
 import { recordViewToApiBodyView, prototypeSideToApi } from '@/features/service-users/body-map/utils/body-map-coords'
@@ -257,6 +261,34 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
           Add observation
         </Button>
       </div>
+
+      {visitRecords.length > 0 ? (
+        <ul className="space-y-2">
+          {visitRecords.map((record) => {
+            const marker = record.markers[0]
+            return (
+              <li
+                key={record.id}
+                className="rounded-lg border border-border bg-muted/20 px-3 py-2.5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {recordTypeLabel(record.recordType as BodyMapRecordTypeCode)}
+                    {marker?.bodyPart ? ` — ${marker.bodyPart}` : ''}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatOrganisationDateTime(record.createdAt)}
+                  </p>
+                </div>
+                {record.description ? (
+                  <p className="mt-0.5 text-sm text-foreground">{record.description}</p>
+                ) : null}
+                <VisitPhotoThumbnails photos={record.photos} />
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
 
       <AddBodyMapRecordWizard
         open={addOpen}

@@ -24,7 +24,6 @@ describe('service-user-profile-tabs', () => {
       'funding',
       'charge-card',
       'visits',
-      'invoices',
       'livein',
     ])
     expect(SERVICE_USER_PROFILE_TABS.map(t => t.id)).toEqual([...SERVICE_USER_PROFILE_TAB_IDS])

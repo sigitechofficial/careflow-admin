@@ -45,9 +45,6 @@ vi.mock('@/features/service-users/components/ServiceUserEditChargeCardPanel', ()
 vi.mock('@/features/service-users/components/ServiceUserEditVisitsPanel', () => ({
   ServiceUserEditVisitsPanel: () => <div>visits-form</div>,
 }))
-vi.mock('@/features/service-users/components/ServiceUserEditInvoicesPanel', () => ({
-  ServiceUserEditInvoicesPanel: () => <div>invoices-form</div>,
-}))
 vi.mock('@/features/service-users/components/ServiceUserLiveInProfileTab', () => ({
   ServiceUserLiveInProfileTab: () => <div>livein-form</div>,
 }))
@@ -106,7 +103,6 @@ describe('ServiceUserProfileSectionContent', () => {
     ['funding', 'funding-form'],
     ['charge-card', 'charge-card-form'],
     ['visits', 'visits-form'],
-    ['invoices', 'invoices-form'],
     ['livein', 'livein-form'],
   ] as const)('renders the %s section from existing components', (tab, label) => {
     renderTab(tab)

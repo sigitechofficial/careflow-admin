@@ -9,9 +9,15 @@ import {
   assignPayCardToMatching,
   resolveEmployeePayCard,
   unassignPayCardEmployee,
+  fetchEmployeeFunderPayAssignments,
+  upsertEmployeeFunderPayAssignment,
+  deleteEmployeeFunderPayAssignment,
 } from '@/features/billing/api/pay-cards.api'
 import { billingKeys } from '@/features/billing/keys'
-import type { PayCardInput } from '@/features/billing/types/billing-cards.types'
+import type {
+  EmployeeFunderPayAssignmentInput,
+  PayCardInput,
+} from '@/features/billing/types/billing-cards.types'
 
 export function usePayCards(filters?: { search?: string; status?: string }) {
   return useQuery({
@@ -91,10 +97,48 @@ export function useUnassignPayCardEmployee() {
   })
 }
 
-export function useResolveEmployeePayCard(employeeId: string | null, enabled = true) {
+export function useResolveEmployeePayCard(
+  employeeId: string | null,
+  enabled = true,
+  funderId?: string | null,
+) {
   return useQuery({
-    queryKey: billingKeys.payCardResolve(employeeId ?? ''),
-    queryFn: () => resolveEmployeePayCard(employeeId!),
+    queryKey: billingKeys.payCardResolve(employeeId ?? '', funderId ?? undefined),
+    queryFn: () => resolveEmployeePayCard(employeeId!, { funderId }),
     enabled: enabled && !!employeeId,
+  })
+}
+
+export function useEmployeeFunderPayAssignments(employeeId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.employeeFunderPayAssignments(employeeId ?? ''),
+    queryFn: () => fetchEmployeeFunderPayAssignments(employeeId!),
+    enabled: enabled && !!employeeId,
+  })
+}
+
+export function useUpsertEmployeeFunderPayAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EmployeeFunderPayAssignmentInput) => upsertEmployeeFunderPayAssignment(body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: billingKeys.employeeFunderPayAssignments(vars.employeeId),
+      })
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
+  })
+}
+
+export function useDeleteEmployeeFunderPayAssignment(employeeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteEmployeeFunderPayAssignment(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: billingKeys.employeeFunderPayAssignments(employeeId),
+      })
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+    },
   })
 }

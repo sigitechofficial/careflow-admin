@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   acknowledgeEcmException,
   allowVisitContinue,
+  authoriseCheckInMethodGrant,
+  rejectCheckInMethodGrant,
   amendEcmAttendance,
   applyMissedTriage,
   closeEcmException,
@@ -24,6 +26,7 @@ import {
   updateEcmThresholdLookup,
 } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 export function useEcmLiveDashboard(filters?: {
   date?: string
@@ -193,6 +196,48 @@ export function useAllowVisitContinue() {
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
       void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
     },
+  })
+}
+
+export function useAuthoriseCheckInMethodGrant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      grantId,
+      note,
+    }: {
+      jobId: string
+      grantId: string
+      note?: string
+    }) => authoriseCheckInMethodGrant(jobId, grantId, note),
+    onSuccess: (_data, vars) => {
+      toastSuccess('Manual check-in authorised')
+      void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+    onError: e => toastApiError(e, 'Could not authorise Manual'),
+  })
+}
+
+export function useRejectCheckInMethodGrant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      grantId,
+      note,
+    }: {
+      jobId: string
+      grantId: string
+      note?: string
+    }) => rejectCheckInMethodGrant(jobId, grantId, note),
+    onSuccess: (_data, vars) => {
+      toastSuccess('Outside area check-in rejected')
+      void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+    onError: e => toastApiError(e, 'Could not reject this request'),
   })
 }
 

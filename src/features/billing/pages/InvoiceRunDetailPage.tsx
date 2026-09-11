@@ -6,7 +6,6 @@ import {
   Calculator,
   CheckCircle2,
   Download,
-  Eye,
   FileText,
   Loader2,
   Lock,
@@ -15,15 +14,22 @@ import {
   Users,
 } from 'lucide-react'
 import { toastApiError } from '@/shared/lib/toast'
-import { downloadInvoiceRunExport } from '@/features/billing/api/invoice-runs.api'
+import {
+  downloadInvoiceRunExport,
+  type InvoiceRunDetail,
+  type InvoiceRunServiceUserSummary,
+} from '@/features/billing/api/invoice-runs.api'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
+import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { Button } from '@/shared/ui/button'
 import {
   ExportStatusBadge,
   InvoiceRunStatusBadge,
 } from '@/features/billing/components/BillingStatusBadge'
-import { InvoiceRunAuthoritySection } from '@/features/billing/components/InvoiceRunAuthoritySection'
-import { InvoiceRunPreviewDialog } from '@/features/billing/components/InvoiceRunPreviewDialog'
+import { InvoiceRunServiceUserSection } from '@/features/billing/components/InvoiceRunServiceUserSection'
+import { InvoiceServiceUserHistoryDialog } from '@/features/billing/components/InvoiceServiceUserHistoryDialog'
+import { RecordFunderPaymentDialog } from '@/features/billing/components/RecordFunderPaymentDialog'
+import { SendServiceUserInvoiceEmailDialog } from '@/features/billing/components/SendServiceUserInvoiceEmailDialog'
 import {
   useApproveInvoiceRun,
   useCalculateInvoiceRun,
@@ -33,6 +39,7 @@ import {
 } from '@/features/billing/hooks/useInvoiceRuns'
 import { useAuthStore } from '@/features/auth/store'
 import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
+import type { ServiceUserInvoiceMonthRow } from '@/features/billing/types/service-user-invoices.types'
 import { cn } from '@/shared/lib/utils'
 
 function formatTimestamp(value: string | null): string {
@@ -49,9 +56,100 @@ function formatTimestamp(value: string | null): string {
   }).format(d)
 }
 
-function formatMinutes(minutes: number | null): string {
-  if (minutes == null || minutes <= 0) return '—'
-  return `${minutes} min`
+function isInvoiceRunSent(run: InvoiceRunDetail): boolean {
+  return (
+    run.status === 'SENT' ||
+    run.status === 'PART_PAID' ||
+    run.status === 'PAID' ||
+    run.exportStatus === 'SENT'
+  )
+}
+
+/** Payments / send only after the run is approved (QBO-style: draft cannot be billed). */
+function canAllocatePayment(run: InvoiceRunDetail): boolean {
+  return (
+    run.status === 'APPROVED' ||
+    run.status === 'LOCKED' ||
+    run.status === 'SENT' ||
+    run.status === 'PART_PAID'
+  )
+}
+
+function canSendServiceUserInvoice(run: InvoiceRunDetail): boolean {
+  return (
+    run.status === 'APPROVED' ||
+    run.status === 'LOCKED' ||
+    run.status === 'SENT' ||
+    run.status === 'PART_PAID' ||
+    run.status === 'PAID'
+  )
+}
+
+/** Shape expected by RecordFunderPaymentDialog, scoped to one service-user invoice. */
+function toPaymentInvoice(
+  run: InvoiceRunDetail,
+  group: InvoiceRunServiceUserSummary,
+): ServiceUserInvoiceMonthRow {
+  const sent = isInvoiceRunSent(run)
+  const paidValue = group.paidValue ?? 0
+  const outstandingValue = group.outstandingValue ?? group.subtotalValue
+  const paymentStatus =
+    group.paymentStatus ??
+    (paidValue <= 0 ? 'UNPAID' : outstandingValue <= 0.001 ? 'PAID' : 'PART_PAID')
+  const recordableOutstanding = Math.min(
+    outstandingValue,
+    run.outstandingValue ?? outstandingValue,
+  )
+
+  const funders = group.funders.map((f) => {
+    const paidF = Math.min(
+      f.paidValue ?? 0,
+      f.invoicedValue,
+    )
+    const outstandingF =
+      f.outstandingValue != null
+        ? f.outstandingValue
+        : Math.max(0, Math.round((f.invoicedValue - paidF) * 100) / 100)
+    const funderPaymentStatus =
+      f.paymentStatus ??
+      (paidF <= 0 ? 'UNPAID' : outstandingF <= 0.001 ? 'PAID' : 'PART_PAID')
+    return {
+      funderId: f.funderId,
+      funderName: f.funderName,
+      invoiced: f.invoiced,
+      invoicedValue: f.invoicedValue,
+      paid: f.paid ?? `£${paidF.toFixed(2)}`,
+      paidValue: paidF,
+      outstanding: f.outstanding ?? `£${outstandingF.toFixed(2)}`,
+      outstandingValue: outstandingF,
+      paymentStatus: funderPaymentStatus as 'UNPAID' | 'PART_PAID' | 'PAID',
+    }
+  })
+
+  return {
+    runId: run.id,
+    period: run.period,
+    periodStart: run.periodStart,
+    periodEnd: run.periodEnd,
+    status: run.status,
+    exportStatus: run.exportStatus as ExportStatus,
+    sent,
+    sentAt: run.sentAt,
+    invoiceNumber: group.invoiceNumber ?? null,
+    lineCount: group.lineCount,
+    subtotal: group.subtotal,
+    subtotalValue: group.subtotalValue,
+    runNetTotal: group.subtotal,
+    runNetTotalValue: group.subtotalValue,
+    paid: group.paid ?? '£0.00',
+    paidValue,
+    outstanding: group.outstanding ?? group.subtotal,
+    outstandingValue: recordableOutstanding,
+    paymentStatus,
+    canRecordPayment: canAllocatePayment(run) && recordableOutstanding > 0.001,
+    serviceUserId: group.serviceUserId,
+    funders,
+  }
 }
 
 const WORKFLOW_STEPS: Array<{ key: string; label: string; statuses: InvoiceRunStatus[] }> = [
@@ -106,13 +204,30 @@ export default function InvoiceRunDetailPage() {
   const { invoiceRunId = '' } = useParams({ strict: false }) as { invoiceRunId?: string }
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
-  const [previewOpen, setPreviewOpen] = React.useState(false)
-  const [previewFunderId, setPreviewFunderId] = React.useState<string | null | undefined>(undefined)
+  const canManagePayments = useAuthStore(s => s.can('billing.payments.manage' as never))
   const [exporting, setExporting] = React.useState<'csv' | 'xlsx' | null>(null)
+  const [exportingServiceUserId, setExportingServiceUserId] = React.useState<string | null>(null)
+  const [payInvoice, setPayInvoice] = React.useState<ServiceUserInvoiceMonthRow | null>(null)
+  const [payServiceUserName, setPayServiceUserName] = React.useState<string | undefined>(undefined)
+  const [emailTarget, setEmailTarget] = React.useState<{
+    runId: string
+    serviceUserId: string
+    serviceUserName: string
+  } | null>(null)
+  const [historyGroup, setHistoryGroup] =
+    React.useState<InvoiceRunServiceUserSummary | null>(null)
+  const [serviceUserFilterId, setServiceUserFilterId] = React.useState('')
 
-  const openPreview = (funderId?: string | null) => {
-    setPreviewFunderId(funderId)
-    setPreviewOpen(true)
+  React.useEffect(() => {
+    setServiceUserFilterId('')
+  }, [invoiceRunId])
+
+  const openSendInvoice = (run: InvoiceRunDetail, group: InvoiceRunServiceUserSummary) => {
+    setEmailTarget({
+      runId: run.id,
+      serviceUserId: group.serviceUserId,
+      serviceUserName: group.serviceUserName,
+    })
   }
 
   const handleExport = async (id: string, format: 'csv' | 'xlsx') => {
@@ -123,6 +238,17 @@ export default function InvoiceRunDetailPage() {
       toastApiError(e)
     } finally {
       setExporting(null)
+    }
+  }
+
+  const handleServiceUserCsv = async (runId: string, serviceUserId: string) => {
+    setExportingServiceUserId(serviceUserId)
+    try {
+      await downloadInvoiceRunExport(runId, 'csv', { serviceUserId })
+    } catch (e) {
+      toastApiError(e)
+    } finally {
+      setExportingServiceUserId(null)
     }
   }
 
@@ -138,6 +264,50 @@ export default function InvoiceRunDetailPage() {
     approveMutation.isPending ||
     lockMutation.isPending ||
     sendMutation.isPending
+
+  const serviceUserSummaries = run?.serviceUserSummaries ?? []
+  const serviceUserFilterOptions = React.useMemo<ComboboxOption[]>(
+    () =>
+      serviceUserSummaries.map((s) => ({
+        value: s.serviceUserId,
+        label: s.serviceUserName,
+        description: s.serviceUserNumber ?? undefined,
+      })),
+    [serviceUserSummaries],
+  )
+  const filteredServiceUserSummaries = React.useMemo(() => {
+    if (!serviceUserFilterId) return serviceUserSummaries
+    return serviceUserSummaries.filter((s) => s.serviceUserId === serviceUserFilterId)
+  }, [serviceUserSummaries, serviceUserFilterId])
+
+  const invoicePaymentCounts = React.useMemo(() => {
+    if (
+      run &&
+      typeof run.invoicesPaid === 'number' &&
+      typeof run.invoicesUnpaid === 'number' &&
+      typeof run.invoicesPartPaid === 'number'
+    ) {
+      return {
+        paid: run.invoicesPaid,
+        unpaid: run.invoicesUnpaid,
+        partPaid: run.invoicesPartPaid,
+      }
+    }
+    let paid = 0
+    let unpaid = 0
+    let partPaid = 0
+    for (const s of serviceUserSummaries) {
+      const paidValue = s.paidValue ?? 0
+      const outstandingValue = s.outstandingValue ?? s.subtotalValue
+      const status =
+        s.paymentStatus ??
+        (paidValue <= 0 ? 'UNPAID' : outstandingValue <= 0.001 ? 'PAID' : 'PART_PAID')
+      if (status === 'PAID') paid += 1
+      else if (status === 'PART_PAID') partPaid += 1
+      else unpaid += 1
+    }
+    return { paid, unpaid, partPaid }
+  }, [run, serviceUserSummaries])
 
   if (!canRead) {
     return (
@@ -182,7 +352,7 @@ export default function InvoiceRunDetailPage() {
   const hasExceptions = run.exceptions > 0
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-10">
+    <div className="min-w-0 space-y-6 pb-10">
       <div className="space-y-4">
         <Link
           to="/billing/invoice-runs"
@@ -194,7 +364,7 @@ export default function InvoiceRunDetailPage() {
 
         <ContentSectionHeader
           title={run.period}
-          description={`${run.periodStart} – ${run.periodEnd} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${run.funderSummaries.length} authority invoice${run.funderSummaries.length === 1 ? '' : 's'}`}
+          description={`${run.periodStart} – ${run.periodEnd} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length || run.serviceUsers} service user invoice${((run.serviceUserSummaries ?? []).length || run.serviceUsers) === 1 ? '' : 's'}`}
           action={
             <div className="flex flex-wrap items-center justify-end gap-2">
               <InvoiceRunStatusBadge status={run.status} />
@@ -202,20 +372,11 @@ export default function InvoiceRunDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<Eye className="h-3.5 w-3.5" />}
-                onClick={() => openPreview()}
-                disabled={run.lineCount === 0}
-              >
-                Preview all
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 leftIcon={<Download className="h-3.5 w-3.5" />}
                 onClick={() => void handleExport(run.id, 'csv')}
                 disabled={run.lineCount === 0 || exporting !== null}
               >
-                {exporting === 'csv' ? 'Exporting…' : 'CSV'}
+                {exporting === 'csv' ? 'Exporting…' : 'Download CSV'}
               </Button>
               <Button
                 variant="outline"
@@ -347,9 +508,9 @@ export default function InvoiceRunDetailPage() {
           icon={<Users className="h-3.5 w-3.5" />}
         />
         <StatTile
-          label="Authority invoices"
-          value={run.funderSummaries.length}
-          hint="Separate invoice per funder"
+          label="Service user invoices"
+          value={(run.serviceUserSummaries ?? []).length || run.serviceUsers}
+          hint="Separate invoice per service user"
         />
         <StatTile
           label="Exceptions"
@@ -357,6 +518,27 @@ export default function InvoiceRunDetailPage() {
           tone={hasExceptions ? 'warning' : 'default'}
           hint={hasExceptions ? 'Resolve before final send' : 'No open exceptions'}
           icon={<AlertTriangle className="h-3.5 w-3.5" />}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          label="Paid invoices"
+          value={invoicePaymentCounts.paid}
+          tone="success"
+          hint="Fully paid service user invoices"
+          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+        />
+        <StatTile
+          label="Partial paid"
+          value={invoicePaymentCounts.partPaid}
+          tone="warning"
+          hint="Some payment received"
+        />
+        <StatTile
+          label="Unpaid invoices"
+          value={invoicePaymentCounts.unpaid}
+          hint="No payment recorded yet"
         />
       </div>
 
@@ -416,16 +598,29 @@ export default function InvoiceRunDetailPage() {
       ) : null}
 
       <ContentSectionHeader
-        title="Authority invoices"
-        description="Each local authority and funder is billed on its own invoice with a unique invoice number."
+        title="Service user invoices"
+        description="Each service user gets their own invoice for this period. Use CSV to download visit lines."
+        action={
+          serviceUserSummaries.length > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Download className="h-3.5 w-3.5" />}
+              onClick={() => void handleExport(run.id, 'csv')}
+              disabled={run.lineCount === 0 || exporting !== null}
+            >
+              {exporting === 'csv' ? 'Exporting…' : 'Download CSV (all)'}
+            </Button>
+          ) : null
+        }
       />
 
-      {run.funderSummaries.length === 0 ? (
+      {serviceUserSummaries.length === 0 ? (
         <ContentCard className="border-dashed p-10 text-center">
           <FileText className="mx-auto h-8 w-8 text-muted-foreground/70" />
           <p className="mt-3 text-sm font-medium text-foreground">No invoices calculated yet</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Run calculate to pull approved billable visits for this period into authority invoices.
+            Run calculate to pull approved billable visits for this period into service user invoices.
           </p>
           {canManage && (run.status === 'DRAFT' || run.status === 'EXCEPTION_FOUND') ? (
             <Button
@@ -440,28 +635,120 @@ export default function InvoiceRunDetailPage() {
           ) : null}
         </ContentCard>
       ) : (
-        <div className="space-y-4">
-          {run.funderSummaries.map((group, index) => (
-            <InvoiceRunAuthoritySection
-              key={group.funderId ?? `direct-${index}`}
-              invoiceRun={run}
-              group={group}
-              invoiceIndex={index}
-              formatMinutes={formatMinutes}
-              onPreview={() => openPreview(group.funderId)}
-            />
-          ))}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full max-w-sm space-y-1">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Users className="h-3.5 w-3.5" aria-hidden />
+                Service user
+              </label>
+              <Combobox
+                options={serviceUserFilterOptions}
+                value={serviceUserFilterId}
+                onChange={setServiceUserFilterId}
+                placeholder="All service users"
+                searchPlaceholder="Search service user…"
+                allowDeselect
+              />
+            </div>
+            {serviceUserFilterId ? (
+              <p className="pb-2 text-xs text-muted-foreground">
+                Showing {filteredServiceUserSummaries.length} of {serviceUserSummaries.length}
+              </p>
+            ) : null}
+          </div>
+
+          {filteredServiceUserSummaries.length === 0 ? (
+            <ContentCard className="border-dashed p-8 text-center text-sm text-muted-foreground">
+              No invoice matches this service user filter.
+            </ContentCard>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full min-w-[1280px] text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Invoice</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Service user</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Funder(s)</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Total invoiced</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Balance</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Created</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Due date</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Sent at</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid at</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredServiceUserSummaries.map((group) => {
+                    const outstandingValue = group.outstandingValue ?? group.subtotalValue
+                    return (
+                      <InvoiceRunServiceUserSection
+                        key={group.serviceUserId}
+                        group={group}
+                        createdAt={run.createdAt}
+                        formatTimestamp={formatTimestamp}
+                        canSendInvoice={
+                          canManage &&
+                          group.lineCount > 0 &&
+                          canSendServiceUserInvoice(run)
+                        }
+                        canRecordPayment={
+                          canManagePayments &&
+                          canAllocatePayment(run) &&
+                          outstandingValue > 0.001
+                        }
+                        onHistory={() => setHistoryGroup(group)}
+                        csvDownloading={exportingServiceUserId === group.serviceUserId}
+                        onDownloadCsv={() =>
+                          void handleServiceUserCsv(run.id, group.serviceUserId)
+                        }
+                        onSendInvoice={() => openSendInvoice(run, group)}
+                        onRecordPayment={() => {
+                          setPayServiceUserName(group.serviceUserName)
+                          setPayInvoice(toPaymentInvoice(run, group))
+                        }}
+                      />
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      <InvoiceRunPreviewDialog
-        open={previewOpen}
-        onOpenChange={open => {
-          setPreviewOpen(open)
-          if (!open) setPreviewFunderId(undefined)
+      <InvoiceServiceUserHistoryDialog
+        open={historyGroup !== null}
+        onOpenChange={(open) => {
+          if (!open) setHistoryGroup(null)
         }}
-        invoiceRun={run}
-        funderIdFilter={previewFunderId}
+        group={historyGroup}
+      />
+
+      <RecordFunderPaymentDialog
+        open={payInvoice !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPayInvoice(null)
+            setPayServiceUserName(undefined)
+          }
+        }}
+        invoice={payInvoice}
+        serviceUserName={payServiceUserName}
+        serviceUserId={payInvoice?.serviceUserId}
+      />
+
+      <SendServiceUserInvoiceEmailDialog
+        open={emailTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setEmailTarget(null)
+        }}
+        runId={emailTarget?.runId ?? null}
+        serviceUserId={emailTarget?.serviceUserId ?? null}
+        serviceUserName={emailTarget?.serviceUserName}
       />
     </div>
   )

@@ -285,6 +285,83 @@ export async function deleteWelfareOutcome(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/lookups/welfare-outcomes/${id}`, { method: 'DELETE' })
 }
 
+// ─── Emergency protocols (carer-app runner) ─────────────────────────────────
+
+export const EMERGENCY_PROTOCOL_ICON_KEYS = [
+  'activity',
+  'droplet',
+  'wind',
+  'smile',
+  'heart',
+  'alert',
+  'brain',
+  'pulse',
+] as const
+
+export type EmergencyProtocolIconKey = (typeof EMERGENCY_PROTOCOL_ICON_KEYS)[number]
+
+export type EmergencyProtocolStepRow = {
+  id?: string
+  action: string
+  detail: string
+  sortOrder?: number
+}
+
+export type EmergencyProtocolRow = {
+  id: string
+  code: string
+  title: string
+  subtitle: string
+  version: string
+  iconKey: EmergencyProtocolIconKey | string
+  sortOrder: number
+  isActive: boolean
+  steps: EmergencyProtocolStepRow[]
+}
+
+export type EmergencyProtocolWriteBody = {
+  code?: string
+  title?: string
+  subtitle?: string
+  version?: string
+  iconKey?: string
+  sortOrder?: number
+  isActive?: boolean
+  steps?: { action: string; detail?: string }[]
+}
+
+export async function fetchEmergencyProtocols(): Promise<EmergencyProtocolRow[]> {
+  const res = await apiJson<ApiEnvelope<EmergencyProtocolRow[]>>('/lookups/emergency-protocols', {
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function createEmergencyProtocol(
+  body: EmergencyProtocolWriteBody & { code: string; title: string; steps: { action: string; detail?: string }[] },
+): Promise<EmergencyProtocolRow> {
+  const res = await apiJson<ApiEnvelope<EmergencyProtocolRow>>('/lookups/emergency-protocols', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function updateEmergencyProtocol(
+  id: string,
+  body: EmergencyProtocolWriteBody,
+): Promise<EmergencyProtocolRow> {
+  const res = await apiJson<ApiEnvelope<EmergencyProtocolRow>>(`/lookups/emergency-protocols/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function deleteEmergencyProtocol(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/emergency-protocols/${id}`, { method: 'DELETE' })
+}
+
 // ─── Clock-in early / late arrival reasons (carer-app) ──────────────────────
 
 export type ClockInArrivalKind = 'EARLY' | 'LATE'

@@ -23,6 +23,12 @@ export type ServiceUserInvoiceMonthRow = {
   exportStatus: ExportStatus
   sent: boolean
   sentAt: string | null
+  /** QBO-style sequential number, e.g. INV-1001 */
+  invoiceNumber?: string | null
+  /** YYYY-MM-DD due date (invoice date + payment terms). */
+  dueDate?: string | null
+  invoiceDate?: string | null
+  paymentTerms?: string | null
   lineCount: number
   subtotal: string
   subtotalValue: number
@@ -34,6 +40,8 @@ export type ServiceUserInvoiceMonthRow = {
   outstandingValue: number
   paymentStatus: InvoiceRunPaymentStatus
   canRecordPayment: boolean
+  /** Set when recording from a service-user invoice so paid is attributed to that person. */
+  serviceUserId?: string
   funders: ServiceUserInvoiceFunderShare[]
 }
 

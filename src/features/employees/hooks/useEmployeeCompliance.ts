@@ -4,6 +4,7 @@ import {
   deleteComplianceDocument,
   downloadComplianceDocument,
   ensureEmployeeComplianceChecklist,
+  fetchComplianceBoard,
   fetchComplianceChecklist,
   updateEmployeeCompliance,
   uploadComplianceDocument,
@@ -11,6 +12,55 @@ import {
 import { employeeKeys } from '@/features/employees/keys'
 
 const STALE_TIME = 30_000
+
+export function useComplianceBoard(
+  enabled = true,
+  hideNoLongerRequired = true,
+  filters?: {
+    visaTypeIds?: string[]
+    needsImmigrationRtw?: boolean
+    search?: string
+    displayStatus?: 'BLOCKED' | 'ATTENTION' | 'COMPLIANT'
+    documentState?: 'expired' | 'expiring_7' | 'expiring_8_30' | 'missing' | 'valid'
+    issuesOnly?: boolean
+    boardSort?: 'urgent' | 'nearest_expiry' | 'name'
+    locationId?: string
+  },
+) {
+  return useQuery({
+    queryKey: employeeKeys.complianceBoard({
+      hideNoLongerRequired,
+      visaTypeIds: filters?.visaTypeIds?.length ? filters.visaTypeIds.slice().sort().join(',') : undefined,
+      needsImmigrationRtw:
+        filters?.needsImmigrationRtw === undefined
+          ? undefined
+          : filters.needsImmigrationRtw
+            ? '1'
+            : '0',
+      search: filters?.search?.trim() || undefined,
+      displayStatus: filters?.displayStatus,
+      documentState: filters?.documentState,
+      issuesOnly: filters?.issuesOnly ? '1' : undefined,
+      boardSort: filters?.boardSort,
+      locationId: filters?.locationId,
+    }),
+    queryFn: ({ signal }) =>
+      fetchComplianceBoard({
+        hideNoLongerRequired,
+        visaTypeIds: filters?.visaTypeIds,
+        needsImmigrationRtw: filters?.needsImmigrationRtw,
+        search: filters?.search,
+        displayStatus: filters?.displayStatus,
+        documentState: filters?.documentState,
+        issuesOnly: filters?.issuesOnly,
+        boardSort: filters?.boardSort,
+        locationId: filters?.locationId,
+        signal,
+      }),
+    enabled,
+    staleTime: STALE_TIME,
+  })
+}
 
 export function useEmployeeComplianceChecklist(
   employeeId: string,
@@ -31,6 +81,9 @@ export function useEmployeeComplianceChecklist(
 function invalidateCompliance(qc: ReturnType<typeof useQueryClient>, employeeId: string) {
   void qc.invalidateQueries({
     queryKey: [...employeeKeys.detail(employeeId), 'compliance-checklist'],
+  })
+  void qc.invalidateQueries({
+    queryKey: [...employeeKeys.all(), 'compliance-board'],
   })
 }
 

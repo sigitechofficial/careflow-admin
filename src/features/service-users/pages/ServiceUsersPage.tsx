@@ -1,12 +1,12 @@
 import * as React from 'react'
 import {
   Search,
-  SlidersHorizontal,
   User,
   Filter,
   Loader2,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -31,11 +31,21 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import { serviceUserKeys } from '@/features/service-users/keys'
 import {
   buildServiceUsersListParams,
+  clearAdvancedFilterChip,
+  countActiveAdvancedFilters,
   DEFAULT_SERVICE_USER_STATUS_CODE,
+  describeAdvancedFilterChips,
+  EMPTY_SERVICE_USERS_ADVANCED_FILTERS,
   statusFilterForQuickSelect,
   statusFilterLabel,
+  type ServiceUsersAdvancedFilters,
   type StatusFilterValue,
 } from '@/features/service-users/utils/service-users-list-query'
+import {
+  ServiceUsersAdvancedFiltersPanel,
+  ServiceUsersFilterToggleButton,
+  ServiceUsersStatusFilter,
+} from '@/features/service-users/components/ServiceUsersAdvancedFiltersPanel'
 import { SERVICE_USER_MANAGEMENT_NAME_TO } from '@/features/service-users/service-user-profile-tabs'
 
 const TEAL = '#4db8c8'
@@ -251,6 +261,10 @@ export default function ServiceUsersPage() {
   const [riskFilter, setRiskFilter] = React.useState<QuickSelectRiskId | null>(null)
   const [unassignedOnly, setUnassignedOnly] = React.useState(false)
   const [onHoldOnly, setOnHoldOnly] = React.useState(false)
+  const [advancedOpen, setAdvancedOpen] = React.useState(false)
+  const [advancedFilters, setAdvancedFilters] = React.useState<ServiceUsersAdvancedFilters>(
+    EMPTY_SERVICE_USERS_ADVANCED_FILTERS,
+  )
   const viewingDeleted = listFilter === 'deleted'
   const [page, setPage] = React.useState(1)
   const [flashMessageUser, setFlashMessageUser] = React.useState<ServiceUserListRow | null>(null)
@@ -270,11 +284,16 @@ export default function ServiceUsersPage() {
   // Reset to page 1 when filters change
   React.useEffect(() => {
     setPage(1)
-  }, [searchApi, statusFilter, listFilter, onHoldOnly, globalLocationId])
+  }, [searchApi, statusFilter, listFilter, onHoldOnly, globalLocationId, riskFilter, unassignedOnly, advancedFilters])
 
   // Lookups (statuses, risk levels, etc.) — prefetched by route loader
   const lookupsQuery = useServiceUserLookups()
   const lookups = lookupsQuery.data ?? null
+  const advancedFilterCount = countActiveAdvancedFilters(advancedFilters)
+  const advancedFilterChips = React.useMemo(
+    () => describeAdvancedFilterChips(advancedFilters),
+    [advancedFilters],
+  )
 
   // Derive list params from filter state + resolved lookups
   const listParams = React.useMemo(
@@ -286,8 +305,22 @@ export default function ServiceUsersPage() {
         statusFilter,
         onHoldOnly,
         locationId: globalLocationId ?? undefined,
+        riskLevelCode: riskFilter,
+        unassignedKeyWorker: unassignedOnly,
+        advanced: advancedFilters,
       }),
-    [lookups, listFilter, statusFilter, onHoldOnly, page, searchApi, globalLocationId],
+    [
+      lookups,
+      listFilter,
+      statusFilter,
+      onHoldOnly,
+      page,
+      searchApi,
+      globalLocationId,
+      riskFilter,
+      unassignedOnly,
+      advancedFilters,
+    ],
   )
 
   const listQuery = useServiceUsers(listParams, lookupsQuery.isSuccess)
@@ -313,12 +346,6 @@ export default function ServiceUsersPage() {
 
   const filteredRows = React.useMemo(() => {
     let list = rows
-    if (riskFilter) {
-      list = list.filter((r) => r.riskLevel?.code === riskFilter)
-    }
-    if (unassignedOnly) {
-      list = list.filter((r) => !r.keyWorker)
-    }
     const q = kwSearch.trim().toLowerCase()
     if (!q) return list
     return list.filter((r) => {
@@ -326,7 +353,7 @@ export default function ServiceUsersPage() {
       const nn = employeeLabel(r.namedNurse).toLowerCase()
       return kw.includes(q) || nn.includes(q)
     })
-  }, [rows, kwSearch, riskFilter, unassignedOnly])
+  }, [rows, kwSearch])
 
   const onProfilePhotoUploaded = React.useCallback(
     (_userId: string, _profilePhotoUrl: string) => {
@@ -383,14 +410,11 @@ export default function ServiceUsersPage() {
 
       <div className="flex flex-col gap-3 border-b border-border bg-background px-3 py-3 sm:px-4 md:flex-row md:flex-wrap md:items-center md:gap-2 md:py-2.5">
         <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch md:items-center">
-          <button
-            type="button"
-            className="h-9 w-9 shrink-0 self-start rounded border border-border text-muted-foreground transition-colors hover:bg-muted sm:h-8 sm:w-8 md:self-auto"
-          >
-            <span className="flex h-full w-full items-center justify-center">
-              <SlidersHorizontal className="h-4 w-4" />
-            </span>
-          </button>
+          <ServiceUsersFilterToggleButton
+            open={advancedOpen}
+            activeCount={advancedFilterCount}
+            onClick={() => setAdvancedOpen((o) => !o)}
+          />
 
           <div className="flex min-w-0 w-full flex-1 sm:max-w-md md:w-52 md:flex-initial md:max-w-none">
             <input
@@ -450,28 +474,91 @@ export default function ServiceUsersPage() {
           disabled={!apiConfigured || loading}
         />
 
-        <div className="flex w-full min-w-0 items-center gap-2 md:ml-auto md:w-auto md:shrink-0">
-          <span className="shrink-0 text-sm font-medium text-muted-foreground">Status</span>
-          <select
-            data-testid="service-users-status-filter"
+        <div className="flex w-full min-w-0 md:ml-auto md:w-auto md:shrink-0">
+          <ServiceUsersStatusFilter
             value={statusFilter}
-            disabled={viewingDeleted || lookupsQuery.isLoading}
-            onChange={(e) => {
+            options={(lookups?.statuses ?? []).map((s) => ({ code: s.code, name: s.name }))}
+            disabled={viewingDeleted || lookupsQuery.isLoading || !apiConfigured}
+            onChange={(next) => {
               setListFilter(null)
               setOnHoldOnly(false)
-              setStatusFilter(e.target.value)
+              setStatusFilter(next)
             }}
-            className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:flex-initial"
-          >
-            <option value="all">All</option>
-            {(lookups?.statuses ?? []).map((s) => (
-              <option key={s.id} value={s.code}>
-                {statusFilterLabel(s.code, s.name)}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       </div>
+
+      {advancedFilterChips.length > 0 ||
+      (statusFilter !== DEFAULT_SERVICE_USER_STATUS_CODE && !viewingDeleted) ? (
+        <div
+          className="flex flex-wrap items-center gap-2 border-b border-border bg-background px-3 py-2 sm:px-4"
+          data-testid="service-users-active-filter-chips"
+        >
+          <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
+          {statusFilter !== DEFAULT_SERVICE_USER_STATUS_CODE && !viewingDeleted ? (
+            <button
+              type="button"
+              disabled={!apiConfigured || loading}
+              className="inline-flex h-7 max-w-full items-center gap-1 rounded-full border border-[#4db8c8]/40 bg-[#4db8c8]/10 px-2.5 text-xs font-medium text-[#1f6f7a] transition-colors hover:bg-[#4db8c8]/20 disabled:opacity-60"
+              onClick={() => {
+                setListFilter(null)
+                setOnHoldOnly(false)
+                setStatusFilter(DEFAULT_SERVICE_USER_STATUS_CODE)
+              }}
+              title="Reset status to in service (active)"
+              data-testid="service-users-status-chip"
+            >
+              <span className="truncate">
+                Status:{' '}
+                {statusFilter === 'all'
+                  ? 'All'
+                  : statusFilterLabel(
+                      statusFilter,
+                      lookups?.statuses.find((s) => s.code === statusFilter)?.name ?? statusFilter,
+                    )}
+              </span>
+              <X className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+            </button>
+          ) : null}
+          {advancedFilterChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              disabled={!apiConfigured || loading}
+              className="inline-flex h-7 max-w-full items-center gap-1 rounded-full border border-[#4db8c8]/40 bg-[#4db8c8]/10 px-2.5 text-xs font-medium text-[#1f6f7a] transition-colors hover:bg-[#4db8c8]/20 disabled:opacity-60"
+              onClick={() => setAdvancedFilters((prev) => clearAdvancedFilterChip(prev, chip.key))}
+              title={`Remove ${chip.label}`}
+            >
+              <span className="truncate">{chip.label}</span>
+              <X className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={!apiConfigured || loading}
+            className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+            onClick={() => {
+              setAdvancedFilters(EMPTY_SERVICE_USERS_ADVANCED_FILTERS)
+              setListFilter(null)
+              setOnHoldOnly(false)
+              setStatusFilter(DEFAULT_SERVICE_USER_STATUS_CODE)
+            }}
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
+
+      <ServiceUsersAdvancedFiltersPanel
+        open={advancedOpen}
+        onOpenChange={setAdvancedOpen}
+        value={advancedFilters}
+        disabled={!apiConfigured || loading}
+        onApply={(next) => {
+          setAdvancedFilters(next)
+          setPage(1)
+        }}
+      />
 
       {viewingDeleted && (
         <div className="px-3 pb-2 sm:px-4">

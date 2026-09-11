@@ -215,6 +215,31 @@ export type EcmScheduleHistory = {
   versions: EcmScheduleVersionRow[]
 }
 
+export type EcmCheckInMethodGrant = {
+  id: string
+  scheduledJobId: string
+  employeeId: string
+  employeeName: string | null
+  operationalDay: string
+  status: 'PENDING' | 'AUTHORISED' | 'REJECTED' | 'CONSUMED' | string
+  carerNote: string | null
+  officeNote: string | null
+  latitude: number | null
+  longitude: number | null
+  accuracyMeters: number | null
+  distanceMeters: number | null
+  isMockedLocation: boolean
+  locationUnavailable: boolean
+  requestedAt: string
+  expiresAt: string
+  decidedAt: string | null
+  decidedById: string | null
+  decidedByName: string | null
+  consumedAt: string | null
+  ecmExceptionId: string | null
+  manualEnabled: boolean
+}
+
 export type EcmVisitDetail = {
   scheduledJobId: string
   jobName: string
@@ -233,6 +258,8 @@ export type EcmVisitDetail = {
     status: string
     actualStartDateTime: string | null
     actualEndDateTime: string | null
+    /** Same Visit ID as the carer app (EMONITORED VIS-…). */
+    visitRef?: string | null
     visitPlanSlot: {
       id: string
       timeCritical: boolean
@@ -287,6 +314,7 @@ export type EcmVisitDetail = {
   attendanceEvents: EcmAttendanceEvent[]
   /** Present after BE1.25 schedule versioning is applied. */
   scheduleHistory?: EcmScheduleHistory | null
+  checkInMethodGrants?: EcmCheckInMethodGrant[]
 }
 
 export type EcmExceptionLifecycle =
@@ -316,6 +344,7 @@ export type EcmExceptionKind =
   | 'MANUAL_ATTENDANCE'
   | 'MOCK_LOCATION'
   | 'CARER_SOS'
+  | 'OUTSIDE_AREA_CHECK_IN_REQUEST'
   | 'OTHER'
 
 export type EcmExceptionRow = {
@@ -333,6 +362,8 @@ export type EcmExceptionRow = {
   acknowledgedByName?: string | null
   createdAt: string
   jobName: string
+  /** Same “Visit ID” shown on the carer app (EMONITORED VIS-…). */
+  visitRef?: string | null
   /** Scheduled job status when returned by open-exception list. */
   jobStatus?: string
   /** YYYY-MM-DD from scheduled start (for schedule-jobs deep link). */
@@ -352,6 +383,20 @@ export type EcmExceptionRow = {
     allowedByName: string | null
     allowNote: string | null
     employeeId: string
+    latitude?: number | null
+    longitude?: number | null
+    distanceMeters?: number | null
+  } | null
+  /** GPS from the visit CHECK_IN attendance event. */
+  checkInLocation?: {
+    latitude: number
+    longitude: number
+    accuracyMeters: number | null
+    distanceMeters: number | null
+    outsideGeofence: boolean
+    isMockLocation: boolean
+    occurredAt: string
+    employeeId: string
   } | null
   sos?: {
     id: string
@@ -370,6 +415,7 @@ export type EcmExceptionRow = {
     acknowledgedById?: string | null
     acknowledgedByName?: string | null
   } | null
+  checkInMethodRequest?: EcmCheckInMethodGrant | null
 }
 
 export type EcmReasonCode = {

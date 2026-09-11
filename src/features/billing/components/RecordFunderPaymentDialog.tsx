@@ -62,11 +62,13 @@ export function RecordFunderPaymentDialog({
   onOpenChange,
   invoice,
   serviceUserName,
+  serviceUserId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   invoice: ServiceUserInvoiceMonthRow | null
   serviceUserName?: string
+  serviceUserId?: string
 }) {
   const create = useCreatePayment()
   const funders = invoice?.funders ?? []
@@ -114,16 +116,26 @@ export function RecordFunderPaymentDialog({
   if (!invoice) return null
 
   const amt = Number(amount)
-  // Allocation is recorded against the run, so it can never exceed the run's outstanding balance.
-  const runOutstanding = invoice.outstandingValue
-  const amountValid = Number.isFinite(amt) && amt > 0 && amt <= runOutstanding + 0.001
+  // When a funder is selected, never accept more than that funder's outstanding;
+  // always also respect the invoice/run outstanding passed on the row.
+  const funderCap = selectedFunder?.outstandingValue
+  const maxAmount =
+    funderCap != null
+      ? Math.min(invoice.outstandingValue, funderCap)
+      : invoice.outstandingValue
+  const amountValid = Number.isFinite(amt) && amt > 0 && amt <= maxAmount + 0.001
   const canSubmit = Boolean(reference.trim()) && amountValid
+  const lockToSingleFunder = funders.length === 1 && Boolean(funders[0]?.funderId)
 
   async function submit() {
     if (!invoice || !canSubmit) return
     const rounded = Math.round(amt * 100) / 100
-    // A "Direct / family" line has no funder id; whole-invoice payments send none either.
-    const funderId = selectedFunder?.funderId ?? undefined
+    // Prefer the selected funder; when opened from a single authority invoice, always tag it.
+    const funderId =
+      selectedFunder?.funderId ??
+      (lockToSingleFunder ? funders[0]?.funderId : undefined) ??
+      undefined
+    const taggedServiceUserId = serviceUserId ?? invoice.serviceUserId
     try {
       await create.mutateAsync({
         reference: reference.trim(),
@@ -132,12 +144,15 @@ export function RecordFunderPaymentDialog({
         receivedDate,
         recordStatus: 'RECEIVED',
         ...(funderId ? { funderId } : {}),
+        ...(taggedServiceUserId ? { serviceUserId: taggedServiceUserId } : {}),
         allocations: [{ invoiceRunId: invoice.runId, amount: rounded }],
       })
       const who =
         selectedFunder && selectedFunder.funderId
           ? selectedFunder.funderName
-          : 'Funder payment'
+          : funderId
+            ? funders[0]?.funderName ?? 'Funder payment'
+            : 'Funder payment'
       toastSuccess('Payment recorded', `${invoice.period} — ${who} applied.`)
       onOpenChange(false)
     } catch (error) {
@@ -228,6 +243,7 @@ export function RecordFunderPaymentDialog({
               className={selectClass}
               value={funderSel}
               onChange={(e) => handleFunderChange(e.target.value)}
+              disabled={lockToSingleFunder}
             >
               {funders.map((f) => (
                 <option key={funderKey(f)} value={funderKey(f)}>
@@ -235,7 +251,9 @@ export function RecordFunderPaymentDialog({
                   {f.outstandingValue > 0.001 ? ` — ${f.outstanding} due` : ' — settled'}
                 </option>
               ))}
-              <option value={WHOLE_INVOICE}>Whole invoice (no specific funder)</option>
+              {!lockToSingleFunder ? (
+                <option value={WHOLE_INVOICE}>Whole invoice (no specific funder)</option>
+              ) : null}
             </select>
           </div>
 
@@ -252,7 +270,7 @@ export function RecordFunderPaymentDialog({
               />
               {!amountValid && amount.trim() ? (
                 <p className="text-xs text-destructive">
-                  Enter an amount up to the {invoice.outstanding} outstanding.
+                  Enter an amount up to £{maxAmount.toFixed(2)} outstanding.
                 </p>
               ) : null}
             </div>
@@ -297,7 +315,7 @@ export function RecordFunderPaymentDialog({
             <button
               type="button"
               className="text-xs text-primary hover:underline"
-              onClick={() => setAmount(String(selectedFunder.outstandingValue))}
+              onClick={() => setAmount(String(Math.min(selectedFunder.outstandingValue, maxAmount)))}
             >
               {selectedFunder.funderName} paid in full ({selectedFunder.outstanding})
             </button>
@@ -305,7 +323,7 @@ export function RecordFunderPaymentDialog({
             <button
               type="button"
               className="text-xs text-primary hover:underline"
-              onClick={() => setAmount(String(runOutstanding))}
+              onClick={() => setAmount(String(maxAmount))}
             >
               Paid in full ({invoice.outstanding})
             </button>

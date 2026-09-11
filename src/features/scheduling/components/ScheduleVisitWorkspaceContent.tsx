@@ -33,6 +33,7 @@ import { VisitJobTasksPanel } from '@/features/scheduling/components/VisitJobTas
 import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedicationPanel'
 import { VisitObservationsPanel } from '@/features/scheduling/components/VisitObservationsPanel'
 import { VisitLogTimelinePanel } from '@/features/scheduling/components/VisitLogTimelinePanel'
+import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
 import {
   fetchVisitObservations,
   fetchVisitCareConsents,
@@ -436,6 +437,7 @@ export function ScheduleVisitWorkspaceContent({
                       {record.riskLevel ? (
                         <p className="mt-1 text-xs text-muted-foreground">Risk: {record.riskLevel}</p>
                       ) : null}
+                      <VisitPhotoThumbnails photos={record.photos} />
                     </li>
                   )
                 })}
@@ -480,6 +482,7 @@ export function ScheduleVisitWorkspaceContent({
                         </span>
                       ))}
                     </div>
+                    <VisitPhotoThumbnails photos={obs.photos} />
                   </li>
                 ))}
               </ul>

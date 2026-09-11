@@ -5,9 +5,11 @@ import {
   CreditCard,
   ExternalLink,
   Loader2,
+  Plus,
   Save,
   Sparkles,
   Target,
+  Trash2,
   Users,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -15,7 +17,14 @@ import { ApiError } from '@/shared/api/api-client'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
 import { PayCardDetailsView } from '@/features/billing/components/PayCardDetailsView'
-import { usePayCard, usePayCards, useResolveEmployeePayCard } from '@/features/billing/hooks/usePayCards'
+import {
+  useDeleteEmployeeFunderPayAssignment,
+  useEmployeeFunderPayAssignments,
+  usePayCard,
+  usePayCards,
+  useResolveEmployeePayCard,
+  useUpsertEmployeeFunderPayAssignment,
+} from '@/features/billing/hooks/usePayCards'
 import {
   PAY_CARD_ASSIGNMENT_OPTIONS,
   formatPayCardAssignmentDisplay,
@@ -27,12 +36,14 @@ import {
   type EmploymentPayCardMatchInput,
   type EmploymentPayCardMatchLabels,
 } from '@/features/billing/utils/pay-card-match.util'
+import { listEnterpriseFunders } from '@/features/service-users/api/service-users.api'
 import { useEmployee } from '@/features/employees/hooks/useEmployees'
 import { usePatchEmploymentMutation } from '@/features/employees/hooks/useEmployeeMutations'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
+import { useQuery } from '@tanstack/react-query'
 
 function payCardOptionLabel(
   card: PayCard,
@@ -73,10 +84,27 @@ function StatusChip({
 export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string }) {
   const canUpdate = useAuthStore(s => s.can('employees.update'))
   const canManageBilling = useAuthStore(s => s.can('billing.pay_cards.manage' as never))
+  const canReadBilling = useAuthStore(s => s.can('billing.pay_cards.read' as never))
+  const canReadFunders = useAuthStore(s => s.can('funders.read'))
   const employeeQuery = useEmployee(employeeId)
   const payCardsQuery = usePayCards()
   const resolveQuery = useResolveEmployeePayCard(employeeId)
   const patchEmploymentMutation = usePatchEmploymentMutation()
+  const funderAssignmentsQuery = useEmployeeFunderPayAssignments(
+    employeeId,
+    canReadBilling || canManageBilling,
+  )
+  const upsertFunderAssignment = useUpsertEmployeeFunderPayAssignment()
+  const deleteFunderAssignment = useDeleteEmployeeFunderPayAssignment(employeeId)
+  const fundersQuery = useQuery({
+    queryKey: ['enterprise-funders', 'pay-card-panel'],
+    queryFn: () => listEnterpriseFunders({ limit: 200 }),
+    enabled: (canReadBilling || canManageBilling) && canReadFunders,
+    staleTime: 5 * 60_000,
+  })
+
+  const [funderIdDraft, setFunderIdDraft] = React.useState('')
+  const [funderPayCardIdDraft, setFunderPayCardIdDraft] = React.useState('')
 
   const employment = employeeQuery.data?.employment
   const matchInput = React.useMemo<EmploymentPayCardMatchInput | null>(() => {
@@ -249,11 +277,59 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
   const branchLabel =
     employment?.location?.name ?? employment?.baseLocation?.name ?? null
 
+  const funderAssignmentRows = funderAssignmentsQuery.data ?? []
+  const funderOptions = React.useMemo(() => {
+    const assigned = new Set(funderAssignmentRows.map(r => r.funderId))
+    return (fundersQuery.data ?? [])
+      .filter(f => !assigned.has(f.id) || f.id === funderIdDraft)
+      .map(f => ({
+        value: f.id,
+        label: f.code ? `${f.name} (${f.code})` : f.name,
+      }))
+  }, [fundersQuery.data, funderAssignmentRows, funderIdDraft])
+
+  const funderPayCardOptions = React.useMemo(
+    () =>
+      (payCardsQuery.data ?? [])
+        .filter(card => card.status === 'ACTIVE' || card.status === 'DRAFT')
+        .map(card => ({
+          value: card.id,
+          label: `${card.name} (${card.code})`,
+        })),
+    [payCardsQuery.data],
+  )
+
+  const onAddFunderAssignment = async () => {
+    if (!canManageBilling || !funderIdDraft || !funderPayCardIdDraft) return
+    try {
+      await upsertFunderAssignment.mutateAsync({
+        employeeId,
+        funderId: funderIdDraft,
+        payCardId: funderPayCardIdDraft,
+      })
+      setFunderIdDraft('')
+      setFunderPayCardIdDraft('')
+      toastSuccess('Funder pay card override saved.')
+    } catch (err) {
+      toastApiError(err, 'Could not save funder pay card override.')
+    }
+  }
+
+  const onRemoveFunderAssignment = async (id: string) => {
+    if (!canManageBilling) return
+    try {
+      await deleteFunderAssignment.mutateAsync(id)
+      toastSuccess('Funder pay card override removed.')
+    } catch (err) {
+      toastApiError(err, 'Could not remove funder pay card override.')
+    }
+  }
+
   return (
     <div className="space-y-6" data-testid="employee-pay-card-panel">
       <ContentSectionHeader
         title="Pay card"
-        description="Default pay rate card for this carer. Only cards that match this carer’s branch, role, employment type, or worker type can be assigned. Bulk-assign from Billing → Pay cards, or override here."
+        description="Default pay rate card for this carer, plus optional council/funder overrides. Visit pay uses funder override when present, otherwise this default. Charge cards stay separate."
         icon={<CreditCard className="h-5 w-5" aria-hidden />}
         iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
         action={
@@ -468,6 +544,150 @@ export function EmployeeEditPayCardPanel({ employeeId }: { employeeId: string })
               >
                 {patchEmploymentMutation.isPending ? 'Saving…' : 'Save pay card'}
               </Button>
+            </div>
+          ) : null}
+        </ContentCard>
+      ) : null}
+
+      {!loading && (canReadBilling || canManageBilling) ? (
+        <ContentCard className="space-y-4 p-4" data-testid="employee-funder-pay-card-panel">
+          <div className="flex items-start gap-2.5">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300">
+              <Target className="h-4 w-4" aria-hidden />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Pay by council / funder
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Optional overrides: when this carer works a visit funded by a specific council,
+                use that pay card instead of the default. Charge rates stay separate.
+              </p>
+            </div>
+          </div>
+
+          {funderAssignmentsQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading funder overrides…
+            </div>
+          ) : null}
+
+          {funderAssignmentRows.length > 0 ? (
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {funderAssignmentRows.map(row => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="font-medium text-foreground">
+                      {row.funder?.name ?? 'Unknown funder'}
+                      {row.funder?.code ? (
+                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                          ({row.funder.code})
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {row.payCard.name} ({row.payCard.code})
+                    </p>
+                  </div>
+                  {canManageBilling ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                      disabled={deleteFunderAssignment.isPending}
+                      onClick={() => void onRemoveFunderAssignment(row.id)}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : !funderAssignmentsQuery.isLoading ? (
+            <p className="text-xs text-muted-foreground">
+              No funder overrides yet. Visits use the default pay card above.
+            </p>
+          ) : null}
+
+          {canManageBilling ? (
+            <div className="space-y-3 border-t border-border pt-4">
+              {!canReadFunders ? (
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Your account needs the funders.read permission to load councils for overrides.
+                </p>
+              ) : fundersQuery.isError ? (
+                <p className="text-xs text-destructive">
+                  Could not load funders. Refresh the page or check you can open Service Users → Funding.
+                </p>
+              ) : null}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-xs font-medium text-foreground/90">Council / funder</span>
+                  <Combobox
+                    id="employee-funder-pay-funder"
+                    options={funderOptions}
+                    value={funderIdDraft}
+                    onChange={setFunderIdDraft}
+                    placeholder={
+                      fundersQuery.isLoading
+                        ? 'Loading funders…'
+                        : funderOptions.length === 0
+                          ? 'No active funders found'
+                          : 'Select funder'
+                    }
+                    emptyText={
+                      fundersQuery.isLoading
+                        ? 'Loading…'
+                        : funderOptions.length === 0
+                          ? 'No active funders found.'
+                          : 'No results found.'
+                    }
+                    loading={fundersQuery.isLoading}
+                    disabled={
+                      upsertFunderAssignment.isPending ||
+                      !canReadFunders ||
+                      fundersQuery.isLoading
+                    }
+                  />
+                </label>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="text-xs font-medium text-foreground/90">Pay card</span>
+                  <Combobox
+                    id="employee-funder-pay-card"
+                    options={funderPayCardOptions}
+                    value={funderPayCardIdDraft}
+                    onChange={setFunderPayCardIdDraft}
+                    placeholder={
+                      funderPayCardOptions.length === 0
+                        ? 'No pay cards available'
+                        : 'Select pay card'
+                    }
+                    disabled={upsertFunderAssignment.isPending}
+                  />
+                </label>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  disabled={
+                    !funderIdDraft ||
+                    !funderPayCardIdDraft ||
+                    upsertFunderAssignment.isPending
+                  }
+                  onClick={() => void onAddFunderAssignment()}
+                  data-testid="employee-funder-pay-card-add"
+                >
+                  {upsertFunderAssignment.isPending ? 'Saving…' : 'Add override'}
+                </Button>
+              </div>
             </div>
           ) : null}
         </ContentCard>

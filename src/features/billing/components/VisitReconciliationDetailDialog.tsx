@@ -42,6 +42,10 @@ function RateBreakdownCard({
   fallbackAmount,
   unavailableReason,
   icon,
+  compact = false,
+  /** When set (e.g. funder split share), shown as Total instead of card-gross breakdown.amount. */
+  chargedTotal,
+  chargedTotalNote,
 }: {
   title: string
   subtitle: string
@@ -52,9 +56,16 @@ function RateBreakdownCard({
   /** Shown when rate breakdown cannot be built (e.g. missing charge-card rules). */
   unavailableReason?: string | null
   icon?: React.ReactNode
+  /** Summary-only card (e.g. multi-funder total when per-funder cards follow). */
+  compact?: boolean
+  chargedTotal?: string | null
+  chargedTotalNote?: string | null
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
   const appliedRules = breakdown?.appliedRules?.filter(r => r.label.trim() || r.detail.trim()) ?? []
+  // Banded visits already show the charged slice in Calculation — don't repeat Applied rule + Time.
+  const showAppliedRules = !compact && appliedRules.length > 0 && segments.length === 0
+  const displayTotal = chargedTotal?.trim() || breakdown?.amount || fallbackAmount || '—'
 
   return (
     <ContentCard className="p-4 space-y-3">
@@ -84,10 +95,10 @@ function RateBreakdownCard({
             </p>
           ) : null}
 
-          {appliedRules.length > 0 ? (
+          {showAppliedRules ? (
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Applied rule{appliedRules.length === 1 ? '' : 's'}
+                Rate used
               </p>
               <ul className="space-y-2">
                 {appliedRules.map((rule, i) => (
@@ -103,78 +114,68 @@ function RateBreakdownCard({
                         <span className="tabular-nums text-foreground">{rule.unitRate}</span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-muted-foreground">{rule.rateTypeLabel}</p>
-                    <dl className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                      {rule.dayTypeLabel ? (
-                        <div>
-                          <dt className="inline text-muted-foreground/80">Day: </dt>
-                          <dd className="inline text-foreground">{rule.dayTypeLabel}</dd>
-                        </div>
-                      ) : null}
-                      {rule.timeWindow ? (
-                        <div>
-                          <dt className="inline text-muted-foreground/80">Time: </dt>
-                          <dd className="inline text-foreground">{rule.timeWindow}</dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                    <p className="text-xs text-muted-foreground">{rule.detail}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {[rule.rateTypeLabel, rule.dayTypeLabel, rule.timeWindow, rule.unitRate]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
                   </li>
                 ))}
               </ul>
             </div>
-          ) : breakdown.ruleLabel ? (
+          ) : null}
+
+          {!compact && !showAppliedRules && breakdown.ruleLabel && segments.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               Rule: <span className="font-medium text-foreground">{breakdown.ruleLabel}</span>
             </p>
           ) : null}
 
-          {appliedRules.length === 0 ? (
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-muted-foreground">Rate</span>
-              <span className="font-medium tabular-nums">{breakdown.unitRate ?? '—'}</span>
+          {!compact ? (
+            <div className="border-t border-border pt-3 space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                How it was calculated
+              </p>
+              {segments.length > 0 ? (
+                <ul className="space-y-2">
+                  {segments.map((seg, i) => (
+                    <li
+                      key={`${seg.startLabel}-${seg.endLabel}-${i}`}
+                      className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="font-medium">
+                          {seg.startLabel}–{seg.endLabel}
+                          <span className="ml-2 text-xs font-normal text-muted-foreground tabular-nums">
+                            {seg.hoursLabel}
+                          </span>
+                        </span>
+                        <span className="tabular-nums font-medium">{seg.amount}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {seg.ruleLabel?.trim() || 'Hourly rate'}
+                        {' · '}
+                        <span className="tabular-nums text-foreground">{seg.unitRate}</span>
+                      </p>
+                      <p className="text-sm tabular-nums text-muted-foreground">{seg.lineFormula}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm tabular-nums">{breakdown.formula}</p>
+              )}
+              {segments.length > 1 ? (
+                <p className="text-xs text-muted-foreground">{breakdown.formula}</p>
+              ) : null}
+              {chargedTotalNote ? (
+                <p className="text-xs text-muted-foreground">{chargedTotalNote}</p>
+              ) : null}
             </div>
           ) : null}
-          <div className="border-t border-border pt-3 space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Calculation
-            </p>
-            {segments.length > 0 ? (
-              <ul className="space-y-2">
-                {segments.map((seg, i) => (
-                  <li
-                    key={`${seg.startLabel}-${seg.endLabel}-${i}`}
-                    className="rounded-md border border-border/80 bg-background px-3 py-2 space-y-1"
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-medium">
-                        {seg.startLabel}–{seg.endLabel}
-                      </span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {seg.hoursLabel}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {seg.ruleLabel?.trim() || 'Hourly rate'}
-                      {' · '}
-                      <span className="tabular-nums text-foreground">{seg.unitRate}</span>
-                    </p>
-                    <p className="text-sm tabular-nums">{seg.lineFormula}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm tabular-nums">{breakdown.formula}</p>
-            )}
-            {segments.length > 1 ? (
-              <p className="text-xs text-muted-foreground">{breakdown.formula}</p>
-            ) : null}
-          </div>
+
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-2">
-            <span className="font-medium">Total</span>
-            <span className="text-lg font-semibold tabular-nums text-primary">
-              {breakdown.amount ?? '—'}
-            </span>
+            <span className="font-medium">{chargedTotal ? 'Charged to this funder' : 'Total'}</span>
+            <span className="text-lg font-semibold tabular-nums text-primary">{displayTotal}</span>
           </div>
         </div>
       ) : (
@@ -494,7 +495,7 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   </p>
                 ) : null}
                 <RateBreakdownCard
-                  title="Carer pay"
+                  title="Pay carer"
                   subtitle="Payroll — based on this carer’s approved payable time"
                   timeRange={preview?.timeWindows.approvedPayable ?? row.approvedPayable}
                   hours={preview?.payableHours ?? null}
@@ -515,7 +516,9 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   title="Client charge"
                   subtitle={
                     preview?.funderClientCharges?.length
-                      ? 'Total client charge across all funders (each funder priced with their own rate card).'
+                      ? `Sum of each funder’s share: ${preview.funderClientCharges
+                          .map((f) => f.shareAmount)
+                          .join(' + ')} = ${preview.clientCharge?.amount ?? detail.billableAmount ?? '—'}`
                       : preview?.funderChargeNote?.trim() ||
                         'Invoice — based on approved billable time (org multi-carer funder setting)'
                   }
@@ -523,16 +526,17 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                   hours={preview?.billableHours ?? null}
                   breakdown={preview?.clientCharge ?? null}
                   fallbackAmount={detail.billableAmount}
+                  compact={Boolean(preview?.funderClientCharges?.length)}
                   icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                 />
 
                 {preview?.funderClientCharges?.map((funderCharge) => (
                   <RateBreakdownCard
                     key={`${funderCharge.funderName}-${funderCharge.splitPercent ?? 'none'}`}
-                    title={`Client charge — ${funderCharge.funderName}`}
+                    title={funderCharge.funderName}
                     subtitle={
                       funderCharge.splitPercent != null && funderCharge.splitPercent > 0
-                        ? `${funderCharge.cardGrossAmount ?? '—'} visit price × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount}`
+                        ? `This funder’s share of the visit (${funderCharge.splitPercent}%)`
                         : funderCharge.reason ?? 'Funder charge'
                     }
                     timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
@@ -540,6 +544,14 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     breakdown={funderCharge.breakdown}
                     fallbackAmount={funderCharge.shareAmount}
                     unavailableReason={funderCharge.reason}
+                    chargedTotal={funderCharge.shareAmount}
+                    chargedTotalNote={
+                      funderCharge.splitPercent != null &&
+                      funderCharge.splitPercent > 0 &&
+                      funderCharge.cardGrossAmount
+                        ? `Card visit price ${funderCharge.cardGrossAmount} × ${funderCharge.splitPercent}% = ${funderCharge.shareAmount} charged`
+                        : null
+                    }
                     icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                   />
                 ))}

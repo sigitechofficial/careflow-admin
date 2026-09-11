@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { VisitTaskPriorityPicker } from '@/features/service-users/visit-tasks/VisitTaskPriorityPicker'
+import { VisitTaskBodyMapRequiredField } from '@/features/service-users/visit-tasks/VisitTaskBodyMapRequiredField'
 import { VisitTaskSchedulePanel } from '@/features/service-users/visit-tasks/VisitTaskSchedulePanel'
 import {
   DEFAULT_VISIT_TASK_PRIORITY,
@@ -25,6 +26,7 @@ export type VisitTaskEditValues = {
   carerInstructions: string
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
+  bodyMapRequired: boolean
 }
 
 type Props = {
@@ -54,12 +56,16 @@ export function VisitTaskEditDialog({
   const [schedule, setSchedule] = React.useState<VisitTaskSchedule>(() =>
     mergeVisitTaskSchedule(initial.schedule),
   )
+  const [bodyMapRequired, setBodyMapRequired] = React.useState(
+    Boolean(initial.bodyMapRequired),
+  )
 
   React.useEffect(() => {
     if (!open) return
     setPriority(initial.priority ?? DEFAULT_VISIT_TASK_PRIORITY)
     setCarerInstructions(initial.carerInstructions ?? '')
     setSchedule(mergeVisitTaskSchedule(initial.schedule))
+    setBodyMapRequired(Boolean(initial.bodyMapRequired))
   }, [open, initial])
 
   return (
@@ -106,6 +112,17 @@ export function VisitTaskEditDialog({
           </section>
 
           <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Body map
+            </h3>
+            <VisitTaskBodyMapRequiredField
+              id="edit-body-map-required"
+              checked={bodyMapRequired}
+              onCheckedChange={setBodyMapRequired}
+            />
+          </section>
+
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Schedule
@@ -142,6 +159,7 @@ export function VisitTaskEditDialog({
                 priority,
                 carerInstructions: carerInstructions.trim(),
                 schedule: mergeVisitTaskSchedule(schedule),
+                bodyMapRequired,
               })
               onOpenChange(false)
             }}

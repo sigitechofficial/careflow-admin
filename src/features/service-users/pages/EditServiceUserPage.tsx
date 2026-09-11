@@ -41,6 +41,16 @@ export default function EditServiceUserPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
   const serviceUserId = resolveServiceUserIdFromParams(params.serviceUserId)
   const search = useSearch({ strict: false }) as { tab?: string }
+
+  React.useEffect(() => {
+    if (!serviceUserId || search.tab !== 'invoices') return
+    void navigate({
+      to: '/service-users/$serviceUserId/invoices',
+      params: { serviceUserId },
+      replace: true,
+    })
+  }, [navigate, search.tab, serviceUserId])
+
   const mainTab: ServiceUserProfileTabId = resolveServiceUserProfileTab(search.tab)
 
   const setMainTab = React.useCallback(

@@ -28,6 +28,16 @@ export default function ServiceUserProfilePage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
   const search = useSearch({ strict: false }) as { tab?: string }
   const serviceUserId = resolveServiceUserIdFromParams(params.serviceUserId)
+
+  React.useEffect(() => {
+    if (!serviceUserId || search.tab !== 'invoices') return
+    void navigate({
+      to: '/service-users/$serviceUserId/invoices',
+      params: { serviceUserId },
+      replace: true,
+    })
+  }, [navigate, search.tab, serviceUserId])
+
   const tab = resolveServiceUserProfileTab(search.tab)
 
   const { data: detail = null, isLoading: profileLoading, error: profileError } = useServiceUser(serviceUserId ?? '')

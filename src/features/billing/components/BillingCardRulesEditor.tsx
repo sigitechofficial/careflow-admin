@@ -276,11 +276,13 @@ function nightDutyPriority(dayType: BillingDayType): number {
 }
 
 function nextNightDutyDayType(
-  rules: ChargeCardRule[],
-  chargeMethod: 'SLEEP_IN' | 'WAKING_NIGHT',
+  rules: Array<Pick<PayCardRule, 'rateType'> & Partial<Pick<ChargeCardRule, 'chargeMethod'>> & Pick<PayCardRule, 'dayType'>>,
+  kind: 'SLEEP_IN' | 'WAKING_NIGHT',
 ): BillingDayType {
   const used = new Set(
-    rules.filter(r => r.chargeMethod === chargeMethod).map(r => r.dayType),
+    rules
+      .filter(r => r.chargeMethod === kind || r.rateType === kind)
+      .map(r => r.dayType),
   )
   const preferred = BILLING_DAY_TYPE_OPTIONS.map(o => o.value)
   return preferred.find(dayType => !used.has(dayType)) ?? 'ANY'
@@ -315,6 +317,36 @@ function emptyWakingNightChargeRule(dayType: BillingDayType = 'ANY'): ChargeCard
     endTime: null,
     chargeMethod: 'WAKING_NIGHT',
     chargeableFlag: true,
+    priority: nightDutyPriority(dayType),
+    sortOrder: 0,
+  }
+}
+
+function emptySleepingNightPayRule(dayType: BillingDayType = 'ANY'): PayCardRule {
+  const dayLabel = nightDutyDayTypeLabel(dayType)
+  return {
+    label: dayType === 'ANY' ? 'Sleeping night' : `Sleeping night — ${dayLabel}`,
+    dayType,
+    rateType: 'SLEEP_IN',
+    amount: 0,
+    minimumMinutes: null,
+    startTime: null,
+    endTime: null,
+    priority: nightDutyPriority(dayType),
+    sortOrder: 0,
+  }
+}
+
+function emptyWakingNightPayRule(dayType: BillingDayType = 'ANY'): PayCardRule {
+  const dayLabel = nightDutyDayTypeLabel(dayType)
+  return {
+    label: dayType === 'ANY' ? 'Waking night' : `Waking night — ${dayLabel}`,
+    dayType,
+    rateType: 'WAKING_NIGHT',
+    amount: 0,
+    minimumMinutes: null,
+    startTime: null,
+    endTime: null,
     priority: nightDutyPriority(dayType),
     sortOrder: 0,
   }
@@ -550,26 +582,39 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   const applyPeriodToRule = (index: number, code: PayTimePeriodCode): boolean => {
     const period = getPayTimePeriodByCode(code)
     if (!period) return false
+    const current = rules[index] as PayCardRule
+    const presetStart = period.startTime ?? '00:00'
+    const presetEnd = period.endTime ?? '23:59'
+    // Custom From/Until (e.g. 01:00–23:59) must stay when picking a named period like
+    // "Weekday daytime". Only apply the preset clock window when the row is still on
+    // a standard period (or has no times yet).
+    const keepCustomTimes = Boolean(forceCustomPeriod[index])
+    const nextStart = keepCustomTimes
+      ? (current.startTime?.trim() || presetStart)
+      : presetStart
+    const nextEnd = keepCustomTimes
+      ? (current.endTime?.trim() || presetEnd)
+      : presetEnd
     const candidate: PayCardRule = {
-      ...(rules[index] as PayCardRule),
+      ...current,
       label: period.label,
       dayType: period.dayType,
-      startTime: period.startTime ?? '00:00',
-      endTime: period.endTime ?? '23:59',
+      startTime: nextStart,
+      endTime: nextEnd,
       priority: period.priority,
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
     }
     const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
     if (overlap) {
+      // Allow the selection — finance may use priority/stacking. Warn so overlaps are visible.
       toastWarning('Overlapping period', formatHourlyOverlapMessage(candidate, overlap.rule))
-      return false
     }
     updateRule(index, {
       label: period.label,
       dayType: period.dayType,
-      startTime: period.startTime ?? '00:00',
-      endTime: period.endTime ?? '23:59',
+      startTime: nextStart,
+      endTime: nextEnd,
       priority: period.priority,
       rateType: 'HOURLY',
       enhancementMethod: 'ABSOLUTE_HOURLY',
@@ -588,8 +633,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     const candidate = { ...current, ...patch }
     const overlap = findOverlappingHourlyPayRule(rules as PayCardRule[], candidate, index)
     if (overlap) {
+      // Do not block custom From/Until (e.g. 01:00–23:59). Warn only.
       toastWarning('Overlapping period', formatHourlyOverlapMessage(candidate, overlap.rule))
-      return false
     }
     updateRule(index, patch)
     return true
@@ -625,30 +670,46 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
   }
 
   const addSleepingNightRule = () => {
-    const chargeRules = rules as ChargeCardRule[]
-    const dayType = nextNightDutyDayType(chargeRules, 'SLEEP_IN')
-    if (chargeRules.some(r => r.chargeMethod === 'SLEEP_IN' && r.dayType === dayType)) {
+    const dayType = nextNightDutyDayType(rules as PayCardRule[], 'SLEEP_IN')
+    const already = (rules as PayCardRule[]).some(
+      r =>
+        (r.rateType === 'SLEEP_IN' || (r as ChargeCardRule).chargeMethod === 'SLEEP_IN')
+        && r.dayType === dayType,
+    )
+    if (already) {
       toastWarning(
         'Already covered',
         `This card already has a Sleeping night rate for ${nightDutyDayTypeLabel(dayType)}.`,
       )
       return
     }
-    onChange([emptySleepingNightChargeRule(dayType), ...chargeRules])
+    onChange(
+      mode === 'charge'
+        ? [emptySleepingNightChargeRule(dayType), ...(rules as ChargeCardRule[])]
+        : [emptySleepingNightPayRule(dayType), ...(rules as PayCardRule[])],
+    )
     flashNewRules(1)
   }
 
   const addWakingNightRule = () => {
-    const chargeRules = rules as ChargeCardRule[]
-    const dayType = nextNightDutyDayType(chargeRules, 'WAKING_NIGHT')
-    if (chargeRules.some(r => r.chargeMethod === 'WAKING_NIGHT' && r.dayType === dayType)) {
+    const dayType = nextNightDutyDayType(rules as PayCardRule[], 'WAKING_NIGHT')
+    const already = (rules as PayCardRule[]).some(
+      r =>
+        (r.rateType === 'WAKING_NIGHT' || (r as ChargeCardRule).chargeMethod === 'WAKING_NIGHT')
+        && r.dayType === dayType,
+    )
+    if (already) {
       toastWarning(
         'Already covered',
         `This card already has a Waking night rate for ${nightDutyDayTypeLabel(dayType)}.`,
       )
       return
     }
-    onChange([emptyWakingNightChargeRule(dayType), ...chargeRules])
+    onChange(
+      mode === 'charge'
+        ? [emptyWakingNightChargeRule(dayType), ...(rules as ChargeCardRule[])]
+        : [emptyWakingNightPayRule(dayType), ...(rules as PayCardRule[])],
+    )
     flashNewRules(1)
   }
 
@@ -656,33 +717,42 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     index: number,
     dayType: BillingDayType,
   ) => {
-    const current = rules[index] as ChargeCardRule
-    const method = current.chargeMethod
-    if (method !== 'SLEEP_IN' && method !== 'WAKING_NIGHT') {
+    const current = rules[index] as PayCardRule & Partial<ChargeCardRule>
+    const kind: 'SLEEP_IN' | 'WAKING_NIGHT' | null =
+      current.chargeMethod === 'SLEEP_IN' || current.rateType === 'SLEEP_IN'
+        ? 'SLEEP_IN'
+        : current.chargeMethod === 'WAKING_NIGHT' || current.rateType === 'WAKING_NIGHT'
+          ? 'WAKING_NIGHT'
+          : null
+    if (!kind) {
       updateRule(index, { dayType })
       return
     }
-    const duplicate = (rules as ChargeCardRule[]).some(
+    const duplicate = (rules as PayCardRule[]).some(
       (rule, i) =>
         i !== index
-        && rule.chargeMethod === method
+        && (rule.rateType === kind || (rule as ChargeCardRule).chargeMethod === kind)
         && rule.dayType === dayType,
     )
     if (duplicate) {
       toastWarning(
         'Already covered',
-        `This card already has a ${method === 'SLEEP_IN' ? 'Sleeping' : 'Waking'} night rate for ${nightDutyDayTypeLabel(dayType)}.`,
+        `This card already has a ${kind === 'SLEEP_IN' ? 'Sleeping' : 'Waking'} night rate for ${nightDutyDayTypeLabel(dayType)}.`,
       )
       return
     }
     const autoLabel =
-      (method === 'SLEEP_IN'
-        ? emptySleepingNightChargeRule(dayType).label
-        : emptyWakingNightChargeRule(dayType).label) ?? ''
+      (kind === 'SLEEP_IN'
+        ? (mode === 'charge' ? emptySleepingNightChargeRule(dayType) : emptySleepingNightPayRule(dayType)).label
+        : (mode === 'charge' ? emptyWakingNightChargeRule(dayType) : emptyWakingNightPayRule(dayType)).label) ?? ''
     const currentAuto =
-      (method === 'SLEEP_IN'
-        ? emptySleepingNightChargeRule(current.dayType).label
-        : emptyWakingNightChargeRule(current.dayType).label) ?? ''
+      (kind === 'SLEEP_IN'
+        ? (mode === 'charge'
+            ? emptySleepingNightChargeRule(current.dayType)
+            : emptySleepingNightPayRule(current.dayType)).label
+        : (mode === 'charge'
+            ? emptyWakingNightChargeRule(current.dayType)
+            : emptyWakingNightPayRule(current.dayType)).label) ?? ''
     const keepCustomLabel =
       Boolean(current.label?.trim())
       && current.label!.trim().toLowerCase() !== currentAuto.toLowerCase()
@@ -714,8 +784,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
   const canAddSleepingNight = React.useMemo(() => {
     const used = new Set(
-      (rules as ChargeCardRule[])
-        .filter(r => r.chargeMethod === 'SLEEP_IN')
+      (rules as PayCardRule[])
+        .filter(r => r.rateType === 'SLEEP_IN' || (r as ChargeCardRule).chargeMethod === 'SLEEP_IN')
         .map(r => r.dayType),
     )
     return BILLING_DAY_TYPE_OPTIONS.some(opt => !used.has(opt.value))
@@ -723,8 +793,8 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
 
   const canAddWakingNight = React.useMemo(() => {
     const used = new Set(
-      (rules as ChargeCardRule[])
-        .filter(r => r.chargeMethod === 'WAKING_NIGHT')
+      (rules as PayCardRule[])
+        .filter(r => r.rateType === 'WAKING_NIGHT' || (r as ChargeCardRule).chargeMethod === 'WAKING_NIGHT')
         .map(r => r.dayType),
     )
     return BILLING_DAY_TYPE_OPTIONS.some(opt => !used.has(opt.value))
@@ -1059,21 +1129,13 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
     const fieldLabelClass = 'text-xs font-medium text-foreground/90'
     const isPeriodTaken = (code: PayTimePeriodCode) => {
       if (matched?.code === code) return false
-      const period = getPayTimePeriodByCode(code)
-      if (!period) return false
-      return Boolean(
-        findOverlappingHourlyPayRule(
-          rules as PayCardRule[],
-          {
-            label: period.label,
-            dayType: period.dayType,
-            startTime: period.startTime ?? '00:00',
-            endTime: period.endTime ?? '23:59',
-            rateType: 'HOURLY',
-          },
-          index,
-        ),
-      )
+      // Only treat a named period as taken when another rule is already that period
+      // (same label/day+times). Do not disable Daytime just because a Custom window
+      // like 01:00–23:59 overlaps the default 07:00–19:00 band.
+      return (rules as PayCardRule[]).some((other, otherIndex) => {
+        if (otherIndex === index || !isHourlyRule(other, mode)) return false
+        return matchPayTimePeriod(other)?.code === code
+      })
     }
 
     return (
@@ -1547,8 +1609,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
         </div>
       ) : null}
 
-      {mode === 'charge' ? (
-        <div className="space-y-2">
+      <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
@@ -1594,9 +1655,9 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             </div>
           </div>
           {(() => {
-            const items = (rules as ChargeCardRule[])
+            const items = (rules as PayCardRule[])
               .map((rule, index) => ({ rule, index }))
-              .filter(({ rule }) => isNightDutyChargeRule(rule))
+              .filter(({ rule }) => isNightDutyChargeRule(rule as ChargeCardRule))
             if (items.length === 0) {
               return (
                 <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3 text-sm text-muted-foreground">
@@ -1606,15 +1667,19 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
             }
             return (
               <div className="space-y-3">
-                {items.map(({ rule, index }) => (
+                {items.map(({ rule, index }) => {
+                  const isSleepIn =
+                    rule.rateType === 'SLEEP_IN'
+                    || (rule as ChargeCardRule).chargeMethod === 'SLEEP_IN'
+                  return (
                   <div key={index} className={ruleShellClass(index)}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 space-y-1">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {rule.label?.trim() || getRuleChargeMethodLabel(rule)}
+                          {rule.label?.trim() || getRuleRateTypeLabel(rule)}
                         </p>
                         <Badge variant="secondary" className="text-[10px] font-normal">
-                          {getRuleChargeMethodLabel(rule)}
+                          {getRuleRateTypeLabel(rule)}
                           {' · '}
                           {formatPayCardRuleDayType(rule.dayType)}
                         </Badge>
@@ -1638,7 +1703,7 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                           value={rule.label ?? ''}
                           onChange={e => updateRule(index, { label: e.target.value })}
                           placeholder={
-                            rule.chargeMethod === 'SLEEP_IN'
+                            isSleepIn
                               ? 'e.g. Sleeping night — weekday'
                               : 'e.g. Waking night — weekend'
                           }
@@ -1675,17 +1740,17 @@ export function BillingCardRulesEditor({ mode, rules, onChange, disabled }: Bill
                     </div>
                     <p className="text-xs leading-snug text-foreground/80 dark:text-zinc-300">
                       Note :{' '}
-                      {rule.chargeMethod === 'SLEEP_IN'
-                        ? 'For this type of visit the charge should be fixed — one amount for the whole night.'
-                        : 'For this type of visit the charge should be hourly — billed for the hours worked.'}
+                      {isSleepIn
+                        ? `For this type of visit the ${mode === 'charge' ? 'charge' : 'pay'} should be fixed — one amount for the whole night.`
+                        : `For this type of visit the ${mode === 'charge' ? 'charge' : 'pay'} should be hourly — ${mode === 'charge' ? 'billed' : 'paid'} for the hours worked.`}
                     </p>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )
           })()}
         </div>
-      ) : null}
 
       <div className="space-y-3 border-t border-border pt-3">
         <button

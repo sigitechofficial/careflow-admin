@@ -101,6 +101,26 @@ export type ListServiceUsersParams = {
   sortOrder?: 'asc' | 'desc'
   /** Branch / location scope (singular). */
   locationId?: string
+  riskLevelId?: string
+  ageMin?: number
+  ageMax?: number
+  hasActiveFlashMessage?: boolean
+  hospitalisedOnly?: boolean
+  unassignedKeyWorker?: boolean
+  carePlanListStatus?: CarePlanListStatus
+  medicalConditionId?: string
+  initialAssessmentStatus?: 'none' | 'in_progress' | 'awaiting_review' | 'completed'
+  missedVisitsMin?: number
+  missedVisitsFrom?: string
+  missedVisitsTo?: string
+  loneWorkerRisk?: boolean
+  verbalAltercation?: boolean
+  physicalAltercation?: boolean
+  dateOfDeathFrom?: string
+  dateOfDeathTo?: string
+  physicalAbuseToSu?: boolean
+  domesticViolence?: boolean
+  safeguardingHistory?: boolean
 }
 
 export type ServiceUserDetailContact = {
@@ -158,6 +178,8 @@ export type ServiceUserDetailAddress = {
   longitude: unknown
   accessInstructions: string | null
   keySafeNumber: string | null
+  accessMethod: string | null
+  keySafeLocation: string | null
 } | null
 
 export type ServiceUserDetailPhoto = {
@@ -193,6 +215,8 @@ export type ServiceUserDetail = {
   notes: string | null
   defaultChargeCardId?: string | null
   defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
+  /** How often this client is invoiced: WEEKLY or MONTHLY. */
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY' | string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -276,6 +300,13 @@ export type EnterpriseFunderRow = {
   name: string
   code: string | null
   fundingType?: { id: string; name: string; code: string } | null
+  paymentTerms?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  town?: string | null
+  county?: string | null
+  country?: string | null
+  postcode?: string | null
 }
 
 export type EnterpriseServiceUserFundingRow = {
@@ -300,6 +331,12 @@ export type EnterpriseServiceUserFundingRow = {
   billingContactName: string | null
   billingContactEmail: string | null
   billingContactPhone: string | null
+  billingAddressLine1: string | null
+  billingAddressLine2: string | null
+  billingTown: string | null
+  billingCounty: string | null
+  billingCountry: string | null
+  billingPostcode: string | null
   invoiceGroupingRule: string | null
   defaultChargeCardId: string | null
   defaultInvoiceTemplateId: string | null
@@ -316,6 +353,7 @@ export type EnterpriseServiceUserFundingRow = {
     id: string
     name: string
     code: string | null
+    paymentTerms?: string | null
     defaultChargeCardId?: string | null
     defaultChargeCard?: { id: string; name: string; code: string; status: string } | null
   } | null
@@ -347,10 +385,38 @@ export async function listEnterpriseFundingTypes(options?: { limit?: number }): 
   return res.data
 }
 
-export async function listEnterpriseFunders(options?: { limit?: number }): Promise<EnterpriseFunderRow[]> {
+export async function listEnterpriseFunders(options?: {
+  limit?: number
+  isActive?: boolean
+}): Promise<EnterpriseFunderRow[]> {
   const qs = new URLSearchParams()
-  qs.set('limit', String(options?.limit ?? 200))
+  qs.set('limit', String(Math.min(options?.limit ?? 200, 500)))
+  if (options?.isActive !== undefined) qs.set('isActive', String(options.isActive))
   const res = await apiJson<ApiEnvelope<EnterpriseFunderRow[]>>(`/funders?${qs}`, { method: 'GET' })
+  return res.data
+}
+
+export type UpdateEnterpriseFunderBody = {
+  name?: string
+  code?: string | null
+  fundingTypeId?: string | null
+  contactName?: string | null
+  email?: string | null
+  phone?: string | null
+  notes?: string | null
+  paymentTerms?: string | null
+  defaultChargeCardId?: string | null
+  defaultInvoiceTemplateId?: string | null
+}
+
+export async function updateEnterpriseFunder(
+  funderId: string,
+  body: UpdateEnterpriseFunderBody,
+): Promise<EnterpriseFunderRow> {
+  const res = await apiJson<ApiEnvelope<EnterpriseFunderRow>>(`/funders/${funderId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
   return res.data
 }
 
@@ -411,6 +477,12 @@ export type CreateEnterpriseServiceUserFundingBody = {
   billingContactName?: string | null
   billingContactEmail?: string | null
   billingContactPhone?: string | null
+  billingAddressLine1?: string | null
+  billingAddressLine2?: string | null
+  billingTown?: string | null
+  billingCounty?: string | null
+  billingCountry?: string | null
+  billingPostcode?: string | null
   invoiceGroupingRule?: string | null
   defaultChargeCardId?: string | null
   defaultInvoiceTemplateId?: string | null
@@ -1633,6 +1705,7 @@ export type UpdateServiceUserPayload = {
   namedNurseId?: string | null
   notes?: string | null
   defaultChargeCardId?: string | null
+  invoiceBillingFrequency?: 'WEEKLY' | 'MONTHLY'
   serviceUserNumber?: string | null
   residentId?: string | null
   residentGuid?: string | null
@@ -1704,6 +1777,26 @@ export async function listServiceUsers(
   if (params.sortBy) qs.set('sortBy', params.sortBy)
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
   if (params.locationId) qs.set('locationId', params.locationId)
+  if (params.riskLevelId) qs.set('riskLevelId', params.riskLevelId)
+  if (params.ageMin != null) qs.set('ageMin', String(params.ageMin))
+  if (params.ageMax != null) qs.set('ageMax', String(params.ageMax))
+  if (params.hasActiveFlashMessage === true) qs.set('hasActiveFlashMessage', 'true')
+  if (params.hospitalisedOnly === true) qs.set('hospitalisedOnly', 'true')
+  if (params.unassignedKeyWorker === true) qs.set('unassignedKeyWorker', 'true')
+  if (params.carePlanListStatus) qs.set('carePlanListStatus', params.carePlanListStatus)
+  if (params.medicalConditionId) qs.set('medicalConditionId', params.medicalConditionId)
+  if (params.initialAssessmentStatus) qs.set('initialAssessmentStatus', params.initialAssessmentStatus)
+  if (params.missedVisitsMin != null) qs.set('missedVisitsMin', String(params.missedVisitsMin))
+  if (params.missedVisitsFrom) qs.set('missedVisitsFrom', params.missedVisitsFrom)
+  if (params.missedVisitsTo) qs.set('missedVisitsTo', params.missedVisitsTo)
+  if (params.loneWorkerRisk === true) qs.set('loneWorkerRisk', 'true')
+  if (params.verbalAltercation === true) qs.set('verbalAltercation', 'true')
+  if (params.physicalAltercation === true) qs.set('physicalAltercation', 'true')
+  if (params.dateOfDeathFrom) qs.set('dateOfDeathFrom', params.dateOfDeathFrom)
+  if (params.dateOfDeathTo) qs.set('dateOfDeathTo', params.dateOfDeathTo)
+  if (params.physicalAbuseToSu === true) qs.set('physicalAbuseToSu', 'true')
+  if (params.domesticViolence === true) qs.set('domesticViolence', 'true')
+  if (params.safeguardingHistory === true) qs.set('safeguardingHistory', 'true')
   const q = qs.toString()
   const res = await apiJson<ApiEnvelope<ServiceUserListRow[]>>(`/service-users${q ? `?${q}` : ''}`, {
     method: 'GET',
@@ -1736,7 +1829,9 @@ export type PatchServiceUserAddressPayload = {
   latitude?: number
   longitude?: number
   accessInstructions?: string
-  keySafeNumber?: string
+  keySafeNumber?: string | null
+  accessMethod?: string | null
+  keySafeLocation?: string | null
 }
 
 /** Payload aligned with Nest `CreateServiceUserDto` (optional fields omitted when empty). */
