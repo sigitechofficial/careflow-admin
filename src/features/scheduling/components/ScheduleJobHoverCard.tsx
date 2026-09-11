@@ -49,6 +49,7 @@ import {
 import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
 import {
   isScheduleJobCancelled,
+  isScheduleJobCareNotDelivered,
   isScheduleJobCompleted,
 } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { isoToLocalTimeInput } from '@/features/scheduling/utils/schedule-jobs-drag.util'
@@ -90,6 +91,7 @@ type CardStatus =
   | 'unassigned'
   | 'cancelled'
   | 'completed'
+  | 'unableToStart'
 
 type StatusBadgeStyle = {
   label: string
@@ -125,6 +127,10 @@ const STATUS_BADGE: Record<CardStatus, StatusBadgeStyle> = {
     className:
       'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
   },
+  unableToStart: {
+    label: 'Unable to start',
+    className: 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  },
 }
 
 const TIME_BAND_CLASS: Record<TimeBandTone, string> = {
@@ -143,6 +149,7 @@ function resolveCardStatus(
   variant: Props['variant'],
   isUnassignedRow?: boolean,
 ): CardStatus {
+  if (isScheduleJobCareNotDelivered(job)) return 'unableToStart'
   if (isScheduleJobCompleted(job)) return 'completed'
   if (isScheduleJobCancelled(job)) return 'cancelled'
   if (isUnassignedRow) return 'unassigned'
@@ -161,6 +168,7 @@ function resolveTimeBandTone(
   timingChanged: boolean,
   underStaffed: boolean,
 ): TimeBandTone {
+  if (status === 'unableToStart') return 'amber'
   if (status === 'cancelled' || status === 'completed') return 'slate'
   if (status === 'not-available' || status === 'unassigned') return 'rose'
   if (status === 'possibly-available' || timingChanged || underStaffed) return 'amber'
@@ -478,7 +486,9 @@ export function JobHoverPanel({
           <div
             className={cn(
               'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold',
-              cancelled || completed
+              status === 'unableToStart'
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                : cancelled || completed
                 ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
                 : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
             )}

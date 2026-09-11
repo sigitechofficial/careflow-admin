@@ -63,6 +63,18 @@ describe('buildScheduleJobsBoard', () => {
     expect(jobBlockTone(onLeave)).toBe('orange')
     expect(jobBlockTone(needsCover)).toBe('orange')
   })
+
+  it('uses unableToStart tone when a completed visit recorded care not delivered', () => {
+    const job = {
+      ...makeJob('uts', 'COMPLETED'),
+      careNotDelivered: { reasonCode: 'CLIENT_NOT_HOME', reasonLabel: 'Client not at home' },
+    }
+    expect(jobBlockTone(job)).toBe('unableToStart')
+  })
+
+  it('uses completed tone for completed visits without care-not-delivered', () => {
+    expect(jobBlockTone(makeJob('done', 'COMPLETED'))).toBe('completed')
+  })
 })
 
 describe('jobBlockLayoutPx', () => {
