@@ -43,6 +43,10 @@ export type EcmPeriodUrlSearch = {
   to?: string
   /** @deprecated Prefer period/from/to. Single-day deep link. */
   date?: string
+  /** Live monitoring tab. */
+  tab?: 'ecm' | 'exceptions'
+  /** Exception-queue visit to expand. */
+  jobId?: string
 }
 
 export function isIsoDayString(value: unknown): value is string {
@@ -134,6 +138,24 @@ export function validateEcmPeriodSearch(raw: Record<string, unknown>): EcmPeriod
   if (isIsoDayString(raw.from)) out.from = raw.from
   if (isIsoDayString(raw.to)) out.to = raw.to
   if (isIsoDayString(raw.date)) out.date = raw.date
+  return out
+}
+
+export type EcmLiveUrlSearch = EcmPeriodUrlSearch & {
+  tab?: 'ecm' | 'exceptions'
+  jobId?: string
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Live monitoring search: period contract plus exception-queue deep link.
+ */
+export function validateEcmLiveSearch(raw: Record<string, unknown>): EcmLiveUrlSearch {
+  const out: EcmLiveUrlSearch = validateEcmPeriodSearch(raw)
+  if (raw.tab === 'exceptions' || raw.tab === 'ecm') out.tab = raw.tab
+  if (typeof raw.jobId === 'string' && UUID_RE.test(raw.jobId)) out.jobId = raw.jobId
   return out
 }
 

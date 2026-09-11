@@ -10,5 +10,6 @@ export function useNotifications(params: ListNotificationsParams = {}) {
     queryKey: ['notifications', params],
     queryFn: () => fetchNotifications(params),
     enabled: hasApi && can,
+    refetchOnWindowFocus: true,
   })
 }

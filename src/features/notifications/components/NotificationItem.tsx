@@ -3,6 +3,7 @@ import { Check, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import type { NotificationListItem, NotificationSeverity } from '@/features/notifications/types/notification.types'
+import { notificationDeepLink } from '@/features/notifications/utils/notification-deep-link'
 
 function severityDot(sev: NotificationSeverity) {
   switch (sev) {
@@ -22,10 +23,13 @@ type Props = {
   item: NotificationListItem
   onMarkRead: (id: string) => void
   onDismiss: (id: string) => void
+  onOpen?: (item: NotificationListItem) => void
 }
 
-export function NotificationItem({ item, onMarkRead, onDismiss }: Props) {
+export function NotificationItem({ item, onMarkRead, onDismiss, onOpen }: Props) {
   const unread = !item.readAt
+  const href = notificationDeepLink(item)
+
   return (
     <div
       className={cn(
@@ -34,13 +38,27 @@ export function NotificationItem({ item, onMarkRead, onDismiss }: Props) {
       )}
     >
       <div className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', severityDot(item.severity))} />
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-xs font-medium leading-snug">{item.title}</p>
-        <p className="text-xs text-muted-foreground line-clamp-2">{item.message}</p>
-        <p className="text-[10px] text-muted-foreground/80">
-          {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-        </p>
-      </div>
+      {href ? (
+        <button
+          type="button"
+          className="min-w-0 flex-1 space-y-0.5 text-left"
+          onClick={() => onOpen?.(item)}
+        >
+          <p className="text-xs font-medium leading-snug">{item.title}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2">{item.message}</p>
+          <p className="text-[10px] text-muted-foreground/80">
+            {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+          </p>
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="text-xs font-medium leading-snug">{item.title}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2">{item.message}</p>
+          <p className="text-[10px] text-muted-foreground/80">
+            {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+          </p>
+        </div>
+      )}
       <div className="flex shrink-0 flex-col gap-0.5">
         {unread ? (
           <Button

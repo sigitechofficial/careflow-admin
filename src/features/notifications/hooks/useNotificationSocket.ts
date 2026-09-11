@@ -9,6 +9,8 @@ import {
 import type { NotificationNewEvent, NotificationSeverity } from '@/features/notifications/types/notification.types'
 import { useNotificationSound } from '@/features/notifications/hooks/useNotificationSound'
 import { ecmKeys } from '@/features/ecm/keys'
+import { isUrgentOfficeAlertKind } from '@/features/ecm/utils/ecm-urgent-alert.util'
+import { notificationDeepLink } from '@/features/notifications/utils/notification-deep-link'
 
 function severityToToastVariant(
   s: NotificationSeverity,
@@ -51,20 +53,29 @@ export function useNotificationSocket() {
     const onNew = (payload: NotificationNewEvent) => {
       void qc.invalidateQueries({ queryKey: ['notifications'], exact: false })
       void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
-      if (payload.metadata?.kind === 'CARER_SOS') {
+      const kind =
+        typeof payload.metadata?.kind === 'string' ? payload.metadata.kind : null
+      const urgent = isUrgentOfficeAlertKind(kind)
+      if (urgent) {
         void qc.invalidateQueries({ queryKey: ecmKeys.all })
       }
 
       const prefs = qc.getQueryData<Array<{ type: string; soundEnabled: boolean }>>(['notification-preferences'])
       const row = prefs?.find(p => p.type === payload.type)
       const soundEnabled = row?.soundEnabled ?? true
+      const href = notificationDeepLink(payload)
 
       useToastStore.getState().push({
         title: payload.title,
         description: payload.message,
         variant: severityToToastVariant(payload.severity),
+        href: href ?? undefined,
+        duration: 5000,
       })
-      void tryPlay(payload.severity, { playSound: payload.playSound && soundEnabled })
+      void tryPlay(payload.severity, {
+        playSound: payload.playSound && soundEnabled,
+        urgentRing: urgent,
+      })
     }
 
     const onUnread = (p: { count: number }) => {

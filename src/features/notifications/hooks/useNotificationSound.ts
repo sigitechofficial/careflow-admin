@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { NotificationSeverity } from '@/features/notifications/types/notification.types'
 
 const THROTTLE_MS = 2000
+const URGENT_RING_THROTTLE_MS = 8000
 
 let lastPlayAt = 0
+let lastUrgentPlayAt = 0
 let audioCtx: AudioContext | null = null
 /** Survives hook remounts; set on any user gesture or prior activation (e.g. after login). */
 let audioUnlocked = false
@@ -62,6 +64,21 @@ async function beep(freq: number, durationMs: number, gain = 0.14) {
   osc.stop(t + durationMs / 1000)
 }
 
+/** Repeating two-tone ring for SOS / left-area / unable-to-start. */
+export async function playUrgentAlertRing() {
+  const now = Date.now()
+  if (now - lastUrgentPlayAt < URGENT_RING_THROTTLE_MS) return
+  lastUrgentPlayAt = now
+  lastPlayAt = now
+
+  for (let i = 0; i < 4; i++) {
+    await beep(880, 160, 0.22)
+    await new Promise(resolve => window.setTimeout(resolve, 70))
+    await beep(698, 180, 0.22)
+    if (i < 3) await new Promise(resolve => window.setTimeout(resolve, 260))
+  }
+}
+
 /** Web Audio beeps (throttled). */
 export async function playNotificationSound(severity: NotificationSeverity) {
   const now = Date.now()
@@ -107,12 +124,20 @@ export function useNotificationSound() {
   }, [])
 
   const tryPlay = useCallback(
-    async (severity: NotificationSeverity, opts?: { playSound?: boolean }) => {
+    async (
+      severity: NotificationSeverity,
+      opts?: { playSound?: boolean; urgentRing?: boolean },
+    ) => {
       if (opts?.playSound === false) return
       if (!audioUnlocked && !hasBrowserUserActivation()) return
 
       markNotificationAudioUnlocked()
       unlockedRef.current = true
+
+      if (opts?.urgentRing) {
+        await playUrgentAlertRing()
+        return
+      }
 
       const now = Date.now()
       if (now - lastPlayAt < THROTTLE_MS) return

@@ -26,6 +26,7 @@ import {
 
 function humanizeTag(code: string): string {
   if (code === 'OUTSIDE_AREA_CHECK_IN_REQUEST') return 'Outside area check-in'
+  if (code === 'UNABLE_TO_START') return 'Unable to start'
   return code
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -46,6 +47,7 @@ function rowMatchesQueueTag(row: EcmExceptionRow, tag: string): boolean {
 /** Always shown — even when count is 0 — so coordinators can filter an empty period. */
 const ALWAYS_QUEUE_TAGS = [
   'CARER_SOS',
+  'UNABLE_TO_START',
   'MOCK_LOCATION',
   'OVERDUE',
   'LEFT_VISIT_AREA',
@@ -120,6 +122,10 @@ function isCheckInRequestPending(row: EcmExceptionRow): boolean {
   )
 }
 
+function isUnableToStart(row: EcmExceptionRow): boolean {
+  return row.kind === 'UNABLE_TO_START'
+}
+
 function isCarerSos(row: EcmExceptionRow): boolean {
   return row.kind === 'CARER_SOS'
 }
@@ -142,12 +148,13 @@ function isAreaLockPending(row: EcmExceptionRow): boolean {
 function visitRowRank(row: EcmExceptionRow): number {
   if (isCarerSos(row) && !isSosAcknowledged(row)) return 0
   if (isAreaLockPending(row)) return 1
-  if (isCheckInRequestPending(row)) return 2
-  if (isLeftVisitArea(row)) return 3
-  if (isOutsideAreaCheckInRequest(row)) return 4
-  if (isCarerSos(row)) return 5
-  if (row.overdue) return 6
-  return 7
+  if (isUnableToStart(row)) return 2
+  if (isCheckInRequestPending(row)) return 3
+  if (isLeftVisitArea(row)) return 4
+  if (isOutsideAreaCheckInRequest(row)) return 5
+  if (isCarerSos(row)) return 6
+  if (row.overdue) return 7
+  return 8
 }
 
 function visitGroupRank(rows: EcmExceptionRow[]): number {
@@ -177,6 +184,7 @@ export function EcmExceptionQueuePanel({
   dateFrom,
   dateTo,
   periodLabel,
+  focusJobId,
 }: {
   onOpenVisit: (jobId: string) => void
   /** When set, only exceptions for this service user are loaded. */
@@ -187,6 +195,8 @@ export function EcmExceptionQueuePanel({
   dateTo?: string
   /** Human label for the active operational period (preset name or date span). */
   periodLabel?: string
+  /** Expand and scroll to this visit (notification deep link). */
+  focusJobId?: string | null
 }) {
   const { locationId: globalLocationId } = useGlobalLocationScope()
   const locationId = serviceUserId ? undefined : (globalLocationId ?? undefined)
@@ -196,6 +206,10 @@ export function EcmExceptionQueuePanel({
     undefined,
   )
   const [tagFilter, setTagFilter] = React.useState('all')
+
+  React.useEffect(() => {
+    if (focusJobId) setExpandedId(visitQueueKey(focusJobId))
+  }, [focusJobId])
 
   const allRows = exceptions.data ?? []
   const periodRows = React.useMemo(() => {
@@ -263,12 +277,18 @@ export function EcmExceptionQueuePanel({
       (row) =>
         (isCarerSos(row) && !isSosAcknowledged(row)) ||
         isAreaLockPending(row) ||
+        isUnableToStart(row) ||
         isCheckInRequestPending(row),
     ),
   )
-  const defaultExpandedId = firstActionVisit
-    ? visitQueueKey(firstActionVisit.jobId)
+  const focusedVisit = focusJobId
+    ? visibleVisits.find((visit) => visit.jobId === focusJobId)
     : null
+  const defaultExpandedId = focusedVisit
+    ? visitQueueKey(focusedVisit.jobId)
+    : firstActionVisit
+      ? visitQueueKey(firstActionVisit.jobId)
+      : null
 
   const showingLabel = [
     periodLabel ? `Showing exceptions for ${periodLabel}.` : 'Showing all open exceptions.',
@@ -372,6 +392,7 @@ export function EcmExceptionQueuePanel({
                 key={key}
                 rows={visit.rows}
                 expanded={expanded}
+                focused={Boolean(focusJobId && visit.jobId === focusJobId)}
                 onToggle={() =>
                   setExpandedId(current => {
                     const openId = current === undefined ? defaultExpandedId : current

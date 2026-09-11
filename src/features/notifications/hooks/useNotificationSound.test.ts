@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import {
   markNotificationAudioUnlocked,
   playNotificationSound,
+  playUrgentAlertRing,
   useNotificationSound,
 } from '@/features/notifications/hooks/useNotificationSound'
 
@@ -77,5 +78,6 @@ describe('useNotificationSound', () => {
 describe('playNotificationSound', () => {
   it('is defined', () => {
     expect(typeof playNotificationSound).toBe('function')
+    expect(typeof playUrgentAlertRing).toBe('function')
   })
 })

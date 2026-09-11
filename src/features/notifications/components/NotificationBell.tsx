@@ -29,6 +29,7 @@ export function NotificationBell() {
   const canRead = useAuthStore(s => s.can('notifications.preferences.read'))
   const { data: prefs } = useNotificationPreferences({ enabled: hasApi && canRead })
   const [prefsOpen, setPrefsOpen] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
   const [pulse, setPulse] = React.useState(false)
 
   React.useEffect(() => {
@@ -44,7 +45,7 @@ export function NotificationBell() {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -69,7 +70,10 @@ export function NotificationBell() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96 p-0" onCloseAutoFocus={e => e.preventDefault()}>
-          <NotificationDropdown onOpenPreferences={() => setPrefsOpen(true)} />
+          <NotificationDropdown
+            onOpenPreferences={() => setPrefsOpen(true)}
+            onNavigate={() => setMenuOpen(false)}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
 
