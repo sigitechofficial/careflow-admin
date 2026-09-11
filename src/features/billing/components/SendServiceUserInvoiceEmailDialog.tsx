@@ -93,9 +93,6 @@ export function SendServiceUserInvoiceEmailDialog({
 
   const selectedShare =
     preview?.funders?.find((f) => funderKey(f.funderId) === selectedFunderKey) ?? null
-  const suggestions = selectedShare?.suggestions?.length
-    ? selectedShare.suggestions
-    : (preview?.suggestions ?? [])
   const amountLabel = selectedShare?.subtotal ?? preview?.subtotal
   const needsFunder = Boolean(preview?.requiresFunderSelection)
 
@@ -211,24 +208,13 @@ export function SendServiceUserInvoiceEmailDialog({
                   onChange={(e) => setToEmail(e.target.value)}
                   placeholder="billing@example.com"
                 />
-                {suggestions.length > 1 ? (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {suggestions.map((s) => (
-                      <button
-                        key={`${s.source}-${s.email}`}
-                        type="button"
-                        className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground hover:border-primary hover:text-foreground"
-                        onClick={() => setToEmail(s.email)}
-                        title={s.label}
-                      >
-                        {s.email}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
                 {!toEmail.trim() ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    No billing contact or service user email on file — enter an address above.
+                    No funding billing contact email on file — enter an address above.
+                  </p>
+                ) : selectedShare ? (
+                  <p className="text-xs text-muted-foreground">
+                    Prefills from {selectedShare.funderName} funding billing contact.
                   </p>
                 ) : null}
               </div>
