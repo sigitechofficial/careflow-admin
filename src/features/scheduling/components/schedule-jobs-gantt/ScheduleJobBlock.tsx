@@ -13,6 +13,7 @@ import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/sche
 import type { ScheduleJobContextAction } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import {
   isScheduleJobCancelled,
+  isScheduleJobCareNotDelivered,
   isScheduleJobCompleted,
   isScheduleJobReadOnly,
 } from '@/features/scheduling/types/schedule-job-context-actions.types'
@@ -40,6 +41,7 @@ import {
   jobBlockCancelledSurfaceStyle,
   jobBlockCompletedSurfaceStyle,
   jobBlockTone,
+  jobBlockUnableToStartSurfaceStyle,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { jobBlockLayoutPxInViewport } from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import type { ScheduleJobsTimelineViewport } from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
@@ -249,6 +251,11 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
   const readOnly = isScheduleJobReadOnly(job)
   const completed = isScheduleJobCompleted(job)
   const cancelled = isScheduleJobCancelled(job)
+  const careNotDelivered = isScheduleJobCareNotDelivered(job)
+  const unableToStartReason =
+    job.careNotDelivered?.reasonLabel?.trim() ||
+    job.careNotDelivered?.reasonCode?.replace(/_/g, ' ') ||
+    'Care could not be delivered'
   const layout = jobBlockLayoutPxInViewport(job, viewport)
   if (!layout) return null
   const { leftPx, widthPx } = layout
@@ -357,7 +364,11 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
               ['--schedule-job-lane-height' as string]: `${jobLaneHeight}px`,
             }
           : {}),
-        ...(completed ? jobBlockCompletedSurfaceStyle : {}),
+        ...(careNotDelivered
+          ? jobBlockUnableToStartSurfaceStyle
+          : completed
+            ? jobBlockCompletedSurfaceStyle
+            : {}),
         ...(cancelled ? jobBlockCancelledSurfaceStyle : {}),
         ...(runAccent && !cancelled ? { borderLeftColor: runAccent.border } : {}),
       }}
@@ -366,6 +377,8 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
           ? `${formatJobTimeRange(job)} · Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time — ${labelLines.join(' · ')}`
           : showRunUi && runLabel
           ? `${formatJobTimeRange(job)} · ${runLabel} — ${labelLines.join(' · ')}`
+          : careNotDelivered
+          ? `${formatJobTimeRange(job)} · Unable to start · ${unableToStartReason}`
           : completed
           ? `${formatJobTimeRange(job)} · Visit completed — click to view details`
           : cancelled

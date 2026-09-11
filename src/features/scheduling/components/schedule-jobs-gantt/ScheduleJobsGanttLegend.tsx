@@ -1,8 +1,11 @@
+import type { CSSProperties } from 'react'
 import { Clock } from 'lucide-react'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { SCHEDULE_JOBS_GANTT_PERIOD_ICONS } from '@/features/scheduling/components/schedule-jobs-gantt/schedule-jobs-gantt.util'
 import {
   SCHEDULE_JOBS_DAY_PERIOD_BANDS,
+  jobBlockCompletedSurfaceStyle,
+  jobBlockUnableToStartSurfaceStyle,
   scheduleJobsPeriodBandHeaderClass,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { cn } from '@/shared/lib/utils'
@@ -11,14 +14,21 @@ function LegendPill({
   swatch,
   label,
   striped,
+  hatchStyle,
 }: {
   swatch?: string
   label: string
   striped?: boolean
+  hatchStyle?: CSSProperties
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-[10px] font-medium text-muted-foreground shadow-sm">
-      {striped ? (
+      {hatchStyle ? (
+        <span
+          className="inline-block h-2 w-5 rounded-sm border border-slate-300/80"
+          style={hatchStyle}
+        />
+      ) : striped ? (
         <span
           className="inline-block h-2 w-5 rounded-sm border border-slate-300/80"
           style={{
@@ -59,6 +69,8 @@ export function ScheduleJobsGanttLegend({
       <LegendPill swatch="bg-sky-600" label="Early start / end" />
       <LegendPill swatch="bg-orange-600" label="Late start / end / overrun" />
       <LegendPill swatch="bg-destructive" label="Critically late" />
+      <LegendPill hatchStyle={jobBlockCompletedSurfaceStyle} label="Completed" />
+      <LegendPill hatchStyle={jobBlockUnableToStartSurfaceStyle} label="Unable to start" />
       <div className="hidden h-4 w-px bg-border/80 sm:block" />
       {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
         <button

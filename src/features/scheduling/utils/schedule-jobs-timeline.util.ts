@@ -1,5 +1,5 @@
 import type { EmployeeBrief, EmployeeDayRow, TimelineJob } from '@/features/scheduling/types/scheduling.types'
-import { isScheduleJobCancelled } from '@/features/scheduling/types/schedule-job-context-actions.types'
+import { isScheduleJobCancelled, isScheduleJobCareNotDelivered } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { activeJobAllocationCount } from '@/features/scheduling/utils/scheduling-format'
 import {
   formatDisplayDateLong,
@@ -271,12 +271,20 @@ export function jobRequiredCarerMinutes(
   return jobDurationMinutes(job) * Math.max(1, job.requiredCarers)
 }
 
-export type JobBlockTone = 'green' | 'orange' | 'red' | 'neutral' | 'completed' | 'cancelled'
+export type JobBlockTone =
+  | 'green'
+  | 'orange'
+  | 'red'
+  | 'neutral'
+  | 'completed'
+  | 'unableToStart'
+  | 'cancelled'
 
 export function jobBlockTone(
   job: TimelineJob,
   options?: { outsideWorkingPattern?: boolean },
 ): JobBlockTone {
+  if (isScheduleJobCareNotDelivered(job)) return 'unableToStart'
   if (job.status === 'COMPLETED') return 'completed'
   if (isScheduleJobCancelled(job)) return 'cancelled'
   if (options?.outsideWorkingPattern) return 'orange'
@@ -290,6 +298,8 @@ export function jobBlockTone(
 export const JOB_BLOCK_TONE_CLASSES: Record<JobBlockTone, string> = {
   completed:
     'border-[#6ee7b7] text-[#047857] shadow-sm ring-1 ring-emerald-600/20 hover:ring-emerald-600/35',
+  unableToStart:
+    'border-amber-400 text-amber-900 shadow-sm ring-1 ring-amber-600/20 hover:ring-amber-600/35 dark:text-amber-100',
   cancelled:
     'border-slate-500/80 text-slate-800 shadow-sm ring-1 ring-slate-500/20 hover:ring-slate-500/35 dark:border-slate-600 dark:text-slate-100',
   green:
@@ -316,6 +326,15 @@ export const jobBlockCompletedSurfaceStyle = {
   backgroundImage: [
     'repeating-linear-gradient(45deg, rgba(4, 120, 87, 0.22) 0, rgba(4, 120, 87, 0.22) 1px, transparent 1px, transparent 7px)',
     'repeating-linear-gradient(-45deg, rgba(4, 120, 87, 0.22) 0, rgba(4, 120, 87, 0.22) 1px, transparent 1px, transparent 7px)',
+  ].join(', '),
+} as const
+
+/** Unable-to-start (care not delivered) — amber hatch so it is distinct from completed green. */
+export const jobBlockUnableToStartSurfaceStyle = {
+  backgroundColor: '#fef3c7',
+  backgroundImage: [
+    'repeating-linear-gradient(45deg, rgba(180, 83, 9, 0.28) 0, rgba(180, 83, 9, 0.28) 1px, transparent 1px, transparent 7px)',
+    'repeating-linear-gradient(-45deg, rgba(180, 83, 9, 0.28) 0, rgba(180, 83, 9, 0.28) 1px, transparent 1px, transparent 7px)',
   ].join(', '),
 } as const
 

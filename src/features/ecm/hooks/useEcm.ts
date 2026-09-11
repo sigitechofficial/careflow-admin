@@ -26,6 +26,7 @@ import {
   updateEcmThresholdLookup,
 } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 export function useEcmLiveDashboard(filters?: {
   date?: string
@@ -211,9 +212,11 @@ export function useAuthoriseCheckInMethodGrant() {
       note?: string
     }) => authoriseCheckInMethodGrant(jobId, grantId, note),
     onSuccess: (_data, vars) => {
+      toastSuccess('Manual check-in authorised')
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
       void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
     },
+    onError: e => toastApiError(e, 'Could not authorise Manual'),
   })
 }
 
@@ -230,9 +233,11 @@ export function useRejectCheckInMethodGrant() {
       note?: string
     }) => rejectCheckInMethodGrant(jobId, grantId, note),
     onSuccess: (_data, vars) => {
+      toastSuccess('Outside area check-in rejected')
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
       void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
     },
+    onError: e => toastApiError(e, 'Could not reject this request'),
   })
 }
 

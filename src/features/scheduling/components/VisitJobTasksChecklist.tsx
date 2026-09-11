@@ -1,7 +1,7 @@
-import { AlertTriangle, CheckSquare, Flag, ListChecks, Loader2, Users, X } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, CheckSquare, ChevronDown, Flag, ListChecks, Loader2, Users, X } from 'lucide-react'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { Input } from '@/shared/ui/input'
-import { Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { formatOpsClockTime, formatOpsHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
@@ -192,9 +192,11 @@ function CarerObservationField({ label, value }: { label: string; value?: string
 function VisitJobTaskCarerRecord({
   task,
   observation,
+  includeOutcomeNotes = true,
 }: {
   task: VisitJobTaskRow
   observation?: RecordedObservation | null
+  includeOutcomeNotes?: boolean
 }) {
   const outcome = inferVisitJobTaskOutcome(task)
   if (!outcome && !task.isCompleted) return null
@@ -202,7 +204,6 @@ function VisitJobTaskCarerRecord({
   const spec = task.completionInput
   const needsValue = spec?.inputMode === 'value' || spec?.inputMode === 'value_and_note'
   const valueLabel = spec?.valueLabel?.trim() || 'Reading'
-  // Named completion note (e.g. Insulin → "Injection site"), else generic.
   const noteLabel = spec?.noteLabel?.trim() || 'Task outcome notes'
   const value = displayVisitTaskRecordedValue(task.recordedValue)
   const outcomeNotes = stripVisitTaskOutcomeNotes(task.notes)
@@ -244,7 +245,9 @@ function VisitJobTaskCarerRecord({
         {needsValue && !observation ? (
           <CarerField label={valueLabel} value={value} />
         ) : null}
-        <CarerField label={noteLabel} value={outcomeNotes} />
+        {includeOutcomeNotes ? (
+          <CarerField label={noteLabel} value={outcomeNotes} />
+        ) : null}
       </div>
     </div>
   )
@@ -265,6 +268,17 @@ export function VisitJobTasksChecklist({
   listMaxHeightClass = 'max-h-[min(24rem,50vh)]',
   observationsByType,
 }: Props) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
+
+  const toggleExpanded = (assignmentId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(assignmentId)) next.delete(assignmentId)
+      else next.add(assignmentId)
+      return next
+    })
+  }
+
   if (loading) {
     return (
       <div
@@ -312,14 +326,11 @@ export function VisitJobTasksChecklist({
     const taskVisual = groupVisual(task.groupCode)
     const spec = task.completionInput
     const needsValue = spec.inputMode === 'value' || spec.inputMode === 'value_and_note'
-    const needsNote = spec.inputMode === 'note' || spec.inputMode === 'value_and_note'
     const valueLabel = spec.valueLabel?.trim() || 'Reading'
-    const noteLabel = spec.noteLabel?.trim() || 'Notes'
     const effectiveOutcome = outcome ?? 'completed'
-    const needsNoteEditor =
-      (needsNote && effectiveOutcome === 'completed') ||
-      effectiveOutcome === 'partial' ||
-      effectiveOutcome === 'declined'
+    const observation = observationForTask(task, observationsByType)
+    const isExpanded = expandedIds.has(task.assignmentId)
+    const detailsId = `${idPrefix}-${task.assignmentId}-details`
 
     return (
       <li
@@ -336,11 +347,46 @@ export function VisitJobTasksChecklist({
                 : 'border-border',
         )}
       >
-        <div className="flex items-start gap-3 px-3 py-3">
+        <div className="flex items-center gap-2 px-3 py-2.5">
           {!task.isExtra ? (
-            <PlannerIconBadge visual={taskVisual} size="sm" className="mt-0.5 shrink-0" />
+            <PlannerIconBadge visual={taskVisual} size="sm" className="shrink-0" />
           ) : null}
-          <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            aria-expanded={isExpanded}
+            aria-controls={detailsId}
+            onClick={() => toggleExpanded(task.assignmentId)}
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+              {task.name}
+            </span>
+            {outcome === 'completed' ? (
+              <CheckSquare className="h-4 w-4 shrink-0 text-teal-600" aria-label="Completed" />
+            ) : null}
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                isExpanded && 'rotate-180',
+              )}
+              aria-hidden
+            />
+          </button>
+          {task.isExtra && onRemoveExtra ? (
+            <button
+              type="button"
+              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              disabled={disabled}
+              aria-label={`Remove extra task ${task.name}`}
+              onClick={() => onRemoveExtra(task.assignmentId)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+
+        {isExpanded ? (
+          <div id={detailsId} className="border-t border-border/60 px-3 pb-3 pt-3">
             <div className="flex items-start gap-3">
               <Checkbox
                 id={`${idPrefix}-${task.assignmentId}`}
@@ -358,54 +404,30 @@ export function VisitJobTasksChecklist({
                 }}
               />
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <label
-                    htmlFor={`${idPrefix}-${task.assignmentId}`}
-                    className="min-w-0 cursor-pointer"
-                  >
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">{task.name}</span>
-                      {task.isExtra ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                          Extra
-                        </span>
-                      ) : null}
-                      {task.observationTypeCode ? (
-                        <span className="rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
-                          Records observation
-                        </span>
-                      ) : null}
-                      {task.requiresMultipleCarers ? (
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-950 dark:text-sky-200"
-                          title="This task requires more than one carer"
-                        >
-                          <Users className="h-3 w-3" aria-hidden />
-                          2+ carers
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {task.categoryName}
-                    </span>
-                  </label>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {outcome === 'completed' ? (
-                      <CheckSquare className="h-4 w-4 text-teal-600" aria-hidden />
+                <label htmlFor={`${idPrefix}-${task.assignmentId}`} className="min-w-0 cursor-pointer">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {task.isExtra ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        Extra
+                      </span>
                     ) : null}
-                    {task.isExtra && onRemoveExtra ? (
-                      <button
-                        type="button"
-                        className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        disabled={disabled}
-                        aria-label={`Remove extra task ${task.name}`}
-                        onClick={() => onRemoveExtra(task.assignmentId)}
+                    {task.observationTypeCode ? (
+                      <span className="rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
+                        Records observation
+                      </span>
+                    ) : null}
+                    {task.requiresMultipleCarers ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+                        title="This task requires more than one carer"
                       >
-                        <X className="h-4 w-4" />
-                      </button>
+                        <Users className="h-3 w-3" aria-hidden />
+                        2+ carers
+                      </span>
                     ) : null}
-                  </div>
-                </div>
+                  </span>
+                  <span className="block text-xs text-muted-foreground">{task.categoryName}</span>
+                </label>
 
                 {!task.isExtra ? (
                   <VisitJobTaskCarerGuidance
@@ -416,114 +438,92 @@ export function VisitJobTasksChecklist({
 
                 <VisitJobTaskCarerRecord
                   task={task}
-                  observation={observationForTask(task, observationsByType)}
+                  observation={observation}
+                  includeOutcomeNotes={!showOutcomeFields}
                 />
 
-              </div>
-            </div>
+                {showOutcomeFields ? (
+                  <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">Update outcome</p>
+                      <div
+                        className="flex flex-wrap gap-2"
+                        role="radiogroup"
+                        aria-label={`Outcome for ${task.name}`}
+                      >
+                        {VISIT_JOB_TASK_OUTCOMES.map((option) => {
+                          const selected = (outcome ?? 'completed') === option.value
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              disabled={disabled}
+                              title={option.description}
+                              onClick={() =>
+                                onTaskChange(task.assignmentId, {
+                                  isCompleted: true,
+                                  outcome: option.value,
+                                })
+                              }
+                              className={cn(
+                                'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                                'disabled:cursor-not-allowed disabled:opacity-50',
+                                !selected &&
+                                  'border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                                selected &&
+                                  option.value === 'completed' &&
+                                  'border-teal-500 bg-teal-100 text-teal-900 dark:border-teal-600 dark:bg-teal-950 dark:text-teal-100',
+                                selected &&
+                                  option.value === 'partial' &&
+                                  'border-amber-500 bg-amber-100 text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100',
+                                selected &&
+                                  option.value === 'declined' &&
+                                  'border-rose-500 bg-rose-100 text-rose-900 dark:border-rose-600 dark:bg-rose-950 dark:text-rose-100',
+                              )}
+                            >
+                              {option.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
 
-            {showOutcomeFields ? (
-              <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">Update outcome</p>
-                  <div
-                    className="flex flex-wrap gap-2"
-                    role="radiogroup"
-                    aria-label={`Outcome for ${task.name}`}
-                  >
-                    {VISIT_JOB_TASK_OUTCOMES.map((option) => {
-                      const selected = (outcome ?? 'completed') === option.value
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
+                    <CarerField
+                      label={spec.noteLabel?.trim() || 'Task outcome notes'}
+                      value={stripVisitTaskOutcomeNotes(task.notes)}
+                    />
+
+                    {needsValue && effectiveOutcome === 'completed' && !observation ? (
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor={`${idPrefix}-${task.assignmentId}-value`}
+                          className="text-xs font-medium text-muted-foreground"
+                        >
+                          {valueLabel}
+                        </label>
+                        <Input
+                          id={`${idPrefix}-${task.assignmentId}-value`}
+                          value={displayVisitTaskRecordedValue(task.recordedValue)}
+                          placeholder={spec.valuePlaceholder || `Enter ${valueLabel.toLowerCase()}`}
                           disabled={disabled}
-                          title={option.description}
-                          onClick={() =>
+                          onChange={(e) =>
                             onTaskChange(task.assignmentId, {
                               isCompleted: true,
-                              outcome: option.value,
+                              recordedValue: e.target.value,
                             })
                           }
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-                            'disabled:cursor-not-allowed disabled:opacity-50',
-                            !selected &&
-                              'border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                            selected &&
-                              option.value === 'completed' &&
-                              'border-teal-500 bg-teal-100 text-teal-900 dark:border-teal-600 dark:bg-teal-950 dark:text-teal-100',
-                            selected &&
-                              option.value === 'partial' &&
-                              'border-amber-500 bg-amber-100 text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100',
-                            selected &&
-                              option.value === 'declined' &&
-                              'border-rose-500 bg-rose-100 text-rose-900 dark:border-rose-600 dark:bg-rose-950 dark:text-rose-100',
-                          )}
-                        >
-                          {option.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {needsValue && effectiveOutcome === 'completed' ? (
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor={`${idPrefix}-${task.assignmentId}-value`}
-                      className="text-xs font-medium text-muted-foreground"
-                    >
-                      {valueLabel}
-                    </label>
-                    <Input
-                      id={`${idPrefix}-${task.assignmentId}-value`}
-                      value={displayVisitTaskRecordedValue(task.recordedValue)}
-                      placeholder={spec.valuePlaceholder || `Enter ${valueLabel.toLowerCase()}`}
-                      disabled={disabled}
-                      onChange={(e) =>
-                        onTaskChange(task.assignmentId, {
-                          isCompleted: true,
-                          recordedValue: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                ) : null}
-
-                {needsNoteEditor ? (
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor={`${idPrefix}-${task.assignmentId}-note`}
-                      className="text-xs font-medium text-muted-foreground"
-                    >
-                      {noteLabel}
-                      {effectiveOutcome === 'partial' || effectiveOutcome === 'declined'
-                        ? ' (required)'
-                        : ''}
-                    </label>
-                    <Textarea
-                      id={`${idPrefix}-${task.assignmentId}-note`}
-                      rows={2}
-                      value={task.notes ?? ''}
-                      placeholder={spec.notePlaceholder || 'Add notes…'}
-                      disabled={disabled}
-                      onChange={(e) =>
-                        onTaskChange(task.assignmentId, {
-                          isCompleted: true,
-                          notes: e.target.value,
-                        })
-                      }
-                    />
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
-            ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
       </li>
     )
   }
@@ -548,7 +548,7 @@ export function VisitJobTasksChecklist({
             </span>
           </p>
           <p className="text-xs text-muted-foreground">
-            Same details as the carer app: outcome, value/notes, and who recorded the task.
+            Tap a task to open the same details as the carer app: outcome, value/notes, and who recorded it.
             {criticalCount > 0 ? (
               <span className="font-medium text-red-700 dark:text-red-300">
                 {' '}

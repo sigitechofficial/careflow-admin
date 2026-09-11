@@ -8,7 +8,6 @@ import {
   ExternalLink,
   Hash,
   Lock,
-  MapPin,
   MapPinOff,
   Navigation,
   Siren,
@@ -447,7 +446,6 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
   const status = grant?.status ?? 'PENDING'
   const pending = status === 'PENDING'
   const authorised = Boolean(grant?.manualEnabled)
-  const mapsHref = mapsHrefFor(row)
   const busy = authorise.isPending || reject.isPending
 
   return (
@@ -464,18 +462,6 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
       ) : (
         <p className="text-sm text-muted-foreground">No note from the carer.</p>
       )}
-      {mapsHref ? (
-        <a
-          href={mapsHref}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-        >
-          <MapPin className="h-4 w-4" aria-hidden />
-          Open GPS snapshot
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-        </a>
-      ) : null}
       {authorised ? (
         <p className="text-sm text-foreground">
           Authorised{grant?.decidedByName ? ` by ${grant.decidedByName}` : ''} —
