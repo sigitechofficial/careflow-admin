@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Radio } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
@@ -6,6 +7,7 @@ import { EcmExceptionQueueWorkspace } from '@/features/ecm/components/EcmExcepti
 import { EcmLiveMonitoringPanel } from '@/features/ecm/components/EcmLiveMonitoringPanel'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
+import type { EcmLiveUrlSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
 
 function isClosedLifecycle(lifecycle: string): boolean {
   return (
@@ -25,6 +27,7 @@ function useExceptionQueueTabFlags() {
     const sosJobs = new Set<string>()
     const lockedAreaJobs = new Set<string>()
     const checkInRequestJobs = new Set<string>()
+    const unableToStartJobs = new Set<string>()
     for (const row of exceptions.data ?? []) {
       if (
         row.kind === 'CARER_SOS' &&
@@ -45,26 +48,48 @@ function useExceptionQueueTabFlags() {
       ) {
         checkInRequestJobs.add(row.scheduledJobId)
       }
+      if (row.kind === 'UNABLE_TO_START' && !isClosedLifecycle(row.lifecycle)) {
+        unableToStartJobs.add(row.scheduledJobId)
+      }
     }
     return {
       sosVisitCount: sosJobs.size,
       lockedAreaVisitCount: lockedAreaJobs.size,
       checkInRequestVisitCount: checkInRequestJobs.size,
+      unableToStartVisitCount: unableToStartJobs.size,
     }
   }, [exceptions.data])
 }
 
 export default function EcmLiveMonitoringPage() {
-  const [tab, setTab] = React.useState('ecm')
-  const { sosVisitCount, lockedAreaVisitCount, checkInRequestVisitCount } =
-    useExceptionQueueTabFlags()
+  const navigate = useNavigate()
+  const search = useSearch({ strict: false }) as EcmLiveUrlSearch
+  const tab = search.tab === 'exceptions' ? 'exceptions' : 'ecm'
+  const {
+    sosVisitCount,
+    lockedAreaVisitCount,
+    checkInRequestVisitCount,
+    unableToStartVisitCount,
+  } = useExceptionQueueTabFlags()
   const flagBits = [
     sosVisitCount > 0 ? `${sosVisitCount} carer SOS` : null,
     lockedAreaVisitCount > 0 ? `${lockedAreaVisitCount} left visit area` : null,
+    unableToStartVisitCount > 0 ? `${unableToStartVisitCount} unable to start` : null,
     checkInRequestVisitCount > 0
       ? `${checkInRequestVisitCount} outside area check-in`
       : null,
   ].filter(Boolean)
+
+  const setTab = (next: string) => {
+    void navigate({
+      to: '/ecm/live',
+      search: (prev: EcmLiveUrlSearch) => ({
+        ...prev,
+        tab: next === 'exceptions' ? 'exceptions' : 'ecm',
+      }),
+      replace: true,
+    })
+  }
 
   return (
     <div className="flex flex-col gap-4" data-testid="ecm-live-monitoring-page">
@@ -110,6 +135,14 @@ export default function EcmLiveMonitoringPage() {
                 Left area {lockedAreaVisitCount}
               </span>
             ) : null}
+            {unableToStartVisitCount > 0 ? (
+              <span
+                className="ml-1.5 inline-flex items-center rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white"
+                data-testid="ecm-exception-queue-unable-to-start-flag"
+              >
+                Unable to start {unableToStartVisitCount}
+              </span>
+            ) : null}
             {checkInRequestVisitCount > 0 ? (
               <span
                 className="ml-1.5 inline-flex items-center rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white"
@@ -130,7 +163,7 @@ export default function EcmLiveMonitoringPage() {
         <TabsContent value="exceptions" className="mt-4">
           {tab === 'exceptions' ? (
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
-              <EcmExceptionQueueWorkspace />
+              <EcmExceptionQueueWorkspace focusJobId={search.jobId} />
             </div>
           ) : null}
         </TabsContent>

@@ -15,14 +15,29 @@ export function disconnectNotificationSocket() {
   }
 }
 
+/** Socket.IO URL + path so Vite `/api` proxy can forward the websocket to Nest. */
+export function notificationSocketConnectOptions(baseUrl: string): {
+  url: string
+  path: string
+} {
+  const base = baseUrl.replace(/\/$/, '')
+  if (base.startsWith('/')) {
+    return {
+      url: `${typeof window !== 'undefined' ? window.location.origin : ''}/notifications`,
+      path: `${base}/socket.io`,
+    }
+  }
+  return { url: `${base}/notifications`, path: '/socket.io' }
+}
+
 export function connectNotificationSocket(accessToken: string) {
   disconnectNotificationSocket()
   const base = getApiBaseUrl()?.replace(/\/$/, '')
   if (!base || !accessToken) return null
 
-  const url = `${base}/notifications`
+  const { url, path } = notificationSocketConnectOptions(base)
   socket = io(url, {
-    path: '/socket.io',
+    path,
     auth: { token: accessToken },
     transports: ['websocket', 'polling'],
     reconnection: true,

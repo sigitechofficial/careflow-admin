@@ -42,6 +42,11 @@ export default defineConfig(({ mode }) => {
         rewrite: (p) => p.replace(/^\/api/, ''),
         ws: true,
       },
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   }

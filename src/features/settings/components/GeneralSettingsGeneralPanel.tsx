@@ -8,7 +8,7 @@ import {
 } from '@/features/settings/types'
 import {
   DEFAULT_ORGANISATION_TIMEZONE,
-  ORGANISATION_TIMEZONE_OPTIONS,
+  organisationTimezoneOptions,
   type OrganisationTimezone,
 } from '@/features/settings/organisation-timezone'
 import {
@@ -80,7 +80,8 @@ function NumericField({
 }
 
 function settingsToDraft(s: OrganisationGeneralSettings) {
-  const tz = ORGANISATION_TIMEZONE_OPTIONS.some(o => o.value === s.timezone)
+  const options = organisationTimezoneOptions()
+  const tz = options.some(o => o.value === s.timezone)
     ? (s.timezone as OrganisationTimezone)
     : DEFAULT_ORGANISATION_TIMEZONE
   return {
@@ -118,6 +119,8 @@ export function GeneralSettingsGeneralPanel() {
     if (saved) setDraft(settingsToDraft(saved))
     else setDraft(DEFAULTS)
   }
+
+  const timezoneOptions = React.useMemo(() => organisationTimezoneOptions(), [])
 
   const error =
     loadError instanceof ApiError
@@ -174,8 +177,9 @@ export function GeneralSettingsGeneralPanel() {
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Organisation time zone</p>
             <p className="text-xs text-muted-foreground">
-              Used across the project for operational calendar days — schedules, visit “today”,
-              ECM reporting, and rota horizons. Does not convert stored UTC timestamps.
+              Country and city with the current UTC offset (for example UTC+5). Used across the
+              project for operational calendar days — schedules, visit “today”, ECM reporting, and
+              rota horizons. Does not convert stored UTC timestamps.
             </p>
             <Select
               value={draft.timezone}
@@ -188,7 +192,7 @@ export function GeneralSettingsGeneralPanel() {
                 <SelectValue placeholder="Select time zone" />
               </SelectTrigger>
               <SelectContent>
-                {ORGANISATION_TIMEZONE_OPTIONS.map(opt => (
+                {timezoneOptions.map(opt => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
