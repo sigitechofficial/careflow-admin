@@ -26,6 +26,7 @@ export function formatBillingLabel(value: string): string {
   const key = trimmed.toUpperCase().replace(/\s+/g, '_')
   // Partial payment on an invoice = payment still in progress.
   if (key === 'PART_PAID') return 'Partial paid'
+  if (key === 'DRAFT') return 'Not sent'
 
   return trimmed
     .toLowerCase()
@@ -44,6 +45,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   PAID: 'success',
   PART_PAID: 'warning',
   UNPAID: 'muted',
+  OVERDUE: 'destructive',
   EXPORTED: 'success',
   COMPLETED: 'success',
   RENDERED: 'success',

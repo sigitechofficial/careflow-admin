@@ -54,22 +54,12 @@ type InvoiceRunRow = NonNullable<
 type InvoicesSubTab = 'transactions' | 'schedule'
 
 type TxnTypeFilter = 'all' | 'invoice' | 'payment'
-type TxnStatusFilter = 'all' | 'PAID' | 'PART_PAID' | 'UNPAID' | 'DRAFT'
+type TxnStatusFilter = 'all' | 'PAID' | 'PART_PAID' | 'UNPAID' | 'OVERDUE' | 'DRAFT'
 type TxnDateFilter = 'all' | '30' | '90' | '365'
 
-const RECEIVABLE_INVOICE_STATUSES = new Set([
-  'READY_FOR_REVIEW',
-  'EXCEPTION_FOUND',
-  'APPROVED',
-  'LOCKED',
-  'SENT',
-  'PART_PAID',
-  'PAID',
-])
+type DisplayPaymentStatus = 'UNPAID' | 'PART_PAID' | 'PAID' | 'DRAFT' | 'OVERDUE'
 
-function isReceivableInvoice(status: string): boolean {
-  return RECEIVABLE_INVOICE_STATUSES.has(status)
-}
+const OPEN_RECEIVABLE_STATUSES = new Set(['SENT', 'PART_PAID', 'PAID'])
 
 /** Prefer API outstanding; fall back to subtotal − paid when value is missing. */
 function runOutstandingValue(run: {
@@ -85,6 +75,32 @@ function runOutstandingValue(run: {
   return Math.max(0, Math.round((sub - paid) * 100) / 100)
 }
 
+function isPastDue(dueDate: string | null | undefined): boolean {
+  if (!dueDate) return false
+  const due = new Date(dueDate.includes('T') ? dueDate : `${dueDate}T23:59:59.999Z`)
+  if (Number.isNaN(due.getTime())) return false
+  return due.getTime() < Date.now()
+}
+
+/** Map run + payment amounts to the status users expect in the transactions table. */
+function resolveInvoiceDisplayStatus(run: InvoiceRunRow): DisplayPaymentStatus {
+  const paid = run.paidValue ?? 0
+  const outstanding = runOutstandingValue(run)
+
+  if (run.status === 'PAID' || (paid > 0.001 && outstanding <= 0.001)) return 'PAID'
+  if (run.status === 'PART_PAID' || (paid > 0.001 && outstanding > 0.001)) return 'PART_PAID'
+
+  const isOpen =
+    run.sent ||
+    Boolean(run.sentAt) ||
+    OPEN_RECEIVABLE_STATUSES.has(run.status)
+
+  if (!isOpen) return 'DRAFT'
+
+  if (isPastDue(run.dueDate)) return 'OVERDUE'
+  return 'UNPAID'
+}
+
 type TransactionRow = {
   id: string
   sortDate: string
@@ -96,12 +112,49 @@ type TransactionRow = {
   memo: string
   amount: string
   amountValue: number
-  paymentStatus: 'UNPAID' | 'PART_PAID' | 'PAID' | 'DRAFT'
+  paymentStatus: DisplayPaymentStatus
   run: InvoiceRunRow
 }
 
-function PaymentBadge({ status }: { status: 'UNPAID' | 'PART_PAID' | 'PAID' }) {
+function PaymentBadge({ status }: { status: 'UNPAID' | 'PART_PAID' | 'PAID' | 'OVERDUE' }) {
   return <BillingStatusBadge status={status} />
+}
+
+function TransactionStatusBadge({ status }: { status: DisplayPaymentStatus }) {
+  if (status === 'PAID') {
+    return (
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <Check className="h-3 w-3 shrink-0" strokeWidth={3} aria-hidden />
+        Paid
+      </span>
+    )
+  }
+  if (status === 'PART_PAID') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        Partial paid
+      </span>
+    )
+  }
+  if (status === 'OVERDUE') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950/50 dark:text-red-200">
+        Overdue
+      </span>
+    )
+  }
+  if (status === 'DRAFT') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+        Not sent
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      Unpaid
+    </span>
+  )
 }
 
 function formatDisplayDate(iso: string | null | undefined): string {
@@ -145,6 +198,7 @@ function buildTransactions(
     const invoiceNo = run.invoiceNumber?.trim() || run.period
     const sortDate = run.sentAt ?? run.lockedAt ?? run.periodEnd
     const dueDateLabel = formatDisplayDate(run.dueDate ?? null)
+    const displayStatus = resolveInvoiceDisplayStatus(run)
     rows.push({
       id: `invoice-${run.id}`,
       sortDate,
@@ -156,10 +210,10 @@ function buildTransactions(
       memo: run.period,
       amount: run.subtotal,
       amountValue: run.subtotalValue,
-      paymentStatus: isReceivableInvoice(run.status) ? run.paymentStatus : 'DRAFT',
+      paymentStatus: displayStatus,
       run,
     })
-    if (isReceivableInvoice(run.status) && run.paidValue > 0.001) {
+    if ((displayStatus === 'PAID' || displayStatus === 'PART_PAID') && run.paidValue > 0.001) {
       rows.push({
         id: `payment-${run.id}`,
         sortDate,
@@ -171,55 +225,12 @@ function buildTransactions(
         memo: `Payment for ${invoiceNo}`,
         amount: run.paid,
         amountValue: run.paidValue,
-        paymentStatus: run.paymentStatus === 'PAID' ? 'PAID' : 'PART_PAID',
+        paymentStatus: displayStatus === 'PAID' ? 'PAID' : 'PART_PAID',
         run,
       })
     }
   }
   return rows.sort((a, b) => b.sortDate.localeCompare(a.sortDate) || a.id.localeCompare(b.id))
-}
-
-function StatusGlyph({ status }: { status: TransactionRow['paymentStatus'] }) {
-  if (status === 'PAID') {
-    return (
-      <span
-        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white"
-        title="Paid"
-        aria-label="Paid"
-      >
-        <Check className="h-3.5 w-3.5" strokeWidth={3} />
-      </span>
-    )
-  }
-  if (status === 'PART_PAID') {
-    return (
-      <span
-        className="inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-amber-500 text-[10px] font-bold text-amber-700"
-        title="Partial paid"
-        aria-label="Partial paid"
-      >
-        ½
-      </span>
-    )
-  }
-  if (status === 'DRAFT') {
-    return (
-      <span
-        className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-muted-foreground/40 text-[9px] font-semibold uppercase text-muted-foreground"
-        title="Not sent"
-        aria-label="Not sent"
-      >
-        Dr
-      </span>
-    )
-  }
-  return (
-    <span
-      className="inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-muted-foreground/50"
-      title="Unpaid"
-      aria-label="Unpaid"
-    />
-  )
 }
 
 function InvoiceDetailDialog({
@@ -242,7 +253,7 @@ function InvoiceDetailDialog({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="text-muted-foreground">{serviceUserName}</span>
               <InvoiceRunStatusBadge status={run.status} />
-              {run.sent ? <PaymentBadge status={run.paymentStatus} /> : null}
+              <TransactionStatusBadge status={resolveInvoiceDisplayStatus(run)} />
               <span className="text-muted-foreground">
                 {run.periodStart} → {run.periodEnd}
               </span>
@@ -896,6 +907,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                 <SelectItem value="PAID">Paid</SelectItem>
                 <SelectItem value="PART_PAID">Partial</SelectItem>
                 <SelectItem value="UNPAID">Unpaid</SelectItem>
+                <SelectItem value="OVERDUE">Overdue</SelectItem>
                 <SelectItem value="DRAFT">Not sent</SelectItem>
               </SelectContent>
             </Select>
@@ -996,7 +1008,7 @@ export function ServiceUserEditInvoicesPanel({ serviceUserId }: { serviceUserId:
                       </td>
                       <td className="px-3 py-2.5 text-center">
                         <div className="inline-flex justify-center">
-                          <StatusGlyph status={txn.paymentStatus} />
+                          <TransactionStatusBadge status={txn.paymentStatus} />
                         </div>
                       </td>
                       <td className="px-3 py-2.5">

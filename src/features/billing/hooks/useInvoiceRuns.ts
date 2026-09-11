@@ -106,11 +106,13 @@ export function useEmailInvoiceToServiceUser() {
     mutationFn: (args: {
       runId: string
       serviceUserId: string
+      funderId?: string
       toEmail?: string
       markSent?: boolean
     }) =>
       emailInvoiceToServiceUser(args.runId, {
         serviceUserId: args.serviceUserId,
+        funderId: args.funderId,
         toEmail: args.toEmail,
         markSent: args.markSent,
       }),

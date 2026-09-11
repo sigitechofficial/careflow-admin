@@ -12,6 +12,13 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   fetchServiceUserInvoiceEmailPreview,
@@ -27,6 +34,10 @@ type Props = {
   serviceUserName?: string
 }
 
+function funderKey(funderId: string | null | undefined): string {
+  return funderId ?? 'direct'
+}
+
 export function SendServiceUserInvoiceEmailDialog({
   open,
   onOpenChange,
@@ -38,6 +49,7 @@ export function SendServiceUserInvoiceEmailDialog({
   const [preview, setPreview] = React.useState<ServiceUserInvoiceEmailPreview | null>(null)
   const [loadingPreview, setLoadingPreview] = React.useState(false)
   const [previewError, setPreviewError] = React.useState<string | null>(null)
+  const [selectedFunderKey, setSelectedFunderKey] = React.useState<string>('')
   const [toEmail, setToEmail] = React.useState('')
   const [markSent, setMarkSent] = React.useState(true)
 
@@ -45,6 +57,7 @@ export function SendServiceUserInvoiceEmailDialog({
     if (!open || !runId || !serviceUserId) {
       setPreview(null)
       setPreviewError(null)
+      setSelectedFunderKey('')
       setToEmail('')
       return
     }
@@ -55,7 +68,14 @@ export function SendServiceUserInvoiceEmailDialog({
       .then((data) => {
         if (cancelled) return
         setPreview(data)
-        setToEmail(data.defaultToEmail ?? '')
+        const funders = data.funders ?? []
+        const preferred =
+          funders.find((f) => funderKey(f.funderId) === funderKey(data.defaultFunderId)) ??
+          funders[0] ??
+          null
+        const key = preferred ? funderKey(preferred.funderId) : ''
+        setSelectedFunderKey(key)
+        setToEmail(preferred?.defaultToEmail ?? data.defaultToEmail ?? '')
         setMarkSent(data.canMarkSent)
       })
       .catch((e) => {
@@ -71,8 +91,26 @@ export function SendServiceUserInvoiceEmailDialog({
     }
   }, [open, runId, serviceUserId])
 
+  const selectedShare =
+    preview?.funders?.find((f) => funderKey(f.funderId) === selectedFunderKey) ?? null
+  const suggestions = selectedShare?.suggestions?.length
+    ? selectedShare.suggestions
+    : (preview?.suggestions ?? [])
+  const amountLabel = selectedShare?.subtotal ?? preview?.subtotal
+  const needsFunder = Boolean(preview?.requiresFunderSelection)
+
+  const onFunderChange = (key: string) => {
+    setSelectedFunderKey(key)
+    const share = preview?.funders?.find((f) => funderKey(f.funderId) === key)
+    setToEmail(share?.defaultToEmail ?? '')
+  }
+
   const onSend = () => {
     if (!runId || !serviceUserId) return
+    if (needsFunder && !selectedFunderKey) {
+      toastApiError(new Error('Choose which funder to email'))
+      return
+    }
     const email = toEmail.trim()
     if (!email) {
       toastApiError(new Error('Enter an email address'))
@@ -82,6 +120,10 @@ export function SendServiceUserInvoiceEmailDialog({
       {
         runId,
         serviceUserId,
+        funderId:
+          needsFunder || (preview?.funders?.length ?? 0) > 0
+            ? selectedFunderKey || undefined
+            : undefined,
         toEmail: email,
         markSent: markSent && Boolean(preview?.canMarkSent),
       },
@@ -91,10 +133,11 @@ export function SendServiceUserInvoiceEmailDialog({
             data.mode === 'log'
               ? ' (logged locally — configure SMTP to deliver for real)'
               : ''
+          const funderNote = data.funderName ? ` (${data.funderName})` : ''
           toastSuccess(
             data.markedSent
-              ? `Invoice emailed to ${data.to} and marked as sent${note}`
-              : `Invoice emailed to ${data.to}${note}`,
+              ? `Invoice emailed to ${data.to}${funderNote} and marked as sent${note}`
+              : `Invoice emailed to ${data.to}${funderNote}${note}`,
           )
           onOpenChange(false)
         },
@@ -113,7 +156,8 @@ export function SendServiceUserInvoiceEmailDialog({
           </DialogTitle>
           <DialogDescription>
             Email the invoice CSV for {serviceUserName ?? preview?.serviceUserName ?? 'this service user'}
-            {preview ? ` (${preview.period})` : ''}.
+            {preview ? ` (${preview.period})` : ''}
+            {needsFunder ? '. Choose a funder to send only their share.' : '.'}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
@@ -129,9 +173,34 @@ export function SendServiceUserInvoiceEmailDialog({
               <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
                 <p className="font-medium text-foreground">{preview.serviceUserName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {preview.period} · {preview.subtotal} {preview.currency}
+                  {preview.period} · {amountLabel} {preview.currency}
+                  {selectedShare && needsFunder ? ` · ${selectedShare.funderName}` : ''}
                 </p>
+                {needsFunder ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Full invoice total: {preview.subtotal} {preview.currency}
+                  </p>
+                ) : null}
               </div>
+
+              {(preview.funders?.length ?? 0) > 1 ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-invoice-funder">Funder</Label>
+                  <Select value={selectedFunderKey} onValueChange={onFunderChange}>
+                    <SelectTrigger id="su-invoice-funder">
+                      <SelectValue placeholder="Select funder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {preview.funders.map((f) => (
+                        <SelectItem key={funderKey(f.funderId)} value={funderKey(f.funderId)}>
+                          {f.funderName} — {f.subtotal} {preview.currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
               <div className="space-y-1.5">
                 <Label htmlFor="su-invoice-email">To email</Label>
                 <Input
@@ -142,9 +211,9 @@ export function SendServiceUserInvoiceEmailDialog({
                   onChange={(e) => setToEmail(e.target.value)}
                   placeholder="billing@example.com"
                 />
-                {preview.suggestions.length > 1 ? (
+                {suggestions.length > 1 ? (
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {preview.suggestions.map((s) => (
+                    {suggestions.map((s) => (
                       <button
                         key={`${s.source}-${s.email}`}
                         type="button"
@@ -157,7 +226,7 @@ export function SendServiceUserInvoiceEmailDialog({
                     ))}
                   </div>
                 ) : null}
-                {!preview.defaultToEmail ? (
+                {!toEmail.trim() ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
                     No billing contact or service user email on file — enter an address above.
                   </p>
@@ -190,7 +259,12 @@ export function SendServiceUserInvoiceEmailDialog({
             type="button"
             leftIcon={<Send className="h-3.5 w-3.5" />}
             loading={emailMut.isPending}
-            disabled={loadingPreview || Boolean(previewError) || !toEmail.trim()}
+            disabled={
+              loadingPreview ||
+              Boolean(previewError) ||
+              !toEmail.trim() ||
+              (needsFunder && !selectedFunderKey)
+            }
             onClick={onSend}
           >
             Send invoice

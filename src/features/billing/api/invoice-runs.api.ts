@@ -207,6 +207,15 @@ export async function sendInvoiceRun(id: string): Promise<void> {
   await apiJson(`/billing/invoice-runs/${id}/send`, { method: 'POST' })
 }
 
+export type ServiceUserInvoiceEmailFunderShare = {
+  funderId: string | null
+  funderName: string
+  subtotal: string
+  subtotalValue: number
+  defaultToEmail: string | null
+  suggestions: Array<{ email: string; source: string; label: string }>
+}
+
 export type ServiceUserInvoiceEmailPreview = {
   runId: string
   period: string
@@ -221,6 +230,10 @@ export type ServiceUserInvoiceEmailPreview = {
   subtotalValue: number
   defaultToEmail: string | null
   suggestions: Array<{ email: string; source: string; label: string }>
+  funders: ServiceUserInvoiceEmailFunderShare[]
+  defaultFunderId: string | null
+  requiresFunderSelection: boolean
+  hasDirectLines?: boolean
   canMarkSent: boolean
 }
 
@@ -231,6 +244,8 @@ export type EmailInvoiceToServiceUserResult = {
   markedSent: boolean
   runId: string
   serviceUserId: string
+  funderId?: string | null
+  funderName?: string | null
 }
 
 export async function fetchServiceUserInvoiceEmailPreview(
@@ -246,7 +261,13 @@ export async function fetchServiceUserInvoiceEmailPreview(
 
 export async function emailInvoiceToServiceUser(
   runId: string,
-  body: { serviceUserId: string; toEmail?: string; markSent?: boolean },
+  body: {
+    serviceUserId: string
+    /** Funder UUID, or `"direct"` for Direct/family lines. */
+    funderId?: string
+    toEmail?: string
+    markSent?: boolean
+  },
 ): Promise<EmailInvoiceToServiceUserResult> {
   const res = await apiJson<ApiEnvelope<EmailInvoiceToServiceUserResult>>(
     `/billing/invoice-runs/${runId}/email-service-user`,
