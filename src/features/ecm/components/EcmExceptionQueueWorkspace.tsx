@@ -26,6 +26,7 @@ export function EcmExceptionQueueWorkspace({
     setDateTo,
     periodLabel,
     operationalToday,
+    operationalTimezone,
     multiDay,
   } = useEcmOperationalPeriod('today')
   const { isScoped: globalLocationScoped } = useGlobalLocationScope()
@@ -42,6 +43,7 @@ export function EcmExceptionQueueWorkspace({
         dateTo={dateTo}
         periodLabel={periodLabel}
         operationalToday={operationalToday}
+        operationalTimezone={operationalTimezone}
         onPresetChange={setPreset}
         onApplyPreset={applyPreset}
         onDateFromChange={setDateFrom}

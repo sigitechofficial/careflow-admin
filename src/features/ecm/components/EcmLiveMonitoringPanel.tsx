@@ -431,6 +431,7 @@ export function EcmLiveMonitoringPanel({
     periodLabel,
     multiDay,
     operationalToday,
+    operationalTimezone,
     setPreset,
     setDateFrom,
     setDateTo,
@@ -590,7 +591,7 @@ export function EcmLiveMonitoringPanel({
         dateTo={dateTo}
         periodLabel={periodLabel}
         operationalToday={dashboard.data?.operationalToday ?? operationalToday}
-        operationalTimezone={dashboard.data?.operationalTimezone}
+        operationalTimezone={dashboard.data?.operationalTimezone ?? operationalTimezone}
         onPresetChange={setPreset}
         onApplyPreset={applyPreset}
         onDateFromChange={setDateFrom}
@@ -817,7 +818,7 @@ export function EcmLiveMonitoringPanel({
               {' · '}
               refreshed{' '}
               {dashboard.data?.refreshedAt
-                ? new Date(dashboard.data.refreshedAt).toLocaleTimeString()
+                ? formatOpsClockTime(dashboard.data.refreshedAt)
                 : '—'}
               {' · '}
               Auto-refresh every 60s

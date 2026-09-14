@@ -371,6 +371,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               ) : null}
 
+              {detail.approvalNotes?.trim() ? (
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                  <p className="text-xs text-muted-foreground">Approval reason</p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-foreground">
+                    {detail.approvalNotes.trim()}
+                  </p>
+                </div>
+              ) : null}
+
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />

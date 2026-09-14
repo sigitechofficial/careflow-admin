@@ -97,7 +97,7 @@ export default function EcmLiveMonitoringPage() {
       <PageHeader
         className="shrink-0"
         title="ECM live monitoring"
-        description="Electronic Call Monitoring — planned vs actual attendance, timing exceptions, and follow-up."
+        description="Electronic Call Monitoring — planned vs actual attendance, timing exceptions, and follow-up. Visit times and period presets use the organisation operational timezone."
         icon={<Radio className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },

@@ -4,6 +4,15 @@ import { AlertTriangle, Calculator, CheckCircle2, ChevronDown, ClipboardCheck, E
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
 import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -84,6 +93,27 @@ const SCOPE_REJECT_TOAST: Record<ApproveScope, string> = {
   BOTH: 'Rejected for both carer pay and client / funder billing.',
 }
 
+const SCOPE_DIALOG_TITLE: Record<ApproveScope, string> = {
+  BOTH: 'Approve — All (pay & bill)',
+  PAY: 'Approve — Pay carer only',
+  INVOICE: 'Approve — Bill funders only',
+}
+
+const SCOPE_DIALOG_DESCRIPTION: Record<ApproveScope, string> = {
+  BOTH: 'Pay the carer and bill the client / funders for this visit.',
+  PAY: 'Pay the carer only — the client / funder is charged £0.',
+  INVOICE: 'Bill the client / funders only — the carer is paid £0.',
+}
+
+type PendingApprove = {
+  ids: string[]
+  scope: ApproveScope
+  managerOverride: boolean
+  bulk: boolean
+  visitRef?: string | null
+  existingNotes?: string | null
+}
+
 type Props = {
   initialEmployeeId?: string
   initialServiceUserId?: string
@@ -115,6 +145,8 @@ export function BillingVisitReconciliationPanel({
   }, [initialServiceUserId])
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [detailRow, setDetailRow] = React.useState<VisitReconciliationRow | null>(null)
+  const [pendingApprove, setPendingApprove] = React.useState<PendingApprove | null>(null)
+  const [approvalReason, setApprovalReason] = React.useState('')
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300)
@@ -222,12 +254,55 @@ export function BillingVisitReconciliationPanel({
     setSelectedIds(new Set(selectableIds))
   }
 
-  const handleApprove = async (id: string, scope: ApproveScope = 'BOTH', managerOverride = false) => {
+  const openApproveDialog = (
+    ids: string[],
+    scope: ApproveScope,
+    opts?: {
+      managerOverride?: boolean
+      bulk?: boolean
+      visitRef?: string | null
+      existingNotes?: string | null
+    },
+  ) => {
+    setPendingApprove({
+      ids,
+      scope,
+      managerOverride: opts?.managerOverride ?? false,
+      bulk: opts?.bulk ?? false,
+      visitRef: opts?.visitRef,
+      existingNotes: opts?.existingNotes,
+    })
+    setApprovalReason(opts?.existingNotes?.trim() || '')
+  }
+
+  const handleApproveConfirm = async () => {
+    if (!pendingApprove?.ids.length) return
+    const notes = approvalReason.trim() || undefined
     try {
-      // The three buttons are an authoritative choice: "Funders" means bill-only even if
-      // the visit was previously approved for pay (and vice versa), so pass exclusive.
-      await approveMutation.mutateAsync({ id, scope, managerOverride, exclusive: true })
-      toastSuccess(SCOPE_APPROVE_TOAST[scope])
+      if (pendingApprove.bulk || pendingApprove.ids.length > 1) {
+        await bulkApproveMutation.mutateAsync({
+          ids: pendingApprove.ids,
+          scope: pendingApprove.scope,
+          approvalNotes: notes,
+        })
+        setSelectedIds(new Set())
+        toastSuccess(
+          `Approved ${pendingApprove.ids.length} visit(s) — ${SCOPE_LABEL[pendingApprove.scope]}.`,
+        )
+      } else {
+        const id = pendingApprove.ids[0]
+        if (!id) return
+        await approveMutation.mutateAsync({
+          id,
+          scope: pendingApprove.scope,
+          managerOverride: pendingApprove.managerOverride,
+          exclusive: true,
+          approvalNotes: notes,
+        })
+        toastSuccess(SCOPE_APPROVE_TOAST[pendingApprove.scope])
+      }
+      setPendingApprove(null)
+      setApprovalReason('')
     } catch (err) {
       toastApiError(err, 'Could not approve visit.')
     }
@@ -242,15 +317,10 @@ export function BillingVisitReconciliationPanel({
     }
   }
 
-  const handleBulkApprove = async (scope: ApproveScope = 'BOTH') => {
+  const handleBulkApprove = (scope: ApproveScope = 'BOTH') => {
     const ids = selectedIds.size ? [...selectedIds] : rows.map(r => r.id)
     if (!ids.length) return
-    try {
-      await bulkApproveMutation.mutateAsync({ ids, scope })
-      setSelectedIds(new Set())
-    } catch (err) {
-      toastApiError(err, 'Could not bulk approve visits.')
-    }
+    openApproveDialog(ids, scope, { bulk: true })
   }
 
   const handleBackfill = async () => {
@@ -767,7 +837,13 @@ export function BillingVisitReconciliationPanel({
                                 : approveTitle
                             }
                             disabled={allDisabled}
-                            onClick={() => void handleApprove(row.id, 'BOTH', managerOverride)}
+                            onClick={() =>
+                              openApproveDialog([row.id], 'BOTH', {
+                                managerOverride,
+                                visitRef: row.visitRef,
+                                existingNotes: row.approvalNotes,
+                              })
+                            }
                           >
                             <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden />
                             All
@@ -782,7 +858,13 @@ export function BillingVisitReconciliationPanel({
                                 : 'Pay the carer only — client / funder is charged £0 for this visit'
                             }
                             disabled={payDisabled}
-                            onClick={() => void handleApprove(row.id, 'PAY', managerOverride)}
+                            onClick={() =>
+                              openApproveDialog([row.id], 'PAY', {
+                                managerOverride,
+                                visitRef: row.visitRef,
+                                existingNotes: row.approvalNotes,
+                              })
+                            }
                           >
                             <Wallet className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
                             Pay carer
@@ -797,7 +879,13 @@ export function BillingVisitReconciliationPanel({
                                 : 'Charge the client / funder only — carer is paid £0 for this visit'
                             }
                             disabled={invoiceDisabled}
-                            onClick={() => void handleApprove(row.id, 'INVOICE', managerOverride)}
+                            onClick={() =>
+                              openApproveDialog([row.id], 'INVOICE', {
+                                managerOverride,
+                                visitRef: row.visitRef,
+                                existingNotes: row.approvalNotes,
+                              })
+                            }
                           >
                             <Landmark className="mr-1 h-3.5 w-3.5 text-success" aria-hidden />
                             Bill funders
@@ -831,6 +919,73 @@ export function BillingVisitReconciliationPanel({
         }}
         row={detailRow}
       />
+
+      <Dialog
+        open={pendingApprove != null}
+        onOpenChange={open => {
+          if (!open) {
+            setPendingApprove(null)
+            setApprovalReason('')
+          }
+        }}
+      >
+        <DialogContent size="sm" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingApprove ? SCOPE_DIALOG_TITLE[pendingApprove.scope] : 'Approve visit'}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingApprove ? SCOPE_DIALOG_DESCRIPTION[pendingApprove.scope] : null}
+              {pendingApprove?.bulk || (pendingApprove?.ids.length ?? 0) > 1
+                ? ` Confirming ${pendingApprove?.ids.length ?? 0} visit(s).`
+                : pendingApprove?.visitRef
+                  ? ` Visit ${pendingApprove.visitRef}.`
+                  : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <label className="block space-y-1.5 text-sm">
+              <span className="text-xs font-medium text-foreground">
+                Reason <span className="font-normal text-muted-foreground">(optional)</span>
+              </span>
+              <textarea
+                value={approvalReason}
+                onChange={e => setApprovalReason(e.target.value.slice(0, 2000))}
+                rows={4}
+                maxLength={2000}
+                placeholder="Add a note for this approval decision…"
+                className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="visit-recon-approve-reason"
+              />
+            </label>
+            <p className="text-xs text-muted-foreground">
+              You can confirm without a reason. Notes are kept on the visit for audit.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPendingApprove(null)
+                setApprovalReason('')
+              }}
+              disabled={isMutating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleApproveConfirm()}
+              disabled={isMutating || !pendingApprove?.ids.length}
+              leftIcon={
+                isMutating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : undefined
+              }
+              data-testid="visit-recon-approve-confirm"
+            >
+              {isMutating ? 'Approving…' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -11,7 +11,11 @@ import {
   formatPeriodDayShort,
   presetOptionLabel,
 } from '@/features/ecm/utils/ecm-operational-period.util'
-import { formatOperationalDayLabel } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import {
+  formatOperationalDayLabel,
+  getSyncedOperationalTimeZone,
+} from '@/shared/lib/operational-day.util'
 
 const PERIOD_PRESETS: EcmOperationalPeriodPreset[] = [
   'today',
@@ -85,14 +89,23 @@ export function EcmOperationalPeriodCard({
     if (!locationId) return 'All locations'
     return locationOptions.find((o) => o.id === locationId)?.label ?? 'Location'
   }, [locationId, locationOptions])
+  const resolvedTimezone = operationalTimezone?.trim() || getSyncedOperationalTimeZone()
+  const timezoneHint = `${resolvedTimezone} (${formatTimezoneUtcOffset(resolvedTimezone)})`
 
   return (
     <ContentCard className="p-4">
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-xs">
-          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" aria-hidden />
             Operational period
+            <span
+              className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-normal"
+              title="Period presets, Today, and visit times use the organisation operational timezone"
+              data-testid={`${testIdPrefix}-timezone-hint`}
+            >
+              Times in {timezoneHint}
+            </span>
           </span>
           <select
             className="flex h-9 w-[12.5rem] rounded-md border border-input bg-background px-2 text-sm"
@@ -189,7 +202,7 @@ export function EcmOperationalPeriodCard({
       </div>
 
       <p className="mt-2 text-[11px] text-muted-foreground" data-testid={`${testIdPrefix}-ops-day-note`}>
-        {formatOperationalDayLabel(operationalToday, operationalTimezone)}
+        {formatOperationalDayLabel(operationalToday, resolvedTimezone)}
         {hideLocation ? null : (
           <>
             {' · '}

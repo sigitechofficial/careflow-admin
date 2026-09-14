@@ -22,6 +22,7 @@ export default function EcmGraphPage() {
     dateTo,
     periodLabel,
     operationalToday,
+    operationalTimezone,
     setPreset,
     setDateFrom,
     setDateTo,
@@ -59,6 +60,7 @@ export default function EcmGraphPage() {
             dateTo={dateTo}
             periodLabel={periodLabel}
             operationalToday={operationalToday}
+            operationalTimezone={operationalTimezone}
             onPresetChange={setPreset}
             onApplyPreset={applyPreset}
             onDateFromChange={setDateFrom}

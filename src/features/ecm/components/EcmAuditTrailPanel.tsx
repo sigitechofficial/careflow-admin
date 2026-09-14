@@ -1,16 +1,10 @@
 import { useEcmAuditTrail } from '@/features/ecm/hooks/useEcm'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
+import { formatOpsDateTimeNumeric } from '@/shared/lib/operational-day.util'
 import { Loader2 } from 'lucide-react'
 
 function formatWhen(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return iso
-  }
+  return formatOpsDateTimeNumeric(iso)
 }
 
 export function EcmAuditTrailPanel({ jobId }: { jobId: string }) {
