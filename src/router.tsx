@@ -347,6 +347,8 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'vital-ranges',
   'welfare-outcomes',
   'clock-in-arrival-reasons',
+  'manual-authorisation-reasons',
+  'left-area-allow-reasons',
   'clock-out-end-reasons',
   'outcome-reasons',
   'ecm-thresholds',

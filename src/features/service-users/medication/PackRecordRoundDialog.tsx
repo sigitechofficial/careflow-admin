@@ -17,7 +17,7 @@ import './mar-record.css'
 
 /** Same recordable set as standalone MAR record dialog (excludes Pending / PR display-only). */
 const RECORDABLE_CODES = new Set([
-  'G', 'R', 'N', 'U', 'H', 'A', 'C', 'F', 'I', 'S', 'T', 'O', 'P', 'PCI',
+  'G', 'PG', 'R', 'N', 'U', 'H', 'A', 'C', 'F', 'I', 'S', 'T', 'O', 'P', 'PCI',
 ])
 
 function needsReason(code: string, statusCodes: StatusPickRow[]): boolean {

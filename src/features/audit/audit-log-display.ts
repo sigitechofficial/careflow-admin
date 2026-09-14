@@ -72,6 +72,8 @@ const EVENT_LABELS: Record<string, string> = {
   service_user_profile_viewed: 'Opened profile',
   medication_chart_viewed: 'Opened MAR chart',
   medication_restored: 'Restored medication',
+  scheduled_job_delivery_reset: 'Reset visit to planned',
+  scheduled_job_task_reset: 'Reset visit task',
   'location.zone.created': 'Created zone',
   'location.zone.updated': 'Updated zone',
   'location.branch.created': 'Created branch',

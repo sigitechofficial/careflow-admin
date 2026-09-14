@@ -224,6 +224,7 @@ export type EcmCheckInMethodGrant = {
   status: 'PENDING' | 'AUTHORISED' | 'REJECTED' | 'CONSUMED' | string
   carerNote: string | null
   officeNote: string | null
+  officeReasonId?: string | null
   latitude: number | null
   longitude: number | null
   accuracyMeters: number | null

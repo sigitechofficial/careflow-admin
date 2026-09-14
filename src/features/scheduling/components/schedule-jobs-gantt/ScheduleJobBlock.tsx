@@ -5,6 +5,9 @@ import {
   CalendarClock,
   Car,
   Clock,
+  MapPin,
+  MapPinOff,
+  Siren,
 } from 'lucide-react'
 import { ScheduleJobRequiredCarersIcon } from '@/features/scheduling/components/ScheduleJobRequiredCarersIcon'
 import { ScheduleJobContextMenu } from '@/features/scheduling/components/ScheduleJobContextMenu'
@@ -54,6 +57,20 @@ import {
   timelineJobBoardDeliveryFlags,
 } from '@/features/scheduling/utils/schedule-job-delivery-flags.util'
 import type { VisitDeliveryExceptionFlag } from '@/features/scheduling/utils/visit-delivery-assessment.util'
+import {
+  highestPriorityLiveOfficeAlert,
+  liveOfficeAlertCardFit,
+  liveOfficeAlertChipIsSentence,
+  liveOfficeAlertChipText,
+  liveOfficeAlertKey,
+  type LiveOfficeAlert,
+} from '@/features/scheduling/utils/schedule-job-live-office-alerts.util'
+import {
+  boardShowsCheckInMethod,
+  timelineJobCheckInMethodLabel,
+  timelineJobCheckInMethodTitle,
+} from '@/features/scheduling/utils/schedule-job-check-in-method.util'
+import { formatOpsHm } from '@/shared/lib/operational-day.util'
 
 type ScheduleJobBlockIconsProps = {
   job: TimelineJob
@@ -64,6 +81,7 @@ type ScheduleJobBlockIconsProps = {
   showOperationalBadges: boolean
   outsidePattern?: boolean
   deliveryFlags?: VisitDeliveryExceptionFlag[]
+  liveAlerts?: LiveOfficeAlert[]
 }
 
 function ScheduleJobBlockIcons({
@@ -75,14 +93,22 @@ function ScheduleJobBlockIcons({
   showOperationalBadges,
   outsidePattern,
   deliveryFlags = [],
+  liveAlerts = [],
 }: ScheduleJobBlockIconsProps) {
   const showLaneBadge = stackedLanes && overlapLayout
+  const checkInMethodLabel = timelineJobCheckInMethodLabel(job)
+  const showCheckInMethod = boardShowsCheckInMethod({
+    methodLabel: checkInMethodLabel,
+    liveAlertCount: liveAlerts.length,
+  })
   if (
     !showLaneBadge &&
     !showRequiredCarersIcon &&
     !showTravelIcon &&
     !showOperationalBadges &&
-    deliveryFlags.length === 0
+    deliveryFlags.length === 0 &&
+    liveAlerts.length === 0 &&
+    !showCheckInMethod
   ) {
     return null
   }
@@ -121,20 +147,54 @@ function ScheduleJobBlockIcons({
           <CalendarClock className="h-2.5 w-2.5 shrink-0 text-orange-600" aria-label="Outside carer working pattern" />
         </span>
       ) : null}
-      {deliveryFlags.slice(0, 2).map((flag) => (
+      {liveAlerts.map((alert) => (
         <span
-          key={flag.code}
-          title={flag.detail ? `${flag.label}: ${flag.detail}` : flag.label}
+          key={alert.kind}
+          title={alert.label}
+          data-testid={`schedule-job-live-alert-${alert.kind}`}
           className={cn(
-            'shrink-0 rounded px-1 text-[8px] font-bold leading-none',
-            deliveryFlagChipClass(flag.severity),
+            'inline-flex min-w-0 items-center gap-0.5 leading-none',
+            liveOfficeAlertChipIsSentence(alert)
+              ? 'normal-case text-[11px] font-bold tracking-normal'
+              : cn(
+                  'shrink-0 rounded px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide',
+                  alert.chipClass,
+                ),
           )}
-          aria-label={flag.label}
+          aria-label={alert.label}
         >
-          {deliveryFlagShortLabel(flag)}
+          {alert.kind === 'CARER_SOS' ? (
+            <Siren className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
+          ) : null}
+          <span className="min-w-0 truncate">{liveOfficeAlertChipText(alert)}</span>
         </span>
       ))}
-      {deliveryFlags.length > 2 ? (
+      {showCheckInMethod && checkInMethodLabel ? (
+        <span
+          title={timelineJobCheckInMethodTitle(job) ?? undefined}
+          data-testid="schedule-job-check-in-method"
+          className="shrink-0 rounded bg-orange-700 px-1 text-[8px] font-bold leading-none text-white"
+          aria-label={timelineJobCheckInMethodTitle(job) ?? `Clock-in: ${checkInMethodLabel}`}
+        >
+          {checkInMethodLabel}
+        </span>
+      ) : null}
+      {liveAlerts.length === 0
+        ? deliveryFlags.slice(0, 2).map((flag) => (
+            <span
+              key={flag.code}
+              title={flag.detail ? `${flag.label}: ${flag.detail}` : flag.label}
+              className={cn(
+                'shrink-0 rounded px-1 text-[8px] font-bold leading-none',
+                deliveryFlagChipClass(flag.severity),
+              )}
+              aria-label={flag.label}
+            >
+              {deliveryFlagShortLabel(flag)}
+            </span>
+          ))
+        : null}
+      {liveAlerts.length === 0 && deliveryFlags.length > 2 ? (
         <span
           title={deliveryFlags
             .slice(2)
@@ -146,6 +206,91 @@ function ScheduleJobBlockIcons({
         </span>
       ) : null}
     </>
+  )
+}
+
+function ScheduleJobLiveAlertBody({
+  job,
+  alerts,
+  jobLabelMode,
+  widthPx,
+  stackedLanes,
+}: {
+  job: TimelineJob
+  alerts: LiveOfficeAlert[]
+  jobLabelMode: 'carer-row' | 'service-user-row'
+  widthPx: number
+  stackedLanes: boolean
+}) {
+  const primary = highestPriorityLiveOfficeAlert(alerts)
+  if (!primary) return null
+  const fit = liveOfficeAlertCardFit(widthPx, stackedLanes)
+  const clientLabel = scheduleJobBlockDisplayLabel(job, jobLabelMode)
+  const clockedInAt = job.actualStartDateTime ?? job.visits?.[0]?.actualStartDateTime ?? null
+  const reasonFromJob =
+    job.careNotDelivered?.reasonLabel?.trim() ||
+    job.careNotDelivered?.reasonCode?.replace(/_/g, ' ')?.trim() ||
+    null
+  const statusLabel =
+    primary.hint ||
+    reasonFromJob ||
+    (clockedInAt ? `In ${formatOpsHm(clockedInAt)}` : 'Not in')
+  const sentLabel = primary.sentAt ? formatOpsHm(primary.sentAt) : null
+  const allocated = job.allocations?.length ?? 0
+  const doubleUp = (job.requiredCarers ?? 0) > 1 || allocated > 1
+  const sender = fit.showSender && doubleUp ? primary.employeeFirstName : null
+  const metaParts = [
+    statusLabel,
+    sender,
+    fit.showMessage ? primary.message : null,
+  ].filter(Boolean)
+
+  return (
+    <div
+      data-schedule-job-block-body="live-alert"
+      data-testid="schedule-job-live-alert-body"
+      className="relative z-[1] flex h-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden px-1.5 py-0.5"
+    >
+      <div className="flex min-w-0 items-center gap-1">
+        <span
+          className={cn(
+            'inline-flex min-w-0 max-w-full items-center gap-0.5 leading-none',
+            liveOfficeAlertChipIsSentence(primary)
+              ? 'normal-case text-[10px] font-bold tracking-normal'
+              : cn(
+                  'shrink-0 rounded px-1 py-0.5 text-[10px] font-black uppercase tracking-wide',
+                  primary.chipClass,
+                ),
+          )}
+        >
+          {primary.kind === 'CARER_SOS' ? (
+            <Siren className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
+          ) : null}
+          <span className="min-w-0 truncate">{liveOfficeAlertChipText(primary)}</span>
+        </span>
+        {fit.showSentTime && sentLabel ? (
+          <span className="min-w-0 truncate text-[10px] font-semibold tabular-nums leading-none opacity-95">
+            {sentLabel}
+          </span>
+        ) : null}
+        {alerts.length > 1 ? (
+          <span className="shrink-0 text-[9px] font-bold leading-none opacity-90">
+            +{alerts.length - 1}
+          </span>
+        ) : null}
+      </div>
+      <p className="min-w-0 truncate text-[11px] font-semibold leading-tight">{clientLabel}</p>
+      {fit.showMeta ? (
+        <p className="flex min-w-0 items-center gap-0.5 text-[9px] font-medium leading-tight opacity-90">
+          {primary.hasGps ? (
+            <MapPin className="h-3 w-3 shrink-0" aria-label="GPS available" />
+          ) : (
+            <MapPinOff className="h-3 w-3 shrink-0" aria-label="No GPS" />
+          )}
+          <span className="min-w-0 truncate">{metaParts.join(' · ')}</span>
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -163,6 +308,7 @@ export type ScheduleJobBlockProps = {
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   travelBufferMinutes?: number
+  liveAlerts?: LiveOfficeAlert[]
   travelConflictFromPrevious?: boolean
   rowJobs?: TimelineJob[]
   showRowTravelDetails?: boolean
@@ -194,6 +340,7 @@ function scheduleJobBlockPropsEqual(
   if (prev.outsidePattern !== next.outsidePattern) return false
   if (prev.overAllocated !== next.overAllocated) return false
   if (prev.travelBufferMinutes !== next.travelBufferMinutes) return false
+  if (liveOfficeAlertKey(prev.liveAlerts) !== liveOfficeAlertKey(next.liveAlerts)) return false
   if (prev.travelConflictFromPrevious !== next.travelConflictFromPrevious) return false
   if (prev.showRowTravelDetails !== next.showRowTravelDetails) return false
   if (prev.isMarqueeSelected !== next.isMarqueeSelected) return false
@@ -210,6 +357,9 @@ function scheduleJobBlockPropsEqual(
   if (prev.onJobAction !== next.onJobAction) return false
   if (prev.onOpenRun !== next.onOpenRun) return false
   if (prev.shouldIgnoreClick !== next.shouldIgnoreClick) return false
+  if (prev.job.actualStartDateTime !== next.job.actualStartDateTime) return false
+  if (prev.job.checkIn?.method !== next.job.checkIn?.method) return false
+  if (prev.job.checkIn?.methodLabel !== next.job.checkIn?.methodLabel) return false
   return true
 }
 
@@ -227,6 +377,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
   travelBufferMinutes,
+  liveAlerts,
   travelConflictFromPrevious,
   rowJobs,
   showRowTravelDetails = true,
@@ -277,6 +428,26 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
     Boolean(job.needsCover) ||
     Boolean(outsidePattern)
   const deliveryFlags = timelineJobBoardDeliveryFlags(job)
+  const officeAlerts = liveAlerts ?? []
+  const livePulse =
+    !saving && !cancelled ? highestPriorityLiveOfficeAlert(officeAlerts) : null
+  const liveAlertLayout = Boolean(livePulse)
+  const liveAlertTall = liveAlertLayout && !stackedLanes && widthPx >= 118
+  const clockedInAt = job.actualStartDateTime ?? job.visits?.[0]?.actualStartDateTime ?? null
+  const liveAlertTitle = livePulse
+    ? [
+        livePulse.label,
+        livePulse.sentAt ? `Sent ${formatOpsHm(livePulse.sentAt)}` : null,
+        livePulse.hint ?? (clockedInAt ? `Clocked in ${formatOpsHm(clockedInAt)}` : 'Not clocked in'),
+        livePulse.hasGps ? 'GPS available' : 'No GPS',
+        livePulse.employeeFirstName,
+        livePulse.message,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : officeAlerts.length > 0
+      ? officeAlerts.map((alert) => alert.label).join(' · ')
+      : null
   const hasVisibleIcons = scheduleJobBlockHasVisibleIcons(
     job,
     stackedLanes,
@@ -285,6 +456,11 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
     showTravelIcon,
     outsidePattern,
     deliveryFlags.length > 0,
+    officeAlerts.length > 0,
+    boardShowsCheckInMethod({
+      methodLabel: timelineJobCheckInMethodLabel(job),
+      liveAlertCount: officeAlerts.length,
+    }),
   )
   const showStackedBlockLayout = showRunsOnBoard || hasVisibleIcons
   const jobLaneHeight = resolveScheduleJobsJobLaneHeight({
@@ -315,6 +491,16 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
             ? 'top-1 bottom-1 min-h-12'
             : 'top-1.5 bottom-1.5 min-h-12'
       : blockHeightClass
+  const resolvedBlockSizeClass =
+    liveAlertLayout && !stackedLanes
+      ? liveAlertTall
+        ? showBookedTooltip || alignTop
+          ? 'top-0.5 h-14'
+          : 'top-1 bottom-1 min-h-14'
+        : showBookedTooltip || alignTop
+          ? 'top-0.5 h-12'
+          : 'top-1 bottom-1 min-h-12'
+      : blockSizeClass
   const timeCritical = resolveJobTimeCritical(job, visitPlanSlotsByServiceUser)
 
   const block = (
@@ -325,12 +511,14 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
       data-job-id={job.id}
       data-runs-on-board={showRunsOnBoard ? 'true' : 'false'}
       className={cn(
-        'absolute z-[3] flex select-none flex-col overflow-hidden rounded-md border text-left text-xs font-medium leading-snug antialiased transition-shadow',
-        JOB_BLOCK_TONE_CLASSES[tone],
-        showRunUi && !cancelled && 'border-l-[3px]',
+        'absolute z-[3] flex select-none flex-col rounded-md border text-left text-xs font-medium leading-snug antialiased',
+        !livePulse && 'transition-shadow',
+        livePulse ? 'overflow-visible' : 'overflow-hidden',
+        !livePulse && JOB_BLOCK_TONE_CLASSES[tone],
+        !livePulse && showRunUi && !cancelled && 'border-l-[3px]',
         stackedLanes
           ? 'h-[var(--schedule-job-lane-height)] shadow-sm ring-1 ring-background/80'
-          : blockSizeClass,
+          : resolvedBlockSizeClass,
         readOnly
           ? isDragging
             ? 'pointer-events-none opacity-25'
@@ -342,16 +530,23 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
                 : 'cursor-grab hover:shadow-md active:scale-[0.99]',
             ),
         isMarqueeSelected && 'ring-2 ring-primary ring-offset-1',
-        excessContracted &&
+        !livePulse &&
+          excessContracted &&
           !completed &&
           !cancelled &&
           'border-amber-600 bg-[repeating-linear-gradient(135deg,rgba(251,191,36,0.22),rgba(251,191,36,0.22)_6px,rgba(255,255,255,0.45)_6px,rgba(255,255,255,0.45)_12px)] ring-2 ring-amber-500/70',
-        overAllocated && !completed && !cancelled && 'ring-2 ring-rose-500/80 border-rose-600',
-        outsidePattern &&
+        !livePulse && overAllocated && !completed && !cancelled && 'ring-2 ring-rose-500/80 border-rose-600',
+        !livePulse &&
+          outsidePattern &&
           !completed &&
           !cancelled &&
           'ring-2 ring-orange-500/80 border-orange-600',
-        travelConflictFromPrevious && !completed && !cancelled && 'ring-2 ring-orange-500/80 border-orange-600',
+        !livePulse &&
+          travelConflictFromPrevious &&
+          !completed &&
+          !cancelled &&
+          'ring-2 ring-orange-500/80 border-orange-600',
+        livePulse?.pulseClass,
         saving && 'animate-pulse opacity-60',
       )}
       style={{
@@ -360,13 +555,15 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
         ...(stackedLanes && overlapLayout
           ? {
               top: scheduleJobLaneTopPx(overlapLayout.lane, jobLaneHeight),
-              zIndex: overlapLayout.lane + 3,
+              zIndex: livePulse ? 30 : overlapLayout.lane + 3,
               ['--schedule-job-lane-height' as string]: `${jobLaneHeight}px`,
             }
-          : {}),
-        ...(careNotDelivered
+          : livePulse
+            ? { zIndex: 30 }
+            : {}),
+        ...(!livePulse && careNotDelivered
           ? jobBlockUnableToStartSurfaceStyle
-          : completed
+          : !livePulse && completed
             ? jobBlockCompletedSurfaceStyle
             : {}),
         ...(cancelled ? jobBlockCancelledSurfaceStyle : {}),
@@ -374,7 +571,9 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
       }}
       title={
         stackedLanes && overlapLayout
-          ? `${formatJobTimeRange(job)} · Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time — ${labelLines.join(' · ')}`
+          ? `${liveAlertTitle ? `${liveAlertTitle} · ` : ''}${formatJobTimeRange(job)} · Visit ${overlapLayout.lane + 1} of ${overlapLayout.laneCount} at this time — ${labelLines.join(' · ')}`
+          : liveAlertTitle
+          ? `${liveAlertTitle} · ${formatJobTimeRange(job)} · ${labelLines.join(' · ')}`
           : showRunUi && runLabel
           ? `${formatJobTimeRange(job)} · ${runLabel} — ${labelLines.join(' · ')}`
           : careNotDelivered
@@ -408,14 +607,22 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
         }
       }}
     >
-      {timeCritical ? (
+      {timeCritical && !liveAlertLayout ? (
         <TimeCriticalDot
           toleranceMinutes={timeCritical.timeToleranceMinutes}
           position="corner"
           size="xs"
         />
       ) : null}
-      {showStackedBlockLayout ? (
+      {liveAlertLayout ? (
+        <ScheduleJobLiveAlertBody
+          job={job}
+          alerts={officeAlerts}
+          jobLabelMode={jobLabelMode}
+          widthPx={widthPx}
+          stackedLanes={stackedLanes}
+        />
+      ) : showStackedBlockLayout ? (
         <div
           data-schedule-job-block-body="stacked"
           className="grid h-full w-full gap-px px-2 py-0.5"
@@ -443,6 +650,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
                 showOperationalBadges={showOperationalBadges}
                 outsidePattern={outsidePattern}
                 deliveryFlags={deliveryFlags}
+                liveAlerts={officeAlerts}
               />
             </div>
           ) : null}
@@ -485,6 +693,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
             showOperationalBadges={showOperationalBadges}
             outsidePattern={outsidePattern}
             deliveryFlags={deliveryFlags}
+            liveAlerts={officeAlerts}
           />
           <span className="relative z-[1] min-w-0 flex-1 truncate text-xs font-semibold leading-snug">
             {blockLabel}
@@ -513,6 +722,7 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
           excessContracted={excessContracted}
           outsidePattern={outsidePattern}
           overAllocated={overAllocated}
+          liveAlerts={officeAlerts}
           isUnassignedRow={sourceRow.kind === 'unassigned'}
         />
       }

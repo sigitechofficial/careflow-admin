@@ -27,6 +27,14 @@ import {
   updateClockInArrivalReason,
   deleteClockInArrivalReason,
   type ClockInArrivalKind,
+  fetchManualAuthorisationReasons,
+  createManualAuthorisationReason,
+  updateManualAuthorisationReason,
+  deleteManualAuthorisationReason,
+  fetchLeftAreaAllowReasons,
+  createLeftAreaAllowReason,
+  updateLeftAreaAllowReason,
+  deleteLeftAreaAllowReason,
   fetchClockOutEndReasons,
   createClockOutEndReason,
   updateClockOutEndReason,
@@ -650,6 +658,106 @@ export function useDeleteClockInArrivalReason() {
     mutationFn: (id: string) => deleteClockInArrivalReason(id),
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: settingsKeys.clockInArrivalReasons() }),
+  })
+}
+
+// ─── Office Manual check-in authorisation reasons ───────────────────────────
+
+export function useManualAuthorisationReasons(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.manualAuthorisationReasons(),
+    queryFn: () => fetchManualAuthorisationReasons(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateManualAuthorisationReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { label: string; requiresNotes?: boolean; sortOrder?: number }) =>
+      createManualAuthorisationReason(body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.manualAuthorisationReasons() }),
+  })
+}
+
+export function useUpdateManualAuthorisationReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        label?: string
+        requiresNotes?: boolean
+        sortOrder?: number
+        isActive?: boolean
+      }
+    }) => updateManualAuthorisationReason(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.manualAuthorisationReasons() }),
+  })
+}
+
+export function useDeleteManualAuthorisationReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteManualAuthorisationReason(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.manualAuthorisationReasons() }),
+  })
+}
+
+// ─── Office left-area allow reasons ───────────────────────────────────────
+
+export function useLeftAreaAllowReasons(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.leftAreaAllowReasons(),
+    queryFn: () => fetchLeftAreaAllowReasons(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateLeftAreaAllowReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { label: string; requiresNotes?: boolean; sortOrder?: number }) =>
+      createLeftAreaAllowReason(body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.leftAreaAllowReasons() }),
+  })
+}
+
+export function useUpdateLeftAreaAllowReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        label?: string
+        requiresNotes?: boolean
+        sortOrder?: number
+        isActive?: boolean
+      }
+    }) => updateLeftAreaAllowReason(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.leftAreaAllowReasons() }),
+  })
+}
+
+export function useDeleteLeftAreaAllowReason() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteLeftAreaAllowReason(id),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: settingsKeys.leftAreaAllowReasons() }),
   })
 }
 

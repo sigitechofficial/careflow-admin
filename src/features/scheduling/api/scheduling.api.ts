@@ -479,6 +479,40 @@ export async function reinstateHousekeepingJob(id: string, payload?: { notes?: s
   return res
 }
 
+export async function resetHousekeepingJobDelivery(id: string, payload: { reason: string }) {
+  const res = await apiJson<ApiEnvelope<unknown>>(
+    `/scheduled-jobs-housekeeping/jobs/${id}/reset-delivery`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  )
+  return res
+}
+
+export async function resetHousekeepingJobTask(
+  jobId: string,
+  assignmentId: string,
+  payload: { reason: string },
+): Promise<VisitJobTasksResponse> {
+  const res = await apiJson<ApiEnvelope<VisitJobTasksResponse>>(
+    `/scheduled-jobs-housekeeping/jobs/${jobId}/tasks/${encodeURIComponent(assignmentId)}/reset`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  )
+  return (
+    res.data ?? {
+      medicationRoundCode: null,
+      roundLabel: null,
+      windowStart: null,
+      windowEnd: null,
+      tasks: [],
+    }
+  )
+}
+
 export async function getScheduleReport(
   endpoint: string,
   query: DateRangeQuery,

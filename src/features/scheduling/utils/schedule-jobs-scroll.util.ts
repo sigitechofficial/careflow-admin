@@ -61,3 +61,12 @@ export function scrollScheduleJobsBoardToRow(rowKey: string): void {
     row?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   })
 }
+
+/** Scroll the schedule jobs board so a visit block is visible. */
+export function scrollScheduleJobsBoardToJob(jobId: string): void {
+  requestAnimationFrame(() => {
+    const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(jobId) : jobId
+    const block = document.querySelector(`[data-job-id="${escaped}"]`)
+    block?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
+  })
+}

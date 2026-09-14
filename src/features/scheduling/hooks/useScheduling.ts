@@ -38,6 +38,8 @@ export function useScheduleDayRuns(
     queryKey: schedulingKeys.dayRuns(date),
     queryFn: ({ signal }) => getJobsDayRuns(date, { limit: params.limit ?? 200 }, { signal }),
     enabled: enabled && Boolean(date),
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 
@@ -67,6 +69,8 @@ export function useScheduleEmployeesDay(
     queryKey: schedulingKeys.employeesDay(date),
     queryFn: ({ signal }) => getEmployeesDayTimeline(date, { limit: params.limit ?? 200 }, { signal }),
     enabled: enabled && Boolean(date),
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 

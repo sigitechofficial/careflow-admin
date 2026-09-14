@@ -18,6 +18,8 @@ import { BodyMapRecordTypesSettingsPanel } from '@/features/settings/components/
 import { VitalAcceptedRangesSettingsPanel } from '@/features/settings/components/VitalAcceptedRangesSettingsPanel'
 import { WelfareOutcomesSettingsPanel } from '@/features/settings/components/WelfareOutcomesSettingsPanel'
 import { ClockInArrivalReasonsSettingsPanel } from '@/features/settings/components/ClockInArrivalReasonsSettingsPanel'
+import { ManualAuthorisationReasonsSettingsPanel } from '@/features/settings/components/ManualAuthorisationReasonsSettingsPanel'
+import { LeftAreaAllowReasonsSettingsPanel } from '@/features/settings/components/LeftAreaAllowReasonsSettingsPanel'
 import { ClockOutEndReasonsSettingsPanel } from '@/features/settings/components/ClockOutEndReasonsSettingsPanel'
 import { VisitOutcomeReasonsSettingsPanel } from '@/features/settings/components/VisitOutcomeReasonsSettingsPanel'
 import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components/EcmThresholdLookupsSettingsPanel'
@@ -51,6 +53,8 @@ export type SettingsTabId =
   | 'vital-ranges'
   | 'welfare-outcomes'
   | 'clock-in-arrival-reasons'
+  | 'manual-authorisation-reasons'
+  | 'left-area-allow-reasons'
   | 'clock-out-end-reasons'
   | 'outcome-reasons'
   | 'ecm-thresholds'
@@ -83,6 +87,8 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'vital-ranges', label: 'Accepted ranges' },
   { id: 'welfare-outcomes', label: 'On-entry welfare outcomes' },
   { id: 'clock-in-arrival-reasons', label: 'Clock-in arrival reasons' },
+  { id: 'manual-authorisation-reasons', label: 'Manual authorisation reasons' },
+  { id: 'left-area-allow-reasons', label: 'Left-area allow reasons' },
   { id: 'clock-out-end-reasons', label: 'Clock-out end reasons' },
   { id: 'outcome-reasons', label: 'Outcome reasons' },
   { id: 'ecm-thresholds', label: 'ECM thresholds' },
@@ -249,6 +255,8 @@ export default function SettingsPage() {
           {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
           {activeTab === 'welfare-outcomes' && <WelfareOutcomesSettingsPanel />}
           {activeTab === 'clock-in-arrival-reasons' && <ClockInArrivalReasonsSettingsPanel />}
+          {activeTab === 'manual-authorisation-reasons' && <ManualAuthorisationReasonsSettingsPanel />}
+          {activeTab === 'left-area-allow-reasons' && <LeftAreaAllowReasonsSettingsPanel />}
           {activeTab === 'clock-out-end-reasons' && <ClockOutEndReasonsSettingsPanel />}
           {activeTab === 'outcome-reasons' && <VisitOutcomeReasonsSettingsPanel />}
           {activeTab === 'ecm-thresholds' && <EcmThresholdLookupsSettingsPanel />}

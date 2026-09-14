@@ -12,7 +12,7 @@ import {
   ScheduleVisitWorkspaceContent,
   type ScheduleVisitWorkspaceTab,
 } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
-import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
+import { ScheduleVisitRefResetRow } from '@/features/scheduling/components/ScheduleVisitResetDeliveryButton'
 import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import { serviceUserLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
@@ -64,9 +64,9 @@ export function ScheduleVisitWorkspaceSheet({
 
   if (!job) return null
 
-  const visitRef = freshJobQuery.data?.visitRef ?? job.visitRef
-  const visitId =
-    freshJobQuery.data?.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
+  const liveJob = freshJobQuery.data ? { ...job, ...freshJobQuery.data } : job
+  const visitRef = liveJob.visitRef ?? job.visitRef
+  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
   const returnTo = `/scheduling/schedule-jobs?date=${encodeURIComponent(date)}`
 
   return (
@@ -74,16 +74,12 @@ export function ScheduleVisitWorkspaceSheet({
       <SheetContent side="right" size="xl" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-border px-6 py-4 text-left">
           <SheetTitle>Visit workspace</SheetTitle>
-          <SheetDescription asChild>
-            <div className="space-y-1.5 text-sm text-muted-foreground">
-              <p>
-                {serviceUserLabel(job.serviceUser)}
-                {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
-                {formatJobTimeRange(job)}
-              </p>
-              <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
-            </div>
+          <SheetDescription>
+            {serviceUserLabel(job.serviceUser)}
+            {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
+            {formatJobTimeRange(job)}
           </SheetDescription>
+          <ScheduleVisitRefResetRow job={liveJob} visitRef={visitRef} visitId={visitId} />
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
           <ScheduleVisitWorkspaceContent

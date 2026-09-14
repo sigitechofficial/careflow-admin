@@ -19,6 +19,7 @@ import {
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { jobOverlapsViewport, type ScheduleJobsTimelineViewport } from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import type { ScheduleRunsDisplayPreferences } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
+import type { LiveOfficeAlert } from '@/features/scheduling/utils/schedule-job-live-office-alerts.util'
 import { cn } from '@/shared/lib/utils'
 
 export type ScheduleJobsGanttRowProps = {
@@ -47,6 +48,7 @@ export type ScheduleJobsGanttRowProps = {
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   travelBufferMinutes?: number
+  liveAlertsByJobId?: Map<string, LiveOfficeAlert[]>
   previewJobIds?: Set<string>
   zebra?: boolean
   runDisplayPreferences?: ScheduleRunsDisplayPreferences
@@ -91,6 +93,7 @@ export const ScheduleJobsGanttRow = React.memo(function ScheduleJobsGanttRow({
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
   travelBufferMinutes,
+  liveAlertsByJobId,
   previewJobIds,
   zebra,
   runDisplayPreferences,
@@ -120,12 +123,17 @@ export const ScheduleJobsGanttRow = React.memo(function ScheduleJobsGanttRow({
     [visibleJobs, showRunsOnBoard],
   )
   const availabilityBadge = resolveCarerDayAvailabilityBadge(dayPattern, onHoliday)
+  const rowHasLiveAlert = React.useMemo(
+    () => jobs.some((job) => (liveAlertsByJobId?.get(job.id)?.length ?? 0) > 0),
+    [jobs, liveAlertsByJobId],
+  )
 
   return (
     <div
       data-schedule-row-id={rowKey}
       className={cn(
         'flex shrink-0 overflow-visible border-b border-border/70 transition-colors',
+        rowHasLiveAlert && 'relative z-10',
         zebra &&
           !onHoliday &&
           !availabilityBadge &&
@@ -175,6 +183,7 @@ export const ScheduleJobsGanttRow = React.memo(function ScheduleJobsGanttRow({
         visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
         acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
         travelBufferMinutes={travelBufferMinutes}
+        liveAlertsByJobId={liveAlertsByJobId}
         previewJobIds={previewJobIds}
         runDisplayPreferences={runDisplayPreferences}
         overlapByJobId={overlapLayout.byJobId}

@@ -129,7 +129,12 @@ export function buildScheduleJobsBoard(
     .sort(sortByName)
     .map((row) => ({
       ...row,
-      allocations: row.allocations.filter((allocation) => !isScheduleJobCancelled(allocation.job)),
+      allocations: row.allocations
+        .map((allocation) => ({
+          ...allocation,
+          job: jobById.get(allocation.job.id) ?? allocation.job,
+        }))
+        .filter((allocation) => !isScheduleJobCancelled(allocation.job)),
     }))
 
   const carers = employeeRows.filter((row) => row.allocations.length > 0)
