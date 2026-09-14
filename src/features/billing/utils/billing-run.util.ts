@@ -7,7 +7,13 @@ import {
 
 /** Latest full Mon–Sun week in the organisation operational timezone. */
 export function defaultBillingWeekRange(): { periodStart: string; periodEnd: string } {
-  const [y, m, d] = operationalTodayIso().split('-').map(Number)
+  const parts = operationalTodayIso().split('-').map(Number)
+  const y = parts[0]
+  const m = parts[1]
+  const d = parts[2]
+  if (y == null || m == null || d == null) {
+    return { periodStart: operationalTodayIso(), periodEnd: operationalTodayIso() }
+  }
   const cal = new Date(Date.UTC(y, m - 1, d))
   cal.setUTCDate(cal.getUTCDate() - cal.getUTCDay())
   const periodEnd = cal.toISOString().slice(0, 10)
@@ -17,5 +23,8 @@ export function defaultBillingWeekRange(): { periodStart: string; periodEnd: str
 
 /** Previous full calendar month in the organisation operational timezone. */
 export function defaultBillingMonthRange(): { periodStart: string; periodEnd: string } {
-  return salaryMonthDateRange(shiftSalaryMonth(currentOpsMonth(), -1))
+  const { dateFrom, dateTo } = salaryMonthDateRange(
+    shiftSalaryMonth(currentOpsMonth(), -1),
+  )
+  return { periodStart: dateFrom, periodEnd: dateTo }
 }
