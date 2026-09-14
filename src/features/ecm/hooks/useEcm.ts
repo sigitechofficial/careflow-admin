@@ -26,6 +26,13 @@ import {
   updateEcmThresholdLookup,
 } from '@/features/ecm/api/ecm.api'
 import { ecmKeys } from '@/features/ecm/keys'
+import type { EcmExceptionRow } from '@/features/ecm/types/ecm.types'
+import {
+  markCheckInRequestDecided,
+  markLeftVisitAreaAllowed,
+  markLiveOfficeAlertAcknowledged,
+  markLiveOfficeAlertClosed,
+} from '@/features/ecm/utils/ecm-urgent-alert.util'
 import { toastSosAckFcm } from '@/features/ecm/utils/sos-ack-fcm-toast'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
@@ -85,12 +92,13 @@ export function useReevaluateEcmVisit() {
 export function useEcmExceptions(
   options?: { limit?: number; serviceUserId?: string; locationId?: string; enabled?: boolean },
 ) {
-  const { limit = 50, serviceUserId, locationId, enabled = true } = options ?? {}
+  const { limit = 100, serviceUserId, locationId, enabled = true } = options ?? {}
   return useQuery({
     queryKey: ecmKeys.exceptions({ limit, serviceUserId, locationId }),
     queryFn: () => fetchEcmExceptions({ limit, serviceUserId, locationId }),
     enabled,
     refetchInterval: 60_000,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     staleTime: 0,
   })
@@ -183,39 +191,66 @@ export function useEcmNotifications(jobId: string | null | undefined) {
 function useInvalidateEcmExceptions() {
   const qc = useQueryClient()
   return () => {
-    void qc.invalidateQueries({ queryKey: [...ecmKeys.all, 'exceptions'] })
-    void qc.invalidateQueries({ queryKey: ecmKeys.all })
+    // Inactive Schedule Jobs observers must refetch too — they use a different
+    // exceptions query key (limit) and otherwise keep the unacked SOS popup.
+    void qc.invalidateQueries({ queryKey: [...ecmKeys.all, 'exceptions'], refetchType: 'all' })
+    void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
   }
+}
+
+function patchExceptionsCache(
+  qc: ReturnType<typeof useQueryClient>,
+  patch: (rows: EcmExceptionRow[]) => EcmExceptionRow[],
+) {
+  qc.setQueriesData({ queryKey: [...ecmKeys.all, 'exceptions'] }, (current) => {
+    if (!Array.isArray(current)) return current
+    return patch(current as EcmExceptionRow[])
+  })
 }
 
 export function useAllowVisitContinue() {
   const qc = useQueryClient()
+  const invalidate = useInvalidateEcmExceptions()
   return useMutation({
-    mutationFn: ({ jobId, note }: { jobId: string; note?: string }) =>
-      allowVisitContinue(jobId, note),
+    mutationFn: ({
+      jobId,
+      reasonId,
+      note,
+    }: {
+      jobId: string
+      reasonId: string
+      note?: string
+    }) => allowVisitContinue(jobId, { reasonId, note }),
     onSuccess: (_data, vars) => {
+      toastSuccess('Carer can continue this visit')
+      patchExceptionsCache(qc, (rows) => markLeftVisitAreaAllowed(rows, vars.jobId))
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
-      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+      invalidate()
     },
+    onError: e => toastApiError(e, 'Could not allow this visit'),
   })
 }
 
 export function useAuthoriseCheckInMethodGrant() {
   const qc = useQueryClient()
+  const invalidate = useInvalidateEcmExceptions()
   return useMutation({
     mutationFn: ({
       jobId,
       grantId,
+      reasonId,
       note,
     }: {
       jobId: string
       grantId: string
+      reasonId: string
       note?: string
-    }) => authoriseCheckInMethodGrant(jobId, grantId, note),
+    }) => authoriseCheckInMethodGrant(jobId, grantId, { reasonId, note }),
     onSuccess: (_data, vars) => {
       toastSuccess('Manual check-in authorised')
+      patchExceptionsCache(qc, (rows) => markCheckInRequestDecided(rows, vars.jobId, 'AUTHORISED'))
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
-      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+      invalidate()
     },
     onError: e => toastApiError(e, 'Could not authorise Manual'),
   })
@@ -223,6 +258,7 @@ export function useAuthoriseCheckInMethodGrant() {
 
 export function useRejectCheckInMethodGrant() {
   const qc = useQueryClient()
+  const invalidate = useInvalidateEcmExceptions()
   return useMutation({
     mutationFn: ({
       jobId,
@@ -235,20 +271,25 @@ export function useRejectCheckInMethodGrant() {
     }) => rejectCheckInMethodGrant(jobId, grantId, note),
     onSuccess: (_data, vars) => {
       toastSuccess('Outside area check-in rejected')
+      patchExceptionsCache(qc, (rows) => markCheckInRequestDecided(rows, vars.jobId, 'REJECTED'))
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(vars.jobId) })
-      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+      invalidate()
     },
     onError: e => toastApiError(e, 'Could not reject this request'),
   })
 }
 
 export function useAcknowledgeEcmException() {
+  const qc = useQueryClient()
   const invalidate = useInvalidateEcmExceptions()
   return useMutation({
     mutationFn: ({ id, note }: { id: string; note?: string }) =>
       acknowledgeEcmException(id, note),
-    onSuccess: data => {
+    onSuccess: (data, vars) => {
       toastSosAckFcm(data.fcm)
+      patchExceptionsCache(qc, (rows) =>
+        markLiveOfficeAlertAcknowledged(rows, vars.id, new Date().toISOString()),
+      )
       invalidate()
     },
     onError: e => toastApiError(e, 'Could not acknowledge this SOS'),
@@ -272,10 +313,14 @@ export function useResolveEcmException() {
 }
 
 export function useCloseEcmException() {
+  const qc = useQueryClient()
   const invalidate = useInvalidateEcmExceptions()
   return useMutation({
     mutationFn: ({ id, note }: { id: string; note?: string }) => closeEcmException(id, note),
-    onSuccess: invalidate,
+    onSuccess: (_data, vars) => {
+      patchExceptionsCache(qc, (rows) => markLiveOfficeAlertClosed(rows, vars.id))
+      invalidate()
+    },
   })
 }
 

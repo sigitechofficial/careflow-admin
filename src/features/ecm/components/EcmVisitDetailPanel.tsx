@@ -27,7 +27,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
-import { FormField, Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import {
   formatOpsCalendarDate,
@@ -35,6 +34,7 @@ import {
   formatOpsDateTimeNumeric,
 } from '@/shared/lib/operational-day.util'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
+import { AuthoriseManualCheckInDialog } from '@/features/ecm/components/AuthoriseManualCheckInDialog'
 import { EcmCarerCapturedLocation } from '@/features/ecm/components/EcmCarerCapturedLocation'
 import { EcmScheduleHistoryPanel } from '@/features/ecm/components/EcmScheduleHistoryPanel'
 import { EcmAuditTrailPanel } from '@/features/ecm/components/EcmAuditTrailPanel'
@@ -297,7 +297,7 @@ function VisitDetailCheckInGrantCard({
 }) {
   const authorise = useAuthoriseCheckInMethodGrant()
   const reject = useRejectCheckInMethodGrant()
-  const [note, setNote] = React.useState('')
+  const [dialogOpen, setDialogOpen] = React.useState(false)
   const pending = grant.status === 'PENDING'
   const authorised = grant.manualEnabled
   const busy = authorise.isPending || reject.isPending
@@ -358,30 +358,14 @@ function VisitDetailCheckInGrantCard({
             Authorise enables Manual check-in for this carer, this visit, and this operational
             day only. Organisation check-in settings stay unchanged.
           </p>
-          <FormField label="Note (optional)" htmlFor={`visit-grant-note-${grant.id}`}>
-            <Textarea
-              id={`visit-grant-note-${grant.id}`}
-              rows={2}
-              className="min-h-[64px]"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Traffic, wait at the gate"
-            />
-          </FormField>
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               disabled={busy}
-              onClick={() =>
-                authorise.mutate({
-                  jobId,
-                  grantId: grant.id,
-                  note: note.trim() || undefined,
-                })
-              }
+              onClick={() => setDialogOpen(true)}
             >
-              {authorise.isPending ? 'Authorising…' : 'Authorise Manual'}
+              Authorise Manual
             </Button>
             <Button
               type="button"
@@ -392,7 +376,6 @@ function VisitDetailCheckInGrantCard({
                 reject.mutate({
                   jobId,
                   grantId: grant.id,
-                  note: note.trim() || undefined,
                 })
               }
             >
@@ -402,7 +385,26 @@ function VisitDetailCheckInGrantCard({
           {authorise.isError || reject.isError ? (
             <p className="text-sm text-destructive">Could not update this request. Try again.</p>
           ) : null}
+          <AuthoriseManualCheckInDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            busy={authorise.isPending}
+            onConfirm={payload =>
+              authorise.mutateAsync({
+                jobId,
+                grantId: grant.id,
+                reasonId: payload.reasonId,
+                note: payload.note,
+              })
+            }
+          />
         </>
+      ) : grant.officeNote ? (
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground/80">Office reason</span>
+          <span className="mx-1.5 text-muted-foreground/80">·</span>
+          {grant.officeNote}
+        </p>
       ) : null}
     </section>
   )

@@ -31,6 +31,7 @@ import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/u
 import { recordTypeLabel } from '@/features/service-users/body-map/catalog/record-types'
 import type { BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { isScheduleJobCancelled } from '@/features/scheduling/types/schedule-job-context-actions.types'
 import { VisitBodyMapCapture } from '@/features/scheduling/components/VisitBodyMapCapture'
 import { VisitJobTasksPanel } from '@/features/scheduling/components/VisitJobTasksPanel'
 import { VisitMedicationPanel } from '@/features/scheduling/components/VisitMedicationPanel'
@@ -58,7 +59,6 @@ import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
-import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
 import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
 
 export type ScheduleVisitWorkspaceTab =
@@ -144,9 +144,7 @@ export function ScheduleVisitWorkspaceContent({
     staleTime: 0,
     refetchOnMount: 'always',
   })
-  const liveJob = freshJobQuery.data ?? job
-  const visitRef = liveJob.visitRef ?? job.visitRef
-  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
+  const liveJob = freshJobQuery.data ? { ...job, ...freshJobQuery.data } : job
 
   const careConsentQuery = useQuery({
     queryKey: schedulingKeys.careConsents(job.id),
@@ -311,9 +309,6 @@ export function ScheduleVisitWorkspaceContent({
               {formatJobTimeRange(job)} · {jobStatusLabel(job.status)}
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
-              </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" aria-hidden />
                 <span>
@@ -590,7 +585,12 @@ export function ScheduleVisitWorkspaceContent({
         </div>
       ) : tab === 'tasks' ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <VisitJobTasksPanel jobId={job.id} fillHeight />
+          <VisitJobTasksPanel
+            jobId={job.id}
+            serviceUserId={job.serviceUserId}
+            allowTaskReset={!isScheduleJobCancelled(job)}
+            fillHeight
+          />
         </div>
       ) : tab === 'medication' ? (
         <div className="min-h-0 flex-1 overflow-y-auto">

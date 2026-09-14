@@ -34,7 +34,10 @@ export function mergeScheduleJobsEmployeeRoster(
   const byId = new Map<string, EmployeeDayRow>()
 
   for (const row of timelineRows) {
-    byId.set(row.employee.id, row)
+    byId.set(row.employee.id, {
+      ...row,
+      allocations: row.allocations.map((allocation) => ({ ...allocation })),
+    })
   }
 
   for (const job of jobs) {
@@ -53,14 +56,18 @@ export function mergeScheduleJobsEmployeeRoster(
         byId.set(employee.id, row)
       }
 
-      if (!row.allocations.some((entry) => entry.job.id === job.id)) {
-        row.allocations.push({
-          id: allocation.id,
-          status: allocation.status,
-          job,
-        })
-        row.totalMinutes += job.durationMinutes ?? 0
+      const existing = row.allocations.find((entry) => entry.job.id === job.id)
+      if (existing) {
+        // Day-runs is the live board payload (check-in method, actual start).
+        existing.job = job
+        continue
       }
+      row.allocations.push({
+        id: allocation.id,
+        status: allocation.status,
+        job,
+      })
+      row.totalMinutes += job.durationMinutes ?? 0
     }
   }
 

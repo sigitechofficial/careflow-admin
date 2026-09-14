@@ -71,6 +71,8 @@ export function ScheduleJobsGanttLegend({
       <LegendPill swatch="bg-destructive" label="Critically late" />
       <LegendPill hatchStyle={jobBlockCompletedSurfaceStyle} label="Completed" />
       <LegendPill hatchStyle={jobBlockUnableToStartSurfaceStyle} label="Unable to start" />
+      <LegendPill swatch="border-2 border-red-500 bg-rose-50" label="SOS / left visit area" />
+      <LegendPill swatch="border-2 border-amber-500 bg-amber-50" label="Unable to start / auth request" />
       <div className="hidden h-4 w-px bg-border/80 sm:block" />
       {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
         <button

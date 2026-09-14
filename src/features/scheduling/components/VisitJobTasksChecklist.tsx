@@ -8,6 +8,7 @@ import { formatOrganisationDate } from '@/shared/lib/organisation-display-format
 import {
   displayVisitTaskRecordedValue,
   inferVisitJobTaskOutcome,
+  isVisitJobTaskResettable,
   sortVisitJobTasksForCarer,
   stripVisitTaskOutcomeNotes,
   visitJobTaskIsRequired,
@@ -17,6 +18,7 @@ import {
   type VisitJobTaskRow,
 } from '@/features/scheduling/types/visit-job-tasks.types'
 import { VisitPhotoThumbnails } from '@/features/scheduling/components/VisitPhotoThumbnails'
+import { VisitJobTaskResetButton } from '@/features/scheduling/components/ScheduleJobResetTaskDialog'
 import {
   normalizeVisitTaskPriority,
   visitTaskPriorityBadgeClass,
@@ -49,6 +51,10 @@ type Props = {
   /** Normalised observation type code → { label, value }, to surface the linked
    * observation on an obs-linked task (parity with the carer app). */
   observationsByType?: Record<string, RecordedObservation>
+  /** Office reset of one task — trailing the name. Carer app has no button. */
+  jobId?: string
+  serviceUserId?: string | null
+  allowTaskReset?: boolean
 }
 
 export type RecordedObservation = {
@@ -267,6 +273,9 @@ export function VisitJobTasksChecklist({
   fillHeight = false,
   listMaxHeightClass = 'max-h-[min(24rem,50vh)]',
   observationsByType,
+  jobId,
+  serviceUserId,
+  allowTaskReset = false,
 }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
 
@@ -372,6 +381,15 @@ export function VisitJobTasksChecklist({
               aria-hidden
             />
           </button>
+          {allowTaskReset && jobId && isVisitJobTaskResettable(task) ? (
+            <VisitJobTaskResetButton
+              jobId={jobId}
+              assignmentId={task.assignmentId}
+              taskName={task.name}
+              serviceUserId={serviceUserId}
+              disabled={disabled}
+            />
+          ) : null}
           {task.isExtra && onRemoveExtra ? (
             <button
               type="button"

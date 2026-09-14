@@ -12,7 +12,7 @@ import {
   ScheduleVisitWorkspaceContent,
   type ScheduleVisitWorkspaceTab,
 } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
-import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
+import { ScheduleVisitRefResetRow } from '@/features/scheduling/components/ScheduleVisitResetDeliveryButton'
 import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import { serviceUserLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
@@ -69,9 +69,9 @@ export function ScheduleVisitWorkspaceSheet({
 
   if (!job) return null
 
-  const visitRef = freshJobQuery.data?.visitRef ?? job.visitRef
-  const visitId =
-    freshJobQuery.data?.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
+  const liveJob = freshJobQuery.data ? { ...job, ...freshJobQuery.data } : job
+  const visitRef = liveJob.visitRef ?? job.visitRef
+  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
   const returnTo = `/scheduling/schedule-jobs?date=${encodeURIComponent(date)}`
   const operationalTimezone = getSyncedOperationalTimeZone()
   const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
@@ -97,7 +97,7 @@ export function ScheduleVisitWorkspaceSheet({
                 {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
                 {formatOrganisationIsoDate(date)} · {formatJobTimeRange(job)}
               </p>
-              <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
+              <ScheduleVisitRefResetRow job={liveJob} visitRef={visitRef} visitId={visitId} />
             </div>
           </SheetDescription>
         </SheetHeader>

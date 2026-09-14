@@ -263,6 +263,69 @@
   .billing-rule-flash {
     animation: billing-rule-flash 1.4s ease-out;
   }
+
+  /* Schedule Jobs live office alerts — raised card so the visit pops above the rota. */
+  .schedule-job-live-alert-danger,
+  .schedule-job-live-alert-warn {
+    transform: translateY(-5px) scale(1.07);
+    transform-origin: center center;
+    isolation: isolate;
+  }
+
+  .schedule-job-live-alert-danger {
+    animation: schedule-job-live-alert-danger 1.05s ease-in-out infinite;
+  }
+
+  .schedule-job-live-alert-warn {
+    animation: schedule-job-live-alert-warn 1.15s ease-in-out infinite;
+  }
+}
+
+@keyframes schedule-job-live-alert-danger {
+  0%,
+  100% {
+    transform: translateY(-5px) scale(1.06);
+    box-shadow:
+      0 8px 10px rgb(15 23 42 / 0.12),
+      0 18px 28px rgb(220 38 38 / 0.22),
+      0 0 0 2px rgb(248 113 113 / 0.45);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.1);
+    box-shadow:
+      0 14px 16px rgb(15 23 42 / 0.16),
+      0 24px 36px rgb(220 38 38 / 0.28),
+      0 0 0 3px rgb(239 68 68 / 0.32);
+  }
+}
+
+@keyframes schedule-job-live-alert-warn {
+  0%,
+  100% {
+    transform: translateY(-5px) scale(1.06);
+    box-shadow:
+      0 8px 10px rgb(15 23 42 / 0.1),
+      0 18px 28px rgb(245 158 11 / 0.2),
+      0 0 0 2px rgb(251 191 36 / 0.45);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.1);
+    box-shadow:
+      0 14px 16px rgb(15 23 42 / 0.14),
+      0 24px 36px rgb(245 158 11 / 0.26),
+      0 0 0 3px rgb(245 158 11 / 0.32);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-job-live-alert-danger,
+  .schedule-job-live-alert-warn {
+    animation: none;
+    transform: translateY(-6px) scale(1.07);
+    box-shadow:
+      0 12px 24px rgb(15 23 42 / 0.2),
+      0 0 0 2px rgb(248 113 113 / 0.4);
+  }
 }
 
 @keyframes billing-rule-flash {

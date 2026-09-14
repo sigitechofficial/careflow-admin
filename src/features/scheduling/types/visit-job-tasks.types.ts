@@ -133,6 +133,22 @@ export function normalizeVisitJobTaskOutcome(
   return null
 }
 
+/** Office can wipe this task when the visit already has a recorded outcome. */
+export function isVisitJobTaskResettable(task: {
+  isCompleted?: boolean | null
+  outcome?: string | null
+  recordedValue?: string | null
+  notes?: string | null
+  completedAt?: string | null
+}): boolean {
+  if (task.isCompleted) return true
+  if (inferVisitJobTaskOutcome(task)) return true
+  if (task.completedAt?.trim()) return true
+  if (String(task.recordedValue ?? '').trim()) return true
+  if (String(task.notes ?? '').trim()) return true
+  return false
+}
+
 export function inferVisitJobTaskOutcome(task: {
   isCompleted?: boolean | null
   outcome?: string | null

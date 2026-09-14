@@ -7,6 +7,8 @@ import {
   completeHousekeepingJob,
   confirmJobAllocation,
   reinstateHousekeepingJob,
+  resetHousekeepingJobDelivery,
+  resetHousekeepingJobTask,
   setJobLeadCarer,
   unallocateJob,
   updateJobAllocationTiming,
@@ -113,6 +115,50 @@ export function useReinstateHousekeepingJob() {
       void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
       invalidateSchedulingQueries(qc)
       void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+  })
+}
+
+export function useResetHousekeepingJobDelivery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, reason }: { jobId: string; reason: string }) =>
+      resetHousekeepingJobDelivery(jobId, { reason }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
+      invalidateSchedulingQueries(qc)
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+    },
+  })
+}
+
+export function useResetHousekeepingJobTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      assignmentId,
+      reason,
+    }: {
+      jobId: string
+      assignmentId: string
+      reason: string
+      serviceUserId?: string | null
+    }) => resetHousekeepingJobTask(jobId, assignmentId, { reason }),
+    onSuccess: (_data, variables) => {
+      void qc.invalidateQueries({ queryKey: ['visit-job-tasks', variables.jobId] })
+      void qc.invalidateQueries({ queryKey: ['visit-observations', variables.jobId] })
+      void qc.invalidateQueries({ queryKey: ['visit-timeline', variables.jobId] })
+      void qc.invalidateQueries({ queryKey: schedulingKeys.job(variables.jobId) })
+      void qc.invalidateQueries({ queryKey: schedulingKeys.housekeeping() })
+      invalidateSchedulingQueries(qc)
+      void qc.invalidateQueries({ queryKey: ecmKeys.all, refetchType: 'active' })
+      if (variables.serviceUserId) {
+        void qc.invalidateQueries({
+          queryKey: [...serviceUserKeys.detail(variables.serviceUserId), 'medication-chart'],
+        })
+        void qc.invalidateQueries({ queryKey: serviceUserKeys.observations(variables.serviceUserId) })
+      }
     },
   })
 }

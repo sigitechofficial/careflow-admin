@@ -10,6 +10,7 @@ import type {
 import type { JobDropPayload } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import type { RotaGapDisplayMode } from '@/features/scheduling/utils/schedule-job-rota-gap.util'
 import type { ScheduleJobsBoardRowAxis, ServiceUserDayRow } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
+import type { LiveOfficeAlert } from '@/features/scheduling/utils/schedule-job-live-office-alerts.util'
 
 export type ScheduleJobsGanttProps = {
   date: string
@@ -30,6 +31,7 @@ export type ScheduleJobsGanttProps = {
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   travelBufferMinutes?: number
+  liveAlertsByJobId?: Map<string, LiveOfficeAlert[]>
   onJobClick: (job: TimelineJob) => void
   onJobAction: (job: TimelineJob, action: ScheduleJobContextAction) => void
   onJobDrop: (payload: JobDropPayload) => void | Promise<void>

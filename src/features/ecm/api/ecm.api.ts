@@ -272,21 +272,30 @@ export async function resolveEcmException(
   })
 }
 
-export async function allowVisitContinue(jobId: string, note?: string): Promise<unknown> {
+export async function allowVisitContinue(
+  jobId: string,
+  payload: { reasonId: string; note?: string },
+): Promise<unknown> {
   return apiJson(`/ecm/visits/${jobId}/allow-continue`, {
     method: 'POST',
-    body: JSON.stringify({ note: note?.trim() || undefined }),
+    body: JSON.stringify({
+      reasonId: payload.reasonId,
+      note: payload.note?.trim() || undefined,
+    }),
   })
 }
 
 export async function authoriseCheckInMethodGrant(
   jobId: string,
   grantId: string,
-  note?: string,
+  payload: { reasonId: string; note?: string },
 ): Promise<unknown> {
   return apiJson(`/ecm/visits/${jobId}/check-in-method-grants/${grantId}/authorise`, {
     method: 'POST',
-    body: JSON.stringify({ note: note?.trim() || undefined }),
+    body: JSON.stringify({
+      reasonId: payload.reasonId,
+      note: payload.note?.trim() || undefined,
+    }),
   })
 }
 

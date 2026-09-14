@@ -62,6 +62,15 @@ import {
 import {
   handleScheduleJobHoverWheel,
 } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
+import {
+  liveOfficeAlertChipIsSentence,
+  type LiveOfficeAlert,
+} from '@/features/scheduling/utils/schedule-job-live-office-alerts.util'
+import {
+  timelineJobCheckInMethodLabel,
+  timelineJobCheckInMethodTitle,
+} from '@/features/scheduling/utils/schedule-job-check-in-method.util'
+import { formatOpsHm } from '@/shared/lib/operational-day.util'
 
 type Props = {
   job: TimelineJob
@@ -76,6 +85,7 @@ type Props = {
   outsidePattern?: boolean
   overAllocated?: boolean
   isUnassignedRow?: boolean
+  liveAlerts?: LiveOfficeAlert[]
 }
 
 const HOVER_COLLISION_PADDING = { top: 16, bottom: 16, left: 16, right: 16 } as const
@@ -332,6 +342,7 @@ export function JobHoverPanel({
   excessContracted = false,
   outsidePattern = false,
   isUnassignedRow = false,
+  liveAlerts = [],
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
   const tone = jobBlockTone(job)
@@ -448,6 +459,8 @@ export function JobHoverPanel({
         : null
 
   const deliveryFlags = boardVisibleDeliveryFlags(assessTimelineJobDelivery(job))
+  const checkInMethodLabel = timelineJobCheckInMethodLabel(job)
+  const checkInMethodTitle = timelineJobCheckInMethodTitle(job)
 
   const timeCritical = visitSlot?.timeCritical
   const timeCriticalText = timeCritical
@@ -593,8 +606,41 @@ export function JobHoverPanel({
                 : 'Visit cancelled on rota'}
             </p>
           ) : null}
-          {deliveryFlags.length > 0 ? (
+          {liveAlerts.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5" data-testid="schedule-job-hover-live-alerts">
+              {liveAlerts.map((alert) => (
+                <span
+                  key={alert.kind}
+                  className={cn(
+                    'inline-flex items-center text-[11px]',
+                    liveOfficeAlertChipIsSentence(alert)
+                      ? 'font-bold'
+                      : cn('rounded-md px-2 py-0.5 font-semibold', alert.chipClass),
+                  )}
+                >
+                  {alert.label}
+                  {alert.hint ? ` · ${alert.hint}` : ''}
+                  {alert.sentAt ? ` · ${formatOpsHm(alert.sentAt)}` : ''}
+                  {alert.hasGps === false ? ' · No GPS' : alert.hasGps ? ' · GPS' : ''}
+                </span>
+              ))}
+              {liveAlerts.some((alert) => alert.message) ? (
+                <p className="w-full text-[12px] font-medium text-foreground">
+                  {liveAlerts.find((alert) => alert.message)?.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {deliveryFlags.length > 0 || checkInMethodLabel ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
+              {checkInMethodLabel ? (
+                <span
+                  title={checkInMethodTitle ?? undefined}
+                  className="inline-flex items-center rounded-md bg-orange-700 px-2 py-0.5 text-[11px] font-semibold text-white"
+                >
+                  Clock-in · {checkInMethodLabel}
+                </span>
+              ) : null}
               {deliveryFlags.map((flag) => (
                 <span
                   key={flag.code}

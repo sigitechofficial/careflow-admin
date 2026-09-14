@@ -15,11 +15,18 @@ import { formatMedicationRoundWindow } from '@/features/service-users/medication
 
 type Props = {
   jobId: string
+  serviceUserId?: string | null
+  allowTaskReset?: boolean
   /** Stretch checklist to fill parent height (visit workspace sheet / hub). */
   fillHeight?: boolean
 }
 
-export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
+export function VisitJobTasksPanel({
+  jobId,
+  serviceUserId,
+  allowTaskReset = false,
+  fillHeight = false,
+}: Props) {
   const queryClient = useQueryClient()
   const tasksQuery = useQuery({
     queryKey: ['visit-job-tasks', jobId],
@@ -153,6 +160,9 @@ export function VisitJobTasksPanel({ jobId, fillHeight = false }: Props) {
         observationsByType={observationsByType}
         roundLabel={roundLabel}
         roundWindow={roundWindow}
+        jobId={jobId}
+        serviceUserId={serviceUserId}
+        allowTaskReset={allowTaskReset}
         noRoundMessage={
           !tasksQuery.isLoading && !tasksQuery.data?.medicationRoundCode
             ? 'This visit is not linked to a visit-plan time slot, so planned tasks cannot be resolved.'

@@ -40,7 +40,7 @@ export type RecordAdministrationTarget = {
 }
 
 const RECORDABLE_CODES = new Set([
-  'G', 'R', 'N', 'U', 'H', 'A', 'C', 'F', 'I', 'S', 'T', 'O', 'P', 'PCI',
+  'G', 'PG', 'R', 'N', 'U', 'H', 'A', 'C', 'F', 'I', 'S', 'T', 'O', 'P', 'PCI',
 ])
 
 function needsReason(code: string, reasonRequirement: string): boolean {
@@ -171,6 +171,7 @@ export function RecordAdministrationDialog({
 
   const reasonRequired =
     selectedMeta != null && needsReason(selectedMeta.code, selectedMeta.reasonRequirement)
+  const notesRequired = statusCode === 'PG'
 
   if (!open) return null
 
@@ -324,13 +325,25 @@ export function RecordAdministrationDialog({
             )}
 
             <div style={{ marginBottom: 14 }}>
-              <label className="block text-xs font-medium text-[#374151] mb-1">Notes (optional)</label>
+              <label className="block text-xs font-medium text-[#374151] mb-1">
+                {notesRequired ? (
+                  <>
+                    Notes <span style={{ color: '#dc2626' }}>*</span>
+                  </>
+                ) : (
+                  'Notes (optional)'
+                )}
+              </label>
               <textarea
                 className="mar-record-textarea"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 rows={2}
-                placeholder="Any additional observations…"
+                placeholder={
+                  notesRequired
+                    ? 'Describe how much was given and what happened…'
+                    : 'Any additional observations…'
+                }
               />
             </div>
 
@@ -365,6 +378,7 @@ export function RecordAdministrationDialog({
                   !statusCode ||
                   createMutation.isPending ||
                   (reasonRequired && !reason.trim()) ||
+                  (notesRequired && !notes.trim()) ||
                   (recordingMode === 'on-behalf' && !administeredById)
                 }
                 onClick={() => void handleSave()}
