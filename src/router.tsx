@@ -121,6 +121,7 @@ import PayrollRunsPage from '@/features/billing/pages/PayrollRunsPage'
 import SalaryOverviewPage from '@/features/billing/pages/SalaryOverviewPage'
 import EmployeePayoutsPage from '@/features/billing/pages/EmployeePayoutsPage'
 import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
+import InvoiceAuditTrailPage from '@/features/billing/pages/InvoiceAuditTrailPage'
 import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoicesPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
@@ -292,6 +293,7 @@ const pageTitles: Record<string, string> = {
   '/billing/service-user-invoices': 'Service user invoices',
   '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
+  '/billing/invoice-audit-trail': 'Invoice audit trail',
   '/billing/payments': 'Payments',
   '/billing/audit-export': 'Audit & export',
   '/ecm/live': 'ECM live monitoring',
@@ -364,6 +366,7 @@ const BILLING_TAB_IDS: BillingTabId[] = [
   'visit-reconciliation',
   'payroll-runs',
   'invoice-runs',
+  'invoice-audit-trail',
   'payments',
   'audit-export',
 ]
@@ -1727,6 +1730,17 @@ const billingInvoiceRunDetailRoute = createRoute({
   component: InvoiceRunDetailPage,
 })
 
+const billingInvoiceAuditTrailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/invoice-audit-trail',
+  beforeLoad: requirePermission('billing.invoice_runs.read'),
+  validateSearch: (raw: Record<string, unknown>): { invoiceRunId?: string } => {
+    const id = typeof raw.invoiceRunId === 'string' ? raw.invoiceRunId.trim() : ''
+    return id ? { invoiceRunId: id } : {}
+  },
+  component: InvoiceAuditTrailPage,
+})
+
 const billingPaymentsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/payments',
@@ -2086,6 +2100,7 @@ const routeTree = rootRoute.addChildren([
     billingServiceUserInvoicesRoute,
     billingInvoiceRunsRoute,
     billingInvoiceRunDetailRoute,
+    billingInvoiceAuditTrailRoute,
     billingPaymentsRoute,
     billingAuditExportRoute,
     ecmLiveRoute,

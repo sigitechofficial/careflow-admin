@@ -118,6 +118,16 @@ const FINANCE_STEPS: FlowStep[] = [
   },
   {
     step: 8,
+    title: 'Invoice audit trail',
+    tab: 'invoice-audit-trail',
+    summary: 'See who created and actioned each invoice run.',
+    details: [
+      'Review create, calculate, approve, lock, send, email, export, and payment events.',
+      'Actor names and timestamps are retained for compliance and dispute handling.',
+    ],
+  },
+  {
+    step: 9,
     title: 'Payments',
     tab: 'payments',
     summary: 'Record remittances and match them to locked invoice runs.',
@@ -131,7 +141,7 @@ const FINANCE_STEPS: FlowStep[] = [
 
 const COMPLIANCE_STEPS: FlowStep[] = [
   {
-    step: 9,
+    step: 10,
     title: 'Audit & export',
     tab: 'audit-export',
     summary: 'Download audit trails and finance exports for compliance review.',

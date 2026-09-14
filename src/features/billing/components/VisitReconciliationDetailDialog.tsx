@@ -26,6 +26,10 @@ import type { VisitReconciliationRow } from '@/features/billing/types/visit-reco
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 
 type Props = {
   open: boolean
@@ -193,6 +197,9 @@ function RateBreakdownCard({
 
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
+  const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
   const updateMutation = useUpdateVisitReconciliation()
   const approveOverrunMutation = useApproveVisitOverrun()
@@ -318,8 +325,11 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     {detail.visitRef}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {detail.date} · {detail.serviceUserName}
+                    {detail.date ? formatDate(detail.date) : detail.date} · {detail.serviceUserName}
                     {detail.carerName ? ` · ${detail.carerName}` : ''}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Clock times in {timezoneHint}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -361,6 +371,15 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               ) : null}
 
+              {detail.approvalNotes?.trim() ? (
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                  <p className="text-xs text-muted-foreground">Approval reason</p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-foreground">
+                    {detail.approvalNotes.trim()}
+                  </p>
+                </div>
+              ) : null}
+
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
@@ -369,14 +388,24 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-xs text-muted-foreground">Planned</dt>
-                    <dd className="font-medium">{preview?.timeWindows.planned ?? row.planned}</dd>
+                    <dd className="font-medium">
+                      {formatReconClock(
+                        preview?.timeWindows.planned ?? row.planned,
+                        timeDisplayFormat,
+                      )}
+                    </dd>
                     <dd className="text-xs text-muted-foreground tabular-nums">
                       {preview?.plannedHours ?? '—'}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">Actual (recorded)</dt>
-                    <dd className="font-medium">{preview?.timeWindows.actual ?? row.actual}</dd>
+                    <dd className="font-medium">
+                      {formatReconClock(
+                        preview?.timeWindows.actual ?? row.actual,
+                        timeDisplayFormat,
+                      )}
+                    </dd>
                     <dd className="text-xs text-muted-foreground tabular-nums">
                       {preview?.actualHours ?? '—'}
                     </dd>
@@ -497,7 +526,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 <RateBreakdownCard
                   title="Pay carer"
                   subtitle="Payroll — based on this carer’s approved payable time"
-                  timeRange={preview?.timeWindows.approvedPayable ?? row.approvedPayable}
+                  timeRange={formatReconClock(
+                    preview?.timeWindows.approvedPayable ?? row.approvedPayable,
+                    timeDisplayFormat,
+                  )}
                   hours={preview?.payableHours ?? null}
                   breakdown={preview?.carerPay ?? null}
                   fallbackAmount={detail.payableAmount}
@@ -522,7 +554,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                       : preview?.funderChargeNote?.trim() ||
                         'Invoice — based on approved billable time (org multi-carer funder setting)'
                   }
-                  timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                  timeRange={formatReconClock(
+                    preview?.timeWindows.approvedBillable ?? row.approvedBillable,
+                    timeDisplayFormat,
+                  )}
                   hours={preview?.billableHours ?? null}
                   breakdown={preview?.clientCharge ?? null}
                   fallbackAmount={detail.billableAmount}
@@ -539,7 +574,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                         ? `This funder’s share of the visit (${funderCharge.splitPercent}%)`
                         : funderCharge.reason ?? 'Funder charge'
                     }
-                    timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                    timeRange={formatReconClock(
+                      preview?.timeWindows.approvedBillable ?? row.approvedBillable,
+                      timeDisplayFormat,
+                    )}
                     hours={preview?.billableHours ?? null}
                     breakdown={funderCharge.breakdown}
                     fallbackAmount={funderCharge.shareAmount}

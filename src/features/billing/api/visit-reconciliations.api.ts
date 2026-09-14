@@ -187,6 +187,7 @@ export async function rejectVisitOverrun(
 export async function bulkApproveVisitReconciliations(body: {
   ids: string[]
   scope: ApproveScope
+  approvalNotes?: string
 }): Promise<{ approved: string[]; skipped: Array<{ id: string; reason: string }> }> {
   const res = await apiJson<
     ApiEnvelope<{ approved: string[]; skipped: Array<{ id: string; reason: string }> }>

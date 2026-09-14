@@ -47,81 +47,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/ui/dialog'
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-function isoWeekPeriodKey(date: Date): string {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
-  return `${d.getUTCFullYear()}-W${pad2(weekNo)}`
-}
-
-function currentUtcMonth(): string {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`
-}
-
-function currentUtcWeek(): string {
-  return isoWeekPeriodKey(new Date())
-}
-
-function shiftMonth(month: string, delta: number): string {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m)) return month
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
-}
-
-function mondayOfIsoWeek(period: string): Date {
-  const match = /^(\d{4})-W(\d{2})$/.exec(period)
-  if (!match) return new Date(NaN)
-  const year = Number(match[1])
-  const week = Number(match[2])
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-  const jan4Dow = jan4.getUTCDay() || 7
-  const week1Monday = new Date(jan4)
-  week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Dow - 1))
-  const monday = new Date(week1Monday)
-  monday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7)
-  return monday
-}
-
-function shiftWeek(period: string, delta: number): string {
-  const monday = mondayOfIsoWeek(period)
-  monday.setUTCDate(monday.getUTCDate() + delta * 7)
-  return isoWeekPeriodKey(monday)
-}
-
-function utcMonthLabel(month: string): string {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m) || y < 1 || m < 1) return month
-  return new Intl.DateTimeFormat('en-GB', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, 1)))
-}
-
-function utcWeekLabel(period: string): string {
-  const monday = mondayOfIsoWeek(period)
-  if (Number.isNaN(monday.getTime())) return period
-  const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  })
-  return `Week ${period.slice(6)} · ${fmt.format(monday)} – ${fmt.format(sunday)} ${period.slice(0, 4)}`
-}
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import {
+  currentOpsMonth,
+  currentOpsWeek,
+  salaryMonthLabel,
+  salaryWeekLabel,
+  shiftSalaryMonth,
+  shiftSalaryWeek,
+} from '@/features/billing/utils/salary-period.util'
 
 const STATUS_FILTERS: Array<{ value: 'ALL' | EmployeePayoutBatchStatus; label: string }> = [
   { value: 'ALL', label: 'All statuses' },
@@ -138,13 +74,16 @@ export function BillingEmployeePayoutsPanel() {
   const canManage = useAuthStore(s => s.can('billing.employee_payouts.manage'))
 
   const { data: generalSettings } = useGeneralSettings(canRead)
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const basis: SalaryCalculationBasis =
     generalSettings?.salaryCalculationBasis === 'WEEKLY' ? 'WEEKLY' : 'MONTHLY'
   const isWeekly = basis === 'WEEKLY'
   const periodNoun = isWeekly ? 'week' : 'month'
 
   const [period, setPeriod] = React.useState(() =>
-    basis === 'WEEKLY' ? currentUtcWeek() : currentUtcMonth(),
+    basis === 'WEEKLY' ? currentOpsWeek() : currentOpsMonth(),
   )
   const [scope, setScope] = React.useState<ScopeMode>('period')
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | EmployeePayoutBatchStatus>('ALL')
@@ -154,7 +93,7 @@ export function BillingEmployeePayoutsPanel() {
   const [selectedUkRunId, setSelectedUkRunId] = React.useState<string>('')
 
   React.useEffect(() => {
-    setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())
+    setPeriod(isWeekly ? currentOpsWeek() : currentOpsMonth())
   }, [isWeekly])
 
   const queryPeriodKey = scope === 'period' ? period : undefined
@@ -204,10 +143,22 @@ export function BillingEmployeePayoutsPanel() {
   const money = (n: number) =>
     `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-  const periodLabel = isWeekly ? utcWeekLabel(period) : utcMonthLabel(period)
+  const periodLabel = isWeekly ? salaryWeekLabel(period, formatDate) : salaryMonthLabel(period)
   const shiftPeriod = (delta: number) => {
     setScope('period')
-    setPeriod(p => (isWeekly ? shiftWeek(p, delta) : shiftMonth(p, delta)))
+    setPeriod(p => (isWeekly ? shiftSalaryWeek(p, delta) : shiftSalaryMonth(p, delta)))
+  }
+
+  const formatInstant = (iso: string | null | undefined) => {
+    if (!iso) return '—'
+    const day = dayKeyFromInstant(iso)
+    return day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
+  }
+
+  const formatDayRange = (from: string | null | undefined, to: string | null | undefined) => {
+    if (!from && !to) return '—'
+    if (from && to) return `${formatDate(from)} – ${formatDate(to)}`
+    return formatDate(from || to || '')
   }
 
   const openBatch = (batch: EmployeePayoutBatchRow) => {
@@ -381,7 +332,7 @@ export function BillingEmployeePayoutsPanel() {
           variant={scope === 'period' ? 'secondary' : 'ghost'}
           onClick={() => {
             setScope('period')
-            setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())
+            setPeriod(isWeekly ? currentOpsWeek() : currentOpsMonth())
           }}
         >
           This {periodNoun}
@@ -395,6 +346,13 @@ export function BillingEmployeePayoutsPanel() {
         >
           All history
         </Button>
+        <span
+          className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+          title="Payout periods and timestamps use the organisation operational timezone"
+          data-testid="billing-payouts-timezone-hint"
+        >
+          Times in {timezoneHint}
+        </span>
         {scope === 'period' && hasOpenBatchForSelectedRun ? (
           <Badge variant="outline" className="ml-auto bg-warning/10 text-warning border-warning/20">
             Open batch in progress
@@ -441,7 +399,7 @@ export function BillingEmployeePayoutsPanel() {
               </label>
               {selectedUkRun ? (
                 <p className="text-xs text-muted-foreground pb-2">
-                  {selectedUkRun.periodStart} → {selectedUkRun.periodEnd} ·{' '}
+                  {formatDayRange(selectedUkRun.periodStart, selectedUkRun.periodEnd)} ·{' '}
                   {selectedUkRun.employeeCount} employees
                 </p>
               ) : null}
@@ -582,7 +540,7 @@ export function BillingEmployeePayoutsPanel() {
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
-                      {batch.periodStart} – {batch.periodEnd}
+                      {formatDayRange(batch.periodStart, batch.periodEnd)}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{batch.lineCount}</td>
                     <td className="px-3 py-2.5 text-right font-medium tabular-nums">
@@ -592,7 +550,7 @@ export function BillingEmployeePayoutsPanel() {
                       <BillingStatusBadge status={batch.status} />
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
-                      {new Date(batch.createdAt).toLocaleString('en-GB')}
+                      {formatInstant(batch.createdAt)}
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <Button

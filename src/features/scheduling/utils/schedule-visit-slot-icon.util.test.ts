@@ -46,11 +46,12 @@ describe('resolveScheduleVisitSlotPeriod', () => {
     ).toBe('evening')
   })
 
-  it('falls back to UTC hour band', () => {
+  it('falls back to organisation-timezone hour band', () => {
+    // 13:00Z = 18:00 Asia/Karachi (default ops TZ) → evening (18–22)
     expect(
       resolveScheduleVisitSlotPeriod(
         job({
-          scheduledStartDateTime: '2026-08-09T19:30:00.000Z',
+          scheduledStartDateTime: '2026-08-09T13:00:00.000Z',
           jobName: 'Visit',
         }),
       ),

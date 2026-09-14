@@ -8,6 +8,7 @@ export type BillingTabId =
   | 'visit-reconciliation'
   | 'payroll-runs'
   | 'invoice-runs'
+  | 'invoice-audit-trail'
   | 'payments'
   | 'audit-export'
 

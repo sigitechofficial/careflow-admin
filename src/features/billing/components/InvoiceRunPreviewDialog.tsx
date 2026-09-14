@@ -23,7 +23,8 @@ import {
   useInvoiceOrganisation,
   type InvoiceOrganisation,
 } from '@/features/billing/hooks/useInvoiceOrganisation'
-import { formatUkDate, invoiceRunRef } from '@/features/billing/utils/invoice-run-display.util'
+import { invoiceRunRef } from '@/features/billing/utils/invoice-run-display.util'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 
 type Props = {
   open: boolean
@@ -57,13 +58,14 @@ function LiveInvoiceDocument({
   invoiceTotal: number
   org: InvoiceOrganisation
 }) {
+  const { formatDate } = useOrganisationDisplayFormat()
   const invoiceNumber =
     group.invoiceNumber?.trim() ||
     invoiceRunRef(
       invoiceRun,
       group.serviceUserNumber || group.serviceUserId.slice(0, 8).toUpperCase(),
     )
-  const issueDate = formatUkDate(invoiceRun.periodEnd)
+  const issueDate = formatDate(invoiceRun.periodEnd)
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white text-foreground shadow-sm">
@@ -84,7 +86,7 @@ function LiveInvoiceDocument({
             <div className="flex gap-3">
               <dt className="w-28 shrink-0 font-semibold">Period</dt>
               <dd>
-                {formatUkDate(invoiceRun.periodStart)} – {formatUkDate(invoiceRun.periodEnd)}
+                {formatDate(invoiceRun.periodStart)} – {formatDate(invoiceRun.periodEnd)}
               </dd>
             </div>
             <div className="flex gap-3">
@@ -155,8 +157,8 @@ function LiveInvoiceDocument({
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Care services billed for the period {formatUkDate(invoiceRun.periodStart)} to{' '}
-          {formatUkDate(invoiceRun.periodEnd)}.
+          Care services billed for the period {formatDate(invoiceRun.periodStart)} to{' '}
+          {formatDate(invoiceRun.periodEnd)}.
         </p>
       </div>
 

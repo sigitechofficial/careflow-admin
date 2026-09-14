@@ -29,6 +29,11 @@ import {
 import { Button } from '@/shared/ui/button'
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
+import {
+  formatOpsCalendarDate,
+  formatOpsClockTime,
+  formatOpsDateTimeNumeric,
+} from '@/shared/lib/operational-day.util'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { EcmCarerCapturedLocation } from '@/features/ecm/components/EcmCarerCapturedLocation'
 import { EcmScheduleHistoryPanel } from '@/features/ecm/components/EcmScheduleHistoryPanel'
@@ -123,43 +128,18 @@ function formatThresholdsHelper(input: {
 }
 
 function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return iso
-  }
+  return formatOpsDateTimeNumeric(iso)
 }
 
 function formatTimeOnly(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return iso
-  }
+  return formatOpsClockTime(iso)
 }
 
 function formatLocalVisitDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '—'
   const day = isoDate.slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return isoDate
-  try {
-    return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  } catch {
-    return day
-  }
+  return formatOpsCalendarDate(`${day}T12:00:00.000Z`)
 }
 
 function formatVariance(mins: number | null | undefined): string {

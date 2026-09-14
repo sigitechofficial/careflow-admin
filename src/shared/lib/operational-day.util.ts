@@ -4,14 +4,14 @@
  * Browser local TZ must never define "today" for board / ECM / visit days.
  */
 
-export const DEFAULT_OPERATIONAL_TIMEZONE = 'Europe/London'
+export const DEFAULT_OPERATIONAL_TIMEZONE = 'Asia/Karachi'
 
 /** Alias used by ECM period util historically. */
 export const ECM_OPERATIONAL_TIMEZONE = DEFAULT_OPERATIONAL_TIMEZONE
 
 let syncedOperationalTimezone = DEFAULT_OPERATIONAL_TIMEZONE
 
-/** Resolve org ops TZ from a settings value (falls back to Europe/London). */
+/** Resolve org ops TZ from a settings value (falls back to Asia/Karachi). */
 export function getOperationalTimeZone(orgTimezone?: string | null): string {
   const trimmed = orgTimezone?.trim()
   return trimmed || DEFAULT_OPERATIONAL_TIMEZONE
@@ -22,7 +22,7 @@ export function syncOrganisationOperationalTimezone(orgTimezone?: string | null)
   syncedOperationalTimezone = getOperationalTimeZone(orgTimezone)
 }
 
-/** Last synced organisation operational timezone (default Europe/London until settings load). */
+/** Last synced organisation operational timezone (default Asia/Karachi until settings load). */
 export function getSyncedOperationalTimeZone(): string {
   return syncedOperationalTimezone
 }

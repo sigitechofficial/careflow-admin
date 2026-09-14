@@ -1,17 +1,10 @@
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { cn } from '@/shared/lib/utils'
+import { formatOpsDateTimeNumeric } from '@/shared/lib/operational-day.util'
 import type { EcmScheduleHistory } from '@/features/ecm/types/ecm.types'
 
 function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return iso
-  }
+  return formatOpsDateTimeNumeric(iso)
 }
 
 export function EcmScheduleHistoryPanel({

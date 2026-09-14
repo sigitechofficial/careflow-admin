@@ -20,13 +20,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/form-field'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/toggle-controls'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/ui/select'
+import { Combobox } from '@/shared/ui/combobox'
 import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard'
 import { dateDisplayFormatLabel } from '@/shared/lib/display-format.util'
 import { useAuthStore } from '@/features/auth/store'
@@ -177,28 +171,26 @@ export function GeneralSettingsGeneralPanel() {
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Organisation time zone</p>
             <p className="text-xs text-muted-foreground">
-              Country and city with the current UTC offset (for example UTC+5). Used across the
-              project for operational calendar days — schedules, visit “today”, ECM reporting, and
-              rota horizons. Does not convert stored UTC timestamps.
+              Pakistan (Karachi) is the default base. Other zones show hours relative to
+              Karachi, then the true UTC offset (for example London −4h · UTC+1). Used for
+              operational calendar days — schedules, visit “today”, ECM reporting, and rota
+              horizons. Does not convert stored UTC timestamps.
             </p>
-            <Select
+            <Combobox
+              options={timezoneOptions}
               value={draft.timezone}
               disabled={!canUpdate}
-              onValueChange={v =>
+              allowDeselect={false}
+              placeholder="Select time zone"
+              searchPlaceholder="Search country, city, or UTC…"
+              emptyText="No matching time zone."
+              aria-label="Organisation time zone"
+              data-testid="organisation-timezone-combobox"
+              onChange={v => {
+                if (!v) return
                 setDraft(d => ({ ...d, timezone: v as OrganisationTimezone }))
-              }
-            >
-              <SelectTrigger className="h-9 w-full" aria-label="Organisation time zone">
-                <SelectValue placeholder="Select time zone" />
-              </SelectTrigger>
-              <SelectContent>
-                {timezoneOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              }}
+            />
           </div>
 
           <p className="pt-2 text-sm font-medium text-foreground">Time format</p>

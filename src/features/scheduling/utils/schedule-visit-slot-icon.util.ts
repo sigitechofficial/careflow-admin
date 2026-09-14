@@ -73,7 +73,7 @@ function periodLabel(period: ScheduleJobsDayPeriod): string {
   }
 }
 
-/** Resolve call-round period from visit-plan slot code/label, else scheduled start hour (UTC). */
+/** Resolve call-round period from visit-plan slot code/label, else scheduled start hour in org TZ. */
 export function resolveScheduleVisitSlotPeriod(
   job: Pick<TimelineJob, 'jobName' | 'scheduledStartDateTime' | 'visitPlan' | 'visits'>,
 ): ScheduleJobsDayPeriod {

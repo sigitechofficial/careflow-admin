@@ -6,7 +6,11 @@ import { cn } from '@/shared/lib/utils'
 import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 import { formatScheduleJobsWeekday } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
-import { formatOperationalDayLabel } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import {
+  formatOperationalDayLabel,
+  getSyncedOperationalTimeZone,
+} from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/date-picker'
 
@@ -40,6 +44,8 @@ export function ScheduleJobsDateControls({
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
   const isToday = date === todayIso()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const selectedDate = React.useMemo(() => isoDateToLocalDate(date), [date])
 
@@ -112,7 +118,16 @@ export function ScheduleJobsDateControls({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{displayFormat.formatDate(date)}</p>
-          <p className="text-[10px] text-muted-foreground">{formatOperationalDayLabel(todayIso())}</p>
+          <p className="text-[10px] text-muted-foreground">
+            <span
+              className="mr-1.5 inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5"
+              title="Board day and visit times use the organisation operational timezone"
+              data-testid="schedule-jobs-timezone-hint"
+            >
+              Times in {timezoneHint}
+            </span>
+            {formatOperationalDayLabel(todayIso())}
+          </p>
         </div>
       </div>
     </div>

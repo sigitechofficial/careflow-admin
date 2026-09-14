@@ -7,6 +7,7 @@ import {
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { describeEmployeeBranchScope } from '@/features/scheduling/utils/employee-branch-scope.util'
 import { resolveCarerDayAvailabilityBadge } from '@/features/scheduling/utils/schedule-jobs-availability.util'
+import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
 
 type Props = {
   row: EmployeeDayRow
@@ -49,14 +50,8 @@ function formatDayPattern(row: EmployeeDayRow): string | null {
   return pattern.isPartial ? 'Partially available' : 'Fully available'
 }
 
-function formatHolidayEndLabel(iso?: string | null): string | null {
-  if (!iso?.trim()) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`
-}
-
 export function ScheduleCarerHoverCard({ row, catalog, locationNames }: Props) {
+  const displayFormat = useScheduleJobsDisplayFormat()
   const employee = row.employee
   const name = employeeBriefFullName(employee)
   const roleLine = employeeBriefRoleLabel(employee)
@@ -118,7 +113,7 @@ export function ScheduleCarerHoverCard({ row, catalog, locationNames }: Props) {
             label="Leave"
             value={
               row.holidayEndDate
-                ? `On leave until ${formatHolidayEndLabel(row.holidayEndDate) ?? '—'}`
+                ? `On leave until ${displayFormat.formatDate(row.holidayEndDate.slice(0, 10))}`
                 : 'On leave today'
             }
           />

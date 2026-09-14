@@ -15,6 +15,7 @@ import {
   shouldUpdateEcmPeriodSearch,
   type EcmPeriodUrlSearch,
 } from '@/features/ecm/utils/ecm-period-url-state.util'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 const DEFAULT_PRESET = 'today' as const satisfies Exclude<EcmOperationalPeriodPreset, 'custom'>
 
@@ -195,5 +196,6 @@ export function useEcmOperationalPeriod(
     periodLabel: formatOperationalPeriodLabel(period),
     multiDay: period.dateFrom !== period.dateTo,
     operationalToday: todayIsoLocal(),
+    operationalTimezone: getSyncedOperationalTimeZone(),
   }
 }

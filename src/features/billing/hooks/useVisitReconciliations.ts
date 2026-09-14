@@ -108,12 +108,20 @@ export function useApproveVisitReconciliation() {
       scope,
       managerOverride,
       exclusive,
+      approvalNotes,
     }: {
       id: string
       scope: ApproveScope
       managerOverride?: boolean
       exclusive?: boolean
-    }) => approveVisitReconciliation(id, { scope, managerOverride, exclusive }),
+      approvalNotes?: string
+    }) =>
+      approveVisitReconciliation(id, {
+        scope,
+        managerOverride,
+        exclusive,
+        approvalNotes,
+      }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },
@@ -158,7 +166,7 @@ export function useRejectVisitOverrun() {
 export function useBulkApproveVisitReconciliations() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { ids: string[]; scope: ApproveScope }) =>
+    mutationFn: (body: { ids: string[]; scope: ApproveScope; approvalNotes?: string }) =>
       bulkApproveVisitReconciliations(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
