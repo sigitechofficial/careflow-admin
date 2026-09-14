@@ -17,6 +17,7 @@ import {
   type DisplayDateOptions,
   type TimeDisplayFormat,
 } from '@/shared/lib/display-format.util'
+import { dayKeyFromInstant, formatOpsHm } from '@/shared/lib/operational-day.util'
 
 let dateDisplayFormat: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT
 let timeDisplayFormat: TimeDisplayFormat = DEFAULT_TIME_DISPLAY_FORMAT
@@ -36,25 +37,80 @@ export function getOrganisationDisplayFormats(): {
   return { dateDisplayFormat, timeDisplayFormat }
 }
 
+function toIsoInstant(date: Date | string): string | null {
+  if (typeof date === 'string') {
+    const trimmed = date.trim()
+    if (!trimmed) return null
+    return trimmed
+  }
+  if (date instanceof Date && !Number.isNaN(date.getTime())) return date.toISOString()
+  return null
+}
+
+/**
+ * Calendar date in organisation display format.
+ * ISO instants use the organisation operational timezone (not browser local).
+ * Pass `{ utc: true }` for civil YYYY-MM-DD markers stored as UTC noon/midnight.
+ */
 export function formatOrganisationDate(
   date: Date | string | null | undefined,
   options?: DisplayDateOptions,
 ): string {
-  const formatted = formatDisplayDateFromDate(date, dateDisplayFormat, options)
-  return formatted || '—'
+  if (date == null || date === '') return '—'
+  if (options?.utc === true) {
+    return formatDisplayDateFromDate(date, dateDisplayFormat, options) || '—'
+  }
+  if (typeof date === 'string') {
+    const trimmed = date.trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return formatDisplayDateShort(trimmed, dateDisplayFormat)
+    }
+  }
+  const iso = toIsoInstant(date)
+  if (iso && (iso.includes('T') || iso.includes(' '))) {
+    const day = dayKeyFromInstant(iso)
+    if (day) return formatDisplayDateShort(day, dateDisplayFormat)
+  }
+  return formatDisplayDateFromDate(date, dateDisplayFormat, options) || '—'
 }
 
+/**
+ * Date + time in organisation display formats.
+ * ISO instants / Date objects use the organisation operational timezone.
+ */
 export function formatOrganisationDateTime(
   date: Date | string | null | undefined,
   options?: DisplayDateOptions,
 ): string {
+  if (date == null || date === '') return '—'
+  if (options?.utc === true) {
+    return formatDisplayDateTimeFromDate(date, dateDisplayFormat, timeDisplayFormat, options)
+  }
+  const iso = toIsoInstant(date as Date | string)
+  if (iso && (iso.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(iso))) {
+    const day = dayKeyFromInstant(iso)
+    const hm = formatOpsHm(iso)
+    if (day && hm) {
+      return `${formatDisplayDateShort(day, dateDisplayFormat)} ${formatDisplayTimeHm(hm, timeDisplayFormat)}`
+    }
+    if (day) return formatDisplayDateShort(day, dateDisplayFormat)
+  }
   return formatDisplayDateTimeFromDate(date, dateDisplayFormat, timeDisplayFormat, options)
 }
 
+/** Clock time in organisation display format (operational timezone for instants). */
 export function formatOrganisationTime(
   date: Date | string | null | undefined,
   options?: DisplayDateOptions,
 ): string {
+  if (date == null || date === '') return '—'
+  if (options?.utc === true) {
+    return formatDisplayTimeFromDate(date, timeDisplayFormat, options)
+  }
+  const iso = toIsoInstant(date as Date | string)
+  if (iso && iso.includes('T')) {
+    return formatDisplayTimeFromIso(iso, timeDisplayFormat)
+  }
   return formatDisplayTimeFromDate(date, timeDisplayFormat, options)
 }
 

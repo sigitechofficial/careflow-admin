@@ -20,8 +20,11 @@ import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import {
   formatOrganisationDateTime,
+  formatOrganisationIsoDate,
   formatOrganisationIsoTime,
 } from '@/shared/lib/organisation-display-format.store'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { formatOpsClockTime, getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { BodyMapHandoverPreview } from '@/features/service-users/body-map/components/BodyMapHandoverPreview'
 import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
@@ -57,7 +60,6 @@ import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/Visit
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
 import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
 import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
-import { formatOpsClockTime } from '@/shared/lib/operational-day.util'
 
 export type ScheduleVisitWorkspaceTab =
   | 'overview'
@@ -200,6 +202,8 @@ export function ScheduleVisitWorkspaceContent({
   const clockOutLabel = liveJob.actualEndDateTime
     ? formatOrganisationIsoTime(liveJob.actualEndDateTime)
     : null
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
 
   return (
     <div
@@ -234,6 +238,15 @@ export function ScheduleVisitWorkspaceContent({
 
       {tab === 'overview' ? (
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+          {layout === 'hub' ? (
+            <span
+              className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+              title="Visit times, clock in/out, and log timestamps use the organisation operational timezone"
+              data-testid="visit-workspace-timezone-hint"
+            >
+              Times in {timezoneHint}
+            </span>
+          ) : null}
           {visitSos.length > 0 ? (
             <section
               className={
@@ -309,7 +322,7 @@ export function ScheduleVisitWorkspaceContent({
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="h-4 w-4 shrink-0" aria-hidden />
-                <span>Date: {date}</span>
+                <span>Date: {formatOrganisationIsoDate(date)}</span>
               </div>
             </dl>
 
