@@ -123,8 +123,8 @@ export function BillingRunPeriodDialog({
               </div>
               <p className="text-xs text-muted-foreground">
                 {mode === 'weekly'
-                  ? 'Latest full week (Mon–Sun). Adjust the dates below if needed.'
-                  : 'Latest full calendar month. Adjust the dates below if needed.'}
+                  ? 'Latest full week (Mon–Sun) in the organisation time zone. Adjust the dates below if needed.'
+                  : 'Latest full calendar month in the organisation time zone. Adjust the dates below if needed.'}
               </p>
             </div>
 

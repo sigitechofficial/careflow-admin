@@ -1,5 +1,6 @@
 import { Label } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
+import { Button } from '@/shared/ui/button'
 import {
   Select,
   SelectContent,
@@ -20,12 +21,15 @@ type Props = {
   defaultRotaHorizonMode: RotaHorizonMode
   defaultRotaToDateLabel: string
   showDefaultRotaRange: boolean
+  timezoneHint: string
+  isFromToday: boolean
   backfillDays: number
   scheduleAreaId: string
   generateReadyOnly: boolean
   scheduleAreas: ScheduleAreaRow[]
   onGenerateFromChange: (value: string) => void
   onGenerateToChange: (value: string) => void
+  onUseToday: () => void
   onBackfillDaysChange: (value: number) => void
   onScheduleAreaIdChange: (value: string) => void
   onGenerateReadyOnlyChange: (value: boolean) => void
@@ -39,12 +43,15 @@ export function BulkGenerateRotaParametersSection({
   defaultRotaHorizonMode,
   defaultRotaToDateLabel,
   showDefaultRotaRange,
+  timezoneHint,
+  isFromToday,
   backfillDays,
   scheduleAreaId,
   generateReadyOnly,
   scheduleAreas,
   onGenerateFromChange,
   onGenerateToChange,
+  onUseToday,
   onBackfillDaysChange,
   onScheduleAreaIdChange,
   onGenerateReadyOnlyChange,
@@ -52,7 +59,20 @@ export function BulkGenerateRotaParametersSection({
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
       <div className="space-y-1">
-        <h2 className="text-sm font-semibold">Generation parameters</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold">Generation parameters</h2>
+          <span
+            className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+            title="From/To dates and visit windows use the organisation operational timezone"
+            data-testid="bulk-generate-rota-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Dates are organisation operational calendar days ({timezoneHint}). Visit start/end times
+          are resolved in that timezone.
+        </p>
         {showDefaultRotaRange ? (
           <p className="text-sm text-muted-foreground">
             {defaultRotaHorizonMode === 'CALENDAR_MONTH' ? (
@@ -73,11 +93,23 @@ export function BulkGenerateRotaParametersSection({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">From date</Label>
-          <Input
-            type="date"
-            value={generateFrom}
-            onChange={(e) => onGenerateFromChange(e.target.value)}
-          />
+          <div className="flex gap-2">
+            <Input
+              type="date"
+              value={generateFrom}
+              onChange={(e) => onGenerateFromChange(e.target.value)}
+              className="min-w-0 flex-1"
+            />
+            <Button
+              type="button"
+              variant={isFromToday ? 'secondary' : 'outline'}
+              size="sm"
+              className="shrink-0"
+              onClick={onUseToday}
+            >
+              Today
+            </Button>
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">To date (optional)</Label>

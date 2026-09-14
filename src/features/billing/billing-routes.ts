@@ -15,6 +15,7 @@ export const BILLING_SECTION_PATHS = {
   'visit-reconciliation': '/billing/visit-reconciliation',
   'payroll-runs': '/billing/payroll-runs',
   'invoice-runs': '/billing/invoice-runs',
+  'invoice-audit-trail': '/billing/invoice-audit-trail',
   payments: '/billing/payments',
   'audit-export': '/billing/audit-export',
 } as const satisfies Partial<Record<BillingTabId, string>>

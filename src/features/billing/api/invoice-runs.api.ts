@@ -24,6 +24,17 @@ export type InvoiceRunRow = {
   /** Total payment allocations on the run. */
   paidAmount?: string
   paidAmountValue?: number
+  createdAt?: string | null
+  createdById?: string | null
+  createdByName?: string | null
+  approvedById?: string | null
+  approvedByName?: string | null
+  lockedById?: string | null
+  lockedByName?: string | null
+  sentById?: string | null
+  sentByName?: string | null
+  /** QBO-style invoice document numbers on the run (one per service user). */
+  invoiceNumbers?: string[]
 }
 
 export type InvoiceRunsSummary = {
@@ -73,6 +84,28 @@ export type InvoiceRunServiceUserHistoryEvent = {
   amountValue: number | null
   reference: string | null
   funderName: string | null
+  actorUserId?: string | null
+  actorName?: string | null
+}
+
+export type InvoiceRunAuditAction =
+  | 'CREATED'
+  | 'CALCULATED'
+  | 'APPROVED'
+  | 'LOCKED'
+  | 'SENT'
+  | 'EMAIL_SENT'
+  | 'EXPORTED'
+  | 'PAYMENT_ALLOCATED'
+
+export type InvoiceRunAuditTrailItem = {
+  id: string
+  action: InvoiceRunAuditAction
+  at: string
+  actorUserId: string | null
+  actorName: string | null
+  detail: string | null
+  metadata: Record<string, unknown> | null
 }
 
 export type InvoiceRunServiceUserFunderShare = {
@@ -139,6 +172,7 @@ export type InvoiceRunDetail = InvoiceRunRow & {
   lines: InvoiceRunLine[]
   funderSummaries: InvoiceRunFunderSummary[]
   serviceUserSummaries?: InvoiceRunServiceUserSummary[]
+  auditTrail?: InvoiceRunAuditTrailItem[]
 }
 
 export async function fetchInvoiceRuns(params?: {

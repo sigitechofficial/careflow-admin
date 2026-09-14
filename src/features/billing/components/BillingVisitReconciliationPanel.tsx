@@ -35,6 +35,10 @@ import { Badge } from '@/shared/ui/badge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { listServiceUsers } from '@/features/service-users/api'
 import { listAllEmployees } from '@/features/employees/api'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 
 function serviceUserOptionLabel(row: {
   preferredName?: string | null
@@ -92,6 +96,9 @@ export function BillingVisitReconciliationPanel({
   const canRead = useAuthStore(s => s.can('billing.visit_reconciliations.read' as never))
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
   const { locationId } = useGlobalLocationScope()
+  const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [serviceUserId, setServiceUserId] = React.useState(initialServiceUserId ?? '')
@@ -381,6 +388,13 @@ export function BillingVisitReconciliationPanel({
                   : `${filteredTotal} ${filteredTotal === 1 ? 'visit' : 'visits'}`}
             </span>
           ) : null}
+          <span
+            className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+            title="Visit dates and clock times use the organisation operational timezone"
+            data-testid="visit-recon-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
         </div>
 
         {canManage ? (
@@ -664,20 +678,20 @@ export function BillingVisitReconciliationPanel({
                       {row.clientPostCode || '—'}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                      {row.visitDate || row.date}
+                      {row.date ? formatDate(row.date) : row.visitDate || '—'}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{row.careType || '—'}</td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                      {row.plannedArrival || '—'}
+                      {formatReconClock(row.plannedArrival, timeDisplayFormat)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                      {row.plannedDeparture || '—'}
+                      {formatReconClock(row.plannedDeparture, timeDisplayFormat)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                      {row.actualArrival || '00:00:00'}
+                      {formatReconClock(row.actualArrival || '00:00:00', timeDisplayFormat)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
-                      {row.actualDeparture || '00:00:00'}
+                      {formatReconClock(row.actualDeparture || '00:00:00', timeDisplayFormat)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap font-medium">
                       {row.payableAmount ?? '—'}

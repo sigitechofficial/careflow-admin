@@ -41,20 +41,9 @@ import { useAuthStore } from '@/features/auth/store'
 import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
 import type { ServiceUserInvoiceMonthRow } from '@/features/billing/types/service-user-invoices.types'
 import { cn } from '@/shared/lib/utils'
-
-function formatTimestamp(value: string | null): string {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(d)
-}
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 
 function isInvoiceRunSent(run: InvoiceRunDetail): boolean {
   return (
@@ -205,6 +194,15 @@ export default function InvoiceRunDetailPage() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const canManagePayments = useAuthStore(s => s.can('billing.payments.manage' as never))
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
+
+  const formatInstant = (iso: string | null | undefined) => {
+    if (!iso) return '—'
+    const day = dayKeyFromInstant(iso)
+    return day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
+  }
   const [exporting, setExporting] = React.useState<'csv' | 'xlsx' | null>(null)
   const [exportingServiceUserId, setExportingServiceUserId] = React.useState<string | null>(null)
   const [payInvoice, setPayInvoice] = React.useState<ServiceUserInvoiceMonthRow | null>(null)
@@ -354,17 +352,26 @@ export default function InvoiceRunDetailPage() {
   return (
     <div className="min-w-0 space-y-6 pb-10">
       <div className="space-y-4">
-        <Link
-          to="/billing/invoice-runs"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Invoice runs
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/billing/invoice-runs"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Invoice runs
+          </Link>
+          <span
+            className="inline-flex h-8 w-fit items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+            title="Invoice periods and timestamps use the organisation operational timezone"
+            data-testid="billing-invoice-run-detail-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
+        </div>
 
         <ContentSectionHeader
           title={run.period}
-          description={`${run.periodStart} – ${run.periodEnd} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length || run.serviceUsers} service user invoice${((run.serviceUserSummaries ?? []).length || run.serviceUsers) === 1 ? '' : 's'}`}
+          description={`${formatDate(run.periodStart)} – ${formatDate(run.periodEnd)} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length || run.serviceUsers} service user invoice${((run.serviceUserSummaries ?? []).length || run.serviceUsers) === 1 ? '' : 's'}`}
           action={
             <div className="flex flex-wrap items-center justify-end gap-2">
               <InvoiceRunStatusBadge status={run.status} />
@@ -480,6 +487,26 @@ export default function InvoiceRunDetailPage() {
         </div>
       </ContentCard>
 
+      <ContentCard className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Audit trail</h2>
+            <p className="text-xs text-muted-foreground">
+              Who created this run and every action since
+              {run.createdByName ? ` · Created by ${run.createdByName}` : ''}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              to="/billing/invoice-audit-trail"
+              search={{ invoiceRunId: run.id }}
+            >
+              Open audit trail
+            </Link>
+          </Button>
+        </div>
+      </ContentCard>
+
       {hasExceptions ? (
         <div className="flex flex-wrap items-start gap-3 rounded-xl border border-amber-300/70 bg-amber-50/50 px-4 py-3 text-sm dark:border-amber-700/50 dark:bg-amber-950/25">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
@@ -582,7 +609,7 @@ export default function InvoiceRunDetailPage() {
               <li key={item.label} className="flex items-start justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">{item.label}</span>
                 <span className={cn('tabular-nums', item.value ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-                  {formatTimestamp(item.value)}
+                  {formatInstant(item.value)}
                 </span>
               </li>
             ))}
@@ -689,7 +716,7 @@ export default function InvoiceRunDetailPage() {
                         key={group.serviceUserId}
                         group={group}
                         createdAt={run.createdAt}
-                        formatTimestamp={formatTimestamp}
+                        formatTimestamp={formatInstant}
                         canSendInvoice={
                           canManage &&
                           group.lineCount > 0 &&

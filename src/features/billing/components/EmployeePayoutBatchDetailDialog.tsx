@@ -20,6 +20,8 @@ import {
 } from '@/features/billing/hooks/useEmployeePayouts'
 import type { EmployeePayoutBatchRow } from '@/features/billing/api/employee-payouts.api'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 
 type Props = {
   open: boolean
@@ -34,6 +36,7 @@ export function EmployeePayoutBatchDetailDialog({
   batch,
   canManage,
 }: Props) {
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
   const detailQuery = useEmployeePayoutBatch(open && batch ? batch.id : undefined)
   const detail = detailQuery.data
   const approve = useApproveEmployeePayoutBatch()
@@ -42,6 +45,18 @@ export function EmployeePayoutBatchDetailDialog({
 
   const busy = approve.isPending || markPaid.isPending || cancel.isPending
   const status = detail?.status ?? batch?.status
+
+  const formatInstant = (iso: string | null | undefined) => {
+    if (!iso) return null
+    const day = dayKeyFromInstant(iso)
+    return day ? `${formatDate(day)} ${formatTime(iso)}` : null
+  }
+
+  const formatDayRange = (from: string | null | undefined, to: string | null | undefined) => {
+    if (!from && !to) return '—'
+    if (from && to) return `${formatDate(from)} – ${formatDate(to)}`
+    return formatDate(from || to || '')
+  }
 
   const runAction = async (action: 'approve' | 'mark-paid' | 'cancel') => {
     if (!batch) return
@@ -84,7 +99,7 @@ export function EmployeePayoutBatchDetailDialog({
                     {detail.ukPayrollRunLabel ?? detail.periodKey}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {detail.periodStart} – {detail.periodEnd}
+                    {formatDayRange(detail.periodStart, detail.periodEnd)}
                     {detail.periodKey ? ` · ${detail.periodKey}` : ''}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -112,11 +127,11 @@ export function EmployeePayoutBatchDetailDialog({
                   <p className="text-xs text-muted-foreground">Audit</p>
                   <p className="text-xs text-muted-foreground">
                     {detail.approvedAt
-                      ? `Approved ${new Date(detail.approvedAt).toLocaleString('en-GB')}`
+                      ? `Approved ${formatInstant(detail.approvedAt)}`
                       : 'Not approved'}
                     <br />
                     {detail.paidAt
-                      ? `Paid ${new Date(detail.paidAt).toLocaleString('en-GB')}`
+                      ? `Paid ${formatInstant(detail.paidAt)}`
                       : 'Not marked paid'}
                   </p>
                 </ContentCard>

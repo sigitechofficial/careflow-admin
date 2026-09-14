@@ -88,6 +88,12 @@ const ORGANISATION_TIMEZONE_DEFS: readonly TimezoneDef[] = [
 
 export type OrganisationTimezone = (typeof ORGANISATION_TIMEZONE_DEFS)[number]['value']
 
+export const DEFAULT_ORGANISATION_TIMEZONE: OrganisationTimezone = 'Asia/Karachi'
+
+export const ORGANISATION_TIMEZONE_VALUES = ORGANISATION_TIMEZONE_DEFS.map(
+  o => o.value,
+) as OrganisationTimezone[]
+
 /**
  * Current UTC offset for an IANA zone, e.g. `UTC+5`, `UTC+5:30`, `UTC-4`, `UTC`.
  * Reflects DST when applicable for `at`.
@@ -96,32 +102,11 @@ export function formatTimezoneUtcOffset(
   timeZone: string,
   at: Date = new Date(),
 ): string {
-  if (timeZone === 'UTC') return 'UTC'
-
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      timeZoneName: 'longOffset',
-    }).formatToParts(at)
-    const raw = parts.find(p => p.type === 'timeZoneName')?.value ?? ''
-    const match = raw.match(/(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?/i)
-    if (!match) {
-      if (/^(GMT|UTC)$/i.test(raw.trim())) return 'UTC'
-      return raw.replace(/^GMT/i, 'UTC') || 'UTC'
-    }
-    const sign = match[1]!
-    const hours = Number.parseInt(match[2]!, 10)
-    const minutes = match[3] ? Number.parseInt(match[3], 10) : 0
-    if (hours === 0 && minutes === 0) return 'UTC'
-    if (minutes === 0) return `UTC${sign}${hours}`
-    return `UTC${sign}${hours}:${String(minutes).padStart(2, '0')}`
-  } catch {
-    return 'UTC'
-  }
+  return formatSignedOffset(utcOffsetMinutes(timeZone, at), 'UTC')
 }
 
-/** Minutes east of UTC (negative = west). Used for sorting. */
-function utcOffsetMinutes(timeZone: string, at: Date = new Date()): number {
+/** Minutes east of UTC (negative = west). */
+export function utcOffsetMinutes(timeZone: string, at: Date = new Date()): number {
   if (timeZone === 'UTC') return 0
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -130,7 +115,10 @@ function utcOffsetMinutes(timeZone: string, at: Date = new Date()): number {
     }).formatToParts(at)
     const raw = parts.find(p => p.type === 'timeZoneName')?.value ?? ''
     const match = raw.match(/(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?/i)
-    if (!match) return 0
+    if (!match) {
+      if (/^(GMT|UTC)$/i.test(raw.trim())) return 0
+      return 0
+    }
     const sign = match[1] === '-' ? -1 : 1
     const hours = Number.parseInt(match[2]!, 10)
     const minutes = match[3] ? Number.parseInt(match[3], 10) : 0
@@ -140,10 +128,46 @@ function utcOffsetMinutes(timeZone: string, at: Date = new Date()): number {
   }
 }
 
+/** e.g. `UTC+5`, `UTC+5:30`, `−4h`, `±0`. */
+function formatSignedOffset(totalMinutes: number, style: 'UTC' | 'relative'): string {
+  if (totalMinutes === 0) return style === 'UTC' ? 'UTC' : '±0'
+  const sign = totalMinutes > 0 ? '+' : '−'
+  const abs = Math.abs(totalMinutes)
+  const hours = Math.floor(abs / 60)
+  const minutes = abs % 60
+  if (style === 'UTC') {
+    if (minutes === 0) return `UTC${totalMinutes > 0 ? '+' : '-'}${hours}`
+    return `UTC${totalMinutes > 0 ? '+' : '-'}${hours}:${String(minutes).padStart(2, '0')}`
+  }
+  if (minutes === 0) return `${sign}${hours}h`
+  return `${sign}${hours}:${String(minutes).padStart(2, '0')}h`
+}
+
+/**
+ * Offset vs organisation default (Asia/Karachi), e.g. London → `−4h`.
+ * Karachi itself is `±0`.
+ */
+export function formatTimezoneOffsetVsDefault(
+  timeZone: string,
+  at: Date = new Date(),
+  baseTimeZone: string = DEFAULT_ORGANISATION_TIMEZONE,
+): string {
+  const delta =
+    utcOffsetMinutes(timeZone, at) - utcOffsetMinutes(baseTimeZone, at)
+  return formatSignedOffset(delta, 'relative')
+}
+
 function buildTimezoneLabel(def: TimezoneDef, at: Date = new Date()): string {
-  const offset = formatTimezoneUtcOffset(def.value, at)
-  if (def.value === 'UTC') return `UTC — Coordinated Universal Time (${offset})`
-  return `${def.country} — ${def.city} (${offset})`
+  const vsDefault = formatTimezoneOffsetVsDefault(def.value, at)
+  const utc = formatTimezoneUtcOffset(def.value, at)
+  // Karachi (default): show absolute UTC. Others: hours vs Karachi, plus true UTC.
+  if (def.value === DEFAULT_ORGANISATION_TIMEZONE) {
+    return `${def.country} — ${def.city} (${utc} · base)`
+  }
+  if (def.value === 'UTC') {
+    return `UTC — Coordinated Universal Time (${vsDefault} · ${utc})`
+  }
+  return `${def.country} — ${def.city} (${vsDefault} · ${utc})`
 }
 
 export const ORGANISATION_TIMEZONE_OPTIONS = ORGANISATION_TIMEZONE_DEFS.map(def => ({
@@ -151,24 +175,25 @@ export const ORGANISATION_TIMEZONE_OPTIONS = ORGANISATION_TIMEZONE_DEFS.map(def 
   label: buildTimezoneLabel(def),
 })) as ReadonlyArray<{ value: OrganisationTimezone; label: string }>
 
-export const ORGANISATION_TIMEZONE_VALUES = ORGANISATION_TIMEZONE_DEFS.map(
-  o => o.value,
-) as OrganisationTimezone[]
-
-export const DEFAULT_ORGANISATION_TIMEZONE: OrganisationTimezone = 'Europe/London'
-
 export function isOrganisationTimezone(value: string): value is OrganisationTimezone {
   return (ORGANISATION_TIMEZONE_VALUES as string[]).includes(value)
 }
 
-/** Fresh labels with current DST-aware offsets, sorted west → east. */
+/**
+ * Fresh labels with offsets relative to Karachi (default), then true UTC.
+ * Default zone is pinned first; remaining sorted west → east.
+ */
 export function organisationTimezoneOptions(at: Date = new Date()) {
   return [...ORGANISATION_TIMEZONE_DEFS]
     .map(def => ({
       value: def.value as OrganisationTimezone,
       label: buildTimezoneLabel(def, at),
+      _pin: def.value === DEFAULT_ORGANISATION_TIMEZONE ? 0 : 1,
       _sort: utcOffsetMinutes(def.value, at),
     }))
-    .sort((a, b) => a._sort - b._sort || a.label.localeCompare(b.label))
+    .sort(
+      (a, b) =>
+        a._pin - b._pin || a._sort - b._sort || a.label.localeCompare(b.label),
+    )
     .map(({ value, label }) => ({ value, label }))
 }

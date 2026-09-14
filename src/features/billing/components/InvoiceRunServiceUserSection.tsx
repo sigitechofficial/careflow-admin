@@ -8,6 +8,7 @@ import type {
   InvoiceRunServiceUserFunderShare,
   InvoiceRunServiceUserSummary,
 } from '@/features/billing/api/invoice-runs.api'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 
 type Props = {
   group: InvoiceRunServiceUserSummary
@@ -22,16 +23,10 @@ type Props = {
   onRecordPayment?: () => void
 }
 
-function formatDueDate(value: string | null): string {
+function formatDueDate(value: string | null, formatDate: (isoDate: string) => string): string {
   if (!value) return '—'
-  const d = new Date(value.includes('T') ? value : `${value}T00:00:00Z`)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d)
+  const day = value.includes('T') ? value.slice(0, 10) : value
+  return day ? formatDate(day) : '—'
 }
 
 function InvoicePaymentStatusBadge({
@@ -91,6 +86,7 @@ export function InvoiceRunServiceUserSection({
   onSendInvoice,
   onRecordPayment,
 }: Props) {
+  const { formatDate } = useOrganisationDisplayFormat()
   const funders = group.funders ?? []
   const multiFunder = funders.length > 1
   const [expanded, setExpanded] = React.useState(multiFunder)
@@ -187,7 +183,7 @@ export function InvoiceRunServiceUserSection({
           {formatTimestamp(createdAt ?? null)}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-          {formatDueDate(group.dueDate ?? null)}
+          {formatDueDate(group.dueDate ?? null, formatDate)}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
           {formatTimestamp(group.sentAt ?? null)}

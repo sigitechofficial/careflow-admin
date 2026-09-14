@@ -8,23 +8,12 @@ import {
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import type {
   InvoiceRunServiceUserHistoryEvent,
   InvoiceRunServiceUserSummary,
 } from '@/features/billing/api/invoice-runs.api'
-
-function formatEventWhen(value: string): string {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(d)
-}
 
 function eventTone(type: InvoiceRunServiceUserHistoryEvent['type']): string {
   if (type === 'PAYMENT') return 'bg-emerald-500'
@@ -42,8 +31,14 @@ export function InvoiceServiceUserHistoryDialog({
   onOpenChange: (open: boolean) => void
   group: InvoiceRunServiceUserSummary | null
 }) {
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
   if (!group) return null
   const history = group.history ?? []
+
+  const formatEventWhen = (value: string) => {
+    const day = dayKeyFromInstant(value)
+    return day ? `${formatDate(day)} ${formatTime(value)}` : '—'
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,6 +95,9 @@ export function InvoiceServiceUserHistoryDialog({
                     ) : null}
                     {event.detail ? (
                       <p className="text-xs text-muted-foreground">{event.detail}</p>
+                    ) : null}
+                    {event.actorName?.trim() ? (
+                      <p className="text-xs text-muted-foreground">By {event.actorName}</p>
                     ) : null}
                     {index === history.length - 1 &&
                     group.paymentStatus === 'PAID' &&

@@ -21,6 +21,7 @@ import {
   UserRoundPlus,
   LayoutGrid,
   FileText,
+  FileSearch,
   List,
   CalendarDays,
   PlusCircle,
@@ -618,6 +619,13 @@ const navItems: NavItem[] = [
         href: '/billing/invoice-runs',
         permission: 'billing.invoice_runs.read',
         navTestId: 'nav-billing-invoices',
+      },
+      {
+        label: 'Invoice audit trail',
+        icon: <FileSearch className="h-4 w-4" />,
+        href: '/billing/invoice-audit-trail',
+        permission: 'billing.invoice_runs.read',
+        navTestId: 'nav-billing-invoice-audit-trail',
       },
       // Service user invoices: hidden for now. Route remains available by URL if needed.
       // Payments + Audit & export: hidden for now. Routes remain available by URL if needed.

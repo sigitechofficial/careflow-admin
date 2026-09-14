@@ -19,7 +19,13 @@ import {
   todayIsoDate,
 } from '@/features/service-users/visit-plan/visit-plan-generate-rota.util'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatDisplayDate } from '@/shared/lib/display-format.util'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import {
+  getSyncedOperationalTimeZone,
+  operationalTodayIso,
+} from '@/shared/lib/operational-day.util'
 import type { RotaHorizonMode } from '@/features/settings/types'
 import {
   allReadyBulkGenerateRotaCandidatesSelected,
@@ -37,6 +43,7 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 
 export function useBulkGenerateRotaPage() {
   const hasApi = !!getApiBaseUrl()
+  const { formatDate } = useOrganisationDisplayFormat()
   const { locationId: globalLocationId, isScoped: globalLocationScoped } =
     useGlobalLocationScope()
 
@@ -53,6 +60,13 @@ export function useBulkGenerateRotaPage() {
     null,
   )
   const [resultDialogOpen, setResultDialogOpen] = React.useState(false)
+
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
+  const isFromToday = generateFrom === operationalTodayIso()
+  const setGenerateFromToToday = React.useCallback(() => {
+    setGenerateFrom(todayIsoDate())
+  }, [])
 
   React.useEffect(() => {
     if (globalLocationScoped && globalLocationId) {
@@ -155,7 +169,11 @@ export function useBulkGenerateRotaPage() {
 
     const toDate = resolveGenerateRotaToDate(generateFrom, generateTo, rotaHorizonOptions)
     const ok = window.confirm(
-      buildBulkGenerateRotaConfirmMessage(planIds.length, generateFrom, toDate),
+      buildBulkGenerateRotaConfirmMessage(
+        planIds.length,
+        formatDate(generateFrom),
+        formatDate(toDate),
+      ),
     )
     if (!ok) return
 
@@ -183,6 +201,7 @@ export function useBulkGenerateRotaPage() {
     backfillDays,
     candidatesQuery,
     effectiveLocationId,
+    formatDate,
     generateFrom,
     generateMutation,
     generateReadyOnly,
@@ -208,6 +227,9 @@ export function useBulkGenerateRotaPage() {
     selectedPlanIds,
     generateFrom,
     setGenerateFrom,
+    setGenerateFromToToday,
+    isFromToday,
+    timezoneHint,
     generateTo,
     setGenerateTo,
     generateToPlaceholder,

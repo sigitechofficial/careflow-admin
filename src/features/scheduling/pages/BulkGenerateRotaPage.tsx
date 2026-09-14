@@ -42,12 +42,15 @@ function BulkGenerateRotaPageContent() {
         defaultRotaHorizonMode={page.defaultRotaHorizonMode}
         defaultRotaToDateLabel={page.defaultRotaToDateLabel}
         showDefaultRotaRange={page.showDefaultRotaRange}
+        timezoneHint={page.timezoneHint}
+        isFromToday={page.isFromToday}
         backfillDays={page.backfillDays}
         scheduleAreaId={page.scheduleAreaId}
         generateReadyOnly={page.generateReadyOnly}
         scheduleAreas={page.scheduleAreas}
         onGenerateFromChange={page.setGenerateFrom}
         onGenerateToChange={page.setGenerateTo}
+        onUseToday={page.setGenerateFromToToday}
         onBackfillDaysChange={page.setBackfillDays}
         onScheduleAreaIdChange={page.setScheduleAreaId}
         onGenerateReadyOnlyChange={page.setGenerateReadyOnly}

@@ -38,6 +38,8 @@ import {
   ContentCard,
 } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
@@ -110,6 +112,9 @@ export default function ServiceUserVisitPlanPage() {
     }
     return resolveEditableVisitPlan(sortedPlans, activePlan, undefined, !plansLoading) ?? sortedPlans[0] ?? null
   }, [search.planId, activePlan, sortedPlans, plansLoading])
+
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
 
   React.useEffect(() => {
     if (plansLoading) return
@@ -225,6 +230,13 @@ export default function ServiceUserVisitPlanPage() {
           className="mb-4"
         />
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/20 px-3 py-2.5">
+          <span
+            className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-background px-2.5 text-xs text-muted-foreground"
+            title="Visit dates, Today, rota generate, and calendar outcomes use the organisation operational timezone"
+            data-testid="visit-plan-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
             <ClipboardList className="h-3.5 w-3.5" aria-hidden />
             Care package
