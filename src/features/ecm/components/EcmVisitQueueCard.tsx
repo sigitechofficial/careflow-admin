@@ -426,13 +426,13 @@ function AreaLockActions({ row }: { row: EcmExceptionRow }) {
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             busy={allow.isPending}
-            onConfirm={payload =>
-              allow.mutateAsync({
+            onConfirm={async payload => {
+              await allow.mutateAsync({
                 jobId: row.scheduledJobId,
                 reasonId: payload.reasonId,
                 note: payload.note,
               })
-            }
+            }}
           />
         </>
       )}
@@ -507,14 +507,14 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             busy={authorise.isPending}
-            onConfirm={payload =>
-              authorise.mutateAsync({
+            onConfirm={async payload => {
+              await authorise.mutateAsync({
                 jobId: row.scheduledJobId,
                 grantId,
                 reasonId: payload.reasonId,
                 note: payload.note,
               })
-            }
+            }}
           />
         </>
       ) : null}

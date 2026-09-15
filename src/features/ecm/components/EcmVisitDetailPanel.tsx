@@ -389,14 +389,14 @@ function VisitDetailCheckInGrantCard({
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             busy={authorise.isPending}
-            onConfirm={payload =>
-              authorise.mutateAsync({
+            onConfirm={async payload => {
+              await authorise.mutateAsync({
                 jobId,
                 grantId: grant.id,
                 reasonId: payload.reasonId,
                 note: payload.note,
               })
-            }
+            }}
           />
         </>
       ) : grant.officeNote ? (
