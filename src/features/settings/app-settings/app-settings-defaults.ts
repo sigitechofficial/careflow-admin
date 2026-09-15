@@ -6,6 +6,7 @@ export const DEFAULT_APP_SETTINGS: OrganisationAppSettings = {
   viewPoliciesRosterApp: true,
   bookHolidaysCareApp: true,
   fingerprintLoginCareApp: true,
+  singleDeviceLoginCareApp: false,
 }
 
 export const DEVICE_PIN_DESCRIPTION =
@@ -26,6 +27,8 @@ export const APP_SETTINGS_TOOLTIPS = {
   viewPoliciesRosterApp: 'Allow staff to view policies in the Roster app.',
   bookHolidaysCareApp: 'Allow carers to book holidays from the Care app.',
   fingerprintLoginCareApp: 'Allow fingerprint or biometric login on the Care app.',
+  singleDeviceLoginCareApp:
+    'Yes allows the same carer to sign in on more than one phone. No limits the account to one signed-in session — a second login is blocked until they sign out, the office signs out the session, or the session goes stale.',
 } as const
 
 export function appSettingsToPayload(s: OrganisationAppSettings) {
@@ -35,5 +38,6 @@ export function appSettingsToPayload(s: OrganisationAppSettings) {
     appSettingViewPoliciesRosterApp: s.viewPoliciesRosterApp,
     appSettingBookHolidaysCareApp: s.bookHolidaysCareApp,
     appSettingFingerprintLoginCareApp: s.fingerprintLoginCareApp,
+    appSettingSingleDeviceLoginCareApp: s.singleDeviceLoginCareApp,
   }
 }

@@ -12,6 +12,7 @@ type Props = {
   serviceUserFilterIds: string[]
   employeeFilterIds?: string[]
   requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
+  timeSensitiveFilter?: boolean
   branchFilterOptions: BranchFilterOption[]
   boardJobs: TimelineJob[]
 }
@@ -21,6 +22,7 @@ export function ScheduleJobsActiveFiltersBanner({
   serviceUserFilterIds,
   employeeFilterIds = [],
   requiredCarersFilters,
+  timeSensitiveFilter = false,
   branchFilterOptions,
   boardJobs,
 }: Props) {
@@ -28,7 +30,8 @@ export function ScheduleJobsActiveFiltersBanner({
     locationFilterIds.length === 0 &&
     serviceUserFilterIds.length === 0 &&
     employeeFilterIds.length === 0 &&
-    requiredCarersFilters.length === 0
+    requiredCarersFilters.length === 0 &&
+    !timeSensitiveFilter
   ) {
     return null
   }
@@ -46,7 +49,8 @@ export function ScheduleJobsActiveFiltersBanner({
           </span>
           {serviceUserFilterIds.length > 0 ||
           employeeFilterIds.length > 0 ||
-          requiredCarersFilters.length > 0
+          requiredCarersFilters.length > 0 ||
+          timeSensitiveFilter
             ? '. '
             : '.'}
         </>
@@ -67,7 +71,9 @@ export function ScheduleJobsActiveFiltersBanner({
               })
               .join(' · ')}
           </span>
-          {employeeFilterIds.length > 0 || requiredCarersFilters.length > 0 ? '. ' : '.'}
+          {employeeFilterIds.length > 0 || requiredCarersFilters.length > 0 || timeSensitiveFilter
+            ? '. '
+            : '.'}
         </>
       ) : null}
       {employeeFilterIds.length > 0 ? (
@@ -76,7 +82,7 @@ export function ScheduleJobsActiveFiltersBanner({
           <span className="font-medium text-foreground">
             {employeeFilterIds.length === 1 ? '1 selected carer' : `${employeeFilterIds.length} selected carers`}
           </span>
-          {requiredCarersFilters.length > 0 ? '. ' : '.'}
+          {requiredCarersFilters.length > 0 || timeSensitiveFilter ? '. ' : '.'}
         </>
       ) : null}
       {requiredCarersFilters.length > 0 ? (
@@ -86,6 +92,17 @@ export function ScheduleJobsActiveFiltersBanner({
             {scheduleJobsRequiredCarersFiltersLabel(requiredCarersFilters).toLowerCase()}
           </span>{' '}
           visits only.
+        </>
+      ) : null}
+      {timeSensitiveFilter ? (
+        <>
+          {requiredCarersFilters.length > 0 ||
+          employeeFilterIds.length > 0 ||
+          serviceUserFilterIds.length > 0 ||
+          locationFilterIds.length > 0
+            ? ' '
+            : null}
+          Showing <span className="font-medium text-foreground">time-critical</span> visits only.
         </>
       ) : null}
     </p>

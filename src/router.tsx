@@ -24,6 +24,7 @@ import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBo
 import { OrganisationDisplayFormatProvider } from '@/shared/context/organisation-display-format.context'
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
+import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
@@ -473,6 +474,7 @@ function AppRootShell() {
       <CompanyBrandingBootstrap />
       <OrganisationDisplayFormatProvider>
         <AppToaster />
+        <UrgentOfficeAlertHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
           <Outlet />

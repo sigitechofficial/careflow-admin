@@ -21,6 +21,7 @@ import {
   parseScheduleJobsRequiredCarersFilters,
   type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
+import { parseScheduleJobsTimeSensitiveFilter } from '@/features/scheduling/utils/schedule-job-time-sensitive.util'
 import {
   buildScheduleSharedFilterSearch,
   parseCommaSeparatedFilterIds,
@@ -37,6 +38,7 @@ export type ScheduleListPageSearch = {
   employeeId?: string
   requiredCarers?: string
   op?: string
+  ts?: string
 }
 
 function resolvePeriodAndFocus(search: ScheduleListPageSearch): {
@@ -86,6 +88,9 @@ export function useScheduleListFilterState() {
   const [jobOperationalFilters, setJobOperationalFilters] = React.useState<
     ScheduleJobOperationalFilter[]
   >(() => parseScheduleJobOperationalFilters(search.op))
+  const [timeSensitiveFilter, setTimeSensitiveFilter] = React.useState(
+    () => parseScheduleJobsTimeSensitiveFilter(search.ts),
+  )
 
   const effectiveLocationFilterIds = React.useMemo(
     () => (globalLocationScoped && globalLocationId ? [globalLocationId] : locationFilterIds),
@@ -101,6 +106,7 @@ export function useScheduleListFilterState() {
       employeeIds?: string[]
       requiredCarersFilters?: ScheduleJobsRequiredCarersFilterValue[]
       jobOperationalFilters?: ScheduleJobOperationalFilter[]
+      timeSensitiveFilter?: boolean
     }) => ({
       ...buildScheduleSharedFilterSearch({
         period: partial?.period ?? period,
@@ -109,6 +115,7 @@ export function useScheduleListFilterState() {
         serviceUserIds: partial?.serviceUserIds ?? serviceUserFilterIds,
         employeeIds: partial?.employeeIds ?? employeeFilterIds,
         requiredCarersFilters: partial?.requiredCarersFilters ?? requiredCarersFilters,
+        timeSensitiveFilter: partial?.timeSensitiveFilter ?? timeSensitiveFilter,
       }),
       ...((partial?.jobOperationalFilters ?? jobOperationalFilters).length
         ? { op: (partial?.jobOperationalFilters ?? jobOperationalFilters).join(',') }
@@ -122,6 +129,7 @@ export function useScheduleListFilterState() {
       employeeFilterIds,
       requiredCarersFilters,
       jobOperationalFilters,
+      timeSensitiveFilter,
     ],
   )
 
@@ -252,6 +260,7 @@ export function useScheduleListFilterState() {
     setEmployeeFilterIds([])
     setRequiredCarersFilters([])
     setJobOperationalFilters([])
+    setTimeSensitiveFilter(false)
     setJobOutcomeFilters(new Set(DEFAULT_SCHEDULE_JOB_OUTCOME_FILTERS))
     updateUrl({
       locationIds: globalLocationScoped && globalLocationId ? [globalLocationId] : [],
@@ -259,6 +268,7 @@ export function useScheduleListFilterState() {
       employeeIds: [],
       requiredCarersFilters: [],
       jobOperationalFilters: [],
+      timeSensitiveFilter: false,
     })
   }, [globalLocationId, globalLocationScoped, updateUrl])
 
@@ -283,6 +293,14 @@ export function useScheduleListFilterState() {
     },
     [updateUrl],
   )
+
+  const toggleTimeSensitiveFilter = React.useCallback(() => {
+    setTimeSensitiveFilter((current) => {
+      const next = !current
+      updateUrl({ timeSensitiveFilter: next })
+      return next
+    })
+  }, [updateUrl])
 
   const wasGlobalScopedRef = React.useRef(globalLocationScoped)
 
@@ -325,6 +343,10 @@ export function useScheduleListFilterState() {
     setJobOperationalFilters(parseScheduleJobOperationalFilters(search.op))
   }, [search.op])
 
+  React.useEffect(() => {
+    setTimeSensitiveFilter(parseScheduleJobsTimeSensitiveFilter(search.ts))
+  }, [search.ts])
+
   const boardLinkSearch = React.useMemo(
     () => ({
       ...buildScheduleSharedFilterSearch({
@@ -334,6 +356,7 @@ export function useScheduleListFilterState() {
         serviceUserIds: serviceUserFilterIds,
         employeeIds: employeeFilterIds,
         requiredCarersFilters,
+        timeSensitiveFilter,
       }),
       ...(jobOperationalFilters.length ? { op: jobOperationalFilters.join(',') } : {}),
     }),
@@ -344,6 +367,7 @@ export function useScheduleListFilterState() {
       serviceUserFilterIds,
       employeeFilterIds,
       requiredCarersFilters,
+      timeSensitiveFilter,
       jobOperationalFilters,
     ],
   )
@@ -380,6 +404,7 @@ export function useScheduleListFilterState() {
     requiredCarersFilters,
     jobOutcomeFilters,
     jobOperationalFilters,
+    timeSensitiveFilter,
     locationFilterDisabled: globalLocationScoped,
     setScheduleDate,
     setScheduleLocationFilter,
@@ -388,6 +413,7 @@ export function useScheduleListFilterState() {
     setScheduleRequiredCarersFilters,
     toggleJobOutcomeFilter,
     toggleJobOperationalFilter,
+    toggleTimeSensitiveFilter,
     clearFilters,
     boardLinkSearch,
   }

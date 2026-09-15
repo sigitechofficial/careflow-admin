@@ -23,7 +23,7 @@ import {
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 import type { AcceptedCarePlanItem } from '@/features/service-users/initial-assessment/api'
 import type { VisitPlanSlot } from '@/features/service-users/visit-plan/types'
-import { TimeCriticalDot } from '@/features/service-users/visit-plan/TimeCriticalDot'
+import { TimeSensitiveClock } from '@/features/scheduling/components/TimeSensitiveClock'
 import type { ScheduleJobsRowRef } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import {
   scheduleJobBlockDisplayLabel,
@@ -39,6 +39,17 @@ import {
   scheduleRunJobLabel,
 } from '@/features/scheduling/utils/schedule-run-board.util'
 import { resolveJobTimeCritical } from '@/features/scheduling/utils/schedule-job-time-critical.util'
+import {
+  timeSensitiveChipClass,
+  timeSensitiveChips,
+  timeSensitiveClockStatus,
+  timeSensitiveFlagKey,
+  timeSensitiveHoverTitle,
+  timeSensitiveNeedsPopup,
+  timeSensitivePopupHeadline,
+  timeSensitivePopupMeta,
+  timeSensitivePopupPulseClass,
+} from '@/features/scheduling/utils/schedule-job-time-sensitive.util'
 import {
   JOB_BLOCK_TONE_CLASSES,
   jobBlockCancelledSurfaceStyle,
@@ -101,6 +112,7 @@ function ScheduleJobBlockIcons({
     methodLabel: checkInMethodLabel,
     liveAlertCount: liveAlerts.length,
   })
+  const sensitiveChips = timeSensitiveChips(job)
   if (
     !showLaneBadge &&
     !showRequiredCarersIcon &&
@@ -108,7 +120,8 @@ function ScheduleJobBlockIcons({
     !showOperationalBadges &&
     deliveryFlags.length === 0 &&
     liveAlerts.length === 0 &&
-    !showCheckInMethod
+    !showCheckInMethod &&
+    sensitiveChips.length === 0
   ) {
     return null
   }
@@ -179,6 +192,22 @@ function ScheduleJobBlockIcons({
           {checkInMethodLabel}
         </span>
       ) : null}
+      {liveAlerts.length === 0 && !timeSensitiveNeedsPopup(job)
+        ? sensitiveChips.map((chip) => (
+            <span
+              key={`${chip.kind}-${chip.status}`}
+              title={chip.label}
+              data-testid="schedule-job-time-sensitive-chip"
+              className={cn(
+                'shrink-0 rounded px-1 text-[8px] font-bold leading-none',
+                timeSensitiveChipClass(chip.status),
+              )}
+              aria-label={chip.label}
+            >
+              {chip.label}
+            </span>
+          ))
+        : null}
       {liveAlerts.length === 0
         ? deliveryFlags.slice(0, 2).map((flag) => (
             <span
@@ -294,6 +323,41 @@ function ScheduleJobLiveAlertBody({
   )
 }
 
+function ScheduleJobTimeSensitiveAlertBody({
+  job,
+  jobLabelMode,
+}: {
+  job: TimelineJob
+  jobLabelMode: 'carer-row' | 'service-user-row'
+}) {
+  const headline = timeSensitivePopupHeadline(job)
+  const meta = timeSensitivePopupMeta(job)
+  const clientLabel = scheduleJobBlockDisplayLabel(job, jobLabelMode)
+  const missed = job.timeSensitive?.clock === 'missed'
+
+  return (
+    <div
+      data-schedule-job-block-body="time-sensitive-alert"
+      data-testid="schedule-job-time-sensitive-alert-body"
+      className="relative z-[1] flex h-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden px-1.5 py-0.5"
+    >
+      <span
+        className={cn(
+          'inline-flex w-fit max-w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-[13px] font-black leading-none tracking-wide',
+          missed ? 'bg-red-600 text-white' : 'bg-amber-600 text-white',
+        )}
+      >
+        <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+        {headline}
+      </span>
+      <p className="min-w-0 truncate text-[12px] font-semibold leading-tight">{clientLabel}</p>
+      {meta ? (
+        <p className="min-w-0 truncate text-[11px] font-medium leading-tight opacity-90">{meta}</p>
+      ) : null}
+    </div>
+  )
+}
+
 export type ScheduleJobBlockProps = {
   job: TimelineJob
   date: string
@@ -360,6 +424,9 @@ function scheduleJobBlockPropsEqual(
   if (prev.job.actualStartDateTime !== next.job.actualStartDateTime) return false
   if (prev.job.checkIn?.method !== next.job.checkIn?.method) return false
   if (prev.job.checkIn?.methodLabel !== next.job.checkIn?.methodLabel) return false
+  if (timeSensitiveFlagKey(prev.job.timeSensitive) !== timeSensitiveFlagKey(next.job.timeSensitive)) {
+    return false
+  }
   return true
 }
 
@@ -431,8 +498,10 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
   const officeAlerts = liveAlerts ?? []
   const livePulse =
     !saving && !cancelled ? highestPriorityLiveOfficeAlert(officeAlerts) : null
-  const liveAlertLayout = Boolean(livePulse)
-  const liveAlertTall = liveAlertLayout && !stackedLanes && widthPx >= 118
+  const sensitiveUrgent = !livePulse && !saving && !cancelled && timeSensitiveNeedsPopup(job)
+  const liveAlertLayout = Boolean(livePulse || sensitiveUrgent)
+  const liveAlertTall =
+    liveAlertLayout && !stackedLanes && (widthPx >= 118 || sensitiveUrgent)
   const clockedInAt = job.actualStartDateTime ?? job.visits?.[0]?.actualStartDateTime ?? null
   const liveAlertTitle = livePulse
     ? [
@@ -445,6 +514,8 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
       ]
         .filter(Boolean)
         .join(' · ')
+    : sensitiveUrgent
+      ? [timeSensitivePopupHeadline(job), timeSensitivePopupMeta(job)].filter(Boolean).join(' · ')
     : officeAlerts.length > 0
       ? officeAlerts.map((alert) => alert.label).join(' · ')
       : null
@@ -502,6 +573,8 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
           : 'top-1 bottom-1 min-h-12'
       : blockSizeClass
   const timeCritical = resolveJobTimeCritical(job, visitPlanSlotsByServiceUser)
+  const sensitiveClock = timeSensitiveClockStatus(job, visitPlanSlotsByServiceUser)
+  const sensitiveTitle = timeSensitiveHoverTitle(job, visitPlanSlotsByServiceUser)
 
   const block = (
     <div
@@ -512,10 +585,10 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
       data-runs-on-board={showRunsOnBoard ? 'true' : 'false'}
       className={cn(
         'absolute z-[3] flex select-none flex-col rounded-md border text-left text-xs font-medium leading-snug antialiased',
-        !livePulse && 'transition-shadow',
-        livePulse ? 'overflow-visible' : 'overflow-hidden',
-        !livePulse && JOB_BLOCK_TONE_CLASSES[tone],
-        !livePulse && showRunUi && !cancelled && 'border-l-[3px]',
+        !liveAlertLayout && 'transition-shadow',
+        liveAlertLayout ? 'overflow-visible' : 'overflow-hidden',
+        !liveAlertLayout && JOB_BLOCK_TONE_CLASSES[tone],
+        !liveAlertLayout && showRunUi && !cancelled && 'border-l-[3px]',
         stackedLanes
           ? 'h-[var(--schedule-job-lane-height)] shadow-sm ring-1 ring-background/80'
           : resolvedBlockSizeClass,
@@ -530,23 +603,23 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
                 : 'cursor-grab hover:shadow-md active:scale-[0.99]',
             ),
         isMarqueeSelected && 'ring-2 ring-primary ring-offset-1',
-        !livePulse &&
+        !liveAlertLayout &&
           excessContracted &&
           !completed &&
           !cancelled &&
           'border-amber-600 bg-[repeating-linear-gradient(135deg,rgba(251,191,36,0.22),rgba(251,191,36,0.22)_6px,rgba(255,255,255,0.45)_6px,rgba(255,255,255,0.45)_12px)] ring-2 ring-amber-500/70',
-        !livePulse && overAllocated && !completed && !cancelled && 'ring-2 ring-rose-500/80 border-rose-600',
-        !livePulse &&
+        !liveAlertLayout && overAllocated && !completed && !cancelled && 'ring-2 ring-rose-500/80 border-rose-600',
+        !liveAlertLayout &&
           outsidePattern &&
           !completed &&
           !cancelled &&
           'ring-2 ring-orange-500/80 border-orange-600',
-        !livePulse &&
+        !liveAlertLayout &&
           travelConflictFromPrevious &&
           !completed &&
           !cancelled &&
           'ring-2 ring-orange-500/80 border-orange-600',
-        livePulse?.pulseClass,
+        livePulse?.pulseClass ?? (sensitiveUrgent ? timeSensitivePopupPulseClass(job) : undefined),
         saving && 'animate-pulse opacity-60',
       )}
       style={{
@@ -555,15 +628,15 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
         ...(stackedLanes && overlapLayout
           ? {
               top: scheduleJobLaneTopPx(overlapLayout.lane, jobLaneHeight),
-              zIndex: livePulse ? 30 : overlapLayout.lane + 3,
+              zIndex: liveAlertLayout ? 30 : overlapLayout.lane + 3,
               ['--schedule-job-lane-height' as string]: `${jobLaneHeight}px`,
             }
-          : livePulse
+          : liveAlertLayout
             ? { zIndex: 30 }
             : {}),
-        ...(!livePulse && careNotDelivered
+        ...(!liveAlertLayout && careNotDelivered
           ? jobBlockUnableToStartSurfaceStyle
-          : !livePulse && completed
+          : !liveAlertLayout && completed
             ? jobBlockCompletedSurfaceStyle
             : {}),
         ...(cancelled ? jobBlockCancelledSurfaceStyle : {}),
@@ -607,14 +680,16 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
         }
       }}
     >
-      {timeCritical && !liveAlertLayout ? (
-        <TimeCriticalDot
-          toleranceMinutes={timeCritical.timeToleranceMinutes}
+      {sensitiveClock ? (
+        <TimeSensitiveClock status={sensitiveClock} title={sensitiveTitle} position="corner" />
+      ) : timeCritical && !liveAlertLayout ? (
+        <TimeSensitiveClock
+          status="due"
+          title={`Time-sensitive visit · ±${timeCritical.timeToleranceMinutes} min`}
           position="corner"
-          size="xs"
         />
       ) : null}
-      {liveAlertLayout ? (
+      {livePulse ? (
         <ScheduleJobLiveAlertBody
           job={job}
           alerts={officeAlerts}
@@ -622,6 +697,8 @@ export const ScheduleJobBlock = React.memo(function ScheduleJobBlock({
           widthPx={widthPx}
           stackedLanes={stackedLanes}
         />
+      ) : sensitiveUrgent ? (
+        <ScheduleJobTimeSensitiveAlertBody job={job} jobLabelMode={jobLabelMode} />
       ) : showStackedBlockLayout ? (
         <div
           data-schedule-job-block-body="stacked"

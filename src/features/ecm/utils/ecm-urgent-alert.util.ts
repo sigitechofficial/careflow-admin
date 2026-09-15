@@ -7,6 +7,15 @@ export const URGENT_OFFICE_ALERT_KINDS = [
 
 export type UrgentOfficeAlertKind = (typeof URGENT_OFFICE_ALERT_KINDS)[number]
 
+/** Interruptive admin dialog — safety or carer blocked waiting on office. */
+export const URGENT_OFFICE_DIALOG_KINDS = [
+  'CARER_SOS',
+  'LEFT_VISIT_AREA',
+  'OUTSIDE_AREA_CHECK_IN_REQUEST',
+] as const
+
+export type UrgentOfficeDialogKind = (typeof URGENT_OFFICE_DIALOG_KINDS)[number]
+
 /** Action-needed flags on the ECM Exception queue tab and Schedule Jobs board. */
 export const BOARD_LIVE_OFFICE_ALERT_KINDS = [
   'CARER_SOS',
@@ -21,6 +30,13 @@ export function isUrgentOfficeAlertKind(kind: unknown): boolean {
   return (
     typeof kind === 'string' &&
     (URGENT_OFFICE_ALERT_KINDS as readonly string[]).includes(kind)
+  )
+}
+
+export function isUrgentOfficeDialogKind(kind: unknown): kind is UrgentOfficeDialogKind {
+  return (
+    typeof kind === 'string' &&
+    (URGENT_OFFICE_DIALOG_KINDS as readonly string[]).includes(kind)
   )
 }
 

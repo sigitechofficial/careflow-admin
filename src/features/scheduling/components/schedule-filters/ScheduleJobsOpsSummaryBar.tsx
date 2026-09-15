@@ -7,6 +7,7 @@ import {
   type ScheduleJobOperationalFilter,
   type ScheduleJobOutcomeFilter,
 } from '@/features/scheduling/utils/schedule-job-board-filter.util'
+import { ScheduleTimeSensitiveFilterChip } from '@/features/scheduling/components/schedule-filters/ScheduleTimeSensitiveFilterChip'
 
 type StatChipProps = {
   label: string
@@ -72,6 +73,9 @@ export type ScheduleJobsOpsSummaryBarProps = {
   jobOperationalFilters: ScheduleJobOperationalFilter[]
   jobOperationalCounts: Record<ScheduleJobOperationalFilter, number>
   onToggleJobOperationalFilter: (filter: ScheduleJobOperationalFilter) => void
+  timeSensitiveFilter?: boolean
+  timeSensitiveCount?: number
+  onToggleTimeSensitiveFilter?: () => void
   operationalIssuesCount: number
   /** Softer copy when stats span a multi-day list period. */
   statsScopeNote?: string
@@ -90,6 +94,9 @@ export function ScheduleJobsOpsSummaryBar({
   jobOperationalFilters,
   jobOperationalCounts,
   onToggleJobOperationalFilter,
+  timeSensitiveFilter = false,
+  timeSensitiveCount = 0,
+  onToggleTimeSensitiveFilter,
   operationalIssuesCount,
   statsScopeNote,
 }: ScheduleJobsOpsSummaryBarProps) {
@@ -151,6 +158,13 @@ export function ScheduleJobsOpsSummaryBar({
               </button>
             )
           })}
+          {onToggleTimeSensitiveFilter ? (
+            <ScheduleTimeSensitiveFilterChip
+              active={timeSensitiveFilter}
+              count={timeSensitiveCount}
+              onToggle={onToggleTimeSensitiveFilter}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 border-l border-border/80 pl-2">

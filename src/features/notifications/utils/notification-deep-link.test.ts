@@ -9,6 +9,11 @@ describe('notificationDeepLink', () => {
         metadata: { kind: 'LEFT_VISIT_AREA', scheduledJobId: 'job-1' },
       }),
     ).toBe('/ecm/live?tab=exceptions&period=today&jobId=job-1')
+    expect(
+      notificationDeepLink({
+        metadata: { kind: 'OUTSIDE_AREA_CHECK_IN_REQUEST', scheduledJobId: 'job-2' },
+      }),
+    ).toBe('/ecm/live?tab=exceptions&period=today&jobId=job-2')
   })
 
   it('prefers metadata href when it is an ECM live path', () => {

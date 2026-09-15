@@ -23,6 +23,7 @@ import {
   parseScheduleJobsRequiredCarersFilters,
   type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
+import { parseScheduleJobsTimeSensitiveFilter } from '@/features/scheduling/utils/schedule-job-time-sensitive.util'
 import { parseScheduleJobsLayout, type ScheduleJobsLayout } from '@/features/scheduling/utils/schedule-jobs-layout.util'
 import {
   parseScheduleJobsBoardRowAxis,
@@ -47,6 +48,7 @@ export type ScheduleJobsPageSearch = {
   requiredCarers?: string
   op?: string
   carerOp?: string
+  ts?: string
   layout?: string
   rowAxis?: string
   visitAction?: 'complete' | 'notes' | 'allocate' | 'workspace'
@@ -107,6 +109,9 @@ export function useScheduleJobsUrlState() {
   const [carerOperationalFilters, setCarerOperationalFilters] = React.useState<
     ScheduleCarerOperationalFilter[]
   >(() => parseScheduleCarerOperationalFilters(search.carerOp))
+  const [timeSensitiveFilter, setTimeSensitiveFilter] = React.useState(
+    () => parseScheduleJobsTimeSensitiveFilter(search.ts),
+  )
 
   const effectiveLocationFilterIds = React.useMemo(
     () => (globalLocationScoped && globalLocationId ? [globalLocationId] : locationFilterIds),
@@ -123,6 +128,7 @@ export function useScheduleJobsUrlState() {
       requiredCarersFilters?: ScheduleJobsRequiredCarersFilterValue[]
       jobOperationalFilters?: ScheduleJobOperationalFilter[]
       carerOperationalFilters?: ScheduleCarerOperationalFilter[]
+      timeSensitiveFilter?: boolean
       layout?: ScheduleJobsLayout
       rowAxis?: ScheduleJobsBoardRowAxis
     }) =>
@@ -135,6 +141,7 @@ export function useScheduleJobsUrlState() {
         requiredCarersFilters: partial?.requiredCarersFilters ?? requiredCarersFilters,
         jobOperationalFilters: partial?.jobOperationalFilters ?? jobOperationalFilters,
         carerOperationalFilters: partial?.carerOperationalFilters ?? carerOperationalFilters,
+        timeSensitiveFilter: partial?.timeSensitiveFilter ?? timeSensitiveFilter,
         layout: partial?.layout ?? layout,
         rowAxis: partial?.rowAxis ?? rowAxis,
       }),
@@ -147,6 +154,7 @@ export function useScheduleJobsUrlState() {
       requiredCarersFilters,
       jobOperationalFilters,
       carerOperationalFilters,
+      timeSensitiveFilter,
       layout,
       rowAxis,
     ],
@@ -328,6 +336,14 @@ export function useScheduleJobsUrlState() {
     [updateScheduleJobsUrl],
   )
 
+  const toggleTimeSensitiveFilter = React.useCallback(() => {
+    setTimeSensitiveFilter((current) => {
+      const next = !current
+      updateScheduleJobsUrl({ timeSensitiveFilter: next })
+      return next
+    })
+  }, [updateScheduleJobsUrl])
+
   const toggleJobOutcomeFilter = React.useCallback((filter: ScheduleJobOutcomeFilter) => {
     setJobOutcomeFilters((current) => {
       const next = new Set(current)
@@ -393,6 +409,10 @@ export function useScheduleJobsUrlState() {
     setCarerOperationalFilters(parseScheduleCarerOperationalFilters(search.carerOp))
   }, [search.carerOp])
 
+  React.useEffect(() => {
+    setTimeSensitiveFilter(parseScheduleJobsTimeSensitiveFilter(search.ts))
+  }, [search.ts])
+
   const listLinkSearch = React.useMemo(
     () => ({
       ...buildScheduleSharedFilterSearch({
@@ -402,6 +422,7 @@ export function useScheduleJobsUrlState() {
         serviceUserIds: serviceUserFilterIds,
         employeeIds: employeeFilterIds,
         requiredCarersFilters,
+        timeSensitiveFilter,
       }),
       ...(jobOperationalFilters.length ? { op: jobOperationalFilters.join(',') } : {}),
     }),
@@ -412,6 +433,7 @@ export function useScheduleJobsUrlState() {
       serviceUserFilterIds,
       employeeFilterIds,
       requiredCarersFilters,
+      timeSensitiveFilter,
       jobOperationalFilters,
     ],
   )
@@ -452,6 +474,7 @@ export function useScheduleJobsUrlState() {
     jobOutcomeFilters,
     jobOperationalFilters,
     carerOperationalFilters,
+    timeSensitiveFilter,
     locationFilterDisabled: globalLocationScoped,
     setServiceUserFilterIds,
     setScheduleDate,
@@ -464,6 +487,7 @@ export function useScheduleJobsUrlState() {
     clearSharedFilters,
     toggleJobOperationalFilter,
     toggleCarerOperationalFilter,
+    toggleTimeSensitiveFilter,
     toggleJobOutcomeFilter,
     updateScheduleJobsUrl,
     listLinkSearch,

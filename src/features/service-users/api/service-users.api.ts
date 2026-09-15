@@ -752,6 +752,8 @@ export type ServiceUserMedicationRow = {
   monthlyAnchorToStartDate?: boolean | null
   isControlledMedication: boolean
   isDecongestantMedication: boolean
+  timeCritical?: boolean
+  timeToleranceMinutes?: number
   route?: ServiceUserMedicationLookupNested
   frequency?: ServiceUserMedicationLookupNested
   medicationType?: ServiceUserMedicationLookupNested
@@ -1004,6 +1006,8 @@ export type CreateServiceUserMedicationPayload = {
   notes?: string
   isControlledMedication?: boolean
   isDecongestantMedication?: boolean
+  timeCritical?: boolean
+  timeToleranceMinutes?: number
   medicationPackId?: string
   status?: 'ACTIVE' | 'ENDED' | 'PAUSED' | 'CANCELLED'
   /** One schedule row per administration time (e.g. 3× daily → 3 rows). */

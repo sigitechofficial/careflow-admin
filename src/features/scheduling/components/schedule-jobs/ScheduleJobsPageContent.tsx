@@ -48,6 +48,7 @@ export function ScheduleJobsPageContent() {
     jobOutcomeFilters: url.jobOutcomeFilters,
     jobOperationalFilters: url.jobOperationalFilters,
     carerOperationalFilters: url.carerOperationalFilters,
+    timeSensitiveFilter: url.timeSensitiveFilter,
     setServiceUserFilterIds: url.setServiceUserFilterIds,
     updateScheduleJobsUrl: url.updateScheduleJobsUrl,
   })
@@ -188,6 +189,9 @@ export function ScheduleJobsPageContent() {
         carerOperationalFilters={url.carerOperationalFilters}
         carerOnLeaveTodayCount={board.carerOnLeaveTodayCount}
         onToggleCarerOperationalFilter={url.toggleCarerOperationalFilter}
+        timeSensitiveFilter={url.timeSensitiveFilter}
+        timeSensitiveCount={board.timeSensitiveCount}
+        onToggleTimeSensitiveFilter={url.toggleTimeSensitiveFilter}
         operationalIssuesCount={board.operationalIssuesCount}
         layout={url.layout}
         onLayoutChange={url.setScheduleLayout}
@@ -206,6 +210,7 @@ export function ScheduleJobsPageContent() {
             serviceUserFilterIds={url.serviceUserFilterIds}
             employeeFilterIds={url.employeeFilterIds}
             requiredCarersFilters={url.requiredCarersFilters}
+            timeSensitiveFilter={url.timeSensitiveFilter}
             branchFilterOptions={board.branchFilterOptions}
             boardJobs={board.board.allJobs}
           />
