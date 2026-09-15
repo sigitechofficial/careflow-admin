@@ -173,6 +173,9 @@ export type EmployeeEarningVisitRow = {
   plannedStart: string
   plannedEnd: string | null
   plannedTime: string | null
+  actualStart?: string | null
+  actualEnd?: string | null
+  actualTime?: string | null
   approvedPayStart: string | null
   approvedPayEnd: string | null
   approvedPayTime: string | null
@@ -212,6 +215,7 @@ export type EmployeeEarningsSummary = {
   employeeId: string
   dateFrom: string | null
   dateTo: string | null
+  organisationTimezone?: string
   currency: string
   /** Gross from accepted visits before fines/penalties. */
   salaryAmount?: string

@@ -7,6 +7,7 @@ import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { ExportStatusBadge, InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { BillingRunPeriodDialog } from '@/features/billing/components/BillingRunPeriodDialog'
+import { InvoiceRunDateFilterBar } from '@/features/billing/components/InvoiceRunDateFilterBar'
 import {
   useApproveInvoiceRun,
   useCalculateInvoiceRun,
@@ -27,6 +28,11 @@ import {
   InvoiceRunCadenceBadge,
   periodCadence,
 } from '@/features/billing/utils/invoice-run-cadence.util'
+import {
+  invoiceRunOverlapsDateRange,
+  rangeForInvoiceRunDatePreset,
+  type InvoiceRunDatePreset,
+} from '@/features/billing/utils/invoice-run-date-filter.util'
 
 type CadenceTab = 'weekly' | 'monthly'
 
@@ -53,6 +59,9 @@ export function BillingInvoiceRunsPanel() {
   const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const [createOpen, setCreateOpen] = React.useState(false)
   const [cadenceTab, setCadenceTab] = React.useState<CadenceTab>('weekly')
+  const [datePreset, setDatePreset] = React.useState<InvoiceRunDatePreset>('all')
+  const [customFrom, setCustomFrom] = React.useState('')
+  const [customTo, setCustomTo] = React.useState('')
 
   const query = useInvoiceRuns({ locationId: locationId ?? undefined })
   const createMutation = useCreateInvoiceRun()
@@ -63,13 +72,45 @@ export function BillingInvoiceRunsPanel() {
   const deleteAllMutation = useDeleteAllInvoiceRuns()
 
   const rows = query.data ?? []
-  const weeklyRows = React.useMemo(() => filterRowsByCadence(rows, 'weekly'), [rows])
-  const monthlyRows = React.useMemo(() => filterRowsByCadence(rows, 'monthly'), [rows])
+  const dateFilters = React.useMemo(
+    () =>
+      rangeForInvoiceRunDatePreset(
+        datePreset,
+        datePreset === 'custom' ? { dateFrom: customFrom, dateTo: customTo } : undefined,
+      ),
+    [datePreset, customFrom, customTo],
+  )
+  const dateFilteredRows = React.useMemo(
+    () =>
+      rows.filter(row =>
+        invoiceRunOverlapsDateRange(row, dateFilters.dateFrom, dateFilters.dateTo),
+      ),
+    [rows, dateFilters.dateFrom, dateFilters.dateTo],
+  )
+  const weeklyRows = React.useMemo(
+    () => filterRowsByCadence(dateFilteredRows, 'weekly'),
+    [dateFilteredRows],
+  )
+  const monthlyRows = React.useMemo(
+    () => filterRowsByCadence(dateFilteredRows, 'monthly'),
+    [dateFilteredRows],
+  )
   const customCount = React.useMemo(
-    () => rows.filter((row) => periodCadence(row.periodStart, row.periodEnd).tone === 'custom').length,
-    [rows],
+    () =>
+      dateFilteredRows.filter(
+        row => periodCadence(row.periodStart, row.periodEnd).tone === 'custom',
+      ).length,
+    [dateFilteredRows],
   )
   const visibleRows = cadenceTab === 'weekly' ? weeklyRows : monthlyRows
+  const rangeHint =
+    dateFilters.dateFrom && dateFilters.dateTo
+      ? `${formatDate(dateFilters.dateFrom)} → ${formatDate(dateFilters.dateTo)}`
+      : dateFilters.dateFrom
+        ? `From ${formatDate(dateFilters.dateFrom)}`
+        : dateFilters.dateTo
+          ? `Until ${formatDate(dateFilters.dateTo)}`
+          : null
 
   const isMutating =
     createMutation.isPending ||
@@ -146,6 +187,16 @@ export function BillingInvoiceRunsPanel() {
         Times in {timezoneHint}
       </span>
 
+      <InvoiceRunDateFilterBar
+        preset={datePreset}
+        onPresetChange={setDatePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+        testIdPrefix="billing-invoice-runs"
+      />
+
       <div className="border-b border-border">
         <nav className="-mb-px flex flex-wrap gap-1" aria-label="Invoice run cadence">
           {(
@@ -200,12 +251,18 @@ export function BillingInvoiceRunsPanel() {
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           No invoice runs yet. Create a weekly (~7 day) or monthly period with approved billable visit times.
         </div>
+      ) : dateFilteredRows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          No invoice runs match this date filter
+          {rangeHint ? ` (${rangeHint})` : ''}.
+        </div>
       ) : visibleRows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No {cadenceTab} invoice runs yet.
+          No {cadenceTab} invoice runs
+          {rangeHint ? ` in ${rangeHint}` : ' yet'}
           {cadenceTab === 'weekly'
-            ? ' Create a run with a ~7 day period.'
-            : ' Create a run with a ~28–31 day period.'}
+            ? '. Create a run with a ~7 day period.'
+            : '. Create a run with a ~28–31 day period.'}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">

@@ -1,6 +1,7 @@
 ﻿import { ClipboardList } from 'lucide-react'
 import { CarePlanReviewBadge } from '@/features/service-users/care-plans/components/CarePlanReviewBadge'
 import type { CarePlanDisplayState } from '@/features/service-users/care-plan/care-plan-display-state'
+import { resolveCarePlanCardPictureUrl } from '@/features/service-users/care-plan/care-plan-icon-resolve'
 import type { CarePlanInstanceDisplayStatus, CarePlanReviewState } from '@/features/service-users/care-plans/types'
 import { StandardIconImage } from '@/shared/ui/standard-icon-image'
 import { Badge } from '@/shared/ui/badge'
@@ -55,6 +56,8 @@ export function CarePlanCard({
   secondaryBadge?: string | null
   appearance?: 'default' | 'available'
 }) {
+  const iconSrc = resolveCarePlanCardPictureUrl(title, pictureUrl)
+
   return (
     <button
       type="button"
@@ -67,9 +70,9 @@ export function CarePlanCard({
     >
       <div className="flex items-start gap-2.5">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-          {pictureUrl ? (
+          {iconSrc ? (
             <StandardIconImage
-              src={pictureUrl}
+              src={iconSrc}
               label={title}
               className="h-10 w-10"
               imgClassName="h-10 w-10"

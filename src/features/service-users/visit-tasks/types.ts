@@ -34,6 +34,9 @@ export type VisitTaskAssignment = {
   bodyMapRequired?: boolean
   priority: string
   schedule: import('@/features/service-users/visit-tasks/visit-task-schedule.util').VisitTaskSchedule
+  createdAt?: string | null
+  createdById?: string | null
+  createdByName?: string | null
   isEmarPrompt?: boolean
   task: {
     id: string

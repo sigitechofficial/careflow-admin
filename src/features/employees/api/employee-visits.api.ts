@@ -43,6 +43,7 @@ export type EmployeeVisitRow = {
 export type EmployeeVisitsResponse = {
   employeeId: string
   month: string
+  organisationTimezone?: string | null
   summary: EmployeeVisitsSummary
   visits: EmployeeVisitRow[]
 }

@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDateTime } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useMedicationLookups } from '@/features/service-users/hooks/useServiceUserMedicationMutations'
 import {
@@ -167,6 +167,8 @@ type RoundTaskDraft = {
   priority: VisitTaskPriorityCode
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
+  createdAt: string | null
+  createdByName: string | null
 }
 
 type DraftByRound = Map<string, Map<string, RoundTaskDraft>>
@@ -183,6 +185,8 @@ function buildDraftFromAssignments(
         priority: normalizeVisitTaskPriority(row.priority),
         schedule: mergeVisitTaskSchedule(row.schedule),
         bodyMapRequired: Boolean(row.bodyMapRequired),
+        createdAt: row.createdAt ?? null,
+        createdByName: row.createdByName?.trim() || null,
       })
     }
     map.set(roundCode, roundMap)
@@ -215,11 +219,14 @@ function mergeTasksIntoDraft(
   const nextDraft = new Map(draft)
   const roundDraft = new Map(nextDraft.get(roundCode) ?? [])
   for (const item of items) {
+    const existing = roundDraft.get(item.taskId)
     roundDraft.set(item.taskId, {
       carerInstructions: item.carerInstructions,
       priority: item.priority,
       schedule: item.schedule ?? { ...DEFAULT_VISIT_TASK_SCHEDULE },
       bodyMapRequired: Boolean(item.bodyMapRequired),
+      createdAt: existing?.createdAt ?? null,
+      createdByName: existing?.createdByName ?? null,
     })
   }
   nextDraft.set(roundCode, roundDraft)
@@ -357,6 +364,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
         schedule: VisitTaskSchedule
         bodyMapRequired: boolean
         isEmarPrompt: boolean
+        createdAt: string | null
+        createdByName: string | null
       }
     > => {
       const roundDraft = draftByRound.get(roundCode) ?? new Map<string, RoundTaskDraft>()
@@ -368,6 +377,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           schedule: VisitTaskSchedule
           bodyMapRequired: boolean
           isEmarPrompt: boolean
+          createdAt: string | null
+          createdByName: string | null
         }
       > = []
       for (const [taskId, draft] of roundDraft.entries()) {
@@ -379,7 +390,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           !meta.task.name.toLowerCase().includes(q) &&
           !meta.categoryName.toLowerCase().includes(q) &&
           !draft.carerInstructions.toLowerCase().includes(q) &&
-          !visitTaskPriorityLabel(draft.priority).toLowerCase().includes(q)
+          !visitTaskPriorityLabel(draft.priority).toLowerCase().includes(q) &&
+          !(draft.createdByName?.toLowerCase().includes(q) ?? false)
         ) {
           continue
         }
@@ -390,6 +402,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
           schedule: draft.schedule,
           bodyMapRequired: Boolean(draft.bodyMapRequired),
           isEmarPrompt: isEmarMedicationPromptTask(meta.task),
+          createdAt: draft.createdAt,
+          createdByName: draft.createdByName,
         })
       }
       return items.sort((a, b) => {
@@ -766,6 +780,8 @@ export function ServiceUserTasksPlannerTab({ serviceUserId }: Props) {
             priority: values.priority,
             schedule: mergeVisitTaskSchedule(values.schedule),
             bodyMapRequired: Boolean(values.bodyMapRequired),
+            createdAt: existing.createdAt,
+            createdByName: existing.createdByName,
           })
           next.set(taskEditTarget.roundCode, roundDraft)
           setDraftByRound(next)
@@ -785,6 +801,18 @@ type PlannerTaskRow = TaskMeta & {
   schedule: VisitTaskSchedule
   bodyMapRequired: boolean
   isEmarPrompt: boolean
+  createdAt: string | null
+  createdByName: string | null
+}
+
+function formatTaskCreatedBy(meta: Pick<PlannerTaskRow, 'createdAt' | 'createdByName'>): {
+  who: string
+  when: string
+} {
+  return {
+    who: meta.createdByName?.trim() || 'Super Admin',
+    when: meta.createdAt ? formatDateTime(meta.createdAt) : 'Pending save',
+  }
 }
 
 function PlannerRoundListSection({
@@ -913,13 +941,14 @@ function PlannerRoundListSection({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-border bg-muted/20 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-2.5">Task</th>
                 <th className="px-4 py-2.5">Category</th>
                 <th className="px-4 py-2.5">Priority</th>
                 <th className="px-4 py-2.5">Schedule</th>
+                <th className="min-w-[160px] px-4 py-2.5">Created</th>
                 <th className="min-w-[220px] px-4 py-2.5">Instructions</th>
                 <th className="w-12 px-4 py-2.5" />
               </tr>
@@ -929,6 +958,7 @@ function PlannerRoundListSection({
                 const taskVisual = groupVisual(meta.groupCode)
                 const TaskIcon = taskVisual.icon
                 const needsInput = taskNeedsRecordedInput(meta.task.flagsJson)
+                const created = formatTaskCreatedBy(meta)
 
                 return (
                   <tr key={meta.task.id} className="group align-top hover:bg-muted/20">
@@ -1003,6 +1033,10 @@ function PlannerRoundListSection({
                       >
                         <VisitTaskScheduleBadge schedule={meta.schedule} />
                       </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs font-medium text-foreground">{created.who}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{created.when}</p>
                     </td>
                     <td className="px-4 py-3">
                       <textarea

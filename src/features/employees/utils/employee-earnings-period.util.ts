@@ -1,28 +1,49 @@
-function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
+import {
+  addDaysToOperationalIso,
+  getSyncedOperationalTimeZone,
+  operationalTodayIso,
+} from '@/shared/lib/operational-day.util'
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
 }
 
-/** Previous complete calendar week (Monday–Sunday, UTC). */
-export function previousWeekRange(now = new Date()): { dateFrom: string; dateTo: string } {
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const day = today.getUTCDay() // 0 = Sunday
-  const daysSinceMonday = (day + 6) % 7
-  const thisMonday = new Date(today)
-  thisMonday.setUTCDate(today.getUTCDate() - daysSinceMonday)
-  const prevMonday = new Date(thisMonday)
-  prevMonday.setUTCDate(thisMonday.getUTCDate() - 7)
-  const prevSunday = new Date(prevMonday)
-  prevSunday.setUTCDate(prevMonday.getUTCDate() + 6)
-  return { dateFrom: toIsoDate(prevMonday), dateTo: toIsoDate(prevSunday) }
+/** Monday of the week containing `iso` (YYYY-MM-DD civil calendar, weeks start Monday). */
+function mondayOfWeekContaining(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  const utc = new Date(Date.UTC(y, m - 1, d))
+  const dow = utc.getUTCDay() // 0 = Sunday
+  const mondayOffset = dow === 0 ? -6 : 1 - dow
+  return addDaysToOperationalIso(iso, mondayOffset)
 }
 
-/** Previous complete calendar month (UTC). */
-export function lastMonthRange(now = new Date()): { dateFrom: string; dateTo: string } {
-  const y = now.getUTCFullYear()
-  const m = now.getUTCMonth()
-  const from = new Date(Date.UTC(y, m - 1, 1))
-  const to = new Date(Date.UTC(y, m, 0))
-  return { dateFrom: toIsoDate(from), dateTo: toIsoDate(to) }
+/** Previous complete calendar week (Monday–Sunday) on the organisation operational calendar. */
+export function previousWeekRange(
+  now = new Date(),
+  timeZone = getSyncedOperationalTimeZone(),
+): { dateFrom: string; dateTo: string } {
+  const today = operationalTodayIso(now, timeZone)
+  const thisMonday = mondayOfWeekContaining(today)
+  const prevMonday = addDaysToOperationalIso(thisMonday, -7)
+  return { dateFrom: prevMonday, dateTo: addDaysToOperationalIso(prevMonday, 6) }
+}
+
+/** Previous complete calendar month on the organisation operational calendar. */
+export function lastMonthRange(
+  now = new Date(),
+  timeZone = getSyncedOperationalTimeZone(),
+): { dateFrom: string; dateTo: string } {
+  const today = operationalTodayIso(now, timeZone)
+  const [y, m] = today.split('-').map(Number)
+  if (!y || !m) return { dateFrom: today, dateTo: today }
+  const lm = m === 1 ? 12 : m - 1
+  const ly = m === 1 ? y - 1 : y
+  const lastDay = new Date(Date.UTC(ly, lm, 0)).getUTCDate()
+  return {
+    dateFrom: `${ly}-${pad2(lm)}-01`,
+    dateTo: `${ly}-${pad2(lm)}-${pad2(lastDay)}`,
+  }
 }
 
 export type EarningsPeriodPreset = 'all' | 'previous-week' | 'last-month' | 'custom'
@@ -30,9 +51,11 @@ export type EarningsPeriodPreset = 'all' | 'previous-week' | 'last-month' | 'cus
 export function rangeForPreset(
   preset: EarningsPeriodPreset,
   custom?: { dateFrom?: string; dateTo?: string },
+  now = new Date(),
+  timeZone = getSyncedOperationalTimeZone(),
 ): { dateFrom?: string; dateTo?: string } {
-  if (preset === 'previous-week') return previousWeekRange()
-  if (preset === 'last-month') return lastMonthRange()
+  if (preset === 'previous-week') return previousWeekRange(now, timeZone)
+  if (preset === 'last-month') return lastMonthRange(now, timeZone)
   if (preset === 'custom') {
     return {
       dateFrom: custom?.dateFrom || undefined,

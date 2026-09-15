@@ -1033,7 +1033,13 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm" data-testid="employee-wizard">
+        <div
+          className={cn(
+            'overflow-hidden rounded-xl border border-border bg-card shadow-sm',
+            isEditMode && 'md:flex md:items-stretch',
+          )}
+          data-testid="employee-wizard"
+        >
           {isEditMode ? (
             <EditEmployeeTabBar activeTab={editTab} onTabChange={setEditTab} />
           ) : (
@@ -1045,7 +1051,7 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
             />
           )}
 
-          <div className="p-5">
+          <div className="min-w-0 flex-1 p-4 md:p-5">
             {((isEditMode && editTab === 'personal') || (!isEditMode && tab === 'personal')) && (
               <div className="space-y-6">
               <form

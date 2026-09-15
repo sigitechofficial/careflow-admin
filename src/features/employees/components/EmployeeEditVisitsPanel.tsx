@@ -4,17 +4,13 @@ import {
   AlertTriangle,
   CalendarCheck,
   CalendarClock,
-  CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
   ExternalLink,
   Filter,
   FlaskConical,
-  ListChecks,
   Loader2,
-  MapPin,
   PlayCircle,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -53,6 +49,7 @@ import {
 } from '@/features/employees/utils/visit-status-sample-jobs.util'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import { serviceUserLabel } from '@/features/scheduling/utils/scheduling-format'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import {
   dayKeyFromInstant,
   formatOpsCalendarDate,
@@ -61,6 +58,7 @@ import {
   operationalTodayIso,
   syncOrganisationOperationalTimezone,
 } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
@@ -73,7 +71,7 @@ type CodeFilter =
   | { kind: 'timing'; code: string }
   | { kind: 'duration'; code: string }
 
-function utcMonthLabel(month: string): string {
+function monthLabel(month: string): string {
   const [yRaw, mRaw] = month.split('-')
   const y = Number(yRaw)
   const m = Number(mRaw)
@@ -98,12 +96,38 @@ function currentOrgMonth(): string {
   return operationalTodayIso().slice(0, 7)
 }
 
-function formatVisitDate(iso: string): string {
-  return formatOpsCalendarDate(iso)
+function formatVisitDate(
+  iso: string,
+  formatDate: (dayIso: string) => string,
+): string {
+  const day = dayKeyFromInstant(iso)
+  if (!day) return formatOpsCalendarDate(iso)
+  return formatDate(day)
 }
 
-function formatClockTime(iso: string | null | undefined): string {
-  return formatOpsClockTime(iso)
+function formatClockLabel(iso: string | null | undefined): string {
+  const value = formatOpsClockTime(iso)
+  if (!value || value === '?' || value === '-') return '-'
+  if (value.charCodeAt(0) === 8212 || value.charCodeAt(0) === 8211) return '-'
+  return value
+}
+
+function formatDurationLabel(minutes: number | null): string {
+  const value = formatDurationMinutes(minutes)
+  if (!value || value === '?' || value.charCodeAt(0) === 8212) return '-'
+  return value
+}
+
+function formatTimeRange(
+  start: string | null | undefined,
+  end: string | null | undefined,
+): string {
+  const from = formatClockLabel(start)
+  const to = formatClockLabel(end)
+  if (from === '-' && to === '-') return '-'
+  if (to === '-') return from
+  if (from === '-') return to
+  return `${from} - ${to}`
 }
 
 function bucketLabel(bucket: EmployeeVisitBucket): string {
@@ -111,6 +135,26 @@ function bucketLabel(bucket: EmployeeVisitBucket): string {
   if (bucket === 'ongoing') return 'Ongoing'
   if (bucket === 'upcoming') return 'Upcoming'
   return 'Other'
+}
+
+function PunctualityCell({ result }: { result: ReturnType<typeof classifyVisitPunctuality> }) {
+  if (result.kind === 'unknown') {
+    return <span className="text-xs text-muted-foreground">-</span>
+  }
+  return (
+    <div className="space-y-0.5">
+      <Badge
+        variant="outline"
+        className={cn('w-fit font-medium', visitPunctualityBadgeClass(result))}
+        title={`Tolerance +/-${result.toleranceMinutes} min`}
+      >
+        {result.outcome}
+      </Badge>
+      {result.varianceMinutes ? (
+        <p className="text-[11px] tabular-nums text-muted-foreground">{result.varianceMinutes} min</p>
+      ) : null}
+    </div>
+  )
 }
 
 function StatCard({
@@ -135,19 +179,21 @@ function StatCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'rounded-xl border p-4 text-left shadow-sm transition-colors',
-        active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40',
+        'rounded-xl border px-4 py-3.5 text-left shadow-sm transition-colors',
+        active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/30',
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-display font-bold tabular-nums text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
+          <p className="mt-0.5 text-xl font-display font-semibold tabular-nums text-foreground">
+            {value}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{hint}</p>
         </div>
         <span
           className={cn(
-            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
             iconClassName,
           )}
         >
@@ -170,7 +216,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   const [month, setMonth] = React.useState(currentOrgMonth)
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [codeFilter, setCodeFilter] = React.useState<CodeFilter>({ kind: 'none' })
-  const [showStatusSamples, setShowStatusSamples] = React.useState(true)
+  const [showStatusSamples, setShowStatusSamples] = React.useState(false)
   const tableScrollRef = React.useRef<HTMLDivElement>(null)
   const [isScrolledX, setIsScrolledX] = React.useState(false)
 
@@ -180,9 +226,13 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
       syncOrganisationOperationalTimezone(settingsQuery.data.timezone)
     }
   }, [settingsQuery.data?.timezone])
-  const organisationTimezone =
-    settingsQuery.data?.timezone?.trim() || getSyncedOperationalTimeZone()
+  const { formatDate } = useOrganisationDisplayFormat()
   const query = useEmployeeVisits(employeeId, month, canRead)
+  const organisationTimezone =
+    query.data?.organisationTimezone?.trim() ||
+    settingsQuery.data?.timezone?.trim() ||
+    getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
   const liveJobs = query.data?.jobs ?? []
   const serverSummary = query.data?.summary
 
@@ -295,10 +345,10 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
   }
 
   return (
-    <div className="space-y-6" data-testid="employee-edit-visits-panel">
+    <div className="space-y-5" data-testid="employee-edit-visits-panel">
       <ContentSectionHeader
         title="Visits"
-        description="Allocated visits for this carer — planned vs actual times, punctuality, and duration for CQC evidence."
+        description="Planned vs actual times, punctuality, and duration for this carer. Month and visit clocks use the organisation operational timezone."
         icon={<CalendarCheck className="h-5 w-5" aria-hidden />}
         iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
         action={
@@ -318,21 +368,9 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
         }
       />
 
-      <VisitDeliveryStatusCodesReference
-        defaultOpen={false}
-        activeFilter={codeFilter}
-        onSelectLifecycle={(code) => selectCodeFilter({ kind: 'lifecycle', code })}
-        onSelectTiming={(code) => selectCodeFilter({ kind: 'timing', code })}
-        onSelectDuration={(code) => selectCodeFilter({ kind: 'duration', code })}
-        onClearFilter={() => setCodeFilter({ kind: 'none' })}
-      />
-
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
-              <CalendarDays className="h-4 w-4" aria-hidden />
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               size="icon"
@@ -343,11 +381,9 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="min-w-[10rem] text-center">
-              <p className="text-sm font-semibold text-foreground">{utcMonthLabel(month)}</p>
-              <p className="text-xs text-muted-foreground">
-                {month} · {organisationTimezone}
-              </p>
+            <div className="min-w-[9.5rem] text-center">
+              <p className="text-sm font-semibold text-foreground">{monthLabel(month)}</p>
+              <p className="text-[11px] text-muted-foreground">Operational month</p>
             </div>
             <Button
               type="button"
@@ -369,139 +405,122 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
             >
               This month
             </Button>
+            <span
+              className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+              title="Month navigation and visit planned/actual times use the organisation operational timezone"
+              data-testid="employee-visits-timezone-hint"
+            >
+              Times in {timezoneHint}
+            </span>
           </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={showStatusSamples ? 'secondary' : 'ghost'}
+            leftIcon={<FlaskConical className="h-3.5 w-3.5" />}
+            onClick={() => setShowStatusSamples((v) => !v)}
+            data-testid="employee-visits-toggle-samples"
+          >
+            {showStatusSamples ? 'Samples on' : 'Show samples'}
+          </Button>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+        {codeFilter.kind !== 'none' ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <Filter className="h-3.5 w-3.5 text-primary" aria-hidden />
+            <span className="text-xs text-muted-foreground">Filter</span>
+            <Badge variant="outline" className="font-medium">
+              {codeFilter.kind}: {codeFilter.code}
+            </Badge>
             <Button
               type="button"
               size="sm"
-              variant={showStatusSamples ? 'default' : 'outline'}
-              leftIcon={<FlaskConical className="h-3.5 w-3.5" />}
-              onClick={() => setShowStatusSamples((v) => !v)}
-              data-testid="employee-visits-toggle-samples"
+              variant="ghost"
+              onClick={() => setCodeFilter({ kind: 'none' })}
             >
-              {showStatusSamples ? 'Sample visits on' : 'Sample visits off'}
+              Clear
             </Button>
+            <div className="flex flex-wrap gap-1.5">
+              {codeFilter.kind === 'lifecycle'
+                ? VISIT_LIFECYCLE_STATUS_CATALOG.map((item) => (
+                    <Button
+                      key={item.code}
+                      type="button"
+                      size="sm"
+                      variant={codeFilter.code === item.code ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => selectCodeFilter({ kind: 'lifecycle', code: item.code })}
+                    >
+                      {item.label}
+                    </Button>
+                  ))
+                : null}
+              {codeFilter.kind === 'timing'
+                ? VISIT_TIMING_STATUS_CATALOG.map((item) => (
+                    <Button
+                      key={item.code}
+                      type="button"
+                      size="sm"
+                      variant={codeFilter.code === item.code ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => selectCodeFilter({ kind: 'timing', code: item.code })}
+                    >
+                      {item.label}
+                    </Button>
+                  ))
+                : null}
+              {codeFilter.kind === 'duration'
+                ? VISIT_DURATION_EXCEPTION_CATALOG.map((item) => (
+                    <Button
+                      key={item.code}
+                      type="button"
+                      size="sm"
+                      variant={codeFilter.code === item.code ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => selectCodeFilter({ kind: 'duration', code: item.code })}
+                    >
+                      {item.label}
+                    </Button>
+                  ))
+                : null}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
+            <span className="mr-1 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Filter className="h-3.5 w-3.5" aria-hidden />
+              Exceptions
+            </span>
             {(
               [
-                ['all', 'All', <ListChecks className="h-3.5 w-3.5" aria-hidden />],
-                ['completed', 'Completed', <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />],
-                ['ongoing', 'Ongoing', <PlayCircle className="h-3.5 w-3.5" aria-hidden />],
-                ['upcoming', 'Upcoming', <CalendarClock className="h-3.5 w-3.5" aria-hidden />],
-                ['other', 'Other', <AlertTriangle className="h-3.5 w-3.5" aria-hidden />],
+                ['timing', 'LATE_START', 'Late start'],
+                ['timing', 'CRITICALLY_LATE', 'Critically late'],
+                ['lifecycle', 'MISSED', 'Missed'],
+                ['duration', 'OVERRUN', 'Overrun'],
+                ['duration', 'EARLY_END', 'Early end'],
+                ['duration', 'ACTUAL_SHORT_VISIT', 'Actual short'],
+                ['lifecycle', 'EN_ROUTE', 'En route'],
               ] as const
-            ).map(([id, label, icon]) => (
+            ).map(([kind, code, label]) => (
               <Button
-                key={id}
+                key={code}
                 type="button"
                 size="sm"
-                variant={filter === id ? 'default' : 'outline'}
-                leftIcon={icon}
-                onClick={() => setFilter(id)}
-                data-testid={`employee-visits-filter-${id}`}
+                variant="outline"
+                className="h-7 rounded-full px-2.5 text-xs"
+                onClick={() => selectCodeFilter({ kind, code })}
               >
                 {label}
               </Button>
             ))}
           </div>
-        </div>
+        )}
       </div>
-
-      {codeFilter.kind !== 'none' ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-          <Filter className="h-3.5 w-3.5 text-primary" aria-hidden />
-          <span className="text-muted-foreground">Code filter:</span>
-          <Badge variant="outline" className="font-medium">
-            {codeFilter.kind} · {codeFilter.code}
-          </Badge>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setCodeFilter({ kind: 'none' })}
-          >
-            Clear
-          </Button>
-          <div className="flex flex-wrap gap-1">
-            {codeFilter.kind === 'lifecycle'
-              ? VISIT_LIFECYCLE_STATUS_CATALOG.map((item) => (
-                  <Button
-                    key={item.code}
-                    type="button"
-                    size="sm"
-                    variant={codeFilter.code === item.code ? 'default' : 'outline'}
-                    className="h-7 text-xs"
-                    onClick={() => selectCodeFilter({ kind: 'lifecycle', code: item.code })}
-                  >
-                    {item.label}
-                  </Button>
-                ))
-              : null}
-            {codeFilter.kind === 'timing'
-              ? VISIT_TIMING_STATUS_CATALOG.map((item) => (
-                  <Button
-                    key={item.code}
-                    type="button"
-                    size="sm"
-                    variant={codeFilter.code === item.code ? 'default' : 'outline'}
-                    className="h-7 text-xs"
-                    onClick={() => selectCodeFilter({ kind: 'timing', code: item.code })}
-                  >
-                    {item.label}
-                  </Button>
-                ))
-              : null}
-            {codeFilter.kind === 'duration'
-              ? VISIT_DURATION_EXCEPTION_CATALOG.map((item) => (
-                  <Button
-                    key={item.code}
-                    type="button"
-                    size="sm"
-                    variant={codeFilter.code === item.code ? 'default' : 'outline'}
-                    className="h-7 text-xs"
-                    onClick={() => selectCodeFilter({ kind: 'duration', code: item.code })}
-                  >
-                    {item.label}
-                  </Button>
-                ))
-              : null}
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 self-center text-xs font-medium text-muted-foreground">
-            <Filter className="h-3.5 w-3.5" aria-hidden />
-            Quick filters
-          </span>
-          {(
-            [
-              ['timing', 'LATE_START', 'Late start'],
-              ['timing', 'CRITICALLY_LATE', 'Critically late'],
-              ['lifecycle', 'MISSED', 'Missed'],
-              ['duration', 'OVERRUN', 'Overrun'],
-              ['duration', 'EARLY_END', 'Early end'],
-              ['duration', 'ACTUAL_SHORT_VISIT', 'Actual short'],
-              ['lifecycle', 'EN_ROUTE', 'En route'],
-            ] as const
-          ).map(([kind, code, label]) => (
-            <Button
-              key={code}
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => selectCodeFilter({ kind, code })}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      )}
 
       {query.isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading visits…
+          Loading visits?
         </div>
       ) : query.isError ? (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
@@ -549,130 +568,70 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
             />
           </div>
 
-          <ContentCard className="space-y-4 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="flex items-start gap-2.5">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-500/10 text-slate-700 dark:text-slate-300">
-                  <ListChecks className="h-4 w-4" aria-hidden />
-                </span>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Visit list</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {visible.length} visit{visible.length === 1 ? '' : 's'}
-                    {showStatusSamples
-                      ? ` · ${classified.filter((r) => r.isSample).length} samples included`
-                      : ''}
-                    {query.data?.totalMinutes
-                      ? ` · ${(query.data.totalMinutes / 60).toFixed(1)}h planned (live)`
-                      : ''}
-                  </p>
-                </div>
+          <ContentCard className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Visit list</h3>
+                <p className="text-xs text-muted-foreground">
+                  {visible.length} visit{visible.length === 1 ? '' : 's'}
+                  {showStatusSamples
+                    ? ` | ${classified.filter((r) => r.isSample).length} samples`
+                    : ''}
+                  {query.data?.totalMinutes
+                    ? ` | ${(query.data.totalMinutes / 60).toFixed(1)}h planned`
+                    : ''}
+                </p>
               </div>
             </div>
 
             {visible.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <CalendarCheck className="h-5 w-5 text-muted-foreground" aria-hidden />
-                </div>
+              <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
                 <p className="text-sm text-muted-foreground">
                   No matching visits
                   {filter !== 'all' ? ` in ${bucketLabel(filter).toLowerCase()}` : ''}
                   {codeFilter.kind !== 'none' ? ` for ${codeFilter.code}` : ''} in{' '}
-                  {utcMonthLabel(month)}.
-                  {!showStatusSamples
-                    ? ' Turn on Sample visits to load verification rows.'
-                    : ''}
+                  {monthLabel(month)}.
                 </p>
               </div>
             ) : (
               <div
                 ref={tableScrollRef}
-                className="max-h-[min(70vh,40rem)] overflow-auto rounded-lg border border-border"
+                className="max-h-[min(70vh,36rem)] overflow-auto rounded-lg border border-border"
               >
-                <table className="w-full min-w-[2040px] border-separate border-spacing-0 text-sm">
+                <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm">
                   <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th
-                        className="sticky left-0 top-0 z-40 w-[10.5rem] min-w-[10.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground"
-                        title="Visit reference: VIS-[BRANCH]-[YYYYMMDD]-[NNNN] (same as visit reconciliation EMONITORED)"
-                      >
-                        Visit ID
-                      </th>
-                      <th className="sticky left-[10.5rem] top-0 z-40 w-[8.5rem] min-w-[8.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-                          Date
-                        </span>
-                      </th>
-                      <th className="sticky left-[19rem] top-0 z-40 w-[5.5rem] min-w-[5.5rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Slot
-                      </th>
+                    <tr className="bg-muted/40">
                       <th
                         className={cn(
-                          'sticky left-[24.5rem] top-0 z-40 min-w-[9rem] border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground',
-                          isScrolledX &&
-                            'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
+                          'sticky left-0 top-0 z-40 w-[11rem] min-w-[11rem] border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground',
+                          isScrolledX && 'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
                         )}
                       >
-                        Service user
+                        Visit
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Planned start
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                        Planned
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Planned end
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                        Actual
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Actual start
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                        Start
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Actual end
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                        End
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-right font-medium text-muted-foreground">
-                        Start variance (min)
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                        Duration
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Start punctuality
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-right font-medium text-muted-foreground">
-                        End variance (min)
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        End punctuality
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" aria-hidden />
-                          Planned duration
-                        </span>
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Actual duration
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Duration variance
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-right font-medium text-muted-foreground">
-                        Variance (min)
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                         Status
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                          Exceptions
-                        </span>
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                        Exceptions
                       </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5" aria-hidden />
-                          Address
-                        </span>
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Action
+                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+                        Open
                       </th>
                     </tr>
                   </thead>
@@ -703,8 +662,9 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         ? 'bg-amber-50 dark:bg-amber-950/20'
                         : 'bg-card'
                       const stickyHover = 'group-hover:bg-muted'
+                      const address = [job.address, job.postcode].filter(Boolean).join(', ')
 
-                          return (
+                      return (
                         <tr
                           key={job.id}
                           className={cn(
@@ -714,161 +674,102 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                         >
                           <td
                             className={cn(
-                              'sticky left-0 z-20 w-[10.5rem] min-w-[10.5rem] border-b border-border px-3 py-2.5 whitespace-nowrap',
-                              stickyBg,
-                              stickyHover,
-                            )}
-                          >
-                            {job.visitRef ? (
-                              <span
-                                className="font-mono text-xs font-medium tracking-tight"
-                                title="Visit reference (EMONITORED) — same as visit reconciliation"
-                              >
-                                {job.visitRef}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground" title="Not synced to visit reconciliation yet">
-                                —
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            className={cn(
-                              'sticky left-[10.5rem] z-20 w-[8.5rem] min-w-[8.5rem] border-b border-border px-3 py-2.5 whitespace-nowrap text-muted-foreground',
-                              stickyBg,
-                              stickyHover,
-                            )}
-                          >
-                            {formatVisitDate(job.scheduledStartDateTime)}
-                            {isSample ? (
-                              <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
-                                Sample
-                              </span>
-                            ) : null}
-                          </td>
-                          <td
-                            className={cn(
-                              'sticky left-[19rem] z-20 w-[5.5rem] min-w-[5.5rem] border-b border-border px-3 py-2.5 font-medium',
-                              stickyBg,
-                              stickyHover,
-                            )}
-                          >
-                            {employeeVisitSlotLabel(job)}
-                          </td>
-                          <td
-                            className={cn(
-                              'sticky left-[24.5rem] z-20 min-w-[9rem] border-b border-border px-3 py-2.5',
+                              'sticky left-0 z-20 w-[11rem] min-w-[11rem] border-b border-border px-3 py-2.5 align-top',
                               stickyBg,
                               stickyHover,
                               isScrolledX &&
                                 'border-r shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]',
                             )}
                           >
-                            {serviceUserLabel(job.serviceUser)}
+                            <p className="font-medium leading-snug">
+                              {serviceUserLabel(job.serviceUser)}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {formatVisitDate(job.scheduledStartDateTime, formatDate)}
+                              {employeeVisitSlotLabel(job)
+                                ? ` | ${employeeVisitSlotLabel(job)}`
+                                : ''}
+                            </p>
+                            {job.visitRef ? (
+                              <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                                {job.visitRef}
+                              </p>
+                            ) : null}
+                            {address ? (
+                              <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground" title={address}>
+                                {address}
+                              </p>
+                            ) : null}
+                            {isSample ? (
+                              <span className="mt-1 inline-block text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                                Sample
+                              </span>
+                            ) : null}
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatClockTime(job.scheduledStartDateTime)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatClockTime(job.scheduledEndDateTime)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatClockTime(actualStart)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatClockTime(actualEnd)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
-                            {startPunctuality.varianceMinutes || '—'}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5">
-                            {startPunctuality.kind === 'unknown' ? (
-                              <span className="text-muted-foreground">Not assessed</span>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'w-fit font-medium',
-                                  visitPunctualityBadgeClass(startPunctuality),
-                                )}
-                                title={`Tolerance ±${toleranceMinutes} min`}
-                              >
-                                {startPunctuality.outcome}
-                              </Badge>
+                          <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums text-muted-foreground">
+                            {formatTimeRange(
+                              job.scheduledStartDateTime,
+                              job.scheduledEndDateTime,
                             )}
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
-                            {endPunctuality.varianceMinutes || '—'}
+                          <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums text-muted-foreground">
+                            {formatTimeRange(actualStart, actualEnd)}
                           </td>
-                          <td className="border-b border-border px-3 py-2.5">
-                            {endPunctuality.kind === 'unknown' ? (
-                              <span className="text-muted-foreground">Not assessed</span>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'w-fit font-medium',
-                                  visitPunctualityBadgeClass(endPunctuality),
-                                )}
-                                title={`Tolerance ±${toleranceMinutes} min`}
-                              >
-                                {endPunctuality.outcome}
-                              </Badge>
-                            )}
+                          <td className="border-b border-border px-3 py-2.5 align-top">
+                            <PunctualityCell result={startPunctuality} />
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums">
-                            {formatDurationMinutes(plannedDurationMins)}
+                          <td className="border-b border-border px-3 py-2.5 align-top">
+                            <PunctualityCell result={endPunctuality} />
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 whitespace-nowrap tabular-nums">
-                            {formatDurationMinutes(actualDurationMins)}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5 align-top">
+                            <p className="whitespace-nowrap tabular-nums">
+                              {formatDurationLabel(plannedDurationMins)} /{' '}
+                              {formatDurationLabel(actualDurationMins)}
+                            </p>
                             {variance.kind === 'unknown' ? (
-                              <span className="text-muted-foreground">Not assessed</span>
+                              <p className="text-[11px] text-muted-foreground">Not assessed</p>
                             ) : (
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  'w-fit font-medium',
+                                  'mt-1 w-fit font-medium',
                                   visitDurationVarianceBadgeClass(variance),
                                 )}
                               >
                                 {varianceExport.durationVariance}
+                                {varianceExport.varianceMinutes
+                                  ? ` (${varianceExport.varianceMinutes})`
+                                  : ''}
                               </Badge>
                             )}
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
-                            {varianceExport.varianceMinutes || '—'}
+                          <td className="border-b border-border px-3 py-2.5 align-top">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'w-fit font-medium',
+                                employeeVisitOutcomeBadgeClass(job, bucket),
+                              )}
+                            >
+                              {outcome}
+                            </Badge>
+                            <button
+                              type="button"
+                              className="mt-1 block w-fit text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
+                              onClick={() =>
+                                selectCodeFilter({
+                                  kind: 'lifecycle',
+                                  code: delivery.lifecycleStatus,
+                                })
+                              }
+                            >
+                              {delivery.lifecycleLabel}
+                            </button>
                           </td>
-                          <td className="border-b border-border px-3 py-2.5">
-                            <div className="flex flex-col gap-1">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'w-fit font-medium',
-                                  employeeVisitOutcomeBadgeClass(job, bucket),
-                                )}
-                              >
-                                {outcome}
-                              </Badge>
-                              <button
-                                type="button"
-                                className="w-fit text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
-                                onClick={() =>
-                                  selectCodeFilter({
-                                    kind: 'lifecycle',
-                                    code: delivery.lifecycleStatus,
-                                  })
-                                }
-                              >
-                                {delivery.lifecycleLabel}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5">
-                            <div className="flex max-w-[220px] flex-wrap gap-1">
+                          <td className="border-b border-border px-3 py-2.5 align-top">
+                            <div className="flex max-w-[180px] flex-wrap gap-1">
                               {delivery.flags.length === 0 ? (
-                                <span className="text-muted-foreground">—</span>
+                                <span className="text-muted-foreground">-</span>
                               ) : (
                                 delivery.flags.slice(0, 4).map((flag) => (
                                   <Badge
@@ -883,7 +784,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                                       flag.severity === 'info' &&
                                         'bg-sky-500/10 text-sky-800 border-sky-500/30 dark:text-sky-200',
                                     )}
-                                    title={`${flag.detail ?? flag.label} — click to filter`}
+                                    title={`${flag.detail ?? flag.label} - click to filter`}
                                     onClick={() => {
                                       if (
                                         flag.code === 'LATE_START' ||
@@ -909,14 +810,11 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                               )}
                             </div>
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 text-muted-foreground">
-                            {[job.address, job.postcode].filter(Boolean).join(', ') || '—'}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5">
+                          <td className="border-b border-border px-3 py-2.5 align-top text-right">
                             {isSample ? (
-                              <span className="text-xs text-muted-foreground">Verify only</span>
+                              <span className="text-xs text-muted-foreground">Verify</span>
                             ) : canOpenSchedule ? (
-                              <Button variant="outline" size="sm" asChild>
+                              <Button variant="ghost" size="sm" asChild>
                                 <Link
                                   to="/scheduling/visits/$jobId"
                                   params={{ jobId: job.id }}
@@ -926,14 +824,14 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                                       job.scheduledStartDateTime.slice(0, 10),
                                     returnTo: `/employee/${employeeId}/edit?tab=visits`,
                                   }}
-                                  className="inline-flex items-center gap-1.5"
+                                  className="inline-flex items-center gap-1"
                                 >
                                   Open
                                   <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                                 </Link>
                               </Button>
                             ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <span className="text-xs text-muted-foreground">?</span>
                             )}
                           </td>
                         </tr>
@@ -944,6 +842,15 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
               </div>
             )}
           </ContentCard>
+
+          <VisitDeliveryStatusCodesReference
+            defaultOpen={false}
+            activeFilter={codeFilter}
+            onSelectLifecycle={(code) => selectCodeFilter({ kind: 'lifecycle', code })}
+            onSelectTiming={(code) => selectCodeFilter({ kind: 'timing', code })}
+            onSelectDuration={(code) => selectCodeFilter({ kind: 'duration', code })}
+            onClearFilter={() => setCodeFilter({ kind: 'none' })}
+          />
         </>
       )}
     </div>

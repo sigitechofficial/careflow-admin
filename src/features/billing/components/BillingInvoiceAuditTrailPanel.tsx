@@ -1,15 +1,8 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  CalendarDays,
-  CalendarRange,
-  FileSearch,
-  History,
-  Loader2,
-} from 'lucide-react'
+import { FileSearch, Loader2 } from 'lucide-react'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import {
   Dialog,
   DialogBody,
@@ -23,6 +16,7 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { InvoiceRunAuditTrail } from '@/features/billing/components/InvoiceRunAuditTrail'
+import { InvoiceRunDateFilterBar } from '@/features/billing/components/InvoiceRunDateFilterBar'
 import { InvoiceRunCadenceBadge } from '@/features/billing/utils/invoice-run-cadence.util'
 import {
   useInvoiceRun,
@@ -30,87 +24,10 @@ import {
 } from '@/features/billing/hooks/useInvoiceRuns'
 import type { InvoiceRunRow } from '@/features/billing/api/invoice-runs.api'
 import {
-  currentOpsMonth,
-  currentOpsWeek,
-  salaryMonthDateRange,
-  salaryWeekDateRange,
-  shiftSalaryMonth,
-  shiftSalaryWeek,
-} from '@/features/billing/utils/salary-period.util'
-
-type DatePreset =
-  | 'all'
-  | 'this-week'
-  | 'previous-week'
-  | 'this-month'
-  | 'previous-month'
-  | 'custom'
-
-const DATE_PRESETS: {
-  id: DatePreset
-  label: string
-  icon: React.ReactNode
-}[] = [
-  { id: 'all', label: 'All time', icon: <History className="h-3.5 w-3.5" aria-hidden /> },
-  {
-    id: 'this-week',
-    label: 'This week',
-    icon: <CalendarDays className="h-3.5 w-3.5" aria-hidden />,
-  },
-  {
-    id: 'previous-week',
-    label: 'Previous week',
-    icon: <CalendarDays className="h-3.5 w-3.5" aria-hidden />,
-  },
-  {
-    id: 'this-month',
-    label: 'This month',
-    icon: <CalendarRange className="h-3.5 w-3.5" aria-hidden />,
-  },
-  {
-    id: 'previous-month',
-    label: 'Previous month',
-    icon: <CalendarRange className="h-3.5 w-3.5" aria-hidden />,
-  },
-  {
-    id: 'custom',
-    label: 'Custom dates',
-    icon: <CalendarDays className="h-3.5 w-3.5" aria-hidden />,
-  },
-]
-
-function rangeForPreset(
-  preset: DatePreset,
-  custom?: { dateFrom?: string; dateTo?: string },
-): { dateFrom?: string; dateTo?: string } {
-  if (preset === 'this-week') return salaryWeekDateRange(currentOpsWeek())
-  if (preset === 'previous-week') {
-    return salaryWeekDateRange(shiftSalaryWeek(currentOpsWeek(), -1))
-  }
-  if (preset === 'this-month') return salaryMonthDateRange(currentOpsMonth())
-  if (preset === 'previous-month') {
-    return salaryMonthDateRange(shiftSalaryMonth(currentOpsMonth(), -1))
-  }
-  if (preset === 'custom') {
-    return {
-      dateFrom: custom?.dateFrom || undefined,
-      dateTo: custom?.dateTo || undefined,
-    }
-  }
-  return {}
-}
-
-/** Keep runs whose billing period overlaps the selected date range. */
-function runOverlapsRange(
-  row: InvoiceRunRow,
-  dateFrom?: string,
-  dateTo?: string,
-): boolean {
-  if (!dateFrom && !dateTo) return true
-  if (dateFrom && row.periodEnd < dateFrom) return false
-  if (dateTo && row.periodStart > dateTo) return false
-  return true
-}
+  invoiceRunOverlapsDateRange,
+  rangeForInvoiceRunDatePreset,
+  type InvoiceRunDatePreset,
+} from '@/features/billing/utils/invoice-run-date-filter.util'
 
 function formatInvoiceNumbers(
   numbers: string[] | undefined | null,
@@ -137,13 +54,13 @@ export function BillingInvoiceAuditTrailPanel({ initialInvoiceRunId }: Props) {
   const runsQuery = useInvoiceRuns({ locationId: locationId ?? undefined })
   const rows = runsQuery.data ?? []
 
-  const [preset, setPreset] = React.useState<DatePreset>('all')
+  const [preset, setPreset] = React.useState<InvoiceRunDatePreset>('all')
   const [customFrom, setCustomFrom] = React.useState('')
   const [customTo, setCustomTo] = React.useState('')
 
   const filters = React.useMemo(
     () =>
-      rangeForPreset(
+      rangeForInvoiceRunDatePreset(
         preset,
         preset === 'custom' ? { dateFrom: customFrom, dateTo: customTo } : undefined,
       ),
@@ -153,7 +70,7 @@ export function BillingInvoiceAuditTrailPanel({ initialInvoiceRunId }: Props) {
   const visibleRows = React.useMemo(
     () =>
       rows.filter(row =>
-        runOverlapsRange(row, filters.dateFrom, filters.dateTo),
+        invoiceRunOverlapsDateRange(row, filters.dateFrom, filters.dateTo),
       ),
     [rows, filters.dateFrom, filters.dateTo],
   )
@@ -217,63 +134,15 @@ export function BillingInvoiceAuditTrailPanel({ initialInvoiceRunId }: Props) {
         titleClassName="sr-only"
       />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <CalendarRange className="h-3.5 w-3.5" aria-hidden />
-            Filter by invoice period
-          </div>
-          {rangeHint ? (
-            <p className="text-xs text-muted-foreground">{rangeHint}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {DATE_PRESETS.map(({ id, label, icon }) => (
-            <Button
-              key={id}
-              type="button"
-              size="sm"
-              variant={preset === id ? 'default' : 'outline'}
-              leftIcon={icon}
-              onClick={() => setPreset(id)}
-              data-testid={`billing-invoice-audit-preset-${id}`}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-
-        {preset === 'custom' ? (
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="space-y-1 text-sm">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground/90">
-                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                From
-              </span>
-              <Input
-                type="date"
-                value={customFrom}
-                onChange={e => setCustomFrom(e.target.value)}
-                className="h-9 w-44"
-                data-testid="billing-invoice-audit-custom-from"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground/90">
-                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                To
-              </span>
-              <Input
-                type="date"
-                value={customTo}
-                onChange={e => setCustomTo(e.target.value)}
-                className="h-9 w-44"
-                data-testid="billing-invoice-audit-custom-to"
-              />
-            </label>
-          </div>
-        ) : null}
-      </div>
+      <InvoiceRunDateFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+        testIdPrefix="billing-invoice-audit"
+      />
 
       {runsQuery.isLoading ? (
         <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">

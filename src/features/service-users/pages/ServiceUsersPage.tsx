@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
@@ -71,14 +71,15 @@ function displayName(row: ServiceUserListRow): string {
   return legal || '—'
 }
 
+function formatCreatedAt(iso: string | null | undefined): string {
+  return formatDateTime(iso)
+}
+
 function formatDobList(iso: string | null): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const dd = String(d.getUTCDate()).padStart(2, '0')
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const yyyy = d.getUTCFullYear()
-  return `${dd}-${mm}-${yyyy}`
+  const trimmed = iso.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return formatDate(trimmed)
+  return formatDate(trimmed, { utc: true })
 }
 
 function highRiskAlert(r: ServiceUserListRow): boolean {
@@ -144,6 +145,12 @@ function SuUserDetailsBlock({
         </div>
         <div>
           <span className="text-foreground/80">Named nurse:</span> {nn || '—'}
+        </div>
+        <div>
+          <span className="text-foreground/80">Created by:</span> {user.createdByName?.trim() || '—'}
+        </div>
+        <div>
+          <span className="text-foreground/80">Created:</span> {formatCreatedAt(user.createdAt)}
         </div>
       </div>
     </div>

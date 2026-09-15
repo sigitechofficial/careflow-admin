@@ -70,6 +70,9 @@ export type ServiceUserListRow = {
   } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
+  createdAt?: string | null
+  createdById?: string | null
+  createdByName?: string | null
   /** True when an absence spans today (start ≤ today ≤ end or open-ended). */
   hasActiveAbsence?: boolean
   /** True when a current ACTIVE flash message exists and is not past displayUntil. */
