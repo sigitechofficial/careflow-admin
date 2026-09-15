@@ -7,6 +7,7 @@ import {
   isLiveOutsideAreaCheckIn,
   isLiveUnableToStart,
   isUrgentOfficeAlertKind,
+  isUrgentOfficeDialogKind,
   liveOfficeAlertKindForRow,
   markLiveOfficeAlertAcknowledged,
   markLeftVisitAreaAllowed,
@@ -27,6 +28,9 @@ describe('ecm-urgent-alert.util', () => {
   it('treats SOS / left area / unable to start as ringing office alerts', () => {
     expect(isUrgentOfficeAlertKind('CARER_SOS')).toBe(true)
     expect(isUrgentOfficeAlertKind('OUTSIDE_AREA_CHECK_IN_REQUEST')).toBe(false)
+    expect(isUrgentOfficeDialogKind('CARER_SOS')).toBe(true)
+    expect(isUrgentOfficeDialogKind('OUTSIDE_AREA_CHECK_IN_REQUEST')).toBe(true)
+    expect(isUrgentOfficeDialogKind('UNABLE_TO_START')).toBe(false)
   })
 
   it('closes resolved, manager-reviewed, and closed lifecycles', () => {
