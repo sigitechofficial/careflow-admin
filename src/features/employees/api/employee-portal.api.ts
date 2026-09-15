@@ -5,6 +5,9 @@ export type EmployeePortalAccountStatus = {
   isEnabled: boolean
   email: string | null
   lastLoginAt: string | null
+  lastSeenAt: string | null
+  lastLoginUserAgent: string | null
+  hasActiveSession: boolean
 }
 
 export async function fetchEmployeePortalAccount(employeeId: string): Promise<EmployeePortalAccountStatus> {
@@ -33,4 +36,14 @@ export async function setEmployeePortalPassword(employeeId: string, password: st
     method: 'POST',
     body: JSON.stringify({ password }),
   })
+}
+
+export async function revokeEmployeePortalSession(
+  employeeId: string,
+): Promise<EmployeePortalAccountStatus> {
+  const res = await apiJson<ApiEnvelope<EmployeePortalAccountStatus>>(
+    `/employees/${employeeId}/portal-account/revoke-session`,
+    { method: 'POST' },
+  )
+  return res.data
 }

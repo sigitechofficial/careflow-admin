@@ -73,6 +73,7 @@ export type OrganisationAppSettings = {
   viewPoliciesRosterApp: boolean
   bookHolidaysCareApp: boolean
   fingerprintLoginCareApp: boolean
+  singleDeviceLoginCareApp: boolean
 }
 
 export type OrganisationCriticalInformationSettings = {
@@ -257,6 +258,7 @@ export type AppSettingsUpdatePayload = {
   appSettingViewPoliciesRosterApp?: boolean
   appSettingBookHolidaysCareApp?: boolean
   appSettingFingerprintLoginCareApp?: boolean
+  appSettingSingleDeviceLoginCareApp?: boolean
 }
 
 export type CriticalInformationSettingsUpdatePayload = {
