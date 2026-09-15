@@ -13,6 +13,7 @@ import { VISIT_PLAN_SCHEDULE_FREQUENCIES } from '@/features/service-users/visit-
 import { VisitPlanMonthlyDaySection } from '@/features/service-users/visit-plan/VisitPlanMonthlyDaySection'
 import { VisitPlanWeeklyDaySection } from '@/features/service-users/visit-plan/VisitPlanWeeklyDaySection'
 import type { VisitTaskSchedule } from '@/features/service-users/visit-tasks/visit-task-schedule.util'
+import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 
 function repeatUnitForFrequency(
   freq: VisitTaskSchedule['scheduleFrequency'],
@@ -172,6 +173,39 @@ export function VisitTaskSchedulePanel({
           onChange={patchFromSlot}
         />
       )}
+
+      <div className={cn('grid gap-3 sm:grid-cols-2', compact && 'gap-2.5')}>
+        <div>
+          <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Time-sensitive task
+          </Label>
+          <p className="mb-1.5 text-[11px] text-muted-foreground">
+            Must be done at the visit time. The rota flags early, delayed, or missed.
+          </p>
+          <NoYesToggle
+            value={schedule.timeCritical}
+            onChange={(timeCritical) => onChange({ timeCritical })}
+            disabled={disabled}
+            activeTone="success"
+          />
+        </div>
+        {schedule.timeCritical ? (
+          <div>
+            <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Time tolerance (minutes)
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              max={240}
+              disabled={disabled}
+              value={schedule.timeToleranceMinutes}
+              onChange={(e) => onChange({ timeToleranceMinutes: Number(e.target.value) || 0 })}
+              className={cn('mt-1 w-24', compact && 'h-9 rounded-lg')}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

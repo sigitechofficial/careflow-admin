@@ -65,6 +65,29 @@ describe('schedule-job-time-critical.util', () => {
     expect(jobIsTimeCritical(job, slots)).toBe(true)
   })
 
+  it('flags a visit from time-sensitive medicines or tasks', () => {
+    const job: TimelineJob = {
+      ...baseJob,
+      timeSensitive: {
+        hasAny: true,
+        clock: 'due',
+        items: [
+          {
+            kind: 'MEDICINE',
+            name: 'Insulin',
+            dueTime: '08:00',
+            givenTime: null,
+            toleranceMinutes: 20,
+            status: 'due',
+          },
+        ],
+        chips: [],
+      },
+    }
+    expect(resolveJobTimeCritical(job)).toEqual({ timeToleranceMinutes: 20 })
+    expect(jobIsTimeCritical(job)).toBe(true)
+  })
+
   it('returns null when slot is not time critical', () => {
     const job: TimelineJob = {
       ...baseJob,

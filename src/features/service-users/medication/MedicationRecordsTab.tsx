@@ -218,6 +218,11 @@ function MedicationRecordsTable({
                       CD
                     </span>
                   )}
+                  {m.timeCritical && (
+                    <span className="ml-1.5 rounded bg-rose-500/15 px-1.5 py-0.5 text-xs font-normal text-rose-900 dark:text-rose-100">
+                      Time-sensitive
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">
                   {[m.dose, m.strength].filter(Boolean).join(' · ') || '—'}

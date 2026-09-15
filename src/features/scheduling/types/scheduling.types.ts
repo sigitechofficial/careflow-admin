@@ -89,6 +89,31 @@ export type VisitPlanJobContext = {
   timeToleranceMinutes?: number
 }
 
+export type TimeSensitiveKind = 'MEDICINE' | 'TASK'
+export type TimeSensitiveStatus = 'due' | 'early' | 'delayed' | 'missed'
+
+export type TimeSensitiveItem = {
+  kind: TimeSensitiveKind
+  name: string
+  dueTime: string | null
+  givenTime: string | null
+  toleranceMinutes: number
+  status: TimeSensitiveStatus
+}
+
+export type TimeSensitiveChip = {
+  kind: TimeSensitiveKind
+  status: Exclude<TimeSensitiveStatus, 'due'>
+  label: string
+}
+
+export type TimeSensitiveVisitFlag = {
+  hasAny: boolean
+  clock: TimeSensitiveStatus
+  items: TimeSensitiveItem[]
+  chips: TimeSensitiveChip[]
+}
+
 export type TimelineJob = {
   id: string
   jobName: string
@@ -105,6 +130,8 @@ export type TimelineJob = {
   carersOnLeave?: string[]
   needsCover?: boolean
   visitPlan?: VisitPlanJobContext | null
+  /** Time-sensitive medicine/task on this visit (API). */
+  timeSensitive?: TimeSensitiveVisitFlag | null
   visits?: Array<{
     id: string
     visitName: string

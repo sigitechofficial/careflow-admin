@@ -34,6 +34,7 @@ import {
   CONTROLLED_MEDICATION_TOOLTIP,
   DECONGESTANT_MEDICATION_TOOLTIP,
 } from '@/features/service-users/medication/medication-field-help'
+import { TimeSensitiveMedicationFields } from '@/features/service-users/medication/TimeSensitiveMedicationFields'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
   Select,
@@ -145,6 +146,8 @@ export function AddMedicationDialog({
   const [howAssisted, setHowAssisted] = React.useState(SELECT_NONE)
   const [isControlledMedication, setIsControlledMedication] = React.useState(false)
   const [isDecongestantMedication, setIsDecongestantMedication] = React.useState(false)
+  const [timeCritical, setTimeCritical] = React.useState(false)
+  const [timeToleranceMinutes, setTimeToleranceMinutes] = React.useState(30)
   const [medicationTypeId, setMedicationTypeId] = React.useState(SELECT_NONE)
   const [expiryDate, setExpiryDate] = React.useState('')
   const [reasonForMedication, setReasonForMedication] = React.useState('')
@@ -395,6 +398,8 @@ export function AddMedicationDialog({
       howAssisted: howAssistedLabel,
       isControlledMedication,
       isDecongestantMedication,
+      timeCritical,
+      timeToleranceMinutes,
       schedules,
     }
   }
@@ -879,6 +884,13 @@ export function AddMedicationDialog({
                 activeTone="success"
               />
             </div>
+            <TimeSensitiveMedicationFields
+              timeCritical={timeCritical}
+              timeToleranceMinutes={timeToleranceMinutes}
+              disabled={disabled}
+              onTimeCriticalChange={setTimeCritical}
+              onToleranceChange={setTimeToleranceMinutes}
+            />
             <div className="space-y-1">
               <label className="text-sm font-medium">
                 How assisted

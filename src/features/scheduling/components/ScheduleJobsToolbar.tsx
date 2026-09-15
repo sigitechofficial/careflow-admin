@@ -5,6 +5,7 @@ import {
   LayoutList,
   Loader2,
   RefreshCw,
+  Clock,
   Route,
   UserRound,
   Users,
@@ -126,6 +127,9 @@ type Props = {
   carerOperationalFilters?: ScheduleCarerOperationalFilter[]
   carerOnLeaveTodayCount?: number
   onToggleCarerOperationalFilter?: (filter: ScheduleCarerOperationalFilter) => void
+  timeSensitiveFilter?: boolean
+  timeSensitiveCount?: number
+  onToggleTimeSensitiveFilter?: () => void
   operationalIssuesCount?: number
   layout: ScheduleJobsLayout
   onLayoutChange: (layout: ScheduleJobsLayout) => void
@@ -248,6 +252,9 @@ export function ScheduleJobsToolbar({
   carerOperationalFilters = [],
   carerOnLeaveTodayCount = 0,
   onToggleCarerOperationalFilter,
+  timeSensitiveFilter = false,
+  timeSensitiveCount = 0,
+  onToggleTimeSensitiveFilter,
   operationalIssuesCount = 0,
   layout,
   onLayoutChange,
@@ -263,7 +270,8 @@ export function ScheduleJobsToolbar({
     locationIds.length > 0 ||
     serviceUserIds.length > 0 ||
     employeeIds.length > 0 ||
-    (layout === 'board' && requiredCarersFilters.length > 0)
+    (layout === 'board' && requiredCarersFilters.length > 0) ||
+    timeSensitiveFilter
 
   const accordionSummaryParts = [
     hasActiveFilters ? 'Filters active' : null,
@@ -344,6 +352,26 @@ export function ScheduleJobsToolbar({
                 By service user
               </Button>
             </div>
+          ) : null}
+
+          {onToggleTimeSensitiveFilter ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className={scheduleJobsToolbarToggleClass(
+                timeSensitiveFilter,
+                'h-8 gap-1.5 px-3 text-xs font-semibold shadow-sm ring-1 ring-border/80',
+              )}
+              onClick={onToggleTimeSensitiveFilter}
+              aria-pressed={timeSensitiveFilter}
+              data-testid="schedule-filter-time-critical"
+              title="Show only visits with a time-critical medicine or task. Combines with branch, service user, and carer filters."
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Time critical
+              <span className="tabular-nums opacity-80">({timeSensitiveCount})</span>
+            </Button>
           ) : null}
 
           {layout === 'board' && onShowRunsOnBoardChange ? (
@@ -616,6 +644,7 @@ export function ScheduleJobsToolbar({
                 layout === 'board' && requiredCarersFilters.length
                   ? `Carers required: ${scheduleJobsRequiredCarersFiltersLabel(requiredCarersFilters)}`
                   : null,
+                timeSensitiveFilter ? 'Time critical visits' : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}

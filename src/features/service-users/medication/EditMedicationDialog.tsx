@@ -29,6 +29,7 @@ import {
   CONTROLLED_MEDICATION_TOOLTIP,
   DECONGESTANT_MEDICATION_TOOLTIP,
 } from '@/features/service-users/medication/medication-field-help'
+import { TimeSensitiveMedicationFields } from '@/features/service-users/medication/TimeSensitiveMedicationFields'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
 import {
   Select,
@@ -120,6 +121,8 @@ export function EditMedicationDialog({
   const [notes, setNotes] = React.useState('')
   const [isControlledMedication, setIsControlledMedication] = React.useState(false)
   const [isDecongestantMedication, setIsDecongestantMedication] = React.useState(false)
+  const [timeCritical, setTimeCritical] = React.useState(false)
+  const [timeToleranceMinutes, setTimeToleranceMinutes] = React.useState(30)
   const [isPrnMedication, setIsPrnMedication] = React.useState(false)
   const [formError, setFormError] = React.useState<string | null>(null)
 
@@ -139,6 +142,8 @@ export function EditMedicationDialog({
     setNotes(medication.notes ?? '')
     setIsControlledMedication(medication.isControlledMedication)
     setIsDecongestantMedication(medication.isDecongestantMedication ?? false)
+    setTimeCritical(Boolean(medication.timeCritical))
+    setTimeToleranceMinutes(medication.timeToleranceMinutes ?? 30)
     setIsPrnMedication(medication.medicationKind === 'PRN')
     setFormError(null)
   }, [open, medication])
@@ -165,6 +170,8 @@ export function EditMedicationDialog({
     notes: notes.trim() || undefined,
     isControlledMedication,
     isDecongestantMedication,
+    timeCritical,
+    timeToleranceMinutes,
     medicationKind: isPrnMedication ? 'PRN' : 'REGULAR',
   })
 
@@ -393,6 +400,14 @@ export function EditMedicationDialog({
                 activeTone="success"
               />
             </div>
+
+            <TimeSensitiveMedicationFields
+              timeCritical={timeCritical}
+              timeToleranceMinutes={timeToleranceMinutes}
+              disabled={disabled}
+              onTimeCriticalChange={setTimeCritical}
+              onToleranceChange={setTimeToleranceMinutes}
+            />
 
             <div className="space-y-1">
               <label className="text-sm font-medium">How assisted</label>

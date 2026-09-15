@@ -10,6 +10,13 @@ export function resolveJobTimeCritical(
   job: TimelineJob,
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>,
 ): JobTimeCriticalInfo | null {
+  if (job.timeSensitive?.hasAny) {
+    const first = job.timeSensitive.items[0]
+    return {
+      timeToleranceMinutes:
+        first?.toleranceMinutes ?? job.visitPlan?.timeToleranceMinutes ?? 30,
+    }
+  }
   const slot = resolveVisitPlanSlotForJob(job, visitPlanSlotsByServiceUser)
   if (!slot?.timeCritical) return null
   return { timeToleranceMinutes: slot.timeToleranceMinutes }

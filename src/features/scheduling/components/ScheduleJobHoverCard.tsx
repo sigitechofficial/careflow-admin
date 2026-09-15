@@ -466,6 +466,7 @@ export function JobHoverPanel({
   const timeCriticalText = timeCritical
     ? timeCriticalLabel(visitSlot.timeToleranceMinutes)
     : null
+  const sensitive = job.timeSensitive?.hasAny ? job.timeSensitive : null
 
   const durationPillClass =
     timeBandTone === 'rose'
@@ -574,13 +575,36 @@ export function JobHoverPanel({
             >
               {durationLabel}
             </span>
-            {timeCritical && timeCriticalText && !cancelled && !completed ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[13px] font-semibold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-900/60">
-                <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                Time critical · {timeCriticalText}
-              </span>
-            ) : null}
+            {sensitive
+              ? sensitive.chips.map((chip) => (
+                  <span
+                    key={`${chip.kind}-${chip.status}`}
+                    className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[13px] font-semibold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-900/60"
+                  >
+                    <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                    {chip.label}
+                  </span>
+                ))
+              : timeCritical && timeCriticalText && !cancelled && !completed ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[13px] font-semibold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-900/60">
+                    <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                    Time-sensitive visit · {timeCriticalText}
+                  </span>
+                ) : null}
           </div>
+          {sensitive && sensitive.items.length > 0 ? (
+            <ul className={cn('mt-1 space-y-0.5 text-[13px] font-medium', subtitleClass)}>
+              {sensitive.items.map((item) => (
+                <li key={`${item.kind}-${item.name}-${item.dueTime ?? ''}`}>
+                  {item.kind === 'MEDICINE' ? 'Time-sensitive medicine' : 'Time-sensitive task'}{' '}
+                  {item.status === 'due' ? 'due' : item.status}
+                  {item.name ? ` · ${item.name}` : ''}
+                  {item.dueTime ? ` · due ${item.dueTime}` : ''}
+                  {item.givenTime ? ` · given ${item.givenTime}` : ''}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {timingChanged && callPattern && !cancelled && !completed ? (
             <p className={cn('mt-1 text-[13px] font-medium sm:text-sm', subtitleClass)}>
               Rescheduled · moved ~{rescheduleShift?.label ?? 'some time'} {rescheduleShift?.direction ?? 'from'}{' '}
