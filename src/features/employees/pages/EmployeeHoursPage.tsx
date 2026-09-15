@@ -40,7 +40,18 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatDate } from '@/shared/lib/utils'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import {
+  getSyncedOperationalTimeZone,
+  syncOrganisationOperationalTimezone,
+} from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import {
+  currentOpsWeek,
+  salaryWeekDateRange,
+} from '@/features/billing/utils/salary-period.util'
 
 const BANDS: { id: EmployeeHourBand | 'all'; label: string }[] = [
   { id: 'all', label: 'All hours' },
@@ -108,15 +119,16 @@ function shiftWeek(isoMonday: string, delta: number): string {
   return toIsoDate(d)
 }
 
-function weekLabel(weekStart: string, weekEnd: string): string {
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  })
-  const from = new Date(`${weekStart}T00:00:00.000Z`)
-  const to = new Date(`${weekEnd}T00:00:00.000Z`)
-  return `${fmt.format(from)} – ${fmt.format(to)} ${weekStart.slice(0, 4)}`
+function currentOpsMonday(): string {
+  return salaryWeekDateRange(currentOpsWeek()).dateFrom
+}
+
+function weekLabel(
+  weekStart: string,
+  weekEnd: string,
+  formatOrgDate: (iso: string) => string,
+): string {
+  return `${formatOrgDate(weekStart)} – ${formatOrgDate(weekEnd)}`
 }
 
 function formatHours(n: number | null | undefined): string {
@@ -317,11 +329,16 @@ export default function EmployeeHoursPage() {
   )
   const canOpenEmployee = useAuthStore(s => s.can('employees.update') || s.can('employees.read'))
   const canEditReview = useAuthStore(s => s.can('employees.update'))
+  const { data: generalSettings } = useGeneralSettings(canRead)
+  React.useEffect(() => {
+    if (generalSettings?.timezone) {
+      syncOrganisationOperationalTimezone(generalSettings.timezone)
+    }
+  }, [generalSettings?.timezone])
+  const { formatDate: formatOrgDate } = useOrganisationDisplayFormat()
 
   const [view, setView] = React.useState<'monthly' | 'weekly'>('monthly')
-  const [weekStart, setWeekStart] = React.useState(() =>
-    toIsoDate(mondayOfIsoWeekContaining(new Date())),
-  )
+  const [weekStart, setWeekStart] = React.useState(currentOpsMonday)
   const [hourBand, setHourBand] = React.useState<EmployeeHourBand | 'all'>('all')
   const [bandMetric, setBandMetric] = React.useState<EmployeeHourMetric>('worked')
   const [search, setSearch] = React.useState('')
@@ -370,6 +387,11 @@ export default function EmployeeHoursPage() {
   )
 
   const data = query.data
+  const organisationTimezone =
+    data?.organisationTimezone?.trim() ||
+    generalSettings?.timezone?.trim() ||
+    getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
   const bandCounts = data?.bandCounts
   const facets = data?.facets
 
@@ -527,8 +549,8 @@ export default function EmployeeHoursPage() {
         title="Employee hours"
         description={
           view === 'monthly'
-            ? 'Monthly sponsor-compliance report — CoS weekly hours, week 1–5 worked hours, SMS reporting and review status.'
-            : 'Weekly assigned hours, contracted weekly hours, hours worked, overtime, immigration caps, and utilisation.'
+            ? 'Monthly sponsor-compliance report — CoS weekly hours, week 1–5 worked hours, SMS reporting and review status. Month bounds use the organisation operational timezone.'
+            : 'Weekly assigned hours, contracted weekly hours, hours worked, overtime, immigration caps, and utilisation. Week bounds use the organisation operational timezone.'
         }
         icon={<Clock className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
@@ -578,10 +600,12 @@ export default function EmployeeHoursPage() {
           <div className="min-w-[12rem] text-center">
             <p className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-foreground">
               <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-              {data ? weekLabel(data.weekStart, data.weekEnd) : 'This week'}
+              {data ? weekLabel(data.weekStart, data.weekEnd, formatOrgDate) : 'This week'}
             </p>
             <p className="text-xs text-muted-foreground">
-              {data ? `${data.weekStart} → ${data.weekEnd}` : weekStart}
+              {data
+                ? `${formatOrgDate(data.weekStart)} → ${formatOrgDate(data.weekEnd)}`
+                : formatOrgDate(weekStart)}
             </p>
           </div>
           <Button
@@ -610,11 +634,18 @@ export default function EmployeeHoursPage() {
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => setWeekStart(toIsoDate(mondayOfIsoWeekContaining(new Date())))}
+            onClick={() => setWeekStart(currentOpsMonday())}
           >
             <CalendarRange className="mr-1.5 h-3.5 w-3.5" aria-hidden />
             This week
           </Button>
+          <span
+            className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+            title="Week navigation and visit hours use the organisation operational timezone"
+            data-testid="employee-hours-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
 
           <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1132,7 +1163,7 @@ export default function EmployeeHoursPage() {
                                     overAssignedCap > 0 ? `+${formatHours(overAssignedCap)}` : '—',
                                   ],
                                   ['Remaining to cap', formatHours(row.remainingCapHours)],
-                                  ['Start date', row.startDate ?? '—'],
+                                  ['Start date', formatDate(row.startDate, { utc: true })],
                                   [
                                     '48h opt-out',
                                     row.optedOutOf48Hours ? 'Opted out' : 'Not opted out',

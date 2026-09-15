@@ -25,21 +25,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-function currentMonthKey(): string {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`
-}
-
-function shiftMonth(monthKey: string, delta: number): string {
-  const [y = 0, m = 1] = monthKey.split('-').map(Number)
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
-}
+import { currentOpsMonth, shiftSalaryMonth } from '@/features/billing/utils/salary-period.util'
 
 function formatHours(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '—'
@@ -85,12 +71,12 @@ export function EmployeeHoursDetailDialog({
   listWeekAssignedVisits,
   listWeekWorkedVisits,
 }: Props) {
-  const [month, setMonth] = React.useState(initialMonth || currentMonthKey())
+  const [month, setMonth] = React.useState(initialMonth || currentOpsMonth())
   const [expandedWeek, setExpandedWeek] = React.useState<number | null>(null)
 
   React.useEffect(() => {
     if (open) {
-      setMonth(initialMonth || currentMonthKey())
+      setMonth(initialMonth || currentOpsMonth())
       setExpandedWeek(null)
     }
   }, [open, initialMonth, employeeId])
@@ -126,7 +112,7 @@ export function EmployeeHoursDetailDialog({
               size="icon"
               variant="outline"
               aria-label="Previous month"
-              onClick={() => setMonth(m => shiftMonth(m, -1))}
+              onClick={() => setMonth(m => shiftSalaryMonth(m, -1))}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -146,7 +132,7 @@ export function EmployeeHoursDetailDialog({
               size="icon"
               variant="outline"
               aria-label="Next month"
-              onClick={() => setMonth(m => shiftMonth(m, 1))}
+              onClick={() => setMonth(m => shiftSalaryMonth(m, 1))}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -164,7 +150,7 @@ export function EmployeeHoursDetailDialog({
               type="button"
               size="sm"
               variant="ghost"
-              onClick={() => setMonth(currentMonthKey())}
+              onClick={() => setMonth(currentOpsMonth())}
             >
               This month
             </Button>

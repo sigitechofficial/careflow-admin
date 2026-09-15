@@ -162,6 +162,8 @@ export function BillingSalaryOverviewPanel() {
             <p className="text-sm font-medium text-foreground">Visit salary overview</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.
+              <span className="font-medium text-foreground"> Remaining</span> is visit pay
+              not yet in a visit-pay run or UK payroll run.
               Bank paid / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
               disbursed via Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
               Auto-payout on the <span className="font-medium text-foreground">4th</span> uses the
@@ -443,7 +445,10 @@ export function BillingSalaryOverviewPanel() {
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     In visit-pay run
                   </th>
-                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                  <th
+                    className="px-3 py-2.5 text-right font-medium text-muted-foreground"
+                    title="Approved visit pay not yet in a locked visit-pay run or UK payroll run"
+                  >
                     Remaining
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">

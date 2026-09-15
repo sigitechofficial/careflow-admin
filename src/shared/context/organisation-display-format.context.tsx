@@ -21,6 +21,7 @@ import {
 } from '@/shared/lib/organisation-display-format.store'
 import {
   DEFAULT_OPERATIONAL_TIMEZONE,
+  syncOrganisationDateDisplayFormat,
   syncOrganisationOperationalTimezone,
 } from '@/shared/lib/operational-day.util'
 import type { ScheduleJobsDayPeriodBand } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
@@ -72,6 +73,7 @@ export function OrganisationDisplayFormatProvider({ children }: { children: Reac
 
   React.useEffect(() => {
     syncOrganisationDisplayFormats(dateDisplayFormat, timeDisplayFormat)
+    syncOrganisationDateDisplayFormat(dateDisplayFormat)
   }, [dateDisplayFormat, timeDisplayFormat])
 
   React.useEffect(() => {

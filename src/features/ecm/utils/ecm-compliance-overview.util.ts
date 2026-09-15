@@ -1,4 +1,6 @@
 import type { EcmDailyOpsReport } from '@/features/ecm/api/ecm.api'
+import { formatOperationalIsoDate } from '@/shared/lib/operational-day.util'
+import { formatOrganisationWeekdayShort } from '@/shared/lib/organisation-display-format.store'
 
 export type ComplianceBandRow = {
   key: string
@@ -197,12 +199,7 @@ export function lastNDatesInclusive(endIso: string, n: number): string[] {
 }
 
 export function formatTrendDayLabel(iso: string): string {
-  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d))
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'UTC',
-  }).format(dt)
+  const day = iso?.trim().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return iso
+  return `${formatOrganisationWeekdayShort(day)} ${formatOperationalIsoDate(day)}`
 }

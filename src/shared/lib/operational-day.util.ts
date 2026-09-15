@@ -9,7 +9,10 @@ export const DEFAULT_OPERATIONAL_TIMEZONE = 'Asia/Karachi'
 /** Alias used by ECM period util historically. */
 export const ECM_OPERATIONAL_TIMEZONE = DEFAULT_OPERATIONAL_TIMEZONE
 
+export type OperationalDateDisplayFormat = 'DD_MM_YYYY' | 'MM_DD_YYYY' | 'YYYY_MM_DD'
+
 let syncedOperationalTimezone = DEFAULT_OPERATIONAL_TIMEZONE
+let syncedDateDisplayFormat: OperationalDateDisplayFormat = 'DD_MM_YYYY'
 
 /** Resolve org ops TZ from a settings value (falls back to Asia/Karachi). */
 export function getOperationalTimeZone(orgTimezone?: string | null): string {
@@ -22,9 +25,34 @@ export function syncOrganisationOperationalTimezone(orgTimezone?: string | null)
   syncedOperationalTimezone = getOperationalTimeZone(orgTimezone)
 }
 
+/** Persist organisation date display format for non-React helpers (avoids circular imports). */
+export function syncOrganisationDateDisplayFormat(
+  format?: OperationalDateDisplayFormat | null,
+): void {
+  if (format === 'MM_DD_YYYY' || format === 'YYYY_MM_DD' || format === 'DD_MM_YYYY') {
+    syncedDateDisplayFormat = format
+  }
+}
+
 /** Last synced organisation operational timezone (default Asia/Karachi until settings load). */
 export function getSyncedOperationalTimeZone(): string {
   return syncedOperationalTimezone
+}
+
+/** Format a YYYY-MM-DD calendar day with the synced organisation date display format. */
+export function formatOperationalIsoDate(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate?.trim() ?? '')
+  if (!match) return isoDate
+  const [, year, month, day] = match
+  switch (syncedDateDisplayFormat) {
+    case 'MM_DD_YYYY':
+      return `${month}/${day}/${year}`
+    case 'YYYY_MM_DD':
+      return `${year}-${month}-${day}`
+    case 'DD_MM_YYYY':
+    default:
+      return `${day}/${month}/${year}`
+  }
 }
 
 /** Operational calendar day as YYYY-MM-DD. */
@@ -83,20 +111,14 @@ export function minutesInOperationalTimeZone(
   return hour * 60 + minute
 }
 
-/** Short label for UI: "Operational day · Europe/London · 6 Aug 2026" */
+/** Short label for UI: "Operational day · Asia/Karachi · 06/08/2026" (org date format). */
 export function formatOperationalDayLabel(
   dayIso: string = operationalTodayIso(),
   timeZone = getSyncedOperationalTimeZone(),
 ): string {
-  const [y, m, d] = dayIso.split('-').map(Number)
-  if (!y || !m || !d) return `Operational day · ${timeZone}`
-  const pretty = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, d, 12)))
-  return `Operational day · ${timeZone} · ${pretty}`
+  const day = dayIso?.trim().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return `Operational day · ${timeZone}`
+  return `Operational day · ${timeZone} · ${formatOperationalIsoDate(day)}`
 }
 
 /** Format an instant's calendar day in ops TZ (en-GB short). */

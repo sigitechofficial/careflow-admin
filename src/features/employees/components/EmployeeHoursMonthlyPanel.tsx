@@ -43,6 +43,17 @@ import {
 } from '@/shared/ui/dialog'
 import { Label, Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
+import {
+  getSyncedOperationalTimeZone,
+  syncOrganisationOperationalTimezone,
+} from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
+import {
+  currentOpsMonth,
+  salaryMonthLabel,
+  shiftSalaryMonth,
+} from '@/features/billing/utils/salary-period.util'
 
 const STATUS_META: Record<
   EmployeeComplianceStatus,
@@ -64,21 +75,6 @@ const REVIEW_FILTERS: { id: EmployeeReviewFilter; label: string }[] = [
   { id: 'completed', label: 'Reviews: completed' },
   { id: 'pending', label: 'Reviews: pending' },
 ]
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-function currentMonthKey(): string {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`
-}
-
-function shiftMonth(monthKey: string, delta: number): string {
-  const [y = 0, m = 1] = monthKey.split('-').map(Number)
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
-}
 
 function formatHours(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '—'
@@ -165,7 +161,13 @@ function exportCsv(rows: EmployeeHoursMonthlyRow[], monthKey: string) {
 }
 
 export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
-  const [month, setMonth] = React.useState(currentMonthKey)
+  const { data: generalSettings } = useGeneralSettings(true)
+  React.useEffect(() => {
+    if (generalSettings?.timezone) {
+      syncOrganisationOperationalTimezone(generalSettings.timezone)
+    }
+  }, [generalSettings?.timezone])
+  const [month, setMonth] = React.useState(currentOpsMonth)
   const [search, setSearch] = React.useState('')
   const [locationId, setLocationId] = React.useState('')
   const { locationId: globalLocationId, isScoped: globalLocationScoped } =
@@ -199,6 +201,11 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
 
   const data = query.data
   const rows = data?.rows ?? []
+  const organisationTimezone =
+    data?.organisationTimezone?.trim() ||
+    generalSettings?.timezone?.trim() ||
+    getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
 
   const overHoursEmployees = React.useMemo(
     () =>
@@ -301,14 +308,14 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
             size="icon"
             variant="outline"
             aria-label="Previous month"
-            onClick={() => setMonth(m => shiftMonth(m, -1))}
+            onClick={() => setMonth(m => shiftSalaryMonth(m, -1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-[10rem] text-center">
             <p className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-foreground">
               <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-              {data ? `${data.monthName} ${data.year}` : month}
+              {data ? `${data.monthName} ${data.year}` : salaryMonthLabel(month)}
             </p>
             <p className="text-xs text-muted-foreground">Weeks: 1–7 · 8–14 · 15–21 · 22–28 · 29+</p>
           </div>
@@ -317,7 +324,7 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
             size="icon"
             variant="outline"
             aria-label="Next month"
-            onClick={() => setMonth(m => shiftMonth(m, 1))}
+            onClick={() => setMonth(m => shiftSalaryMonth(m, 1))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -331,10 +338,17 @@ export function EmployeeHoursMonthlyPanel({ canEdit }: { canEdit: boolean }) {
             }}
             data-testid="employee-hours-month-picker"
           />
-          <Button type="button" size="sm" variant="ghost" onClick={() => setMonth(currentMonthKey())}>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setMonth(currentOpsMonth())}>
             <CalendarRange className="mr-1.5 h-3.5 w-3.5" aria-hidden />
             This month
           </Button>
+          <span
+            className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+            title="Month navigation and visit hours use the organisation operational timezone"
+            data-testid="employee-hours-monthly-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
 
           <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

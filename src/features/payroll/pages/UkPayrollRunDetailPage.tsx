@@ -44,7 +44,10 @@ import {
 import { useCreateEmployeePayoutBatch } from '@/features/billing/hooks/useEmployeePayouts'
 import { useAuthStore } from '@/features/auth/store'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { StatCard } from '@/shared/ui/card'
@@ -63,6 +66,9 @@ export default function UkPayrollRunDetailPage() {
   const currentUserId = useAuthStore((s) => s.user?.id ?? null)
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
+  const { formatDate } = useOrganisationDisplayFormat()
+  const organisationTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
   const { data, isLoading, isError } = useUkPayrollRun(runId)
   const fpsQuery = useUkPayrollRunFps(runId, data?.status === 'CLOSED')
   const hmrcSubsQuery = useUkPayrollRunHmrcSubmissions(runId, data?.status === 'CLOSED')
@@ -142,7 +148,7 @@ export default function UkPayrollRunDetailPage() {
   return (
     <PayrollSectionLayout
       title="Run detail"
-      description="Enrol employees, calculate gross, then calculate Week 1 / Month 1 tax & NI. Close when the period is finished."
+      description="Enrol employees, calculate gross, then calculate Week 1 / Month 1 tax & NI. Close when the period is finished. Period dates use the organisation date format and operational timezone."
       testId="payroll-run-detail-page"
     >
       {isLoading ? (
@@ -173,7 +179,7 @@ export default function UkPayrollRunDetailPage() {
                   <span className="inline-flex items-center gap-1.5">
                     <CalendarRange className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     {data.period
-                      ? `${data.period.periodStart} – ${data.period.periodEnd}`
+                      ? `${formatDate(data.period.periodStart)} – ${formatDate(data.period.periodEnd)}`
                       : data.periodId}
                   </span>
                   <span>·</span>
@@ -183,6 +189,13 @@ export default function UkPayrollRunDetailPage() {
                     <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     {data.employeeCount} employee{data.employeeCount === 1 ? '' : 's'}
                   </span>
+                </p>
+                <p
+                  className="text-[11px] text-muted-foreground"
+                  title="Pay period dates use the organisation operational timezone and date display format"
+                  data-testid="payroll-run-detail-timezone-hint"
+                >
+                  Times in {timezoneHint}
                 </p>
                 {data.statutoryBasis ? (
                   <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">

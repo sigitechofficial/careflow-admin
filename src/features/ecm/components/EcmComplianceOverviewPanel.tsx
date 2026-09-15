@@ -30,18 +30,6 @@ import {
 import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
 import { buildEcmPeriodSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
 
-function formatPeriodDay(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, d)))
-}
-
 function electronicRateColor(rate: number): string {
   if (rate >= 95) return '#16a34a'
   if (rate >= 90) return '#f59e0b'
@@ -91,7 +79,7 @@ export function EcmComplianceOverviewPanel({
 
   const rangeLabel =
     dateFrom === dateTo
-      ? formatPeriodDay(dateFrom)
+      ? formatPeriodDayShort(dateFrom)
       : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`
 
   const rows = React.useMemo(() => {
@@ -313,7 +301,7 @@ export function EcmComplianceOverviewPanel({
               week.
             </p>
             <p className="text-xs text-muted-foreground">
-              Last 7 days ending {formatPeriodDay(dateTo)} ({trendDates[0]} → {dateTo})
+              Last 7 days ending {formatPeriodDayShort(dateTo)} ({trendDates[0]} → {dateTo})
             </p>
             <div className="h-[220px] w-full min-w-0 overflow-hidden">
               <ResponsiveContainer width="100%" height={220}>

@@ -47,6 +47,7 @@ export type EmployeeHoursRow = {
 export type EmployeeHoursWeeklySummary = {
   weekStart: string
   weekEnd: string
+  organisationTimezone?: string
   overtimeThresholdHours: number
   bandMetric: EmployeeHourMetric
   hourBand: EmployeeHourBand | null
@@ -130,6 +131,7 @@ export type EmployeeHoursMonthlySummary = {
   monthName: string
   year: number
   daysInMonth: number
+  organisationTimezone?: string
   smsUnderHoursRatio: number
   employeeCount: number
   totals: {
@@ -209,6 +211,7 @@ export type EmployeeHoursMonthlyDetail = {
   monthName: string
   year: number
   daysInMonth: number
+  organisationTimezone?: string
   weekScheme: string
   employee: {
     employeeId: string

@@ -6,6 +6,7 @@ import {
   pct,
 } from '@/features/ecm/utils/ecm-compliance-overview.util'
 import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 
 export type ReportClassificationTableRow = {
   key: string
@@ -247,28 +248,14 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   URL.revokeObjectURL(url)
 }
 
-export function formatGeneratedAt(iso: string, timeZone = getSyncedOperationalTimeZone()): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone,
-  }).format(d)
+export function formatGeneratedAt(iso: string, _timeZone = getSyncedOperationalTimeZone()): string {
+  return formatOrganisationDateTime(iso)
 }
 
 export function formatPlannedStart(
   iso: string | undefined,
-  timeZone = getSyncedOperationalTimeZone(),
+  _timeZone = getSyncedOperationalTimeZone(),
 ): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone,
-  }).format(d)
+  return formatOrganisationDateTime(iso)
 }
