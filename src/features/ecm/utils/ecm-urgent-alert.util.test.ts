@@ -13,6 +13,7 @@ import {
   markLeftVisitAreaAllowed,
   markCheckInRequestDecided,
   markLiveOfficeAlertClosed,
+  removeExceptionById,
   type LiveOfficeAlertException,
 } from './ecm-urgent-alert.util'
 
@@ -83,6 +84,17 @@ describe('ecm-urgent-alert.util', () => {
       'uts-1',
     )
     expect(isLiveUnableToStart(closed[0]!)).toBe(false)
+  })
+
+  it('removes a closed SOS from the exception queue cache', () => {
+    const remaining = removeExceptionById(
+      [
+        row({ id: 'sos-1', kind: 'CARER_SOS' }),
+        row({ id: 'sos-2', kind: 'CARER_SOS' }),
+      ],
+      'sos-1',
+    )
+    expect(remaining.map(item => item.id)).toEqual(['sos-2'])
   })
 
   it('flags left visit area until office allows continue', () => {

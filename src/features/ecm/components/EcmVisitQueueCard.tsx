@@ -25,10 +25,13 @@ import {
   useAcknowledgeEcmException,
   useAllowVisitContinue,
   useAuthoriseCheckInMethodGrant,
+  useCloseSosEcmException,
   useRejectCheckInMethodGrant,
 } from '@/features/ecm/hooks/useEcm'
 import { AuthoriseManualCheckInDialog } from '@/features/ecm/components/AuthoriseManualCheckInDialog'
+import { RejectManualCheckInDialog } from '@/features/ecm/components/RejectManualCheckInDialog'
 import { AllowCarerContinueDialog } from '@/features/ecm/components/AllowCarerContinueDialog'
+import { CloseSosDialog } from '@/features/ecm/components/CloseSosDialog'
 import type { EcmExceptionRow } from '@/features/ecm/types/ecm.types'
 import { formatOpsCalendarDate, formatOpsClockTime } from '@/shared/lib/operational-day.util'
 
@@ -444,6 +447,7 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
   const authorise = useAuthoriseCheckInMethodGrant()
   const reject = useRejectCheckInMethodGrant()
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [rejectOpen, setRejectOpen] = React.useState(false)
   const grant = row.checkInMethodRequest
   const grantId = grant?.id
   const status = grant?.status ?? 'PENDING'
@@ -490,14 +494,9 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
               size="sm"
               variant="outline"
               disabled={busy}
-              onClick={() =>
-                reject.mutate({
-                  jobId: row.scheduledJobId,
-                  grantId,
-                })
-              }
+              onClick={() => setRejectOpen(true)}
             >
-              {reject.isPending ? 'Rejecting…' : 'Reject'}
+              Reject
             </Button>
           </div>
           {authorise.isError || reject.isError ? (
@@ -512,6 +511,19 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
                 jobId: row.scheduledJobId,
                 grantId,
                 reasonId: payload.reasonId,
+                note: payload.note,
+              })
+            }}
+          />
+          <RejectManualCheckInDialog
+            open={rejectOpen}
+            onOpenChange={setRejectOpen}
+            busy={reject.isPending}
+            onConfirm={async payload => {
+              await reject.mutateAsync({
+                jobId: row.scheduledJobId,
+                grantId,
+                reasonCode: payload.reasonCode,
                 note: payload.note,
               })
             }}
@@ -531,9 +543,14 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
 
 function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
   const acknowledge = useAcknowledgeEcmException()
+  const closeSos = useCloseSosEcmException()
   const [busy, setBusy] = React.useState(false)
   const [actionError, setActionError] = React.useState(false)
+  const [closeRow, setCloseRow] = React.useState<EcmExceptionRow | null>(null)
   const toAck = rows.filter(row => !isSosAcknowledged(row))
+  const toClose = rows.filter(
+    row => isSosAcknowledged(row) && row.lifecycle !== 'CLOSED',
+  )
   const missingLocation = rows.filter(row => !mapsHrefFor(row))
 
   const runAll = async (fn: () => Promise<unknown>) => {
@@ -572,16 +589,60 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
           disabled={busy}
           onClick={() =>
             void runAll(() =>
-              Promise.all(toAck.map(row => acknowledge.mutateAsync({ id: row.id }))),
+              acknowledge.acknowledgeAll(toAck.map(row => row.id)),
             )
           }
         >
           {busy ? 'Acknowledging…' : 'Acknowledge'}
         </Button>
       ) : null}
+      {toClose.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Record the outcome so this SOS leaves the queue.
+          </p>
+          {toClose.map(row => {
+            const sentAt = formatOpsClockTime(row.sos?.createdAt ?? row.createdAt)
+            return (
+              <Button
+                key={row.id}
+                type="button"
+                size="sm"
+                variant={toAck.length > 0 ? 'outline' : 'default'}
+                disabled={closeSos.isPending}
+                data-testid="ecm-close-sos"
+                onClick={() => setCloseRow(row)}
+              >
+                {toClose.length > 1 ? `Close SOS · ${sentAt}` : 'Close SOS'}
+              </Button>
+            )
+          })}
+        </div>
+      ) : null}
       {actionError || acknowledge.isError ? (
         <p className="text-sm text-destructive">Could not update this SOS. Try again.</p>
       ) : null}
+      <CloseSosDialog
+        open={Boolean(closeRow)}
+        onOpenChange={open => {
+          if (!open) setCloseRow(null)
+        }}
+        busy={closeSos.isPending}
+        sentAtLabel={
+          closeRow
+            ? formatOpsClockTime(closeRow.sos?.createdAt ?? closeRow.createdAt)
+            : null
+        }
+        onConfirm={payload =>
+          closeSos.mutateAsync({
+            id: closeRow!.id,
+            actionCode: payload.actionCode,
+            outcomeCode: payload.outcomeCode,
+            actionNote: payload.actionNote,
+            note: payload.note,
+          })
+        }
+      />
     </div>
   )
 }

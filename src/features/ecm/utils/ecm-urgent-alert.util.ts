@@ -155,6 +155,14 @@ export function markLiveOfficeAlertClosed<T extends LiveOfficeAlertException>(
   })
 }
 
+/** Drop a closed exception so the queue card updates before refetch. */
+export function removeExceptionById<T extends LiveOfficeAlertException>(
+  rows: T[],
+  id: string,
+): T[] {
+  return rows.filter((row) => row.id !== id)
+}
+
 export function isLiveLeftVisitArea(row: LiveOfficeAlertException): boolean {
   return row.kind === 'LEFT_VISIT_AREA' && row.areaLock?.status !== 'ALLOWED'
 }

@@ -127,8 +127,30 @@ export function timeSensitiveClockClass(status: TimeSensitiveStatus): string {
   return 'text-red-600'
 }
 
+const VISIT_DELIVERY_STARTED = new Set([
+  'STARTED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'PARTIALLY_COMPLETED',
+  'MISSED',
+])
+
+/** Clock-in / in-progress / finished. Reset visits go back to planned and should not pop. */
+export function jobHasVisitDeliveryStarted(job: TimelineJob): boolean {
+  if (VISIT_DELIVERY_STARTED.has(String(job.status ?? '').toUpperCase())) return true
+  if (job.actualStartDateTime) return true
+  return Boolean(
+    job.visits?.some(
+      (visit) =>
+        VISIT_DELIVERY_STARTED.has(String(visit.status ?? '').toUpperCase()) ||
+        Boolean(visit.actualStartDateTime),
+    ),
+  )
+}
+
 /** Delayed / missed time-sensitive care pops the visit like an office alert. */
 export function timeSensitiveNeedsPopup(job: TimelineJob): boolean {
+  if (!jobHasVisitDeliveryStarted(job)) return false
   const clock = job.timeSensitive?.clock
   return clock === 'delayed' || clock === 'missed'
 }

@@ -35,6 +35,7 @@ import {
 } from '@/shared/lib/operational-day.util'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { AuthoriseManualCheckInDialog } from '@/features/ecm/components/AuthoriseManualCheckInDialog'
+import { RejectManualCheckInDialog } from '@/features/ecm/components/RejectManualCheckInDialog'
 import { EcmCarerCapturedLocation } from '@/features/ecm/components/EcmCarerCapturedLocation'
 import { EcmScheduleHistoryPanel } from '@/features/ecm/components/EcmScheduleHistoryPanel'
 import { EcmAuditTrailPanel } from '@/features/ecm/components/EcmAuditTrailPanel'
@@ -298,6 +299,7 @@ function VisitDetailCheckInGrantCard({
   const authorise = useAuthoriseCheckInMethodGrant()
   const reject = useRejectCheckInMethodGrant()
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [rejectOpen, setRejectOpen] = React.useState(false)
   const pending = grant.status === 'PENDING'
   const authorised = grant.manualEnabled
   const busy = authorise.isPending || reject.isPending
@@ -372,14 +374,9 @@ function VisitDetailCheckInGrantCard({
               size="sm"
               variant="outline"
               disabled={busy}
-              onClick={() =>
-                reject.mutate({
-                  jobId,
-                  grantId: grant.id,
-                })
-              }
+              onClick={() => setRejectOpen(true)}
             >
-              {reject.isPending ? 'Rejecting…' : 'Reject'}
+              Reject
             </Button>
           </div>
           {authorise.isError || reject.isError ? (
@@ -394,6 +391,19 @@ function VisitDetailCheckInGrantCard({
                 jobId,
                 grantId: grant.id,
                 reasonId: payload.reasonId,
+                note: payload.note,
+              })
+            }}
+          />
+          <RejectManualCheckInDialog
+            open={rejectOpen}
+            onOpenChange={setRejectOpen}
+            busy={reject.isPending}
+            onConfirm={async payload => {
+              await reject.mutateAsync({
+                jobId,
+                grantId: grant.id,
+                reasonCode: payload.reasonCode,
                 note: payload.note,
               })
             }}

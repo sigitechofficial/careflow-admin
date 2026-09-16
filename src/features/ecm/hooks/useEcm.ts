@@ -8,11 +8,13 @@ import {
   amendEcmAttendance,
   applyMissedTriage,
   closeEcmException,
+  closeSosEcmException,
   createEcmNotification,
   fetchEcmAuditTrail,
   fetchEcmComplianceReport,
   fetchEcmDailyOpsReport,
   fetchEcmExceptions,
+  fetchEcmVisitSos,
   fetchEcmGraphDashboard,
   fetchEcmHealth,
   fetchEcmLiveDashboard,
@@ -32,8 +34,9 @@ import {
   markLeftVisitAreaAllowed,
   markLiveOfficeAlertAcknowledged,
   markLiveOfficeAlertClosed,
+  removeExceptionById,
 } from '@/features/ecm/utils/ecm-urgent-alert.util'
-import { toastSosAckFcm } from '@/features/ecm/utils/sos-ack-fcm-toast'
+import { toastSosAckFcm, toastSosAckFcmMany } from '@/features/ecm/utils/sos-ack-fcm-toast'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 
 export function useEcmLiveDashboard(filters?: {
@@ -86,6 +89,17 @@ export function useReevaluateEcmVisit() {
       void qc.invalidateQueries({ queryKey: ecmKeys.visitDetail(jobId) })
       void qc.invalidateQueries({ queryKey: ecmKeys.all })
     },
+  })
+}
+
+export function useEcmVisitSos(jobId: string | null | undefined) {
+  return useQuery({
+    queryKey: ecmKeys.visitSos(jobId ?? ''),
+    queryFn: () => fetchEcmVisitSos(jobId!),
+    enabled: Boolean(jobId),
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   })
 }
 
@@ -263,12 +277,14 @@ export function useRejectCheckInMethodGrant() {
     mutationFn: ({
       jobId,
       grantId,
+      reasonCode,
       note,
     }: {
       jobId: string
       grantId: string
+      reasonCode: string
       note?: string
-    }) => rejectCheckInMethodGrant(jobId, grantId, note),
+    }) => rejectCheckInMethodGrant(jobId, grantId, { reasonCode, note }),
     onSuccess: (_data, vars) => {
       toastSuccess('Outside area check-in rejected')
       patchExceptionsCache(qc, (rows) => markCheckInRequestDecided(rows, vars.jobId, 'REJECTED'))
@@ -282,11 +298,17 @@ export function useRejectCheckInMethodGrant() {
 export function useAcknowledgeEcmException() {
   const qc = useQueryClient()
   const invalidate = useInvalidateEcmExceptions()
-  return useMutation({
-    mutationFn: ({ id, note }: { id: string; note?: string }) =>
-      acknowledgeEcmException(id, note),
+  const mutation = useMutation({
+    mutationFn: ({
+      id,
+      note,
+    }: {
+      id: string
+      note?: string
+      skipToast?: boolean
+    }) => acknowledgeEcmException(id, note),
     onSuccess: (data, vars) => {
-      toastSosAckFcm(data.fcm)
+      if (!vars.skipToast) toastSosAckFcm(data.fcm)
       patchExceptionsCache(qc, (rows) =>
         markLiveOfficeAlertAcknowledged(rows, vars.id, new Date().toISOString()),
       )
@@ -294,6 +316,21 @@ export function useAcknowledgeEcmException() {
     },
     onError: e => toastApiError(e, 'Could not acknowledge this SOS'),
   })
+
+  const acknowledgeAll = useCallback(
+    async (ids: string[]) => {
+      const unique = [...new Set(ids.map(id => id.trim()).filter(Boolean))]
+      if (unique.length === 0) return
+      const skipToast = unique.length > 1
+      const results = await Promise.all(
+        unique.map(id => mutation.mutateAsync({ id, skipToast })),
+      )
+      if (skipToast) toastSosAckFcmMany(results.map(row => row.fcm))
+    },
+    [mutation],
+  )
+
+  return { ...mutation, acknowledgeAll }
 }
 
 export function useResolveEcmException() {
@@ -321,6 +358,32 @@ export function useCloseEcmException() {
       patchExceptionsCache(qc, (rows) => markLiveOfficeAlertClosed(rows, vars.id))
       invalidate()
     },
+  })
+}
+
+export function useCloseSosEcmException() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidateEcmExceptions()
+  return useMutation({
+    mutationFn: ({
+      id,
+      actionCode,
+      outcomeCode,
+      note,
+      actionNote,
+    }: {
+      id: string
+      actionCode: string
+      outcomeCode: string
+      note?: string
+      actionNote?: string
+    }) => closeSosEcmException(id, actionCode, outcomeCode, note, actionNote),
+    onSuccess: (_data, vars) => {
+      toastSuccess('SOS closed')
+      patchExceptionsCache(qc, (rows) => removeExceptionById(rows, vars.id))
+      invalidate()
+    },
+    onError: e => toastApiError(e, 'Could not close this SOS'),
   })
 }
 

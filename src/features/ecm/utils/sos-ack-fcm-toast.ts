@@ -60,7 +60,38 @@ export function sosAckFcmToast(fcm: FcmSendReport | undefined): SosAckFcmToast {
 }
 
 export function toastSosAckFcm(fcm: FcmSendReport | undefined) {
-  const next = sosAckFcmToast(fcm)
+  showSosAckToast(sosAckFcmToast(fcm))
+}
+
+/** One toast when office acknowledges several SOS on the same visit together. */
+export function toastSosAckFcmMany(fcms: Array<FcmSendReport | undefined>) {
+  if (fcms.length <= 1) {
+    toastSosAckFcm(fcms[0])
+    return
+  }
+
+  const mapped = fcms.map(sosAckFcmToast)
+  const rank = { success: 0, warning: 1, destructive: 2 } as const
+  const worst = mapped.reduce((acc, next) =>
+    rank[next.variant] > rank[acc.variant] ? next : acc,
+  )
+  const descriptions = [
+    ...new Set(
+      mapped
+        .map(row => row.description)
+        .filter((row): row is string => Boolean(row)),
+    ),
+  ]
+
+  showSosAckToast({
+    variant: worst.variant,
+    title: `${fcms.length} SOS acknowledged`,
+    description:
+      descriptions.length === 1 ? descriptions[0] : worst.description,
+  })
+}
+
+function showSosAckToast(next: SosAckFcmToast) {
   if (next.variant === 'success') {
     toastSuccess(next.title, next.description)
     return

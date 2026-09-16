@@ -12,6 +12,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
 import { AuthoriseManualCheckInDialog } from '@/features/ecm/components/AuthoriseManualCheckInDialog'
+import { RejectManualCheckInDialog } from '@/features/ecm/components/RejectManualCheckInDialog'
 import { AllowCarerContinueDialog } from '@/features/ecm/components/AllowCarerContinueDialog'
 import {
   useAcknowledgeEcmException,
@@ -206,6 +207,7 @@ function ManualAuthSection({
   const authorise = useAuthoriseCheckInMethodGrant()
   const reject = useRejectCheckInMethodGrant()
   const [reasonOpen, setReasonOpen] = React.useState(false)
+  const [rejectOpen, setRejectOpen] = React.useState(false)
   const grant = row?.checkInMethodRequest
   const grantId = grant?.id
   const note = grant?.carerNote?.trim()
@@ -253,11 +255,9 @@ function ManualAuthSection({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() =>
-              void reject.mutateAsync({ jobId: row.scheduledJobId, grantId }).then(onDecided)
-            }
+            onClick={() => setRejectOpen(true)}
           >
-            {reject.isPending ? 'Rejecting…' : 'Reject'}
+            Reject
           </Button>
           <AuthoriseManualCheckInDialog
             open={reasonOpen}
@@ -269,6 +269,21 @@ function ManualAuthSection({
                   jobId: row.scheduledJobId,
                   grantId,
                   reasonId: payload.reasonId,
+                  note: payload.note,
+                })
+                .then(onDecided)
+            }
+          />
+          <RejectManualCheckInDialog
+            open={rejectOpen}
+            onOpenChange={setRejectOpen}
+            busy={reject.isPending}
+            onConfirm={payload =>
+              reject
+                .mutateAsync({
+                  jobId: row.scheduledJobId,
+                  grantId,
+                  reasonCode: payload.reasonCode,
                   note: payload.note,
                 })
                 .then(onDecided)
@@ -319,9 +334,7 @@ export function UrgentOfficeAlertDialog({
         ? liveIds
         : visit?.alerts.filter(item => item.kind === 'CARER_SOS').map(item => item.exceptionId) ?? []
     if (!ids.length) return
-    void Promise.all(ids.map(id => acknowledge.mutateAsync({ id }))).then(() =>
-      onRemoveKind('CARER_SOS'),
-    )
+    void acknowledge.acknowledgeAll(ids).then(() => onRemoveKind('CARER_SOS'))
   }
 
   const acknowledgeLabel = acknowledge.isPending

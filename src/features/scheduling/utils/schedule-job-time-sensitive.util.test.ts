@@ -55,6 +55,8 @@ describe('schedule-job-time-sensitive.util', () => {
   it('pops delayed and missed visits with a readable headline', () => {
     const delayed: TimelineJob = {
       ...baseJob,
+      status: 'STARTED',
+      actualStartDateTime: '2026-06-19T08:05:00.000Z',
       timeSensitive: {
         hasAny: true,
         clock: 'delayed',
@@ -75,6 +77,31 @@ describe('schedule-job-time-sensitive.util', () => {
     expect(timeSensitivePopupHeadline(delayed)).toBe('Medicine delayed')
     expect(timeSensitivePopupMeta(delayed)).toBe('Aspirin · due 08:00')
     expect(timeSensitiveNeedsPopup(baseJob)).toBe(false)
+  })
+
+  it('does not pop delayed care after a reset back to planned', () => {
+    const reset: TimelineJob = {
+      ...baseJob,
+      status: 'ALLOCATED',
+      actualStartDateTime: null,
+      visits: [{ id: 'v1', visitName: 'Morning', visitPlanSlotId: null, status: 'PLANNED' }],
+      timeSensitive: {
+        hasAny: true,
+        clock: 'delayed',
+        items: [
+          {
+            kind: 'MEDICINE',
+            name: 'Aspirin',
+            dueTime: '08:00',
+            givenTime: null,
+            toleranceMinutes: 2,
+            status: 'delayed',
+          },
+        ],
+        chips: [{ kind: 'MEDICINE', status: 'delayed', label: 'Medicine delayed' }],
+      },
+    }
+    expect(timeSensitiveNeedsPopup(reset)).toBe(false)
   })
 
   it('ANDs the board down to time-sensitive visits only', () => {

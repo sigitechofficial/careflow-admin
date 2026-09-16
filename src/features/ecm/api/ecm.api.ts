@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CarerSosAlertDto,
   EcmExceptionRow,
   EcmLiveDashboardData,
   EcmReasonCode,
@@ -302,11 +303,14 @@ export async function authoriseCheckInMethodGrant(
 export async function rejectCheckInMethodGrant(
   jobId: string,
   grantId: string,
-  note?: string,
+  payload: { reasonCode: string; note?: string },
 ): Promise<unknown> {
   return apiJson(`/ecm/visits/${jobId}/check-in-method-grants/${grantId}/reject`, {
     method: 'POST',
-    body: JSON.stringify({ note: note?.trim() || undefined }),
+    body: JSON.stringify({
+      reasonCode: payload.reasonCode,
+      note: payload.note?.trim() || undefined,
+    }),
   })
 }
 
@@ -315,6 +319,31 @@ export async function closeEcmException(id: string, note?: string): Promise<unkn
     method: 'PATCH',
     body: JSON.stringify({ note: note ?? undefined }),
   })
+}
+
+export async function closeSosEcmException(
+  id: string,
+  actionCode: string,
+  outcomeCode: string,
+  note?: string,
+  actionNote?: string,
+): Promise<unknown> {
+  return apiJson(`/ecm/exceptions/${id}/close-sos`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      actionCode,
+      outcomeCode,
+      note: note ?? undefined,
+      actionNote: actionNote ?? undefined,
+    }),
+  })
+}
+
+export async function fetchEcmVisitSos(jobId: string): Promise<CarerSosAlertDto[]> {
+  const res = await apiJson<ApiEnvelope<CarerSosAlertDto[]>>(`/ecm/visits/${jobId}/sos`, {
+    method: 'GET',
+  })
+  return res.data ?? []
 }
 
 export async function fetchEcmReasonCodes(): Promise<EcmReasonCode[]> {

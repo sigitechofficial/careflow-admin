@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   CheckCircle2,
   CheckSquare,
+  ChevronDown,
   CircleDashed,
   Clock,
   ExternalLink,
@@ -59,7 +60,9 @@ import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
-import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
+import { useEcmVisitSos } from '@/features/ecm/hooks/useEcm'
+import type { CarerSosAlertDto } from '@/features/ecm/types/ecm.types'
+import { sosActionLabel, sosOutcomeLabel } from '@/features/ecm/utils/sos-outcome.util'
 
 export type ScheduleVisitWorkspaceTab =
   | 'overview'
@@ -68,6 +71,174 @@ export type ScheduleVisitWorkspaceTab =
   | 'observations'
   | 'log'
   | 'body-map'
+
+function VisitWorkspaceSosAlerts({
+  alerts,
+  sectionClosed,
+  sectionAcknowledged,
+  ackSummary,
+}: {
+  alerts: CarerSosAlertDto[]
+  sectionClosed: boolean
+  sectionAcknowledged: boolean
+  ackSummary: CarerSosAlertDto | undefined
+}) {
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(
+    () => new Set(alerts.filter(row => row.lifecycle !== 'CLOSED').map(row => row.id)),
+  )
+
+  React.useEffect(() => {
+    setExpandedIds(current => {
+      const next = new Set(current)
+      for (const row of alerts) {
+        if (row.lifecycle !== 'CLOSED' && !next.has(row.id)) next.add(row.id)
+      }
+      return next
+    })
+  }, [alerts])
+
+  const toggle = (id: string) => {
+    setExpandedIds(current => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const heading = sectionClosed
+    ? 'Carer SOS — closed'
+    : sectionAcknowledged
+      ? 'Carer SOS — acknowledged'
+      : 'Carer SOS'
+
+  return (
+    <section
+      className={
+        sectionClosed || sectionAcknowledged
+          ? 'rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3'
+          : 'rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3'
+      }
+      data-testid="visit-workspace-carer-sos"
+    >
+      <p
+        className={
+          sectionClosed || sectionAcknowledged
+            ? 'text-sm font-semibold text-emerald-800 dark:text-emerald-200'
+            : 'text-sm font-semibold text-destructive'
+        }
+      >
+        {heading}
+        {alerts.length > 1 ? (
+          <span className="ml-1.5 font-medium text-muted-foreground">· {alerts.length}</span>
+        ) : null}
+      </p>
+      <ul className="mt-2 space-y-2">
+        {alerts.map(row => {
+          const expanded = expandedIds.has(row.id)
+          const detailsId = `visit-sos-${row.id}-details`
+          const mapsHref =
+            row.latitude != null && row.longitude != null && !row.locationUnavailable
+              ? `https://maps.google.com/?q=${row.latitude},${row.longitude}`
+              : null
+          const action = row.actionLabel || sosActionLabel(row.actionCode) || null
+          const outcome = row.outcomeLabel || sosOutcomeLabel(row.outcomeCode) || null
+          const closed = row.lifecycle === 'CLOSED'
+          const status = closed
+            ? outcome || 'Closed'
+            : row.acknowledgedAt
+              ? 'Acknowledged'
+              : 'Needs office'
+          return (
+            <li
+              key={row.id}
+              className="overflow-hidden rounded-md border border-border/60 bg-background/60"
+            >
+              <button
+                type="button"
+                aria-expanded={expanded}
+                aria-controls={detailsId}
+                onClick={() => toggle(row.id)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {row.employeeName || 'Carer'} · {formatOpsClockTime(row.createdAt)}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">{status}</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                    expanded && 'rotate-180',
+                  )}
+                  aria-hidden
+                />
+              </button>
+              {expanded ? (
+                <div id={detailsId} className="space-y-2 border-t border-border/60 px-3 py-2 text-sm">
+                  <p className="text-muted-foreground">{row.message?.trim() || 'No message'}</p>
+                  {mapsHref ? (
+                    <a
+                      href={mapsHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex text-xs font-medium underline-offset-2 hover:underline"
+                    >
+                      Open in Maps
+                    </a>
+                  ) : null}
+                  {closed ? (
+                    <dl className="space-y-1">
+                      {action ? (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Action taken</dt>
+                          <dd>{action}</dd>
+                        </div>
+                      ) : null}
+                      {row.actionNote ? (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Action note</dt>
+                          <dd>{row.actionNote}</dd>
+                        </div>
+                      ) : null}
+                      {outcome ? (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Outcome</dt>
+                          <dd>{outcome}</dd>
+                        </div>
+                      ) : null}
+                      {row.resolutionNote ? (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Outcome note</dt>
+                          <dd>{row.resolutionNote}</dd>
+                        </div>
+                      ) : null}
+                      {row.closedAt ? (
+                        <p className="font-medium text-emerald-700 dark:text-emerald-300">
+                          Closed
+                          {row.closedByName ? ` by ${row.closedByName}` : ''}
+                          {` · ${formatOpsClockTime(row.closedAt)}`}
+                        </p>
+                      ) : null}
+                    </dl>
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+      {!sectionClosed && sectionAcknowledged && ackSummary ? (
+        <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          Acknowledged
+          {ackSummary.acknowledgedByName ? ` by ${ackSummary.acknowledgedByName}` : ''}
+          {` · ${formatOpsClockTime(ackSummary.acknowledgedAt)}`}
+        </p>
+      ) : null}
+    </section>
+  )
+}
 
 type Props = {
   job: TimelineJob
@@ -174,25 +345,22 @@ export function ScheduleVisitWorkspaceContent({
     [liveJob],
   )
 
-  const sosQuery = useEcmExceptions({
-    limit: 100,
-    serviceUserId: job.serviceUserId,
-    enabled: Boolean(job.serviceUserId),
-  })
-  const visitSos = (sosQuery.data ?? []).filter(
-    row => row.scheduledJobId === job.id && row.kind === 'CARER_SOS',
-  )
+  const sosQuery = useEcmVisitSos(job.id)
+  const visitSos = sosQuery.data ?? []
+  const visitSosClosed =
+    visitSos.length > 0 && visitSos.every(row => row.lifecycle === 'CLOSED')
   const visitSosAcknowledged =
     visitSos.length > 0 &&
+    !visitSosClosed &&
     visitSos.every(
       row =>
-        Boolean(row.sos?.acknowledgedAt || row.acknowledgedAt) ||
+        Boolean(row.acknowledgedAt) ||
         row.lifecycle === 'ACKNOWLEDGED' ||
         row.lifecycle === 'RESOLVED' ||
         row.lifecycle === 'MANAGER_REVIEWED' ||
         row.lifecycle === 'CLOSED',
     )
-  const visitSosAck = visitSos.find(row => row.sos?.acknowledgedAt || row.acknowledgedAt)
+  const visitSosAck = visitSos.find(row => row.acknowledgedAt)
 
   const clockInLabel = liveJob.actualStartDateTime
     ? formatOrganisationIsoTime(liveJob.actualStartDateTime)
@@ -246,61 +414,12 @@ export function ScheduleVisitWorkspaceContent({
             </span>
           ) : null}
           {visitSos.length > 0 ? (
-            <section
-              className={
-                visitSosAcknowledged
-                  ? 'rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3'
-                  : 'rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3'
-              }
-              data-testid="visit-workspace-carer-sos"
-            >
-              <p
-                className={
-                  visitSosAcknowledged
-                    ? 'text-sm font-semibold text-emerald-800 dark:text-emerald-200'
-                    : 'text-sm font-semibold text-destructive'
-                }
-              >
-                {visitSosAcknowledged ? 'Carer SOS — acknowledged' : 'Carer SOS'}
-              </p>
-              <ul className="mt-2 space-y-2">
-                {visitSos.map(row => {
-                  const mapsHref =
-                    row.sos?.latitude != null && row.sos?.longitude != null
-                      ? `https://maps.google.com/?q=${row.sos.latitude},${row.sos.longitude}`
-                      : null
-                  return (
-                    <li key={row.id} className="text-sm text-foreground">
-                      <p className="font-medium">
-                        {row.sos?.employeeName || 'Carer'} · {formatOpsClockTime(row.createdAt)}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {row.sos?.message?.trim() || 'No message'}
-                      </p>
-                      {mapsHref ? (
-                        <a
-                          href={mapsHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-0.5 inline-flex text-xs font-medium underline-offset-2 hover:underline"
-                        >
-                          Open in Maps
-                        </a>
-                      ) : null}
-                    </li>
-                  )
-                })}
-              </ul>
-              {visitSosAcknowledged && visitSosAck ? (
-                <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                  Acknowledged
-                  {visitSosAck.sos?.acknowledgedByName || visitSosAck.acknowledgedByName
-                    ? ` by ${visitSosAck.sos?.acknowledgedByName || visitSosAck.acknowledgedByName}`
-                    : ''}
-                  {` · ${formatOpsClockTime(visitSosAck.sos?.acknowledgedAt ?? visitSosAck.acknowledgedAt)}`}
-                </p>
-              ) : null}
-            </section>
+            <VisitWorkspaceSosAlerts
+              alerts={visitSos}
+              sectionClosed={visitSosClosed}
+              sectionAcknowledged={visitSosAcknowledged}
+              ackSummary={visitSosAck}
+            />
           ) : null}
           <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
             <p className="text-base font-semibold text-foreground">{serviceUserLabel(job.serviceUser)}</p>

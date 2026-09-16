@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest'
-import { sosAckFcmToast } from './sos-ack-fcm-toast'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toastError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { sosAckFcmToast, toastSosAckFcmMany } from './sos-ack-fcm-toast'
 import type { FcmSendReport } from '@/features/ecm/api/ecm.api'
+
+vi.mock('@/shared/lib/toast', () => ({
+  toastSuccess: vi.fn(),
+  toastWarning: vi.fn(),
+  toastError: vi.fn(),
+}))
 
 function report(reason: FcmSendReport['reason'], extra?: Partial<FcmSendReport>): FcmSendReport {
   return {
@@ -42,5 +49,48 @@ describe('sosAckFcmToast', () => {
       title: 'SOS acknowledged',
       description: 'quota exceeded',
     })
+  })
+})
+
+describe('toastSosAckFcmMany', () => {
+  beforeEach(() => {
+    vi.mocked(toastSuccess).mockClear()
+    vi.mocked(toastWarning).mockClear()
+    vi.mocked(toastError).mockClear()
+  })
+
+  it('uses the single-alert toast for one SOS', () => {
+    toastSosAckFcmMany([report('SENT', { sent: 1, tokens: 1 })])
+    expect(toastSuccess).toHaveBeenCalledTimes(1)
+    expect(toastSuccess).toHaveBeenCalledWith(
+      'SOS acknowledged',
+      'Push notification sent to the carer.',
+    )
+  })
+
+  it('shows one toast when several SOS are acknowledged together', () => {
+    toastSosAckFcmMany([
+      report('SENT', { sent: 1, tokens: 1 }),
+      report('SENT', { sent: 1, tokens: 1 }),
+      report('SENT', { sent: 1, tokens: 1 }),
+      report('SENT', { sent: 1, tokens: 1 }),
+    ])
+    expect(toastSuccess).toHaveBeenCalledTimes(1)
+    expect(toastWarning).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
+    expect(toastSuccess).toHaveBeenCalledWith(
+      '4 SOS acknowledged',
+      'Push notification sent to the carer.',
+    )
+  })
+
+  it('keeps one toast and prefers a push failure', () => {
+    toastSosAckFcmMany([
+      report('SENT', { sent: 1, tokens: 1 }),
+      report('SEND_FAILED', { error: 'quota exceeded' }),
+    ])
+    expect(toastError).toHaveBeenCalledTimes(1)
+    expect(toastSuccess).not.toHaveBeenCalled()
+    expect(toastError).toHaveBeenCalledWith('2 SOS acknowledged', 'quota exceeded')
   })
 })
