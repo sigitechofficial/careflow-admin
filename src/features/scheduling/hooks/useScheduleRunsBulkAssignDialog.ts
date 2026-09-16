@@ -31,6 +31,10 @@ export function useScheduleRunsBulkAssignDialog({ date, runs, onChanged }: HookO
   const [selectedRunIds, setSelectedRunIds] = React.useState<Set<string>>(new Set())
   const [employeeId, setEmployeeId] = React.useState('')
 
+  const employeesQuery = useScheduleEmployeesCatalog({ enabled: open })
+
+  const carerOptions = employeesQuery.comboboxOptions
+
   const selectedBundles = React.useMemo(
     () => runs.filter((entry) => selectedRunIds.has(entry.run.id)),
     [runs, selectedRunIds],
