@@ -89,7 +89,7 @@ export function InvoiceRunServiceUserSection({
   const { formatDate } = useOrganisationDisplayFormat()
   const funders = group.funders ?? []
   const multiFunder = funders.length > 1
-  const [expanded, setExpanded] = React.useState(multiFunder)
+  const [expanded, setExpanded] = React.useState(false)
 
   const exceptionCount = group.exceptionCount ?? 0
   const invoiceNumber = group.invoiceNumber?.trim() || '—'

@@ -43,6 +43,7 @@ import {
 } from '@/features/payroll/hooks/usePayroll'
 import { useCreateEmployeePayoutBatch } from '@/features/billing/hooks/useEmployeePayouts'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
@@ -66,10 +67,11 @@ export default function UkPayrollRunDetailPage() {
   const currentUserId = useAuthStore((s) => s.user?.id ?? null)
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
+  const { locationId } = useGlobalLocationScope()
   const { formatDate } = useOrganisationDisplayFormat()
   const organisationTimezone = getSyncedOperationalTimeZone()
   const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
-  const { data, isLoading, isError } = useUkPayrollRun(runId)
+  const { data, isLoading, isError } = useUkPayrollRun(runId, locationId)
   const fpsQuery = useUkPayrollRunFps(runId, data?.status === 'CLOSED')
   const hmrcSubsQuery = useUkPayrollRunHmrcSubmissions(runId, data?.status === 'CLOSED')
   const submitFpsMut = useSubmitUkPayrollRunFps(runId)

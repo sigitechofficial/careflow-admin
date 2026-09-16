@@ -20,6 +20,7 @@ import {
   useUkPayrollRuns,
 } from '@/features/payroll/hooks/usePayroll'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
@@ -54,10 +55,11 @@ function formatGbp(amount: number) {
 
 export default function UkPayrollRunsPage() {
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
+  const { locationId } = useGlobalLocationScope()
   const { formatDate } = useOrganisationDisplayFormat()
   const organisationTimezone = getSyncedOperationalTimeZone()
   const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
-  const { data = [], isLoading } = useUkPayrollRuns()
+  const { data = [], isLoading } = useUkPayrollRuns(locationId)
   const { data: periods = [] } = usePayrollPeriods()
   const createMut = useCreateUkPayrollRun()
   const deleteAllMut = useDeleteAllUkPayrollRuns()

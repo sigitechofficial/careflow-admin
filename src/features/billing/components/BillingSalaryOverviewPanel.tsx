@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
 import { useEmployeePayoutBatches } from '@/features/billing/hooks/useEmployeePayouts'
 import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
@@ -53,6 +54,7 @@ export function BillingSalaryOverviewPanel() {
   const canOpenEmployee = useAuthStore(s => s.can('employees.update') || s.can('employees.read'))
   const canReadPayouts = useAuthStore(s => s.can('billing.employee_payouts.read'))
   const canManagePayouts = useAuthStore(s => s.can('billing.employee_payouts.manage'))
+  const { locationId } = useGlobalLocationScope()
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
@@ -75,8 +77,11 @@ export function BillingSalaryOverviewPanel() {
   }, [isWeekly])
 
   const filters = React.useMemo(
-    () => (isWeekly ? salaryWeekDateRange(period) : salaryMonthDateRange(period)),
-    [isWeekly, period],
+    () => ({
+      ...(isWeekly ? salaryWeekDateRange(period) : salaryMonthDateRange(period)),
+      locationId: locationId ?? undefined,
+    }),
+    [isWeekly, period, locationId],
   )
   const periodLabel = isWeekly ? salaryWeekLabel(period, formatDate) : salaryMonthLabel(period)
 
@@ -88,7 +93,7 @@ export function BillingSalaryOverviewPanel() {
   const query = useEmployeeSalaries(filters, canRead)
   const rows = query.data?.rows ?? []
   const hasEligibleUkRun = query.data?.hasEligibleUkRun ?? false
-  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts)
+  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts, locationId)
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase()

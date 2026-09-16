@@ -8,6 +8,7 @@ import {
   type MarMedicationGroup,
 } from '@/features/service-users/medication/mar-calendar-layout'
 import { normalizeDueTimeHm } from '@/features/service-users/medication/medication-time-slots'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 export type MarCalendarPackBundle = {
@@ -421,12 +422,13 @@ export function formatShortDate(iso: string | null | undefined): string | null {
 
 export function daysUntil(iso: string | null | undefined): number | null {
   if (!iso) return null
-  const end = new Date(iso)
-  if (Number.isNaN(end.getTime())) return null
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  end.setHours(0, 0, 0, 0)
-  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86_400_000))
+  const endDay = iso.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDay)) return null
+  const today = operationalTodayIso()
+  const end = new Date(`${endDay}T12:00:00.000Z`)
+  const start = new Date(`${today}T12:00:00.000Z`)
+  if (Number.isNaN(end.getTime()) || Number.isNaN(start.getTime())) return null
+  return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000))
 }
 
 export function compartmentKey(packName: string, dueTime: string): string {
@@ -460,13 +462,9 @@ export function chartHasPackMedications(rows: MarChartMedicationRow[]): boolean 
 }
 
 export function exportChartTodayDay(month: string): number | null {
-  const now = new Date()
-  const [yStr, mStr] = month.split('-')
-  const y = Number(yStr)
-  const m = Number(mStr)
-  if (!y || !m) return null
-  if (now.getFullYear() !== y || now.getMonth() + 1 !== m) return null
-  return now.getDate()
+  const today = operationalTodayIso()
+  if (!today.startsWith(month)) return null
+  return Number(today.slice(8, 10))
 }
 
 export function compartmentSummaryDisplayCode(aggregate: CompartmentAggregateCell): string {

@@ -22,13 +22,20 @@ import {
   useReconcileMedicationPackDeliveryLine,
   useCountersignMedicationPackDelivery,
 } from '@/features/service-users/hooks/useMedicationPackLifecycle'
+import {
+  combineOperationalDateAndHm,
+  dayKeyInTimeZone,
+  formatOpsHm,
+} from '@/shared/lib/operational-day.util'
 
 type Step = 'details' | 'reconcile' | 'countersign'
 
+/** Wall-clock datetime-local value in the organisation operational timezone. */
 function nowLocalInput(): string {
   const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const day = dayKeyInTimeZone(d)
+  const hm = formatOpsHm(d.toISOString()) || '00:00'
+  return `${day}T${hm}`
 }
 
 export function PackDeliveryDialog({
@@ -74,7 +81,14 @@ export function PackDeliveryDialog({
       const created = await createDelivery.mutateAsync({
         packId,
         body: {
-          receivedAt: new Date(receivedAt).toISOString(),
+          receivedAt: (() => {
+            const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(receivedAt.trim())
+            if (match) {
+              return combineOperationalDateAndHm(match[1]!, match[2]!) || new Date().toISOString()
+            }
+            const parsed = new Date(receivedAt)
+            return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+          })(),
           deliveredBy: deliveredBy || undefined,
           batchReference: batchReference || undefined,
           condition,

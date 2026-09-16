@@ -1,4 +1,5 @@
 import type { MarChartCell, MarChartMedicationRow } from '@/features/service-users/api/medication-mar.api'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 export type MarCellTypeFilter = 'due' | 'na' | 'prn' | 'recorded'
 export type MarScheduleFilter =
@@ -69,7 +70,7 @@ export function getWeekDayRange(
 }
 
 export function todayDayInMonth(month: string): number | null {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = operationalTodayIso()
   if (!today.startsWith(month)) return null
   return Number(today.slice(8, 10))
 }

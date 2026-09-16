@@ -35,25 +35,23 @@ export function snapshotDiffersFromCurrent(
 }
 
 import {
-  formatOpsClockTime,
-  formatOpsDateNumeric,
-  formatOpsDateTimeNumeric,
-} from '@/shared/lib/operational-day.util'
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+  formatOrganisationTime,
+} from '@/shared/lib/organisation-display-format.store'
 
-// Medication/clinical timestamps must read in the organisation (UK) timezone,
-// NOT the viewer's browser timezone — a manager in another timezone must still
-// see the same UK wall-clock time the carer recorded.
+// Medication/clinical timestamps use organisation operational timezone +
+// Settings date/time display formats (not the viewer's browser locale).
 export function formatGbDateTime(iso: string | null | undefined): string {
-  return formatOpsDateTimeNumeric(iso)
+  return formatOrganisationDateTime(iso)
 }
 
 export function formatGbDate(iso: string | null | undefined): string {
-  return formatOpsDateNumeric(iso)
+  return formatOrganisationDate(iso)
 }
 
 export function formatGbTime(iso: string | null | undefined): string {
-  const t = formatOpsClockTime(iso)
-  return t === '—' || t === '' ? '—' : t
+  return formatOrganisationTime(iso)
 }
 
 type EventTimeSource = {

@@ -464,6 +464,7 @@ export type IncidentListFilters = {
   severity?: IncidentSeverity
   categoryId?: string
   serviceUserId?: string
+  locationId?: string
   openOnly?: boolean
   page?: number
   limit?: number

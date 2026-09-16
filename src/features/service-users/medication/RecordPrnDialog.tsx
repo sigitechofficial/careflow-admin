@@ -5,6 +5,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import type { MarChartMedicationRow } from '@/features/service-users/api/medication-mar.api'
 import { recordContextDetail, recordContextTitle } from '@/features/service-users/medication/mar-calendar-layout'
 import { formatGbDate } from '@/features/service-users/medication/mar-record-utils'
+import { formatOpsHm } from '@/shared/lib/operational-day.util'
 import './mar-record.css'
 
 export type RecordPrnTarget = {
@@ -119,7 +120,11 @@ export function RecordPrnDialog({
             </div>
             <div>
               <label className="block text-xs font-medium text-[#374151] mb-1">Time given</label>
-              <input type="time" className="mar-record-input w-full" defaultValue={new Date().toTimeString().slice(0, 5)} />
+              <input
+                type="time"
+                className="mar-record-input w-full"
+                defaultValue={formatOpsHm(new Date().toISOString()) || '00:00'}
+              />
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>

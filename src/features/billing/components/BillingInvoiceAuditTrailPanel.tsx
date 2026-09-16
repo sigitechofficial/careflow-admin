@@ -84,7 +84,7 @@ export function BillingInvoiceAuditTrailPanel({ initialInvoiceRunId }: Props) {
   }, [initialInvoiceRunId])
 
   const detailOpen = Boolean(detailRunId)
-  const detailQuery = useInvoiceRun(detailRunId ?? undefined)
+  const detailQuery = useInvoiceRun(detailRunId ?? undefined, locationId)
   const selectedRow =
     rows.find(r => r.id === detailRunId) ??
     visibleRows.find(r => r.id === detailRunId) ??

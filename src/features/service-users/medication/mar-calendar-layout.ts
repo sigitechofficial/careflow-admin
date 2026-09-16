@@ -8,6 +8,10 @@ import {
   normalizeDueTimeHm,
   roundNameFromDueTime,
 } from '@/features/service-users/medication/medication-time-slots'
+import {
+  minutesInOperationalTimeZone,
+  operationalTodayIso,
+} from '@/shared/lib/operational-day.util'
 
 const DOW_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const
 
@@ -174,15 +178,15 @@ function hmToMinutes(hm: string): number {
   return (h ?? 0) * 60 + (m ?? 0)
 }
 
-function localMinutesNow(now: Date): number {
-  return now.getHours() * 60 + now.getMinutes()
+function operationalMinutesNow(now: Date): number {
+  return minutesInOperationalTimeZone(now)
 }
 
-/** True when local time is past the round administration window end and dose is still due. */
+/** True when ops-TZ wall clock is past the round administration window end and dose is still due. */
 export function isMarSlotOverdue(row: MarChartMedicationRow, now: Date = new Date()): boolean {
   const end = normalizeDueTimeHm(row.roundWindowEnd)
   if (!end) return false
-  return localMinutesNow(now) > hmToMinutes(end)
+  return operationalMinutesNow(now) > hmToMinutes(end)
 }
 
 export function formatRoundWindow(row: MarChartMedicationRow): string | null {
@@ -275,7 +279,7 @@ export type MarDueTodaySlot = {
   isPatch: boolean
 }
 
-/** Column day for “today” — prefers chart API summary date (UTC-aligned with backend). */
+/** Column day for “today” — prefers chart API summary date (ops-TZ aligned with backend). */
 export function chartTodayColumnDay(
   chart: { summary?: { date: string }; dayDates?: string[] } | undefined,
   month: string,
@@ -285,7 +289,7 @@ export function chartTodayColumnDay(
     const idx = chart.dayDates.indexOf(summaryDate)
     if (idx >= 0) return idx + 1
   }
-  const local = new Date().toISOString().slice(0, 10)
+  const local = operationalTodayIso()
   if (!local.startsWith(month)) return null
   return Number(local.slice(8, 10))
 }

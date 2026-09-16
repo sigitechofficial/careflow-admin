@@ -4,6 +4,7 @@ import { AlertTriangle, Eye, PlusCircle } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Badge } from '@/shared/ui/badge'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
 import { useIncidents, useIncidentStats } from '@/features/incidents/hooks/useIncidents'
 import { INCIDENT_SEVERITY_BADGE, INCIDENT_STATUS_BADGE } from '@/features/incidents/types'
@@ -35,9 +36,14 @@ function StatCard({
 
 export default function IncidentsDashboardPage() {
   const can = useAuthStore((s) => s.can)
+  const { locationId } = useGlobalLocationScope()
   const navigate = useNavigate()
-  const statsQuery = useIncidentStats()
-  const recentQuery = useIncidents({ page: 1, limit: 8 })
+  const statsQuery = useIncidentStats(locationId)
+  const recentQuery = useIncidents({
+    page: 1,
+    limit: 8,
+    locationId: locationId ?? undefined,
+  })
   const stats = statsQuery.data
 
   return (

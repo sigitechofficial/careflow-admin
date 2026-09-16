@@ -53,7 +53,7 @@ export function useEmployeeEarnings(
 }
 
 export function useEmployeeSalaries(
-  filters?: { dateFrom?: string; dateTo?: string },
+  filters?: { dateFrom?: string; dateTo?: string; locationId?: string },
   enabled = true,
 ) {
   return useQuery({
