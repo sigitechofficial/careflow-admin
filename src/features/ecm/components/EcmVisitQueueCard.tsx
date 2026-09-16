@@ -633,15 +633,15 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
             ? formatOpsClockTime(closeRow.sos?.createdAt ?? closeRow.createdAt)
             : null
         }
-        onConfirm={payload =>
-          closeSos.mutateAsync({
+        onConfirm={async payload => {
+          await closeSos.mutateAsync({
             id: closeRow!.id,
             actionCode: payload.actionCode,
             outcomeCode: payload.outcomeCode,
             actionNote: payload.actionNote,
             note: payload.note,
           })
-        }
+        }}
       />
     </div>
   )
