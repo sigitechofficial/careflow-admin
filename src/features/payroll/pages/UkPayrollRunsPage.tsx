@@ -20,7 +20,11 @@ import {
   useUkPayrollRuns,
 } from '@/features/payroll/hooks/usePayroll'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { StatCard } from '@/shared/ui/card'
 import { TooltipProvider } from '@/shared/ui/tooltip'
@@ -51,7 +55,11 @@ function formatGbp(amount: number) {
 
 export default function UkPayrollRunsPage() {
   const canManage = useAuthStore((s) => s.can('payroll.runs.manage'))
-  const { data = [], isLoading } = useUkPayrollRuns()
+  const { locationId } = useGlobalLocationScope()
+  const { formatDate } = useOrganisationDisplayFormat()
+  const organisationTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
+  const { data = [], isLoading } = useUkPayrollRuns(locationId)
   const { data: periods = [] } = usePayrollPeriods()
   const createMut = useCreateUkPayrollRun()
   const deleteAllMut = useDeleteAllUkPayrollRuns()
@@ -59,6 +67,9 @@ export default function UkPayrollRunsPage() {
   const [open, setOpen] = React.useState(false)
   const [periodId, setPeriodId] = React.useState('')
   const [deleteOpen, setDeleteOpen] = React.useState(false)
+
+  const formatPeriodRange = (start: string, end: string) =>
+    `${formatDate(start)} – ${formatDate(end)}`
 
   const openPeriods = periods.filter((p) => p.status === 'OPEN' || p.status === 'IN_RUN')
   const closedPeriods = periods.filter((p) => p.status === 'CLOSED')
@@ -83,11 +94,19 @@ export default function UkPayrollRunsPage() {
   return (
     <PayrollSectionLayout
       title="UK payroll runs"
-      description="Create runs for a pay period, calculate gross and tax & NI, then close. Reactivate closed or cancelled runs to continue."
+      description="Create runs for a pay period, calculate gross and tax & NI, then close. Reactivate closed or cancelled runs to continue. Period dates use the organisation date format and operational timezone."
       testId="payroll-runs-page"
     >
       <TooltipProvider delayDuration={200}>
         <div className="space-y-5">
+          <span
+            className="inline-flex h-8 w-fit items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+            title="Pay period dates use the organisation operational timezone and date display format"
+            data-testid="payroll-runs-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
+
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/20 px-3 py-2.5">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
               <Wallet className="h-3.5 w-3.5" aria-hidden />
@@ -249,9 +268,9 @@ export default function UkPayrollRunsPage() {
                           className="border-b border-border/70 transition-colors hover:bg-muted/20"
                         >
                           <td className="py-3 pl-4 pr-3 font-medium text-foreground">{row.label}</td>
-                          <td className="py-3 pr-3 text-muted-foreground">
+                          <td className="py-3 pr-3 text-muted-foreground tabular-nums">
                             {row.period
-                              ? `${row.period.periodStart} – ${row.period.periodEnd}`
+                              ? formatPeriodRange(row.period.periodStart, row.period.periodEnd)
                               : row.periodId}
                           </td>
                           <td className="py-3 pr-3 tabular-nums">{row.employeeCount}</td>
@@ -322,7 +341,7 @@ export default function UkPayrollRunsPage() {
                 <option value="">Select period</option>
                 {openPeriods.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label} ({p.periodStart} – {p.periodEnd})
+                    {p.label} ({formatPeriodRange(p.periodStart, p.periodEnd)})
                   </option>
                 ))}
               </select>

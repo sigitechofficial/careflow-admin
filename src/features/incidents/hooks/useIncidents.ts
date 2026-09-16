@@ -55,10 +55,10 @@ export function useIncident(id: string | undefined) {
   })
 }
 
-export function useIncidentStats() {
+export function useIncidentStats(locationId?: string | null) {
   return useQuery({
-    queryKey: incidentKeys.stats(),
-    queryFn: ({ signal }) => fetchIncidentStats({ signal }),
+    queryKey: incidentKeys.stats(locationId),
+    queryFn: ({ signal }) => fetchIncidentStats(locationId ?? undefined, { signal }),
   })
 }
 

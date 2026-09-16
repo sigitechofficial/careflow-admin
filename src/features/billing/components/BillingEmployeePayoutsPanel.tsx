@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   useCreateEmployeePayoutBatch,
   useDeleteAllEmployeePayoutBatches,
@@ -72,6 +73,7 @@ type ScopeMode = 'period' | 'all'
 export function BillingEmployeePayoutsPanel() {
   const canRead = useAuthStore(s => s.can('billing.employee_payouts.read'))
   const canManage = useAuthStore(s => s.can('billing.employee_payouts.manage'))
+  const { locationId } = useGlobalLocationScope()
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
@@ -97,7 +99,7 @@ export function BillingEmployeePayoutsPanel() {
   }, [isWeekly])
 
   const queryPeriodKey = scope === 'period' ? period : undefined
-  const batchesQuery = useEmployeePayoutBatches(queryPeriodKey, canRead)
+  const batchesQuery = useEmployeePayoutBatches(queryPeriodKey, canRead, locationId)
   const eligibleRunsQuery = usePayoutEligibleUkRuns(canManage)
   const createBatch = useCreateEmployeePayoutBatch()
   const deleteAll = useDeleteAllEmployeePayoutBatches()

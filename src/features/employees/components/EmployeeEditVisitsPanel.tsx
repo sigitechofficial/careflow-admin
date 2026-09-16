@@ -20,22 +20,14 @@ import {
   employeeVisitActualDurationMinutes,
   employeeVisitActualEnd,
   employeeVisitActualStart,
-  employeeVisitDurationVariance,
   employeeVisitOutcomeBadgeClass,
   employeeVisitOutcomeLabel,
   employeeVisitPlannedDurationMinutes,
   employeeVisitSlotLabel,
   formatDurationMinutes,
   useEmployeeVisits,
-  visitDurationVarianceBadgeClass,
-  visitDurationVarianceExportFields,
   type EmployeeVisitBucket,
 } from '@/features/employees/hooks/useEmployeeVisits'
-import {
-  classifyVisitPunctuality,
-  resolveVisitPunctualityToleranceMinutes,
-  visitPunctualityBadgeClass,
-} from '@/features/employees/utils/visit-punctuality.util'
 import {
   assessVisitDeliveryFromJobLike,
   VISIT_DURATION_EXCEPTION_CATALOG,
@@ -135,26 +127,6 @@ function bucketLabel(bucket: EmployeeVisitBucket): string {
   if (bucket === 'ongoing') return 'Ongoing'
   if (bucket === 'upcoming') return 'Upcoming'
   return 'Other'
-}
-
-function PunctualityCell({ result }: { result: ReturnType<typeof classifyVisitPunctuality> }) {
-  if (result.kind === 'unknown') {
-    return <span className="text-xs text-muted-foreground">-</span>
-  }
-  return (
-    <div className="space-y-0.5">
-      <Badge
-        variant="outline"
-        className={cn('w-fit font-medium', visitPunctualityBadgeClass(result))}
-        title={`Tolerance +/-${result.toleranceMinutes} min`}
-      >
-        {result.outcome}
-      </Badge>
-      {result.varianceMinutes ? (
-        <p className="text-[11px] tabular-nums text-muted-foreground">{result.varianceMinutes} min</p>
-      ) : null}
-    </div>
-  )
 }
 
 function StatCard({
@@ -598,7 +570,7 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                 ref={tableScrollRef}
                 className="max-h-[min(70vh,36rem)] overflow-auto rounded-lg border border-border"
               >
-                <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm">
+                <table className="w-full min-w-[920px] border-separate border-spacing-0 text-sm">
                   <thead>
                     <tr className="bg-muted/40">
                       <th
@@ -614,12 +586,6 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                       </th>
                       <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                         Actual
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Start
-                      </th>
-                      <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        End
                       </th>
                       <th className="sticky top-0 z-30 border-b border-border bg-muted px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                         Duration
@@ -642,22 +608,6 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                       const actualEnd = employeeVisitActualEnd(job)
                       const plannedDurationMins = employeeVisitPlannedDurationMinutes(job)
                       const actualDurationMins = employeeVisitActualDurationMinutes(job)
-                      const variance = employeeVisitDurationVariance(job)
-                      const varianceExport = visitDurationVarianceExportFields(variance)
-                      const toleranceMinutes = resolveVisitPunctualityToleranceMinutes({
-                        org: orgToleranceSettings,
-                        slot: job.visitPlan,
-                      })
-                      const startPunctuality = classifyVisitPunctuality(
-                        job.scheduledStartDateTime,
-                        actualStart,
-                        toleranceMinutes,
-                      )
-                      const endPunctuality = classifyVisitPunctuality(
-                        job.scheduledEndDateTime,
-                        actualEnd,
-                        toleranceMinutes,
-                      )
                       const stickyBg = isSample
                         ? 'bg-amber-50 dark:bg-amber-950/20'
                         : 'bg-card'
@@ -715,47 +665,15 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                           <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums text-muted-foreground">
                             {formatTimeRange(actualStart, actualEnd)}
                           </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top">
-                            <PunctualityCell result={startPunctuality} />
+                          <td className="border-b border-border px-3 py-2.5 align-top whitespace-nowrap tabular-nums">
+                            {formatDurationLabel(plannedDurationMins)} /{' '}
+                            {formatDurationLabel(actualDurationMins)}
                           </td>
                           <td className="border-b border-border px-3 py-2.5 align-top">
-                            <PunctualityCell result={endPunctuality} />
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top">
-                            <p className="whitespace-nowrap tabular-nums">
-                              {formatDurationLabel(plannedDurationMins)} /{' '}
-                              {formatDurationLabel(actualDurationMins)}
-                            </p>
-                            {variance.kind === 'unknown' ? (
-                              <p className="text-[11px] text-muted-foreground">Not assessed</p>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'mt-1 w-fit font-medium',
-                                  visitDurationVarianceBadgeClass(variance),
-                                )}
-                              >
-                                {varianceExport.durationVariance}
-                                {varianceExport.varianceMinutes
-                                  ? ` (${varianceExport.varianceMinutes})`
-                                  : ''}
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="border-b border-border px-3 py-2.5 align-top">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'w-fit font-medium',
-                                employeeVisitOutcomeBadgeClass(job, bucket),
-                              )}
-                            >
-                              {outcome}
-                            </Badge>
                             <button
                               type="button"
-                              className="mt-1 block w-fit text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
+                              className="block w-fit text-left"
+                              title={`${delivery.lifecycleLabel} — click to filter`}
                               onClick={() =>
                                 selectCodeFilter({
                                   kind: 'lifecycle',
@@ -763,7 +681,15 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                                 })
                               }
                             >
-                              {delivery.lifecycleLabel}
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'w-fit cursor-pointer font-medium',
+                                  employeeVisitOutcomeBadgeClass(job, bucket),
+                                )}
+                              >
+                                {outcome}
+                              </Badge>
                             </button>
                           </td>
                           <td className="border-b border-border px-3 py-2.5 align-top">

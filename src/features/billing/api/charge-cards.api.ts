@@ -33,10 +33,12 @@ function normalizeChargeCard(
 export async function fetchChargeCards(params?: {
   search?: string
   status?: string
+  locationId?: string
 }): Promise<ChargeCard[]> {
   const qs = new URLSearchParams()
   if (params?.search?.trim()) qs.set('search', params.search.trim())
   if (params?.status) qs.set('status', params.status)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<ChargeCard[]>>(`/billing/charge-cards${suffix}`, { method: 'GET' })
   return res.data.map(normalizeChargeCard)

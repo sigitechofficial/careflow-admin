@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
 import { useEmployeePayoutBatches } from '@/features/billing/hooks/useEmployeePayouts'
 import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
@@ -53,6 +54,7 @@ export function BillingSalaryOverviewPanel() {
   const canOpenEmployee = useAuthStore(s => s.can('employees.update') || s.can('employees.read'))
   const canReadPayouts = useAuthStore(s => s.can('billing.employee_payouts.read'))
   const canManagePayouts = useAuthStore(s => s.can('billing.employee_payouts.manage'))
+  const { locationId } = useGlobalLocationScope()
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
@@ -75,8 +77,11 @@ export function BillingSalaryOverviewPanel() {
   }, [isWeekly])
 
   const filters = React.useMemo(
-    () => (isWeekly ? salaryWeekDateRange(period) : salaryMonthDateRange(period)),
-    [isWeekly, period],
+    () => ({
+      ...(isWeekly ? salaryWeekDateRange(period) : salaryMonthDateRange(period)),
+      locationId: locationId ?? undefined,
+    }),
+    [isWeekly, period, locationId],
   )
   const periodLabel = isWeekly ? salaryWeekLabel(period, formatDate) : salaryMonthLabel(period)
 
@@ -88,7 +93,7 @@ export function BillingSalaryOverviewPanel() {
   const query = useEmployeeSalaries(filters, canRead)
   const rows = query.data?.rows ?? []
   const hasEligibleUkRun = query.data?.hasEligibleUkRun ?? false
-  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts)
+  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts, locationId)
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -162,6 +167,8 @@ export function BillingSalaryOverviewPanel() {
             <p className="text-sm font-medium text-foreground">Visit salary overview</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.
+              <span className="font-medium text-foreground"> Remaining</span> is visit pay
+              not yet in a visit-pay run or UK payroll run.
               Bank paid / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
               disbursed via Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
               Auto-payout on the <span className="font-medium text-foreground">4th</span> uses the
@@ -443,7 +450,10 @@ export function BillingSalaryOverviewPanel() {
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     In visit-pay run
                   </th>
-                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                  <th
+                    className="px-3 py-2.5 text-right font-medium text-muted-foreground"
+                    title="Approved visit pay not yet in a locked visit-pay run or UK payroll run"
+                  >
                     Remaining
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">

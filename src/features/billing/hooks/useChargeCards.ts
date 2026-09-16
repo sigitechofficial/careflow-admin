@@ -12,7 +12,7 @@ import {
 import { billingKeys } from '@/features/billing/keys'
 import type { ChargeCardInput } from '@/features/billing/types/billing-cards.types'
 
-export function useChargeCards(filters?: { search?: string; status?: string }) {
+export function useChargeCards(filters?: { search?: string; status?: string; locationId?: string }) {
   return useQuery({
     queryKey: billingKeys.chargeCards(filters),
     queryFn: () => fetchChargeCards(filters),

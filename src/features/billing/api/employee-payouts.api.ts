@@ -59,10 +59,12 @@ export type PayoutEligibleUkRun = {
 export async function fetchEmployeePayoutBatches(params?: {
   periodKey?: string
   ukPayrollRunId?: string
+  locationId?: string
 }): Promise<EmployeePayoutBatchRow[]> {
   const qs = new URLSearchParams()
   if (params?.periodKey) qs.set('periodKey', params.periodKey)
   if (params?.ukPayrollRunId) qs.set('ukPayrollRunId', params.ukPayrollRunId)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EmployeePayoutBatchRow[]>>(
     `/billing/employee-payouts${suffix}`,

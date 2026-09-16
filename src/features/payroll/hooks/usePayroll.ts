@@ -396,10 +396,10 @@ export function usePayrollPeriods(params?: { scheduleId?: string; taxYearId?: st
   })
 }
 
-export function usePayrollEmployees() {
+export function usePayrollEmployees(locationId?: string | null) {
   return useQuery({
-    queryKey: payrollKeys.employees(),
-    queryFn: fetchPayrollEmployees,
+    queryKey: payrollKeys.employees(locationId),
+    queryFn: () => fetchPayrollEmployees(locationId ?? undefined),
   })
 }
 
@@ -417,7 +417,7 @@ export function useUpsertEmployeePayrollProfile(employeeId: string) {
     mutationFn: (body: UpsertEmployeePayrollProfileInput) =>
       upsertEmployeePayrollProfile(employeeId, body),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.employees() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
       await qc.invalidateQueries({ queryKey: payrollKeys.profile(employeeId) })
       toastSuccess('Payroll profile saved')
     },
@@ -431,17 +431,17 @@ export function useCreateEmployeePayAgreement(employeeId: string) {
     mutationFn: (body: CreateEmployeePayAgreementInput) =>
       createEmployeePayAgreement(employeeId, body),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.employees() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'employees'] })
       toastSuccess('Pay agreement created')
     },
     onError: (error) => toastApiError(error),
   })
 }
 
-export function useUkPayrollRuns() {
+export function useUkPayrollRuns(locationId?: string | null) {
   return useQuery({
-    queryKey: payrollKeys.runs(),
-    queryFn: fetchUkPayrollRuns,
+    queryKey: payrollKeys.runs(locationId),
+    queryFn: () => fetchUkPayrollRuns(locationId ?? undefined),
   })
 }
 
@@ -467,10 +467,10 @@ export function useDeleteAllUkPayrollRuns() {
   })
 }
 
-export function useUkPayrollRun(id: string) {
+export function useUkPayrollRun(id: string, locationId?: string | null) {
   return useQuery({
-    queryKey: payrollKeys.run(id),
-    queryFn: () => fetchUkPayrollRun(id),
+    queryKey: payrollKeys.run(id, locationId),
+    queryFn: () => fetchUkPayrollRun(id, locationId ?? undefined),
     enabled: Boolean(id),
   })
 }
@@ -561,7 +561,7 @@ export function useCreateUkPayrollRun() {
   return useMutation({
     mutationFn: (body: CreateUkPayrollRunInput) => createUkPayrollRun(body),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       toastSuccess('UK payroll run created')
     },
     onError: (error) => toastApiError(error),
@@ -573,8 +573,8 @@ export function useEnrolUkPayrollRun(id: string) {
   return useMutation({
     mutationFn: () => enrolUkPayrollRun(id),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.run(id) })
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       toastSuccess('Employees enrolled')
     },
     onError: (error) => toastApiError(error),
@@ -586,8 +586,8 @@ export function useCalculateUkPayrollGross(id: string) {
   return useMutation({
     mutationFn: () => calculateUkPayrollGross(id),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.run(id) })
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       toastSuccess('Gross pay calculated')
     },
     onError: (error) => toastApiError(error),
@@ -599,8 +599,8 @@ export function useCalculateUkPayrollStatutory(id: string) {
   return useMutation({
     mutationFn: () => calculateUkPayrollStatutory(id),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.run(id) })
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       toastSuccess('Tax & NI calculated (Week 1 / Month 1)')
     },
     onError: (error) => toastApiError(error),
@@ -612,8 +612,8 @@ export function useCloseUkPayrollRun(id: string) {
   return useMutation({
     mutationFn: () => closeUkPayrollRun(id),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.run(id) })
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       toastSuccess('Run closed (shell)')
     },
     onError: (error) => toastApiError(error),
@@ -625,8 +625,8 @@ export function useCancelUkPayrollRun(id: string) {
   return useMutation({
     mutationFn: () => cancelUkPayrollRun(id),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: payrollKeys.run(id) })
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       toastSuccess('Run cancelled')
     },
     onError: (error) => toastApiError(error),
@@ -639,8 +639,8 @@ export function useReactivateUkPayrollRun(id?: string) {
     mutationFn: (runId: string) => reactivateUkPayrollRun(runId),
     onSuccess: async (_data, runId) => {
       const idToInvalidate = id || runId
-      await qc.invalidateQueries({ queryKey: payrollKeys.run(idToInvalidate) })
-      await qc.invalidateQueries({ queryKey: payrollKeys.runs() })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', idToInvalidate] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
       await qc.invalidateQueries({ queryKey: payrollKeys.periods() })
       toastSuccess('Run reactivated')
     },

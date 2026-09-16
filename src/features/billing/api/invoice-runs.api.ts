@@ -199,10 +199,19 @@ export async function fetchInvoiceRunsSummary(locationId?: string): Promise<Invo
   return res.data
 }
 
-export async function fetchInvoiceRun(id: string): Promise<InvoiceRunDetail> {
-  const res = await apiJson<ApiEnvelope<InvoiceRunDetail>>(`/billing/invoice-runs/${id}`, {
-    method: 'GET',
-  })
+export async function fetchInvoiceRun(
+  id: string,
+  params?: { locationId?: string },
+): Promise<InvoiceRunDetail> {
+  const qs = new URLSearchParams()
+  if (params?.locationId) qs.set('locationId', params.locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<InvoiceRunDetail>>(
+    `/billing/invoice-runs/${id}${suffix}`,
+    {
+      method: 'GET',
+    },
+  )
   return res.data
 }
 
@@ -434,8 +443,12 @@ export async function fetchServiceUserInvoices(
 
 export async function fetchServiceUserInvoicesOverview(
   month?: string,
+  locationId?: string,
 ): Promise<ServiceUserInvoicesOverview> {
-  const query = month ? `?month=${encodeURIComponent(month)}` : ''
+  const qs = new URLSearchParams()
+  if (month) qs.set('month', month)
+  if (locationId) qs.set('locationId', locationId)
+  const query = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<ServiceUserInvoicesOverview>>(
     `/billing/invoice-runs/service-users${query}`,
     { method: 'GET' },

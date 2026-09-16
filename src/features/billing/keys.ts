@@ -1,6 +1,6 @@
 export const billingKeys = {
   all: ['billing'] as const,
-  payCards: (filters?: { search?: string; status?: string }) =>
+  payCards: (filters?: { search?: string; status?: string; locationId?: string }) =>
     [...billingKeys.all, 'pay-cards', filters ?? {}] as const,
   payCard: (id: string) => [...billingKeys.all, 'pay-card', id] as const,
   payCardAssignmentPreview: (id: string) =>
@@ -9,7 +9,7 @@ export const billingKeys = {
     [...billingKeys.all, 'pay-card-resolve', employeeId, funderId ?? ''] as const,
   employeeFunderPayAssignments: (employeeId: string) =>
     [...billingKeys.all, 'employee-funder-pay-assignments', employeeId] as const,
-  chargeCards: (filters?: { search?: string; status?: string }) =>
+  chargeCards: (filters?: { search?: string; status?: string; locationId?: string }) =>
     [...billingKeys.all, 'charge-cards', filters ?? {}] as const,
   chargeCard: (id: string) => [...billingKeys.all, 'charge-card', id] as const,
   chargeCardAssignmentPreview: (id: string) =>
@@ -21,8 +21,10 @@ export const billingKeys = {
     readiness?: string
     page?: number
     limit?: number
+    locationId?: string
   }) => [...billingKeys.all, 'funding-contracts', filters ?? {}] as const,
-  fundingContractsSummary: () => [...billingKeys.all, 'funding-contracts-summary'] as const,
+  fundingContractsSummary: (locationId?: string | null) =>
+    [...billingKeys.all, 'funding-contracts-summary', locationId ?? 'all'] as const,
   invoiceTemplates: (filters?: {
     search?: string
     status?: string
@@ -58,17 +60,21 @@ export const billingKeys = {
     [...billingKeys.all, 'payroll-runs-summary', locationId ?? 'all'] as const,
   employeeEarnings: (employeeId: string, filters?: { dateFrom?: string; dateTo?: string }) =>
     [...billingKeys.all, 'employee-earnings', employeeId, filters ?? {}] as const,
-  employeeSalaries: (filters?: { dateFrom?: string; dateTo?: string }) =>
-    [...billingKeys.all, 'employee-salaries', filters ?? {}] as const,
+  employeeSalaries: (filters?: {
+    dateFrom?: string
+    dateTo?: string
+    locationId?: string
+  }) => [...billingKeys.all, 'employee-salaries', filters ?? {}] as const,
   invoiceRuns: (filters?: { locationId?: string }) =>
     [...billingKeys.all, 'invoice-runs', filters ?? {}] as const,
   invoiceRunsSummary: (locationId?: string | null) =>
     [...billingKeys.all, 'invoice-runs-summary', locationId ?? 'all'] as const,
-  invoiceRun: (id: string) => [...billingKeys.all, 'invoice-run', id] as const,
+  invoiceRun: (id: string, locationId?: string | null) =>
+    [...billingKeys.all, 'invoice-run', id, locationId ?? 'all'] as const,
   serviceUserInvoices: (serviceUserId: string) =>
     [...billingKeys.all, 'service-user-invoices', serviceUserId] as const,
-  serviceUserInvoicesOverview: (month?: string) =>
-    [...billingKeys.all, 'service-user-invoices-overview', month ?? 'all'] as const,
+  serviceUserInvoicesOverview: (month?: string, locationId?: string | null) =>
+    [...billingKeys.all, 'service-user-invoices-overview', month ?? 'all', locationId ?? 'all'] as const,
   payments: (filters?: { locationId?: string }) =>
     [...billingKeys.all, 'payments', filters ?? {}] as const,
   payment: (id: string) => [...billingKeys.all, 'payment', id] as const,
@@ -76,8 +82,8 @@ export const billingKeys = {
   agedDebt: () => [...billingKeys.all, 'aged-debt'] as const,
   outstandingInvoiceRuns: (locationId?: string | null) =>
     [...billingKeys.all, 'outstanding-invoice-runs', locationId ?? 'all'] as const,
-  employeePayoutBatches: (periodKey?: string) =>
-    [...billingKeys.all, 'employee-payouts', periodKey ?? 'all'] as const,
+  employeePayoutBatches: (periodKey?: string, locationId?: string | null) =>
+    [...billingKeys.all, 'employee-payouts', periodKey ?? 'all', locationId ?? 'all'] as const,
   employeePayoutBatch: (id: string) =>
     [...billingKeys.all, 'employee-payout', id] as const,
 }

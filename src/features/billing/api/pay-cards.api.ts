@@ -62,10 +62,12 @@ function normalizePayRule(rule: PayCardRule): PayCardRule {
 export async function fetchPayCards(params?: {
   search?: string
   status?: string
+  locationId?: string
 }): Promise<PayCard[]> {
   const qs = new URLSearchParams()
   if (params?.search?.trim()) qs.set('search', params.search.trim())
   if (params?.status) qs.set('status', params.status)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<PayCard[]>>(`/billing/pay-cards${suffix}`, { method: 'GET' })
   return res.data.map(normalizePayCard)

@@ -38,6 +38,7 @@ import {
   useSendInvoiceRun,
 } from '@/features/billing/hooks/useInvoiceRuns'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
 import type { ServiceUserInvoiceMonthRow } from '@/features/billing/types/service-user-invoices.types'
 import { cn } from '@/shared/lib/utils'
@@ -194,6 +195,7 @@ export default function InvoiceRunDetailPage() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const canManagePayments = useAuthStore(s => s.can('billing.payments.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
   const operationalTimezone = getSyncedOperationalTimeZone()
   const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
@@ -218,7 +220,7 @@ export default function InvoiceRunDetailPage() {
 
   React.useEffect(() => {
     setServiceUserFilterId('')
-  }, [invoiceRunId])
+  }, [invoiceRunId, locationId])
 
   const openSendInvoice = (run: InvoiceRunDetail, group: InvoiceRunServiceUserSummary) => {
     setEmailTarget({
@@ -250,7 +252,7 @@ export default function InvoiceRunDetailPage() {
     }
   }
 
-  const query = useInvoiceRun(invoiceRunId)
+  const query = useInvoiceRun(invoiceRunId, locationId)
   const calculateMutation = useCalculateInvoiceRun()
   const approveMutation = useApproveInvoiceRun()
   const lockMutation = useLockInvoiceRun()
@@ -371,7 +373,7 @@ export default function InvoiceRunDetailPage() {
 
         <ContentSectionHeader
           title={run.period}
-          description={`${formatDate(run.periodStart)} – ${formatDate(run.periodEnd)} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length || run.serviceUsers} service user invoice${((run.serviceUserSummaries ?? []).length || run.serviceUsers) === 1 ? '' : 's'}`}
+          description={`${formatDate(run.periodStart)} – ${formatDate(run.periodEnd)} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length} service user invoice${(run.serviceUserSummaries ?? []).length === 1 ? '' : 's'}`}
           action={
             <div className="flex flex-wrap items-center justify-end gap-2">
               <InvoiceRunStatusBadge status={run.status} />
@@ -524,19 +526,23 @@ export default function InvoiceRunDetailPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Net total"
-          value={run.netTotal}
+          value={
+            typeof run.netTotalValue === 'number'
+              ? `£${run.netTotalValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : run.netTotal
+          }
           hint="All authority invoices combined"
           icon={<FileText className="h-3.5 w-3.5" />}
         />
         <StatTile
           label="Service users"
-          value={run.serviceUsers}
+          value={(run.serviceUserSummaries ?? []).length}
           hint={`${run.lineCount} billable line${run.lineCount === 1 ? '' : 's'}`}
           icon={<Users className="h-3.5 w-3.5" />}
         />
         <StatTile
           label="Service user invoices"
-          value={(run.serviceUserSummaries ?? []).length || run.serviceUsers}
+          value={(run.serviceUserSummaries ?? []).length}
           hint="Separate invoice per service user"
         />
         <StatTile

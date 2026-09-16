@@ -16,6 +16,7 @@ import {
   type ChargeCard,
 } from '@/features/billing/types/billing-cards.types'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { formatBillingLabel } from '@/features/billing/components/BillingStatusBadge'
 
 function rulesSummary(card: ChargeCard): string {
@@ -39,13 +40,17 @@ function rulesSummary(card: ChargeCard): string {
 
 export function ChargeCardsPanel() {
   const canManage = useAuthStore(s => s.can('billing.charge_cards.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const [search, setSearch] = React.useState('')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [assignDialogOpen, setAssignDialogOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<ChargeCard | null>(null)
   const [assigning, setAssigning] = React.useState<ChargeCard | null>(null)
 
-  const listQuery = useChargeCards({ search: search.trim() || undefined })
+  const listQuery = useChargeCards({
+    search: search.trim() || undefined,
+    locationId: locationId ?? undefined,
+  })
   const deleteMutation = useDeleteChargeCard()
 
   const rows = listQuery.data ?? []

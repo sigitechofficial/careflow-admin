@@ -1,4 +1,5 @@
 import type { MedicationPackTypeValue } from '@/features/service-users/types'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
@@ -112,7 +113,7 @@ export type PackWizardDetails = {
 export function emptyPackWizardDetails(
   overrides?: Partial<PackWizardDetails>,
 ): PackWizardDetails {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = operationalTodayIso()
   return {
     name: 'Pharmacy Prepared Blister Pack',
     packType: 'BLISTER',

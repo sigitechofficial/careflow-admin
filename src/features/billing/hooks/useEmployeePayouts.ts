@@ -14,13 +14,15 @@ import { billingKeys } from '@/features/billing/keys'
 export function useEmployeePayoutBatches(
   periodKey?: string | null,
   enabled = true,
+  locationId?: string | null,
 ) {
   return useQuery({
-    queryKey: billingKeys.employeePayoutBatches(periodKey ?? undefined),
+    queryKey: billingKeys.employeePayoutBatches(periodKey ?? undefined, locationId),
     queryFn: () =>
-      fetchEmployeePayoutBatches(
-        periodKey ? { periodKey } : undefined,
-      ),
+      fetchEmployeePayoutBatches({
+        ...(periodKey ? { periodKey } : {}),
+        ...(locationId ? { locationId } : {}),
+      }),
     enabled,
   })
 }

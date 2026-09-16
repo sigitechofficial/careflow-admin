@@ -40,6 +40,7 @@ import {
   type PayrollHoursNormallyWorked,
 } from '@/features/payroll/utils/payroll-hours-normally-worked.util'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type {
   EmployeePayAgreementBasis,
   EmployeePayrollProfileStatus,
@@ -66,7 +67,8 @@ const NI_OPTIONS = buildNiCategoryComboboxOptions()
 
 export default function PayrollEmployeesPage() {
   const canManage = useAuthStore((s) => s.can('payroll.employees.manage'))
-  const { data = [], isLoading } = usePayrollEmployees()
+  const { locationId } = useGlobalLocationScope()
+  const { data = [], isLoading } = usePayrollEmployees(locationId)
   const { data: schedules = [] } = usePayrollSchedules()
   const { data: taxCodes = [] } = usePayrollTaxCodes()
   const { data: statutoryRates = [] } = usePayrollStatutoryRates()

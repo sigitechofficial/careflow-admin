@@ -309,11 +309,12 @@ export type EmployeeSalariesOverview = {
 }
 
 export async function fetchEmployeeSalaries(
-  params?: { dateFrom?: string; dateTo?: string },
+  params?: { dateFrom?: string; dateTo?: string; locationId?: string },
 ): Promise<EmployeeSalariesOverview> {
   const qs = new URLSearchParams()
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<EmployeeSalariesOverview>>(
     `/billing/payroll-runs/employee-salaries${suffix}`,

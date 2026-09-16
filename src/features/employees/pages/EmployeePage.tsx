@@ -851,11 +851,12 @@ function StaffListTab() {
                       {emp.contractType?.name ?? '?'}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <button
+                      <div className="flex items-center gap-2">
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           data-testid={`employee-edit-${emp.id}`}
-                          className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                           title="Edit employee"
                           aria-label={`Edit ${name}`}
                           disabled={!canUpdateEmployee}
@@ -866,20 +867,22 @@ function StaffListTab() {
                             })
                           }
                         >
-                          <PenLine className="h-4 w-4" aria-hidden />
-                        </button>
+                          <PenLine className="h-3.5 w-3.5" aria-hidden />
+                        </Button>
                         {canDeleteEmployee ? (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
                             data-testid={`employee-delete-${emp.id}`}
-                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
                             title="Delete employee"
                             aria-label={`Delete ${name}`}
                             disabled={deleteBusyId === emp.id || deleteEmployeeMutation.isPending}
                             onClick={() => void handleDeleteEmployee(emp, name)}
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                          </button>
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          </Button>
                         ) : null}
                       </div>
                     </td>

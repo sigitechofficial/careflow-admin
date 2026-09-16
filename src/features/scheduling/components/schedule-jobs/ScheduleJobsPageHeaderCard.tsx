@@ -1,5 +1,6 @@
 import { Filter } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { ScheduleJobsDateControls } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsDateControls'
 import {
   SCHEDULE_JOBS_LAYOUT_META,
   type ScheduleJobsLayout,

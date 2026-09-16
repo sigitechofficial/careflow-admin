@@ -319,8 +319,13 @@ export async function deletePayrollPeriods(scheduleId: string, taxYearId: string
   return res.data
 }
 
-export async function fetchPayrollEmployees() {
-  const res = await apiJson<ApiEnvelope<EmployeePayrollSetupRow[]>>('/payroll/employees')
+export async function fetchPayrollEmployees(locationId?: string) {
+  const qs = new URLSearchParams()
+  if (locationId) qs.set('locationId', locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<EmployeePayrollSetupRow[]>>(
+    `/payroll/employees${suffix}`,
+  )
   return res.data ?? []
 }
 
@@ -359,8 +364,11 @@ export async function createEmployeePayAgreement(
   return res.data
 }
 
-export async function fetchUkPayrollRuns() {
-  const res = await apiJson<ApiEnvelope<UkPayrollRun[]>>('/payroll/runs')
+export async function fetchUkPayrollRuns(locationId?: string) {
+  const qs = new URLSearchParams()
+  if (locationId) qs.set('locationId', locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<UkPayrollRun[]>>(`/payroll/runs${suffix}`)
   return res.data ?? []
 }
 
@@ -379,8 +387,13 @@ export async function deleteAllUkPayrollRuns() {
   return res.data
 }
 
-export async function fetchUkPayrollRun(id: string) {
-  const res = await apiJson<ApiEnvelope<UkPayrollRunDetail>>(`/payroll/runs/${id}`)
+export async function fetchUkPayrollRun(id: string, locationId?: string) {
+  const qs = new URLSearchParams()
+  if (locationId) qs.set('locationId', locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<UkPayrollRunDetail>>(
+    `/payroll/runs/${id}${suffix}`,
+  )
   return res.data
 }
 

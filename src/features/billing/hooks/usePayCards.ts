@@ -19,7 +19,7 @@ import type {
   PayCardInput,
 } from '@/features/billing/types/billing-cards.types'
 
-export function usePayCards(filters?: { search?: string; status?: string }) {
+export function usePayCards(filters?: { search?: string; status?: string; locationId?: string }) {
   return useQuery({
     queryKey: billingKeys.payCards(filters),
     queryFn: () => fetchPayCards(filters),

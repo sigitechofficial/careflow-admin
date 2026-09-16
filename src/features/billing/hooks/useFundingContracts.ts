@@ -10,6 +10,7 @@ export function useFundingContracts(filters?: {
   readiness?: 'READY' | 'INCOMPLETE' | 'ENDED' | 'NO_FUNDING' | 'ALL'
   page?: number
   limit?: number
+  locationId?: string
 }) {
   return useQuery({
     queryKey: billingKeys.fundingContracts(filters),
@@ -17,9 +18,9 @@ export function useFundingContracts(filters?: {
   })
 }
 
-export function useFundingContractsSummary() {
+export function useFundingContractsSummary(locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.fundingContractsSummary(),
-    queryFn: fetchFundingContractsSummary,
+    queryKey: billingKeys.fundingContractsSummary(locationId),
+    queryFn: () => fetchFundingContractsSummary(locationId ?? undefined),
   })
 }
