@@ -93,8 +93,6 @@ export function CloseSosDialog({
     }
   }, [open])
 
-  const action = SOS_ACTION_CODES.find(row => row.code === actionCode) ?? null
-  const outcome = SOS_OUTCOME_CODES.find(row => row.code === outcomeCode) ?? null
   const canSubmit = canSubmitSosClose(actionCode, outcomeCode, actionNote, outcomeNote)
 
   return (
@@ -113,53 +111,39 @@ export function CloseSosDialog({
             value={actionCode}
             options={SOS_ACTION_CODES}
             disabled={busy}
-            onChange={code => {
-              setActionCode(code)
-              if (!SOS_ACTION_CODES.find(row => row.code === code)?.requiresNotes) {
-                setActionNote('')
-              }
-            }}
+            onChange={setActionCode}
           />
-          {action?.requiresNotes ? (
-            <FormField label="Other action note" htmlFor="close-sos-action-note" required>
-              <Textarea
-                id="close-sos-action-note"
-                rows={3}
-                className="min-h-[80px]"
-                value={actionNote}
-                onChange={e => setActionNote(e.target.value)}
-                placeholder="Describe the action taken"
-                required
-                disabled={busy}
-              />
-            </FormField>
-          ) : null}
+          <FormField label="Action notes" htmlFor="close-sos-action-note" required>
+            <Textarea
+              id="close-sos-action-note"
+              rows={3}
+              className="min-h-[80px]"
+              value={actionNote}
+              onChange={e => setActionNote(e.target.value)}
+              placeholder="Describe the action taken"
+              required
+              disabled={busy}
+            />
+          </FormField>
           <ChipGroup
             label="Outcome"
             value={outcomeCode}
             options={SOS_OUTCOME_CODES}
             disabled={busy}
-            onChange={code => {
-              setOutcomeCode(code)
-              if (!SOS_OUTCOME_CODES.find(row => row.code === code)?.requiresNotes) {
-                setOutcomeNote('')
-              }
-            }}
+            onChange={setOutcomeCode}
           />
-          {outcome?.requiresNotes ? (
-            <FormField label="Other outcome note" htmlFor="close-sos-outcome-note" required>
-              <Textarea
-                id="close-sos-outcome-note"
-                rows={3}
-                className="min-h-[80px]"
-                value={outcomeNote}
-                onChange={e => setOutcomeNote(e.target.value)}
-                placeholder="Describe the outcome"
-                required
-                disabled={busy}
-              />
-            </FormField>
-          ) : null}
+          <FormField label="Outcome notes" htmlFor="close-sos-outcome-note" required>
+            <Textarea
+              id="close-sos-outcome-note"
+              rows={3}
+              className="min-h-[80px]"
+              value={outcomeNote}
+              onChange={e => setOutcomeNote(e.target.value)}
+              placeholder="Describe the outcome"
+              required
+              disabled={busy}
+            />
+          </FormField>
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>

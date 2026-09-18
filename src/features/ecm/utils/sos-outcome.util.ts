@@ -57,7 +57,8 @@ export function canSubmitSosClose(
   const action = SOS_ACTION_CODES.find(row => row.code === actionCode)
   const outcome = SOS_OUTCOME_CODES.find(row => row.code === outcomeCode)
   if (!action || !outcome) return false
-  if (action.requiresNotes && !actionNote.trim()) return false
-  if (outcome.requiresNotes && !outcomeNote.trim()) return false
+  // Notes are always required for both the action taken and the outcome.
+  if (!actionNote.trim()) return false
+  if (!outcomeNote.trim()) return false
   return true
 }
