@@ -26,6 +26,7 @@ const ICON_LABELS: Record<EmergencyProtocolIconKey, string> = {
   alert: 'Alert',
   brain: 'Brain',
   pulse: 'Pulse',
+  foot: 'Foot',
 }
 
 type StepDraft = { action: string; detail: string }

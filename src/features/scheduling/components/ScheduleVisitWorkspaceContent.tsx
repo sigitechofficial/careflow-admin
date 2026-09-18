@@ -240,6 +240,89 @@ function VisitWorkspaceSosAlerts({
   )
 }
 
+function allocationDisplayName(
+  allocation: TimelineJob['allocations'][number],
+): string {
+  const e = allocation.employee
+  if (!e) return 'Carer'
+  const name = [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
+  return name || 'Carer'
+}
+
+function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
+  const allocations = job.allocations ?? []
+  return (
+    <div className="mt-3 space-y-2" data-testid="visit-workspace-carers">
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Users className="h-4 w-4 shrink-0" aria-hidden />
+        <span>
+          Carers ({allocations.length}/{job.requiredCarers})
+        </span>
+      </p>
+      <ul className="space-y-2">
+        {allocations.map((allocation) => {
+          const name = allocationDisplayName(allocation)
+          const role =
+            allocation.isLeadCarer && job.requiredCarers > 1 ? 'Lead' : allocations.length > 1 ? 'Support' : null
+          const clockedIn = allocation.actualStartDateTime
+            ? formatOrganisationIsoTime(allocation.actualStartDateTime)
+            : null
+          const clockedOut = allocation.actualEndDateTime
+            ? formatOrganisationIsoTime(allocation.actualEndDateTime)
+            : null
+          const presence = allocation.presence
+          const arrivedAt = presence?.arrivedAt
+            ? formatOrganisationIsoTime(presence.arrivedAt)
+            : null
+          const leftAt = presence?.leftAt ? formatOrganisationIsoTime(presence.leftAt) : null
+          const marker = presence?.markedByName?.trim()
+          let presenceLabel = 'Not in yet'
+          let presenceClass = 'text-amber-600 dark:text-amber-500'
+          if (presence?.present) {
+            presenceLabel = arrivedAt
+              ? `Arrived ${arrivedAt}${marker ? ` · marked by ${marker}` : ''}`
+              : `Arrived${marker ? ` · marked by ${marker}` : ''}`
+            presenceClass = 'text-emerald-700 dark:text-emerald-300'
+          } else if (presence && presence.present === false) {
+            presenceLabel = leftAt
+              ? `Left ${leftAt}${marker ? ` · marked by ${marker}` : ''}`
+              : `Left${marker ? ` · marked by ${marker}` : ''}`
+            presenceClass = 'text-muted-foreground'
+          }
+          return (
+            <li
+              key={allocation.id}
+              className="rounded-md border border-border/70 bg-background px-3 py-2"
+            >
+              <p className="text-sm font-medium text-foreground">
+                {name}
+                {role ? (
+                  <span className="ml-1.5 text-xs font-medium text-muted-foreground">({role})</span>
+                ) : null}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Clocked in:{' '}
+                {clockedIn ? (
+                  <span className="font-medium tabular-nums text-foreground">{clockedIn}</span>
+                ) : (
+                  <span className="font-medium text-amber-600 dark:text-amber-500">Not yet</span>
+                )}
+                {clockedOut ? (
+                  <>
+                    <span className="text-muted-foreground"> · Clocked out: </span>
+                    <span className="font-medium tabular-nums text-foreground">{clockedOut}</span>
+                  </>
+                ) : null}
+              </p>
+              <p className={cn('mt-0.5 text-sm font-medium', presenceClass)}>{presenceLabel}</p>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
 type Props = {
   job: TimelineJob
   date: string
@@ -362,6 +445,9 @@ export function ScheduleVisitWorkspaceContent({
     )
   const visitSosAck = visitSos.find(row => row.acknowledgedAt)
 
+  const allocations = liveJob.allocations ?? []
+  const multiCarer =
+    (liveJob.requiredCarers ?? 0) > 1 || allocations.length > 1
   const clockInLabel = liveJob.actualStartDateTime
     ? formatOrganisationIsoTime(liveJob.actualStartDateTime)
     : null
@@ -428,19 +514,26 @@ export function ScheduleVisitWorkspaceContent({
               {formatJobTimeRange(job)} · {jobStatusLabel(job.status)}
             </p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="h-4 w-4 shrink-0" aria-hidden />
-                <span>
-                  Carers: {employeesLabel(job)} ({job.allocations?.length ?? 0}/{job.requiredCarers})
-                </span>
-              </div>
+              {!multiCarer ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Users className="h-4 w-4 shrink-0" aria-hidden />
+                  <span>
+                    Carers: {employeesLabel(liveJob)} ({allocations.length}/{liveJob.requiredCarers})
+                  </span>
+                </div>
+              ) : null}
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="h-4 w-4 shrink-0" aria-hidden />
                 <span>Date: {formatOrganisationIsoDate(date)}</span>
               </div>
             </dl>
+            {multiCarer ? (
+              <VisitWorkspaceCarerPresence job={liveJob} />
+            ) : null}
 
+            {!multiCarer || liveJob.checkIn ? (
             <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
+              {!multiCarer ? (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
                 <span className="flex items-center gap-1.5">
                   <LogIn className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -463,6 +556,7 @@ export function ScheduleVisitWorkspaceContent({
                   )}
                 </span>
               </div>
+              ) : null}
               {liveJob.checkIn ? (
                 <dl className="grid gap-1 text-sm sm:grid-cols-2">
                   <div>
@@ -512,6 +606,7 @@ export function ScheduleVisitWorkspaceContent({
                 </dl>
               ) : null}
             </div>
+            ) : null}
           </section>
 
           <VisitCareConsentSection

@@ -230,6 +230,8 @@ export type OrganisationGeneralSettings = {
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus
   incidentTypeSettings: IncidentTypeSetting[]
+  incidentSeveritySettings?: IncidentTypeSetting[]
+  incidentWhoInformedSettings?: IncidentTypeSetting[]
   optionalSettings: OrganisationOptionalSettings
   preAssessmentSettings: OrganisationPreAssessmentSettings
   alertsSettings: OrganisationAlertsSettings

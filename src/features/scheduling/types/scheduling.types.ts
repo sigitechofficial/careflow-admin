@@ -211,6 +211,15 @@ export type TimelineJob = {
     resolvedEndDateTime?: string | null
     resolvedDurationMinutes?: number | null
     hasExplicitTiming?: boolean
+    /** Partner marked arrived/left (independent of this carer's clock-in). */
+    presence?: {
+      present: boolean
+      arrivedAt?: string | null
+      leftAt?: string | null
+      markedByEmployeeId?: string | null
+      markedByName?: string | null
+      updatedAt?: string | null
+    } | null
     employee: {
       id: string
       firstName?: string

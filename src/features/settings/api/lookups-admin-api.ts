@@ -296,6 +296,7 @@ export const EMERGENCY_PROTOCOL_ICON_KEYS = [
   'alert',
   'brain',
   'pulse',
+  'foot',
 ] as const
 
 export type EmergencyProtocolIconKey = (typeof EMERGENCY_PROTOCOL_ICON_KEYS)[number]
