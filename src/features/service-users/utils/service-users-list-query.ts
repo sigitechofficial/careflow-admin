@@ -41,7 +41,7 @@ export function formatDateOfDeathFilterChip(value?: string | null): string {
   if (!value?.trim()) return '…'
   const input = toDateOfDeathInputValue(value)
   if (!input) return value.trim()
-  const [day, time] = input.split('T')
+  const [day = input, time] = input.split('T')
   return time && time !== '00:00' ? `${day} ${time}` : day
 }
 
