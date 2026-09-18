@@ -247,6 +247,36 @@ export type UkPayrollInputLine = {
   sourceVisitReconciliationId: string | null
 }
 
+/** Closed-run employee row available as an ERA payslip download. */
+export type UkPayrollPayslipListItem = {
+  runEmployeeId: string
+  ukPayrollRunId: string
+  employeeId: string
+  displayName: string
+  payrollNumber: string | null
+  runLabel: string
+  periodLabel: string
+  /** e.g. "Monthly · April 2026 (01/04/2026 – 30/04/2026)" */
+  periodCaption: string
+  frequencyLabel: string
+  paymentDate: string | null
+  periodStart: string | null
+  periodEnd: string | null
+  taxYearCode: string
+  scheduleName: string
+  frequency: string
+  totalGross: number
+  incomeTax: number
+  employeeNi: number
+  netPay: number
+  taxCodeApplied: string | null
+  niCategoryApplied: string | null
+  /** Bank disbursement via Employee payouts (separate from scheduled pay date). */
+  bankStatus: 'CALCULATED' | 'APPROVED' | 'PAID'
+  bankStatusLabel: string
+  bankPaidAt: string | null
+}
+
 export type UkPayrollRunDetail = UkPayrollRun & {
   employees: Array<{
     id: string

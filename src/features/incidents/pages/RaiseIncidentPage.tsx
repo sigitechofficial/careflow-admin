@@ -32,6 +32,8 @@ const SEVERITY_OPTIONS: { value: IncidentSeverity; label: string }[] = [
   { value: 'CRITICAL', label: 'Critical' },
 ]
 
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
+
 const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' | 'destructive'> = {
   MINOR: 'info',
   MODERATE: 'warning',
@@ -40,11 +42,7 @@ const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' |
 }
 
 function newInjuryId(): string {
-  try {
-    return crypto.randomUUID()
-  } catch {
-    return `inj-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
-  }
+  return createClientUuid()
 }
 
 function nowLocalDatetime(): string {

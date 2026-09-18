@@ -12,10 +12,8 @@ import {
   shiftIsoDate,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import {
   formatOperationalDayLabel,
-  getSyncedOperationalTimeZone,
 } from '@/shared/lib/operational-day.util'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -192,8 +190,6 @@ export function SchedulePeriodDayToolbar({
   const isToday = date === todayIso()
   const multiDay = dateFrom !== dateTo
   const rangeLabel = `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
 
   const handleToday = () => {
     if (multiDay) {
@@ -317,13 +313,6 @@ export function SchedulePeriodDayToolbar({
         className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground"
         data-testid="schedule-period-ops-day-note"
       >
-        <span
-          className="inline-flex h-7 items-center rounded-md border border-dashed border-border bg-muted/40 px-2 text-xs text-muted-foreground"
-          title="Board day, visit times, and Today use the organisation operational timezone"
-          data-testid="schedule-jobs-timezone-hint"
-        >
-          Times in {timezoneHint}
-        </span>
         <span>{formatOperationalDayLabel(operationalToday)}</span>
         {multiDay ? (
           <>

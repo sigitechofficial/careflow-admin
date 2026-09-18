@@ -13,16 +13,13 @@ import { INCIDENT_INJURY_SEVERITY_OPTIONS, type IncidentInjurySeverity } from '@
 import type { PendingIncidentInjury } from '@/features/incidents/utils/incident-injury-persist'
 import { BodyMapCanvas, type PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 
 const selectClass =
   'h-9 rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
 function newLocalId(): string {
-  try {
-    return crypto.randomUUID()
-  } catch {
-    return `inj-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
-  }
+  return createClientUuid()
 }
 
 /**

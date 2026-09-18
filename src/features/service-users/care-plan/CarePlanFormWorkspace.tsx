@@ -20,6 +20,7 @@ import {
   mapIaRiskRecordsForCarePlanProfile,
   manualRiskItemsFromDraft,
 } from '@/features/service-users/care-plan/care-plan-risk-profile.util'
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 import {
   formatActionPriorityLabel,
   formatActionStatusLabel,
@@ -377,7 +378,7 @@ function RiskProfileSection({
   }
 
   const addItem = () => {
-    updateItems([...manualItems, { id: crypto.randomUUID(), name: 'New risk' }])
+    updateItems([...manualItems, { id: createClientUuid(), name: 'New risk' }])
   }
 
   const removeItem = (id: string) => {

@@ -22,8 +22,6 @@ import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLoca
 import type { ExportStatus } from '@/features/billing/types/billing.types'
 import type { InvoiceRunRow } from '@/features/billing/api/invoice-runs.api'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import {
   InvoiceRunCadenceBadge,
   periodCadence,
@@ -55,8 +53,6 @@ export function BillingInvoiceRunsPanel() {
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const { locationId } = useGlobalLocationScope()
   const { formatDate } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const [createOpen, setCreateOpen] = React.useState(false)
   const [cadenceTab, setCadenceTab] = React.useState<CadenceTab>('weekly')
   const [datePreset, setDatePreset] = React.useState<InvoiceRunDatePreset>('all')
@@ -178,14 +174,6 @@ export function BillingInvoiceRunsPanel() {
           ) : null
         }
       />
-
-      <span
-        className="inline-flex h-8 w-fit items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
-        title="Invoice periods use the organisation operational timezone"
-        data-testid="billing-invoice-runs-timezone-hint"
-      >
-        Times in {timezoneHint}
-      </span>
 
       <InvoiceRunDateFilterBar
         preset={datePreset}
@@ -351,7 +339,10 @@ export function BillingInvoiceRunsPanel() {
                           View
                         </Link>
                       </Button>
-                      {canManage && (row.status === 'DRAFT' || row.status === 'EXCEPTION_FOUND') ? (
+                      {canManage &&
+                      (row.status === 'DRAFT' ||
+                        row.status === 'EXCEPTION_FOUND' ||
+                        row.status === 'READY_FOR_REVIEW') ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -359,7 +350,7 @@ export function BillingInvoiceRunsPanel() {
                           leftIcon={<Calculator className="h-3.5 w-3.5" />}
                           onClick={() => void calculateMutation.mutateAsync(row.id)}
                         >
-                          Calculate
+                          {row.status === 'DRAFT' ? 'Calculate' : 'Recalculate'}
                         </Button>
                       ) : null}
                       {canManage &&

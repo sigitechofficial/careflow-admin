@@ -1,5 +1,14 @@
 import * as React from 'react'
-import { BookOpen, PoundSterling } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Banknote,
+  BookOpen,
+  CreditCard,
+  FileText,
+  LayoutDashboard,
+  PoundSterling,
+  ScrollText,
+} from 'lucide-react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
@@ -14,12 +23,18 @@ import { BillingInvoiceTemplatesPanel } from '@/features/billing/components/Bill
 
 export type { BillingTabId }
 
-const BILLING_TABS: { id: BillingTabId; label: string; group?: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', group: 'Overview' },
-  { id: 'pay-cards', label: 'Pay cards', group: 'Setup' },
-  { id: 'charge-cards', label: 'Charge cards', group: 'Setup' },
-  { id: 'funding-contracts', label: 'Funding contracts', group: 'Setup' },
-  { id: 'invoice-templates', label: 'Invoice templates', group: 'Setup' },
+const BILLING_TABS: {
+  id: BillingTabId
+  label: string
+  group?: string
+  Icon: LucideIcon
+  color: string
+}[] = [
+  { id: 'dashboard', label: 'Dashboard', group: 'Overview', Icon: LayoutDashboard, color: 'text-sky-500' },
+  { id: 'pay-cards', label: 'Pay cards', group: 'Setup', Icon: Banknote, color: 'text-emerald-500' },
+  { id: 'charge-cards', label: 'Charge cards', group: 'Setup', Icon: CreditCard, color: 'text-violet-500' },
+  { id: 'funding-contracts', label: 'Funding contracts', group: 'Setup', Icon: ScrollText, color: 'text-amber-500' },
+  { id: 'invoice-templates', label: 'Invoice templates', group: 'Setup', Icon: FileText, color: 'text-rose-500' },
 ]
 
 function BillingTabPanel({ tab }: { tab: BillingTabId }) {
@@ -92,6 +107,7 @@ export default function BillingManagementPage() {
             const isActive = tab.id === activeTab
             const showGroup = tab.group && tab.group !== lastGroup
             if (showGroup) lastGroup = tab.group
+            const Icon = tab.Icon
 
             return (
               <React.Fragment key={tab.id}>
@@ -107,7 +123,7 @@ export default function BillingManagementPage() {
                   data-testid={`billing-tab-${tab.id}`}
                   onClick={() => setTab(tab.id)}
                   className={cn(
-                    'shrink-0 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
+                    'inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     isActive
                       ? 'bg-background text-foreground shadow-sm'
@@ -115,7 +131,11 @@ export default function BillingManagementPage() {
                     'md:w-full',
                   )}
                 >
-                  {tab.label}
+                  <Icon
+                    className={cn('h-4 w-4 shrink-0', tab.color)}
+                    aria-hidden
+                  />
+                  <span className="min-w-0">{tab.label}</span>
                 </button>
               </React.Fragment>
             )

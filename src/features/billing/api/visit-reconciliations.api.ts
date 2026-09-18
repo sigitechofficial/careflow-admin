@@ -131,6 +131,24 @@ export async function setVisitPayableAmount(
   return res.data
 }
 
+export async function setVisitBillableAmount(
+  id: string,
+  body: {
+    billableAmount: number
+    notes?: string
+    approveForInvoice?: boolean
+  },
+): Promise<VisitReconciliationDetail> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
+    `/billing/visit-reconciliations/${id}/billable-amount`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+  return res.data
+}
+
 export async function approveVisitReconciliation(
   id: string,
   body: {

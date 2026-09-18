@@ -155,6 +155,9 @@ export type VisitReconciliationRateBreakdown = {
   ruleLabel: string | null
   appliedRules?: VisitReconciliationAppliedRule[]
   segments?: VisitReconciliationRateSegment[]
+  /** True when amount was set manually rather than from card rules. */
+  manualOverride?: boolean
+  explanation?: string | null
 }
 
 export type VisitReconciliationFunderSplitLine = {

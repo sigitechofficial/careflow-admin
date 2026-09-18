@@ -22,6 +22,12 @@ describe('Service User Management row actions', () => {
       to: SERVICE_USER_EDIT_ROUTE,
       search: { tab: 'absences' },
     })
+    expect(SERVICE_USER_ROW_ACTION_LINKS.careSummaryReport.to).toBe(
+      '/service-users/$serviceUserId/view',
+    )
+    expect(SERVICE_USER_ROW_ACTION_LINKS.detailedCareReport.to).toBe(
+      '/service-users/$serviceUserId/activity',
+    )
   })
 
   it('does not send row actions to the new Profile route', () => {

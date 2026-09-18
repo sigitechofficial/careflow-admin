@@ -14,9 +14,10 @@ type Props = {
   jobId: string
   consents: VisitCareConsentRow[]
   loading?: boolean
+  className?: string
 }
 
-export function VisitCareConsentSection({ jobId, consents, loading = false }: Props) {
+export function VisitCareConsentSection({ jobId, consents, loading = false, className }: Props) {
   const queryClient = useQueryClient()
   const recorded = consents.length > 0
 
@@ -39,7 +40,7 @@ export function VisitCareConsentSection({ jobId, consents, loading = false }: Pr
   }
 
   return (
-    <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+    <section className={cn('rounded-lg border border-border bg-muted/20 px-4 py-3', className)}>
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-sm font-semibold text-foreground">Consent to care</h3>
         {recorded ? (

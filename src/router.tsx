@@ -138,6 +138,7 @@ import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
+import UkPayrollPayslipsPage from '@/features/payroll/pages/UkPayrollPayslipsPage'
 import LearningDashboardPage from '@/features/learning/pages/LearningDashboardPage'
 import LearningCoursesPage from '@/features/learning/pages/LearningCoursesPage'
 import LearningCourseDetailPage from '@/features/learning/pages/LearningCourseDetailPage'
@@ -191,7 +192,12 @@ import {
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { employeeKeys } from '@/features/employees/keys'
 import { listServiceUsers, fetchServiceUserLookups } from '@/features/service-users/api'
-import { defaultServiceUsersListParams } from '@/features/service-users/utils/service-users-list-query'
+import { buildServiceUsersListParams } from '@/features/service-users/utils/service-users-list-query'
+import {
+  enrichServiceUsersListUrlState,
+  parseServiceUsersListSearch,
+  validateServiceUsersListSearch,
+} from '@/features/service-users/utils/service-users-list-url-state.util'
 import { fetchEmployeeLookups } from '@/features/employees/api'
 import { fetchGeneralSettings } from '@/features/settings/api/general-settings-api'
 import { fetchCompanyProfile } from '@/features/settings/api/company-settings-api'
@@ -308,6 +314,7 @@ const pageTitles: Record<string, string> = {
   '/payroll/employees': 'Employee payroll setup',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
+  '/payroll/payslips': 'Payslips',
   '/learning/dashboard': 'Learning dashboard',
   '/learning/courses': 'Learning courses',
   '/learning/courses/new': 'New course',
@@ -673,13 +680,27 @@ const serviceUsersAllRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/all',
   beforeLoad: requirePermission('service_users.read'),
-  loader: async ({ context: { queryClient: qc } }) => {
+  validateSearch: validateServiceUsersListSearch,
+  loader: async ({ context: { queryClient: qc }, location }) => {
     const lookups = await qc.fetchQuery({
       queryKey: serviceUserKeys.lookups(),
       queryFn: () => fetchServiceUserLookups(),
       staleTime: 10 * 60 * 1000,
     })
-    const listParams = defaultServiceUsersListParams(lookups)
+    const urlState = enrichServiceUsersListUrlState(
+      parseServiceUsersListSearch(location.search as Record<string, unknown>),
+      lookups,
+    )
+    const listParams = buildServiceUsersListParams(lookups, {
+      page: urlState.page,
+      search: urlState.search,
+      listFilter: urlState.listFilter,
+      statusFilter: urlState.statusFilter,
+      onHoldOnly: urlState.onHoldOnly,
+      riskLevelCode: urlState.riskFilter,
+      unassignedKeyWorker: urlState.unassignedOnly,
+      advanced: urlState.advanced,
+    })
     void qc.prefetchQuery({
       queryKey: serviceUserKeys.list(listParams),
       queryFn: () => listServiceUsers(listParams),
@@ -1842,6 +1863,13 @@ const payrollRunDetailRoute = createRoute({
   component: UkPayrollRunDetailPage,
 })
 
+const payrollPayslipsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/payslips',
+  beforeLoad: requirePermission('payroll.runs.read'),
+  component: UkPayrollPayslipsPage,
+})
+
 const learningIndexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/learning',
@@ -2118,6 +2146,7 @@ const routeTree = rootRoute.addChildren([
     payrollEmployeesRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
+    payrollPayslipsRoute,
     learningIndexRoute,
     learningDashboardRoute,
     learningCoursesRoute,

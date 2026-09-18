@@ -58,6 +58,7 @@ export type ServiceUserQuickSelectIconId =
   | 'care-low'
   | 'care-medium'
   | 'care-high'
+  | 'care-critical'
   | 'dols'
   | 'absent'
 
@@ -69,6 +70,7 @@ export const SERVICE_USER_QUICK_SELECT_ICONS: Record<ServiceUserQuickSelectIconI
   'care-low': `${quickSelectBase}/care-low.svg`,
   'care-medium': `${quickSelectBase}/care-medium.svg`,
   'care-high': `${quickSelectBase}/care-high.svg`,
+  'care-critical': `${quickSelectBase}/care-critical.svg`,
   dols: `${quickSelectBase}/dols.svg`,
   absent: `${quickSelectBase}/absent.svg`,
 }
@@ -85,12 +87,12 @@ export const QUICK_SELECT_LIST_ICON = {
   deleted: null,
 } as const satisfies Record<string, ServiceUserQuickSelectIconId | null>
 
-/** Maps care-plan risk filter keys to Figma asset ids. */
+/** Maps risk-profile filter keys to Figma asset ids. */
 export const QUICK_SELECT_RISK_ICON = {
   LOW: 'care-low',
   MEDIUM: 'care-medium',
   HIGH: 'care-high',
-  CRITICAL: 'care-high',
+  CRITICAL: 'care-critical',
 } as const satisfies Record<string, ServiceUserQuickSelectIconId>
 
 /** Module tabs bar (Figma node 321-11019). */

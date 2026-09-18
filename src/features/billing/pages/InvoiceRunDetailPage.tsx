@@ -43,8 +43,7 @@ import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/bi
 import type { ServiceUserInvoiceMonthRow } from '@/features/billing/types/service-user-invoices.types'
 import { cn } from '@/shared/lib/utils'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 
 function isInvoiceRunSent(run: InvoiceRunDetail): boolean {
   return (
@@ -197,8 +196,6 @@ export default function InvoiceRunDetailPage() {
   const canManagePayments = useAuthStore(s => s.can('billing.payments.manage' as never))
   const { locationId } = useGlobalLocationScope()
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
 
   const formatInstant = (iso: string | null | undefined) => {
     if (!iso) return '—'
@@ -362,13 +359,6 @@ export default function InvoiceRunDetailPage() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Invoice runs
           </Link>
-          <span
-            className="inline-flex h-8 w-fit items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
-            title="Invoice periods and timestamps use the organisation operational timezone"
-            data-testid="billing-invoice-run-detail-timezone-hint"
-          >
-            Times in {timezoneHint}
-          </span>
         </div>
 
         <ContentSectionHeader
@@ -398,14 +388,26 @@ export default function InvoiceRunDetailPage() {
               </Button>
               {canManage ? (
                 <>
-                  {(run.status === 'DRAFT' || run.status === 'EXCEPTION_FOUND') && (
+                  {(run.status === 'DRAFT' ||
+                    run.status === 'EXCEPTION_FOUND' ||
+                    run.status === 'READY_FOR_REVIEW') && (
                     <Button
                       size="sm"
+                      variant={
+                        run.status === 'READY_FOR_REVIEW' || run.status === 'EXCEPTION_FOUND'
+                          ? 'outline'
+                          : 'default'
+                      }
                       disabled={isMutating}
                       leftIcon={<Calculator className="h-3.5 w-3.5" />}
                       onClick={() => void calculateMutation.mutateAsync(run.id)}
+                      data-testid="invoice-run-calculate"
                     >
-                      {isMutating && calculateMutation.isPending ? 'Calculating…' : 'Calculate'}
+                      {isMutating && calculateMutation.isPending
+                        ? 'Calculating…'
+                        : run.status === 'DRAFT'
+                          ? 'Calculate'
+                          : 'Recalculate'}
                     </Button>
                   )}
                   {(run.status === 'READY_FOR_REVIEW' || run.status === 'EXCEPTION_FOUND') && (
@@ -414,6 +416,7 @@ export default function InvoiceRunDetailPage() {
                       disabled={isMutating}
                       leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
                       onClick={() => void approveMutation.mutateAsync(run.id)}
+                      data-testid="invoice-run-approve"
                     >
                       Approve
                     </Button>
@@ -424,6 +427,7 @@ export default function InvoiceRunDetailPage() {
                       disabled={isMutating}
                       leftIcon={<Lock className="h-3.5 w-3.5" />}
                       onClick={() => void lockMutation.mutateAsync(run.id)}
+                      data-testid="invoice-run-lock"
                     >
                       Lock
                     </Button>
@@ -655,7 +659,10 @@ export default function InvoiceRunDetailPage() {
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             Run calculate to pull approved billable visits for this period into service user invoices.
           </p>
-          {canManage && (run.status === 'DRAFT' || run.status === 'EXCEPTION_FOUND') ? (
+          {canManage &&
+          (run.status === 'DRAFT' ||
+            run.status === 'EXCEPTION_FOUND' ||
+            run.status === 'READY_FOR_REVIEW') ? (
             <Button
               className="mt-4"
               size="sm"
@@ -663,7 +670,7 @@ export default function InvoiceRunDetailPage() {
               leftIcon={<Calculator className="h-3.5 w-3.5" />}
               onClick={() => void calculateMutation.mutateAsync(run.id)}
             >
-              Calculate now
+              {run.status === 'DRAFT' ? 'Calculate now' : 'Recalculate'}
             </Button>
           ) : null}
         </ContentCard>

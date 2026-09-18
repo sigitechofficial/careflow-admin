@@ -42,6 +42,7 @@ import {
   describeAdvancedFilterChips,
   hasAdvancedFilterRangeErrors,
   statusFilterLabel,
+  toDateOfDeathInputValue,
   uniqueFilterIds,
   type AdvancedFilterChipKey,
   type AdvancedFilterGroupId,
@@ -51,6 +52,9 @@ import {
 import { useMedicalConditionCatalog } from '@/features/alerts/hooks/useMedicalClinical'
 import { useCareForms } from '@/features/care-pathway/hooks/useCarePathwayTabs'
 import { useAuthStore } from '@/features/auth/store'
+import type { ServiceUserLookupsBundle } from '@/features/service-users/types'
+
+const SELECT_ANY = '__any__'
 
 const CARE_PLAN_OPTIONS: { value: CarePlanListStatus | 'any'; label: string }[] = [
   { value: 'any', label: 'Any care plan status' },
@@ -78,9 +82,9 @@ const FILTER_GROUPS: {
   {
     id: 'profile',
     title: 'Profile',
-    description: 'Age & personal data',
+    description: 'Age, care, funding & dates',
     panelTitle: 'Profile',
-    panelDescription: 'Filter service users by age and profile-related dates.',
+    panelDescription: 'Filter service users by age, care type, funding type, and start / death dates.',
     icon: UserRound,
   },
   {
@@ -94,9 +98,9 @@ const FILTER_GROUPS: {
   {
     id: 'visits',
     title: 'Visits',
-    description: 'Missed visit criteria',
+    description: 'More than N missed visits',
     panelTitle: 'Visits',
-    panelDescription: 'Confirmed ECM missed visits in an optional date window.',
+    panelDescription: 'Confirmed ECM missed visits strictly greater than a threshold, with an optional date window.',
     icon: CalendarClock,
   },
   {
@@ -125,11 +129,11 @@ function parseAge(raw: string): number | undefined {
   return n
 }
 
-function parsePositiveInt(raw: string): number | undefined {
+function parseNonNegativeInt(raw: string): number | undefined {
   const t = raw.trim()
   if (!t) return undefined
   const n = Number(t)
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return undefined
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return undefined
   return n
 }
 
@@ -213,6 +217,7 @@ export function ServiceUsersAdvancedFiltersPanel({
   value,
   onApply,
   disabled,
+  lookups,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -221,6 +226,7 @@ export function ServiceUsersAdvancedFiltersPanel({
   /** Called only when the user clicks Apply filters. */
   onApply: (next: ServiceUsersAdvancedFilters) => void
   disabled?: boolean
+  lookups?: ServiceUserLookupsBundle | null
 }) {
   const canReadMedical = useAuthStore(
     s =>
@@ -462,19 +468,106 @@ export function ServiceUsersAdvancedFiltersPanel({
                       </p>
                     ) : null}
                   </FieldSection>
-                  <FieldSection title="Date of death">
+                  <FieldSection title="Care & funding">
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground">Care type</label>
+                      <Select
+                        value={draft.careTypeId || SELECT_ANY}
+                        disabled={disabled || !lookups}
+                        onValueChange={v => {
+                          if (v === SELECT_ANY) {
+                            setDraft(d => ({
+                              ...d,
+                              careTypeId: undefined,
+                              careTypeLabel: undefined,
+                            }))
+                            return
+                          }
+                          const row = lookups?.careTypes.find(t => t.id === v)
+                          setDraft(d => ({
+                            ...d,
+                            careTypeId: v,
+                            careTypeLabel: row?.name ?? d.careTypeLabel,
+                          }))
+                        }}
+                      >
+                        <SelectTrigger className="h-9" data-testid="service-users-filter-care-type">
+                          <SelectValue placeholder="Any care type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_ANY}>Any care type</SelectItem>
+                          {(lookups?.careTypes ?? []).map(row => (
+                            <SelectItem key={row.id} value={row.id}>
+                              {row.name}
+                            </SelectItem>
+                          ))}
+                          {draft.careTypeId &&
+                          !(lookups?.careTypes ?? []).some(row => row.id === draft.careTypeId) ? (
+                            <SelectItem value={draft.careTypeId}>
+                              {draft.careTypeLabel?.trim() || 'Selected care type'}
+                            </SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground">Funding type</label>
+                      <Select
+                        value={draft.fundingTypeId || SELECT_ANY}
+                        disabled={disabled || !lookups}
+                        onValueChange={v => {
+                          if (v === SELECT_ANY) {
+                            setDraft(d => ({
+                              ...d,
+                              fundingTypeId: undefined,
+                              fundingTypeLabel: undefined,
+                            }))
+                            return
+                          }
+                          const row = lookups?.fundingTypes.find(t => t.id === v)
+                          setDraft(d => ({
+                            ...d,
+                            fundingTypeId: v,
+                            fundingTypeLabel: row?.name ?? d.fundingTypeLabel,
+                          }))
+                        }}
+                      >
+                        <SelectTrigger className="h-9" data-testid="service-users-filter-funding-type">
+                          <SelectValue placeholder="Any funding type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_ANY}>Any funding type</SelectItem>
+                          {(lookups?.fundingTypes ?? []).map(row => (
+                            <SelectItem key={row.id} value={row.id}>
+                              {row.name}
+                            </SelectItem>
+                          ))}
+                          {draft.fundingTypeId &&
+                          !(lookups?.fundingTypes ?? []).some(row => row.id === draft.fundingTypeId) ? (
+                            <SelectItem value={draft.fundingTypeId}>
+                              {draft.fundingTypeLabel?.trim() || 'Selected funding type'}
+                            </SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </FieldSection>
+                  <FieldSection title="Service start date">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">From date</label>
                       <Input
                         type="date"
                         disabled={disabled}
-                        max={draft.dateOfDeathTo}
-                        value={draft.dateOfDeathFrom ?? ''}
-                        error={Boolean(rangeErrors.dateOfDeath)}
-                        aria-invalid={Boolean(rangeErrors.dateOfDeath)}
-                        data-testid="service-users-filter-dod-from"
+                        max={draft.serviceStartDateTo}
+                        value={draft.serviceStartDateFrom ?? ''}
+                        error={Boolean(rangeErrors.serviceStartDate)}
+                        aria-invalid={Boolean(rangeErrors.serviceStartDate)}
+                        data-testid="service-users-filter-service-start-from"
                         onChange={e =>
-                          setDraft(d => ({ ...d, dateOfDeathFrom: e.target.value || undefined }))
+                          setDraft(d => ({
+                            ...d,
+                            serviceStartDateFrom: e.target.value || undefined,
+                          }))
                         }
                         className="h-9"
                       />
@@ -484,13 +577,65 @@ export function ServiceUsersAdvancedFiltersPanel({
                       <Input
                         type="date"
                         disabled={disabled}
-                        min={draft.dateOfDeathFrom}
-                        value={draft.dateOfDeathTo ?? ''}
+                        min={draft.serviceStartDateFrom}
+                        value={draft.serviceStartDateTo ?? ''}
+                        error={Boolean(rangeErrors.serviceStartDate)}
+                        aria-invalid={Boolean(rangeErrors.serviceStartDate)}
+                        data-testid="service-users-filter-service-start-to"
+                        onChange={e =>
+                          setDraft(d => ({
+                            ...d,
+                            serviceStartDateTo: e.target.value || undefined,
+                          }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                    {rangeErrors.serviceStartDate ? (
+                      <p
+                        className="text-xs text-destructive sm:col-span-2"
+                        role="alert"
+                        data-testid="service-users-filter-service-start-error"
+                      >
+                        {rangeErrors.serviceStartDate}
+                      </p>
+                    ) : null}
+                  </FieldSection>
+                  <FieldSection title="Date & time of death">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">From</label>
+                      <Input
+                        type="datetime-local"
+                        disabled={disabled}
+                        max={toDateOfDeathInputValue(draft.dateOfDeathTo) || undefined}
+                        value={toDateOfDeathInputValue(draft.dateOfDeathFrom)}
+                        error={Boolean(rangeErrors.dateOfDeath)}
+                        aria-invalid={Boolean(rangeErrors.dateOfDeath)}
+                        data-testid="service-users-filter-dod-from"
+                        onChange={e =>
+                          setDraft(d => ({
+                            ...d,
+                            dateOfDeathFrom: e.target.value || undefined,
+                          }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">To</label>
+                      <Input
+                        type="datetime-local"
+                        disabled={disabled}
+                        min={toDateOfDeathInputValue(draft.dateOfDeathFrom) || undefined}
+                        value={toDateOfDeathInputValue(draft.dateOfDeathTo)}
                         error={Boolean(rangeErrors.dateOfDeath)}
                         aria-invalid={Boolean(rangeErrors.dateOfDeath)}
                         data-testid="service-users-filter-dod-to"
                         onChange={e =>
-                          setDraft(d => ({ ...d, dateOfDeathTo: e.target.value || undefined }))
+                          setDraft(d => ({
+                            ...d,
+                            dateOfDeathTo: e.target.value || undefined,
+                          }))
                         }
                         className="h-9"
                       />
@@ -647,11 +792,11 @@ export function ServiceUsersAdvancedFiltersPanel({
                   <FieldSection title="Missed visits">
                     <div className="space-y-1.5 sm:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Minimum missed visits
+                        More than (missed visits)
                       </label>
                       <Input
                         type="number"
-                        min={1}
+                        min={0}
                         inputMode="numeric"
                         placeholder="e.g. 3"
                         disabled={disabled}
@@ -659,10 +804,17 @@ export function ServiceUsersAdvancedFiltersPanel({
                         data-testid="service-users-filter-missed-min"
                         onChange={e => {
                           setMissedMinText(e.target.value)
-                          setDraft(d => ({ ...d, missedVisitsMin: parsePositiveInt(e.target.value) }))
+                          setDraft(d => ({
+                            ...d,
+                            missedVisitsMin: parseNonNegativeInt(e.target.value),
+                          }))
                         }}
                         className="h-9"
                       />
+                      <p className="text-[11px] text-muted-foreground">
+                        Shows service users with confirmed missed visits strictly greater than this
+                        number.
+                      </p>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">From date</label>
@@ -868,7 +1020,7 @@ export function ServiceUsersFilterToggleButton({
 }
 
 const filterControlTriggerClass =
-  'h-9 w-[13.5rem] shrink-0 justify-between gap-2 border px-2.5 shadow-none focus:ring-ring/40 [&>span]:line-clamp-1 [&>span]:min-w-0'
+  'h-9 w-full justify-between gap-2 border px-2.5 shadow-none focus:ring-ring/40 sm:w-[13.5rem] [&>span]:line-clamp-1 [&>span]:min-w-0'
 
 export function ServiceUsersStatusFilter({
   value,
@@ -891,10 +1043,12 @@ export function ServiceUsersStatusFilter({
 
   return (
     <div
-      className="flex shrink-0 items-center gap-2 border-l border-border pl-3"
+      className="flex w-full items-center gap-2 sm:w-auto"
       data-testid="service-users-status-filter-wrap"
     >
-      <span className="hidden text-sm font-medium text-muted-foreground sm:inline">Status</span>
+      <span className="hidden shrink-0 text-sm font-medium text-muted-foreground sm:inline">
+        Status
+      </span>
       <Select value={value} disabled={disabled} onValueChange={onChange}>
         <SelectTrigger
           data-testid="service-users-status-filter"

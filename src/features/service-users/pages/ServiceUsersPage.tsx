@@ -7,25 +7,28 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Download,
+  Trash2,
 } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { cn, formatDate, formatDateTime } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
+import { Input } from '@/shared/ui/input'
+import { Button } from '@/shared/ui/button'
+import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useAuthStore } from '@/features/auth/store'
 import { EditFlashMessageDialog } from '@/features/service-users/components/EditFlashMessageDialog'
-import {
-  ServiceUserQuickSelectBar,
-  type QuickSelectListId,
-  type QuickSelectRiskId,
-} from '@/features/service-users/components/ServiceUserQuickSelectBar'
+import { ServiceUserQuickSelectBar } from '@/features/service-users/components/ServiceUserQuickSelectBar'
 import { ServiceUserRowActionStrip } from '@/features/service-users/components/ServiceUserRowActionStrip'
 import {
   type ServiceUserListRow,
 } from '@/features/service-users/types'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
+import { useDeleteServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useUploadServiceUserPhoto } from '@/features/service-users/hooks/useServiceUserPhoto'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { serviceUserKeys } from '@/features/service-users/keys'
@@ -39,8 +42,15 @@ import {
   statusFilterForQuickSelect,
   statusFilterLabel,
   type ServiceUsersAdvancedFilters,
-  type StatusFilterValue,
 } from '@/features/service-users/utils/service-users-list-query'
+import { exportServiceUsersListCsv } from '@/features/service-users/utils/service-users-list-export'
+import {
+  buildServiceUsersListSearch,
+  enrichServiceUsersListUrlState,
+  parseServiceUsersListSearch,
+  type ServiceUsersListSearch,
+  type ServiceUsersListUrlState,
+} from '@/features/service-users/utils/service-users-list-url-state.util'
 import {
   ServiceUsersAdvancedFiltersPanel,
   ServiceUsersFilterToggleButton,
@@ -48,7 +58,6 @@ import {
 } from '@/features/service-users/components/ServiceUsersAdvancedFiltersPanel'
 import { SERVICE_USER_MANAGEMENT_NAME_TO } from '@/features/service-users/service-user-profile-tabs'
 
-const TEAL = '#4db8c8'
 
 const RISK_BORDER: Record<string, string> = {
   LOW: '#2a9d8f',
@@ -259,22 +268,69 @@ function SuAvatar({
 export default function ServiceUsersPage() {
   const apiConfigured = Boolean(getApiBaseUrl())
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const routeSearch = useSearch({ strict: false }) as ServiceUsersListSearch
+  const canDelete = useAuthStore((s) => s.can('service_users.delete'))
+  const deleteMutation = useDeleteServiceUser()
 
-  const [searchInput, setSearchInput] = React.useState('')
-  const [searchApi, setSearchApi] = React.useState('')
-  const [kwSearch, setKwSearch] = React.useState('')
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(DEFAULT_SERVICE_USER_STATUS_CODE)
-  const [listFilter, setListFilter] = React.useState<QuickSelectListId | null>(null)
-  const [riskFilter, setRiskFilter] = React.useState<QuickSelectRiskId | null>(null)
-  const [unassignedOnly, setUnassignedOnly] = React.useState(false)
-  const [onHoldOnly, setOnHoldOnly] = React.useState(false)
-  const [advancedOpen, setAdvancedOpen] = React.useState(false)
-  const [advancedFilters, setAdvancedFilters] = React.useState<ServiceUsersAdvancedFilters>(
-    EMPTY_SERVICE_USERS_ADVANCED_FILTERS,
+  const lookupsQuery = useServiceUserLookups()
+  const lookups = lookupsQuery.data ?? null
+
+  const urlState = React.useMemo(
+    () => enrichServiceUsersListUrlState(parseServiceUsersListSearch(routeSearch), lookups),
+    [routeSearch, lookups],
   )
+
+  const {
+    search: searchApi,
+    kwSearch,
+    statusFilter,
+    listFilter,
+    riskFilter,
+    unassignedOnly,
+    onHoldOnly,
+    page,
+    advanced: advancedFilters,
+  } = urlState
+
+  const [searchInput, setSearchInput] = React.useState(searchApi)
+  const [kwSearchInput, setKwSearchInput] = React.useState(kwSearch)
+  const [advancedOpen, setAdvancedOpen] = React.useState(false)
   const viewingDeleted = listFilter === 'deleted'
-  const [page, setPage] = React.useState(1)
   const [flashMessageUser, setFlashMessageUser] = React.useState<ServiceUserListRow | null>(null)
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set())
+  const [bulkWorking, setBulkWorking] = React.useState(false)
+
+  React.useEffect(() => {
+    setSearchInput(searchApi)
+  }, [searchApi])
+
+  React.useEffect(() => {
+    setKwSearchInput(kwSearch)
+  }, [kwSearch])
+
+  const applyUrlState = React.useCallback(
+    (next: ServiceUsersListUrlState) => {
+      void navigate({
+        to: '/service-users/all',
+        search: buildServiceUsersListSearch(next),
+        replace: true,
+      })
+    },
+    [navigate],
+  )
+
+  const patchUrlState = React.useCallback(
+    (patch: Partial<ServiceUsersListUrlState> & { advanced?: ServiceUsersAdvancedFilters }) => {
+      applyUrlState({
+        ...urlState,
+        ...patch,
+        advanced: patch.advanced ?? urlState.advanced,
+        page: patch.page ?? 1,
+      })
+    },
+    [applyUrlState, urlState],
+  )
 
   const handleFlashClick = React.useCallback((user: ServiceUserListRow) => {
     setFlashMessageUser(user)
@@ -282,27 +338,33 @@ export default function ServiceUsersPage() {
 
   const { locationId: globalLocationId } = useGlobalLocationScope()
 
-  // Debounce search to avoid a query per keystroke
+  // Debounce name search into the URL
   React.useEffect(() => {
-    const t = window.setTimeout(() => setSearchApi(searchInput.trim()), 350)
+    const trimmed = searchInput.trim()
+    if (trimmed === searchApi) return
+    const t = window.setTimeout(() => {
+      patchUrlState({ search: trimmed })
+    }, 350)
     return () => clearTimeout(t)
-  }, [searchInput])
+  }, [searchInput, searchApi, patchUrlState])
 
-  // Reset to page 1 when filters change
+  // Debounce key-worker filter into the URL (client-side page filter)
   React.useEffect(() => {
-    setPage(1)
-  }, [searchApi, statusFilter, listFilter, onHoldOnly, globalLocationId, riskFilter, unassignedOnly, advancedFilters])
+    const trimmed = kwSearchInput.trim()
+    if (trimmed === kwSearch) return
+    const t = window.setTimeout(() => {
+      patchUrlState({ kwSearch: trimmed })
+    }, 350)
+    return () => clearTimeout(t)
+  }, [kwSearchInput, kwSearch, patchUrlState])
 
-  // Lookups (statuses, risk levels, etc.) — prefetched by route loader
-  const lookupsQuery = useServiceUserLookups()
-  const lookups = lookupsQuery.data ?? null
   const advancedFilterCount = countActiveAdvancedFilters(advancedFilters)
   const advancedFilterChips = React.useMemo(
     () => describeAdvancedFilterChips(advancedFilters),
     [advancedFilters],
   )
 
-  // Derive list params from filter state + resolved lookups
+  // Derive list params from URL filter state + resolved lookups
   const listParams = React.useMemo(
     () =>
       buildServiceUsersListParams(lookups, {
@@ -362,6 +424,89 @@ export default function ServiceUsersPage() {
     })
   }, [rows, kwSearch])
 
+  // Drop selection when the visible page set changes (filters / pagination / search).
+  React.useEffect(() => {
+    setSelectedIds(new Set())
+  }, [searchApi, statusFilter, listFilter, onHoldOnly, globalLocationId, riskFilter, unassignedOnly, advancedFilters, page, kwSearch])
+
+  const visibleIds = React.useMemo(() => filteredRows.map((r) => r.id), [filteredRows])
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id))
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id))
+  const selectedRows = React.useMemo(
+    () => filteredRows.filter((r) => selectedIds.has(r.id)),
+    [filteredRows, selectedIds],
+  )
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev)
+        for (const id of visibleIds) next.delete(id)
+        return next
+      }
+      const next = new Set(prev)
+      for (const id of visibleIds) next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleExportCsv = () => {
+    const exportRows = selectedRows.length > 0 ? selectedRows : filteredRows
+    if (exportRows.length === 0) return
+    exportServiceUsersListCsv(
+      exportRows,
+      selectedRows.length > 0 ? 'service-users-selected' : 'service-users-page',
+    )
+    toastSuccess(
+      selectedRows.length > 0
+        ? `Exported ${exportRows.length} selected service user${exportRows.length === 1 ? '' : 's'}`
+        : `Exported ${exportRows.length} service user${exportRows.length === 1 ? '' : 's'} on this page`,
+    )
+  }
+
+  const handleBulkDelete = async () => {
+    if (!canDelete || viewingDeleted || selectedRows.length === 0) return
+    const n = selectedRows.length
+    const ok = window.confirm(
+      `Soft-delete ${n} selected service user${n === 1 ? '' : 's'}? They can be found again under Deleted.`,
+    )
+    if (!ok) return
+    setBulkWorking(true)
+    let failed = 0
+    try {
+      for (const row of selectedRows) {
+        try {
+          await deleteMutation.mutateAsync(row.id)
+        } catch {
+          failed += 1
+        }
+      }
+      const deleted = n - failed
+      if (deleted > 0) {
+        toastSuccess(
+          `Deleted ${deleted} service user${deleted === 1 ? '' : 's'}${failed > 0 ? ` (${failed} failed)` : ''}`,
+        )
+      }
+      if (failed > 0 && deleted === 0) {
+        toastApiError(new Error(`Could not delete ${failed} service user${failed === 1 ? '' : 's'}`), 'Bulk delete failed')
+      }
+      setSelectedIds(new Set())
+      triggerReload()
+    } finally {
+      setBulkWorking(false)
+    }
+  }
+
   const onProfilePhotoUploaded = React.useCallback(
     (_userId: string, _profilePhotoUrl: string) => {
       // Invalidate so the list reflects the new photo on next navigation
@@ -369,6 +514,15 @@ export default function ServiceUsersPage() {
     },
     [queryClient],
   )
+
+  const clearAllFilters = () => {
+    patchUrlState({
+      statusFilter: DEFAULT_SERVICE_USER_STATUS_CODE,
+      listFilter: null,
+      onHoldOnly: false,
+      advanced: { ...EMPTY_SERVICE_USERS_ADVANCED_FILTERS },
+    })
+  }
 
   return (
     <div className="flex min-h-full w-full min-w-0 flex-col" data-testid="service-users-page">
@@ -415,84 +569,96 @@ export default function ServiceUsersPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 border-b border-border bg-background px-3 py-3 sm:px-4 md:flex-row md:flex-wrap md:items-center md:gap-2 md:py-2.5">
-        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch md:items-center">
+      <div className="flex flex-col gap-2.5 border-b border-border bg-background px-3 py-3 sm:px-4">
+        <div
+          className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
+          data-testid="service-users-primary-filters"
+        >
           <ServiceUsersFilterToggleButton
             open={advancedOpen}
             activeCount={advancedFilterCount}
             onClick={() => setAdvancedOpen((o) => !o)}
           />
 
-          <div className="flex min-w-0 w-full flex-1 sm:max-w-md md:w-52 md:flex-initial md:max-w-none">
-            <input
+          <div className="min-w-0 w-full sm:max-w-xs sm:flex-1">
+            <Input
               data-testid="service-users-search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name, NHS no., phone…"
-              className="h-9 min-w-0 flex-1 rounded-l-md border border-border border-r-0 bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <span
-              className="flex h-9 shrink-0 items-center justify-center rounded-r-md border border-l-0 px-3 text-white"
-              style={{ background: TEAL, borderColor: TEAL }}
               title="Search runs as you type"
-            >
-              <Search className="h-4 w-4" />
-            </span>
+              leftElement={<Search className="h-4 w-4" aria-hidden />}
+            />
           </div>
 
-          <div className="flex min-w-0 w-full flex-1 sm:max-w-md md:w-48 md:flex-initial md:max-w-none">
-            <input
-              value={kwSearch}
-              onChange={(e) => setKwSearch(e.target.value)}
-              placeholder="Filter key worker / nurse (this page)"
-              className="h-9 min-w-0 flex-1 rounded-l-md border border-border border-r-0 bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <span
-              className="flex h-9 shrink-0 items-center justify-center rounded-r-md border border-l-0 px-3 text-white"
-              style={{ background: TEAL, borderColor: TEAL }}
+          <div className="min-w-0 w-full sm:max-w-xs sm:flex-1">
+            <Input
+              data-testid="service-users-key-worker-filter"
+              value={kwSearchInput}
+              onChange={(e) => setKwSearchInput(e.target.value)}
+              placeholder="Filter key worker / nurse…"
               title="Filters the current result page only"
-            >
-              <Search className="h-4 w-4" />
-            </span>
+              leftElement={<Search className="h-4 w-4" aria-hidden />}
+            />
           </div>
+
+          <div className="w-full sm:ml-auto sm:w-auto sm:shrink-0">
+            <ServiceUsersStatusFilter
+              value={statusFilter}
+              options={(lookups?.statuses ?? []).map((s) => ({ code: s.code, name: s.name }))}
+              disabled={viewingDeleted || lookupsQuery.isLoading || !apiConfigured}
+              onChange={(next) => {
+                patchUrlState({
+                  listFilter: null,
+                  onHoldOnly: false,
+                  statusFilter: next,
+                })
+              }}
+            />
+          </div>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5"
+            disabled={!apiConfigured || loading || filteredRows.length === 0}
+            onClick={handleExportCsv}
+            data-testid="service-users-export-csv"
+            title={
+              selectedRows.length > 0
+                ? `Export ${selectedRows.length} selected to CSV`
+                : 'Export this page to CSV'
+            }
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            {selectedRows.length > 0 ? `Export (${selectedRows.length})` : 'Export CSV'}
+          </Button>
         </div>
 
         <ServiceUserQuickSelectBar
           listFilter={listFilter}
           onListFilterChange={(id) => {
-            setListFilter(id)
-            setStatusFilter(statusFilterForQuickSelect(id))
-            if (id !== 'deleted') {
-              setOnHoldOnly(false)
-            }
+            patchUrlState({
+              listFilter: id,
+              statusFilter: statusFilterForQuickSelect(id),
+              onHoldOnly: id === 'deleted' ? onHoldOnly : false,
+            })
           }}
           riskFilter={riskFilter}
-          onRiskFilterChange={setRiskFilter}
+          onRiskFilterChange={(next) => patchUrlState({ riskFilter: next })}
           unassignedOnly={unassignedOnly}
-          onUnassignedOnlyChange={setUnassignedOnly}
+          onUnassignedOnlyChange={(next) => patchUrlState({ unassignedOnly: next })}
           onHoldOnly={onHoldOnly}
           onOnHoldOnlyChange={(on) => {
-            setOnHoldOnly(on)
-            if (on) {
-              setListFilter(null)
-              setStatusFilter('ON_HOLD')
-            }
+            patchUrlState({
+              onHoldOnly: on,
+              listFilter: on ? null : listFilter,
+              statusFilter: on ? 'ON_HOLD' : statusFilter,
+            })
           }}
           disabled={!apiConfigured || loading}
         />
-
-        <div className="flex w-full min-w-0 md:ml-auto md:w-auto md:shrink-0">
-          <ServiceUsersStatusFilter
-            value={statusFilter}
-            options={(lookups?.statuses ?? []).map((s) => ({ code: s.code, name: s.name }))}
-            disabled={viewingDeleted || lookupsQuery.isLoading || !apiConfigured}
-            onChange={(next) => {
-              setListFilter(null)
-              setOnHoldOnly(false)
-              setStatusFilter(next)
-            }}
-          />
-        </div>
       </div>
 
       {advancedFilterChips.length > 0 ||
@@ -508,9 +674,11 @@ export default function ServiceUsersPage() {
               disabled={!apiConfigured || loading}
               className="inline-flex h-7 max-w-full items-center gap-1 rounded-full border border-[#4db8c8]/40 bg-[#4db8c8]/10 px-2.5 text-xs font-medium text-[#1f6f7a] transition-colors hover:bg-[#4db8c8]/20 disabled:opacity-60"
               onClick={() => {
-                setListFilter(null)
-                setOnHoldOnly(false)
-                setStatusFilter(DEFAULT_SERVICE_USER_STATUS_CODE)
+                patchUrlState({
+                  listFilter: null,
+                  onHoldOnly: false,
+                  statusFilter: DEFAULT_SERVICE_USER_STATUS_CODE,
+                })
               }}
               title="Reset status to in service (active)"
               data-testid="service-users-status-chip"
@@ -533,7 +701,9 @@ export default function ServiceUsersPage() {
               type="button"
               disabled={!apiConfigured || loading}
               className="inline-flex h-7 max-w-full items-center gap-1 rounded-full border border-[#4db8c8]/40 bg-[#4db8c8]/10 px-2.5 text-xs font-medium text-[#1f6f7a] transition-colors hover:bg-[#4db8c8]/20 disabled:opacity-60"
-              onClick={() => setAdvancedFilters((prev) => clearAdvancedFilterChip(prev, chip.key))}
+              onClick={() =>
+                patchUrlState({ advanced: clearAdvancedFilterChip(advancedFilters, chip.key) })
+              }
               title={`Remove ${chip.label}`}
             >
               <span className="truncate">{chip.label}</span>
@@ -544,15 +714,62 @@ export default function ServiceUsersPage() {
             type="button"
             disabled={!apiConfigured || loading}
             className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
-            onClick={() => {
-              setAdvancedFilters(EMPTY_SERVICE_USERS_ADVANCED_FILTERS)
-              setListFilter(null)
-              setOnHoldOnly(false)
-              setStatusFilter(DEFAULT_SERVICE_USER_STATUS_CODE)
-            }}
+            onClick={clearAllFilters}
           >
             Clear all
           </button>
+        </div>
+      ) : null}
+
+      {selectedIds.size > 0 ? (
+        <div
+          className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/30 px-3 py-2 sm:px-4"
+          data-testid="service-users-bulk-bar"
+        >
+          <span className="text-sm font-medium text-foreground">
+            {selectedIds.size} selected
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1.5"
+            disabled={bulkWorking || selectedRows.length === 0}
+            onClick={handleExportCsv}
+            data-testid="service-users-bulk-export"
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden />
+            Export selected
+          </Button>
+          {canDelete && !viewingDeleted ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={bulkWorking || deleteMutation.isPending}
+              onClick={() => void handleBulkDelete()}
+              data-testid="service-users-bulk-delete"
+            >
+              {bulkWorking ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              )}
+              Soft-delete
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8"
+            disabled={bulkWorking}
+            onClick={() => setSelectedIds(new Set())}
+            data-testid="service-users-bulk-clear"
+          >
+            Clear selection
+          </Button>
         </div>
       ) : null}
 
@@ -560,10 +777,10 @@ export default function ServiceUsersPage() {
         open={advancedOpen}
         onOpenChange={setAdvancedOpen}
         value={advancedFilters}
+        lookups={lookups}
         disabled={!apiConfigured || loading}
         onApply={(next) => {
-          setAdvancedFilters(next)
-          setPage(1)
+          patchUrlState({ advanced: next })
         }}
       />
 
@@ -607,6 +824,20 @@ export default function ServiceUsersPage() {
                 <table className="w-full min-w-[720px] text-sm" data-testid="service-users-table">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
+                      <th className="w-10 px-2 py-2.5 sm:px-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-border"
+                          checked={allVisibleSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected
+                          }}
+                          onChange={toggleSelectAllVisible}
+                          disabled={filteredRows.length === 0 || loading || bulkWorking}
+                          aria-label="Select all service users on this page"
+                          data-testid="service-users-select-all"
+                        />
+                      </th>
                       {[
                         { label: 'Picture', filter: false },
                         { label: 'Service user', filter: true },
@@ -634,8 +865,22 @@ export default function ServiceUsersPage() {
                       <tr
                         key={user.id}
                         data-testid={`service-user-row-${user.id}`}
-                        className="border-b border-border transition-colors last:border-0 hover:bg-muted/20"
+                        className={cn(
+                          'border-b border-border transition-colors last:border-0 hover:bg-muted/20',
+                          selectedIds.has(user.id) && 'bg-primary/5',
+                        )}
                       >
+                        <td className="px-2 py-3 align-middle sm:px-3">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border"
+                            checked={selectedIds.has(user.id)}
+                            onChange={() => toggleSelectOne(user.id)}
+                            disabled={bulkWorking}
+                            aria-label={`Select ${displayName(user)}`}
+                            data-testid={`service-users-select-${user.id}`}
+                          />
+                        </td>
                         <td className="px-2 py-3 align-middle sm:px-3">
                           <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} readOnly={viewingDeleted} />
                         </td>
@@ -661,9 +906,20 @@ export default function ServiceUsersPage() {
                 {filteredRows.map((user) => (
                   <article
                     key={user.id}
-                    className="space-y-3 px-3 py-3 first:rounded-t-lg last:rounded-b-lg hover:bg-muted/15"
+                    className={cn(
+                      'space-y-3 px-3 py-3 first:rounded-t-lg last:rounded-b-lg hover:bg-muted/15',
+                      selectedIds.has(user.id) && 'bg-primary/5',
+                    )}
                   >
                     <div className="flex gap-3">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 shrink-0 rounded border-border"
+                        checked={selectedIds.has(user.id)}
+                        onChange={() => toggleSelectOne(user.id)}
+                        disabled={bulkWorking}
+                        aria-label={`Select ${displayName(user)}`}
+                      />
                       <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} readOnly={viewingDeleted} />
                       <div className="min-w-0 flex-1">
                         <SuUserDetailsBlock user={user} archived={viewingDeleted} />
@@ -693,7 +949,7 @@ export default function ServiceUsersPage() {
               <button
                 type="button"
                 disabled={!meta.hasPrevPage || loading}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => patchUrlState({ page: Math.max(1, page - 1) })}
                 className="inline-flex min-h-10 min-w-[5.5rem] items-center justify-center gap-1 rounded-md border border-border bg-background px-3 py-2 hover:bg-muted disabled:opacity-50 sm:min-h-0 sm:min-w-0 sm:py-1.5"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -702,7 +958,7 @@ export default function ServiceUsersPage() {
               <button
                 type="button"
                 disabled={!meta.hasNextPage || loading}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => patchUrlState({ page: page + 1 })}
                 className="inline-flex min-h-10 min-w-[5.5rem] items-center justify-center gap-1 rounded-md border border-border bg-background px-3 py-2 hover:bg-muted disabled:opacity-50 sm:min-h-0 sm:min-w-0 sm:py-1.5"
               >
                 Next

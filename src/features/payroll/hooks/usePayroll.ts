@@ -34,6 +34,7 @@ import {
   fetchUkPayrollRunFps,
   fetchUkPayrollRunHmrcSubmissions,
   fetchUkPayrollRuns,
+  fetchUkPayrollPayslips,
   generatePayrollPeriods,
   purgeAllPayrollData,
   reactivateUkPayrollRun,
@@ -445,6 +446,13 @@ export function useUkPayrollRuns(locationId?: string | null) {
   })
 }
 
+export function useUkPayrollPayslips(locationId?: string | null) {
+  return useQuery({
+    queryKey: payrollKeys.payslips(locationId),
+    queryFn: () => fetchUkPayrollPayslips(locationId ?? undefined),
+  })
+}
+
 export function useDeleteAllUkPayrollRuns() {
   const qc = useQueryClient()
   return useMutation({
@@ -614,6 +622,7 @@ export function useCloseUkPayrollRun(id: string) {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'payslips'] })
       toastSuccess('Run closed (shell)')
     },
     onError: (error) => toastApiError(error),
@@ -627,6 +636,7 @@ export function useCancelUkPayrollRun(id: string) {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', id] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'payslips'] })
       toastSuccess('Run cancelled')
     },
     onError: (error) => toastApiError(error),
@@ -641,6 +651,7 @@ export function useReactivateUkPayrollRun(id?: string) {
       const idToInvalidate = id || runId
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'run', idToInvalidate] })
       await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'runs'] })
+      await qc.invalidateQueries({ queryKey: [...payrollKeys.all, 'payslips'] })
       await qc.invalidateQueries({ queryKey: payrollKeys.periods() })
       toastSuccess('Run reactivated')
     },

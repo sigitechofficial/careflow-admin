@@ -49,8 +49,7 @@ import {
   AlertDialogTrigger,
 } from '@/shared/ui/dialog'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import {
   currentOpsMonth,
   currentOpsWeek,
@@ -77,8 +76,6 @@ export function BillingEmployeePayoutsPanel() {
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const basis: SalaryCalculationBasis =
     generalSettings?.salaryCalculationBasis === 'WEEKLY' ? 'WEEKLY' : 'MONTHLY'
   const isWeekly = basis === 'WEEKLY'
@@ -348,13 +345,6 @@ export function BillingEmployeePayoutsPanel() {
         >
           All history
         </Button>
-        <span
-          className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
-          title="Payout periods and timestamps use the organisation operational timezone"
-          data-testid="billing-payouts-timezone-hint"
-        >
-          Times in {timezoneHint}
-        </span>
         {scope === 'period' && hasOpenBatchForSelectedRun ? (
           <Badge variant="outline" className="ml-auto bg-warning/10 text-warning border-warning/20">
             Open batch in progress

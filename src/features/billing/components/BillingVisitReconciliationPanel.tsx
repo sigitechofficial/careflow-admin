@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { AlertTriangle, Calculator, CheckCircle2, ChevronDown, ClipboardCheck, Eye, Filter, Landmark, Loader2, RefreshCw, Search, Trash2, Wallet, XCircle } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Combobox } from '@/shared/ui/combobox'
@@ -44,9 +45,8 @@ import { Badge } from '@/shared/ui/badge'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { listServiceUsers } from '@/features/service-users/api'
 import { listAllEmployees } from '@/features/employees/api'
+import { SERVICE_USER_PROFILE_ROUTE } from '@/features/service-users/service-user-profile-tabs'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 
 function serviceUserOptionLabel(row: {
@@ -127,8 +127,6 @@ export function BillingVisitReconciliationPanel({
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
   const { locationId } = useGlobalLocationScope()
   const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [serviceUserId, setServiceUserId] = React.useState(initialServiceUserId ?? '')
@@ -458,13 +456,6 @@ export function BillingVisitReconciliationPanel({
                   : `${filteredTotal} ${filteredTotal === 1 ? 'visit' : 'visits'}`}
             </span>
           ) : null}
-          <span
-            className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
-            title="Visit dates and clock times use the organisation operational timezone"
-            data-testid="visit-recon-timezone-hint"
-          >
-            Times in {timezoneHint}
-          </span>
         </div>
 
         {canManage ? (
@@ -711,12 +702,24 @@ export function BillingVisitReconciliationPanel({
                       </td>
                     ) : null}
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div
-                        className="font-mono text-xs font-medium tracking-tight"
-                        title="Visit reference (immutable). BRANCH = service user branch."
-                      >
-                        {row.visitRef || '—'}
-                      </div>
+                      {row.visitRef && row.scheduledJobId ? (
+                        <Link
+                          to="/scheduling/visits/$jobId"
+                          params={{ jobId: row.scheduledJobId }}
+                          className="font-mono text-xs font-medium tracking-tight text-primary underline-offset-2 hover:underline"
+                          title="Open visit details"
+                          data-testid="visit-recon-visit-ref-link"
+                        >
+                          {row.visitRef}
+                        </Link>
+                      ) : (
+                        <div
+                          className="font-mono text-xs font-medium tracking-tight"
+                          title="Visit reference (immutable). BRANCH = service user branch."
+                        >
+                          {row.visitRef || '—'}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <Badge
@@ -733,7 +736,19 @@ export function BillingVisitReconciliationPanel({
                       </Badge>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
-                      {row.clientId || '—'}
+                      {row.serviceUserId && row.clientId ? (
+                        <Link
+                          to={SERVICE_USER_PROFILE_ROUTE}
+                          params={{ serviceUserId: row.serviceUserId }}
+                          className="text-primary underline-offset-2 hover:underline"
+                          title="Open client profile"
+                          data-testid="visit-recon-client-id-link"
+                        >
+                          {row.clientId}
+                        </Link>
+                      ) : (
+                        row.clientId || '—'
+                      )}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {row.clientFirstName || '—'}
@@ -764,10 +779,26 @@ export function BillingVisitReconciliationPanel({
                       {formatReconClock(row.actualDeparture || '00:00:00', timeDisplayFormat)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap font-medium">
-                      {row.payableAmount ?? '—'}
+                      <span className="inline-flex flex-col gap-0.5">
+                        <span>{row.payableAmount ?? '—'}</span>
+                        {row.payableAmount &&
+                        row.approvalNotes?.includes('Payable amount set to') ? (
+                          <span className="text-[10px] font-normal text-muted-foreground">
+                            Manual
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                     <td className="px-3 py-2.5 tabular-nums whitespace-nowrap font-medium">
-                      {row.billableAmount ?? '—'}
+                      <span className="inline-flex flex-col gap-0.5">
+                        <span>{row.billableAmount ?? '—'}</span>
+                        {row.billableAmount &&
+                        row.approvalNotes?.includes('Billable amount set to') ? (
+                          <span className="text-[10px] font-normal text-muted-foreground">
+                            Manual
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                     <td className="px-3 py-2.5">
                       {row.exceptions.length === 0 && !pendingOverrun && !(row.overrunMinutes && row.overrunDecision) ? (

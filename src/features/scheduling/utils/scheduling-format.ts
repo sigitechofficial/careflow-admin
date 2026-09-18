@@ -32,7 +32,11 @@ export function formatDateTimeLocal(iso: string): string {
 export function formatJobTimeRange(job: Pick<TimelineJob, 'scheduledStartDateTime' | 'scheduledEndDateTime' | 'durationMinutes'>): string {
   const start = new Date(job.scheduledStartDateTime)
   const end = job.scheduledEndDateTime ? new Date(job.scheduledEndDateTime) : null
-  const mins = job.durationMinutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60_000) : 60)
+  // Prefer the actual scheduled window when an end exists — the stored durationMinutes
+  // can drift from it, which showed a 17:00–20:00 visit as "17:00/120m/20:00".
+  const mins = end
+    ? Math.round((end.getTime() - start.getTime()) / 60_000)
+    : job.durationMinutes ?? 60
   const endDate = end ?? new Date(start.getTime() + mins * 60_000)
   const startLabel = formatOpsClockTime(start.toISOString())
   const endLabel = formatOpsClockTime(endDate.toISOString())

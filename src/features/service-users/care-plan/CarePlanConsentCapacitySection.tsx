@@ -13,6 +13,7 @@ import {
 } from '@/features/service-users/care-plan/care-plan-consent-meta'
 import { mapIaConsentCapacityForCarePlan } from '@/features/service-users/care-plan/care-plan-consent-capacity.util'
 import type { CarePlanDraftValues } from '@/features/service-users/care-plan/care-plan-draft-storage'
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
 import { useInitialAssessmentAnswers } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import { Badge } from '@/shared/ui/badge'
@@ -359,7 +360,7 @@ export function CarePlanConsentCapacitySection({
       onChange(setConsentRecords(values, next))
     } else {
       const row: CarePlanConsentRecord = {
-        id: crypto.randomUUID(),
+        id: createClientUuid(),
         categoryId: form.categoryId,
         reason,
         dateCreated,

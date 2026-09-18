@@ -1,4 +1,20 @@
-﻿import * as React from 'react'
+﻿import type { LucideIcon } from 'lucide-react'
+import {
+  Award,
+  Banknote,
+  Briefcase,
+  CalendarClock,
+  CalendarDays,
+  ClipboardCheck,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  LayoutGrid,
+  ShieldCheck,
+  Star,
+  UserCircle,
+  Wallet,
+} from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 
 export type EditEmployeeTabId =
@@ -17,21 +33,26 @@ export type EditEmployeeTabId =
   | 'employment-compliance'
   | 'learning'
 
-export const EDIT_EMPLOYEE_TABS: { id: EditEmployeeTabId; label: string }[] = [
-  { id: 'personal', label: 'Personal Details' },
-  { id: 'employment', label: 'Employment' },
-  { id: 'pay-card', label: 'Pay card' },
-  { id: 'earning', label: 'Earning' },
-  { id: 'visits', label: 'Visits' },
-  { id: 'salary', label: 'Salary' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'staff-reviews', label: 'Staff Reviews' },
-  { id: 'documents', label: 'Documents' },
-  { id: 'non-core-activity', label: 'Non Core Activities' },
-  { id: 'holidays', label: 'Holidays & Leave' },
-  { id: 'working-pattern', label: 'Working Pattern' },
-  { id: 'employment-compliance', label: 'Employment Compliance' },
-  { id: 'learning', label: 'Learning' },
+export const EDIT_EMPLOYEE_TABS: {
+  id: EditEmployeeTabId
+  label: string
+  Icon: LucideIcon
+  iconClassName: string
+}[] = [
+  { id: 'personal', label: 'Personal Details', Icon: UserCircle, iconClassName: 'text-sky-600 dark:text-sky-400' },
+  { id: 'employment', label: 'Employment', Icon: Briefcase, iconClassName: 'text-indigo-600 dark:text-indigo-400' },
+  { id: 'pay-card', label: 'Pay card', Icon: CreditCard, iconClassName: 'text-violet-600 dark:text-violet-400' },
+  { id: 'earning', label: 'Earning', Icon: Wallet, iconClassName: 'text-emerald-600 dark:text-emerald-400' },
+  { id: 'visits', label: 'Visits', Icon: ClipboardCheck, iconClassName: 'text-cyan-600 dark:text-cyan-400' },
+  { id: 'salary', label: 'Salary', Icon: Banknote, iconClassName: 'text-lime-700 dark:text-lime-400' },
+  { id: 'skills', label: 'Skills', Icon: Award, iconClassName: 'text-amber-600 dark:text-amber-400' },
+  { id: 'staff-reviews', label: 'Staff Reviews', Icon: Star, iconClassName: 'text-yellow-600 dark:text-yellow-400' },
+  { id: 'documents', label: 'Documents', Icon: FileText, iconClassName: 'text-slate-600 dark:text-slate-300' },
+  { id: 'non-core-activity', label: 'Non Core Activities', Icon: LayoutGrid, iconClassName: 'text-fuchsia-600 dark:text-fuchsia-400' },
+  { id: 'holidays', label: 'Holidays & Leave', Icon: CalendarDays, iconClassName: 'text-rose-600 dark:text-rose-400' },
+  { id: 'working-pattern', label: 'Working Pattern', Icon: CalendarClock, iconClassName: 'text-teal-600 dark:text-teal-400' },
+  { id: 'employment-compliance', label: 'Employment Compliance', Icon: ShieldCheck, iconClassName: 'text-orange-600 dark:text-orange-400' },
+  { id: 'learning', label: 'Learning', Icon: GraduationCap, iconClassName: 'text-blue-600 dark:text-blue-400' },
 ]
 
 const EDIT_EMPLOYEE_TAB_IDS = new Set(EDIT_EMPLOYEE_TABS.map(t => t.id))
@@ -61,6 +82,7 @@ export function EditEmployeeTabBar({
       <div className="flex gap-1 overflow-x-auto p-2 md:flex-col md:overflow-x-visible md:overflow-y-auto md:p-2">
         {EDIT_EMPLOYEE_TABS.map(tab => {
           const isActive = tab.id === activeTab
+          const Icon = tab.Icon
           return (
             <button
               key={tab.id}
@@ -70,13 +92,14 @@ export function EditEmployeeTabBar({
               data-testid={`employee-edit-tab-${tab.id}`}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                'shrink-0 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors whitespace-nowrap md:w-full md:whitespace-normal',
+                'inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors whitespace-nowrap md:w-full md:whitespace-normal',
                 isActive
                   ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
                   : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
               )}
             >
-              {tab.label}
+              <Icon className={cn('h-4 w-4 shrink-0', tab.iconClassName)} aria-hidden />
+              <span className="min-w-0">{tab.label}</span>
             </button>
           )
         })}

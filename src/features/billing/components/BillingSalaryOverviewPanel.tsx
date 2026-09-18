@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   Loader2,
   PoundSterling,
@@ -31,8 +32,7 @@ import { StatCard, type StatCardTone } from '@/shared/ui/card'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { getSyncedOperationalTimeZone, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import {
   currentOpsMonth,
   currentOpsWeek,
@@ -58,8 +58,6 @@ export function BillingSalaryOverviewPanel() {
 
   const { data: generalSettings } = useGeneralSettings(canRead)
   const { formatDate, formatTime } = useOrganisationDisplayFormat()
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const basis: SalaryCalculationBasis =
     generalSettings?.salaryCalculationBasis === 'WEEKLY' ? 'WEEKLY' : 'MONTHLY'
   const isWeekly = basis === 'WEEKLY'
@@ -132,6 +130,18 @@ export function BillingSalaryOverviewPanel() {
       },
     )
   }, [filtered])
+
+  // Headline payout summary: how many employees have been paid (UK net disbursed
+  // via a PAID payout batch) versus still awaiting payment this period.
+  const paidEmployeeCount = React.useMemo(
+    () => filtered.filter(r => (r.paidOutAmountValue ?? 0) > 0).length,
+    [filtered],
+  )
+  const remainingEmployeeCount = filtered.length - paidEmployeeCount
+  const pendingReviewTotal = React.useMemo(
+    () => filtered.reduce((acc, r) => acc + (r.pendingReviewCount ?? 0), 0),
+    [filtered],
+  )
 
   const money = (n: number) =>
     `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -232,13 +242,6 @@ export function BillingSalaryOverviewPanel() {
         >
           This {periodNoun}
         </Button>
-        <span
-          className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
-          title="Salary period and timestamps use the organisation operational timezone"
-          data-testid="billing-salary-timezone-hint"
-        >
-          Times in {timezoneHint}
-        </span>
         <div className="relative ml-auto min-w-[14rem] flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -255,25 +258,39 @@ export function BillingSalaryOverviewPanel() {
         {(
           [
             {
-              title: 'Employees',
+              title: 'Total employees',
               value: String(filtered.length),
               hint: `With activity this ${periodNoun}`,
               icon: <Users className="h-4 w-4" aria-hidden />,
               tone: 'violet',
             },
             {
-              title: 'Visit pay',
-              value: money(totals.visitPay),
-              hint: 'Accepted visits',
-              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              title: 'Salary paid',
+              value: String(paidEmployeeCount),
+              hint: 'Employees bank-paid',
+              icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
+              tone: 'emerald',
+            },
+            {
+              title: 'Remaining',
+              value: String(remainingEmployeeCount),
+              hint: 'Employees not yet paid',
+              icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
+              tone: 'amber',
+            },
+            {
+              title: 'Amount paid',
+              value: money(totals.bankPaid),
+              hint: 'UK net disbursed (PAID)',
+              icon: <Banknote className="h-4 w-4" aria-hidden />,
               tone: 'sky',
             },
             {
-              title: 'In visit-pay run',
-              value: money(totals.inVisitPayRun),
-              hint: 'Locked / exported run',
-              icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
-              tone: 'emerald',
+              title: 'Amount remaining',
+              value: hasEligibleUkRun ? money(totals.outstanding) : '—',
+              hint: hasEligibleUkRun ? 'UK net still to pay' : 'UK run required',
+              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              tone: 'rose',
             },
             {
               title: 'Rejected',
@@ -290,36 +307,11 @@ export function BillingSalaryOverviewPanel() {
               tone: 'amber',
             },
             {
-              title: 'Net salary',
-              value: money(totals.net),
-              hint: 'Visit pay − deductions (not bank)',
-              icon: <Wallet className="h-4 w-4" aria-hidden />,
-              tone: 'emerald',
-            },
-            {
-              title: 'UK net',
-              value: hasEligibleUkRun ? money(totals.ukNet) : '—',
-              hint: hasEligibleUkRun
-                ? 'After W1/M1 PAYE/NI'
-                : 'Statutory UK run required',
-              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
-              tone: 'violet',
-            },
-            {
-              title: 'Bank paid',
-              value: money(totals.bankPaid),
-              hint: 'UK net disbursed (PAID batches)',
-              icon: <Banknote className="h-4 w-4" aria-hidden />,
+              title: 'Pending review',
+              value: String(pendingReviewTotal),
+              hint: 'Visits awaiting review',
+              icon: <Clock className="h-4 w-4" aria-hidden />,
               tone: 'sky',
-            },
-            {
-              title: 'Outstanding to pay',
-              value: hasEligibleUkRun ? money(totals.outstanding) : '—',
-              hint: hasEligibleUkRun
-                ? 'UK net − committed payouts'
-                : 'UK run required',
-              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
-              tone: 'amber',
             },
           ] as const
         ).map(card => (

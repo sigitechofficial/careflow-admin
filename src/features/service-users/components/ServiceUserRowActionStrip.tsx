@@ -23,6 +23,8 @@ export const SERVICE_USER_ROW_ACTION_LINKS = {
   medication: { to: '/service-users/$serviceUserId/medication' as const },
   flashFallback: { to: '/service-users/$serviceUserId/view' as const, search: { focus: 'flash' } },
   absence: { to: '/service-users/$serviceUserId' as const, search: { tab: 'absences' } },
+  careSummaryReport: { to: '/service-users/$serviceUserId/view' as const },
+  detailedCareReport: { to: '/service-users/$serviceUserId/activity' as const },
   observationsReport: { to: '/service-users/$serviceUserId/observations' as const },
   assessmentReport: { to: '/service-users/initial-assessment' as const },
   carePlanReport: { to: '/service-users/$serviceUserId/care-plan' as const },
@@ -269,28 +271,25 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
 
       <span className="mx-1 hidden h-7 w-px shrink-0 bg-border/80 sm:inline-block" aria-hidden />
 
-      <ReportCircleLink to="/in-progress" reportId="CS" title="Care summary" />
-      <ReportCircleLink to="/in-progress" reportId="D" title="Detailed Care report" />
+      <ReportCircleLink
+        to={SERVICE_USER_ROW_ACTION_LINKS.careSummaryReport.to}
+        params={params}
+        reportId="CS"
+        title="Care summary"
+      />
+      <ReportCircleLink
+        to={SERVICE_USER_ROW_ACTION_LINKS.detailedCareReport.to}
+        params={params}
+        reportId="D"
+        title="Detailed Care report"
+      />
       <ReportCircleLink
         to={SERVICE_USER_ROW_ACTION_LINKS.observationsReport.to}
         params={params}
         reportId="O"
         title="Observation Report"
       />
-      <ReportCircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.assessmentReport.to}
-        params={params}
-        search={{ serviceUserId: id }}
-        reportId="A"
-        title="Assessment report"
-      />
-      <ReportCircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.carePlanReport.to}
-        params={params}
-        reportId="C"
-        title="Care plan report"
-      />
-      <ReportCircleLink to="/in-progress" reportId="H" title="House pack history" />
+      {/* Hidden for now: Assessment report, Care plan report, House pack history */}
     </div>
   )
 }

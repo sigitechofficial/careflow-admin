@@ -264,6 +264,17 @@ export function formatDurationLabel(minutes: number): string {
 }
 
 export function jobDurationMinutes(job: Pick<TimelineJob, 'scheduledStartDateTime' | 'scheduledEndDateTime' | 'durationMinutes'>): number {
+  // Prefer the real scheduled window when an end exists — the stored durationMinutes
+  // can drift from scheduledEndDateTime (e.g. after a reschedule), which made a
+  // 17:00–20:00 visit read as 120 min. Matches jobEndMinutes / block geometry.
+  if (job.scheduledEndDateTime) {
+    const mins = Math.round(
+      (new Date(job.scheduledEndDateTime).getTime() -
+        new Date(job.scheduledStartDateTime).getTime()) /
+        60_000,
+    )
+    if (mins > 0) return mins
+  }
   if (typeof job.durationMinutes === 'number' && job.durationMinutes > 0) return job.durationMinutes
   const { startMin, endMin } = jobBlockPosition(job)
   return Math.max(endMin - startMin, 1)

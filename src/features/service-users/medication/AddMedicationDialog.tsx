@@ -53,6 +53,7 @@ const HOW_ASSISTED_OPTIONS = [
   'Not applicable',
 ] as const
 
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 import { MedicationTimeSlotRow } from '@/features/service-users/medication/MedicationTimeSlotRow'
 import {
   matchRoundIdByTime,
@@ -78,7 +79,7 @@ export type BlisterPackItemDraft = {
 }
 
 function newPackItem(): BlisterPackItemDraft {
-  return { id: crypto.randomUUID(), medicationName: '', strength: '' }
+  return { id: createClientUuid(), medicationName: '', strength: '' }
 }
 
 function optionalId(v: string): string | undefined {

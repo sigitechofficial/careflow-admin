@@ -26,6 +26,7 @@ import type {
   PayrollTaxYear,
   UkPayrollRun,
   UkPayrollRunDetail,
+  UkPayrollPayslipListItem,
   CareFpsPayload,
 } from '@/features/payroll/types/payroll.types'
 import type { HmrcFraudClientContext } from '@/features/payroll/utils/hmrc-fraud-client-context.util'
@@ -427,6 +428,81 @@ export async function downloadUkPayrollRunFpsExcel(runId: string): Promise<Blob>
     throw new Error(message)
   }
   return res.blob()
+}
+
+/** ERA 1996 itemised pay statement PDF for one CLOSED-run employee. */
+export async function downloadUkPayrollRunEmployeePayslip(
+  runId: string,
+  runEmployeeId: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const { getApiBaseUrl } = await import('@/shared/lib/api-base')
+  const { useAuthStore } = await import('@/features/auth/store')
+  const base = getApiBaseUrl()
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetch(
+    `${base}/payroll/runs/${runId}/employees/${runEmployeeId}/payslip`,
+    { method: 'GET', headers },
+  )
+  if (!res.ok) {
+    const text = await res.text()
+    let message = text || `Payslip download failed (${res.status})`
+    try {
+      const json = JSON.parse(text) as { message?: string; errors?: string[] }
+      if (json.errors?.length) message = json.errors.join('; ')
+      else if (json.message) message = json.message
+    } catch {
+      /* plain text */
+    }
+    throw new Error(message)
+  }
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = /filename="([^"]+)"/i.exec(disposition)
+  const filename = match?.[1] ?? `payslip-${runEmployeeId.slice(0, 8)}.pdf`
+  return { blob: await res.blob(), filename }
+}
+
+export async function fetchUkPayrollPayslips(locationId?: string) {
+  const qs = new URLSearchParams()
+  if (locationId) qs.set('locationId', locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<UkPayrollPayslipListItem[]>>(
+    `/payroll/payslips${suffix}`,
+  )
+  return res.data
+}
+
+/** Payslips tab download (by run-employee id). */
+export async function downloadUkPayrollPayslipPdf(
+  runEmployeeId: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const { getApiBaseUrl } = await import('@/shared/lib/api-base')
+  const { useAuthStore } = await import('@/features/auth/store')
+  const base = getApiBaseUrl()
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetch(`${base}/payroll/payslips/${runEmployeeId}/pdf`, {
+    method: 'GET',
+    headers,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let message = text || `Payslip download failed (${res.status})`
+    try {
+      const json = JSON.parse(text) as { message?: string; errors?: string[] }
+      if (json.errors?.length) message = json.errors.join('; ')
+      else if (json.message) message = json.message
+    } catch {
+      /* plain text */
+    }
+    throw new Error(message)
+  }
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = /filename="([^"]+)"/i.exec(disposition)
+  const filename = match?.[1] ?? `payslip-${runEmployeeId.slice(0, 8)}.pdf`
+  return { blob: await res.blob(), filename }
 }
 
 export async function fetchUkPayrollRunHmrcSubmissions(id: string) {

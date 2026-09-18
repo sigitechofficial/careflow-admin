@@ -534,6 +534,13 @@ const navItems: NavItem[] = [
         navTestId: 'nav-payroll-runs',
       },
       {
+        label: 'Payslips',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/payroll/payslips',
+        permission: 'payroll.runs.read',
+        navTestId: 'nav-payroll-payslips',
+      },
+      {
         label: 'Taxes',
         icon: <Receipt className="h-4 w-4" />,
         href: '/payroll/taxes',

@@ -11,7 +11,6 @@ import {
   formatPeriodDayShort,
   presetOptionLabel,
 } from '@/features/ecm/utils/ecm-operational-period.util'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import {
   formatOperationalDayLabel,
   getSyncedOperationalTimeZone,
@@ -90,22 +89,14 @@ export function EcmOperationalPeriodCard({
     return locationOptions.find((o) => o.id === locationId)?.label ?? 'Location'
   }, [locationId, locationOptions])
   const resolvedTimezone = operationalTimezone?.trim() || getSyncedOperationalTimeZone()
-  const timezoneHint = `${resolvedTimezone} (${formatTimezoneUtcOffset(resolvedTimezone)})`
 
   return (
     <ContentCard className="p-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
         <label className="space-y-1 text-xs">
-          <span className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
             Operational period
-            <span
-              className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-normal"
-              title="Period presets, Today, and visit times use the organisation operational timezone"
-              data-testid={`${testIdPrefix}-timezone-hint`}
-            >
-              Times in {timezoneHint}
-            </span>
           </span>
           <select
             className="flex h-9 w-[12.5rem] rounded-md border border-input bg-background px-2 text-sm"
@@ -131,7 +122,7 @@ export function EcmOperationalPeriodCard({
         {hideLocation ? null : (
           <label className="space-y-1 text-xs">
             <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" aria-hidden />
+              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Location
               {locationFilterDisabled ? (
                 <span className="font-normal text-[10px]">
@@ -191,11 +182,14 @@ export function EcmOperationalPeriodCard({
             </label>
           </>
         ) : (
-          <p className="pb-2 text-xs text-muted-foreground tabular-nums">
-            {dateFrom === dateTo
-              ? periodLabel
-              : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`}
-          </p>
+          <div className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Range</span>
+            <p className="flex h-9 items-center text-xs tabular-nums text-muted-foreground">
+              {dateFrom === dateTo
+                ? periodLabel
+                : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`}
+            </p>
+          </div>
         )}
 
         {children}

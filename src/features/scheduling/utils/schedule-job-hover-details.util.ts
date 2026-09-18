@@ -68,6 +68,8 @@ export function resolveVisitPlanSlotForJob(
 
 export function jobRotaTimeRange(job: TimelineJob): JobTimeRange {
   const start = isoToLocalTimeInput(job.scheduledStartDateTime)
+  // jobDurationMinutes prefers the scheduled window when an end exists, so start,
+  // end, and duration all stay consistent (no "17:00–20:00 = 2 hours" mismatch).
   const durationMinutes = jobDurationMinutes(job)
   const end = job.scheduledEndDateTime
     ? isoToLocalTimeInput(job.scheduledEndDateTime)

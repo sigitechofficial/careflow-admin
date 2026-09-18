@@ -1,5 +1,33 @@
-import * as React from 'react'
-import { Settings } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  Award,
+  BadgeCheck,
+  Briefcase,
+  CheckSquare,
+  Clock,
+  FileCheck,
+  FileWarning,
+  Globe,
+  GraduationCap,
+  HeartPulse,
+  Languages,
+  LayoutList,
+  ListChecks,
+  LogOut,
+  MapPin,
+  Pill,
+  Scale,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  Siren,
+  Stethoscope,
+  Timer,
+  UserCheck,
+  Users,
+} from 'lucide-react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
@@ -60,39 +88,39 @@ export type SettingsTabId =
   | 'ecm-thresholds'
   | 'emergency-protocols'
 
-const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
-  { id: 'job-titles', label: 'Job titles' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'compliance', label: 'Compliance documents' },
-  { id: 'compliance-requirements', label: 'Compliance requirements' },
-  { id: 'work-areas', label: 'Work areas' },
-  { id: 'contract-types', label: 'Contract types' },
-  { id: 'immigration-statuses', label: 'Immigration statuses' },
-  { id: 'grades', label: 'Grades' },
-  { id: 'certifications', label: 'Certifications' },
-  { id: 'non-core', label: 'Non-core activities' },
-  { id: 'leaving-reasons', label: 'Leaving reasons' },
-  { id: 'visit-status-reasons', label: 'Visit status reasons' },
-  { id: 'review-types', label: 'Review types' },
-  { id: 'travel-payment', label: 'Travel payment' },
-  { id: 'medication', label: 'Medication (MAR)' },
-  { id: 'time-slots', label: 'Time slots' },
-  { id: 'tasks-planner', label: 'Tasks planner' },
-  { id: 'care-types', label: 'Care types' },
-  { id: 'funding-types', label: 'Funding types' },
-  { id: 'ethnicities', label: 'Ethnicities' },
-  { id: 'languages', label: 'Languages' },
-  { id: 'record-types', label: 'Record types' },
-  { id: 'allergies', label: 'Allergies' },
-  { id: 'vital-ranges', label: 'Accepted ranges' },
-  { id: 'welfare-outcomes', label: 'On-entry welfare outcomes' },
-  { id: 'clock-in-arrival-reasons', label: 'Clock-in arrival reasons' },
-  { id: 'manual-authorisation-reasons', label: 'Manual authorisation reasons' },
-  { id: 'left-area-allow-reasons', label: 'Left-area allow reasons' },
-  { id: 'clock-out-end-reasons', label: 'Clock-out end reasons' },
-  { id: 'outcome-reasons', label: 'Outcome reasons' },
-  { id: 'ecm-thresholds', label: 'ECM thresholds' },
-  { id: 'emergency-protocols', label: 'Emergency protocols' },
+const SETTINGS_TABS: { id: SettingsTabId; label: string; Icon: LucideIcon }[] = [
+  { id: 'job-titles', label: 'Job titles', Icon: Briefcase },
+  { id: 'skills', label: 'Skills', Icon: Award },
+  { id: 'compliance', label: 'Compliance documents', Icon: FileCheck },
+  { id: 'compliance-requirements', label: 'Compliance requirements', Icon: ShieldCheck },
+  { id: 'work-areas', label: 'Work areas', Icon: MapPin },
+  { id: 'contract-types', label: 'Contract types', Icon: FileWarning },
+  { id: 'immigration-statuses', label: 'Immigration statuses', Icon: Globe },
+  { id: 'grades', label: 'Grades', Icon: BadgeCheck },
+  { id: 'certifications', label: 'Certifications', Icon: GraduationCap },
+  { id: 'non-core', label: 'Non-core activities', Icon: LayoutList },
+  { id: 'leaving-reasons', label: 'Leaving reasons', Icon: LogOut },
+  { id: 'visit-status-reasons', label: 'Visit status reasons', Icon: ListChecks },
+  { id: 'review-types', label: 'Review types', Icon: UserCheck },
+  { id: 'travel-payment', label: 'Travel payment', Icon: Activity },
+  { id: 'medication', label: 'Medication (MAR)', Icon: Pill },
+  { id: 'time-slots', label: 'Time slots', Icon: Clock },
+  { id: 'tasks-planner', label: 'Tasks planner', Icon: CheckSquare },
+  { id: 'care-types', label: 'Care types', Icon: HeartPulse },
+  { id: 'funding-types', label: 'Funding types', Icon: Scale },
+  { id: 'ethnicities', label: 'Ethnicities', Icon: Users },
+  { id: 'languages', label: 'Languages', Icon: Languages },
+  { id: 'record-types', label: 'Record types', Icon: Stethoscope },
+  { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
+  { id: 'vital-ranges', label: 'Accepted ranges', Icon: Timer },
+  { id: 'welfare-outcomes', label: 'On-entry welfare outcomes', Icon: ShieldAlert },
+  { id: 'clock-in-arrival-reasons', label: 'Clock-in arrival reasons', Icon: Clock },
+  { id: 'manual-authorisation-reasons', label: 'Manual authorisation reasons', Icon: BadgeCheck },
+  { id: 'left-area-allow-reasons', label: 'Left-area allow reasons', Icon: MapPin },
+  { id: 'clock-out-end-reasons', label: 'Clock-out end reasons', Icon: LogOut },
+  { id: 'outcome-reasons', label: 'Outcome reasons', Icon: ListChecks },
+  { id: 'ecm-thresholds', label: 'ECM thresholds', Icon: Timer },
+  { id: 'emergency-protocols', label: 'Emergency protocols', Icon: Siren },
 ]
 
 export default function SettingsPage() {
@@ -133,6 +161,7 @@ export default function SettingsPage() {
         >
           {SETTINGS_TABS.map(tab => {
             const isActive = tab.id === activeTab
+            const Icon = tab.Icon
             return (
               <button
                 key={tab.id}
@@ -142,13 +171,20 @@ export default function SettingsPage() {
                 data-testid={`settings-tab-${tab.id}`}
                 onClick={() => setTab(tab.id)}
                 className={cn(
-                  'shrink-0 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
+                  'inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
                   isActive
                     ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
                     : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
                 )}
               >
-                {tab.label}
+                <Icon
+                  className={cn(
+                    'h-4 w-4 shrink-0',
+                    isActive ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                  aria-hidden
+                />
+                <span className="min-w-0">{tab.label}</span>
               </button>
             )
           })}

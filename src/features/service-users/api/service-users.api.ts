@@ -105,6 +105,10 @@ export type ListServiceUsersParams = {
   /** Branch / location scope (singular). */
   locationId?: string
   riskLevelId?: string
+  careTypeId?: string
+  fundingTypeId?: string
+  serviceStartDateFrom?: string
+  serviceStartDateTo?: string
   ageMin?: number
   ageMax?: number
   hasActiveFlashMessage?: boolean
@@ -1787,6 +1791,10 @@ export async function listServiceUsers(
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
   if (params.locationId) qs.set('locationId', params.locationId)
   if (params.riskLevelId) qs.set('riskLevelId', params.riskLevelId)
+  if (params.careTypeId) qs.set('careTypeId', params.careTypeId)
+  if (params.fundingTypeId) qs.set('fundingTypeId', params.fundingTypeId)
+  if (params.serviceStartDateFrom) qs.set('serviceStartDateFrom', params.serviceStartDateFrom)
+  if (params.serviceStartDateTo) qs.set('serviceStartDateTo', params.serviceStartDateTo)
   if (params.ageMin != null) qs.set('ageMin', String(params.ageMin))
   if (params.ageMax != null) qs.set('ageMax', String(params.ageMax))
   if (params.hasActiveFlashMessage === true) qs.set('hasActiveFlashMessage', 'true')

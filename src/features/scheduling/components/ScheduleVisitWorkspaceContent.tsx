@@ -24,8 +24,7 @@ import {
   formatOrganisationIsoDate,
   formatOrganisationIsoTime,
 } from '@/shared/lib/organisation-display-format.store'
-import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
-import { formatOpsClockTime, getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatOpsClockTime } from '@/shared/lib/operational-day.util'
 import { BodyMapHandoverPreview } from '@/features/service-users/body-map/components/BodyMapHandoverPreview'
 import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
@@ -454,8 +453,9 @@ export function ScheduleVisitWorkspaceContent({
   const clockOutLabel = liveJob.actualEndDateTime
     ? formatOrganisationIsoTime(liveJob.actualEndDateTime)
     : null
-  const operationalTimezone = getSyncedOperationalTimeZone()
-  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
+  // On the full-page hub, cards use a solid card surface (white in light mode) to
+  // match the details sidebar; the drawer keeps the subtle muted fill.
+  const cardSurface = layout === 'hub' ? 'bg-card' : 'bg-muted/20'
 
   return (
     <div
@@ -490,15 +490,6 @@ export function ScheduleVisitWorkspaceContent({
 
       {tab === 'overview' ? (
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
-          {layout === 'hub' ? (
-            <span
-              className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-              title="Visit times, clock in/out, and log timestamps use the organisation operational timezone"
-              data-testid="visit-workspace-timezone-hint"
-            >
-              Times in {timezoneHint}
-            </span>
-          ) : null}
           {visitSos.length > 0 ? (
             <VisitWorkspaceSosAlerts
               alerts={visitSos}
@@ -507,7 +498,7 @@ export function ScheduleVisitWorkspaceContent({
               ackSummary={visitSosAck}
             />
           ) : null}
-          <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+          <section className={cn('rounded-lg border border-border px-4 py-3', cardSurface)}>
             <p className="text-base font-semibold text-foreground">{serviceUserLabel(job.serviceUser)}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {visitSlot ? `${visitSlot} · ` : ''}
@@ -613,6 +604,7 @@ export function ScheduleVisitWorkspaceContent({
             jobId={job.id}
             consents={careConsentQuery.data?.consents ?? []}
             loading={careConsentQuery.isLoading}
+            className={cardSurface}
           />
 
           <VisitDeliveryStatusPanel
@@ -620,6 +612,7 @@ export function ScheduleVisitWorkspaceContent({
             timingException={job.timingException}
             careNotDelivered={job.careNotDelivered}
             cancellation={job.cancellation}
+            className={cardSurface}
           />
 
           <section>

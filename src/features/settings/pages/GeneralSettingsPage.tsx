@@ -1,5 +1,19 @@
-﻿import * as React from 'react'
-import { Settings } from 'lucide-react'
+﻿import type { LucideIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Bell,
+  ClipboardList,
+  Home,
+  Info,
+  ListChecks,
+  Scale,
+  Settings,
+  Shield,
+  Smartphone,
+  SlidersHorizontal,
+  Users,
+  Workflow,
+} from 'lucide-react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { cn } from '@/shared/lib/utils'
@@ -32,20 +46,20 @@ export type GeneralSettingsTabId =
   | 'app-setting'
   | 'privacy'
 
-const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'employee', label: 'Employee Settings' },
-  { id: 'service-management', label: 'Service Management' },
-  { id: 'dom-care', label: 'Dom Care Settings' },
-  { id: 'dom-care-shifts', label: 'Dom Care Shifts & Allocation' },
-  { id: 'dom-rules', label: 'Dom Rules' },
-  { id: 'incident-management', label: 'Incident Management' },
-  { id: 'optional', label: 'Optional Settings' },
-  { id: 'pre-assessment', label: 'Pre Assessment' },
-  { id: 'alerts', label: 'Alerts' },
-  { id: 'critical-information', label: 'Critical Information' },
-  { id: 'app-setting', label: 'App Setting' },
-  { id: 'privacy', label: 'Privacy' },
+const GENERAL_SETTINGS_TABS: { id: GeneralSettingsTabId; label: string; Icon: LucideIcon }[] = [
+  { id: 'general', label: 'General', Icon: Settings },
+  { id: 'employee', label: 'Employee Settings', Icon: Users },
+  { id: 'service-management', label: 'Service Management', Icon: Workflow },
+  { id: 'dom-care', label: 'Dom Care Settings', Icon: Home },
+  { id: 'dom-care-shifts', label: 'Dom Care Shifts & Allocation', Icon: ListChecks },
+  { id: 'dom-rules', label: 'Dom Rules', Icon: Scale },
+  { id: 'incident-management', label: 'Incident Management', Icon: AlertTriangle },
+  { id: 'optional', label: 'Optional Settings', Icon: SlidersHorizontal },
+  { id: 'pre-assessment', label: 'Pre Assessment', Icon: ClipboardList },
+  { id: 'alerts', label: 'Alerts', Icon: Bell },
+  { id: 'critical-information', label: 'Critical Information', Icon: Info },
+  { id: 'app-setting', label: 'App Setting', Icon: Smartphone },
+  { id: 'privacy', label: 'Privacy', Icon: Shield },
 ]
 
 export default function GeneralSettingsPage() {
@@ -87,6 +101,7 @@ export default function GeneralSettingsPage() {
         >
           {GENERAL_SETTINGS_TABS.map(tab => {
             const isActive = tab.id === activeTab
+            const Icon = tab.Icon
             return (
               <button
                 key={tab.id}
@@ -96,13 +111,20 @@ export default function GeneralSettingsPage() {
                 data-testid={`general-settings-tab-${tab.id}`}
                 onClick={() => setTab(tab.id)}
                 className={cn(
-                  'shrink-0 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
+                  'inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors md:w-full',
                   isActive
                     ? 'bg-card text-foreground shadow-sm ring-1 ring-border md:border-l-2 md:border-l-primary md:pl-[10px] md:ring-0'
                     : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
                 )}
               >
-                {tab.label}
+                <Icon
+                  className={cn(
+                    'h-4 w-4 shrink-0',
+                    isActive ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                  aria-hidden
+                />
+                <span className="min-w-0">{tab.label}</span>
               </button>
             )
           })}
