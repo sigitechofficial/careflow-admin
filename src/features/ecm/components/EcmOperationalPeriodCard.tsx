@@ -11,7 +11,10 @@ import {
   formatPeriodDayShort,
   presetOptionLabel,
 } from '@/features/ecm/utils/ecm-operational-period.util'
-import { formatOperationalDayLabel } from '@/shared/lib/operational-day.util'
+import {
+  formatOperationalDayLabel,
+  getSyncedOperationalTimeZone,
+} from '@/shared/lib/operational-day.util'
 
 const PERIOD_PRESETS: EcmOperationalPeriodPreset[] = [
   'today',
@@ -85,13 +88,14 @@ export function EcmOperationalPeriodCard({
     if (!locationId) return 'All locations'
     return locationOptions.find((o) => o.id === locationId)?.label ?? 'Location'
   }, [locationId, locationOptions])
+  const resolvedTimezone = operationalTimezone?.trim() || getSyncedOperationalTimeZone()
 
   return (
     <ContentCard className="p-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
         <label className="space-y-1 text-xs">
           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+            <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
             Operational period
           </span>
           <select
@@ -118,7 +122,7 @@ export function EcmOperationalPeriodCard({
         {hideLocation ? null : (
           <label className="space-y-1 text-xs">
             <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" aria-hidden />
+              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Location
               {locationFilterDisabled ? (
                 <span className="font-normal text-[10px]">
@@ -178,18 +182,21 @@ export function EcmOperationalPeriodCard({
             </label>
           </>
         ) : (
-          <p className="pb-2 text-xs text-muted-foreground tabular-nums">
-            {dateFrom === dateTo
-              ? periodLabel
-              : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`}
-          </p>
+          <div className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Range</span>
+            <p className="flex h-9 items-center text-xs tabular-nums text-muted-foreground">
+              {dateFrom === dateTo
+                ? periodLabel
+                : `${formatPeriodDayShort(dateFrom)} – ${formatPeriodDayShort(dateTo)}`}
+            </p>
+          </div>
         )}
 
         {children}
       </div>
 
       <p className="mt-2 text-[11px] text-muted-foreground" data-testid={`${testIdPrefix}-ops-day-note`}>
-        {formatOperationalDayLabel(operationalToday, operationalTimezone)}
+        {formatOperationalDayLabel(operationalToday, resolvedTimezone)}
         {hideLocation ? null : (
           <>
             {' · '}

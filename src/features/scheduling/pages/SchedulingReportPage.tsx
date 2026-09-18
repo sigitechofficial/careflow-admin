@@ -4,10 +4,20 @@ import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { Button } from '@/shared/ui/button'
 import { useScheduleReport, useScheduleReportTypes } from '@/features/scheduling/hooks/useScheduling'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
-import { addDaysToOperationalIso } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import {
+  addDaysToOperationalIso,
+  getSyncedOperationalTimeZone,
+  operationalTodayIso,
+} from '@/shared/lib/operational-day.util'
 
 export default function SchedulingReportPage() {
   const hasApi = !!getApiBaseUrl()
+  const { formatDate } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
+
   const [selectedType, setSelectedType] = React.useState('')
   const [from, setFrom] = React.useState(() => addDaysToOperationalIso(todayIso(), -7))
   const [to, setTo] = React.useState(todayIso())
@@ -30,6 +40,13 @@ export default function SchedulingReportPage() {
     setGenerate(true)
   }
 
+  const setRangeToLastSevenDays = () => {
+    const today = operationalTodayIso()
+    setFrom(addDaysToOperationalIso(today, -7))
+    setTo(today)
+    setGenerate(false)
+  }
+
   const reportData = reportQuery.data?.data as Record<string, unknown> | undefined
   const rows =
     (reportData?.rows as unknown[] | undefined) ??
@@ -38,17 +55,27 @@ export default function SchedulingReportPage() {
     (reportData?.employees as unknown[] | undefined) ??
     []
 
+  const isToToday = to === operationalTodayIso()
+
   return (
     <div className="space-y-4">
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-sm font-semibold">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
               <Filter className="h-4 w-4 text-muted-foreground" />
               Scheduling Reports
+              <span
+                className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
+                title="Report date range and visit windows use the organisation operational timezone"
+                data-testid="scheduling-report-timezone-hint"
+              >
+                Times in {timezoneHint}
+              </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Generate JSON reports from the schedule API. Supported reports only.
+              Generate JSON reports from the schedule API. Date range uses organisation operational
+              calendar days ({timezoneHint}).
             </p>
           </div>
 
@@ -82,20 +109,35 @@ export default function SchedulingReportPage() {
               <label className="text-sm font-medium text-muted-foreground">
                 Date range <span className="text-destructive">*</span>
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="date"
                   value={from}
-                  onChange={e => setFrom(e.target.value)}
-                  className="h-10 flex-1 border border-border rounded-md px-3 text-sm bg-background"
+                  onChange={e => {
+                    setFrom(e.target.value)
+                    setGenerate(false)
+                  }}
+                  className="h-10 min-w-0 flex-1 border border-border rounded-md px-3 text-sm bg-background"
                 />
                 <span className="text-muted-foreground text-sm">to</span>
                 <input
                   type="date"
                   value={to}
-                  onChange={e => setTo(e.target.value)}
-                  className="h-10 flex-1 border border-border rounded-md px-3 text-sm bg-background"
+                  onChange={e => {
+                    setTo(e.target.value)
+                    setGenerate(false)
+                  }}
+                  className="h-10 min-w-0 flex-1 border border-border rounded-md px-3 text-sm bg-background"
                 />
+                <Button
+                  type="button"
+                  variant={isToToday ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="h-10 shrink-0"
+                  onClick={setRangeToLastSevenDays}
+                >
+                  Last 7 days
+                </Button>
               </div>
             </div>
 
@@ -117,8 +159,13 @@ export default function SchedulingReportPage() {
 
       {generate && (
         <div className="bg-card rounded-xl border border-border shadow-sm">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-semibold">{selected?.name ?? 'Report'}</h2>
+          <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">{selected?.name ?? 'Report'}</h2>
+              <p className="text-xs text-muted-foreground">
+                {formatDate(from)} → {formatDate(to)} · {timezoneHint}
+              </p>
+            </div>
             {reportQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
           <div className="p-5 space-y-4">

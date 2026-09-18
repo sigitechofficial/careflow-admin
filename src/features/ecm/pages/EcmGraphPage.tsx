@@ -22,6 +22,7 @@ export default function EcmGraphPage() {
     dateTo,
     periodLabel,
     operationalToday,
+    operationalTimezone,
     setPreset,
     setDateFrom,
     setDateTo,
@@ -42,7 +43,7 @@ export default function EcmGraphPage() {
       <PageHeader
         className="shrink-0"
         title="ECM graphs"
-        description="Exception trends and branch comparison first. Same operational period and location as Live and Reports — click a series to list visits."
+        description="Exception trends and branch comparison first. Same operational period and location as Live and Reports — visit times and period presets use the organisation operational timezone. Click a series to list visits."
         icon={<BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },
@@ -59,6 +60,7 @@ export default function EcmGraphPage() {
             dateTo={dateTo}
             periodLabel={periodLabel}
             operationalToday={operationalToday}
+            operationalTimezone={operationalTimezone}
             onPresetChange={setPreset}
             onApplyPreset={applyPreset}
             onDateFromChange={setDateFrom}

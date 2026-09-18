@@ -29,10 +29,13 @@ export function useInvoiceRunsSummary(locationId?: string | null) {
   })
 }
 
-export function useInvoiceRun(id: string | undefined) {
+export function useInvoiceRun(id: string | undefined, locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.invoiceRun(id ?? ''),
-    queryFn: () => fetchInvoiceRun(id!),
+    queryKey: billingKeys.invoiceRun(id ?? '', locationId),
+    queryFn: () =>
+      fetchInvoiceRun(id!, {
+        locationId: locationId ?? undefined,
+      }),
     enabled: Boolean(id),
   })
 }
@@ -45,10 +48,11 @@ export function useServiceUserInvoices(serviceUserId: string | undefined, enable
   })
 }
 
-export function useServiceUserInvoicesOverview(month?: string) {
+export function useServiceUserInvoicesOverview(month?: string, locationId?: string | null) {
   return useQuery({
-    queryKey: billingKeys.serviceUserInvoicesOverview(month),
-    queryFn: () => fetchServiceUserInvoicesOverview(month),
+    queryKey: billingKeys.serviceUserInvoicesOverview(month, locationId),
+    queryFn: () =>
+      fetchServiceUserInvoicesOverview(month, locationId ?? undefined),
   })
 }
 

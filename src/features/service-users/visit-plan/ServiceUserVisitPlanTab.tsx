@@ -1626,6 +1626,15 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                     onChange={(e) => setGenerateTo(e.target.value)}
                   />
                 </FormField>
+                <FormField label="Backfill days" className="w-28">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={14}
+                    value={backfillDays}
+                    onChange={(e) => setBackfillDays(Number(e.target.value) || 0)}
+                  />
+                </FormField>
                 <FormField label="Schedule area" className="min-w-[12rem]">
                   <Select
                     value={scheduleAreaId || '__none__'}

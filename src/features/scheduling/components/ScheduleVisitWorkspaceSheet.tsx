@@ -12,11 +12,16 @@ import {
   ScheduleVisitWorkspaceContent,
   type ScheduleVisitWorkspaceTab,
 } from '@/features/scheduling/components/ScheduleVisitWorkspaceContent'
-import { VisitRefDisplay } from '@/features/scheduling/components/VisitRefDisplay'
+import { ScheduleVisitRefResetRow } from '@/features/scheduling/components/ScheduleVisitResetDeliveryButton'
 import { getScheduledJob } from '@/features/scheduling/api/scheduling.api'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import { serviceUserLabel, formatJobTimeRange } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import {
+  formatOrganisationIsoDate,
+} from '@/shared/lib/organisation-display-format.store'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 type Props = {
   open: boolean
@@ -64,24 +69,35 @@ export function ScheduleVisitWorkspaceSheet({
 
   if (!job) return null
 
-  const visitRef = freshJobQuery.data?.visitRef ?? job.visitRef
-  const visitId =
-    freshJobQuery.data?.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
+  const liveJob = freshJobQuery.data ? { ...job, ...freshJobQuery.data } : job
+  const visitRef = liveJob.visitRef ?? job.visitRef
+  const visitId = liveJob.visits?.[0]?.id ?? job.visits?.[0]?.id ?? null
   const returnTo = `/scheduling/schedule-jobs?date=${encodeURIComponent(date)}`
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" size="xl" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-border px-6 py-4 text-left">
-          <SheetTitle>Visit workspace</SheetTitle>
+          <SheetTitle className="flex flex-wrap items-center gap-2">
+            Visit workspace
+            <span
+              className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
+              title="Visit times, clock in/out, and log timestamps use the organisation operational timezone"
+              data-testid="visit-workspace-timezone-hint"
+            >
+              Times in {timezoneHint}
+            </span>
+          </SheetTitle>
           <SheetDescription asChild>
             <div className="space-y-1.5 text-sm text-muted-foreground">
               <p>
                 {serviceUserLabel(job.serviceUser)}
                 {timelineJobVisitPlanSlot(job) ? ` · ${timelineJobVisitPlanSlot(job)}` : ''} ·{' '}
-                {formatJobTimeRange(job)}
+                {formatOrganisationIsoDate(date)} · {formatJobTimeRange(job)}
               </p>
-              <VisitRefDisplay visitRef={visitRef} visitId={visitId} showEmpty size="md" />
+              <ScheduleVisitRefResetRow job={liveJob} visitRef={visitRef} visitId={visitId} />
             </div>
           </SheetDescription>
         </SheetHeader>

@@ -12,6 +12,7 @@ export const ecmKeys = {
   visitDetail: (jobId: string) => [...ecmKeys.all, 'visit', jobId] as const,
   exceptions: (filters?: { limit?: number; serviceUserId?: string; locationId?: string }) =>
     [...ecmKeys.all, 'exceptions', filters ?? {}] as const,
+  visitSos: (jobId: string) => [...ecmKeys.all, 'visit-sos', jobId] as const,
   reasonCodes: () => [...ecmKeys.all, 'reason-codes'] as const,
   health: () => [...ecmKeys.all, 'health'] as const,
   dailyOps: (date?: string, scheduleAreaId?: string, locationId?: string) =>

@@ -5,6 +5,7 @@ import {
   LayoutList,
   Loader2,
   RefreshCw,
+  Clock,
   Route,
   UserRound,
   Users,
@@ -37,6 +38,12 @@ import {
   scheduleJobsRequiredCarersFiltersLabel,
   type ScheduleJobsRequiredCarersFilterValue,
 } from '@/features/scheduling/utils/schedule-jobs-required-carers-filter.util'
+import {
+  isScheduleJobsFilterAllOptionSelected,
+  normalizeScheduleJobsFilterChange,
+  SCHEDULE_JOBS_FILTER_ALL_VALUE,
+  withScheduleJobsFilterAllOption,
+} from '@/features/scheduling/utils/schedule-jobs-multi-filter.util'
 import {
   ROTA_GAP_DISPLAY_MODES,
   rotaGapDisplayModeLabel,
@@ -126,6 +133,9 @@ type Props = {
   carerOperationalFilters?: ScheduleCarerOperationalFilter[]
   carerOnLeaveTodayCount?: number
   onToggleCarerOperationalFilter?: (filter: ScheduleCarerOperationalFilter) => void
+  timeSensitiveFilter?: boolean
+  timeSensitiveCount?: number
+  onToggleTimeSensitiveFilter?: () => void
   operationalIssuesCount?: number
   layout: ScheduleJobsLayout
   onLayoutChange: (layout: ScheduleJobsLayout) => void
@@ -248,6 +258,9 @@ export function ScheduleJobsToolbar({
   carerOperationalFilters = [],
   carerOnLeaveTodayCount = 0,
   onToggleCarerOperationalFilter,
+  timeSensitiveFilter = false,
+  timeSensitiveCount = 0,
+  onToggleTimeSensitiveFilter,
   operationalIssuesCount = 0,
   layout,
   onLayoutChange,
@@ -259,11 +272,86 @@ export function ScheduleJobsToolbar({
   onRotaGapDisplayChange,
 }: Props) {
   const displayFormat = useScheduleJobsDisplayFormat()
+  const branchComboboxOptions = React.useMemo(
+    () =>
+      withScheduleJobsFilterAllOption(
+        allBranchesLabel,
+        branchFilterOptions.map((option) => ({ value: option.id, label: option.label })),
+      ),
+    [allBranchesLabel, branchFilterOptions],
+  )
+  const formatBranchTriggerOptions = React.useCallback(
+    (selected: Array<{ value: string; label: string }>) => {
+      if (selected.length <= 1) return selected
+      return [{ value: '__branch_summary__', label: `${selected.length} branches` }]
+    },
+    [],
+  )
+  const onRemoveBranchOption = React.useCallback(
+    (option: { value: string; label: string }, current: string[]) => {
+      if (option.value === '__branch_summary__' || option.value === SCHEDULE_JOBS_FILTER_ALL_VALUE) {
+        return []
+      }
+      return current.filter((id) => id !== option.value)
+    },
+    [],
+  )
+  const formatMultiTriggerSummary = React.useCallback(
+    (selected: Array<{ value: string; label: string }>, summaryLabel: string) => {
+      if (selected.length <= 1) return selected
+      return [{ value: '__summary__', label: `${selected.length} ${summaryLabel}` }]
+    },
+    [],
+  )
+  const onRemoveMultiSummary = React.useCallback(
+    (option: { value: string }, current: string[]) => {
+      if (option.value === '__summary__' || option.value === SCHEDULE_JOBS_FILTER_ALL_VALUE) return []
+      return current.filter((id) => id !== option.value)
+    },
+    [],
+  )
+  const serviceUserMultiOptions = React.useMemo(
+    () =>
+      withScheduleJobsFilterAllOption(
+        allServiceUsersLabel,
+        serviceUsers.map((su) => ({ value: su.id, label: su.label })),
+      ),
+    [allServiceUsersLabel, serviceUsers],
+  )
+  const requiredCarersMultiOptions = React.useMemo(
+    () =>
+      withScheduleJobsFilterAllOption(
+        allVisitsLabel,
+        requiredCarersOptions.map((option) => ({
+          value: option.value,
+          label: option.description ? `${option.label} (${option.description})` : option.label,
+        })),
+      ),
+    [allVisitsLabel, requiredCarersOptions],
+  )
+  const filterFieldClassName =
+    'flex min-h-11 items-center gap-3 rounded-lg border border-border bg-background px-3 py-2'
+  const filterLabelClassName =
+    'text-xs font-semibold uppercase tracking-wide text-muted-foreground shrink-0'
+  const filterComboboxClassName =
+    'h-10 min-w-[min(18rem,52vw)] border-0 bg-transparent px-1 text-sm shadow-none'
+
+  const activeBranchLabels =
+    locationIds.length > 0
+      ? branchFilterOptions
+          .filter((option) => locationIds.includes(option.id))
+          .map((option) => option.displayLabel)
+      : []
+  const activeServiceUserLabels =
+    serviceUserIds.length > 0
+      ? serviceUsers.filter((su) => serviceUserIds.includes(su.id)).map((su) => su.label)
+      : []
   const hasActiveFilters =
     locationIds.length > 0 ||
     serviceUserIds.length > 0 ||
     employeeIds.length > 0 ||
-    (layout === 'board' && requiredCarersFilters.length > 0)
+    (layout === 'board' && requiredCarersFilters.length > 0) ||
+    timeSensitiveFilter
 
   const accordionSummaryParts = [
     hasActiveFilters ? 'Filters active' : null,
@@ -344,6 +432,26 @@ export function ScheduleJobsToolbar({
                 By service user
               </Button>
             </div>
+          ) : null}
+
+          {onToggleTimeSensitiveFilter ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className={scheduleJobsToolbarToggleClass(
+                timeSensitiveFilter,
+                'h-8 gap-1.5 px-3 text-xs font-semibold shadow-sm ring-1 ring-border/80',
+              )}
+              onClick={onToggleTimeSensitiveFilter}
+              aria-pressed={timeSensitiveFilter}
+              data-testid="schedule-filter-time-critical"
+              title="Show only visits with a time-critical medicine or task. Combines with branch, service user, and carer filters."
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Time critical
+              <span className="tabular-nums opacity-80">({timeSensitiveCount})</span>
+            </Button>
           ) : null}
 
           {layout === 'board' && onShowRunsOnBoardChange ? (
@@ -616,6 +724,7 @@ export function ScheduleJobsToolbar({
                 layout === 'board' && requiredCarersFilters.length
                   ? `Carers required: ${scheduleJobsRequiredCarersFiltersLabel(requiredCarersFilters)}`
                   : null,
+                timeSensitiveFilter ? 'Time critical visits' : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}

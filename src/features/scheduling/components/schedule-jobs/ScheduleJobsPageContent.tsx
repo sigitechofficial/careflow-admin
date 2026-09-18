@@ -16,6 +16,7 @@ import { ScheduleJobsActiveFiltersBanner } from '@/features/scheduling/component
 import { ScheduleJobsBulkRotaHint } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsBulkRotaHint'
 import { ScheduleJobsCallPatternContractBanner } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsCallPatternContractBanner'
 import { ScheduleJobsPageHeaderCard } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsPageHeaderCard'
+import { ScheduleJobsLiveAlertsBanner } from '@/features/scheduling/components/schedule-jobs/ScheduleJobsLiveAlertsBanner'
 import { useScheduleRunEditDialog } from '@/features/scheduling/hooks/useScheduleRunEditDialog'
 import { useScheduleRunReassignDialog } from '@/features/scheduling/hooks/useScheduleRunReassignDialog'
 import { useScheduleJobsBoardPreferences } from '@/features/scheduling/hooks/useScheduleJobsBoardPreferences'
@@ -23,8 +24,13 @@ import { useScheduleJobsBoardData } from '@/features/scheduling/hooks/useSchedul
 import { useScheduleJobsPageActions } from '@/features/scheduling/hooks/useScheduleJobsPageActions'
 import { useScheduleJobsPageDialogs } from '@/features/scheduling/hooks/useScheduleJobsPageDialogs'
 import { useScheduleJobsUrlState } from '@/features/scheduling/hooks/useScheduleJobsUrlState'
+import { useScheduleJobsLiveOfficeAlerts } from '@/features/scheduling/hooks/useScheduleJobsLiveOfficeAlerts'
 import { jobScheduleDateIso, scheduleJobsRowKey } from '@/features/scheduling/utils/schedule-jobs-drag.util'
-import { scrollScheduleJobsBoardToRow } from '@/features/scheduling/utils/schedule-jobs-scroll.util'
+import {
+  scrollScheduleJobsBoardToJob,
+  scrollScheduleJobsBoardToRow,
+} from '@/features/scheduling/utils/schedule-jobs-scroll.util'
+import type { BoardLiveOfficeAlertKind } from '@/features/ecm/utils/ecm-urgent-alert.util'
 
 export function ScheduleJobsPageContent() {
   const hasApi = !!getApiBaseUrl()
@@ -42,6 +48,7 @@ export function ScheduleJobsPageContent() {
     jobOutcomeFilters: url.jobOutcomeFilters,
     jobOperationalFilters: url.jobOperationalFilters,
     carerOperationalFilters: url.carerOperationalFilters,
+    timeSensitiveFilter: url.timeSensitiveFilter,
     setServiceUserFilterIds: url.setServiceUserFilterIds,
     updateScheduleJobsUrl: url.updateScheduleJobsUrl,
   })
@@ -120,6 +127,19 @@ export function ScheduleJobsPageContent() {
     [url],
   )
 
+  const boardJobIds = React.useMemo(
+    () => new Set(board.allJobs.map((job) => job.id)),
+    [board.allJobs],
+  )
+  const liveOfficeAlerts = useScheduleJobsLiveOfficeAlerts(url.date, boardJobIds)
+  const handleLiveAlertKind = React.useCallback(
+    (kind: BoardLiveOfficeAlertKind) => {
+      const jobId = liveOfficeAlerts.counts.firstJobIdByKind[kind]
+      if (jobId) scrollScheduleJobsBoardToJob(jobId)
+    },
+    [liveOfficeAlerts.counts.firstJobIdByKind],
+  )
+
   return (
     <div className="flex h-full min-h-0 flex-col p-4 md:p-5">
       <ScheduleJobsPageHeaderCard layout={url.layout} />
@@ -169,6 +189,9 @@ export function ScheduleJobsPageContent() {
         carerOperationalFilters={url.carerOperationalFilters}
         carerOnLeaveTodayCount={board.carerOnLeaveTodayCount}
         onToggleCarerOperationalFilter={url.toggleCarerOperationalFilter}
+        timeSensitiveFilter={url.timeSensitiveFilter}
+        timeSensitiveCount={board.timeSensitiveCount}
+        onToggleTimeSensitiveFilter={url.toggleTimeSensitiveFilter}
         operationalIssuesCount={board.operationalIssuesCount}
         layout={url.layout}
         onLayoutChange={url.setScheduleLayout}
@@ -187,6 +210,7 @@ export function ScheduleJobsPageContent() {
             serviceUserFilterIds={url.serviceUserFilterIds}
             employeeFilterIds={url.employeeFilterIds}
             requiredCarersFilters={url.requiredCarersFilters}
+            timeSensitiveFilter={url.timeSensitiveFilter}
             branchFilterOptions={board.branchFilterOptions}
             boardJobs={board.board.allJobs}
           />
@@ -201,6 +225,13 @@ export function ScheduleJobsPageContent() {
           />
           <ScheduleJobsBulkRotaHint />
         </>
+      ) : null}
+
+      {url.layout === 'board' ? (
+        <ScheduleJobsLiveAlertsBanner
+          counts={liveOfficeAlerts.counts}
+          onSelectKind={handleLiveAlertKind}
+        />
       ) : null}
 
       <div className="min-h-0 flex-1">
@@ -237,6 +268,7 @@ export function ScheduleJobsPageContent() {
             visitPlanSlotsByServiceUser={board.visitPlanSlotsByServiceUser}
             acceptedCarePlansByServiceUser={board.acceptedCarePlansByServiceUser}
             travelBufferMinutes={board.travelBufferMinutes}
+            liveAlertsByJobId={liveOfficeAlerts.alertsByJobId}
             onJobClick={actions.openAllocate}
             onJobAction={actions.handleJobAction}
             onOpenRun={runEdit.openEditRunById}

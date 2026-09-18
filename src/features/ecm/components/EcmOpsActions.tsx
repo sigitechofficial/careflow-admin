@@ -28,27 +28,43 @@ import {
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import { useAuthStore } from '@/features/auth/store'
+import {
+  combineOperationalDateAndHm,
+  dayKeyInTimeZone,
+  formatOpsDateTimeNumeric,
+  formatOpsHm,
+} from '@/shared/lib/operational-day.util'
 
 function formatWhen(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return iso
-  }
+  return formatOpsDateTimeNumeric(iso)
 }
 
+/** Wall-clock datetime-local value in the organisation operational timezone. */
 function toDatetimeLocalValue(iso: string | null | undefined): string {
   const d = iso ? new Date(iso) : new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
   if (Number.isNaN(d.getTime())) {
     const fallback = new Date()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${fallback.getFullYear()}-${pad(fallback.getMonth() + 1)}-${pad(fallback.getDate())}T${pad(fallback.getHours())}:${pad(fallback.getMinutes())}`
+    const day = dayKeyInTimeZone(fallback)
+    const hm = formatOpsHm(fallback.toISOString()) || `${pad(fallback.getHours())}:${pad(fallback.getMinutes())}`
+    return `${day}T${hm}`
   }
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const day = dayKeyInTimeZone(d)
+  const hm = formatOpsHm(d.toISOString())
+  if (!hm) {
+    return `${day}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+  }
+  return `${day}T${hm}`
+}
+
+function fromDatetimeLocalValue(value: string): string {
+  const trimmed = value.trim()
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(trimmed)
+  if (!match) {
+    const parsed = new Date(trimmed)
+    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+  }
+  return combineOperationalDateAndHm(match[1]!, match[2]!) || new Date().toISOString()
 }
 
 export function EcmManualAttendanceDialog({
@@ -138,7 +154,7 @@ export function EcmManualAttendanceDialog({
             </Select>
           </label>
           <label className="block space-y-1 text-xs">
-            <span className="text-muted-foreground">Occurred at</span>
+            <span className="text-muted-foreground">Occurred at (org timezone)</span>
             <Input
               type="datetime-local"
               value={occurredAt}
@@ -183,7 +199,7 @@ export function EcmManualAttendanceDialog({
             type="button"
             disabled={record.isPending || !employeeId || !reasonCode}
             onClick={() => {
-              const iso = new Date(occurredAt).toISOString()
+              const iso = fromDatetimeLocalValue(occurredAt)
               record.mutate(
                 {
                   jobId,

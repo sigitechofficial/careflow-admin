@@ -9,7 +9,10 @@ import {
 import type { NotificationNewEvent, NotificationSeverity } from '@/features/notifications/types/notification.types'
 import { useNotificationSound } from '@/features/notifications/hooks/useNotificationSound'
 import { ecmKeys } from '@/features/ecm/keys'
-import { isUrgentOfficeAlertKind } from '@/features/ecm/utils/ecm-urgent-alert.util'
+import { useUrgentOfficeAlertStore } from '@/features/ecm/store/urgent-office-alert.store'
+import { isUrgentOfficeAlertKind, isUrgentOfficeDialogKind } from '@/features/ecm/utils/ecm-urgent-alert.util'
+import { urgentDialogAlertFromNotification } from '@/features/ecm/utils/ecm-urgent-dialog.util'
+import { schedulingKeys } from '@/features/scheduling/keys'
 import { notificationDeepLink } from '@/features/notifications/utils/notification-deep-link'
 
 function severityToToastVariant(
@@ -53,11 +56,16 @@ export function useNotificationSocket() {
     const onNew = (payload: NotificationNewEvent) => {
       void qc.invalidateQueries({ queryKey: ['notifications'], exact: false })
       void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
+      void qc.invalidateQueries({ queryKey: schedulingKeys.all() })
       const kind =
         typeof payload.metadata?.kind === 'string' ? payload.metadata.kind : null
-      const urgent = isUrgentOfficeAlertKind(kind)
+      const urgent = isUrgentOfficeAlertKind(kind) || isUrgentOfficeDialogKind(kind)
       if (urgent) {
         void qc.invalidateQueries({ queryKey: ecmKeys.all })
+      }
+      const dialogAlert = urgentDialogAlertFromNotification(payload)
+      if (dialogAlert) {
+        useUrgentOfficeAlertStore.getState().enqueue(dialogAlert)
       }
 
       const prefs = qc.getQueryData<Array<{ type: string; soundEnabled: boolean }>>(['notification-preferences'])

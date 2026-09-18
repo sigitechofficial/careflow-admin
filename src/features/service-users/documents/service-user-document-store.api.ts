@@ -57,12 +57,16 @@ export type ServiceUserDocumentRecordRow = {
 
 export type DocumentComplianceTone = 'green' | 'red' | 'amber'
 
+export type DocumentComplianceGroup = 'required' | 'legal' | 'clinical' | 'recommended'
+
 export type DocumentComplianceItem = {
   key: string
   label: string
   tone: DocumentComplianceTone
   statusLabel: string
   blocksCarePlanApproval: boolean
+  group?: DocumentComplianceGroup
+  documentTypeCode?: string | null
   detail?: string
 }
 

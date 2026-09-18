@@ -44,7 +44,8 @@ export function VisitLogTimelinePanel({ jobId }: { jobId: string }) {
         <h3 className="text-sm font-semibold text-foreground">Visit log</h3>
         <p className="text-xs text-muted-foreground">
           Same activity timeline the carer sees — clock in/out, tasks, medication, observations,
-          visit notes, handovers, concerns and incidents.
+          visit notes, handovers, concerns and incidents. Times use the organisation operational
+          timezone.
         </p>
       </div>
 

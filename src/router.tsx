@@ -24,6 +24,7 @@ import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBo
 import { OrganisationDisplayFormatProvider } from '@/shared/context/organisation-display-format.context'
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
+import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/features/auth/store'
 import { rootAuthBeforeLoad } from '@/features/auth/guard'
@@ -121,6 +122,7 @@ import PayrollRunsPage from '@/features/billing/pages/PayrollRunsPage'
 import SalaryOverviewPage from '@/features/billing/pages/SalaryOverviewPage'
 import EmployeePayoutsPage from '@/features/billing/pages/EmployeePayoutsPage'
 import InvoiceRunsPage from '@/features/billing/pages/InvoiceRunsPage'
+import InvoiceAuditTrailPage from '@/features/billing/pages/InvoiceAuditTrailPage'
 import ServiceUserInvoicesPage from '@/features/billing/pages/ServiceUserInvoicesPage'
 import PaymentsPage from '@/features/billing/pages/PaymentsPage'
 import AuditExportPage from '@/features/billing/pages/AuditExportPage'
@@ -136,6 +138,7 @@ import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
+import UkPayrollPayslipsPage from '@/features/payroll/pages/UkPayrollPayslipsPage'
 import LearningDashboardPage from '@/features/learning/pages/LearningDashboardPage'
 import LearningCoursesPage from '@/features/learning/pages/LearningCoursesPage'
 import LearningCourseDetailPage from '@/features/learning/pages/LearningCourseDetailPage'
@@ -189,7 +192,12 @@ import {
 import { serviceUserKeys } from '@/features/service-users/keys'
 import { employeeKeys } from '@/features/employees/keys'
 import { listServiceUsers, fetchServiceUserLookups } from '@/features/service-users/api'
-import { defaultServiceUsersListParams } from '@/features/service-users/utils/service-users-list-query'
+import { buildServiceUsersListParams } from '@/features/service-users/utils/service-users-list-query'
+import {
+  enrichServiceUsersListUrlState,
+  parseServiceUsersListSearch,
+  validateServiceUsersListSearch,
+} from '@/features/service-users/utils/service-users-list-url-state.util'
 import { fetchEmployeeLookups } from '@/features/employees/api'
 import { fetchGeneralSettings } from '@/features/settings/api/general-settings-api'
 import { fetchCompanyProfile } from '@/features/settings/api/company-settings-api'
@@ -292,6 +300,7 @@ const pageTitles: Record<string, string> = {
   '/billing/service-user-invoices': 'Service user invoices',
   '/billing/invoice-runs': 'Invoice runs',
   '/billing/invoice-runs/$invoiceRunId': 'Invoice run',
+  '/billing/invoice-audit-trail': 'Invoice audit trail',
   '/billing/payments': 'Payments',
   '/billing/audit-export': 'Audit & export',
   '/ecm/live': 'ECM live monitoring',
@@ -305,6 +314,7 @@ const pageTitles: Record<string, string> = {
   '/payroll/employees': 'Employee payroll setup',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
+  '/payroll/payslips': 'Payslips',
   '/learning/dashboard': 'Learning dashboard',
   '/learning/courses': 'Learning courses',
   '/learning/courses/new': 'New course',
@@ -347,6 +357,8 @@ const SETTINGS_TAB_IDS: SettingsTabId[] = [
   'vital-ranges',
   'welfare-outcomes',
   'clock-in-arrival-reasons',
+  'manual-authorisation-reasons',
+  'left-area-allow-reasons',
   'clock-out-end-reasons',
   'outcome-reasons',
   'ecm-thresholds',
@@ -364,6 +376,7 @@ const BILLING_TAB_IDS: BillingTabId[] = [
   'visit-reconciliation',
   'payroll-runs',
   'invoice-runs',
+  'invoice-audit-trail',
   'payments',
   'audit-export',
 ]
@@ -468,6 +481,7 @@ function AppRootShell() {
       <CompanyBrandingBootstrap />
       <OrganisationDisplayFormatProvider>
         <AppToaster />
+        <UrgentOfficeAlertHost />
         <DevUiTraceChip />
         <AppLayout pageTitle={pageTitle} contentLayout={contentLayout}>
           <Outlet />
@@ -666,13 +680,27 @@ const serviceUsersAllRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/all',
   beforeLoad: requirePermission('service_users.read'),
-  loader: async ({ context: { queryClient: qc } }) => {
+  validateSearch: validateServiceUsersListSearch,
+  loader: async ({ context: { queryClient: qc }, location }) => {
     const lookups = await qc.fetchQuery({
       queryKey: serviceUserKeys.lookups(),
       queryFn: () => fetchServiceUserLookups(),
       staleTime: 10 * 60 * 1000,
     })
-    const listParams = defaultServiceUsersListParams(lookups)
+    const urlState = enrichServiceUsersListUrlState(
+      parseServiceUsersListSearch(location.search as Record<string, unknown>),
+      lookups,
+    )
+    const listParams = buildServiceUsersListParams(lookups, {
+      page: urlState.page,
+      search: urlState.search,
+      listFilter: urlState.listFilter,
+      statusFilter: urlState.statusFilter,
+      onHoldOnly: urlState.onHoldOnly,
+      riskLevelCode: urlState.riskFilter,
+      unassignedKeyWorker: urlState.unassignedOnly,
+      advanced: urlState.advanced,
+    })
     void qc.prefetchQuery({
       queryKey: serviceUserKeys.list(listParams),
       queryFn: () => listServiceUsers(listParams),
@@ -1727,6 +1755,17 @@ const billingInvoiceRunDetailRoute = createRoute({
   component: InvoiceRunDetailPage,
 })
 
+const billingInvoiceAuditTrailRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/billing/invoice-audit-trail',
+  beforeLoad: requirePermission('billing.invoice_runs.read'),
+  validateSearch: (raw: Record<string, unknown>): { invoiceRunId?: string } => {
+    const id = typeof raw.invoiceRunId === 'string' ? raw.invoiceRunId.trim() : ''
+    return id ? { invoiceRunId: id } : {}
+  },
+  component: InvoiceAuditTrailPage,
+})
+
 const billingPaymentsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/billing/payments',
@@ -1822,6 +1861,13 @@ const payrollRunDetailRoute = createRoute({
   path: '/payroll/runs/$runId',
   beforeLoad: requirePermission('payroll.runs.read'),
   component: UkPayrollRunDetailPage,
+})
+
+const payrollPayslipsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/payroll/payslips',
+  beforeLoad: requirePermission('payroll.runs.read'),
+  component: UkPayrollPayslipsPage,
 })
 
 const learningIndexRoute = createRoute({
@@ -2086,6 +2132,7 @@ const routeTree = rootRoute.addChildren([
     billingServiceUserInvoicesRoute,
     billingInvoiceRunsRoute,
     billingInvoiceRunDetailRoute,
+    billingInvoiceAuditTrailRoute,
     billingPaymentsRoute,
     billingAuditExportRoute,
     ecmLiveRoute,
@@ -2099,6 +2146,7 @@ const routeTree = rootRoute.addChildren([
     payrollEmployeesRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
+    payrollPayslipsRoute,
     learningIndexRoute,
     learningDashboardRoute,
     learningCoursesRoute,

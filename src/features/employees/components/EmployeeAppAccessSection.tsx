@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
   fetchEmployeePortalAccount,
+  revokeEmployeePortalSession,
   setEmployeePortalPassword,
   upsertEmployeePortalAccount,
 } from '@/features/employees/api/employee-portal.api'
@@ -57,6 +58,15 @@ export function EmployeeAppAccessSection({
     onError: e => toastApiError(e, 'Password update failed'),
   })
 
+  const revokeMutation = useMutation({
+    mutationFn: () => revokeEmployeePortalSession(employeeId),
+    onSuccess: () => {
+      toastSuccess('Employee app session signed out')
+      void qc.invalidateQueries({ queryKey: ['employee-portal-account', employeeId] })
+    },
+    onError: e => toastApiError(e, 'Could not sign out session'),
+  })
+
   if (!canRead) return null
 
   return (
@@ -91,10 +101,39 @@ export function EmployeeAppAccessSection({
               placeholder="carer@example.com"
             />
           </label>
-          {data?.lastLoginAt && (
-            <p className="text-xs text-muted-foreground">
-              Last sign-in: {new Date(data.lastLoginAt).toLocaleString()}
-            </p>
+          {data?.configured && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                Session:{' '}
+                <span className="font-medium text-foreground">
+                  {data.hasActiveSession ? 'Signed in' : 'Not signed in'}
+                </span>
+              </p>
+              {data.lastLoginAt && (
+                <p>Last sign-in: {new Date(data.lastLoginAt).toLocaleString()}</p>
+              )}
+              {data.lastSeenAt && (
+                <p>Last seen: {new Date(data.lastSeenAt).toLocaleString()}</p>
+              )}
+              {data.lastLoginUserAgent && (
+                <p className="break-all">Device: {data.lastLoginUserAgent}</p>
+              )}
+              {canManage && data.hasActiveSession && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  disabled={revokeMutation.isPending}
+                  onClick={() => revokeMutation.mutate()}
+                >
+                  {revokeMutation.isPending ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+                  ) : null}
+                  Sign out session
+                </Button>
+              )}
+            </div>
           )}
           {canManage && (
             <>

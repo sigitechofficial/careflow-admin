@@ -13,6 +13,7 @@ import {
   rejectVisitOverrun,
   rejectVisitReconciliation,
   setVisitPayableAmount,
+  setVisitBillableAmount,
   updateVisitReconciliation,
 } from '@/features/billing/api/visit-reconciliations.api'
 import { billingKeys } from '@/features/billing/keys'
@@ -100,6 +101,27 @@ export function useSetVisitPayableAmount() {
   })
 }
 
+export function useSetVisitBillableAmount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        billableAmount: number
+        notes?: string
+        approveForInvoice?: boolean
+      }
+    }) => setVisitBillableAmount(id, body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: billingKeys.all })
+      void qc.invalidateQueries({ queryKey: billingKeys.visitReconciliation(vars.id) })
+    },
+  })
+}
+
 export function useApproveVisitReconciliation() {
   const qc = useQueryClient()
   return useMutation({
@@ -108,12 +130,20 @@ export function useApproveVisitReconciliation() {
       scope,
       managerOverride,
       exclusive,
+      approvalNotes,
     }: {
       id: string
       scope: ApproveScope
       managerOverride?: boolean
       exclusive?: boolean
-    }) => approveVisitReconciliation(id, { scope, managerOverride, exclusive }),
+      approvalNotes?: string
+    }) =>
+      approveVisitReconciliation(id, {
+        scope,
+        managerOverride,
+        exclusive,
+        approvalNotes,
+      }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })
     },
@@ -158,7 +188,7 @@ export function useRejectVisitOverrun() {
 export function useBulkApproveVisitReconciliations() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { ids: string[]; scope: ApproveScope }) =>
+    mutationFn: (body: { ids: string[]; scope: ApproveScope; approvalNotes?: string }) =>
       bulkApproveVisitReconciliations(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })

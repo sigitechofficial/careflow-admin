@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, Loader2, Users, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import {
+  contentBodyClass,
   contentHelperClass,
   contentOverlineClass,
   contentTitleClass,

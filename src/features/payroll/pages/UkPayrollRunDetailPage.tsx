@@ -11,6 +11,7 @@ import {
   Loader2,
   FileJson,
   FileSpreadsheet,
+  FileText,
   Receipt,
   RotateCcw,
   Send,
@@ -24,6 +25,7 @@ import { PayrollSectionLayout } from '@/features/payroll/components/PayrollSecti
 import { PayrollStatusBadge } from '@/features/payroll/components/PayrollStatusBadge'
 import { PayrollHmrcSubmissionStatusPanel } from '@/features/payroll/components/PayrollHmrcSubmissionStatusPanel'
 import {
+  downloadUkPayrollRunEmployeePayslip,
   downloadUkPayrollRunFpsExcel,
   fetchUkPayrollRunHmrcSubmission,
 } from '@/features/payroll/api/payroll.api'
@@ -43,8 +45,12 @@ import {
 } from '@/features/payroll/hooks/usePayroll'
 import { useCreateEmployeePayoutBatch } from '@/features/billing/hooks/useEmployeePayouts'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { StatCard } from '@/shared/ui/card'
@@ -63,7 +69,11 @@ export default function UkPayrollRunDetailPage() {
   const currentUserId = useAuthStore((s) => s.user?.id ?? null)
   const canManagePayouts = useAuthStore((s) => s.can('billing.employee_payouts.manage'))
   const canReadPayouts = useAuthStore((s) => s.can('billing.employee_payouts.read'))
-  const { data, isLoading, isError } = useUkPayrollRun(runId)
+  const { locationId } = useGlobalLocationScope()
+  const { formatDate } = useOrganisationDisplayFormat()
+  const organisationTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
+  const { data, isLoading, isError } = useUkPayrollRun(runId, locationId)
   const fpsQuery = useUkPayrollRunFps(runId, data?.status === 'CLOSED')
   const hmrcSubsQuery = useUkPayrollRunHmrcSubmissions(runId, data?.status === 'CLOSED')
   const submitFpsMut = useSubmitUkPayrollRunFps(runId)
@@ -77,6 +87,7 @@ export default function UkPayrollRunDetailPage() {
   const reactivateMut = useReactivateUkPayrollRun(runId)
   const createPayout = useCreateEmployeePayoutBatch()
   const [fpsExcelDownloading, setFpsExcelDownloading] = React.useState(false)
+  const [payslipDownloadingId, setPayslipDownloadingId] = React.useState<string | null>(null)
 
   const open =
     data?.status === 'DRAFT' ||
@@ -91,6 +102,8 @@ export default function UkPayrollRunDetailPage() {
     (data.status === 'GROSS_CALCULATED' ||
       data.status === 'STATUTORY_CALCULATED' ||
       data.status === 'CLOSED')
+
+  const canDownloadPayslips = data?.status === 'CLOSED'
 
   const hasGross = Boolean(data?.grossCalculatedAt)
   const hasStatutory = Boolean(data?.statutoryCalculatedAt)
@@ -139,10 +152,28 @@ export default function UkPayrollRunDetailPage() {
     }
   }
 
+  const handleDownloadPayslip = async (runEmployeeId: string, displayName: string) => {
+    setPayslipDownloadingId(runEmployeeId)
+    try {
+      const { blob, filename } = await downloadUkPayrollRunEmployeePayslip(runId, runEmployeeId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toastSuccess('Downloaded payslip', displayName)
+    } catch (err) {
+      toastApiError(err, 'Could not download payslip')
+    } finally {
+      setPayslipDownloadingId(null)
+    }
+  }
+
   return (
     <PayrollSectionLayout
       title="Run detail"
-      description="Enrol employees, calculate gross, then calculate Week 1 / Month 1 tax & NI. Close when the period is finished."
+      description="Enrol employees, calculate gross, then calculate Week 1 / Month 1 tax & NI. Close when the period is finished. Period dates use the organisation date format and operational timezone."
       testId="payroll-run-detail-page"
     >
       {isLoading ? (
@@ -173,7 +204,7 @@ export default function UkPayrollRunDetailPage() {
                   <span className="inline-flex items-center gap-1.5">
                     <CalendarRange className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     {data.period
-                      ? `${data.period.periodStart} – ${data.period.periodEnd}`
+                      ? `${formatDate(data.period.periodStart)} – ${formatDate(data.period.periodEnd)}`
                       : data.periodId}
                   </span>
                   <span>·</span>
@@ -183,6 +214,13 @@ export default function UkPayrollRunDetailPage() {
                     <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     {data.employeeCount} employee{data.employeeCount === 1 ? '' : 's'}
                   </span>
+                </p>
+                <p
+                  className="text-[11px] text-muted-foreground"
+                  title="Pay period dates use the organisation operational timezone and date display format"
+                  data-testid="payroll-run-detail-timezone-hint"
+                >
+                  Times in {timezoneHint}
                 </p>
                 {data.statutoryBasis ? (
                   <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -770,14 +808,16 @@ export default function UkPayrollRunDetailPage() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">Employees on this run</p>
                   <p className="text-xs text-muted-foreground">
-                    Expand a row to see visit-pay and salary input lines
+                    {canDownloadPayslips
+                      ? 'Download an ERA itemised payslip PDF per employee after the run is closed'
+                      : 'Expand a row to see visit-pay and salary input lines. Payslips unlock when the run is closed.'}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px] text-left text-sm">
+              <table className="w-full min-w-[1280px] text-left text-sm">
                 <thead className="border-b border-border bg-muted/20 text-muted-foreground">
                   <tr>
                     <th className="py-2.5 pl-4 pr-3 font-medium">Employee</th>
@@ -791,7 +831,8 @@ export default function UkPayrollRunDetailPage() {
                     <th className="bg-emerald-50/60 py-2.5 pr-3 text-right font-medium text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
                       Net pay
                     </th>
-                    <th className="py-2.5 pr-4 text-right font-medium">Tax YTD</th>
+                    <th className="py-2.5 pr-3 text-right font-medium">Tax YTD</th>
+                    <th className="py-2.5 pr-4 text-right font-medium">Payslip</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -833,14 +874,40 @@ export default function UkPayrollRunDetailPage() {
                       <td className="bg-emerald-50/40 py-3 pr-3 text-right font-semibold tabular-nums text-emerald-900 dark:bg-emerald-950/15 dark:text-emerald-100">
                         {formatGbp(e.netPay)}
                       </td>
-                      <td className="py-3 pr-4 text-right tabular-nums text-muted-foreground">
+                      <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
                         {e.ytd ? formatGbp(e.ytd.incomeTaxYtd) : '—'}
+                      </td>
+                      <td className="py-3 pr-4 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          disabled={
+                            !canDownloadPayslips ||
+                            !e.statutoryCalculatedAt ||
+                            payslipDownloadingId === e.id
+                          }
+                          onClick={() => void handleDownloadPayslip(e.id, e.displayName)}
+                          data-testid={`payroll-payslip-download-${e.id}`}
+                          title={
+                            canDownloadPayslips
+                              ? 'Download itemised payslip PDF'
+                              : 'Close the run to download payslips'
+                          }
+                        >
+                          {payslipDownloadingId === e.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                          PDF
+                        </Button>
                       </td>
                     </tr>
                   ))}
                   {data.employees.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
+                      <td colSpan={11} className="px-4 py-10 text-center text-muted-foreground">
                         <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" aria-hidden />
                         No employees enrolled yet. Use Enrol ready employees to start.
                       </td>

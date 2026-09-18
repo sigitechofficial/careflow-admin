@@ -33,6 +33,7 @@ import type {
   ServiceUserInvoiceOverviewRow,
 } from '@/features/billing/types/service-user-invoices.types'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import {
   Dialog,
   DialogBody,
@@ -675,10 +676,11 @@ function ServiceUserRow({ row }: { row: ServiceUserInvoiceOverviewRow }) {
 
 export function BillingServiceUserInvoicesPanel() {
   const canRead = useAuthStore((s) => s.can('billing.invoice_runs.read' as never))
+  const { locationId } = useGlobalLocationScope()
   const search = useSearch({ strict: false }) as { serviceUserId?: string }
   const [serviceUserId, setServiceUserId] = React.useState(search.serviceUserId ?? '')
   const [month, setMonth] = React.useState('')
-  const query = useServiceUserInvoicesOverview()
+  const query = useServiceUserInvoicesOverview(undefined, locationId)
   const overview = query.data
 
   React.useEffect(() => {

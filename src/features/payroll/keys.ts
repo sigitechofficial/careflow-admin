@@ -10,14 +10,19 @@ export const payrollKeys = {
   schedules: () => [...payrollKeys.all, 'schedules'] as const,
   periods: (params?: { scheduleId?: string; taxYearId?: string }) =>
     [...payrollKeys.all, 'periods', params ?? {}] as const,
-  employees: () => [...payrollKeys.all, 'employees'] as const,
+  employees: (locationId?: string | null) =>
+    [...payrollKeys.all, 'employees', locationId ?? 'all'] as const,
   profile: (employeeId: string) => [...payrollKeys.all, 'profile', employeeId] as const,
   agreements: (employeeId: string) => [...payrollKeys.all, 'agreements', employeeId] as const,
-  runs: () => [...payrollKeys.all, 'runs'] as const,
-  run: (id: string) => [...payrollKeys.all, 'run', id] as const,
+  runs: (locationId?: string | null) =>
+    [...payrollKeys.all, 'runs', locationId ?? 'all'] as const,
+  run: (id: string, locationId?: string | null) =>
+    [...payrollKeys.all, 'run', id, locationId ?? 'all'] as const,
   runFps: (id: string) => [...payrollKeys.all, 'run', id, 'fps'] as const,
   runHmrcSubmissions: (id: string) =>
     [...payrollKeys.all, 'run', id, 'hmrc-submissions'] as const,
+  payslips: (locationId?: string | null) =>
+    [...payrollKeys.all, 'payslips', locationId ?? 'all'] as const,
   epsPreview: (params: Record<string, unknown>) =>
     [...payrollKeys.all, 'eps-preview', params] as const,
   epsSubmissions: (params: Record<string, unknown>) =>

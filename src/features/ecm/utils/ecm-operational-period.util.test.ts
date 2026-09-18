@@ -8,11 +8,12 @@ import {
 } from './ecm-operational-period.util'
 
 describe('todayIsoLocal', () => {
-  it('uses Europe/London, not the browser offset', () => {
-    // 2026-08-06 21:05 UTC = still 6 Aug in London (BST), but 7 Aug in UTC+5
+  it('uses the organisation operational timezone, not the browser offset', () => {
+    // 2026-08-06 21:05 UTC = still 6 Aug in London (BST), but 7 Aug in Asia/Karachi
     const now = new Date('2026-08-06T21:05:00.000Z')
-    expect(todayIsoLocal(now, ECM_OPERATIONAL_TIMEZONE)).toBe('2026-08-06')
+    expect(todayIsoLocal(now, 'Europe/London')).toBe('2026-08-06')
     expect(todayIsoLocal(now, 'Asia/Karachi')).toBe('2026-08-07')
+    expect(todayIsoLocal(now, ECM_OPERATIONAL_TIMEZONE)).toBe('2026-08-07')
   })
 })
 
@@ -86,7 +87,8 @@ describe('daysInPeriod', () => {
 })
 
 describe('normalizeToDayKey', () => {
-  it('maps ISO datetimes via London operational day', () => {
+  it('maps ISO datetimes via organisation operational day', () => {
+    // Asia/Karachi (UTC+5): 23:30Z on 6 Aug is already 7 Aug 04:30 local
     expect(normalizeToDayKey('2026-08-06T23:30:00.000Z')).toBe('2026-08-07')
     expect(normalizeToDayKey('2026-08-06')).toBe('2026-08-06')
   })

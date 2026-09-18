@@ -20,6 +20,7 @@ export type ScheduleJobsUrlSearchParams = {
   requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
   jobOperationalFilters?: ScheduleJobOperationalFilter[]
   carerOperationalFilters?: ScheduleCarerOperationalFilter[]
+  timeSensitiveFilter?: boolean
   layout?: ScheduleJobsLayout
   rowAxis?: ScheduleJobsBoardRowAxis
 }
@@ -34,6 +35,7 @@ export type ScheduleSharedFilterSearch = {
   serviceUserId?: string
   employeeId?: string
   requiredCarers?: string
+  ts?: string
 }
 
 export function buildScheduleSharedFilterSearch(params: {
@@ -43,6 +45,7 @@ export function buildScheduleSharedFilterSearch(params: {
   serviceUserIds: string[]
   employeeIds?: string[]
   requiredCarersFilters: ScheduleJobsRequiredCarersFilterValue[]
+  timeSensitiveFilter?: boolean
 }): ScheduleSharedFilterSearch {
   return {
     ...buildEcmPeriodSearch(params.period),
@@ -53,6 +56,7 @@ export function buildScheduleSharedFilterSearch(params: {
     ...(params.requiredCarersFilters.length
       ? { requiredCarers: params.requiredCarersFilters.join(',') }
       : {}),
+    ...(params.timeSensitiveFilter ? { ts: '1' } : {}),
   }
 }
 

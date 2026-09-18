@@ -138,10 +138,11 @@ const PERSON_FILTERS: { id: QuickSelectListId; tooltip: string }[] = [
   { id: 'discharged', tooltip: 'Critical tasks overdue' },
 ]
 
-const CARE_PLAN_FILTERS: { id: QuickSelectRiskId; tooltip: string }[] = [
-  { id: 'LOW', tooltip: 'No care plans outstanding' },
-  { id: 'MEDIUM', tooltip: 'Care plan review due within a week' },
-  { id: 'HIGH', tooltip: 'Care plans outstanding' },
+const RISK_FILTERS: { id: QuickSelectRiskId; tooltip: string }[] = [
+  { id: 'LOW', tooltip: 'Low risk profile' },
+  { id: 'MEDIUM', tooltip: 'Medium risk profile' },
+  { id: 'HIGH', tooltip: 'High risk profile' },
+  { id: 'CRITICAL', tooltip: 'Critical risk profile' },
 ]
 
 export type ServiceUserQuickSelectBarProps = {
@@ -170,7 +171,7 @@ export function ServiceUserQuickSelectBar({
   return (
     <TooltipProvider delayDuration={250}>
       <div
-        className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 pb-0.5 touch-pan-x md:mx-0 md:max-w-none md:flex-wrap md:overflow-visible md:gap-1.5 md:px-0 md:pb-0"
+        className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-0.5 touch-pan-x md:flex-wrap md:overflow-visible md:pb-0"
         data-testid="service-users-quick-select"
       >
         <span className="shrink-0 pr-0.5 text-sm font-medium text-muted-foreground">Select</span>
@@ -192,7 +193,7 @@ export function ServiceUserQuickSelectBar({
 
         <QuickDivider />
 
-        {CARE_PLAN_FILTERS.map(item => (
+        {RISK_FILTERS.map(item => (
           <FigmaFilterBtn
             key={item.id}
             tooltip={item.tooltip}

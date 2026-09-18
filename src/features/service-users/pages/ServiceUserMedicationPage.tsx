@@ -24,8 +24,6 @@ import { MedicationSupportProfileTab } from '@/features/service-users/medication
 import { RecordDetailDrawer } from '@/features/service-users/medication/RecordDetailDrawer'
 import { CorrectRecordDialog } from '@/features/service-users/medication/CorrectRecordDialog'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
-import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
-import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
 import type { ServiceUserDetail, ServiceUserMedicationRow } from '@/features/service-users/types'
 
 function displayName(d: ServiceUserDetail | null | undefined): string {
@@ -50,6 +48,9 @@ import {
 } from '@/features/service-users/hooks/useMedicationMarChart'
 import { BodyMapHandoverPreview } from '@/features/service-users/body-map/components/BodyMapHandoverPreview'
 import { useBodyMapSummary } from '@/features/service-users/body-map/hooks/useBodyMap'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+
 type MedicationView =
   | 'records'
   | 'support'
@@ -233,17 +234,18 @@ export default function ServiceUserMedicationPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-        <PolicyContextPanel
-          className="mb-4"
-          moduleType="MEDICATION"
-          recordId={editMedication?.id}
-        />
-        <ServiceUserSafetySummary
-          serviceUserId={serviceUserId}
-          className="mb-4"
-        />
         <div className="mb-4">
           <BodyMapHandoverPreview serviceUserId={serviceUserId} compact />
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span
+            className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+            title="MAR calendar today, administration timestamps, and supply dates use the organisation operational timezone and date/time display formats"
+            data-testid="service-user-medication-timezone-hint"
+          >
+            Times in {getSyncedOperationalTimeZone()} (
+            {formatTimezoneUtcOffset(getSyncedOperationalTimeZone())})
+          </span>
         </div>
         <div className="mb-4 flex flex-wrap gap-2 border-b border-border">
           {VIEW_TABS.map(tab => (

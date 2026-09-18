@@ -53,6 +53,10 @@ import {
   filterTimelineJobsByOperational,
   filterTimelineJobsByOutcome,
 } from '@/features/scheduling/utils/schedule-job-board-filter.util'
+import {
+  countScheduleJobsTimeSensitive,
+  filterTimelineJobsByTimeSensitive,
+} from '@/features/scheduling/utils/schedule-job-time-sensitive.util'
 import { jobScheduleDateIso } from '@/features/scheduling/utils/schedule-jobs-drag.util'
 import {
   formatPeriodDayShort,
@@ -202,10 +206,24 @@ export default function ScheduleListPage() {
     [jobsAfterShared],
   )
 
+  const timeSensitiveCount = React.useMemo(
+    () => countScheduleJobsTimeSensitive(jobsAfterShared),
+    [jobsAfterShared],
+  )
+
   const jobs = React.useMemo(() => {
     const afterOutcome = filterTimelineJobsByOutcome(jobsAfterShared, filters.jobOutcomeFilters)
-    return filterTimelineJobsByOperational(afterOutcome, new Set(filters.jobOperationalFilters))
-  }, [jobsAfterShared, filters.jobOutcomeFilters, filters.jobOperationalFilters])
+    const afterIssues = filterTimelineJobsByOperational(
+      afterOutcome,
+      new Set(filters.jobOperationalFilters),
+    )
+    return filterTimelineJobsByTimeSensitive(afterIssues, filters.timeSensitiveFilter)
+  }, [
+    jobsAfterShared,
+    filters.jobOutcomeFilters,
+    filters.jobOperationalFilters,
+    filters.timeSensitiveFilter,
+  ])
 
   const requiredMinutes = React.useMemo(
     () => jobsAfterShared.reduce((sum, job) => sum + jobRequiredCarerMinutes(job), 0),
@@ -329,6 +347,9 @@ export default function ScheduleListPage() {
           jobOperationalFilters={filters.jobOperationalFilters}
           jobOperationalCounts={jobOperationalCounts}
           onToggleJobOperationalFilter={filters.toggleJobOperationalFilter}
+          timeSensitiveFilter={filters.timeSensitiveFilter}
+          timeSensitiveCount={timeSensitiveCount}
+          onToggleTimeSensitiveFilter={filters.toggleTimeSensitiveFilter}
           operationalIssuesCount={operationalIssuesCount}
           statsScopeNote={
             multiDay

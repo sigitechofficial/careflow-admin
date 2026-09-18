@@ -25,6 +25,7 @@ import {
   type ScheduleJobsTimelineViewport,
 } from '@/features/scheduling/utils/schedule-jobs-timeline-viewport.util'
 import type { ScheduleRunsDisplayPreferences } from '@/features/scheduling/utils/schedule-runs-display-preferences.util'
+import type { LiveOfficeAlert } from '@/features/scheduling/utils/schedule-job-live-office-alerts.util'
 import { cn } from '@/shared/lib/utils'
 
 export type ScheduleJobsGanttTimelineTrackProps = {
@@ -44,6 +45,7 @@ export type ScheduleJobsGanttTimelineTrackProps = {
   visitPlanSlotsByServiceUser?: Map<string, VisitPlanSlot[]>
   acceptedCarePlansByServiceUser?: Map<string, AcceptedCarePlanItem[]>
   travelBufferMinutes?: number
+  liveAlertsByJobId?: Map<string, LiveOfficeAlert[]>
   previewJobIds?: Set<string>
   runDisplayPreferences?: ScheduleRunsDisplayPreferences
   overlapByJobId?: Map<string, JobOverlapLayout>
@@ -79,6 +81,7 @@ export const ScheduleJobsGanttTimelineTrack = React.memo(function ScheduleJobsGa
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
   travelBufferMinutes,
+  liveAlertsByJobId,
   previewJobIds,
   runDisplayPreferences,
   overlapByJobId,
@@ -236,6 +239,7 @@ export const ScheduleJobsGanttTimelineTrack = React.memo(function ScheduleJobsGa
           visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
           acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
           travelBufferMinutes={travelBufferMinutes}
+          liveAlerts={liveAlertsByJobId?.get(job.id)}
           travelConflictFromPrevious={travelConflictJobIdSet.has(job.id)}
           rowJobs={jobs}
           showRowTravelDetails={showRowTravelDetails}

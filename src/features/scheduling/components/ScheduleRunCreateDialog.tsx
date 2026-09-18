@@ -22,6 +22,7 @@ import {
 import { FormField, Textarea } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { formatOpsHm } from '@/shared/lib/operational-day.util'
 
 function StatRow({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
   return (
@@ -87,7 +88,7 @@ export function ScheduleRunCreateDialog({
   React.useEffect(() => {
     if (!open) return
     const firstHour = sortedJobs[0]?.scheduledStartDateTime
-      ? new Date(sortedJobs[0].scheduledStartDateTime).getUTCHours()
+      ? Number(formatOpsHm(sortedJobs[0].scheduledStartDateTime).slice(0, 2)) || 8
       : 8
     const shift = firstHour < 12 ? 'AM' : 'PM'
     setName(`${shift} Run ${existingRunCount + 1}`)

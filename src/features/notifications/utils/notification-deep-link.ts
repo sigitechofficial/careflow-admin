@@ -1,4 +1,7 @@
-import { isUrgentOfficeAlertKind } from '@/features/ecm/utils/ecm-urgent-alert.util'
+import {
+  isUrgentOfficeAlertKind,
+  isUrgentOfficeDialogKind,
+} from '@/features/ecm/utils/ecm-urgent-alert.util'
 import {
   validateEcmLiveSearch,
   type EcmLiveUrlSearch,
@@ -42,7 +45,11 @@ export function notificationDeepLink(item: NotificationDeepLinkInput): string | 
 
   const kind = metadataString(metadata, 'kind')
   const jobId = metadataString(metadata, 'scheduledJobId')
-  if (item.recordType === 'EcmException' || isUrgentOfficeAlertKind(kind)) {
+  if (
+    item.recordType === 'EcmException' ||
+    isUrgentOfficeAlertKind(kind) ||
+    isUrgentOfficeDialogKind(kind)
+  ) {
     return ecmExceptionQueueHref(jobId)
   }
   return null

@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CarerSosAlertDto,
   EcmExceptionRow,
   EcmLiveDashboardData,
   EcmReasonCode,
@@ -225,11 +226,40 @@ export async function fetchEcmExceptions(params?: {
   return res.data
 }
 
-export async function acknowledgeEcmException(id: string, note?: string): Promise<unknown> {
-  return apiJson(`/ecm/exceptions/${id}/acknowledge`, {
-    method: 'PATCH',
-    body: JSON.stringify({ note: note ?? undefined }),
-  })
+export type FcmSendReason =
+  | 'SENT'
+  | 'FIREBASE_NOT_READY'
+  | 'NO_DEVICE_TOKEN'
+  | 'NO_EMPLOYEE'
+  | 'SEND_FAILED'
+  | 'NOT_FIRST_ACK'
+  | 'NOT_SOS'
+
+export type FcmSendReport = {
+  ready: boolean
+  tokens: number
+  sent: number
+  skipped: number
+  reason: FcmSendReason
+  error?: string
+}
+
+export type AcknowledgeEcmExceptionResult = {
+  fcm?: FcmSendReport
+}
+
+export async function acknowledgeEcmException(
+  id: string,
+  note?: string,
+): Promise<AcknowledgeEcmExceptionResult> {
+  const res = await apiJson<ApiEnvelope<AcknowledgeEcmExceptionResult>>(
+    `/ecm/exceptions/${id}/acknowledge`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ note: note ?? undefined }),
+    },
+  )
+  return res.data ?? {}
 }
 
 export async function resolveEcmException(
@@ -243,32 +273,44 @@ export async function resolveEcmException(
   })
 }
 
-export async function allowVisitContinue(jobId: string, note?: string): Promise<unknown> {
+export async function allowVisitContinue(
+  jobId: string,
+  payload: { reasonId: string; note?: string },
+): Promise<unknown> {
   return apiJson(`/ecm/visits/${jobId}/allow-continue`, {
     method: 'POST',
-    body: JSON.stringify({ note: note?.trim() || undefined }),
+    body: JSON.stringify({
+      reasonId: payload.reasonId,
+      note: payload.note?.trim() || undefined,
+    }),
   })
 }
 
 export async function authoriseCheckInMethodGrant(
   jobId: string,
   grantId: string,
-  note?: string,
+  payload: { reasonId: string; note?: string },
 ): Promise<unknown> {
   return apiJson(`/ecm/visits/${jobId}/check-in-method-grants/${grantId}/authorise`, {
     method: 'POST',
-    body: JSON.stringify({ note: note?.trim() || undefined }),
+    body: JSON.stringify({
+      reasonId: payload.reasonId,
+      note: payload.note?.trim() || undefined,
+    }),
   })
 }
 
 export async function rejectCheckInMethodGrant(
   jobId: string,
   grantId: string,
-  note?: string,
+  payload: { reasonCode: string; note?: string },
 ): Promise<unknown> {
   return apiJson(`/ecm/visits/${jobId}/check-in-method-grants/${grantId}/reject`, {
     method: 'POST',
-    body: JSON.stringify({ note: note?.trim() || undefined }),
+    body: JSON.stringify({
+      reasonCode: payload.reasonCode,
+      note: payload.note?.trim() || undefined,
+    }),
   })
 }
 
@@ -277,6 +319,31 @@ export async function closeEcmException(id: string, note?: string): Promise<unkn
     method: 'PATCH',
     body: JSON.stringify({ note: note ?? undefined }),
   })
+}
+
+export async function closeSosEcmException(
+  id: string,
+  actionCode: string,
+  outcomeCode: string,
+  note?: string,
+  actionNote?: string,
+): Promise<unknown> {
+  return apiJson(`/ecm/exceptions/${id}/close-sos`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      actionCode,
+      outcomeCode,
+      note: note ?? undefined,
+      actionNote: actionNote ?? undefined,
+    }),
+  })
+}
+
+export async function fetchEcmVisitSos(jobId: string): Promise<CarerSosAlertDto[]> {
+  const res = await apiJson<ApiEnvelope<CarerSosAlertDto[]>>(`/ecm/visits/${jobId}/sos`, {
+    method: 'GET',
+  })
+  return res.data ?? []
 }
 
 export async function fetchEcmReasonCodes(): Promise<EcmReasonCode[]> {

@@ -8,6 +8,7 @@ import type { CareFormDetail } from '@/features/care-pathway/types/care-pathway.
 import { CarePlanRichTextField } from '@/features/service-users/care-plan/CarePlanRichTextField'
 import { CarePathwayFormRenderer } from '@/features/service-users/care-plan/CarePathwayFormRenderer'
 import { CarePlanFormAccordion } from '@/features/service-users/care-plan/CarePlanFormAccordion'
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 import {
   appendAssessmentHistory,
   applyAssessmentSnapshot,
@@ -284,7 +285,7 @@ function AssessmentFormPanel({
   const handleSaveAssessment = () => {
     const now = new Date()
     const entry: AssessmentHistoryEntry = {
-      id: crypto.randomUUID(),
+      id: createClientUuid(),
       assessmentId,
       date: formatDate(now),
       time: formatTime(now),

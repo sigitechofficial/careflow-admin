@@ -35,6 +35,11 @@ export const settingsKeys = {
 
   clockInArrivalReasons: () => [...settingsKeys.all(), 'clock-in-arrival-reasons'] as const,
 
+  manualAuthorisationReasons: () =>
+    [...settingsKeys.all(), 'manual-authorisation-reasons'] as const,
+
+  leftAreaAllowReasons: () => [...settingsKeys.all(), 'left-area-allow-reasons'] as const,
+
   clockOutEndReasons: () => [...settingsKeys.all(), 'clock-out-end-reasons'] as const,
 
   visitOutcomes: () => [...settingsKeys.all(), 'visit-outcomes'] as const,

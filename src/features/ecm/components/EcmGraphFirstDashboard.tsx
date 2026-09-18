@@ -22,6 +22,12 @@ import { useEcmOperationalPeriod } from '@/features/ecm/hooks/useEcmOperationalP
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
 import type { EcmGraphDrillVisit } from '@/features/ecm/api/ecm.api'
+import { formatPeriodDayShort } from '@/features/ecm/utils/ecm-operational-period.util'
+import {
+  formatOrganisationDateTime,
+  formatOrganisationTime,
+} from '@/shared/lib/organisation-display-format.store'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
 
 export type EcmGraphFirstDashboardProps = {
   className?: string
@@ -197,7 +203,8 @@ function ChartCard({
 
 export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProps = {}) {
   const { locationId: globalLocationId } = useGlobalLocationScope()
-  const { dateFrom, dateTo } = useEcmOperationalPeriod('today')
+  const { dateFrom, dateTo, operationalTimezone } = useEcmOperationalPeriod('today')
+  const timeZone = operationalTimezone || getSyncedOperationalTimeZone()
   const [branchMetric, setBranchMetric] = React.useState<BranchMetric>('latePct')
   const [drill, setDrill] = React.useState<DrillFilter | null>(null)
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null)
@@ -237,7 +244,7 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
     const { dates, series, counts, denominators } = data.exceptionTrend
     return dates.map((date, i) => ({
       date,
-      dateLabel: date.slice(5),
+      dateLabel: formatPeriodDayShort(date),
       'Late %': series.latePct?.[i] ?? 0,
       'Short %': series.shortPct?.[i] ?? 0,
       'Missed %': series.missedPct?.[i] ?? 0,
@@ -364,7 +371,7 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
       kind: 'trendDay',
       date,
       series,
-      label: `${labels[series]} · ${date}`,
+      label: `${labels[series]} · ${formatPeriodDayShort(date)}`,
     })
   }
 
@@ -380,6 +387,12 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
         <p className="text-xs text-muted-foreground">
           Exception rates, classification bands, and branch risk — click a series to list
           matching visits.
+          {' · '}
+          {timeZone}
+          {' · '}
+          {effectiveFrom === effectiveTo
+            ? formatPeriodDayShort(effectiveFrom)
+            : `${formatPeriodDayShort(effectiveFrom)} – ${formatPeriodDayShort(effectiveTo)}`}
           {' · '}
           ISO {effectiveFrom}
           {effectiveFrom !== effectiveTo ? ` → ${effectiveTo}` : ''}
@@ -410,7 +423,7 @@ export function EcmGraphFirstDashboard({ className }: EcmGraphFirstDashboardProp
               ? ' — try adjusting the operational period (demo seed often ends on recent completed days)'
               : ''}
             {' · refreshed '}
-            {new Date(data.refreshedAt).toLocaleTimeString()}
+            {formatOrganisationTime(data.refreshedAt)}
           </p>
           {data.truncated ? (
             <p
@@ -1009,7 +1022,7 @@ function DrillTable({
                     <p className="text-xs text-muted-foreground">{v.jobName}</p>
                   </td>
                   <td className="px-2 py-1.5 tabular-nums text-xs text-muted-foreground">
-                    {new Date(v.plannedStartDateTime).toLocaleString()}
+                    {formatOrganisationDateTime(v.plannedStartDateTime)}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     <Button

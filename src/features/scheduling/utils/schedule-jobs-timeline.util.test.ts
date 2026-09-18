@@ -32,6 +32,31 @@ describe('buildScheduleJobsBoard', () => {
     expect(board.allJobs).toHaveLength(2)
   })
 
+  it('prefers day-runs check-in over a stale employee allocation job', () => {
+    const stale = {
+      ...makeJob('harry', 'IN_PROGRESS'),
+      checkIn: null,
+    }
+    const live = {
+      ...makeJob('harry', 'IN_PROGRESS'),
+      checkIn: { method: 'MANUAL', methodLabel: 'Manual' },
+    }
+    const row: EmployeeDayRow = {
+      employee: {
+        id: 'carer-1',
+        firstName: 'Alice',
+        lastName: 'Carer',
+        role: null,
+        jobTitle: null,
+      },
+      allocations: [{ id: 'alloc-1', status: 'CONFIRMED', job: stale }],
+      totalMinutes: 60,
+    }
+
+    const board = buildScheduleJobsBoard([row], [live], [])
+    expect(board.employeeRows[0]?.allocations[0]?.job.checkIn?.methodLabel).toBe('Manual')
+  })
+
   it('removes cancelled jobs from carer allocations', () => {
     const cancelled = makeJob('cancelled', 'CALLED_OFF')
     const row: EmployeeDayRow = {

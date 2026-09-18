@@ -58,6 +58,7 @@ export function ScheduleJobsGantt({
   visitPlanSlotsByServiceUser,
   acceptedCarePlansByServiceUser,
   travelBufferMinutes,
+  liveAlertsByJobId,
   onJobClick,
   onJobAction,
   onJobDrop,
@@ -221,7 +222,7 @@ export function ScheduleJobsGantt({
           ) : null}
         </div>
         <div ref={scrollRef} data-schedule-jobs-scroll className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-          <div style={{ width: boardMinWidth, minWidth: boardMinWidth }}>
+          <div className="py-1.5" style={{ width: boardMinWidth, minWidth: boardMinWidth }}>
             <ScheduleJobsGanttHeader
               leftColumnLabel={leftColumnLabel}
               rowSearch={rowSearch}
@@ -261,6 +262,7 @@ export function ScheduleJobsGantt({
                       visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
                       acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
                       travelBufferMinutes={travelBufferMinutes}
+                      liveAlertsByJobId={liveAlertsByJobId}
                       previewJobIds={marquee.previewJobIds}
                       runDisplayPreferences={runDisplayPreferences}
                       jobLabelMode={jobLabelMode}
@@ -334,6 +336,7 @@ export function ScheduleJobsGantt({
                   visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
                   acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
                   travelBufferMinutes={travelBufferMinutes}
+                      liveAlertsByJobId={liveAlertsByJobId}
                   previewJobIds={marquee.previewJobIds}
                   runDisplayPreferences={runDisplayPreferences}
                   jobLabelMode={jobLabelMode}
@@ -371,6 +374,7 @@ export function ScheduleJobsGantt({
                   visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
                   acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
                   travelBufferMinutes={travelBufferMinutes}
+                      liveAlertsByJobId={liveAlertsByJobId}
                   previewJobIds={marquee.previewJobIds}
                   runDisplayPreferences={runDisplayPreferences}
                   jobLabelMode={jobLabelMode}
@@ -416,6 +420,7 @@ export function ScheduleJobsGantt({
                       visitPlanSlotsByServiceUser={visitPlanSlotsByServiceUser}
                       acceptedCarePlansByServiceUser={acceptedCarePlansByServiceUser}
                       travelBufferMinutes={travelBufferMinutes}
+                      liveAlertsByJobId={liveAlertsByJobId}
                       previewJobIds={marquee.previewJobIds}
                       runDisplayPreferences={runDisplayPreferences}
                       jobLabelMode={jobLabelMode}

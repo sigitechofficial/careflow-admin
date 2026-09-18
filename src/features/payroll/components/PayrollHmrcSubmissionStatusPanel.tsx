@@ -11,6 +11,7 @@ import {
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 
 type Props = {
   documentLabel: 'FPS' | 'EPS'
@@ -230,8 +231,8 @@ export function PayrollHmrcSubmissionStatusPanel({
                 return (
                   <React.Fragment key={s.id}>
                     <tr className="border-t border-border">
-                      <td className="px-3 py-2 text-muted-foreground">
-                        {new Date(s.createdAt).toLocaleString('en-GB')}
+                      <td className="px-3 py-2 tabular-nums text-muted-foreground">
+                        {formatOrganisationDateTime(s.createdAt)}
                       </td>
                       <td className="px-3 py-2 font-medium text-foreground">{s.environment}</td>
                       <td className="px-3 py-2">
@@ -399,7 +400,7 @@ export function PayrollHmrcSubmissionStatusPanel({
                                     → {ev.toStatus}
                                     {ev.fromStatus ? ` (from ${ev.fromStatus})` : ''}
                                     {' · '}
-                                    {new Date(ev.createdAt).toLocaleString('en-GB')}
+                                    {formatOrganisationDateTime(ev.createdAt)}
                                     {ev.actorUserId
                                       ? ` · actor ${ev.actorUserId.slice(0, 8)}…`
                                       : ''}

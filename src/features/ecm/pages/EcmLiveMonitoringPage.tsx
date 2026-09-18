@@ -7,15 +7,8 @@ import { EcmExceptionQueueWorkspace } from '@/features/ecm/components/EcmExcepti
 import { EcmLiveMonitoringPanel } from '@/features/ecm/components/EcmLiveMonitoringPanel'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEcmExceptions } from '@/features/ecm/hooks/useEcm'
+import { countExceptionQueueTabFlags } from '@/features/ecm/utils/ecm-urgent-alert.util'
 import type { EcmLiveUrlSearch } from '@/features/ecm/utils/ecm-period-url-state.util'
-
-function isClosedLifecycle(lifecycle: string): boolean {
-  return (
-    lifecycle === 'RESOLVED' ||
-    lifecycle === 'MANAGER_REVIEWED' ||
-    lifecycle === 'CLOSED'
-  )
-}
 
 function useExceptionQueueTabFlags() {
   const { locationId } = useGlobalLocationScope()
@@ -23,42 +16,10 @@ function useExceptionQueueTabFlags() {
     limit: 100,
     locationId: locationId ?? undefined,
   })
-  return React.useMemo(() => {
-    const sosJobs = new Set<string>()
-    const lockedAreaJobs = new Set<string>()
-    const checkInRequestJobs = new Set<string>()
-    const unableToStartJobs = new Set<string>()
-    for (const row of exceptions.data ?? []) {
-      if (
-        row.kind === 'CARER_SOS' &&
-        !isClosedLifecycle(row.lifecycle) &&
-        row.lifecycle !== 'ACKNOWLEDGED' &&
-        !row.acknowledgedAt &&
-        !row.sos?.acknowledgedAt
-      ) {
-        sosJobs.add(row.scheduledJobId)
-      }
-      if (row.kind === 'LEFT_VISIT_AREA' && row.areaLock?.status !== 'ALLOWED') {
-        lockedAreaJobs.add(row.scheduledJobId)
-      }
-      if (
-        row.kind === 'OUTSIDE_AREA_CHECK_IN_REQUEST' &&
-        (row.checkInMethodRequest?.status ?? 'PENDING') === 'PENDING' &&
-        !isClosedLifecycle(row.lifecycle)
-      ) {
-        checkInRequestJobs.add(row.scheduledJobId)
-      }
-      if (row.kind === 'UNABLE_TO_START' && !isClosedLifecycle(row.lifecycle)) {
-        unableToStartJobs.add(row.scheduledJobId)
-      }
-    }
-    return {
-      sosVisitCount: sosJobs.size,
-      lockedAreaVisitCount: lockedAreaJobs.size,
-      checkInRequestVisitCount: checkInRequestJobs.size,
-      unableToStartVisitCount: unableToStartJobs.size,
-    }
-  }, [exceptions.data])
+  return React.useMemo(
+    () => countExceptionQueueTabFlags(exceptions.data ?? []),
+    [exceptions.data],
+  )
 }
 
 export default function EcmLiveMonitoringPage() {
@@ -97,7 +58,7 @@ export default function EcmLiveMonitoringPage() {
       <PageHeader
         className="shrink-0"
         title="ECM live monitoring"
-        description="Electronic Call Monitoring — planned vs actual attendance, timing exceptions, and follow-up."
+        description="Electronic Call Monitoring — planned vs actual attendance, timing exceptions, and follow-up. Visit times and period presets use the organisation operational timezone."
         icon={<Radio className="h-4 w-4 text-muted-foreground" aria-hidden />}
         breadcrumb={[
           { label: 'Home', href: '/' },

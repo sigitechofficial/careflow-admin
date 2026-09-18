@@ -7,4 +7,5 @@ export const PAYROLL_PATHS = {
   employees: '/payroll/employees',
   runs: '/payroll/runs',
   runDetail: (runId: string) => `/payroll/runs/${runId}`,
+  payslips: '/payroll/payslips',
 } as const

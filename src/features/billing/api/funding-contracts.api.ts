@@ -42,12 +42,14 @@ export async function fetchFundingContracts(params?: {
   readiness?: FundingContractReadiness | 'ALL'
   page?: number
   limit?: number
+  locationId?: string
 }): Promise<{ rows: FundingContractRow[]; meta: FundingContractsListMeta }> {
   const qs = new URLSearchParams()
   if (params?.search?.trim()) qs.set('search', params.search.trim())
   if (params?.readiness && params.readiness !== 'ALL') qs.set('readiness', params.readiness)
   if (params?.page != null) qs.set('page', String(params.page))
   if (params?.limit != null) qs.set('limit', String(params.limit))
+  if (params?.locationId) qs.set('locationId', params.locationId)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const res = await apiJson<ApiEnvelope<FundingContractRow[]>>(`/billing/funding-contracts${suffix}`, {
     method: 'GET',
@@ -58,7 +60,7 @@ export async function fetchFundingContracts(params?: {
     meta: {
       page: meta.page ?? 1,
       limit: meta.limit ?? 50,
-      total: meta.total ?? (Array.isArray(res.data) ? res.data.length : 0),
+      total: meta.total ?? res.data.length,
       totalPages: meta.totalPages ?? 1,
       hasNextPage: meta.hasNextPage,
       hasPrevPage: meta.hasPrevPage,
@@ -66,9 +68,17 @@ export async function fetchFundingContracts(params?: {
   }
 }
 
-export async function fetchFundingContractsSummary(): Promise<FundingContractsSummary> {
-  const res = await apiJson<ApiEnvelope<FundingContractsSummary>>('/billing/funding-contracts/summary', {
-    method: 'GET',
-  })
+export async function fetchFundingContractsSummary(
+  locationId?: string,
+): Promise<FundingContractsSummary> {
+  const qs = new URLSearchParams()
+  if (locationId) qs.set('locationId', locationId)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const res = await apiJson<ApiEnvelope<FundingContractsSummary>>(
+    `/billing/funding-contracts/summary${suffix}`,
+    {
+      method: 'GET',
+    },
+  )
   return res.data
 }

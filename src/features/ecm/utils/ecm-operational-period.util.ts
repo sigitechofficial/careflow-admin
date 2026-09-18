@@ -4,6 +4,7 @@ import {
   DEFAULT_OPERATIONAL_TIMEZONE,
   ECM_OPERATIONAL_TIMEZONE,
   dayKeyInTimeZone,
+  formatOperationalIsoDate,
   operationalTodayIso,
   todayIsoLocal,
 } from '@/shared/lib/operational-day.util'
@@ -170,15 +171,11 @@ export function presetOptionLabel(preset: EcmOperationalPeriodPreset): string {
   }
 }
 
-/** Short day label for period headers (e.g. 1 Aug 2026). */
+/** Short day label for period headers — organisation date display format. */
 export function formatPeriodDayShort(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(y, m - 1, d))
+  const day = iso?.trim().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return iso
+  return formatOperationalIsoDate(day)
 }
 
 /**

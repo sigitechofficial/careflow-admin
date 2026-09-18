@@ -38,23 +38,12 @@ import {
   useSendInvoiceRun,
 } from '@/features/billing/hooks/useInvoiceRuns'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { ExportStatus, InvoiceRunStatus } from '@/features/billing/types/billing.types'
 import type { ServiceUserInvoiceMonthRow } from '@/features/billing/types/service-user-invoices.types'
 import { cn } from '@/shared/lib/utils'
-
-function formatTimestamp(value: string | null): string {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(d)
-}
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 
 function isInvoiceRunSent(run: InvoiceRunDetail): boolean {
   return (
@@ -205,6 +194,14 @@ export default function InvoiceRunDetailPage() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const canManagePayments = useAuthStore(s => s.can('billing.payments.manage' as never))
+  const { locationId } = useGlobalLocationScope()
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
+
+  const formatInstant = (iso: string | null | undefined) => {
+    if (!iso) return '—'
+    const day = dayKeyFromInstant(iso)
+    return day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
+  }
   const [exporting, setExporting] = React.useState<'csv' | 'xlsx' | null>(null)
   const [exportingServiceUserId, setExportingServiceUserId] = React.useState<string | null>(null)
   const [payInvoice, setPayInvoice] = React.useState<ServiceUserInvoiceMonthRow | null>(null)
@@ -220,7 +217,7 @@ export default function InvoiceRunDetailPage() {
 
   React.useEffect(() => {
     setServiceUserFilterId('')
-  }, [invoiceRunId])
+  }, [invoiceRunId, locationId])
 
   const openSendInvoice = (run: InvoiceRunDetail, group: InvoiceRunServiceUserSummary) => {
     setEmailTarget({
@@ -252,7 +249,7 @@ export default function InvoiceRunDetailPage() {
     }
   }
 
-  const query = useInvoiceRun(invoiceRunId)
+  const query = useInvoiceRun(invoiceRunId, locationId)
   const calculateMutation = useCalculateInvoiceRun()
   const approveMutation = useApproveInvoiceRun()
   const lockMutation = useLockInvoiceRun()
@@ -354,17 +351,19 @@ export default function InvoiceRunDetailPage() {
   return (
     <div className="min-w-0 space-y-6 pb-10">
       <div className="space-y-4">
-        <Link
-          to="/billing/invoice-runs"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Invoice runs
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/billing/invoice-runs"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Invoice runs
+          </Link>
+        </div>
 
         <ContentSectionHeader
           title={run.period}
-          description={`${run.periodStart} – ${run.periodEnd} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length || run.serviceUsers} service user invoice${((run.serviceUserSummaries ?? []).length || run.serviceUsers) === 1 ? '' : 's'}`}
+          description={`${formatDate(run.periodStart)} – ${formatDate(run.periodEnd)} · ${run.lineCount} line${run.lineCount === 1 ? '' : 's'} · ${(run.serviceUserSummaries ?? []).length} service user invoice${(run.serviceUserSummaries ?? []).length === 1 ? '' : 's'}`}
           action={
             <div className="flex flex-wrap items-center justify-end gap-2">
               <InvoiceRunStatusBadge status={run.status} />
@@ -389,14 +388,26 @@ export default function InvoiceRunDetailPage() {
               </Button>
               {canManage ? (
                 <>
-                  {(run.status === 'DRAFT' || run.status === 'EXCEPTION_FOUND') && (
+                  {(run.status === 'DRAFT' ||
+                    run.status === 'EXCEPTION_FOUND' ||
+                    run.status === 'READY_FOR_REVIEW') && (
                     <Button
                       size="sm"
+                      variant={
+                        run.status === 'READY_FOR_REVIEW' || run.status === 'EXCEPTION_FOUND'
+                          ? 'outline'
+                          : 'default'
+                      }
                       disabled={isMutating}
                       leftIcon={<Calculator className="h-3.5 w-3.5" />}
                       onClick={() => void calculateMutation.mutateAsync(run.id)}
+                      data-testid="invoice-run-calculate"
                     >
-                      {isMutating && calculateMutation.isPending ? 'Calculating…' : 'Calculate'}
+                      {isMutating && calculateMutation.isPending
+                        ? 'Calculating…'
+                        : run.status === 'DRAFT'
+                          ? 'Calculate'
+                          : 'Recalculate'}
                     </Button>
                   )}
                   {(run.status === 'READY_FOR_REVIEW' || run.status === 'EXCEPTION_FOUND') && (
@@ -405,6 +416,7 @@ export default function InvoiceRunDetailPage() {
                       disabled={isMutating}
                       leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
                       onClick={() => void approveMutation.mutateAsync(run.id)}
+                      data-testid="invoice-run-approve"
                     >
                       Approve
                     </Button>
@@ -415,6 +427,7 @@ export default function InvoiceRunDetailPage() {
                       disabled={isMutating}
                       leftIcon={<Lock className="h-3.5 w-3.5" />}
                       onClick={() => void lockMutation.mutateAsync(run.id)}
+                      data-testid="invoice-run-lock"
                     >
                       Lock
                     </Button>
@@ -480,6 +493,26 @@ export default function InvoiceRunDetailPage() {
         </div>
       </ContentCard>
 
+      <ContentCard className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Audit trail</h2>
+            <p className="text-xs text-muted-foreground">
+              Who created this run and every action since
+              {run.createdByName ? ` · Created by ${run.createdByName}` : ''}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              to="/billing/invoice-audit-trail"
+              search={{ invoiceRunId: run.id }}
+            >
+              Open audit trail
+            </Link>
+          </Button>
+        </div>
+      </ContentCard>
+
       {hasExceptions ? (
         <div className="flex flex-wrap items-start gap-3 rounded-xl border border-amber-300/70 bg-amber-50/50 px-4 py-3 text-sm dark:border-amber-700/50 dark:bg-amber-950/25">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
@@ -497,19 +530,23 @@ export default function InvoiceRunDetailPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Net total"
-          value={run.netTotal}
+          value={
+            typeof run.netTotalValue === 'number'
+              ? `£${run.netTotalValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : run.netTotal
+          }
           hint="All authority invoices combined"
           icon={<FileText className="h-3.5 w-3.5" />}
         />
         <StatTile
           label="Service users"
-          value={run.serviceUsers}
+          value={(run.serviceUserSummaries ?? []).length}
           hint={`${run.lineCount} billable line${run.lineCount === 1 ? '' : 's'}`}
           icon={<Users className="h-3.5 w-3.5" />}
         />
         <StatTile
           label="Service user invoices"
-          value={(run.serviceUserSummaries ?? []).length || run.serviceUsers}
+          value={(run.serviceUserSummaries ?? []).length}
           hint="Separate invoice per service user"
         />
         <StatTile
@@ -582,7 +619,7 @@ export default function InvoiceRunDetailPage() {
               <li key={item.label} className="flex items-start justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">{item.label}</span>
                 <span className={cn('tabular-nums', item.value ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-                  {formatTimestamp(item.value)}
+                  {formatInstant(item.value)}
                 </span>
               </li>
             ))}
@@ -622,7 +659,10 @@ export default function InvoiceRunDetailPage() {
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             Run calculate to pull approved billable visits for this period into service user invoices.
           </p>
-          {canManage && (run.status === 'DRAFT' || run.status === 'EXCEPTION_FOUND') ? (
+          {canManage &&
+          (run.status === 'DRAFT' ||
+            run.status === 'EXCEPTION_FOUND' ||
+            run.status === 'READY_FOR_REVIEW') ? (
             <Button
               className="mt-4"
               size="sm"
@@ -630,7 +670,7 @@ export default function InvoiceRunDetailPage() {
               leftIcon={<Calculator className="h-3.5 w-3.5" />}
               onClick={() => void calculateMutation.mutateAsync(run.id)}
             >
-              Calculate now
+              {run.status === 'DRAFT' ? 'Calculate now' : 'Recalculate'}
             </Button>
           ) : null}
         </ContentCard>
@@ -689,7 +729,7 @@ export default function InvoiceRunDetailPage() {
                         key={group.serviceUserId}
                         group={group}
                         createdAt={run.createdAt}
-                        formatTimestamp={formatTimestamp}
+                        formatTimestamp={formatInstant}
                         canSendInvoice={
                           canManage &&
                           group.lineCount > 0 &&

@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { useIncidents, useIncidentCategories } from '@/features/incidents/hooks/useIncidents'
 import {
@@ -41,6 +42,7 @@ const selectClass =
 
 export default function IncidentsListPage() {
   const can = useAuthStore((s) => s.can)
+  const { locationId } = useGlobalLocationScope()
   const navigate = useNavigate()
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
@@ -57,7 +59,7 @@ export default function IncidentsListPage() {
 
   React.useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, status, severity, categoryId, openOnly])
+  }, [debouncedSearch, status, severity, categoryId, openOnly, locationId])
 
   const categoriesQuery = useIncidentCategories()
   const filters: IncidentListFilters = {
@@ -66,6 +68,7 @@ export default function IncidentsListPage() {
     severity: severity || undefined,
     categoryId: categoryId || undefined,
     openOnly: openOnly || undefined,
+    locationId: locationId ?? undefined,
     page,
     limit: 25,
   }

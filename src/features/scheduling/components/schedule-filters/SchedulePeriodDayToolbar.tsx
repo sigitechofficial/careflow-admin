@@ -12,7 +12,9 @@ import {
   shiftIsoDate,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { todayIso } from '@/features/scheduling/utils/scheduling-format'
-import { formatOperationalDayLabel } from '@/shared/lib/operational-day.util'
+import {
+  formatOperationalDayLabel,
+} from '@/shared/lib/operational-day.util'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/date-picker'
@@ -308,10 +310,10 @@ export function SchedulePeriodDayToolbar({
       </div>
 
       <p
-        className="mt-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground"
+        className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground"
         data-testid="schedule-period-ops-day-note"
       >
-        {formatOperationalDayLabel(operationalToday)}
+        <span>{formatOperationalDayLabel(operationalToday)}</span>
         {multiDay ? (
           <>
             {' · '}

@@ -2,6 +2,7 @@ import * as React from 'react'
 import { AlertTriangle, BarChart3, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Input } from '@/shared/ui/input'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useIncidentAnalytics, useIncidentCategories } from '@/features/incidents/hooks/useIncidents'
 import type { IncidentAnalyticsFilters, IncidentSeverity } from '@/features/incidents/types'
 
@@ -54,9 +55,13 @@ function BarList({
 }
 
 export default function IncidentAnalyticsPage() {
+  const { locationId } = useGlobalLocationScope()
   const [filters, setFilters] = React.useState<IncidentAnalyticsFilters>({})
   const categoriesQuery = useIncidentCategories()
-  const { data, isLoading, isError } = useIncidentAnalytics(filters)
+  const { data, isLoading, isError } = useIncidentAnalytics({
+    ...filters,
+    locationId: locationId ?? filters.locationId,
+  })
 
   function set<K extends keyof IncidentAnalyticsFilters>(key: K, value: IncidentAnalyticsFilters[K]) {
     setFilters((f) => ({ ...f, [key]: value || undefined }))

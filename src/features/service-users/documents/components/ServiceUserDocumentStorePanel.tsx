@@ -369,6 +369,15 @@ export function ServiceUserDocumentStorePanel({ serviceUserId }: { serviceUserId
           <DocumentStoreComplianceStrip
             compliance={data.compliance}
             carePlanApprovalBlocked={data.carePlanApprovalBlocked}
+            canUpload={canUpload}
+            onOpenType={(code) => {
+              const folder = documentTypes.find((t) => t.code === code)
+              if (folder) openFolder(folder.id)
+            }}
+            onUploadType={(code) => {
+              const folder = documentTypes.find((t) => t.code === code)
+              if (folder) openUpload(folder.id)
+            }}
           />
         </section>
       ) : null}

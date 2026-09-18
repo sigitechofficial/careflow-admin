@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   Loader2,
   PoundSterling,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { useEmployeeSalaries } from '@/features/billing/hooks/usePayrollRuns'
 import { useEmployeePayoutBatches } from '@/features/billing/hooks/useEmployeePayouts'
 import { EmployeePayoutBatchDetailDialog } from '@/features/billing/components/EmployeePayoutBatchDetailDialog'
@@ -29,106 +31,18 @@ import { Input } from '@/shared/ui/input'
 import { StatCard, type StatCardTone } from '@/shared/ui/card'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-function isoWeekPeriodKey(date: Date): string {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
-  return `${d.getUTCFullYear()}-W${pad2(weekNo)}`
-}
-
-function currentUtcMonth(): string {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`
-}
-
-function currentUtcWeek(): string {
-  return isoWeekPeriodKey(new Date())
-}
-
-function shiftMonth(month: string, delta: number): string {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m)) return month
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
-}
-
-function mondayOfIsoWeek(period: string): Date {
-  const match = /^(\d{4})-W(\d{2})$/.exec(period)
-  if (!match) return new Date(NaN)
-  const year = Number(match[1])
-  const week = Number(match[2])
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-  const jan4Dow = jan4.getUTCDay() || 7
-  const week1Monday = new Date(jan4)
-  week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Dow - 1))
-  const monday = new Date(week1Monday)
-  monday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7)
-  return monday
-}
-
-function shiftWeek(period: string, delta: number): string {
-  const monday = mondayOfIsoWeek(period)
-  monday.setUTCDate(monday.getUTCDate() + delta * 7)
-  return isoWeekPeriodKey(monday)
-}
-
-function utcMonthLabel(month: string): string {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m) || y < 1 || m < 1) return month
-  return new Intl.DateTimeFormat('en-GB', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, 1)))
-}
-
-function utcWeekLabel(period: string): string {
-  const monday = mondayOfIsoWeek(period)
-  if (Number.isNaN(monday.getTime())) return period
-  const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  })
-  return `Week ${period.slice(6)} · ${fmt.format(monday)} – ${fmt.format(sunday)} ${period.slice(0, 4)}`
-}
-
-function monthDateRange(month: string): { dateFrom: string; dateTo: string } {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m)) {
-    return { dateFrom: month, dateTo: month }
-  }
-  const from = new Date(Date.UTC(y, m - 1, 1))
-  const to = new Date(Date.UTC(y, m, 0))
-  return {
-    dateFrom: from.toISOString().slice(0, 10),
-    dateTo: to.toISOString().slice(0, 10),
-  }
-}
-
-function weekDateRange(period: string): { dateFrom: string; dateTo: string } {
-  const monday = mondayOfIsoWeek(period)
-  const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
-  return {
-    dateFrom: monday.toISOString().slice(0, 10),
-    dateTo: sunday.toISOString().slice(0, 10),
-  }
-}
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import {
+  currentOpsMonth,
+  currentOpsWeek,
+  salaryMonthDateRange,
+  salaryMonthLabel,
+  salaryWeekDateRange,
+  salaryWeekLabel,
+  shiftSalaryMonth,
+  shiftSalaryWeek,
+} from '@/features/billing/utils/salary-period.util'
 
 export function BillingSalaryOverviewPanel() {
   const canRead = useAuthStore(
@@ -140,34 +54,44 @@ export function BillingSalaryOverviewPanel() {
   const canOpenEmployee = useAuthStore(s => s.can('employees.update') || s.can('employees.read'))
   const canReadPayouts = useAuthStore(s => s.can('billing.employee_payouts.read'))
   const canManagePayouts = useAuthStore(s => s.can('billing.employee_payouts.manage'))
+  const { locationId } = useGlobalLocationScope()
 
   const { data: generalSettings } = useGeneralSettings(canRead)
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
   const basis: SalaryCalculationBasis =
     generalSettings?.salaryCalculationBasis === 'WEEKLY' ? 'WEEKLY' : 'MONTHLY'
   const isWeekly = basis === 'WEEKLY'
   const periodNoun = isWeekly ? 'week' : 'month'
 
   const [period, setPeriod] = React.useState(() =>
-    basis === 'WEEKLY' ? currentUtcWeek() : currentUtcMonth(),
+    basis === 'WEEKLY' ? currentOpsWeek() : currentOpsMonth(),
   )
   const [search, setSearch] = React.useState('')
   const [selectedBatch, setSelectedBatch] = React.useState<EmployeePayoutBatchRow | null>(null)
   const [batchDialogOpen, setBatchDialogOpen] = React.useState(false)
 
   React.useEffect(() => {
-    setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())
+    setPeriod(isWeekly ? currentOpsWeek() : currentOpsMonth())
   }, [isWeekly])
 
   const filters = React.useMemo(
-    () => (isWeekly ? weekDateRange(period) : monthDateRange(period)),
-    [isWeekly, period],
+    () => ({
+      ...(isWeekly ? salaryWeekDateRange(period) : salaryMonthDateRange(period)),
+      locationId: locationId ?? undefined,
+    }),
+    [isWeekly, period, locationId],
   )
-  const periodLabel = isWeekly ? utcWeekLabel(period) : utcMonthLabel(period)
+  const periodLabel = isWeekly ? salaryWeekLabel(period, formatDate) : salaryMonthLabel(period)
+
+  const formatBatchCreatedAt = (iso: string) => {
+    const day = dayKeyFromInstant(iso)
+    return day ? `${formatDate(day)} ${formatTime(iso)}` : '—'
+  }
 
   const query = useEmployeeSalaries(filters, canRead)
   const rows = query.data?.rows ?? []
   const hasEligibleUkRun = query.data?.hasEligibleUkRun ?? false
-  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts)
+  const batchesQuery = useEmployeePayoutBatches(period, canReadPayouts, locationId)
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -207,6 +131,18 @@ export function BillingSalaryOverviewPanel() {
     )
   }, [filtered])
 
+  // Headline payout summary: how many employees have been paid (UK net disbursed
+  // via a PAID payout batch) versus still awaiting payment this period.
+  const paidEmployeeCount = React.useMemo(
+    () => filtered.filter(r => (r.paidOutAmountValue ?? 0) > 0).length,
+    [filtered],
+  )
+  const remainingEmployeeCount = filtered.length - paidEmployeeCount
+  const pendingReviewTotal = React.useMemo(
+    () => filtered.reduce((acc, r) => acc + (r.pendingReviewCount ?? 0), 0),
+    [filtered],
+  )
+
   const money = (n: number) =>
     `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -228,7 +164,7 @@ export function BillingSalaryOverviewPanel() {
   }
 
   const shiftPeriod = (delta: number) =>
-    setPeriod(p => (isWeekly ? shiftWeek(p, delta) : shiftMonth(p, delta)))
+    setPeriod(p => (isWeekly ? shiftSalaryWeek(p, delta) : shiftSalaryMonth(p, delta)))
 
   return (
     <div className="flex flex-col gap-4" data-testid="billing-salary-overview-panel">
@@ -241,6 +177,8 @@ export function BillingSalaryOverviewPanel() {
             <p className="text-sm font-medium text-foreground">Visit salary overview</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Care visit earnings for the selected {periodNoun}, before UK PAYE / NI.
+              <span className="font-medium text-foreground"> Remaining</span> is visit pay
+              not yet in a visit-pay run or UK payroll run.
               Bank paid / Outstanding track <span className="font-medium text-foreground">UK net</span>{' '}
               disbursed via Employee payouts (after W1/M1 tax &amp; NI) — not visit-pay net.
               Auto-payout on the <span className="font-medium text-foreground">4th</span> uses the
@@ -284,7 +222,7 @@ export function BillingSalaryOverviewPanel() {
         <div className="min-w-[10rem] text-center">
           <p className="text-sm font-semibold text-foreground">{periodLabel}</p>
           <p className="text-xs text-muted-foreground">
-            {filters.dateFrom} → {filters.dateTo}
+            {formatDate(filters.dateFrom)} → {formatDate(filters.dateTo)}
           </p>
         </div>
         <Button
@@ -300,7 +238,7 @@ export function BillingSalaryOverviewPanel() {
           type="button"
           size="sm"
           variant="ghost"
-          onClick={() => setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())}
+          onClick={() => setPeriod(isWeekly ? currentOpsWeek() : currentOpsMonth())}
         >
           This {periodNoun}
         </Button>
@@ -320,25 +258,39 @@ export function BillingSalaryOverviewPanel() {
         {(
           [
             {
-              title: 'Employees',
+              title: 'Total employees',
               value: String(filtered.length),
               hint: `With activity this ${periodNoun}`,
               icon: <Users className="h-4 w-4" aria-hidden />,
               tone: 'violet',
             },
             {
-              title: 'Visit pay',
-              value: money(totals.visitPay),
-              hint: 'Accepted visits',
-              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              title: 'Salary paid',
+              value: String(paidEmployeeCount),
+              hint: 'Employees bank-paid',
+              icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
+              tone: 'emerald',
+            },
+            {
+              title: 'Remaining',
+              value: String(remainingEmployeeCount),
+              hint: 'Employees not yet paid',
+              icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
+              tone: 'amber',
+            },
+            {
+              title: 'Amount paid',
+              value: money(totals.bankPaid),
+              hint: 'UK net disbursed (PAID)',
+              icon: <Banknote className="h-4 w-4" aria-hidden />,
               tone: 'sky',
             },
             {
-              title: 'In visit-pay run',
-              value: money(totals.inVisitPayRun),
-              hint: 'Locked / exported run',
-              icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
-              tone: 'emerald',
+              title: 'Amount remaining',
+              value: hasEligibleUkRun ? money(totals.outstanding) : '—',
+              hint: hasEligibleUkRun ? 'UK net still to pay' : 'UK run required',
+              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
+              tone: 'rose',
             },
             {
               title: 'Rejected',
@@ -355,36 +307,11 @@ export function BillingSalaryOverviewPanel() {
               tone: 'amber',
             },
             {
-              title: 'Net salary',
-              value: money(totals.net),
-              hint: 'Visit pay − deductions (not bank)',
-              icon: <Wallet className="h-4 w-4" aria-hidden />,
-              tone: 'emerald',
-            },
-            {
-              title: 'UK net',
-              value: hasEligibleUkRun ? money(totals.ukNet) : '—',
-              hint: hasEligibleUkRun
-                ? 'After W1/M1 PAYE/NI'
-                : 'Statutory UK run required',
-              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
-              tone: 'violet',
-            },
-            {
-              title: 'Bank paid',
-              value: money(totals.bankPaid),
-              hint: 'UK net disbursed (PAID batches)',
-              icon: <Banknote className="h-4 w-4" aria-hidden />,
+              title: 'Pending review',
+              value: String(pendingReviewTotal),
+              hint: 'Visits awaiting review',
+              icon: <Clock className="h-4 w-4" aria-hidden />,
               tone: 'sky',
-            },
-            {
-              title: 'Outstanding to pay',
-              value: hasEligibleUkRun ? money(totals.outstanding) : '—',
-              hint: hasEligibleUkRun
-                ? 'UK net − committed payouts'
-                : 'UK run required',
-              icon: <PoundSterling className="h-4 w-4" aria-hidden />,
-              tone: 'amber',
             },
           ] as const
         ).map(card => (
@@ -461,7 +388,7 @@ export function BillingSalaryOverviewPanel() {
                   {(batchesQuery.data ?? []).map(batch => (
                     <tr key={batch.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-2 text-muted-foreground">
-                        {new Date(batch.createdAt).toLocaleString('en-GB')}
+                        {formatBatchCreatedAt(batch.createdAt)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{batch.lineCount}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
@@ -515,7 +442,10 @@ export function BillingSalaryOverviewPanel() {
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                     In visit-pay run
                   </th>
-                  <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                  <th
+                    className="px-3 py-2.5 text-right font-medium text-muted-foreground"
+                    title="Approved visit pay not yet in a locked visit-pay run or UK payroll run"
+                  >
                     Remaining
                   </th>
                   <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">

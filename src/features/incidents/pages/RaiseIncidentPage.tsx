@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { AlertTriangle, CheckCircle2, Lock, MapPin, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Lock, MapPin, Paperclip, Trash2, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
@@ -10,6 +10,8 @@ import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { Badge } from '@/shared/ui/badge'
 import { toastApiError } from '@/shared/lib/toast'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
+import { useEmployees } from '@/features/employees/hooks/useEmployees'
+import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
 import { useIncidentCategories, useCreateIncident } from '@/features/incidents/hooks/useIncidents'
 import { IncidentInjuryCaptureDialog } from '@/features/incidents/components/IncidentInjuryCaptureDialog'
 import {
@@ -17,13 +19,27 @@ import {
   type PendingIncidentInjury,
 } from '@/features/incidents/utils/incident-injury-persist'
 import {
+  persistIncidentWitness,
+  persistIncidentPhoto,
+  type PendingWitness,
+} from '@/features/incidents/utils/incident-raise-persist'
+import {
   IMMEDIATE_ACTION_OPTIONS,
   INCIDENT_INJURY_SEVERITY_OPTIONS,
+  INCIDENT_PERSON_KIND_OPTIONS,
   type CreateIncidentInput,
   type IncidentInjurySeverity,
   type IncidentListItem,
+  type IncidentPersonKind,
   type IncidentSeverity,
 } from '@/features/incidents/types'
+
+/** A photo/evidence file staged on the raise form; uploaded after the incident is created. */
+type PendingPhoto = {
+  id: string
+  file: File
+  previewUrl: string
+}
 
 const SEVERITY_OPTIONS: { value: IncidentSeverity; label: string }[] = [
   { value: 'LOW', label: 'Low' },
@@ -31,6 +47,8 @@ const SEVERITY_OPTIONS: { value: IncidentSeverity; label: string }[] = [
   { value: 'HIGH', label: 'High' },
   { value: 'CRITICAL', label: 'Critical' },
 ]
+
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 
 const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' | 'destructive'> = {
   MINOR: 'info',
@@ -40,11 +58,7 @@ const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' |
 }
 
 function newInjuryId(): string {
-  try {
-    return crypto.randomUUID()
-  } catch {
-    return `inj-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
-  }
+  return createClientUuid()
 }
 
 function nowLocalDatetime(): string {
@@ -84,6 +98,67 @@ function Toggle({
   )
 }
 
+/** A dropdown that opens a checkbox list for multi-selection. */
+function MultiSelectDropdown({
+  options,
+  selected,
+  onChange,
+  placeholder = 'Select…',
+}: {
+  options: { value: string; label: string }[]
+  selected: string[]
+  onChange: (next: string[]) => void
+  placeholder?: string
+}) {
+  const [open, setOpen] = React.useState(false)
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+  const summary = selected.length
+    ? options.filter((o) => selected.includes(o.value)).map((o) => o.label).join(', ')
+    : placeholder
+  function toggle(v: string) {
+    onChange(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v])
+  }
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-background px-3 text-left text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        <span className={cn('truncate', selected.length ? 'text-foreground' : 'text-muted-foreground')}>
+          {summary}
+        </span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-card p-1 shadow-md">
+          {options.map((o) => (
+            <label
+              key={o.value}
+              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted/60"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(o.value)}
+                onChange={() => toggle(o.value)}
+                className="h-4 w-4 rounded border-border"
+              />
+              {o.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function RaiseIncidentPage() {
   const navigate = useNavigate()
   const categoriesQuery = useIncidentCategories()
@@ -91,6 +166,16 @@ export default function RaiseIncidentPage() {
 
   const [suSearch, setSuSearch] = React.useState('')
   const serviceUsersQuery = useServiceUsers({ limit: 50, search: suSearch || undefined })
+
+  const [empSearch, setEmpSearch] = React.useState('')
+  const employeesQuery = useEmployees({ limit: 50, search: empSearch || undefined })
+  const locationsQuery = useServiceUserLocations()
+
+  // Who was primarily affected — service user, staff, or another person (family/visitor/etc.).
+  const [affectedKinds, setAffectedKinds] = React.useState<IncidentPersonKind[]>(['SERVICE_USER'])
+  const [employeeId, setEmployeeId] = React.useState('')
+  const [affectedPersonName, setAffectedPersonName] = React.useState('')
+  const [locationId, setLocationId] = React.useState('')
 
   const [categoryId, setCategoryId] = React.useState('')
   const [subtypeId, setSubtypeId] = React.useState('')
@@ -108,6 +193,13 @@ export default function RaiseIncidentPage() {
   const [injType, setInjType] = React.useState('')
   const [injSeverity, setInjSeverity] = React.useState<IncidentInjurySeverity>('MINOR')
   const [injNotes, setInjNotes] = React.useState('')
+  // Witnesses (persisted after the incident is created).
+  const [witnesses, setWitnesses] = React.useState<PendingWitness[]>([])
+  const [witName, setWitName] = React.useState('')
+  const [witKind, setWitKind] = React.useState<IncidentPersonKind>('EMPLOYEE')
+  const [witStatement, setWitStatement] = React.useState('')
+  // Photos / evidence (uploaded after the incident is created).
+  const [photos, setPhotos] = React.useState<PendingPhoto[]>([])
   const [severity, setSeverity] = React.useState<IncidentSeverity>('LOW')
   const [keepPrivate, setKeepPrivate] = React.useState(false)
   const [shareHandover, setShareHandover] = React.useState(true)
@@ -129,8 +221,70 @@ export default function RaiseIncidentPage() {
     [serviceUsersQuery.data],
   )
 
+  const employeeOptions: ComboboxOption[] = React.useMemo(
+    () =>
+      (employeesQuery.data?.rows ?? []).map((r) => ({
+        value: r.id,
+        label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
+        description: r.jobTitle?.name ?? undefined,
+      })),
+    [employeesQuery.data],
+  )
+
+  const locationOptions = React.useMemo(
+    () => locationsQuery.data?.locations ?? [],
+    [locationsQuery.data],
+  )
+
+  // Free any created object URLs when the form unmounts (ref keeps the latest list).
+  const photosRef = React.useRef<PendingPhoto[]>([])
+  photosRef.current = photos
+  React.useEffect(() => {
+    return () => {
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl))
+    }
+  }, [])
+
   function toggleActionCode(code: string) {
     setActionCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))
+  }
+
+  function addWitness() {
+    if (!witName.trim() && !witStatement.trim()) return
+    setWitnesses((prev) => [
+      ...prev,
+      {
+        id: newInjuryId(),
+        personKind: witKind,
+        personName: witName.trim(),
+        statement: witStatement.trim(),
+      },
+    ])
+    setWitName('')
+    setWitStatement('')
+    setWitKind('EMPLOYEE')
+  }
+
+  function removeWitness(id: string) {
+    setWitnesses((prev) => prev.filter((w) => w.id !== id))
+  }
+
+  function addPhotos(files: FileList | null) {
+    if (!files || files.length === 0) return
+    const next: PendingPhoto[] = Array.from(files).map((file) => ({
+      id: newInjuryId(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+    setPhotos((prev) => [...prev, ...next])
+  }
+
+  function removePhoto(id: string) {
+    setPhotos((prev) => {
+      const target = prev.find((p) => p.id === id)
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((p) => p.id !== id)
+    })
   }
 
   function addPendingInjury(injury: PendingIncidentInjury) {
@@ -174,7 +328,20 @@ export default function RaiseIncidentPage() {
       categoryId,
       subtypeId: subtypeId || undefined,
       occurredAt: new Date(occurredAtLocal).toISOString(),
-      primaryServiceUserId: serviceUserId || undefined,
+      primaryServiceUserId: affectedKinds.includes('SERVICE_USER')
+        ? serviceUserId || undefined
+        : undefined,
+      primaryEmployeeId: affectedKinds.includes('EMPLOYEE')
+        ? employeeId || undefined
+        : undefined,
+      affectedPersonKinds: affectedKinds.length ? affectedKinds : undefined,
+      primaryPersonKind: affectedKinds[0],
+      primaryPersonName: affectedKinds.some(
+        (k) => k !== 'SERVICE_USER' && k !== 'EMPLOYEE',
+      )
+        ? affectedPersonName.trim() || undefined
+        : undefined,
+      locationId: locationId || undefined,
       specificArea: specificArea.trim() || undefined,
       description: description.trim(),
       contextBefore: contextBefore.trim() || undefined,
@@ -197,13 +364,36 @@ export default function RaiseIncidentPage() {
           injuryFailures += 1
         }
       }
-      if (injuryFailures > 0) {
+      // Persist witnesses captured on the raise form.
+      let witnessFailures = 0
+      for (const witness of witnesses) {
+        try {
+          await persistIncidentWitness(created.id, witness)
+        } catch {
+          witnessFailures += 1
+        }
+      }
+      // Upload staged photos / evidence.
+      let photoFailures = 0
+      for (const photo of photos) {
+        try {
+          await persistIncidentPhoto(created.id, photo.file)
+        } catch {
+          photoFailures += 1
+        }
+      }
+      const failureParts: string[] = []
+      if (injuryFailures > 0) failureParts.push(`${injuryFailures} injury detail(s)`)
+      if (witnessFailures > 0) failureParts.push(`${witnessFailures} witness(es)`)
+      if (photoFailures > 0) failureParts.push(`${photoFailures} photo(s)`)
+      if (failureParts.length > 0) {
         toastApiError(
           new Error(
-            `Incident saved, but ${injuryFailures} injury detail(s) could not be recorded. Add them on the incident record.`,
+            `Incident saved, but ${failureParts.join(', ')} could not be recorded. Add them on the incident record.`,
           ),
         )
       }
+      photos.forEach((p) => URL.revokeObjectURL(p.previewUrl))
       setSubmitted(created)
     } catch (err) {
       toastApiError(err)
@@ -254,7 +444,16 @@ export default function RaiseIncidentPage() {
               setSubmitted(null)
               setCategoryId('')
               setSubtypeId('')
+              setAffectedKinds(['SERVICE_USER'])
               setServiceUserId('')
+              setEmployeeId('')
+              setAffectedPersonName('')
+              setLocationId('')
+              setWitnesses([])
+              setWitName('')
+              setWitStatement('')
+              setWitKind('EMPLOYEE')
+              setPhotos([])
               setSpecificArea('')
               setDescription('')
               setContextBefore('')
@@ -349,20 +548,80 @@ export default function RaiseIncidentPage() {
               />
             </FormField>
 
-            <FormField label="Person affected (service user)" hint="Search by name">
-              <Combobox
-                options={serviceUserOptions}
-                value={serviceUserId}
-                onChange={setServiceUserId}
-                onSearchChange={setSuSearch}
-                loading={serviceUsersQuery.isLoading}
-                placeholder="Select service user (optional)"
-                searchPlaceholder="Search service users…"
-                allowDeselect
+            <FormField label="Who was affected?">
+              <MultiSelectDropdown
+                options={INCIDENT_PERSON_KIND_OPTIONS}
+                selected={affectedKinds}
+                onChange={(next) => {
+                  setAffectedKinds(next as IncidentPersonKind[])
+                  // Clear fields that no longer apply so we never send stale values.
+                  if (!next.includes('SERVICE_USER')) setServiceUserId('')
+                  if (!next.includes('EMPLOYEE')) setEmployeeId('')
+                  if (!next.some((k) => k !== 'SERVICE_USER' && k !== 'EMPLOYEE'))
+                    setAffectedPersonName('')
+                }}
+                placeholder="Select who was affected…"
               />
             </FormField>
 
-            <FormField label="Specific area / location" htmlFor="inc-area" className="sm:col-span-2">
+            {affectedKinds.includes('SERVICE_USER') && (
+              <FormField label="Service user affected" hint="Search by name">
+                <Combobox
+                  options={serviceUserOptions}
+                  value={serviceUserId}
+                  onChange={setServiceUserId}
+                  onSearchChange={setSuSearch}
+                  loading={serviceUsersQuery.isLoading}
+                  placeholder="Select service user (optional)"
+                  searchPlaceholder="Search service users…"
+                  allowDeselect
+                />
+              </FormField>
+            )}
+
+            {affectedKinds.includes('EMPLOYEE') && (
+              <FormField label="Staff member affected" hint="Search by name">
+                <Combobox
+                  options={employeeOptions}
+                  value={employeeId}
+                  onChange={setEmployeeId}
+                  onSearchChange={setEmpSearch}
+                  loading={employeesQuery.isLoading}
+                  placeholder="Select staff member (optional)"
+                  searchPlaceholder="Search staff…"
+                  allowDeselect
+                />
+              </FormField>
+            )}
+
+            {affectedKinds.some((k) => k !== 'SERVICE_USER' && k !== 'EMPLOYEE') && (
+              <FormField label="Other person affected (name)" htmlFor="inc-affected-name">
+                <Input
+                  id="inc-affected-name"
+                  value={affectedPersonName}
+                  onChange={(e) => setAffectedPersonName(e.target.value)}
+                  placeholder="Full name"
+                />
+              </FormField>
+            )}
+
+            <FormField label="Location (branch)" htmlFor="inc-location">
+              <select
+                id="inc-location"
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select…</option>
+                {locationOptions.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="Specific area / location" htmlFor="inc-area">
               <Input
                 id="inc-area"
                 value={specificArea}
@@ -541,6 +800,122 @@ export default function RaiseIncidentPage() {
               Turn on if an injury occurred — you can then pinpoint it on the body map before submitting.
             </p>
           )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          <h3 className="text-sm font-semibold text-foreground">Witnesses</h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Anyone who saw what happened. Capture it now while it&apos;s fresh.
+          </p>
+          {witnesses.length > 0 && (
+            <ul className="mb-3 space-y-2">
+              {witnesses.map((w) => (
+                <li
+                  key={w.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                      {w.personName || 'Unnamed witness'}
+                      <Badge variant="info" size="sm">
+                        {INCIDENT_PERSON_KIND_OPTIONS.find((o) => o.value === w.personKind)?.label ??
+                          w.personKind}
+                      </Badge>
+                    </p>
+                    {w.statement && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{w.statement}</p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Remove witness"
+                    onClick={() => removeWitness(w.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Input
+              placeholder="Witness name"
+              value={witName}
+              onChange={(e) => setWitName(e.target.value)}
+            />
+            <select
+              value={witKind}
+              onChange={(e) => setWitKind(e.target.value as IncidentPersonKind)}
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {INCIDENT_PERSON_KIND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <Textarea
+              className="sm:col-span-2"
+              rows={2}
+              placeholder="What did they see? (optional)"
+              value={witStatement}
+              onChange={(e) => setWitStatement(e.target.value)}
+            />
+          </div>
+          <div className="mt-2 flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!witName.trim() && !witStatement.trim()}
+              onClick={addWitness}
+            >
+              Add witness
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          <h3 className="text-sm font-semibold text-foreground">Photos / evidence</h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Attach photos of the injury or scene, or any supporting files.
+          </p>
+          {photos.length > 0 && (
+            <ul className="mb-3 flex flex-wrap gap-3">
+              {photos.map((p) => (
+                <li key={p.id} className="relative">
+                  <img
+                    src={p.previewUrl}
+                    alt={p.file.name}
+                    className="h-20 w-20 rounded-lg border border-border object-cover"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Remove photo"
+                    onClick={() => removePhoto(p.id)}
+                    className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-white shadow"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted/40">
+            <Paperclip className="h-4 w-4" />
+            Add photos
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addPhotos(e.target.files)
+                e.target.value = ''
+              }}
+            />
+          </label>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">

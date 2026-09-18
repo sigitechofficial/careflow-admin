@@ -66,11 +66,17 @@ export function ScheduleJobsGanttLegend({
       <LegendPill swatch="bg-rose-500" label="Over booked (extra carers)" />
       <LegendPill swatch="border-2 border-orange-500 bg-orange-100/80" label="Travel time conflict" />
       <LegendPill swatch="border-b-4 border-primary bg-background" label="Part of a run" />
+      <LegendPill swatch="bg-red-600" label="Time-sensitive medicine / task" />
+      <LegendPill swatch="bg-sky-600" label="Medicine / task early" />
+      <LegendPill swatch="bg-amber-500" label="Medicine / task delayed" />
+      <LegendPill swatch="bg-destructive" label="Medicine / task missed" />
       <LegendPill swatch="bg-sky-600" label="Early start / end" />
       <LegendPill swatch="bg-orange-600" label="Late start / end / overrun" />
       <LegendPill swatch="bg-destructive" label="Critically late" />
       <LegendPill hatchStyle={jobBlockCompletedSurfaceStyle} label="Completed" />
       <LegendPill hatchStyle={jobBlockUnableToStartSurfaceStyle} label="Unable to start" />
+      <LegendPill swatch="border-2 border-red-500 bg-rose-50" label="SOS / left visit area" />
+      <LegendPill swatch="border-2 border-amber-500 bg-amber-50" label="Unable to start / auth request" />
       <div className="hidden h-4 w-px bg-border/80 sm:block" />
       {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
         <button

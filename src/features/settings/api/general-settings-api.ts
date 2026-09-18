@@ -73,6 +73,7 @@ export type OrganisationAppSettings = {
   viewPoliciesRosterApp: boolean
   bookHolidaysCareApp: boolean
   fingerprintLoginCareApp: boolean
+  singleDeviceLoginCareApp: boolean
 }
 
 export type OrganisationCriticalInformationSettings = {
@@ -229,6 +230,8 @@ export type OrganisationGeneralSettings = {
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus
   incidentTypeSettings: IncidentTypeSetting[]
+  incidentSeveritySettings?: IncidentTypeSetting[]
+  incidentWhoInformedSettings?: IncidentTypeSetting[]
   optionalSettings: OrganisationOptionalSettings
   preAssessmentSettings: OrganisationPreAssessmentSettings
   alertsSettings: OrganisationAlertsSettings
@@ -257,6 +260,7 @@ export type AppSettingsUpdatePayload = {
   appSettingViewPoliciesRosterApp?: boolean
   appSettingBookHolidaysCareApp?: boolean
   appSettingFingerprintLoginCareApp?: boolean
+  appSettingSingleDeviceLoginCareApp?: boolean
 }
 
 export type CriticalInformationSettingsUpdatePayload = {

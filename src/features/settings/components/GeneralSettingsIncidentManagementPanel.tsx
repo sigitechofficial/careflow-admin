@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import {
   type IncidentDefaultStatus,
@@ -26,9 +26,15 @@ import {
   SettingsNoYesToggle,
 } from '@/features/settings/components/GeneralSettingsCard'
 import {
+  DEFAULT_INCIDENT_SEVERITY_SETTINGS,
   DEFAULT_INCIDENT_TYPE_SETTINGS,
+  DEFAULT_INCIDENT_WHO_INFORMED_SETTINGS,
   INCIDENT_STATUS_OPTIONS,
+  isDefaultWhoInformedKey,
+  mergeIncidentSeveritySettings,
   mergeIncidentTypeSettings,
+  mergeIncidentWhoInformedSettings,
+  slugIncidentCatalogKey,
 } from '@/features/settings/incident/incident-management-defaults'
 import { useAuthStore } from '@/features/auth/store'
 import { cn } from '@/shared/lib/utils'
@@ -37,6 +43,7 @@ const TOOLTIPS = {
   editableMinutes:
     'How long after an incident is created that staff can still edit the incident details.',
   displayHours: 'How long completed or closed incidents remain visible on dashboards and lists.',
+  showOnApp: 'Yes shows this option on the carer Report an incident sheet.',
 } as const
 
 type IncidentDraft = {
@@ -44,6 +51,8 @@ type IncidentDraft = {
   incidentDisplayHours: number
   incidentDefaultStatus: IncidentDefaultStatus
   incidentTypeSettings: IncidentTypeSetting[]
+  incidentSeveritySettings: IncidentTypeSetting[]
+  incidentWhoInformedSettings: IncidentTypeSetting[]
 }
 
 const DEFAULTS: IncidentDraft = {
@@ -51,6 +60,8 @@ const DEFAULTS: IncidentDraft = {
   incidentDisplayHours: 12,
   incidentDefaultStatus: 'REPORTED',
   incidentTypeSettings: DEFAULT_INCIDENT_TYPE_SETTINGS,
+  incidentSeveritySettings: DEFAULT_INCIDENT_SEVERITY_SETTINGS,
+  incidentWhoInformedSettings: DEFAULT_INCIDENT_WHO_INFORMED_SETTINGS,
 }
 
 function toDraft(s: OrganisationGeneralSettings): IncidentDraft {
@@ -61,11 +72,75 @@ function toDraft(s: OrganisationGeneralSettings): IncidentDraft {
     incidentTypeSettings: mergeIncidentTypeSettings(
       s.incidentTypeSettings?.length ? s.incidentTypeSettings : DEFAULT_INCIDENT_TYPE_SETTINGS,
     ),
+    incidentSeveritySettings: mergeIncidentSeveritySettings(
+      s.incidentSeveritySettings?.length
+        ? s.incidentSeveritySettings
+        : DEFAULT_INCIDENT_SEVERITY_SETTINGS,
+    ),
+    incidentWhoInformedSettings: mergeIncidentWhoInformedSettings(
+      s.incidentWhoInformedSettings?.length
+        ? s.incidentWhoInformedSettings
+        : DEFAULT_INCIDENT_WHO_INFORMED_SETTINGS,
+    ),
   }
 }
 
 function clampInt(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Number.isFinite(n) ? Math.round(n) : min))
+}
+
+function CatalogList({
+  items,
+  canUpdate,
+  onToggle,
+  onRemove,
+  canRemove,
+}: {
+  items: IncidentTypeSetting[]
+  canUpdate: boolean
+  onToggle: (key: string, required: boolean) => void
+  onRemove?: (key: string) => void
+  canRemove?: (key: string) => boolean
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-border pb-2 text-sm font-medium text-foreground">
+        <span>Option</span>
+        <span className="text-right">Show on app</span>
+      </div>
+      <div className="divide-y divide-border">
+        {items.map((row, index) => (
+          <div
+            key={row.key}
+            className={cn(
+              'grid grid-cols-[1fr_auto] items-center gap-4 py-3',
+              index % 2 === 1 && 'bg-muted/20',
+            )}
+          >
+            <span className="flex items-center gap-2 text-sm text-foreground">
+              {row.label}
+              {onRemove && canRemove?.(row.key) ? (
+                <button
+                  type="button"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
+                  disabled={!canUpdate}
+                  aria-label={`Remove ${row.label}`}
+                  onClick={() => onRemove(row.key)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </span>
+            <SettingsNoYesToggle
+              value={row.required}
+              onChange={v => onToggle(row.key, v)}
+              disabled={!canUpdate}
+            />
+          </div>
+        ))}
+      </div>
+    </>
+  )
 }
 
 export function GeneralSettingsIncidentManagementPanel() {
@@ -74,6 +149,7 @@ export function GeneralSettingsIncidentManagementPanel() {
   const updateMutation = useUpdateGeneralSettings()
   const [saved, setSaved] = React.useState<IncidentDraft | null>(null)
   const [draft, setDraft] = React.useState<IncidentDraft>(DEFAULTS)
+  const [newWhoLabel, setNewWhoLabel] = React.useState('')
   const saving = updateMutation.isPending
   const error =
     queryError instanceof ApiError
@@ -90,13 +166,32 @@ export function GeneralSettingsIncidentManagementPanel() {
     }
   }, [settingsData])
 
-  function updateType(key: string, required: boolean) {
+  function updateList(
+    field: 'incidentTypeSettings' | 'incidentSeveritySettings' | 'incidentWhoInformedSettings',
+    key: string,
+    required: boolean,
+  ) {
     setDraft(d => ({
       ...d,
-      incidentTypeSettings: d.incidentTypeSettings.map(t =>
-        t.key === key ? { ...t, required } : t,
-      ),
+      [field]: d[field].map(t => (t.key === key ? { ...t, required } : t)),
     }))
+  }
+
+  function addWhoInformed() {
+    const label = newWhoLabel.trim()
+    if (!label) return
+    let key = slugIncidentCatalogKey(label)
+    if (draft.incidentWhoInformedSettings.some(t => t.key === key)) {
+      key = `${key}_${Date.now()}`
+    }
+    setDraft(d => ({
+      ...d,
+      incidentWhoInformedSettings: [
+        ...d.incidentWhoInformedSettings,
+        { key, label, required: true },
+      ],
+    }))
+    setNewWhoLabel('')
   }
 
   async function onSave() {
@@ -107,6 +202,8 @@ export function GeneralSettingsIncidentManagementPanel() {
         incidentDisplayHours: clampInt(draft.incidentDisplayHours, 1, 8760),
         incidentDefaultStatus: draft.incidentDefaultStatus,
         incidentTypeSettings: draft.incidentTypeSettings,
+        incidentSeveritySettings: draft.incidentSeveritySettings,
+        incidentWhoInformedSettings: draft.incidentWhoInformedSettings,
       })
       const d = toDraft(updated)
       setSaved(d)
@@ -118,8 +215,15 @@ export function GeneralSettingsIncidentManagementPanel() {
   }
 
   function onReset() {
-    if (saved) setDraft({ ...saved, incidentTypeSettings: saved.incidentTypeSettings.map(t => ({ ...t })) })
-    else setDraft(DEFAULTS)
+    if (saved) {
+      setDraft({
+        ...saved,
+        incidentTypeSettings: saved.incidentTypeSettings.map(t => ({ ...t })),
+        incidentSeveritySettings: saved.incidentSeveritySettings.map(t => ({ ...t })),
+        incidentWhoInformedSettings: saved.incidentWhoInformedSettings.map(t => ({ ...t })),
+      })
+    } else setDraft(DEFAULTS)
+    setNewWhoLabel('')
   }
 
   if (loading) {
@@ -206,27 +310,71 @@ export function GeneralSettingsIncidentManagementPanel() {
         </GeneralSettingsCard>
 
         <GeneralSettingsCard title="Incident Types">
-          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-border pb-2 text-sm font-medium text-foreground">
-            <span>Incident Type</span>
-            <span className="text-right">Required</span>
-          </div>
-          <div className="divide-y divide-border">
-            {draft.incidentTypeSettings.map((type, index) => (
-              <div
-                key={type.key}
-                className={cn(
-                  'grid grid-cols-[1fr_auto] items-center gap-4 py-3',
-                  index % 2 === 1 && 'bg-muted/20',
-                )}
-              >
-                <span className="text-sm text-foreground">{type.label}</span>
-                <SettingsNoYesToggle
-                  value={type.required}
-                  onChange={v => updateType(type.key, v)}
-                  disabled={!canUpdate}
-                />
-              </div>
-            ))}
+          <p className="text-xs text-muted-foreground">
+            Carer Report an incident · Type.{' '}
+            <SettingsHint text={TOOLTIPS.showOnApp} />
+          </p>
+          <CatalogList
+            items={draft.incidentTypeSettings}
+            canUpdate={canUpdate}
+            onToggle={(key, required) => updateList('incidentTypeSettings', key, required)}
+          />
+        </GeneralSettingsCard>
+
+        <GeneralSettingsCard title="Severity">
+          <p className="text-xs text-muted-foreground">
+            Fixed scale for filters and audit. Hide a level with Show on app = No.
+          </p>
+          <CatalogList
+            items={draft.incidentSeveritySettings}
+            canUpdate={canUpdate}
+            onToggle={(key, required) => updateList('incidentSeveritySettings', key, required)}
+          />
+        </GeneralSettingsCard>
+
+        <GeneralSettingsCard title="Who was informed">
+          <p className="text-xs text-muted-foreground">
+            Carer Report an incident checklist. Add extra contacts for this organisation.
+          </p>
+          <CatalogList
+            items={draft.incidentWhoInformedSettings}
+            canUpdate={canUpdate}
+            onToggle={(key, required) =>
+              updateList('incidentWhoInformedSettings', key, required)
+            }
+            canRemove={key => !isDefaultWhoInformedKey(key)}
+            onRemove={key =>
+              setDraft(d => ({
+                ...d,
+                incidentWhoInformedSettings: d.incidentWhoInformedSettings.filter(
+                  t => t.key !== key,
+                ),
+              }))
+            }
+          />
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <Input
+              className="h-9 min-w-[12rem] flex-1"
+              placeholder="Add contact (e.g. CQC)"
+              value={newWhoLabel}
+              disabled={!canUpdate}
+              onChange={e => setNewWhoLabel(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addWhoInformed()
+                }
+              }}
+              aria-label="New who-was-informed option"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canUpdate || !newWhoLabel.trim()}
+              onClick={addWhoInformed}
+            >
+              Add
+            </Button>
           </div>
         </GeneralSettingsCard>
       </div>

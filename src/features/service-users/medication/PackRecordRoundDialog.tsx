@@ -13,11 +13,12 @@ import { scheduleForCompartment } from '@/features/service-users/medication/blis
 import { MarStatusCodePicker } from '@/features/service-users/medication/MarStatusCodePicker'
 import type { StatusPickRow } from '@/features/service-users/medication/mar-record-utils'
 import type { MarChartCell, MarChartMedicationRow } from '@/features/service-users/api/medication-mar.api'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import './mar-record.css'
 
 /** Same recordable set as standalone MAR record dialog (excludes Pending / PR display-only). */
 const RECORDABLE_CODES = new Set([
-  'G', 'R', 'N', 'U', 'H', 'A', 'C', 'F', 'I', 'S', 'T', 'O', 'P', 'PCI',
+  'G', 'PG', 'R', 'N', 'U', 'H', 'A', 'C', 'F', 'I', 'S', 'T', 'O', 'P', 'PCI',
 ])
 
 function needsReason(code: string, statusCodes: StatusPickRow[]): boolean {
@@ -46,9 +47,7 @@ type RecordLine = {
 type LineState = { statusCode: string; reason: string }
 
 function todayInput(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return operationalTodayIso()
 }
 
 function toStatusPickRows(rows: MedicationStatusCodeLookupRow[]): StatusPickRow[] {

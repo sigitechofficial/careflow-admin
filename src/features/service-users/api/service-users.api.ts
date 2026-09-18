@@ -70,6 +70,9 @@ export type ServiceUserListRow = {
   } | null
   keyWorker: ServiceUserListEmployeeBrief
   namedNurse: ServiceUserListEmployeeBrief
+  createdAt?: string | null
+  createdById?: string | null
+  createdByName?: string | null
   /** True when an absence spans today (start ≤ today ≤ end or open-ended). */
   hasActiveAbsence?: boolean
   /** True when a current ACTIVE flash message exists and is not past displayUntil. */
@@ -102,6 +105,10 @@ export type ListServiceUsersParams = {
   /** Branch / location scope (singular). */
   locationId?: string
   riskLevelId?: string
+  careTypeId?: string
+  fundingTypeId?: string
+  serviceStartDateFrom?: string
+  serviceStartDateTo?: string
   ageMin?: number
   ageMax?: number
   hasActiveFlashMessage?: boolean
@@ -749,6 +756,8 @@ export type ServiceUserMedicationRow = {
   monthlyAnchorToStartDate?: boolean | null
   isControlledMedication: boolean
   isDecongestantMedication: boolean
+  timeCritical?: boolean
+  timeToleranceMinutes?: number
   route?: ServiceUserMedicationLookupNested
   frequency?: ServiceUserMedicationLookupNested
   medicationType?: ServiceUserMedicationLookupNested
@@ -1001,6 +1010,8 @@ export type CreateServiceUserMedicationPayload = {
   notes?: string
   isControlledMedication?: boolean
   isDecongestantMedication?: boolean
+  timeCritical?: boolean
+  timeToleranceMinutes?: number
   medicationPackId?: string
   status?: 'ACTIVE' | 'ENDED' | 'PAUSED' | 'CANCELLED'
   /** One schedule row per administration time (e.g. 3× daily → 3 rows). */
@@ -1780,6 +1791,10 @@ export async function listServiceUsers(
   if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
   if (params.locationId) qs.set('locationId', params.locationId)
   if (params.riskLevelId) qs.set('riskLevelId', params.riskLevelId)
+  if (params.careTypeId) qs.set('careTypeId', params.careTypeId)
+  if (params.fundingTypeId) qs.set('fundingTypeId', params.fundingTypeId)
+  if (params.serviceStartDateFrom) qs.set('serviceStartDateFrom', params.serviceStartDateFrom)
+  if (params.serviceStartDateTo) qs.set('serviceStartDateTo', params.serviceStartDateTo)
   if (params.ageMin != null) qs.set('ageMin', String(params.ageMin))
   if (params.ageMax != null) qs.set('ageMax', String(params.ageMax))
   if (params.hasActiveFlashMessage === true) qs.set('hasActiveFlashMessage', 'true')

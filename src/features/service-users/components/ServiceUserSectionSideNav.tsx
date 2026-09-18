@@ -9,7 +9,7 @@ export function ServiceUserSectionSideNav<T extends string>({
   testId,
   tabTestIdPrefix,
 }: {
-  tabs: { id: T; label: string; Icon: LucideIcon }[]
+  tabs: { id: T; label: string; Icon: LucideIcon; iconClassName?: string }[]
   activeId: T
   onSelect: (id: T) => void
   ariaLabel: string
@@ -45,7 +45,14 @@ export function ServiceUserSectionSideNav<T extends string>({
                 : 'text-muted-foreground hover:bg-card/70 hover:text-foreground',
             )}
           >
-            <Icon className="h-4 w-4 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
+            <Icon
+              className={cn(
+                'h-4 w-4 shrink-0',
+                tab.iconClassName ?? (isActive ? 'text-primary' : 'text-muted-foreground'),
+              )}
+              strokeWidth={2}
+              aria-hidden
+            />
             <span className="whitespace-nowrap">{tab.label}</span>
           </button>
         )

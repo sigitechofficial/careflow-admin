@@ -144,6 +144,81 @@ type MixedFunderShare = {
   funderId: string
   splitPercent: string
   paymentTerms: string
+  billingContactName: string
+  billingContactEmail: string
+  billingContactPhone: string
+  billingAddressLine1: string
+  billingAddressLine2: string
+  billingTown: string
+  billingCounty: string
+  billingCountry: string
+  billingPostcode: string
+}
+
+function emptyMixedBillingFields(): Omit<
+  MixedFunderShare,
+  'funderId' | 'splitPercent' | 'paymentTerms'
+> {
+  return {
+    billingContactName: '',
+    billingContactEmail: '',
+    billingContactPhone: '',
+    billingAddressLine1: '',
+    billingAddressLine2: '',
+    billingTown: '',
+    billingCounty: '',
+    billingCountry: '',
+    billingPostcode: '',
+  }
+}
+
+function billingFieldsFromFundingRow(
+  row: EnterpriseServiceUserFundingRow,
+): Omit<MixedFunderShare, 'funderId' | 'splitPercent' | 'paymentTerms'> {
+  return {
+    billingContactName: row.billingContactName ?? '',
+    billingContactEmail: row.billingContactEmail ?? '',
+    billingContactPhone: row.billingContactPhone ?? '',
+    billingAddressLine1: row.billingAddressLine1 ?? '',
+    billingAddressLine2: row.billingAddressLine2 ?? '',
+    billingTown: row.billingTown ?? '',
+    billingCounty: row.billingCounty ?? '',
+    billingCountry: row.billingCountry ?? '',
+    billingPostcode: row.billingPostcode ?? '',
+  }
+}
+
+function billingAddressFromFunder(
+  funder: EnterpriseFunderRow,
+): Pick<
+  MixedFunderShare,
+  | 'billingAddressLine1'
+  | 'billingAddressLine2'
+  | 'billingTown'
+  | 'billingCounty'
+  | 'billingCountry'
+  | 'billingPostcode'
+> {
+  return {
+    billingAddressLine1: funder.addressLine1 ?? '',
+    billingAddressLine2: funder.addressLine2 ?? '',
+    billingTown: funder.town ?? '',
+    billingCounty: funder.county ?? '',
+    billingCountry: funder.country ?? '',
+    billingPostcode: funder.postcode ?? '',
+  }
+}
+
+function funderHasAddress(funder: EnterpriseFunderRow | undefined): boolean {
+  if (!funder) return false
+  return Boolean(
+    funder.addressLine1?.trim() ||
+      funder.addressLine2?.trim() ||
+      funder.town?.trim() ||
+      funder.county?.trim() ||
+      funder.postcode?.trim() ||
+      funder.country?.trim(),
+  )
 }
 
 function chargeCardOptionLabel(card: ChargeCard): string {
@@ -334,6 +409,7 @@ function rowToEditForm(
         funderId: r.funderId!,
         splitPercent: r.splitPercent != null ? String(Number(r.splitPercent)) : '',
         paymentTerms: r.funder?.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
+        ...billingFieldsFromFundingRow(r),
       })),
       isPrimary: splitRows.some((r) => r.isPrimary),
     },
@@ -400,6 +476,15 @@ function mixedShareToBody(
       splitPercent: share.splitPercent,
       splitPriority: String(splitPriority),
       isPrimary,
+      billingContactName: share.billingContactName,
+      billingContactEmail: share.billingContactEmail,
+      billingContactPhone: share.billingContactPhone,
+      billingAddressLine1: share.billingAddressLine1,
+      billingAddressLine2: share.billingAddressLine2,
+      billingTown: share.billingTown,
+      billingCounty: share.billingCounty,
+      billingCountry: share.billingCountry,
+      billingPostcode: share.billingPostcode,
     }),
   }
 }
@@ -416,6 +501,7 @@ function toggleMixedFunder(
   funderId: string,
   checked: boolean,
   paymentTerms: string = DEFAULT_PAYMENT_TERMS,
+  funder?: EnterpriseFunderRow,
 ): MixedFunderShare[] {
   if (checked) {
     if (shares.some((s) => s.funderId === funderId)) return shares
@@ -425,10 +511,20 @@ function toggleMixedFunder(
         funderId,
         splitPercent: '',
         paymentTerms: paymentTerms.trim() || DEFAULT_PAYMENT_TERMS,
+        ...emptyMixedBillingFields(),
+        ...(funder && funderHasAddress(funder) ? billingAddressFromFunder(funder) : {}),
       },
     ]
   }
   return shares.filter((s) => s.funderId !== funderId)
+}
+
+function patchMixedShare(
+  shares: MixedFunderShare[],
+  funderId: string,
+  patch: Partial<MixedFunderShare>,
+): MixedFunderShare[] {
+  return shares.map((s) => (s.funderId === funderId ? { ...s, ...patch } : s))
 }
 
 function setMixedSharePercent(
@@ -436,7 +532,7 @@ function setMixedSharePercent(
   funderId: string,
   splitPercent: string,
 ): MixedFunderShare[] {
-  return shares.map((s) => (s.funderId === funderId ? { ...s, splitPercent } : s))
+  return patchMixedShare(shares, funderId, { splitPercent })
 }
 
 function setMixedSharePaymentTerms(
@@ -444,11 +540,9 @@ function setMixedSharePaymentTerms(
   funderId: string,
   paymentTerms: string,
 ): MixedFunderShare[] {
-  return shares.map((s) =>
-    s.funderId === funderId
-      ? { ...s, paymentTerms: paymentTerms.trim() || DEFAULT_PAYMENT_TERMS }
-      : s,
-  )
+  return patchMixedShare(shares, funderId, {
+    paymentTerms: paymentTerms.trim() || DEFAULT_PAYMENT_TERMS,
+  })
 }
 
 export function ServiceUserFundingTab({
@@ -638,6 +732,15 @@ export function ServiceUserFundingTab({
                     funderId: f.funderId,
                     splitPercent: '',
                     paymentTerms: f.paymentTerms || DEFAULT_PAYMENT_TERMS,
+                    billingContactName: f.billingContactName,
+                    billingContactEmail: f.billingContactEmail,
+                    billingContactPhone: f.billingContactPhone,
+                    billingAddressLine1: f.billingAddressLine1,
+                    billingAddressLine2: f.billingAddressLine2,
+                    billingTown: f.billingTown,
+                    billingCounty: f.billingCounty,
+                    billingCountry: f.billingCountry,
+                    billingPostcode: f.billingPostcode,
                   },
                 ]
               : f.mixedShares.length
@@ -645,13 +748,23 @@ export function ServiceUserFundingTab({
                 : [],
         }
       }
+      const firstShare = f.mixedShares[0]
       return {
         ...f,
         payerMode: 'SINGLE',
         mixedShares: [],
-        funderId: f.mixedShares[0]?.funderId ?? f.funderId,
+        funderId: firstShare?.funderId ?? f.funderId,
         paymentTerms:
-          f.mixedShares[0]?.paymentTerms || f.paymentTerms || DEFAULT_PAYMENT_TERMS,
+          firstShare?.paymentTerms || f.paymentTerms || DEFAULT_PAYMENT_TERMS,
+        billingContactName: firstShare?.billingContactName ?? f.billingContactName,
+        billingContactEmail: firstShare?.billingContactEmail ?? f.billingContactEmail,
+        billingContactPhone: firstShare?.billingContactPhone ?? f.billingContactPhone,
+        billingAddressLine1: firstShare?.billingAddressLine1 ?? f.billingAddressLine1,
+        billingAddressLine2: firstShare?.billingAddressLine2 ?? f.billingAddressLine2,
+        billingTown: firstShare?.billingTown ?? f.billingTown,
+        billingCounty: firstShare?.billingCounty ?? f.billingCounty,
+        billingCountry: firstShare?.billingCountry ?? f.billingCountry,
+        billingPostcode: firstShare?.billingPostcode ?? f.billingPostcode,
         splitPercent: '',
         splitPriority: '1',
       }
@@ -1170,10 +1283,10 @@ export function ServiceUserFundingTab({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Select each funder, set their invoice split %, and payment terms. Splits must
-                  total 100%.
+                  Select each funder, set their invoice split %, payment terms, and billing
+                  details. Splits must total 100%.
                 </p>
-                <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-lg border border-border p-3">
                   {funders.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No funders available.</p>
                   ) : (
@@ -1197,6 +1310,7 @@ export function ServiceUserFundingTab({
                                       funder.id,
                                       value === true,
                                       funder.paymentTerms?.trim() || DEFAULT_PAYMENT_TERMS,
+                                      funder,
                                     ),
                                   }))
                                 }
@@ -1227,46 +1341,274 @@ export function ServiceUserFundingTab({
                               </div>
                             ) : null}
                           </div>
-                          {checked ? (
-                            <div className="pl-7">
-                              <FundingFieldLabel
-                                className="mb-1"
-                                label="Payment terms"
-                                tooltip={FUNDING_FIELD_TOOLTIPS.paymentTerms}
-                              />
-                              <Select
-                                value={share?.paymentTerms || DEFAULT_PAYMENT_TERMS}
-                                onValueChange={(v) =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    mixedShares: setMixedSharePaymentTerms(
-                                      f.mixedShares,
-                                      funder.id,
-                                      v,
-                                    ),
-                                  }))
-                                }
-                              >
-                                <SelectTrigger className="h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {!PAYMENT_TERMS_OPTIONS.some(
-                                    (o) =>
-                                      o.value ===
-                                      (share?.paymentTerms || DEFAULT_PAYMENT_TERMS),
-                                  ) && share?.paymentTerms ? (
-                                    <SelectItem value={share.paymentTerms}>
-                                      {share.paymentTerms}
-                                    </SelectItem>
+                          {checked && share ? (
+                            <div className="space-y-3 pl-7">
+                              <div>
+                                <FundingFieldLabel
+                                  className="mb-1"
+                                  label="Payment terms"
+                                  tooltip={FUNDING_FIELD_TOOLTIPS.paymentTerms}
+                                />
+                                <Select
+                                  value={share.paymentTerms || DEFAULT_PAYMENT_TERMS}
+                                  onValueChange={(v) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      mixedShares: setMixedSharePaymentTerms(
+                                        f.mixedShares,
+                                        funder.id,
+                                        v,
+                                      ),
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {!PAYMENT_TERMS_OPTIONS.some(
+                                      (o) =>
+                                        o.value ===
+                                        (share.paymentTerms || DEFAULT_PAYMENT_TERMS),
+                                    ) && share.paymentTerms ? (
+                                      <SelectItem value={share.paymentTerms}>
+                                        {share.paymentTerms}
+                                      </SelectItem>
+                                    ) : null}
+                                    {PAYMENT_TERMS_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+                                <p className="text-xs font-medium text-foreground">
+                                  Billing details for {funder.name}
+                                </p>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <div>
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Billing contact name"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingContactName}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingContactName}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingContactName: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Billing contact email"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingContactEmail}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      type="email"
+                                      value={share.billingContactEmail}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingContactEmail: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <FundingFieldLabel
+                                    className="mb-1"
+                                    label="Billing contact phone"
+                                    tooltip={FUNDING_FIELD_TOOLTIPS.billingContactPhone}
+                                  />
+                                  <Input
+                                    className="h-8"
+                                    value={share.billingContactPhone}
+                                    onChange={(e) =>
+                                      setForm((f) => ({
+                                        ...f,
+                                        mixedShares: patchMixedShare(
+                                          f.mixedShares,
+                                          funder.id,
+                                          { billingContactPhone: e.target.value },
+                                        ),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                  <FundingFieldLabel
+                                    label="Billing address"
+                                    tooltip={FUNDING_FIELD_TOOLTIPS.billingAddress}
+                                  />
+                                  {funderHasAddress(funder) ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7"
+                                      onClick={() =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            billingAddressFromFunder(funder),
+                                          ),
+                                        }))
+                                      }
+                                    >
+                                      Use funder address
+                                    </Button>
                                   ) : null}
-                                  {PAYMENT_TERMS_OPTIONS.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <div className="sm:col-span-2">
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Address line 1"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddressLine1}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingAddressLine1}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingAddressLine1: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                      placeholder="Building / street"
+                                    />
+                                  </div>
+                                  <div className="sm:col-span-2">
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Address line 2"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingAddressLine2}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingAddressLine2}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingAddressLine2: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Town / city"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingTown}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingTown}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingTown: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="County"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingCounty}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingCounty}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingCounty: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Postcode"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingPostcode}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingPostcode}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingPostcode: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <FundingFieldLabel
+                                      className="mb-1"
+                                      label="Country"
+                                      tooltip={FUNDING_FIELD_TOOLTIPS.billingCountry}
+                                    />
+                                    <Input
+                                      className="h-8"
+                                      value={share.billingCountry}
+                                      onChange={(e) =>
+                                        setForm((f) => ({
+                                          ...f,
+                                          mixedShares: patchMixedShare(
+                                            f.mixedShares,
+                                            funder.id,
+                                            { billingCountry: e.target.value },
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           ) : null}
                         </div>
@@ -1418,9 +1760,10 @@ export function ServiceUserFundingTab({
             <div className="space-y-3 border-t border-border pt-4">
               <h4 className="text-sm font-semibold text-foreground">Billing & invoicing</h4>
               <p className="text-xs text-muted-foreground">
-                Purchase orders, charge cards, and billing contacts are used when generating invoice runs.
+                Purchase orders, charge cards, and invoice templates are used when generating
+                invoice runs.
                 {isMixedMode
-                  ? ' Invoice splits are set next to each funder above.'
+                  ? ' Invoice splits and billing contacts/addresses are set per funder above.'
                   : null}
               </p>
               {form.payerMode === 'SINGLE' ? (
@@ -1483,6 +1826,8 @@ export function ServiceUserFundingTab({
                   allowDeselect
                 />
               </div>
+              {!isMixedMode ? (
+                <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <FundingFieldLabel
@@ -1615,6 +1960,8 @@ export function ServiceUserFundingTab({
                   </div>
                 </div>
               </div>
+                </>
+              ) : null}
               <div>
                 <FundingFieldLabel
                   className="mb-1"

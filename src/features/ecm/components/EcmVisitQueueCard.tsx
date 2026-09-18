@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import { FormField, Textarea } from '@/shared/ui/form-field'
 import { cn } from '@/shared/lib/utils'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import {
@@ -26,8 +25,13 @@ import {
   useAcknowledgeEcmException,
   useAllowVisitContinue,
   useAuthoriseCheckInMethodGrant,
+  useCloseSosEcmException,
   useRejectCheckInMethodGrant,
 } from '@/features/ecm/hooks/useEcm'
+import { AuthoriseManualCheckInDialog } from '@/features/ecm/components/AuthoriseManualCheckInDialog'
+import { RejectManualCheckInDialog } from '@/features/ecm/components/RejectManualCheckInDialog'
+import { AllowCarerContinueDialog } from '@/features/ecm/components/AllowCarerContinueDialog'
+import { CloseSosDialog } from '@/features/ecm/components/CloseSosDialog'
 import type { EcmExceptionRow } from '@/features/ecm/types/ecm.types'
 import { formatOpsCalendarDate, formatOpsClockTime } from '@/shared/lib/operational-day.util'
 
@@ -379,7 +383,7 @@ function ExceptionActions({
 
 function AreaLockActions({ row }: { row: EcmExceptionRow }) {
   const allow = useAllowVisitContinue()
-  const [note, setNote] = React.useState('')
+  const [dialogOpen, setDialogOpen] = React.useState(false)
   const allowed = row.areaLock?.status === 'ALLOWED'
   const savedNote = row.areaLock?.allowNote?.trim() || ''
 
@@ -396,7 +400,7 @@ function AreaLockActions({ row }: { row: EcmExceptionRow }) {
           </p>
           {savedNote ? (
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground/80">Note</span>
+              <span className="font-medium text-foreground/80">Office reason</span>
               <span className="mx-1.5 text-muted-foreground/80">·</span>
               {savedNote}
             </p>
@@ -408,34 +412,31 @@ function AreaLockActions({ row }: { row: EcmExceptionRow }) {
             Carer left the visit area after clock-in. Tasks already saved stay as they are.
             New tasks, medication, and observations stay blocked until office allows.
           </p>
-          <FormField label="Note (optional)" htmlFor={`locked-visit-allow-note-${row.id}`}>
-            <Textarea
-              id={`locked-visit-allow-note-${row.id}`}
-              rows={2}
-              className="min-h-[64px]"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              placeholder="e.g. GP escort, pharmacy, still with the person"
-            />
-          </FormField>
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               disabled={allow.isPending}
-              onClick={() =>
-                allow.mutate({
-                  jobId: row.scheduledJobId,
-                  note: note.trim() || undefined,
-                })
-              }
+              onClick={() => setDialogOpen(true)}
             >
-              {allow.isPending ? 'Allowing…' : 'Allow carer to continue'}
+              Allow carer to continue
             </Button>
           </div>
           {allow.isError ? (
             <p className="text-sm text-destructive">Could not allow this visit. Try again.</p>
           ) : null}
+          <AllowCarerContinueDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            busy={allow.isPending}
+            onConfirm={async payload => {
+              await allow.mutateAsync({
+                jobId: row.scheduledJobId,
+                reasonId: payload.reasonId,
+                note: payload.note,
+              })
+            }}
+          />
         </>
       )}
     </div>
@@ -445,7 +446,8 @@ function AreaLockActions({ row }: { row: EcmExceptionRow }) {
 function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
   const authorise = useAuthoriseCheckInMethodGrant()
   const reject = useRejectCheckInMethodGrant()
-  const [note, setNote] = React.useState('')
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [rejectOpen, setRejectOpen] = React.useState(false)
   const grant = row.checkInMethodRequest
   const grantId = grant?.id
   const status = grant?.status ?? 'PENDING'
@@ -478,58 +480,59 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
             Authorise enables Manual check-in for this carer, this visit, and this
             operational day only. Organisation check-in settings stay unchanged.
           </p>
-          <FormField
-            label="Note (optional)"
-            htmlFor={`check-in-method-grant-note-${row.id}`}
-          >
-            <Textarea
-              id={`check-in-method-grant-note-${row.id}`}
-              rows={2}
-              className="min-h-[64px]"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              placeholder="e.g. Traffic, wait at the gate"
-            />
-          </FormField>
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               disabled={busy}
-              onClick={() =>
-                authorise.mutate({
-                  jobId: row.scheduledJobId,
-                  grantId,
-                  note: note.trim() || undefined,
-                })
-              }
+              onClick={() => setDialogOpen(true)}
             >
-              {authorise.isPending ? 'Authorising…' : 'Authorise Manual'}
+              Authorise Manual
             </Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
               disabled={busy}
-              onClick={() =>
-                reject.mutate({
-                  jobId: row.scheduledJobId,
-                  grantId,
-                  note: note.trim() || undefined,
-                })
-              }
+              onClick={() => setRejectOpen(true)}
             >
-              {reject.isPending ? 'Rejecting…' : 'Reject'}
+              Reject
             </Button>
           </div>
           {authorise.isError || reject.isError ? (
             <p className="text-sm text-destructive">Could not update this request. Try again.</p>
           ) : null}
+          <AuthoriseManualCheckInDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            busy={authorise.isPending}
+            onConfirm={async payload => {
+              await authorise.mutateAsync({
+                jobId: row.scheduledJobId,
+                grantId,
+                reasonId: payload.reasonId,
+                note: payload.note,
+              })
+            }}
+          />
+          <RejectManualCheckInDialog
+            open={rejectOpen}
+            onOpenChange={setRejectOpen}
+            busy={reject.isPending}
+            onConfirm={async payload => {
+              await reject.mutateAsync({
+                jobId: row.scheduledJobId,
+                grantId,
+                reasonCode: payload.reasonCode,
+                note: payload.note,
+              })
+            }}
+          />
         </>
       ) : null}
       {grant?.officeNote && !pending ? (
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground/80">Office note</span>
+          <span className="font-medium text-foreground/80">Office reason</span>
           <span className="mx-1.5 text-muted-foreground/80">·</span>
           {grant.officeNote}
         </p>
@@ -540,9 +543,14 @@ function CheckInGrantActions({ row }: { row: EcmExceptionRow }) {
 
 function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
   const acknowledge = useAcknowledgeEcmException()
+  const closeSos = useCloseSosEcmException()
   const [busy, setBusy] = React.useState(false)
   const [actionError, setActionError] = React.useState(false)
+  const [closeRow, setCloseRow] = React.useState<EcmExceptionRow | null>(null)
   const toAck = rows.filter(row => !isSosAcknowledged(row))
+  const toClose = rows.filter(
+    row => isSosAcknowledged(row) && row.lifecycle !== 'CLOSED',
+  )
   const missingLocation = rows.filter(row => !mapsHrefFor(row))
 
   const runAll = async (fn: () => Promise<unknown>) => {
@@ -581,16 +589,60 @@ function SosActions({ rows }: { rows: EcmExceptionRow[] }) {
           disabled={busy}
           onClick={() =>
             void runAll(() =>
-              Promise.all(toAck.map(row => acknowledge.mutateAsync({ id: row.id }))),
+              acknowledge.acknowledgeAll(toAck.map(row => row.id)),
             )
           }
         >
           {busy ? 'Acknowledging…' : 'Acknowledge'}
         </Button>
       ) : null}
+      {toClose.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Record the outcome so this SOS leaves the queue.
+          </p>
+          {toClose.map(row => {
+            const sentAt = formatOpsClockTime(row.sos?.createdAt ?? row.createdAt)
+            return (
+              <Button
+                key={row.id}
+                type="button"
+                size="sm"
+                variant={toAck.length > 0 ? 'outline' : 'default'}
+                disabled={closeSos.isPending}
+                data-testid="ecm-close-sos"
+                onClick={() => setCloseRow(row)}
+              >
+                {toClose.length > 1 ? `Close SOS · ${sentAt}` : 'Close SOS'}
+              </Button>
+            )
+          })}
+        </div>
+      ) : null}
       {actionError || acknowledge.isError ? (
         <p className="text-sm text-destructive">Could not update this SOS. Try again.</p>
       ) : null}
+      <CloseSosDialog
+        open={Boolean(closeRow)}
+        onOpenChange={open => {
+          if (!open) setCloseRow(null)
+        }}
+        busy={closeSos.isPending}
+        sentAtLabel={
+          closeRow
+            ? formatOpsClockTime(closeRow.sos?.createdAt ?? closeRow.createdAt)
+            : null
+        }
+        onConfirm={async payload => {
+          await closeSos.mutateAsync({
+            id: closeRow!.id,
+            actionCode: payload.actionCode,
+            outcomeCode: payload.outcomeCode,
+            actionNote: payload.actionNote,
+            note: payload.note,
+          })
+        }}
+      />
     </div>
   )
 }

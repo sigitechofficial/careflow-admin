@@ -38,22 +38,27 @@ export const SERVICE_USER_PROFILE_TAB_IDS = [
 
 export type ServiceUserProfileTabId = (typeof SERVICE_USER_PROFILE_TAB_IDS)[number]
 
-export const SERVICE_USER_PROFILE_TABS: { id: ServiceUserProfileTabId; label: string; Icon: LucideIcon }[] = [
-  { id: 'personal', label: 'Personal Details', Icon: UserCircle },
-  { id: 'contacts', label: 'Contacts and Family', Icon: Users },
-  { id: 'about', label: 'About Me', Icon: Heart },
-  { id: 'photos', label: 'Photographs', Icon: Images },
-  { id: 'inventory', label: 'Personal Inventory', Icon: Package },
-  { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
-  { id: 'absences', label: 'Record Absences', Icon: CalendarOff },
-  { id: 'calendar', label: 'Calendar', Icon: Calendar },
-  { id: 'privacy', label: 'Privacy', Icon: Shield },
-  { id: 'dom', label: 'DOM Care', Icon: Home },
-  { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList },
-  { id: 'funding', label: 'Funding', Icon: Landmark },
-  { id: 'charge-card', label: 'Charge card', Icon: Receipt },
-  { id: 'visits', label: 'Visits', Icon: ClipboardCheck },
-  { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble },
+export const SERVICE_USER_PROFILE_TABS: {
+  id: ServiceUserProfileTabId
+  label: string
+  Icon: LucideIcon
+  iconClassName: string
+}[] = [
+  { id: 'personal', label: 'Personal Details', Icon: UserCircle, iconClassName: 'text-sky-600 dark:text-sky-400' },
+  { id: 'contacts', label: 'Contacts and Family', Icon: Users, iconClassName: 'text-violet-600 dark:text-violet-400' },
+  { id: 'about', label: 'About Me', Icon: Heart, iconClassName: 'text-rose-600 dark:text-rose-400' },
+  { id: 'photos', label: 'Photographs', Icon: Images, iconClassName: 'text-fuchsia-600 dark:text-fuchsia-400' },
+  { id: 'inventory', label: 'Personal Inventory', Icon: Package, iconClassName: 'text-amber-600 dark:text-amber-400' },
+  { id: 'allergies', label: 'Allergies', Icon: AlertTriangle, iconClassName: 'text-orange-600 dark:text-orange-400' },
+  { id: 'absences', label: 'Record Absences', Icon: CalendarOff, iconClassName: 'text-red-600 dark:text-red-400' },
+  { id: 'calendar', label: 'Calendar', Icon: Calendar, iconClassName: 'text-teal-600 dark:text-teal-400' },
+  { id: 'privacy', label: 'Privacy', Icon: Shield, iconClassName: 'text-slate-600 dark:text-slate-300' },
+  { id: 'dom', label: 'DOM Care', Icon: Home, iconClassName: 'text-emerald-600 dark:text-emerald-400' },
+  { id: 'assessment', label: 'Initial Assessment', Icon: ClipboardList, iconClassName: 'text-indigo-600 dark:text-indigo-400' },
+  { id: 'funding', label: 'Funding', Icon: Landmark, iconClassName: 'text-yellow-700 dark:text-yellow-400' },
+  { id: 'charge-card', label: 'Charge card', Icon: Receipt, iconClassName: 'text-lime-700 dark:text-lime-400' },
+  { id: 'visits', label: 'Visits', Icon: ClipboardCheck, iconClassName: 'text-cyan-600 dark:text-cyan-400' },
+  { id: 'livein', label: 'Live in Service Profile', Icon: BedDouble, iconClassName: 'text-blue-600 dark:text-blue-400' },
 ]
 
 export const SERVICE_USER_PROFILE_ROUTE = '/service-users/$serviceUserId/profile' as const

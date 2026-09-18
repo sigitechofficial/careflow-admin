@@ -1,4 +1,5 @@
 import type { DomCareShiftDefinition } from '@/features/settings/types'
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 
 export const DEFAULT_DOM_CARE_SHIFT_DEFINITIONS: DomCareShiftDefinition[] = [
   {
@@ -57,7 +58,7 @@ export function inferEndsNextDay(fromTime: string, toTime: string): boolean {
 
 export function newDomCareShift(sortOrder: number): DomCareShiftDefinition {
   return {
-    id: crypto.randomUUID(),
+    id: createClientUuid(),
     name: '',
     fromTime: '09:00',
     toTime: '17:00',

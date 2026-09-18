@@ -1,0 +1,585 @@
+{
+  "source": "careadmin-backend/uploads/care-pathway/imported",
+  "icons": [
+    {
+      "name": "Access",
+      "slug": "access",
+      "file": "/care-plan-icons/imported/access.png"
+    },
+    {
+      "name": "Action",
+      "slug": "action",
+      "file": "/care-plan-icons/imported/action.png"
+    },
+    {
+      "name": "Activities",
+      "slug": "activities",
+      "file": "/care-plan-icons/imported/activities.png"
+    },
+    {
+      "name": "Afternoon",
+      "slug": "afternoon",
+      "file": "/care-plan-icons/imported/afternoon.png"
+    },
+    {
+      "name": "Arm",
+      "slug": "arm",
+      "file": "/care-plan-icons/imported/arm.png"
+    },
+    {
+      "name": "Bad",
+      "slug": "bad",
+      "file": "/care-plan-icons/imported/bad.png"
+    },
+    {
+      "name": "Bath",
+      "slug": "bath",
+      "file": "/care-plan-icons/imported/bath.png"
+    },
+    {
+      "name": "Bed",
+      "slug": "bed",
+      "file": "/care-plan-icons/imported/bed.png"
+    },
+    {
+      "name": "Body Health And Mind",
+      "slug": "body-health-and-mind",
+      "file": "/care-plan-icons/imported/body-health-and-mind.png"
+    },
+    {
+      "name": "Body",
+      "slug": "body",
+      "file": "/care-plan-icons/imported/body.png"
+    },
+    {
+      "name": "Breakfast",
+      "slug": "breakfast",
+      "file": "/care-plan-icons/imported/breakfast.png"
+    },
+    {
+      "name": "Care At Home",
+      "slug": "care-at-home",
+      "file": "/care-plan-icons/imported/care-at-home.png"
+    },
+    {
+      "name": "Care Home",
+      "slug": "care-home",
+      "file": "/care-plan-icons/imported/care-home.png"
+    },
+    {
+      "name": "Care Plan",
+      "slug": "care-plan",
+      "file": "/care-plan-icons/imported/care-plan.png"
+    },
+    {
+      "name": "Care Works",
+      "slug": "care-works",
+      "file": "/care-plan-icons/imported/care-works.png"
+    },
+    {
+      "name": "Carer",
+      "slug": "carer",
+      "file": "/care-plan-icons/imported/carer.png"
+    },
+    {
+      "name": "Chair",
+      "slug": "chair",
+      "file": "/care-plan-icons/imported/chair.png"
+    },
+    {
+      "name": "Child",
+      "slug": "child",
+      "file": "/care-plan-icons/imported/child.png"
+    },
+    {
+      "name": "Cleaning",
+      "slug": "cleaning",
+      "file": "/care-plan-icons/imported/cleaning.png"
+    },
+    {
+      "name": "Coat",
+      "slug": "coat",
+      "file": "/care-plan-icons/imported/coat.png"
+    },
+    {
+      "name": "Cognition",
+      "slug": "cognition",
+      "file": "/care-plan-icons/imported/cognition.png"
+    },
+    {
+      "name": "Communication",
+      "slug": "communication",
+      "file": "/care-plan-icons/imported/communication.png"
+    },
+    {
+      "name": "Consent",
+      "slug": "consent",
+      "file": "/care-plan-icons/imported/consent.png"
+    },
+    {
+      "name": "Continence",
+      "slug": "continence",
+      "file": "/care-plan-icons/imported/continence.png"
+    },
+    {
+      "name": "Cooking",
+      "slug": "cooking",
+      "file": "/care-plan-icons/imported/cooking.png"
+    },
+    {
+      "name": "Culture",
+      "slug": "culture",
+      "file": "/care-plan-icons/imported/culture.png"
+    },
+    {
+      "name": "Danger",
+      "slug": "danger",
+      "file": "/care-plan-icons/imported/danger.png"
+    },
+    {
+      "name": "Dark",
+      "slug": "dark",
+      "file": "/care-plan-icons/imported/dark.png"
+    },
+    {
+      "name": "Day",
+      "slug": "day",
+      "file": "/care-plan-icons/imported/day.png"
+    },
+    {
+      "name": "Dentist",
+      "slug": "dentist",
+      "file": "/care-plan-icons/imported/dentist.png"
+    },
+    {
+      "name": "Destination",
+      "slug": "destination",
+      "file": "/care-plan-icons/imported/destination.png"
+    },
+    {
+      "name": "Diagnostics",
+      "slug": "diagnostics",
+      "file": "/care-plan-icons/imported/diagnostics.png"
+    },
+    {
+      "name": "Diary",
+      "slug": "diary",
+      "file": "/care-plan-icons/imported/diary.png"
+    },
+    {
+      "name": "Dinner",
+      "slug": "dinner",
+      "file": "/care-plan-icons/imported/dinner.png"
+    },
+    {
+      "name": "Do Not",
+      "slug": "do-not",
+      "file": "/care-plan-icons/imported/do-not.png"
+    },
+    {
+      "name": "Doctor And Nurse",
+      "slug": "doctor-and-nurse",
+      "file": "/care-plan-icons/imported/doctor-and-nurse.png"
+    },
+    {
+      "name": "Doctor",
+      "slug": "doctor",
+      "file": "/care-plan-icons/imported/doctor.png"
+    },
+    {
+      "name": "Doctors",
+      "slug": "doctors",
+      "file": "/care-plan-icons/imported/doctors.png"
+    },
+    {
+      "name": "Drinks",
+      "slug": "drinks",
+      "file": "/care-plan-icons/imported/drinks.png"
+    },
+    {
+      "name": "Drugs",
+      "slug": "drugs",
+      "file": "/care-plan-icons/imported/drugs.png"
+    },
+    {
+      "name": "Education",
+      "slug": "education",
+      "file": "/care-plan-icons/imported/education.png"
+    },
+    {
+      "name": "Evening Meal",
+      "slug": "evening-meal",
+      "file": "/care-plan-icons/imported/evening-meal.png"
+    },
+    {
+      "name": "Evening",
+      "slug": "evening",
+      "file": "/care-plan-icons/imported/evening.png"
+    },
+    {
+      "name": "Exercise",
+      "slug": "exercise",
+      "file": "/care-plan-icons/imported/exercise.png"
+    },
+    {
+      "name": "Eyesight",
+      "slug": "eyesight",
+      "file": "/care-plan-icons/imported/eyesight.png"
+    },
+    {
+      "name": "Face",
+      "slug": "face",
+      "file": "/care-plan-icons/imported/face.png"
+    },
+    {
+      "name": "Faith",
+      "slug": "faith",
+      "file": "/care-plan-icons/imported/faith.png"
+    },
+    {
+      "name": "Falls",
+      "slug": "falls",
+      "file": "/care-plan-icons/imported/falls.png"
+    },
+    {
+      "name": "Family Care",
+      "slug": "family-care",
+      "file": "/care-plan-icons/imported/family-care.png"
+    },
+    {
+      "name": "Favourite",
+      "slug": "favourite",
+      "file": "/care-plan-icons/imported/favourite.png"
+    },
+    {
+      "name": "Feet",
+      "slug": "feet",
+      "file": "/care-plan-icons/imported/feet.png"
+    },
+    {
+      "name": "Friends",
+      "slug": "friends",
+      "file": "/care-plan-icons/imported/friends.png"
+    },
+    {
+      "name": "Get Up",
+      "slug": "get-up",
+      "file": "/care-plan-icons/imported/get-up.png"
+    },
+    {
+      "name": "Good Behaviour",
+      "slug": "good-behaviour",
+      "file": "/care-plan-icons/imported/good-behaviour.png"
+    },
+    {
+      "name": "Good Female",
+      "slug": "good-female",
+      "file": "/care-plan-icons/imported/good-female.png"
+    },
+    {
+      "name": "Good Male",
+      "slug": "good-male",
+      "file": "/care-plan-icons/imported/good-male.png"
+    },
+    {
+      "name": "Hairdresser",
+      "slug": "hairdresser",
+      "file": "/care-plan-icons/imported/hairdresser.png"
+    },
+    {
+      "name": "Hands",
+      "slug": "hands",
+      "file": "/care-plan-icons/imported/hands.png"
+    },
+    {
+      "name": "Hats",
+      "slug": "hats",
+      "file": "/care-plan-icons/imported/hats.png"
+    },
+    {
+      "name": "Head Inury",
+      "slug": "head-inury",
+      "file": "/care-plan-icons/imported/head-inury.png"
+    },
+    {
+      "name": "Healthy Heart",
+      "slug": "healthy-heart",
+      "file": "/care-plan-icons/imported/healthy-heart.png"
+    },
+    {
+      "name": "Hearing",
+      "slug": "hearing",
+      "file": "/care-plan-icons/imported/hearing.png"
+    },
+    {
+      "name": "Hobbies",
+      "slug": "hobbies",
+      "file": "/care-plan-icons/imported/hobbies.png"
+    },
+    {
+      "name": "Holiday",
+      "slug": "holiday",
+      "file": "/care-plan-icons/imported/holiday.png"
+    },
+    {
+      "name": "Home",
+      "slug": "home",
+      "file": "/care-plan-icons/imported/home.png"
+    },
+    {
+      "name": "Hot Drinks",
+      "slug": "hot-drinks",
+      "file": "/care-plan-icons/imported/hot-drinks.png"
+    },
+    {
+      "name": "Hygiene",
+      "slug": "hygiene",
+      "file": "/care-plan-icons/imported/hygiene.png"
+    },
+    {
+      "name": "Important",
+      "slug": "important",
+      "file": "/care-plan-icons/imported/important.png"
+    },
+    {
+      "name": "Infection",
+      "slug": "infection",
+      "file": "/care-plan-icons/imported/infection.png"
+    },
+    {
+      "name": "Injury",
+      "slug": "injury",
+      "file": "/care-plan-icons/imported/injury.png"
+    },
+    {
+      "name": "Late",
+      "slug": "late",
+      "file": "/care-plan-icons/imported/late.png"
+    },
+    {
+      "name": "Legs",
+      "slug": "legs",
+      "file": "/care-plan-icons/imported/legs.png"
+    },
+    {
+      "name": "Lunch",
+      "slug": "lunch",
+      "file": "/care-plan-icons/imported/lunch.png"
+    },
+    {
+      "name": "Medication",
+      "slug": "medication",
+      "file": "/care-plan-icons/imported/medication.png"
+    },
+    {
+      "name": "Mobility",
+      "slug": "mobility",
+      "file": "/care-plan-icons/imported/mobility.png"
+    },
+    {
+      "name": "Morning",
+      "slug": "morning",
+      "file": "/care-plan-icons/imported/morning.png"
+    },
+    {
+      "name": "My History",
+      "slug": "my-history",
+      "file": "/care-plan-icons/imported/my-history.png"
+    },
+    {
+      "name": "My Say",
+      "slug": "my-say",
+      "file": "/care-plan-icons/imported/my-say.png"
+    },
+    {
+      "name": "Occupation",
+      "slug": "occupation",
+      "file": "/care-plan-icons/imported/occupation.png"
+    },
+    {
+      "name": "Opticians",
+      "slug": "opticians",
+      "file": "/care-plan-icons/imported/opticians.png"
+    },
+    {
+      "name": "Pain",
+      "slug": "pain",
+      "file": "/care-plan-icons/imported/pain.png"
+    },
+    {
+      "name": "Palliative",
+      "slug": "palliative",
+      "file": "/care-plan-icons/imported/palliative.png"
+    },
+    {
+      "name": "People",
+      "slug": "people",
+      "file": "/care-plan-icons/imported/people.png"
+    },
+    {
+      "name": "Personal Washing",
+      "slug": "personal-washing",
+      "file": "/care-plan-icons/imported/personal-washing.png"
+    },
+    {
+      "name": "Pets",
+      "slug": "pets",
+      "file": "/care-plan-icons/imported/pets.png"
+    },
+    {
+      "name": "Physiotherapy",
+      "slug": "physiotherapy",
+      "file": "/care-plan-icons/imported/physiotherapy.png"
+    },
+    {
+      "name": "Plan",
+      "slug": "plan",
+      "file": "/care-plan-icons/imported/plan.png"
+    },
+    {
+      "name": "Please",
+      "slug": "please",
+      "file": "/care-plan-icons/imported/please.png"
+    },
+    {
+      "name": "Pocket Money",
+      "slug": "pocket-money",
+      "file": "/care-plan-icons/imported/pocket-money.png"
+    },
+    {
+      "name": "Possessions",
+      "slug": "possessions",
+      "file": "/care-plan-icons/imported/possessions.png"
+    },
+    {
+      "name": "Pressure Ulcer",
+      "slug": "pressure-ulcer",
+      "file": "/care-plan-icons/imported/pressure-ulcer.png"
+    },
+    {
+      "name": "Privacy",
+      "slug": "privacy",
+      "file": "/care-plan-icons/imported/privacy.png"
+    },
+    {
+      "name": "Psychology",
+      "slug": "psychology",
+      "file": "/care-plan-icons/imported/psychology.png"
+    },
+    {
+      "name": "Religion",
+      "slug": "religion",
+      "file": "/care-plan-icons/imported/religion.png"
+    },
+    {
+      "name": "Rooms",
+      "slug": "rooms",
+      "file": "/care-plan-icons/imported/rooms.png"
+    },
+    {
+      "name": "Sadness",
+      "slug": "sadness",
+      "file": "/care-plan-icons/imported/sadness.png"
+    },
+    {
+      "name": "Safety",
+      "slug": "safety",
+      "file": "/care-plan-icons/imported/safety.png"
+    },
+    {
+      "name": "Shoes",
+      "slug": "shoes",
+      "file": "/care-plan-icons/imported/shoes.png"
+    },
+    {
+      "name": "Shower",
+      "slug": "shower",
+      "file": "/care-plan-icons/imported/shower.png"
+    },
+    {
+      "name": "Skin",
+      "slug": "skin",
+      "file": "/care-plan-icons/imported/skin.png"
+    },
+    {
+      "name": "Sleeping",
+      "slug": "sleeping",
+      "file": "/care-plan-icons/imported/sleeping.png"
+    },
+    {
+      "name": "Snacks",
+      "slug": "snacks",
+      "file": "/care-plan-icons/imported/snacks.png"
+    },
+    {
+      "name": "Socks",
+      "slug": "socks",
+      "file": "/care-plan-icons/imported/socks.png"
+    },
+    {
+      "name": "Speech",
+      "slug": "speech",
+      "file": "/care-plan-icons/imported/speech.png"
+    },
+    {
+      "name": "Symptoms",
+      "slug": "symptoms",
+      "file": "/care-plan-icons/imported/symptoms.png"
+    },
+    {
+      "name": "Tables And Chairs",
+      "slug": "tables-and-chairs",
+      "file": "/care-plan-icons/imported/tables-and-chairs.png"
+    },
+    {
+      "name": "Talk",
+      "slug": "talk",
+      "file": "/care-plan-icons/imported/talk.png"
+    },
+    {
+      "name": "Task",
+      "slug": "task",
+      "file": "/care-plan-icons/imported/task.png"
+    },
+    {
+      "name": "Teeth",
+      "slug": "teeth",
+      "file": "/care-plan-icons/imported/teeth.png"
+    },
+    {
+      "name": "Toilet",
+      "slug": "toilet",
+      "file": "/care-plan-icons/imported/toilet.png"
+    },
+    {
+      "name": "Tv And Radio",
+      "slug": "tv-and-radio",
+      "file": "/care-plan-icons/imported/tv-and-radio.png"
+    },
+    {
+      "name": "Underwear",
+      "slug": "underwear",
+      "file": "/care-plan-icons/imported/underwear.png"
+    },
+    {
+      "name": "Visit",
+      "slug": "visit",
+      "file": "/care-plan-icons/imported/visit.png"
+    },
+    {
+      "name": "Washing Laundry",
+      "slug": "washing-laundry",
+      "file": "/care-plan-icons/imported/washing-laundry.png"
+    },
+    {
+      "name": "Workforce",
+      "slug": "workforce",
+      "file": "/care-plan-icons/imported/workforce.png"
+    },
+    {
+      "name": "Wound",
+      "slug": "wound",
+      "file": "/care-plan-icons/imported/wound.png"
+    }
+  ]
+}

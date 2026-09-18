@@ -51,6 +51,7 @@ export async function fetchIncidents(
     severity: filters.severity,
     categoryId: filters.categoryId,
     serviceUserId: filters.serviceUserId,
+    locationId: filters.locationId,
     openOnly: filters.openOnly,
     page: filters.page ?? 1,
     limit: filters.limit ?? 25,
@@ -99,8 +100,15 @@ export async function changeIncidentSeverity(
   return res.data
 }
 
-export async function fetchIncidentStats(init?: RequestInit): Promise<IncidentStats> {
-  const res = await apiJson<ApiEnvelope<IncidentStats>>('/incidents/stats', { method: 'GET', ...init })
+export async function fetchIncidentStats(
+  locationId?: string,
+  init?: RequestInit,
+): Promise<IncidentStats> {
+  const query = buildQuery({ locationId })
+  const res = await apiJson<ApiEnvelope<IncidentStats>>(`/incidents/stats${query}`, {
+    method: 'GET',
+    ...init,
+  })
   return res.data
 }
 

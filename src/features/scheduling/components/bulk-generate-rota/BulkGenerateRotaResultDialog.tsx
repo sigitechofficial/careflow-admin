@@ -7,6 +7,7 @@ import {
 } from '@/features/scheduling/components/bulk-generate-rota/BulkGenerateRotaResultWarnings'
 import { BulkGenerateRotaResultRowsTable } from '@/features/scheduling/components/bulk-generate-rota/BulkGenerateRotaResultRowsTable'
 import { BulkGenerateRotaResultSummaryGrid } from '@/features/scheduling/components/bulk-generate-rota/BulkGenerateRotaResultSummaryGrid'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -25,6 +26,8 @@ type Props = {
 }
 
 export function BulkGenerateRotaResultDialog({ open, onOpenChange, result }: Props) {
+  const { formatDate } = useOrganisationDisplayFormat()
+
   if (!result) return null
 
   return (
@@ -33,7 +36,7 @@ export function BulkGenerateRotaResultDialog({ open, onOpenChange, result }: Pro
         <DialogHeader>
           <DialogTitle>Rota generation complete</DialogTitle>
           <DialogDescription>
-            {result.fromDate} → {result.toDate}
+            {formatDate(result.fromDate)} → {formatDate(result.toDate)}
             {result.backfillDays > 0
               ? ` · ${result.backfillDays} backfill day${result.backfillDays === 1 ? '' : 's'}`
               : ''}

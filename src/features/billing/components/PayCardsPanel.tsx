@@ -42,6 +42,7 @@ import {
   type PayCard,
 } from '@/features/billing/types/billing-cards.types'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 function PayCardStatCard({
   title,
@@ -226,6 +227,7 @@ function AssignedCarersDialog({ cardId, open, onOpenChange }: AssignedCarersDial
 
 export function PayCardsPanel() {
   const canManage = useAuthStore(s => s.can('billing.pay_cards.manage' as never))
+  const { locationId } = useGlobalLocationScope()
   const [search, setSearch] = React.useState('')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [assignDialogOpen, setAssignDialogOpen] = React.useState(false)
@@ -234,8 +236,12 @@ export function PayCardsPanel() {
   const [assigning, setAssigning] = React.useState<PayCard | null>(null)
   const [viewingCarersId, setViewingCarersId] = React.useState<string | null>(null)
 
-  const listQuery = usePayCards(search.trim() ? { search: search.trim() } : undefined)
-  const statsQuery = usePayCards()
+  const listFilters = {
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(locationId ? { locationId } : {}),
+  }
+  const listQuery = usePayCards(Object.keys(listFilters).length ? listFilters : undefined)
+  const statsQuery = usePayCards(locationId ? { locationId } : undefined)
   const deleteMutation = useDeletePayCard()
   const stats = usePayCardStats(statsQuery.data)
 

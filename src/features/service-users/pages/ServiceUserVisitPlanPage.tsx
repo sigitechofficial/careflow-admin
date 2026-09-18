@@ -8,8 +8,6 @@ import {
   Loader2,
   Pencil,
   Settings2,
-  Sparkles,
-  UserPlus,
 } from 'lucide-react'
 import {
   SERVICE_USER_MODULE_CONTENT_WIDE_CLASS,
@@ -17,8 +15,6 @@ import {
   ServiceUserModuleHeader,
 } from '@/features/service-users/components/ServiceUserModuleHeader'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
-import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
-import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
 import { ServiceUserVisitPlanTab } from '@/features/service-users/visit-plan/ServiceUserVisitPlanTab'
 import { VisitPlanDetailsView } from '@/features/service-users/visit-plan/VisitPlanDetailsView'
 import { VisitPlanCalendarTab } from '@/features/service-users/visit-plan/VisitPlanCalendarTab'
@@ -215,30 +211,6 @@ export default function ServiceUserVisitPlanPage() {
       <ServiceUserModuleTabs serviceUserId={serviceUserId} shellLayout="wide" />
 
       <div className={SERVICE_USER_MODULE_CONTENT_WIDE_CLASS}>
-        <PolicyContextPanel
-          className="mb-4"
-          moduleType="VISIT"
-          recordId={selectedPlan?.id}
-        />
-        <ServiceUserSafetySummary
-          serviceUserId={serviceUserId}
-          className="mb-4"
-        />
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/20 px-3 py-2.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
-            <ClipboardList className="h-3.5 w-3.5" aria-hidden />
-            Care package
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
-            <UserPlus className="h-3.5 w-3.5" aria-hidden />
-            Assign carers
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Generate rota
-          </span>
-        </div>
-
         <div className="mb-4 flex flex-wrap gap-2 border-b border-border">
           {PAGE_TABS.map((tab) => {
             const Icon = tab.icon

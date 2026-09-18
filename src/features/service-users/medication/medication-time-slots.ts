@@ -1,3 +1,5 @@
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
+
 /** Five MAR administration rounds — spec §5 / settings defaults. */
 export const DEFAULT_ADMINISTRATION_ROUNDS = [
   { name: 'Morning', code: 'MORNING', time: '08:00', windowStart: '07:00', windowEnd: '10:00' },
@@ -71,7 +73,7 @@ export function formatMedicationRoundWindow(round: MedicationRoundLookup): strin
 
 export function newTimeSlot(partial?: Partial<MedicationTimeSlot>): MedicationTimeSlot {
   return {
-    id: crypto.randomUUID(),
+    id: createClientUuid(),
     roundId: partial?.roundId,
     roundName: partial?.roundName,
     dueTime: partial?.dueTime ?? '',

@@ -1,7 +1,6 @@
 import * as React from 'react'
 import {
   AlertCircle,
-  Banknote,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
@@ -29,6 +28,12 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import {
+  dayKeyFromInstant,
+  getSyncedOperationalTimeZone,
+} from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { Badge } from '@/shared/ui/badge'
 import {
   AlertDialog,
@@ -42,42 +47,45 @@ import {
   AlertDialogTrigger,
 } from '@/shared/ui/dialog'
 
-function formatVisitDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d)
+function isPaidState(state: EmployeeEarningVisitRow['paymentState']): boolean {
+  return state === 'BANK_PAID' || state === 'PAID' || state === 'IN_UK_PAYROLL'
 }
 
 function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (state === 'BANK_PAID') return 'Bank paid'
-  if (state === 'IN_UK_PAYROLL') return 'In UK payroll'
-  if (state === 'PAID') return 'In visit-pay run'
-  if (state === 'REMAINING') return 'Ready for payroll'
+  if (isPaidState(state)) return 'Paid'
+  if (state === 'REMAINING') return 'Remaining'
   if (state === 'REJECTED') return 'Rejected'
   return 'Pending'
 }
 
 function paymentStateBadgeClass(state: EmployeeEarningVisitRow['paymentState']): string {
-  if (state === 'BANK_PAID') return 'bg-success/10 text-success border-success/20'
-  if (state === 'IN_UK_PAYROLL') return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300'
-  if (state === 'PAID') return 'bg-success/10 text-success border-success/20'
+  if (isPaidState(state)) return 'bg-success/10 text-success border-success/20'
   if (state === 'REMAINING') return 'bg-warning/10 text-warning border-warning/20'
   if (state === 'REJECTED') return 'bg-destructive/10 text-destructive border-destructive/20'
   return 'bg-muted text-muted-foreground border-border'
 }
 
 function PaymentStateIcon({ state }: { state: EmployeeEarningVisitRow['paymentState'] }) {
-  if (state === 'BANK_PAID') return <Banknote className="h-3 w-3" aria-hidden />
-  if (state === 'IN_UK_PAYROLL') return <CheckCircle2 className="h-3 w-3" aria-hidden />
-  if (state === 'PAID') return <CheckCircle2 className="h-3 w-3" aria-hidden />
+  if (isPaidState(state)) return <CheckCircle2 className="h-3 w-3" aria-hidden />
   if (state === 'REMAINING') return <Clock className="h-3 w-3" aria-hidden />
-  if (state === 'REJECTED') return <AlertCircle className="h-3 w-3" aria-hidden />
   return <AlertCircle className="h-3 w-3" aria-hidden />
+}
+
+function formatGbp(amount: number): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+  }).format(Number.isFinite(amount) ? amount : 0)
+}
+
+function formatVisitTimeRange(
+  start: string | null | undefined,
+  end: string | null | undefined,
+  formatTime: (iso: string) => string,
+): string {
+  if (!start) return '—'
+  if (!end) return formatTime(start)
+  return `${formatTime(start)}–${formatTime(end)}`
 }
 
 function StatCard({
@@ -143,6 +151,10 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
       s.can('billing.employee_payouts.manage'),
   )
 
+  const { formatDate, formatTime } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
+
   const [preset, setPreset] = React.useState<EarningsPeriodPreset>('all')
   const [customFrom, setCustomFrom] = React.useState('')
   const [customTo, setCustomTo] = React.useState('')
@@ -199,7 +211,7 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
     <div className="space-y-6" data-testid="employee-edit-earnings-panel">
       <ContentSectionHeader
         title="Earnings"
-        description="Visit-pay run progress for this carer. Bank paid / Outstanding are UK net after W1/M1 PAYE/NI — create payouts from Billing → Employee payouts once a statutory UK run exists."
+        description="Total earned from visits, how much is already paid, and how much is still remaining. Periods and visit times use the organisation operational timezone."
         icon={<Wallet className="h-5 w-5" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
@@ -226,13 +238,9 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reset all earnings to £0?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Clears <span className="font-medium text-foreground">Bank paid</span>,{' '}
-                      <span className="font-medium text-foreground">Ready for visit-pay</span>,{' '}
-                      <span className="font-medium text-foreground">UK net</span>, and{' '}
-                      <span className="font-medium text-foreground">Outstanding</span> for this
-                      employee: deletes payout lines, zeros unpaid visit amounts, removes them from
-                      UK payroll runs, and clears fines/penalties. Locked visit-pay run history is
-                      kept.
+                      Clears paid and remaining amounts for this employee: deletes payout lines,
+                      zeros unpaid visit amounts, removes them from UK payroll runs, and clears
+                      fines/penalties. Locked visit-pay run history is kept.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -281,9 +289,16 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
       />
 
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
           <CalendarRange className="h-3.5 w-3.5" aria-hidden />
           Period
+          <span
+            className="inline-flex items-center rounded border border-dashed border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-normal"
+            title="Previous week, last month, custom dates, and visit times use the organisation operational timezone"
+            data-testid="employee-earnings-timezone-hint"
+          >
+            Times in {timezoneHint}
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {PERIOD_PRESETS.map(({ id, label, icon }) => (
@@ -334,8 +349,11 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
           <p className="text-xs text-muted-foreground">
             Showing{' '}
             <span className="font-medium text-foreground">
-              {filters.dateFrom ?? '…'} → {filters.dateTo ?? '…'}
+              {filters.dateFrom ? formatDate(filters.dateFrom) : '…'} →{' '}
+              {filters.dateTo ? formatDate(filters.dateTo) : '…'}
             </span>
+            {' · '}
+            {timezoneHint}
           </p>
         ) : null}
       </div>
@@ -352,63 +370,32 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
         </div>
       ) : data ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <StatCard
-              title="In visit-pay run"
-              value={data.totalEarned}
-              hint="From locked / exported visit-pay runs"
+              title="Total earning"
+              value={data.salaryAmount ?? formatGbp(
+                (data.totalEarnedAmount ?? 0) + (data.remainingAmountValue ?? 0),
+              )}
+              hint={`${data.salaryVisitCount ?? visits.length} visit${
+                (data.salaryVisitCount ?? visits.length) === 1 ? '' : 's'
+              } in this period`}
               icon={<PoundSterling className="h-5 w-5" aria-hidden />}
               iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             />
             <StatCard
-              title="Visits in run"
-              value={data.paidVisitCount}
-              hint="Visits included in locked payroll"
+              title="Paid"
+              value={data.totalEarned}
+              hint={`${data.paidVisitCount} visit${data.paidVisitCount === 1 ? '' : 's'} already paid`}
               icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
               iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             />
             <StatCard
-              title="Ready for payroll"
+              title="Remaining"
               value={data.remainingAmount}
-              hint={`${data.remainingVisitCount} completed visit${data.remainingVisitCount === 1 ? '' : 's'} not yet in UK payroll`}
+              hint={`${data.remainingVisitCount} visit${
+                data.remainingVisitCount === 1 ? '' : 's'
+              } still to pay`}
               icon={<Clock className="h-5 w-5" aria-hidden />}
-              iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
-            />
-            <StatCard
-              title="UK net"
-              value={
-                data.hasEligibleUkRun
-                  ? (data.ukNetPayAmount ?? '£0.00')
-                  : '—'
-              }
-              hint={
-                data.hasEligibleUkRun
-                  ? 'After W1/M1 PAYE/NI'
-                  : 'Statutory UK run required'
-              }
-              icon={<PoundSterling className="h-5 w-5" aria-hidden />}
-              iconClassName="bg-violet-500/10 text-violet-700 dark:text-violet-300"
-            />
-            <StatCard
-              title="Bank paid"
-              value={data.paidOutAmount ?? '£0.00'}
-              hint="UK net disbursed (PAID payout batches)"
-              icon={<Banknote className="h-5 w-5" aria-hidden />}
-              iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
-            />
-            <StatCard
-              title="Outstanding"
-              value={
-                data.hasEligibleUkRun
-                  ? (data.outstandingPayoutAmount ?? '£0.00')
-                  : '—'
-              }
-              hint={
-                data.hasEligibleUkRun
-                  ? 'UK net − committed payouts'
-                  : 'UK run required before bank payable'
-              }
-              icon={<AlertCircle className="h-5 w-5" aria-hidden />}
               iconClassName="bg-amber-500/10 text-amber-800 dark:text-amber-300"
             />
           </div>
@@ -427,10 +414,10 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                 <Wallet className="h-4 w-4" aria-hidden />
               </span>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Visit earnings detail</h3>
+                <h3 className="text-sm font-semibold text-foreground">Visits</h3>
                 <p className="text-xs text-muted-foreground">
-                  {visits.length} visit{visits.length === 1 ? '' : 's'} in the selected period.
-                  Status reflects UK payroll / bank payout when the visit is on a UK run.
+                  {visits.length} visit{visits.length === 1 ? '' : 's'} in the selected period,
+                  with planned, actual, and approved pay times.
                 </p>
               </div>
             </div>
@@ -441,28 +428,28 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                   <Wallet className="h-5 w-5 text-muted-foreground" aria-hidden />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  No visits in visit-pay run, ready for run, or pending in this period.
+                  No visits in this period.
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[960px] text-sm">
+                <table className="w-full min-w-[1100px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Visit
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-                          Date
-                        </span>
+                        Date
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Service user
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Planned
+                        Planned time
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                        Actual time
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                         Approved pay
@@ -471,19 +458,13 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                         Hours
                       </th>
                       <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                        <span className="inline-flex items-center justify-end gap-1.5">
-                          <PoundSterling className="h-3.5 w-3.5" aria-hidden />
-                          Payable
-                        </span>
+                        Amount
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Pay status
+                        Status
                       </th>
                       <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        UK / pay period
-                      </th>
-                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                        Recon status
+                        Pay period
                       </th>
                     </tr>
                   </thead>
@@ -492,14 +473,21 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                       <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                         <td className="px-3 py-2.5 font-mono text-xs">{row.visitRef}</td>
                         <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                          {formatVisitDate(row.plannedStart)}
+                          {formatDate(dayKeyFromInstant(row.plannedStart) || row.plannedStart)}
                         </td>
                         <td className="px-3 py-2.5">{row.serviceUserName}</td>
                         <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                          {row.plannedTime ?? '—'}
+                          {formatVisitTimeRange(row.plannedStart, row.plannedEnd, formatTime)}
                         </td>
                         <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                          {row.approvedPayTime ?? '—'}
+                          {formatVisitTimeRange(row.actualStart, row.actualEnd, formatTime)}
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
+                          {formatVisitTimeRange(
+                            row.approvedPayStart,
+                            row.approvedPayEnd,
+                            formatTime,
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums">
                           {row.payableHours ??
@@ -524,9 +512,6 @@ export function EmployeeEditEarningPanel({ employeeId }: { employeeId: string })
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground">
                           {row.ukPayrollRunLabel ?? row.payrollPeriod ?? '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                          {row.status.replace(/_/g, ' ')}
                         </td>
                       </tr>
                     ))}

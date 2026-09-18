@@ -26,6 +26,7 @@ export function EcmExceptionQueueWorkspace({
     setDateTo,
     periodLabel,
     operationalToday,
+    operationalTimezone,
     multiDay,
   } = useEcmOperationalPeriod('today')
   const { isScoped: globalLocationScoped } = useGlobalLocationScope()
@@ -42,6 +43,7 @@ export function EcmExceptionQueueWorkspace({
         dateTo={dateTo}
         periodLabel={periodLabel}
         operationalToday={operationalToday}
+        operationalTimezone={operationalTimezone}
         onPresetChange={setPreset}
         onApplyPreset={applyPreset}
         onDateFromChange={setDateFrom}
@@ -68,25 +70,30 @@ export function EcmExceptionQueueWorkspace({
           </>
         }
       >
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9"
-          disabled={refreshing}
-          onClick={() => {
-            setRefreshing(true)
-            invalidateEcm()
-            window.setTimeout(() => setRefreshing(false), 400)
-          }}
-        >
-          {refreshing ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-          )}
-          Refresh
-        </Button>
+        <div className="space-y-1">
+          <span className="invisible block text-xs leading-none" aria-hidden>
+            Actions
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={refreshing}
+            onClick={() => {
+              setRefreshing(true)
+              invalidateEcm()
+              window.setTimeout(() => setRefreshing(false), 400)
+            }}
+          >
+            {refreshing ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </EcmOperationalPeriodCard>
       <EcmExceptionQueuePanel
         onOpenVisit={(jobId) => {

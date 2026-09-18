@@ -10,6 +10,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { Badge } from '@/shared/ui/badge'
 import { ContentCard } from '@/shared/ui/content-section'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -19,6 +20,8 @@ import {
 import {
   useApproveVisitOverrun,
   useRejectVisitOverrun,
+  useSetVisitBillableAmount,
+  useSetVisitPayableAmount,
   useUpdateVisitReconciliation,
   useVisitReconciliation,
 } from '@/features/billing/hooks/useVisitReconciliations'
@@ -26,11 +29,40 @@ import type { VisitReconciliationRow } from '@/features/billing/types/visit-reco
 import type { VisitReconciliationRateBreakdown } from '@/features/billing/types/visit-reconciliation.types'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useAuthStore } from '@/features/auth/store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
+import { formatReconClock } from '@/features/billing/utils/visit-reconciliation-display.util'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   row: VisitReconciliationRow | null
+}
+
+/** Split stored approval notes into readable entries (newlines / amount-set lines). */
+function parseApprovalNoteEntries(notes: string): string[] {
+  const trimmed = notes.trim()
+  if (!trimmed) return []
+  const byLine = trimmed
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+  if (byLine.length > 1) return byLine
+
+  // Older rows sometimes concatenated without newlines — split on amount markers.
+  const single = byLine[0] ?? trimmed
+  const parts = single
+    .split(/(?=(?:Payable|Billable) amount set to)/i)
+    .map(part => part.trim())
+    .filter(Boolean)
+  return parts.length > 1 ? parts : [single]
+}
+
+function approvalNoteKind(entry: string): 'payable' | 'billable' | 'other' {
+  if (/^Payable amount set to/i.test(entry)) return 'payable'
+  if (/^Billable amount set to/i.test(entry)) return 'billable'
+  return 'other'
 }
 
 function RateBreakdownCard({
@@ -46,6 +78,7 @@ function RateBreakdownCard({
   /** When set (e.g. funder split share), shown as Total instead of card-gross breakdown.amount. */
   chargedTotal,
   chargedTotalNote,
+  isManualOverride = false,
 }: {
   title: string
   subtitle: string
@@ -60,19 +93,29 @@ function RateBreakdownCard({
   compact?: boolean
   chargedTotal?: string | null
   chargedTotalNote?: string | null
+  isManualOverride?: boolean
 }) {
   const segments = breakdown?.segments?.filter(s => s.minutes > 0) ?? []
   const appliedRules = breakdown?.appliedRules?.filter(r => r.label.trim() || r.detail.trim()) ?? []
   // Banded visits already show the charged slice in Calculation — don't repeat Applied rule + Time.
   const showAppliedRules = !compact && appliedRules.length > 0 && segments.length === 0
   const displayTotal = chargedTotal?.trim() || breakdown?.amount || fallbackAmount || '—'
+  const manual =
+    isManualOverride ||
+    Boolean(breakdown?.manualOverride) ||
+    Boolean(breakdown?.explanation?.toLowerCase().includes('manual'))
 
   return (
     <ContentCard className="p-4 space-y-3">
       <div>
-        <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <h4 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
           {icon}
           {title}
+          {manual ? (
+            <Badge variant="secondary" className="text-[10px] font-normal">
+              Manual override
+            </Badge>
+          ) : null}
         </h4>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
@@ -191,10 +234,87 @@ function RateBreakdownCard({
   )
 }
 
+function parseStoredAmount(value: string | null | undefined): string {
+  if (!value?.trim()) return ''
+  const n = Number(value.replace(/[^0-9.-]/g, ''))
+  return Number.isFinite(n) ? String(n) : ''
+}
+
+function ManualAmountEditor({
+  title,
+  description,
+  value,
+  notes,
+  onValueChange,
+  onNotesChange,
+  onSave,
+  disabled,
+  saving,
+}: {
+  title: string
+  description: string
+  value: string
+  notes: string
+  onValueChange: (v: string) => void
+  onNotesChange: (v: string) => void
+  onSave: () => void
+  disabled: boolean
+  saving: boolean
+}) {
+  return (
+    <ContentCard className="p-4 space-y-3">
+      <div>
+        <h4 className="flex items-center gap-2 text-sm font-semibold">
+          <PoundSterling className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          {title}
+        </h4>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block space-y-1 text-sm">
+          <span className="text-xs text-muted-foreground">Amount (£)</span>
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            value={value}
+            onChange={e => onValueChange(e.target.value)}
+            disabled={disabled || saving}
+            placeholder="0.00"
+          />
+        </label>
+        <label className="block space-y-1 text-sm">
+          <span className="text-xs text-muted-foreground">Notes (optional)</span>
+          <Input
+            value={notes}
+            onChange={e => onNotesChange(e.target.value)}
+            disabled={disabled || saving}
+            placeholder="Reason for override"
+          />
+        </label>
+      </div>
+      {disabled ? (
+        <p className="text-xs text-muted-foreground">Locked — amount can no longer be edited.</p>
+      ) : (
+        <div className="flex justify-end">
+          <Button type="button" size="sm" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save amount'}
+          </Button>
+        </div>
+      )}
+    </ContentCard>
+  )
+}
+
 export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Props) {
   const canManage = useAuthStore(s => s.can('billing.visit_reconciliations.manage' as never))
+  const { formatDate, timeDisplayFormat } = useOrganisationDisplayFormat()
+  const operationalTimezone = getSyncedOperationalTimeZone()
+  const timezoneHint = `${operationalTimezone} (${formatTimezoneUtcOffset(operationalTimezone)})`
   const detailQuery = useVisitReconciliation(open && row ? row.id : undefined)
   const updateMutation = useUpdateVisitReconciliation()
+  const setPayableMutation = useSetVisitPayableAmount()
+  const setBillableMutation = useSetVisitBillableAmount()
   const approveOverrunMutation = useApproveVisitOverrun()
   const rejectOverrunMutation = useRejectVisitOverrun()
   const detail = detailQuery.data
@@ -236,19 +356,34 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
 
   const [travelMiles, setTravelMiles] = React.useState('')
   const [overrunNotes, setOverrunNotes] = React.useState('')
+  const [payableInput, setPayableInput] = React.useState('')
+  const [payableNotes, setPayableNotes] = React.useState('')
+  const [billableInput, setBillableInput] = React.useState('')
+  const [billableNotes, setBillableNotes] = React.useState('')
 
   React.useEffect(() => {
     if (!detail) return
     setTravelMiles(detail.travelMiles != null ? String(detail.travelMiles) : '')
     setOverrunNotes('')
-  }, [detail?.id, detail?.travelMiles])
+    setPayableInput(parseStoredAmount(detail.payableAmount))
+    setPayableNotes('')
+    setBillableInput(parseStoredAmount(detail.billableAmount))
+    setBillableNotes('')
+  }, [detail?.id, detail?.travelMiles, detail?.payableAmount, detail?.billableAmount])
 
+  const canEditAmounts = Boolean(canManage && detail && detail.status !== 'LOCKED')
   const canEditTravel = detail && detail.status !== 'LOCKED'
   const pendingOverrun =
     detail &&
     (detail.overrunMinutes ?? 0) > 0 &&
     (detail.overrunDecision === 'PENDING' || detail.overrunDecision == null)
   const overrunBusy = approveOverrunMutation.isPending || rejectOverrunMutation.isPending
+  const payableManual =
+    Boolean(preview?.carerPay?.manualOverride) ||
+    Boolean(detail?.approvalNotes?.includes('Payable amount set to'))
+  const billableManual =
+    Boolean(preview?.clientCharge?.manualOverride) ||
+    Boolean(detail?.approvalNotes?.includes('Billable amount set to'))
 
   const saveTravel = async () => {
     if (!detail || !canEditTravel) return
@@ -263,6 +398,52 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
       toastSuccess('Mileage saved. Payroll will use this with the pay card mileage rate.')
     } catch (err) {
       toastApiError(err, 'Could not save mileage.')
+    }
+  }
+
+  const savePayableAmount = async () => {
+    if (!detail || !canEditAmounts) return
+    const parsed = Number(payableInput)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toastApiError(new Error('Enter a valid carer pay amount (0 or greater).'))
+      return
+    }
+    try {
+      await setPayableMutation.mutateAsync({
+        id: detail.id,
+        body: {
+          payableAmount: parsed,
+          notes: payableNotes.trim() || undefined,
+          approveForPay: true,
+        },
+      })
+      toastSuccess('Carer pay amount saved.')
+      setPayableNotes('')
+    } catch (err) {
+      toastApiError(err, 'Could not save carer pay amount.')
+    }
+  }
+
+  const saveBillableAmount = async () => {
+    if (!detail || !canEditAmounts) return
+    const parsed = Number(billableInput)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toastApiError(new Error('Enter a valid client/funder charge amount (0 or greater).'))
+      return
+    }
+    try {
+      await setBillableMutation.mutateAsync({
+        id: detail.id,
+        body: {
+          billableAmount: parsed,
+          notes: billableNotes.trim() || undefined,
+          approveForInvoice: true,
+        },
+      })
+      toastSuccess('Client / funder charge amount saved.')
+      setBillableNotes('')
+    } catch (err) {
+      toastApiError(err, 'Could not save client/funder charge amount.')
     }
   }
 
@@ -318,8 +499,11 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                     {detail.visitRef}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {detail.date} · {detail.serviceUserName}
+                    {detail.date ? formatDate(detail.date) : detail.date} · {detail.serviceUserName}
                     {detail.carerName ? ` · ${detail.carerName}` : ''}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Clock times in {timezoneHint}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -361,6 +545,42 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 </div>
               ) : null}
 
+              {detail.approvalNotes?.trim() ? (
+                <ContentCard className="p-4" data-testid="visit-recon-approval-notes">
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    Approval history
+                  </h4>
+                  <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                    {parseApprovalNoteEntries(detail.approvalNotes).map((entry, index) => {
+                      const kind = approvalNoteKind(entry)
+                      return (
+                        <li
+                          key={`${index}-${entry.slice(0, 40)}`}
+                          className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
+                        >
+                          {kind === 'payable' ? (
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
+                              Carer pay
+                            </Badge>
+                          ) : kind === 'billable' ? (
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[10px] font-normal">
+                              Client charge
+                            </Badge>
+                          ) : (
+                            <span
+                              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                              aria-hidden
+                            />
+                          )}
+                          <span className="min-w-0 leading-snug text-foreground">{entry}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </ContentCard>
+              ) : null}
+
               <ContentCard className="p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
@@ -369,14 +589,24 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-xs text-muted-foreground">Planned</dt>
-                    <dd className="font-medium">{preview?.timeWindows.planned ?? row.planned}</dd>
+                    <dd className="font-medium">
+                      {formatReconClock(
+                        preview?.timeWindows.planned ?? row.planned,
+                        timeDisplayFormat,
+                      )}
+                    </dd>
                     <dd className="text-xs text-muted-foreground tabular-nums">
                       {preview?.plannedHours ?? '—'}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">Actual (recorded)</dt>
-                    <dd className="font-medium">{preview?.timeWindows.actual ?? row.actual}</dd>
+                    <dd className="font-medium">
+                      {formatReconClock(
+                        preview?.timeWindows.actual ?? row.actual,
+                        timeDisplayFormat,
+                      )}
+                    </dd>
                     <dd className="text-xs text-muted-foreground tabular-nums">
                       {preview?.actualHours ?? '—'}
                     </dd>
@@ -497,12 +727,29 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                 <RateBreakdownCard
                   title="Pay carer"
                   subtitle="Payroll — based on this carer’s approved payable time"
-                  timeRange={preview?.timeWindows.approvedPayable ?? row.approvedPayable}
+                  timeRange={formatReconClock(
+                    preview?.timeWindows.approvedPayable ?? row.approvedPayable,
+                    timeDisplayFormat,
+                  )}
                   hours={preview?.payableHours ?? null}
                   breakdown={preview?.carerPay ?? null}
                   fallbackAmount={detail.payableAmount}
+                  isManualOverride={payableManual}
                   icon={<Wallet className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                 />
+                {canManage ? (
+                  <ManualAmountEditor
+                    title="Set carer pay manually"
+                    description="Override the calculated pay for this visit. Saving also accepts the visit for pay when it is not already approved."
+                    value={payableInput}
+                    notes={payableNotes}
+                    onValueChange={setPayableInput}
+                    onNotesChange={setPayableNotes}
+                    onSave={() => void savePayableAmount()}
+                    disabled={!canEditAmounts}
+                    saving={setPayableMutation.isPending}
+                  />
+                ) : null}
               </div>
 
               <div className={cn('space-y-4', funderNotCharged && 'opacity-70')}>
@@ -522,14 +769,30 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                       : preview?.funderChargeNote?.trim() ||
                         'Invoice — based on approved billable time (org multi-carer funder setting)'
                   }
-                  timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                  timeRange={formatReconClock(
+                    preview?.timeWindows.approvedBillable ?? row.approvedBillable,
+                    timeDisplayFormat,
+                  )}
                   hours={preview?.billableHours ?? null}
                   breakdown={preview?.clientCharge ?? null}
                   fallbackAmount={detail.billableAmount}
+                  isManualOverride={billableManual}
                   compact={Boolean(preview?.funderClientCharges?.length)}
                   icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                 />
-
+                {canManage ? (
+                  <ManualAmountEditor
+                    title="Set client / funder charge manually"
+                    description="Override the calculated visit total charged to the client/funders. Multi-funder % splits still apply from this total on invoice runs."
+                    value={billableInput}
+                    notes={billableNotes}
+                    onValueChange={setBillableInput}
+                    onNotesChange={setBillableNotes}
+                    onSave={() => void saveBillableAmount()}
+                    disabled={!canEditAmounts}
+                    saving={setBillableMutation.isPending}
+                  />
+                ) : null}
                 {preview?.funderClientCharges?.map((funderCharge) => (
                   <RateBreakdownCard
                     key={`${funderCharge.funderName}-${funderCharge.splitPercent ?? 'none'}`}
@@ -539,7 +802,10 @@ export function VisitReconciliationDetailDialog({ open, onOpenChange, row }: Pro
                         ? `This funder’s share of the visit (${funderCharge.splitPercent}%)`
                         : funderCharge.reason ?? 'Funder charge'
                     }
-                    timeRange={preview?.timeWindows.approvedBillable ?? row.approvedBillable}
+                    timeRange={formatReconClock(
+                      preview?.timeWindows.approvedBillable ?? row.approvedBillable,
+                      timeDisplayFormat,
+                    )}
                     hours={preview?.billableHours ?? null}
                     breakdown={funderCharge.breakdown}
                     fallbackAmount={funderCharge.shareAmount}

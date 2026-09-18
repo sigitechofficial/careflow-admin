@@ -1,4 +1,5 @@
 import type { ServiceUserMedicationRow } from '@/features/service-users/api/service-users.api'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 export type MedicationStatusEndReasonValue = 'MANUAL' | 'END_DATE'
 
@@ -41,10 +42,6 @@ export function medicationEndSourceLabel(m: ServiceUserMedicationRow): string | 
 export function medicationEndSourceWhen(m: ServiceUserMedicationRow): string | null {
   const at = m.statusEndedAt ?? (m.statusEndReason === 'END_DATE' ? m.endDate : null)
   if (!at) return null
-  const d = new Date(at)
-  if (Number.isNaN(d.getTime())) return null
-  const dd = String(d.getUTCDate()).padStart(2, '0')
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const yyyy = d.getUTCFullYear()
-  return `${dd}-${mm}-${yyyy}`
+  const formatted = formatOrganisationDate(at)
+  return formatted === '—' ? null : formatted
 }

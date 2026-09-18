@@ -163,12 +163,12 @@ export function useCorrectMedicationEvent(serviceUserId: string) {
   })
 }
 
-/** YYYY-MM for current UTC month */
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
+import { formatOrganisationMonthYear } from '@/shared/lib/organisation-display-format.store'
+
+/** YYYY-MM for the organisation operational calendar month. */
 export function currentMedicationChartMonth(): string {
-  const d = new Date()
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${y}-${m}`
+  return operationalTodayIso().slice(0, 7)
 }
 
 export function shiftMedicationChartMonth(month: string, delta: number): string {
@@ -178,8 +178,6 @@ export function shiftMedicationChartMonth(month: string, delta: number): string 
   const m = String(d.getUTCMonth() + 1).padStart(2, '0')
   return `${y}-${m}`
 }
-
-import { formatOrganisationMonthYear } from '@/shared/lib/organisation-display-format.store'
 
 export function formatChartMonthLabel(month: string): string {
   return formatOrganisationMonthYear(month)

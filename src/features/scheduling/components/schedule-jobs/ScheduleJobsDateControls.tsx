@@ -112,7 +112,9 @@ export function ScheduleJobsDateControls({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{displayFormat.formatDate(date)}</p>
-          <p className="text-[10px] text-muted-foreground">{formatOperationalDayLabel(todayIso())}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {formatOperationalDayLabel(todayIso())}
+          </p>
         </div>
       </div>
     </div>

@@ -431,6 +431,7 @@ export function EcmLiveMonitoringPanel({
     periodLabel,
     multiDay,
     operationalToday,
+    operationalTimezone,
     setPreset,
     setDateFrom,
     setDateTo,
@@ -590,7 +591,7 @@ export function EcmLiveMonitoringPanel({
         dateTo={dateTo}
         periodLabel={periodLabel}
         operationalToday={dashboard.data?.operationalToday ?? operationalToday}
-        operationalTimezone={dashboard.data?.operationalTimezone}
+        operationalTimezone={dashboard.data?.operationalTimezone ?? operationalTimezone}
         onPresetChange={setPreset}
         onApplyPreset={applyPreset}
         onDateFromChange={setDateFrom}
@@ -621,35 +622,42 @@ export function EcmLiveMonitoringPanel({
         }
       >
         {scoped ? null : (
-          <label className="relative min-w-[12rem] flex-1 space-y-1 text-xs">
+          <label className="relative min-w-[12rem] flex-1 space-y-1 text-xs sm:max-w-xs">
             <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <Search className="h-3.5 w-3.5" aria-hidden />
+              <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Search
             </span>
-            <Search className="pointer-events-none absolute bottom-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Service user or job…"
-              className="h-9 pl-8"
-            />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Service user or job…"
+                className="h-9 pl-8"
+              />
+            </div>
           </label>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9"
-          disabled={dashboard.isFetching}
-          onClick={refreshAll}
-        >
-          {dashboard.isFetching ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-          )}
-          Refresh
-        </Button>
+        <div className="space-y-1">
+          <span className="invisible block text-xs leading-none" aria-hidden>
+            Actions
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={dashboard.isFetching}
+            onClick={refreshAll}
+          >
+            {dashboard.isFetching ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </EcmOperationalPeriodCard>
 
       {dashboard.isLoading ? (
@@ -817,7 +825,7 @@ export function EcmLiveMonitoringPanel({
               {' · '}
               refreshed{' '}
               {dashboard.data?.refreshedAt
-                ? new Date(dashboard.data.refreshedAt).toLocaleTimeString()
+                ? formatOpsClockTime(dashboard.data.refreshedAt)
                 : '—'}
               {' · '}
               Auto-refresh every 60s

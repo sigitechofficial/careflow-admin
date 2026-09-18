@@ -62,6 +62,10 @@ import {
   applyScheduleJobsEmployeeFilter,
   buildCarerFilterOptionsFromJobs,
 } from '@/features/scheduling/utils/schedule-shared-job-filters.util'
+import {
+  applyScheduleJobsTimeSensitiveFilter,
+  countScheduleJobsTimeSensitive,
+} from '@/features/scheduling/utils/schedule-job-time-sensitive.util'
 import { buildScheduleJobsServiceUserRows } from '@/features/scheduling/utils/schedule-jobs-board-axis.util'
 import { schedulingKeys } from '@/features/scheduling/keys'
 import type { ScheduleJobsLayout } from '@/features/scheduling/utils/schedule-jobs-layout.util'
@@ -75,6 +79,7 @@ export type ScheduleJobsUrlUpdatePartial = {
   requiredCarersFilters?: ScheduleJobsRequiredCarersFilterValue[]
   jobOperationalFilters?: ScheduleJobOperationalFilter[]
   carerOperationalFilters?: ScheduleCarerOperationalFilter[]
+  timeSensitiveFilter?: boolean
   layout?: ScheduleJobsLayout
   rowAxis?: ScheduleJobsBoardRowAxis
 }
@@ -89,6 +94,7 @@ export type UseScheduleJobsBoardDataParams = {
   jobOutcomeFilters: Set<ScheduleJobOutcomeFilter>
   jobOperationalFilters: ScheduleJobOperationalFilter[]
   carerOperationalFilters: ScheduleCarerOperationalFilter[]
+  timeSensitiveFilter: boolean
   setServiceUserFilterIds: (ids: string[]) => void
   updateScheduleJobsUrl: (partial?: ScheduleJobsUrlUpdatePartial) => void
 }
@@ -103,6 +109,7 @@ export function useScheduleJobsBoardData({
   jobOutcomeFilters,
   jobOperationalFilters,
   carerOperationalFilters,
+  timeSensitiveFilter,
   setServiceUserFilterIds,
   updateScheduleJobsUrl,
 }: UseScheduleJobsBoardDataParams) {
@@ -295,13 +302,23 @@ export function useScheduleJobsBoardData({
     [boardAfterEmployees.allJobs],
   )
 
+  const timeSensitiveCount = React.useMemo(
+    () => countScheduleJobsTimeSensitive(boardAfterEmployees.allJobs, visitPlanSlotsByServiceUser),
+    [boardAfterEmployees.allJobs, visitPlanSlotsByServiceUser],
+  )
+
   const filteredBoard = React.useMemo(() => {
     const afterOutcome = applyScheduleJobOutcomeFilters(boardAfterEmployees, jobOutcomeFilters)
-    return applyScheduleOperationalFilters(
+    const afterIssues = applyScheduleOperationalFilters(
       afterOutcome,
       new Set(jobOperationalFilters),
       new Set(carerOperationalFilters),
       outsidePatternJobIds,
+    )
+    return applyScheduleJobsTimeSensitiveFilter(
+      afterIssues,
+      timeSensitiveFilter,
+      visitPlanSlotsByServiceUser,
     )
   }, [
     boardAfterEmployees,
@@ -309,6 +326,8 @@ export function useScheduleJobsBoardData({
     jobOperationalFilters,
     carerOperationalFilters,
     outsidePatternJobIds,
+    timeSensitiveFilter,
+    visitPlanSlotsByServiceUser,
   ])
 
   const { employeeRows, unassignedJobs, cancelledJobs } = filteredBoard
@@ -463,6 +482,7 @@ export function useScheduleJobsBoardData({
     jobOperationalCounts,
     carerOnLeaveTodayCount,
     operationalIssuesCount,
+    timeSensitiveCount,
     requiredCarersOptions,
     carerFilterOptions,
     serviceUserOptions,

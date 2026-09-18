@@ -9,14 +9,14 @@ import type { LayoutVariant } from '@/components/layout/sidebar-types'
 interface AppLayoutProps {
   children: React.ReactNode
   pageTitle?: string
-  /** default: max-w-7xl · wide: capped wide (between 7xl and full) · full: edge-to-edge */
+  /** default/wide: fill the main column (no max-width gutters) · full: edge-to-edge (no shell padding) */
   contentLayout?: 'default' | 'wide' | 'full'
   variant?: LayoutVariant
 }
 
 const contentShellClass: Record<'default' | 'wide', string> = {
-  default: 'mx-auto max-w-7xl px-4 py-4 md:px-[22px] md:py-5',
-  wide: 'mx-auto w-full max-w-screen-2xl px-3.5 py-4 md:px-8 md:py-4',
+  default: 'w-full max-w-none px-4 py-4 md:px-[22px] md:py-5',
+  wide: 'w-full max-w-none px-3.5 py-4 md:px-8 md:py-4',
 }
 
 export function AppLayout({ children, pageTitle, contentLayout = 'default', variant = 'admin' }: AppLayoutProps) {

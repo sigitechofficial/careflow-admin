@@ -37,6 +37,7 @@ import { useEmployeePayrollProfile } from '@/features/payroll/hooks/usePayroll'
 import { PAYROLL_PATHS } from '@/features/payroll/payroll-routes'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import type { SalaryCalculationBasis } from '@/features/settings/types'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
@@ -52,119 +53,31 @@ import {
 } from '@/shared/ui/dialog'
 import { cn } from '@/shared/lib/utils'
 import { apiErrorMessage } from '@/shared/lib/api-error-message'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import {
+  dayKeyFromInstant,
+  formatOpsCalendarDate,
+  getSyncedOperationalTimeZone,
+  syncOrganisationOperationalTimezone,
+} from '@/shared/lib/operational-day.util'
+import {
+  currentOpsMonth,
+  currentOpsWeek,
+  salaryMonthDateRange,
+  salaryMonthLabel,
+  salaryWeekDateRange,
+  salaryWeekLabel,
+  shiftSalaryMonth,
+  shiftSalaryWeek,
+} from '@/features/billing/utils/salary-period.util'
 
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-/** ISO week period key YYYY-Www (UTC, week starts Monday). */
-function isoWeekPeriodKey(date: Date): string {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
-  return `${d.getUTCFullYear()}-W${pad2(weekNo)}`
-}
-
-function currentUtcMonth(): string {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`
-}
-
-function currentUtcWeek(): string {
-  return isoWeekPeriodKey(new Date())
-}
-
-function shiftMonth(month: string, delta: number): string {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m)) return month
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
-}
-
-/** Monday UTC of the given ISO week key. */
-function mondayOfIsoWeek(period: string): Date {
-  const match = /^(\d{4})-W(\d{2})$/.exec(period)
-  if (!match) return new Date(NaN)
-  const year = Number(match[1])
-  const week = Number(match[2])
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-  const jan4Dow = jan4.getUTCDay() || 7
-  const week1Monday = new Date(jan4)
-  week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Dow - 1))
-  const monday = new Date(week1Monday)
-  monday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7)
-  return monday
-}
-
-function shiftWeek(period: string, delta: number): string {
-  const monday = mondayOfIsoWeek(period)
-  monday.setUTCDate(monday.getUTCDate() + delta * 7)
-  return isoWeekPeriodKey(monday)
-}
-
-function utcMonthLabel(month: string): string {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m) || y < 1 || m < 1) return month
-  return new Intl.DateTimeFormat('en-GB', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, 1)))
-}
-
-function utcWeekLabel(period: string): string {
-  const monday = mondayOfIsoWeek(period)
-  if (Number.isNaN(monday.getTime())) return period
-  const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  })
-  const year = period.slice(0, 4)
-  return `Week ${period.slice(6)} · ${fmt.format(monday)} – ${fmt.format(sunday)} ${year}`
-}
-
-function monthDateRange(month: string): { dateFrom: string; dateTo: string } {
-  const [yRaw, mRaw] = month.split('-')
-  const y = Number(yRaw)
-  const m = Number(mRaw)
-  if (!Number.isFinite(y) || !Number.isFinite(m)) {
-    return { dateFrom: month, dateTo: month }
-  }
-  const from = new Date(Date.UTC(y, m - 1, 1))
-  const to = new Date(Date.UTC(y, m, 0))
-  return {
-    dateFrom: from.toISOString().slice(0, 10),
-    dateTo: to.toISOString().slice(0, 10),
-  }
-}
-
-function weekDateRange(period: string): { dateFrom: string; dateTo: string } {
-  const monday = mondayOfIsoWeek(period)
-  const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
-  return {
-    dateFrom: monday.toISOString().slice(0, 10),
-    dateTo: sunday.toISOString().slice(0, 10),
-  }
-}
-
-function formatVisitDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d)
+function formatVisitDate(
+  iso: string,
+  formatDate: (dayIso: string) => string,
+): string {
+  const day = dayKeyFromInstant(iso)
+  if (!day) return formatOpsCalendarDate(iso)
+  return formatDate(day)
 }
 
 function paymentStateLabel(state: EmployeeEarningVisitRow['paymentState']): string {
@@ -259,23 +172,29 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
   )
 
   const { data: generalSettings } = useGeneralSettings(canRead)
+  React.useEffect(() => {
+    if (generalSettings?.timezone) {
+      syncOrganisationOperationalTimezone(generalSettings.timezone)
+    }
+  }, [generalSettings?.timezone])
+  const { formatDate } = useOrganisationDisplayFormat()
   const basis: SalaryCalculationBasis =
     generalSettings?.salaryCalculationBasis === 'WEEKLY' ? 'WEEKLY' : 'MONTHLY'
   const isWeekly = basis === 'WEEKLY'
 
   const [period, setPeriod] = React.useState(() =>
-    basis === 'WEEKLY' ? currentUtcWeek() : currentUtcMonth(),
+    basis === 'WEEKLY' ? currentOpsWeek() : currentOpsMonth(),
   )
 
   React.useEffect(() => {
-    setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())
+    setPeriod(isWeekly ? currentOpsWeek() : currentOpsMonth())
   }, [isWeekly])
 
   const filters = React.useMemo(
-    () => (isWeekly ? weekDateRange(period) : monthDateRange(period)),
+    () => (isWeekly ? salaryWeekDateRange(period) : salaryMonthDateRange(period)),
     [isWeekly, period],
   )
-  const periodLabel = isWeekly ? utcWeekLabel(period) : utcMonthLabel(period)
+  const periodLabel = isWeekly ? salaryWeekLabel(period, formatDate) : salaryMonthLabel(period)
   const periodNoun = isWeekly ? 'week' : 'month'
 
   const query = useEmployeeEarnings(employeeId, filters, canRead)
@@ -303,6 +222,11 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
   const data = query.data
   const visits = data?.visits ?? []
   const deductions = data?.deductions ?? []
+  const organisationTimezone =
+    data?.organisationTimezone?.trim() ||
+    generalSettings?.timezone?.trim() ||
+    getSyncedOperationalTimeZone()
+  const timezoneHint = `${organisationTimezone} (${formatTimezoneUtcOffset(organisationTimezone)})`
 
   const salaryVisits = visits.filter(
     v =>
@@ -409,13 +333,13 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
   }
 
   const shiftPeriod = (delta: number) =>
-    setPeriod(p => (isWeekly ? shiftWeek(p, delta) : shiftMonth(p, delta)))
+    setPeriod(p => (isWeekly ? shiftSalaryWeek(p, delta) : shiftSalaryMonth(p, delta)))
 
   return (
     <div className="space-y-6" data-testid="employee-edit-salary-panel">
       <ContentSectionHeader
         title="Salary"
-        description={`Visit-pay net for this ${isWeekly ? 'week' : 'month'} = completed visit pay − fines − penalties (not bank pay). Bank paid uses UK net after PAYE/NI — see Earnings or Billing → Employee payouts.`}
+        description={`Visit-pay net for this ${isWeekly ? 'week' : 'month'} = completed visit pay − fines − penalties (not bank pay). Bank paid uses UK net after PAYE/NI — see Earnings or Billing → Employee payouts. Periods and visit clocks use the organisation operational timezone.`}
         icon={<Wallet className="h-5 w-5" aria-hidden />}
         iconClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         action={
@@ -467,7 +391,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
         <div className="min-w-[10rem] text-center">
           <p className="text-sm font-semibold text-foreground">{periodLabel}</p>
           <p className="text-xs text-muted-foreground">
-            {filters.dateFrom} → {filters.dateTo}
+            {formatDate(filters.dateFrom)} → {formatDate(filters.dateTo)}
           </p>
         </div>
         <Button
@@ -484,10 +408,17 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
           size="sm"
           variant="ghost"
           leftIcon={<CalendarDays className="h-3.5 w-3.5" />}
-          onClick={() => setPeriod(isWeekly ? currentUtcWeek() : currentUtcMonth())}
+          onClick={() => setPeriod(isWeekly ? currentOpsWeek() : currentOpsMonth())}
         >
           This {periodNoun}
         </Button>
+        <span
+          className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+          title="Salary period, visit dates, and planned times use the organisation operational timezone"
+          data-testid="employee-salary-timezone-hint"
+        >
+          Times in {timezoneHint}
+        </span>
       </div>
 
       {query.isLoading ? (
@@ -822,7 +753,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
                         >
                           <td className="px-3 py-2.5 font-mono text-xs">{row.visitRef}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                            {formatVisitDate(row.plannedStart)}
+                            {formatVisitDate(row.plannedStart, formatDate)}
                           </td>
                           <td className="px-3 py-2.5">{row.serviceUserName}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
@@ -907,7 +838,7 @@ export function EmployeeEditSalaryPanel({ employeeId }: { employeeId: string }) 
           <DialogBody className="space-y-4">
             {editingVisit ? (
               <p className="text-sm text-muted-foreground">
-                {editingVisit.serviceUserName} · {formatVisitDate(editingVisit.plannedStart)}
+                {editingVisit.serviceUserName} · {formatVisitDate(editingVisit.plannedStart, formatDate)}
                 {editingVisit.plannedTime ? ` · ${editingVisit.plannedTime}` : ''}
               </p>
             ) : null}

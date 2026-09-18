@@ -17,6 +17,7 @@ import {
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import type { ScheduleAreaRow } from '@/features/scheduling/types/scheduling.types'
 import { toastApiError, toastError, toastSuccess } from '@/shared/lib/toast'
+import { createClientUuid } from '@/shared/lib/create-client-uuid'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
@@ -214,7 +215,7 @@ function clampInt(n: number, min: number, max: number) {
 
 function newCancellationRule(): DomJobCancellationRule {
   return {
-    id: crypto.randomUUID(),
+    id: createClientUuid(),
     hoursFrom: 0,
     hoursTo: 0,
     chargeServiceUserPercent: 0,

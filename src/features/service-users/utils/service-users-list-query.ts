@@ -17,6 +17,34 @@ export type InitialAssessmentStatusFilter =
   | 'awaiting_review'
   | 'completed'
 
+/** `datetime-local` / legacy day → API `dateOfDeathFrom|To` (ISO date or UTC datetime). */
+export function toDateOfDeathApiParam(value?: string | null): string | undefined {
+  const v = value?.trim()
+  if (!v) return undefined
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return `${v}:00.000Z`
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/i.test(v)) return v
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?$/i.test(v)) return `${v}Z`
+  return v
+}
+
+/** Value for `<input type="datetime-local">` from stored filter / URL. */
+export function toDateOfDeathInputValue(value?: string | null): string {
+  const v = value?.trim()
+  if (!v) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return `${v}T00:00`
+  const m = v.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/)
+  return m?.[1] ?? ''
+}
+
+export function formatDateOfDeathFilterChip(value?: string | null): string {
+  if (!value?.trim()) return '…'
+  const input = toDateOfDeathInputValue(value)
+  if (!input) return value.trim()
+  const [day = input, time] = input.split('T')
+  return time && time !== '00:00' ? `${day} ${time}` : day
+}
+
 export type ServiceUsersAdvancedFilters = {
   ageMin?: number
   ageMax?: number
@@ -46,19 +74,38 @@ export type ServiceUsersAdvancedFilters = {
   physicalAbuseToSu?: boolean
   domesticViolence?: boolean
   safeguardingHistory?: boolean
+  /** Service user care type lookup id. */
+  careTypeId?: string
+  /** Display-only care type name (not sent to API). */
+  careTypeLabel?: string
+  /** Service user funding type lookup id. */
+  fundingTypeId?: string
+  /** Display-only funding type name (not sent to API). */
+  fundingTypeLabel?: string
+  /** Inclusive service start date range (YYYY-MM-DD). */
+  serviceStartDateFrom?: string
+  serviceStartDateTo?: string
 }
 
 export type AdvancedFilterRangeErrors = {
   age?: string
   dateOfDeath?: string
   missedVisits?: string
+  serviceStartDate?: string
 }
 
 /** Inclusive range checks: from must be ≤ to when both ends are set. */
 export function advancedFilterRangeErrors(
   filters: Pick<
     ServiceUsersAdvancedFilters,
-    'ageMin' | 'ageMax' | 'dateOfDeathFrom' | 'dateOfDeathTo' | 'missedVisitsFrom' | 'missedVisitsTo'
+    | 'ageMin'
+    | 'ageMax'
+    | 'dateOfDeathFrom'
+    | 'dateOfDeathTo'
+    | 'missedVisitsFrom'
+    | 'missedVisitsTo'
+    | 'serviceStartDateFrom'
+    | 'serviceStartDateTo'
   >,
 ): AdvancedFilterRangeErrors {
   const errors: AdvancedFilterRangeErrors = {}
@@ -79,11 +126,18 @@ export function advancedFilterRangeErrors(
   ) {
     errors.missedVisits = 'Visit from date must be on or before the to date.'
   }
+  if (
+    filters.serviceStartDateFrom &&
+    filters.serviceStartDateTo &&
+    filters.serviceStartDateFrom > filters.serviceStartDateTo
+  ) {
+    errors.serviceStartDate = 'Service start from must be on or before the to date.'
+  }
   return errors
 }
 
 export function hasAdvancedFilterRangeErrors(errors: AdvancedFilterRangeErrors): boolean {
-  return Boolean(errors.age || errors.dateOfDeath || errors.missedVisits)
+  return Boolean(errors.age || errors.dateOfDeath || errors.missedVisits || errors.serviceStartDate)
 }
 
 export const EMPTY_SERVICE_USERS_ADVANCED_FILTERS: ServiceUsersAdvancedFilters = {
@@ -110,6 +164,12 @@ export const EMPTY_SERVICE_USERS_ADVANCED_FILTERS: ServiceUsersAdvancedFilters =
   physicalAbuseToSu: false,
   domesticViolence: false,
   safeguardingHistory: false,
+  careTypeId: undefined,
+  careTypeLabel: undefined,
+  fundingTypeId: undefined,
+  fundingTypeLabel: undefined,
+  serviceStartDateFrom: undefined,
+  serviceStartDateTo: undefined,
 }
 
 export const CARE_PLAN_LIST_STATUS_FILTER_LABELS: Record<CarePlanListStatus, string> = {
@@ -131,6 +191,9 @@ export const INITIAL_ASSESSMENT_STATUS_FILTER_LABELS: Record<
 
 export type AdvancedFilterChipKey =
   | 'age'
+  | 'careTypeId'
+  | 'fundingTypeId'
+  | 'serviceStartDate'
   | 'carePlanListStatus'
   | 'carePlanFormIds'
   | 'medicalConditionId'
@@ -160,6 +223,24 @@ export function describeAdvancedFilterChips(
     const from = filters.ageMin != null ? String(filters.ageMin) : '…'
     const to = filters.ageMax != null ? String(filters.ageMax) : '…'
     chips.push({ key: 'age', label: `Age ${from}–${to}` })
+  }
+  if (filters.careTypeId) {
+    chips.push({
+      key: 'careTypeId',
+      label: `Care type: ${filters.careTypeLabel?.trim() || 'Selected'}`,
+    })
+  }
+  if (filters.fundingTypeId) {
+    chips.push({
+      key: 'fundingTypeId',
+      label: `Funding: ${filters.fundingTypeLabel?.trim() || 'Selected'}`,
+    })
+  }
+  if (filters.serviceStartDateFrom || filters.serviceStartDateTo) {
+    chips.push({
+      key: 'serviceStartDate',
+      label: `Service start ${filters.serviceStartDateFrom ?? '…'} → ${filters.serviceStartDateTo ?? '…'}`,
+    })
   }
   if (filters.carePlanListStatus) {
     chips.push({
@@ -201,14 +282,14 @@ export function describeAdvancedFilterChips(
         filters.initialAssessmentStatus,
     })
   }
-  if (filters.missedVisitsMin != null && filters.missedVisitsMin >= 1) {
+  if (filters.missedVisitsMin != null && filters.missedVisitsMin >= 0) {
     const range =
       filters.missedVisitsFrom || filters.missedVisitsTo
         ? ` (${filters.missedVisitsFrom ?? '…'} → ${filters.missedVisitsTo ?? '…'})`
         : ''
     chips.push({
       key: 'missedVisits',
-      label: `Missed visits ≥ ${filters.missedVisitsMin}${range}`,
+      label: `Missed visits > ${filters.missedVisitsMin}${range}`,
     })
   }
   if (filters.hasActiveFlashMessage) {
@@ -229,7 +310,7 @@ export function describeAdvancedFilterChips(
   if (filters.dateOfDeathFrom || filters.dateOfDeathTo) {
     chips.push({
       key: 'dateOfDeath',
-      label: `Date of death ${filters.dateOfDeathFrom ?? '…'} → ${filters.dateOfDeathTo ?? '…'}`,
+      label: `Date of death ${formatDateOfDeathFilterChip(filters.dateOfDeathFrom)} → ${formatDateOfDeathFilterChip(filters.dateOfDeathTo)}`,
     })
   }
   if (filters.physicalAbuseToSu) {
@@ -251,6 +332,12 @@ export function clearAdvancedFilterChip(
   switch (key) {
     case 'age':
       return { ...filters, ageMin: undefined, ageMax: undefined }
+    case 'careTypeId':
+      return { ...filters, careTypeId: undefined, careTypeLabel: undefined }
+    case 'fundingTypeId':
+      return { ...filters, fundingTypeId: undefined, fundingTypeLabel: undefined }
+    case 'serviceStartDate':
+      return { ...filters, serviceStartDateFrom: undefined, serviceStartDateTo: undefined }
     case 'carePlanListStatus':
       return { ...filters, carePlanListStatus: '' }
     case 'carePlanFormIds':
@@ -378,7 +465,7 @@ export const ADVANCED_FILTER_GROUPS = ['profile', 'clinical', 'visits', 'alerts'
 export type AdvancedFilterGroupId = (typeof ADVANCED_FILTER_GROUPS)[number]
 
 export const ADVANCED_FILTER_GROUP_CHIP_KEYS: Record<AdvancedFilterGroupId, AdvancedFilterChipKey[]> = {
-  profile: ['age', 'dateOfDeath'],
+  profile: ['age', 'careTypeId', 'fundingTypeId', 'serviceStartDate', 'dateOfDeath'],
   clinical: ['carePlanListStatus', 'carePlanFormIds', 'initialAssessmentStatus', 'medicalConditionIds'],
   visits: ['missedVisits'],
   alerts: ['hasActiveFlashMessage', 'hospitalisedOnly'],
@@ -433,6 +520,10 @@ export function buildServiceUsersListParams(
     locationId: options.locationId || undefined,
     riskLevelId: riskLevelIdForCode(lookups, options.riskLevelCode),
     unassignedKeyWorker: options.unassignedKeyWorker === true ? true : undefined,
+    careTypeId: advanced.careTypeId || undefined,
+    fundingTypeId: advanced.fundingTypeId || undefined,
+    serviceStartDateFrom: advanced.serviceStartDateFrom || undefined,
+    serviceStartDateTo: advanced.serviceStartDateTo || undefined,
     ageMin: advanced.ageMin,
     ageMax: advanced.ageMax,
     hasActiveFlashMessage: advanced.hasActiveFlashMessage === true ? true : undefined,
@@ -445,7 +536,7 @@ export function buildServiceUsersListParams(
     ]),
     initialAssessmentStatus: advanced.initialAssessmentStatus || undefined,
     missedVisitsMin:
-      advanced.missedVisitsMin != null && advanced.missedVisitsMin >= 1
+      advanced.missedVisitsMin != null && advanced.missedVisitsMin >= 0
         ? advanced.missedVisitsMin
         : undefined,
     missedVisitsFrom: advanced.missedVisitsFrom || undefined,
@@ -453,8 +544,8 @@ export function buildServiceUsersListParams(
     loneWorkerRisk: advanced.loneWorkerRisk === true ? true : undefined,
     verbalAltercation: advanced.verbalAltercation === true ? true : undefined,
     physicalAltercation: advanced.physicalAltercation === true ? true : undefined,
-    dateOfDeathFrom: advanced.dateOfDeathFrom || undefined,
-    dateOfDeathTo: advanced.dateOfDeathTo || undefined,
+    dateOfDeathFrom: toDateOfDeathApiParam(advanced.dateOfDeathFrom),
+    dateOfDeathTo: toDateOfDeathApiParam(advanced.dateOfDeathTo),
     physicalAbuseToSu: advanced.physicalAbuseToSu === true ? true : undefined,
     domesticViolence: advanced.domesticViolence === true ? true : undefined,
     safeguardingHistory: advanced.safeguardingHistory === true ? true : undefined,

@@ -7,6 +7,7 @@ import { employeeKeys } from '@/features/employees/keys'
 import { jobStatusLabel } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
+import { syncOrganisationOperationalTimezone } from '@/shared/lib/operational-day.util'
 
 export type { EmployeeVisitBucket }
 
@@ -276,8 +277,12 @@ export function useEmployeeVisits(employeeId: string, month: string, enabled = t
             new Date(a.scheduledStartDateTime).getTime() -
             new Date(b.scheduledStartDateTime).getTime(),
         )
+      if (data.organisationTimezone) {
+        syncOrganisationOperationalTimezone(data.organisationTimezone)
+      }
       return {
         month: data.month,
+        organisationTimezone: data.organisationTimezone ?? null,
         jobs,
         totalMinutes: data.summary.totalPlannedMinutes,
         summary: data.summary,

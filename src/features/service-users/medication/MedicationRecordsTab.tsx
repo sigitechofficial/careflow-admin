@@ -2,6 +2,14 @@ import * as React from 'react'
 import { Pencil, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
 import type { ServiceUserMedicationRow, MedicationScheduleSummary } from '@/features/service-users/types'
 import { medicationRequiresBodyMapFromRow } from '@/features/service-users/medication/medication-body-map-eligibility'
 import { MedicationBodyMapSiteBadge } from '@/features/service-users/medication/MedicationBodyMapSiteBadge'
@@ -10,6 +18,7 @@ import {
   medicationEndSourceLabel,
   medicationEndSourceWhen,
 } from '@/features/service-users/medication/medication-status-end-display'
+import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
 
 type MedicationSlotTableRow = {
   rowKey: string
@@ -18,13 +27,7 @@ type MedicationSlotTableRow = {
 }
 
 function formatShortDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const dd = String(d.getUTCDate()).padStart(2, '0')
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const yyyy = d.getUTCFullYear()
-  return `${dd}-${mm}-${yyyy}`
+  return formatOrganisationDate(iso)
 }
 
 function freqLabel(m: ServiceUserMedicationRow): string {
@@ -162,10 +165,15 @@ function MedicationRecordsTable({
     }))
   }, [slotRows])
 
+  const [reasonModal, setReasonModal] = React.useState<{
+    medicationName: string
+    reason: string
+  } | null>(null)
+
   if (slotRows.length === 0) return null
 
   const colCount =
-    13 + (showEndSource ? 1 : 0) + (canEditMedication ? 1 : 0)
+    12 + (showEndSource ? 1 : 0) + (canEditMedication ? 1 : 0)
 
   return (
     <div className="overflow-x-auto">
@@ -177,7 +185,6 @@ function MedicationRecordsTable({
             <th className="px-3 py-2">Route</th>
             <th className="px-3 py-2">How assisted</th>
             <th className="px-3 py-2">Reason</th>
-            <th className="px-3 py-2">Instructions</th>
             <th className="px-3 py-2">Notes</th>
             <th className="px-3 py-2">Frequency</th>
             <th className="px-3 py-2">Time</th>
@@ -204,6 +211,7 @@ function MedicationRecordsTable({
               ) : null
             const body = group.slotRows.map(({ rowKey, medication: m, schedule }) => {
             const showActions = firstRowKeyByMedId.get(m.id) === rowKey
+            const reasonText = m.reasonForMedication?.trim() ?? ''
             return (
               <tr key={rowKey} className="border-b border-border/80 last:border-0">
                 <td className="px-3 py-2 font-medium">
@@ -218,14 +226,37 @@ function MedicationRecordsTable({
                       CD
                     </span>
                   )}
+                  {m.timeCritical && (
+                    <span className="ml-1.5 rounded bg-rose-500/15 px-1.5 py-0.5 text-xs font-normal text-rose-900 dark:text-rose-100">
+                      Time-sensitive
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">
                   {[m.dose, m.strength].filter(Boolean).join(' · ') || '—'}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{m.route?.name ?? '—'}</td>
                 <ChartTextCell value={m.howAssisted} />
-                <ChartTextCell value={m.reasonForMedication} />
-                <ChartTextCell value={m.instructions} />
+                <td className="px-3 py-2">
+                  {reasonText ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={() =>
+                        setReasonModal({
+                          medicationName: m.medicationName,
+                          reason: reasonText,
+                        })
+                      }
+                    >
+                      Show reason
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
                 <ChartTextCell value={m.notes} />
                 <td className="px-3 py-2 text-muted-foreground">{freqLabel(m)}</td>
                 <td className="px-3 py-2 font-medium tabular-nums text-foreground">
@@ -269,11 +300,11 @@ function MedicationRecordsTable({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-8 gap-1"
+                        className="h-8 w-8 p-0"
+                        aria-label={`Edit ${m.medicationName}`}
                         onClick={() => onEditMedication(m)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        Edit
                       </Button>
                     ) : null}
                   </td>
@@ -285,6 +316,30 @@ function MedicationRecordsTable({
           })}
         </tbody>
       </table>
+      <Dialog
+        open={reasonModal != null}
+        onOpenChange={open => {
+          if (!open) setReasonModal(null)
+        }}
+      >
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>
+              {reasonModal ? `Reason — ${reasonModal.medicationName}` : 'Reason'}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <p className="whitespace-pre-wrap text-sm text-foreground">
+              {reasonModal?.reason}
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setReasonModal(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

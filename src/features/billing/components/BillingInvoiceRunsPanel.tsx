@@ -7,6 +7,7 @@ import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { Button } from '@/shared/ui/button'
 import { ExportStatusBadge, InvoiceRunStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { BillingRunPeriodDialog } from '@/features/billing/components/BillingRunPeriodDialog'
+import { InvoiceRunDateFilterBar } from '@/features/billing/components/InvoiceRunDateFilterBar'
 import {
   useApproveInvoiceRun,
   useCalculateInvoiceRun,
@@ -20,60 +21,43 @@ import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import type { ExportStatus } from '@/features/billing/types/billing.types'
 import type { InvoiceRunRow } from '@/features/billing/api/invoice-runs.api'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import {
+  InvoiceRunCadenceBadge,
+  periodCadence,
+} from '@/features/billing/utils/invoice-run-cadence.util'
+import {
+  invoiceRunOverlapsDateRange,
+  rangeForInvoiceRunDatePreset,
+  type InvoiceRunDatePreset,
+} from '@/features/billing/utils/invoice-run-date-filter.util'
 
 type CadenceTab = 'weekly' | 'monthly'
 
-function fmtDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
-}
-
-/** Derive the run cadence from its span (≈7 days = Weekly, ≈a month = Monthly, else Custom). */
-function periodCadence(startIso: string, endIso: string): {
-  label: string
-  tone: 'weekly' | 'monthly' | 'custom'
-} {
-  const start = new Date(startIso).getTime()
-  const end = new Date(endIso).getTime()
-  if (Number.isNaN(start) || Number.isNaN(end)) return { label: 'Custom', tone: 'custom' }
-  const days = Math.round((end - start) / 86_400_000) + 1
-  if (days >= 6 && days <= 8) return { label: 'Weekly', tone: 'weekly' }
-  if (days >= 28 && days <= 31) return { label: 'Monthly', tone: 'monthly' }
-  return { label: `${days} days`, tone: 'custom' }
-}
-
-function CadenceBadge({ startIso, endIso }: { startIso: string; endIso: string }) {
-  const { label, tone } = periodCadence(startIso, endIso)
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        tone === 'weekly' && 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200',
-        tone === 'monthly' && 'bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200',
-        tone === 'custom' && 'bg-muted text-muted-foreground',
-      )}
-    >
-      {label}
-    </span>
-  )
-}
-
 function filterRowsByCadence(rows: InvoiceRunRow[], tab: CadenceTab): InvoiceRunRow[] {
   return rows.filter((row) => periodCadence(row.periodStart, row.periodEnd).tone === tab)
+}
+
+function formatInvoiceNumbers(
+  numbers: string[] | undefined | null,
+  maxVisible = 2,
+): string {
+  const list = (numbers ?? []).map(n => n.trim()).filter(Boolean)
+  if (list.length === 0) return '—'
+  if (list.length <= maxVisible) return list.join(', ')
+  return `${list.slice(0, maxVisible).join(', ')} +${list.length - maxVisible}`
 }
 
 export function BillingInvoiceRunsPanel() {
   const canRead = useAuthStore(s => s.can('billing.invoice_runs.read' as never))
   const canManage = useAuthStore(s => s.can('billing.invoice_runs.manage' as never))
   const { locationId } = useGlobalLocationScope()
+  const { formatDate } = useOrganisationDisplayFormat()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [cadenceTab, setCadenceTab] = React.useState<CadenceTab>('weekly')
+  const [datePreset, setDatePreset] = React.useState<InvoiceRunDatePreset>('all')
+  const [customFrom, setCustomFrom] = React.useState('')
+  const [customTo, setCustomTo] = React.useState('')
 
   const query = useInvoiceRuns({ locationId: locationId ?? undefined })
   const createMutation = useCreateInvoiceRun()
@@ -84,13 +68,45 @@ export function BillingInvoiceRunsPanel() {
   const deleteAllMutation = useDeleteAllInvoiceRuns()
 
   const rows = query.data ?? []
-  const weeklyRows = React.useMemo(() => filterRowsByCadence(rows, 'weekly'), [rows])
-  const monthlyRows = React.useMemo(() => filterRowsByCadence(rows, 'monthly'), [rows])
+  const dateFilters = React.useMemo(
+    () =>
+      rangeForInvoiceRunDatePreset(
+        datePreset,
+        datePreset === 'custom' ? { dateFrom: customFrom, dateTo: customTo } : undefined,
+      ),
+    [datePreset, customFrom, customTo],
+  )
+  const dateFilteredRows = React.useMemo(
+    () =>
+      rows.filter(row =>
+        invoiceRunOverlapsDateRange(row, dateFilters.dateFrom, dateFilters.dateTo),
+      ),
+    [rows, dateFilters.dateFrom, dateFilters.dateTo],
+  )
+  const weeklyRows = React.useMemo(
+    () => filterRowsByCadence(dateFilteredRows, 'weekly'),
+    [dateFilteredRows],
+  )
+  const monthlyRows = React.useMemo(
+    () => filterRowsByCadence(dateFilteredRows, 'monthly'),
+    [dateFilteredRows],
+  )
   const customCount = React.useMemo(
-    () => rows.filter((row) => periodCadence(row.periodStart, row.periodEnd).tone === 'custom').length,
-    [rows],
+    () =>
+      dateFilteredRows.filter(
+        row => periodCadence(row.periodStart, row.periodEnd).tone === 'custom',
+      ).length,
+    [dateFilteredRows],
   )
   const visibleRows = cadenceTab === 'weekly' ? weeklyRows : monthlyRows
+  const rangeHint =
+    dateFilters.dateFrom && dateFilters.dateTo
+      ? `${formatDate(dateFilters.dateFrom)} → ${formatDate(dateFilters.dateTo)}`
+      : dateFilters.dateFrom
+        ? `From ${formatDate(dateFilters.dateFrom)}`
+        : dateFilters.dateTo
+          ? `Until ${formatDate(dateFilters.dateTo)}`
+          : null
 
   const isMutating =
     createMutation.isPending ||
@@ -159,6 +175,16 @@ export function BillingInvoiceRunsPanel() {
         }
       />
 
+      <InvoiceRunDateFilterBar
+        preset={datePreset}
+        onPresetChange={setDatePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+        testIdPrefix="billing-invoice-runs"
+      />
+
       <div className="border-b border-border">
         <nav className="-mb-px flex flex-wrap gap-1" aria-label="Invoice run cadence">
           {(
@@ -213,21 +239,29 @@ export function BillingInvoiceRunsPanel() {
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           No invoice runs yet. Create a weekly (~7 day) or monthly period with approved billable visit times.
         </div>
+      ) : dateFilteredRows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          No invoice runs match this date filter
+          {rangeHint ? ` (${rangeHint})` : ''}.
+        </div>
       ) : visibleRows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No {cadenceTab} invoice runs yet.
+          No {cadenceTab} invoice runs
+          {rangeHint ? ` in ${rangeHint}` : ' yet'}
           {cadenceTab === 'weekly'
-            ? ' Create a run with a ~7 day period.'
-            : ' Create a run with a ~28–31 day period.'}
+            ? '. Create a run with a ~7 day period.'
+            : '. Create a run with a ~28–31 day period.'}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[1400px] text-sm">
+          <table className="w-full min-w-[1600px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Period</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Invoice no.</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Type</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Created by</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Service users</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Invoices</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Paid</th>
@@ -252,14 +286,32 @@ export function BillingInvoiceRunsPanel() {
                       {row.period}
                     </Link>
                     <div className="text-xs font-normal text-muted-foreground">
-                      {fmtDate(row.periodStart)} → {fmtDate(row.periodEnd)}
+                      {formatDate(row.periodStart)} → {formatDate(row.periodEnd)}
                     </div>
                   </td>
                   <td className="px-3 py-2.5">
-                    <CadenceBadge startIso={row.periodStart} endIso={row.periodEnd} />
+                    <span
+                      className="font-mono text-xs text-foreground"
+                      title={(row.invoiceNumbers ?? []).join(', ') || undefined}
+                    >
+                      {formatInvoiceNumbers(row.invoiceNumbers)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <InvoiceRunCadenceBadge startIso={row.periodStart} endIso={row.periodEnd} />
                   </td>
                   <td className="px-3 py-2.5">
                     <InvoiceRunStatusBadge status={row.status} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="text-sm text-foreground">
+                      {row.createdByName?.trim() || '—'}
+                    </div>
+                    {row.createdAt ? (
+                      <div className="text-xs text-muted-foreground">
+                        {formatDate(row.createdAt.slice(0, 10))}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.serviceUsers}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.funders}</td>
@@ -287,7 +339,10 @@ export function BillingInvoiceRunsPanel() {
                           View
                         </Link>
                       </Button>
-                      {canManage && (row.status === 'DRAFT' || row.status === 'EXCEPTION_FOUND') ? (
+                      {canManage &&
+                      (row.status === 'DRAFT' ||
+                        row.status === 'EXCEPTION_FOUND' ||
+                        row.status === 'READY_FOR_REVIEW') ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -295,7 +350,7 @@ export function BillingInvoiceRunsPanel() {
                           leftIcon={<Calculator className="h-3.5 w-3.5" />}
                           onClick={() => void calculateMutation.mutateAsync(row.id)}
                         >
-                          Calculate
+                          {row.status === 'DRAFT' ? 'Calculate' : 'Recalculate'}
                         </Button>
                       ) : null}
                       {canManage &&

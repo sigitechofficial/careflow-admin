@@ -224,6 +224,7 @@ export type EcmCheckInMethodGrant = {
   status: 'PENDING' | 'AUTHORISED' | 'REJECTED' | 'CONSUMED' | string
   carerNote: string | null
   officeNote: string | null
+  officeReasonId?: string | null
   latitude: number | null
   longitude: number | null
   accuracyMeters: number | null
@@ -348,6 +349,32 @@ export type EcmExceptionKind =
   | 'UNABLE_TO_START'
   | 'OTHER'
 
+export type CarerSosAlertDto = {
+  id: string
+  createdAt: string
+  lifecycle: string
+  title: string
+  message: string | null
+  latitude: number | null
+  longitude: number | null
+  accuracyMeters: number | null
+  locationUnavailable: boolean
+  isMockedLocation?: boolean
+  employeeId: string
+  employeeName: string
+  acknowledgedAt?: string | null
+  acknowledgedById?: string | null
+  acknowledgedByName?: string | null
+  actionCode?: string | null
+  actionLabel?: string | null
+  actionNote?: string | null
+  outcomeCode?: string | null
+  outcomeLabel?: string | null
+  resolutionNote?: string | null
+  closedAt?: string | null
+  closedByName?: string | null
+}
+
 export type EcmExceptionRow = {
   id: string
   scheduledJobId: string
@@ -399,28 +426,13 @@ export type EcmExceptionRow = {
     occurredAt: string
     employeeId: string
   } | null
-  sos?: {
-    id: string
-    createdAt: string
-    lifecycle: string
-    title: string
-    message: string | null
-    latitude: number | null
-    longitude: number | null
-    accuracyMeters: number | null
-    locationUnavailable: boolean
-    isMockedLocation?: boolean
-    employeeId: string
-    employeeName: string
-    acknowledgedAt?: string | null
-    acknowledgedById?: string | null
-    acknowledgedByName?: string | null
-  } | null
+  sos?: CarerSosAlertDto | null
   checkInMethodRequest?: EcmCheckInMethodGrant | null
 }
 
 export type EcmReasonCode = {
   code: string
-  category: 'LATE' | 'SHORT' | 'LONG' | 'MISSED' | 'CANCEL' | 'AMEND' | 'SCHEDULE' | 'OTHER'
+  category: 'LATE' | 'SHORT' | 'LONG' | 'MISSED' | 'CANCEL' | 'AMEND' | 'SCHEDULE' | 'SOS' | 'OTHER'
   label: string
+  requiresNotes?: boolean
 }

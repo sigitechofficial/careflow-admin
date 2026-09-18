@@ -28,7 +28,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 
 function toDraft(s: OrganisationGeneralSettings): OrganisationAppSettings {
-  return s.appSettings ?? DEFAULT_APP_SETTINGS
+  return { ...DEFAULT_APP_SETTINGS, ...s.appSettings }
 }
 
 function AppToggleRow({
@@ -185,6 +185,24 @@ export function GeneralSettingsAppSettingPanel() {
               />
             </AppConfigGroup>
           </div>
+        </GeneralSettingsCard>
+
+        <GeneralSettingsCard title="Care app sign-in">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Choose whether a carer can stay signed in on more than one phone. If this is off, the
+            first device stays signed in and a second login is blocked until they sign out, the
+            office signs out the session, or the session goes stale.
+          </p>
+          <SettingsRow
+            label="Allow multiple device login?"
+            hint={APP_SETTINGS_TOOLTIPS.singleDeviceLoginCareApp}
+          >
+            <SettingsNoYesToggle
+              value={!draft.singleDeviceLoginCareApp}
+              onChange={v => patch({ singleDeviceLoginCareApp: !v })}
+              disabled={!canUpdate}
+            />
+          </SettingsRow>
         </GeneralSettingsCard>
       </div>
 

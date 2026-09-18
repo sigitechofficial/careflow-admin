@@ -82,17 +82,15 @@ function queueTagOptions(visits: VisitQueueGroup[]): {
   const bump = (id: string) => counts.set(id, (counts.get(id) ?? 0) + 1)
   for (const visit of visits) {
     const tags = new Set<string>()
-    let unackedSos = false
     for (const row of visit.rows) {
       if (row.kind === 'CARER_SOS') {
-        if (!isSosAcknowledged(row)) unackedSos = true
+        tags.add('CARER_SOS')
       } else {
         tags.add(row.kind)
       }
       if (rowHasMockLocation(row)) tags.add('MOCK_LOCATION')
       if (row.overdue) tags.add('OVERDUE')
     }
-    if (unackedSos) tags.add('CARER_SOS')
     for (const tag of tags) bump(tag)
   }
   const extra = [...counts.keys()]
@@ -275,7 +273,7 @@ export function EcmExceptionQueuePanel({
   const firstActionVisit = visibleVisits.find((visit) =>
     visit.rows.some(
       (row) =>
-        (isCarerSos(row) && !isSosAcknowledged(row)) ||
+        isCarerSos(row) ||
         isAreaLockPending(row) ||
         isUnableToStart(row) ||
         isCheckInRequestPending(row),

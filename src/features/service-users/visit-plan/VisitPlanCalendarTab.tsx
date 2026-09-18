@@ -4,6 +4,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, Clock, LayoutList, Table2, Use
 import { cn } from '@/shared/lib/utils'
 import { contentBodyClass, contentHelperClass, contentTitleClass } from '@/shared/ui/content-section'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
+import { getSyncedOperationalTimeZone } from '@/shared/lib/operational-day.util'
+import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { shiftMedicationChartMonth } from '@/features/service-users/hooks/useMedicationMarChart'
 import { resolveEmployeeDisplayName } from '@/features/employees/lib/employee-display-name'
@@ -557,6 +559,13 @@ export function VisitPlanCalendarTab({
             <button type="button" className="vp-cal-today-btn" onClick={goToToday}>
               Today
             </button>
+            <span
+              className="inline-flex h-8 items-center rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-xs text-muted-foreground"
+              title="Calendar today and visit times use the organisation operational timezone"
+              data-testid="visit-plan-calendar-timezone-hint"
+            >
+              Times in {getSyncedOperationalTimeZone()} ({formatTimezoneUtcOffset(getSyncedOperationalTimeZone())})
+            </span>
           </div>
         </div>
 

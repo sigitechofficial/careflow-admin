@@ -296,6 +296,7 @@ export const EMERGENCY_PROTOCOL_ICON_KEYS = [
   'alert',
   'brain',
   'pulse',
+  'foot',
 ] as const
 
 export type EmergencyProtocolIconKey = (typeof EMERGENCY_PROTOCOL_ICON_KEYS)[number]
@@ -414,6 +415,105 @@ export async function updateClockInArrivalReason(
 
 export async function deleteClockInArrivalReason(id: string): Promise<void> {
   await apiJson<ApiEnvelope<unknown>>(`/lookups/clock-in-arrival-reasons/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Office Manual check-in authorisation reasons ─────────────────────────────
+
+export type ManualAuthorisationReasonRow = {
+  id: string
+  code: string
+  label: string
+  requiresNotes: boolean
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchManualAuthorisationReasons(): Promise<ManualAuthorisationReasonRow[]> {
+  const res = await apiJson<ApiEnvelope<ManualAuthorisationReasonRow[]>>(
+    '/lookups/manual-authorisation-reasons',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createManualAuthorisationReason(body: {
+  label: string
+  requiresNotes?: boolean
+  sortOrder?: number
+}): Promise<ManualAuthorisationReasonRow> {
+  const res = await apiJson<ApiEnvelope<ManualAuthorisationReasonRow>>(
+    '/lookups/manual-authorisation-reasons',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateManualAuthorisationReason(
+  id: string,
+  body: {
+    label?: string
+    requiresNotes?: boolean
+    sortOrder?: number
+    isActive?: boolean
+  },
+): Promise<ManualAuthorisationReasonRow> {
+  const res = await apiJson<ApiEnvelope<ManualAuthorisationReasonRow>>(
+    `/lookups/manual-authorisation-reasons/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteManualAuthorisationReason(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/manual-authorisation-reasons/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Office left-area allow reasons ──────────────────────────────────────────
+
+export type LeftAreaAllowReasonRow = ManualAuthorisationReasonRow
+
+export async function fetchLeftAreaAllowReasons(): Promise<LeftAreaAllowReasonRow[]> {
+  const res = await apiJson<ApiEnvelope<LeftAreaAllowReasonRow[]>>(
+    '/lookups/left-area-allow-reasons',
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createLeftAreaAllowReason(body: {
+  label: string
+  requiresNotes?: boolean
+  sortOrder?: number
+}): Promise<LeftAreaAllowReasonRow> {
+  const res = await apiJson<ApiEnvelope<LeftAreaAllowReasonRow>>(
+    '/lookups/left-area-allow-reasons',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateLeftAreaAllowReason(
+  id: string,
+  body: {
+    label?: string
+    requiresNotes?: boolean
+    sortOrder?: number
+    isActive?: boolean
+  },
+): Promise<LeftAreaAllowReasonRow> {
+  const res = await apiJson<ApiEnvelope<LeftAreaAllowReasonRow>>(
+    `/lookups/left-area-allow-reasons/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteLeftAreaAllowReason(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/left-area-allow-reasons/${id}`, {
     method: 'DELETE',
   })
 }

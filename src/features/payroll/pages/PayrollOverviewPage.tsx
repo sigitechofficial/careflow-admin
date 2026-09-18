@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
+  FileText,
   Landmark,
   Receipt,
   Trash2,
@@ -221,6 +222,11 @@ export default function PayrollOverviewPage() {
                   href: PAYROLL_PATHS.runs,
                   label: 'UK payroll runs',
                   icon: <Wallet className="h-4 w-4" aria-hidden />,
+                },
+                {
+                  href: PAYROLL_PATHS.payslips,
+                  label: 'Payslips',
+                  icon: <FileText className="h-4 w-4" aria-hidden />,
                 },
                 {
                   href: PAYROLL_PATHS.taxes,

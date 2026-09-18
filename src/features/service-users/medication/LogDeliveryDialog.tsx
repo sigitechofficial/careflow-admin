@@ -26,9 +26,10 @@ import {
 } from '@/features/service-users/medication/supply-delivery-form'
 import { formatMarSupplyDate } from '@/features/service-users/medication/mar-supply-display'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 
 function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return operationalTodayIso()
 }
 
 export function LogDeliveryDialog({

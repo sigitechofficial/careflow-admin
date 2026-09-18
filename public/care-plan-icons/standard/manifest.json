@@ -2,9 +2,19 @@
   "source": "careadmin-backend/uploads/care-pathway/standard",
   "icons": [
     {
+      "name": "Absence",
+      "slug": "absence",
+      "file": "/care-plan-icons/standard/absence.svg"
+    },
+    {
       "name": "Access",
       "slug": "access",
       "file": "/care-plan-icons/standard/access.svg"
+    },
+    {
+      "name": "Accident Event Form",
+      "slug": "accident-event-form",
+      "file": "/care-plan-icons/standard/accident-event-form.svg"
     },
     {
       "name": "Action",
@@ -22,9 +32,29 @@
       "file": "/care-plan-icons/standard/afternoon.svg"
     },
     {
+      "name": "Am Visit",
+      "slug": "am-visit",
+      "file": "/care-plan-icons/standard/am-visit.svg"
+    },
+    {
+      "name": "Am",
+      "slug": "am",
+      "file": "/care-plan-icons/standard/am.svg"
+    },
+    {
       "name": "Arm",
       "slug": "arm",
       "file": "/care-plan-icons/standard/arm.svg"
+    },
+    {
+      "name": "Assessing For Medication In Home Care",
+      "slug": "assessing-for-medication-in-home-care",
+      "file": "/care-plan-icons/standard/assessing-for-medication-in-home-care.svg"
+    },
+    {
+      "name": "Bad",
+      "slug": "bad",
+      "file": "/care-plan-icons/standard/bad.svg"
     },
     {
       "name": "Bath",
@@ -32,9 +62,24 @@
       "file": "/care-plan-icons/standard/bath.svg"
     },
     {
+      "name": "Bed Rail Assessment",
+      "slug": "bed-rail-assessment",
+      "file": "/care-plan-icons/standard/bed-rail-assessment.svg"
+    },
+    {
       "name": "Bed",
       "slug": "bed",
       "file": "/care-plan-icons/standard/bed.svg"
+    },
+    {
+      "name": "Body Health And Mind",
+      "slug": "body-health-and-mind",
+      "file": "/care-plan-icons/standard/body-health-and-mind.svg"
+    },
+    {
+      "name": "Body",
+      "slug": "body",
+      "file": "/care-plan-icons/standard/body.svg"
     },
     {
       "name": "Breakfast",
@@ -42,9 +87,19 @@
       "file": "/care-plan-icons/standard/breakfast.svg"
     },
     {
+      "name": "Capability Assessment",
+      "slug": "capability-assessment",
+      "file": "/care-plan-icons/standard/capability-assessment.svg"
+    },
+    {
       "name": "Care At Home",
       "slug": "care-at-home",
       "file": "/care-plan-icons/standard/care-at-home.svg"
+    },
+    {
+      "name": "Care Home",
+      "slug": "care-home",
+      "file": "/care-plan-icons/standard/care-home.svg"
     },
     {
       "name": "Care Plan",
@@ -52,9 +107,79 @@
       "file": "/care-plan-icons/standard/care-plan.svg"
     },
     {
+      "name": "Care Works",
+      "slug": "care-works",
+      "file": "/care-plan-icons/standard/care-works.svg"
+    },
+    {
+      "name": "Carer Communication Form",
+      "slug": "carer-communication-form",
+      "file": "/care-plan-icons/standard/carer-communication-form.svg"
+    },
+    {
       "name": "Carer",
       "slug": "carer",
       "file": "/care-plan-icons/standard/carer.svg"
+    },
+    {
+      "name": "Chair",
+      "slug": "chair",
+      "file": "/care-plan-icons/standard/chair.svg"
+    },
+    {
+      "name": "Change Of Carer",
+      "slug": "change-of-carer",
+      "file": "/care-plan-icons/standard/change-of-carer.svg"
+    },
+    {
+      "name": "Charity Hoover",
+      "slug": "charity-hoover",
+      "file": "/care-plan-icons/standard/charity-hoover.svg"
+    },
+    {
+      "name": "Child",
+      "slug": "child",
+      "file": "/care-plan-icons/standard/child.svg"
+    },
+    {
+      "name": "Choking Risk Assessment",
+      "slug": "choking-risk-assessment",
+      "file": "/care-plan-icons/standard/choking-risk-assessment.svg"
+    },
+    {
+      "name": "Cleaning",
+      "slug": "cleaning",
+      "file": "/care-plan-icons/standard/cleaning.svg"
+    },
+    {
+      "name": "Coat",
+      "slug": "coat",
+      "file": "/care-plan-icons/standard/coat.svg"
+    },
+    {
+      "name": "Cognition",
+      "slug": "cognition",
+      "file": "/care-plan-icons/standard/cognition.svg"
+    },
+    {
+      "name": "Commendation Complaint Record",
+      "slug": "commendation-complaint-record",
+      "file": "/care-plan-icons/standard/commendation-complaint-record.svg"
+    },
+    {
+      "name": "Communication",
+      "slug": "communication",
+      "file": "/care-plan-icons/standard/communication.svg"
+    },
+    {
+      "name": "Compliment Event Form",
+      "slug": "compliment-event-form",
+      "file": "/care-plan-icons/standard/compliment-event-form.svg"
+    },
+    {
+      "name": "Consent",
+      "slug": "consent",
+      "file": "/care-plan-icons/standard/consent.svg"
     },
     {
       "name": "Continence",
@@ -67,9 +192,69 @@
       "file": "/care-plan-icons/standard/cooking.svg"
     },
     {
+      "name": "Covid 19 Best Interest Checklist",
+      "slug": "covid-19-best-interest-checklist",
+      "file": "/care-plan-icons/standard/covid-19-best-interest-checklist.svg"
+    },
+    {
       "name": "Culture",
       "slug": "culture",
       "file": "/care-plan-icons/standard/culture.svg"
+    },
+    {
+      "name": "Customer Feedback Form",
+      "slug": "customer-feedback-form",
+      "file": "/care-plan-icons/standard/customer-feedback-form.svg"
+    },
+    {
+      "name": "Danger",
+      "slug": "danger",
+      "file": "/care-plan-icons/standard/danger.svg"
+    },
+    {
+      "name": "Dark",
+      "slug": "dark",
+      "file": "/care-plan-icons/standard/dark.svg"
+    },
+    {
+      "name": "Day",
+      "slug": "day",
+      "file": "/care-plan-icons/standard/day.svg"
+    },
+    {
+      "name": "Dentist",
+      "slug": "dentist",
+      "file": "/care-plan-icons/standard/dentist.svg"
+    },
+    {
+      "name": "Destination",
+      "slug": "destination",
+      "file": "/care-plan-icons/standard/destination.svg"
+    },
+    {
+      "name": "Diagnostics",
+      "slug": "diagnostics",
+      "file": "/care-plan-icons/standard/diagnostics.svg"
+    },
+    {
+      "name": "Diary",
+      "slug": "diary",
+      "file": "/care-plan-icons/standard/diary.svg"
+    },
+    {
+      "name": "Dinner",
+      "slug": "dinner",
+      "file": "/care-plan-icons/standard/dinner.svg"
+    },
+    {
+      "name": "Do Not",
+      "slug": "do-not",
+      "file": "/care-plan-icons/standard/do-not.svg"
+    },
+    {
+      "name": "Doctor And Nurse",
+      "slug": "doctor-and-nurse",
+      "file": "/care-plan-icons/standard/doctor-and-nurse.svg"
     },
     {
       "name": "Doctor",
@@ -77,9 +262,44 @@
       "file": "/care-plan-icons/standard/doctor.svg"
     },
     {
+      "name": "Doctors",
+      "slug": "doctors",
+      "file": "/care-plan-icons/standard/doctors.svg"
+    },
+    {
+      "name": "Domestic Visit",
+      "slug": "domestic-visit",
+      "file": "/care-plan-icons/standard/domestic-visit.svg"
+    },
+    {
+      "name": "Domestic",
+      "slug": "domestic",
+      "file": "/care-plan-icons/standard/domestic.svg"
+    },
+    {
       "name": "Drinks",
       "slug": "drinks",
       "file": "/care-plan-icons/standard/drinks.svg"
+    },
+    {
+      "name": "Drugs",
+      "slug": "drugs",
+      "file": "/care-plan-icons/standard/drugs.svg"
+    },
+    {
+      "name": "Education",
+      "slug": "education",
+      "file": "/care-plan-icons/standard/education.svg"
+    },
+    {
+      "name": "Evening Meal",
+      "slug": "evening-meal",
+      "file": "/care-plan-icons/standard/evening-meal.svg"
+    },
+    {
+      "name": "Evening",
+      "slug": "evening",
+      "file": "/care-plan-icons/standard/evening.svg"
     },
     {
       "name": "Exercise",
@@ -87,9 +307,89 @@
       "file": "/care-plan-icons/standard/exercise.svg"
     },
     {
+      "name": "Eyesight",
+      "slug": "eyesight",
+      "file": "/care-plan-icons/standard/eyesight.svg"
+    },
+    {
+      "name": "Face",
+      "slug": "face",
+      "file": "/care-plan-icons/standard/face.svg"
+    },
+    {
+      "name": "Faith",
+      "slug": "faith",
+      "file": "/care-plan-icons/standard/faith.svg"
+    },
+    {
+      "name": "Falls",
+      "slug": "falls",
+      "file": "/care-plan-icons/standard/falls.svg"
+    },
+    {
       "name": "Family Care",
       "slug": "family-care",
       "file": "/care-plan-icons/standard/family-care.svg"
+    },
+    {
+      "name": "Favourite",
+      "slug": "favourite",
+      "file": "/care-plan-icons/standard/favourite.svg"
+    },
+    {
+      "name": "Feet",
+      "slug": "feet",
+      "file": "/care-plan-icons/standard/feet.svg"
+    },
+    {
+      "name": "Final Days",
+      "slug": "final-days",
+      "file": "/care-plan-icons/standard/final-days.svg"
+    },
+    {
+      "name": "Friends",
+      "slug": "friends",
+      "file": "/care-plan-icons/standard/friends.svg"
+    },
+    {
+      "name": "Get Up",
+      "slug": "get-up",
+      "file": "/care-plan-icons/standard/get-up.svg"
+    },
+    {
+      "name": "Good Behaviour",
+      "slug": "good-behaviour",
+      "file": "/care-plan-icons/standard/good-behaviour.svg"
+    },
+    {
+      "name": "Good Female",
+      "slug": "good-female",
+      "file": "/care-plan-icons/standard/good-female.svg"
+    },
+    {
+      "name": "Good Male",
+      "slug": "good-male",
+      "file": "/care-plan-icons/standard/good-male.svg"
+    },
+    {
+      "name": "Hairdresser",
+      "slug": "hairdresser",
+      "file": "/care-plan-icons/standard/hairdresser.svg"
+    },
+    {
+      "name": "Hands",
+      "slug": "hands",
+      "file": "/care-plan-icons/standard/hands.svg"
+    },
+    {
+      "name": "Hats",
+      "slug": "hats",
+      "file": "/care-plan-icons/standard/hats.svg"
+    },
+    {
+      "name": "Head Inury",
+      "slug": "head-inury",
+      "file": "/care-plan-icons/standard/head-inury.svg"
     },
     {
       "name": "Health",
@@ -97,9 +397,34 @@
       "file": "/care-plan-icons/standard/health.svg"
     },
     {
+      "name": "Healthy Heart",
+      "slug": "healthy-heart",
+      "file": "/care-plan-icons/standard/healthy-heart.svg"
+    },
+    {
       "name": "Hearing",
       "slug": "hearing",
       "file": "/care-plan-icons/standard/hearing.svg"
+    },
+    {
+      "name": "Hobbies",
+      "slug": "hobbies",
+      "file": "/care-plan-icons/standard/hobbies.svg"
+    },
+    {
+      "name": "Holiday",
+      "slug": "holiday",
+      "file": "/care-plan-icons/standard/holiday.svg"
+    },
+    {
+      "name": "Home First Checklist",
+      "slug": "home-first-checklist",
+      "file": "/care-plan-icons/standard/home-first-checklist.svg"
+    },
+    {
+      "name": "Home First",
+      "slug": "home-first",
+      "file": "/care-plan-icons/standard/home-first.svg"
     },
     {
       "name": "Home",
@@ -107,9 +432,19 @@
       "file": "/care-plan-icons/standard/home.svg"
     },
     {
+      "name": "Hot Drinks",
+      "slug": "hot-drinks",
+      "file": "/care-plan-icons/standard/hot-drinks.svg"
+    },
+    {
       "name": "Hygiene",
       "slug": "hygiene",
       "file": "/care-plan-icons/standard/hygiene.svg"
+    },
+    {
+      "name": "Important",
+      "slug": "important",
+      "file": "/care-plan-icons/standard/important.svg"
     },
     {
       "name": "Infection",
@@ -117,9 +452,49 @@
       "file": "/care-plan-icons/standard/infection.svg"
     },
     {
+      "name": "Injury",
+      "slug": "injury",
+      "file": "/care-plan-icons/standard/injury.svg"
+    },
+    {
+      "name": "Late",
+      "slug": "late",
+      "file": "/care-plan-icons/standard/late.svg"
+    },
+    {
+      "name": "Laundry And Cleaning",
+      "slug": "laundry-and-cleaning",
+      "file": "/care-plan-icons/standard/laundry-and-cleaning.svg"
+    },
+    {
+      "name": "Laundry",
+      "slug": "laundry",
+      "file": "/care-plan-icons/standard/laundry.svg"
+    },
+    {
+      "name": "Legs",
+      "slug": "legs",
+      "file": "/care-plan-icons/standard/legs.svg"
+    },
+    {
       "name": "Lunch",
       "slug": "lunch",
       "file": "/care-plan-icons/standard/lunch.svg"
+    },
+    {
+      "name": "Maintenance Checks",
+      "slug": "maintenance-checks",
+      "file": "/care-plan-icons/standard/maintenance-checks.svg"
+    },
+    {
+      "name": "Maintenance",
+      "slug": "maintenance",
+      "file": "/care-plan-icons/standard/maintenance.svg"
+    },
+    {
+      "name": "Meal",
+      "slug": "meal",
+      "file": "/care-plan-icons/standard/meal.svg"
     },
     {
       "name": "Medication",
@@ -137,6 +512,56 @@
       "file": "/care-plan-icons/standard/morning.svg"
     },
     {
+      "name": "Mouth Care",
+      "slug": "mouth-care",
+      "file": "/care-plan-icons/standard/mouth-care.svg"
+    },
+    {
+      "name": "My History",
+      "slug": "my-history",
+      "file": "/care-plan-icons/standard/my-history.svg"
+    },
+    {
+      "name": "My Say",
+      "slug": "my-say",
+      "file": "/care-plan-icons/standard/my-say.svg"
+    },
+    {
+      "name": "Night Duties",
+      "slug": "night-duties",
+      "file": "/care-plan-icons/standard/night-duties.svg"
+    },
+    {
+      "name": "Nutrition",
+      "slug": "nutrition",
+      "file": "/care-plan-icons/standard/nutrition.svg"
+    },
+    {
+      "name": "Observation",
+      "slug": "observation",
+      "file": "/care-plan-icons/standard/observation.svg"
+    },
+    {
+      "name": "Occupation",
+      "slug": "occupation",
+      "file": "/care-plan-icons/standard/occupation.svg"
+    },
+    {
+      "name": "Opticians",
+      "slug": "opticians",
+      "file": "/care-plan-icons/standard/opticians.svg"
+    },
+    {
+      "name": "Out Reach",
+      "slug": "out-reach",
+      "file": "/care-plan-icons/standard/out-reach.svg"
+    },
+    {
+      "name": "Outreach",
+      "slug": "outreach",
+      "file": "/care-plan-icons/standard/outreach.svg"
+    },
+    {
       "name": "Pain",
       "slug": "pain",
       "file": "/care-plan-icons/standard/pain.svg"
@@ -145,6 +570,16 @@
       "name": "Palliative",
       "slug": "palliative",
       "file": "/care-plan-icons/standard/palliative.svg"
+    },
+    {
+      "name": "People",
+      "slug": "people",
+      "file": "/care-plan-icons/standard/people.svg"
+    },
+    {
+      "name": "Personal Care",
+      "slug": "personal-care",
+      "file": "/care-plan-icons/standard/personal-care.svg"
     },
     {
       "name": "Personal Washing",
@@ -162,6 +597,26 @@
       "file": "/care-plan-icons/standard/physiotherapy.svg"
     },
     {
+      "name": "Plan",
+      "slug": "plan",
+      "file": "/care-plan-icons/standard/plan.svg"
+    },
+    {
+      "name": "Please",
+      "slug": "please",
+      "file": "/care-plan-icons/standard/please.svg"
+    },
+    {
+      "name": "Pocket Money",
+      "slug": "pocket-money",
+      "file": "/care-plan-icons/standard/pocket-money.svg"
+    },
+    {
+      "name": "Possessions",
+      "slug": "possessions",
+      "file": "/care-plan-icons/standard/possessions.svg"
+    },
+    {
       "name": "Pressure Ulcer",
       "slug": "pressure-ulcer",
       "file": "/care-plan-icons/standard/pressure-ulcer.svg"
@@ -172,6 +627,11 @@
       "file": "/care-plan-icons/standard/privacy.svg"
     },
     {
+      "name": "Psychological",
+      "slug": "psychological",
+      "file": "/care-plan-icons/standard/psychological.svg"
+    },
+    {
       "name": "Psychology",
       "slug": "psychology",
       "file": "/care-plan-icons/standard/psychology.svg"
@@ -180,6 +640,166 @@
       "name": "Religion",
       "slug": "religion",
       "file": "/care-plan-icons/standard/religion.svg"
+    },
+    {
+      "name": "Rooms",
+      "slug": "rooms",
+      "file": "/care-plan-icons/standard/rooms.svg"
+    },
+    {
+      "name": "Sadness",
+      "slug": "sadness",
+      "file": "/care-plan-icons/standard/sadness.svg"
+    },
+    {
+      "name": "Safety",
+      "slug": "safety",
+      "file": "/care-plan-icons/standard/safety.svg"
+    },
+    {
+      "name": "Shoes",
+      "slug": "shoes",
+      "file": "/care-plan-icons/standard/shoes.svg"
+    },
+    {
+      "name": "Shower",
+      "slug": "shower",
+      "file": "/care-plan-icons/standard/shower.svg"
+    },
+    {
+      "name": "Skin Integrity",
+      "slug": "skin-integrity",
+      "file": "/care-plan-icons/standard/skin-integrity.svg"
+    },
+    {
+      "name": "Skin",
+      "slug": "skin",
+      "file": "/care-plan-icons/standard/skin.svg"
+    },
+    {
+      "name": "Sleep",
+      "slug": "sleep",
+      "file": "/care-plan-icons/standard/sleep.svg"
+    },
+    {
+      "name": "Sleeping And Night",
+      "slug": "sleeping-and-night",
+      "file": "/care-plan-icons/standard/sleeping-and-night.svg"
+    },
+    {
+      "name": "Sleeping",
+      "slug": "sleeping",
+      "file": "/care-plan-icons/standard/sleeping.svg"
+    },
+    {
+      "name": "Snacks",
+      "slug": "snacks",
+      "file": "/care-plan-icons/standard/snacks.svg"
+    },
+    {
+      "name": "Social Activities",
+      "slug": "social-activities",
+      "file": "/care-plan-icons/standard/social-activities.svg"
+    },
+    {
+      "name": "Social",
+      "slug": "social",
+      "file": "/care-plan-icons/standard/social.svg"
+    },
+    {
+      "name": "Socks",
+      "slug": "socks",
+      "file": "/care-plan-icons/standard/socks.svg"
+    },
+    {
+      "name": "Speech",
+      "slug": "speech",
+      "file": "/care-plan-icons/standard/speech.svg"
+    },
+    {
+      "name": "Symptoms",
+      "slug": "symptoms",
+      "file": "/care-plan-icons/standard/symptoms.svg"
+    },
+    {
+      "name": "Tables And Chairs",
+      "slug": "tables-and-chairs",
+      "file": "/care-plan-icons/standard/tables-and-chairs.svg"
+    },
+    {
+      "name": "Talk",
+      "slug": "talk",
+      "file": "/care-plan-icons/standard/talk.svg"
+    },
+    {
+      "name": "Task",
+      "slug": "task",
+      "file": "/care-plan-icons/standard/task.svg"
+    },
+    {
+      "name": "Tea Visit",
+      "slug": "tea-visit",
+      "file": "/care-plan-icons/standard/tea-visit.svg"
+    },
+    {
+      "name": "Tea",
+      "slug": "tea",
+      "file": "/care-plan-icons/standard/tea.svg"
+    },
+    {
+      "name": "Teeth",
+      "slug": "teeth",
+      "file": "/care-plan-icons/standard/teeth.svg"
+    },
+    {
+      "name": "Toilet",
+      "slug": "toilet",
+      "file": "/care-plan-icons/standard/toilet.svg"
+    },
+    {
+      "name": "Tv And Radio",
+      "slug": "tv-and-radio",
+      "file": "/care-plan-icons/standard/tv-and-radio.svg"
+    },
+    {
+      "name": "Underwear",
+      "slug": "underwear",
+      "file": "/care-plan-icons/standard/underwear.svg"
+    },
+    {
+      "name": "Visit Plan",
+      "slug": "visit-plan",
+      "file": "/care-plan-icons/standard/visit-plan.svg"
+    },
+    {
+      "name": "Visit",
+      "slug": "visit",
+      "file": "/care-plan-icons/standard/visit.svg"
+    },
+    {
+      "name": "Washing Laundry",
+      "slug": "washing-laundry",
+      "file": "/care-plan-icons/standard/washing-laundry.svg"
+    },
+    {
+      "name": "Welfare Check",
+      "slug": "welfare-check",
+      "file": "/care-plan-icons/standard/welfare-check.svg"
+    },
+    {
+      "name": "Welfare",
+      "slug": "welfare",
+      "file": "/care-plan-icons/standard/welfare.svg"
+    },
+    {
+      "name": "Workforce",
+      "slug": "workforce",
+      "file": "/care-plan-icons/standard/workforce.svg"
+    },
+    {
+      "name": "Wound",
+      "slug": "wound",
+      "file": "/care-plan-icons/standard/wound.svg"
     }
   ]
 }

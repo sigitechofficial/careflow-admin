@@ -19,6 +19,7 @@ import {
 import type { FundingContractReadiness } from '@/features/billing/api/funding-contracts.api'
 import { BillingStatusBadge } from '@/features/billing/components/BillingStatusBadge'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 
 const READINESS_OPTIONS: Array<{ value: FundingContractReadiness | 'ALL'; label: string }> = [
   { value: 'ALL', label: 'All statuses' },
@@ -52,6 +53,7 @@ function fundingEditLink(serviceUserId: string) {
 
 export function BillingFundingContractsPanel() {
   const canRead = useAuthStore(s => s.can('billing.funding_contracts.read' as never))
+  const { locationId } = useGlobalLocationScope()
   const [search, setSearch] = React.useState('')
   const [readiness, setReadiness] = React.useState<FundingContractReadiness | 'ALL'>('ALL')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
@@ -65,8 +67,9 @@ export function BillingFundingContractsPanel() {
     search: debouncedSearch || undefined,
     readiness,
     limit: 100,
+    locationId: locationId ?? undefined,
   })
-  const summaryQuery = useFundingContractsSummary()
+  const summaryQuery = useFundingContractsSummary(locationId)
 
   const rows = query.data?.rows ?? []
   const summary = summaryQuery.data

@@ -57,6 +57,7 @@ describe('schedule-jobs-url-state.util', () => {
         employeeIds: ['e-1', 'e-2'],
         requiredCarersFilters: [],
         jobOperationalFilters: ['unassigned'],
+        timeSensitiveFilter: true,
         layout: 'runs',
         rowAxis: 'service-users',
       }),
@@ -68,6 +69,7 @@ describe('schedule-jobs-url-state.util', () => {
       locationId: 'loc-1',
       employeeId: 'e-1,e-2',
       op: 'unassigned',
+      ts: '1',
       layout: 'runs',
       rowAxis: 'service-users',
     })
