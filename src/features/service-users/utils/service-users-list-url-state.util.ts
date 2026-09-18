@@ -114,7 +114,9 @@ function parseCommaIds(value?: string | null): string[] {
   return [...new Set(value.split(',').map((id) => id.trim()).filter(Boolean))]
 }
 
-function idsToComma(ids?: string[]): string | undefined {
+function idsToComma(
+  ids?: Array<string | undefined | null>,
+): string | undefined {
   const next = uniqueFilterIds(ids)
   return next?.join(',')
 }
