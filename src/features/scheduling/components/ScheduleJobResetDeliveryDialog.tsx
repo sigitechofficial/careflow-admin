@@ -40,7 +40,7 @@ export function ScheduleJobResetDeliveryDialog({ open, onOpenChange, job, onRese
       await resetDelivery.mutateAsync({ jobId: job.id, reason: trimmed })
       toastSuccess(
         'Visit reset to planned',
-        'Clock-in and this visit’s care records were cleared. The carer will see Clock in after refresh.',
+        'Clock-in, SOS, and this visit’s care and pay/charge records were cleared. The carer will see Clock in after refresh.',
       )
       onReset?.()
       onOpenChange(false)
@@ -67,9 +67,10 @@ export function ScheduleJobResetDeliveryDialog({ open, onOpenChange, job, onRese
           <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <p>
-              This wipes clock-in/out and this visit’s tasks, MAR, observations, log, consent, and
-              SOS. Allocations and planned times stay. The carer app shows the initial Clock in
-              screen after refresh.
+              This wipes clock-in/out, SOS, and this visit’s tasks, MAR, observations, body map,
+              log, consent, and pay/charge — even if the visit was completed. Allocations and
+              planned times stay. If the visit is already in a payroll or invoice run, remove it
+              from that run first. The carer app shows the initial Clock in screen after refresh.
             </p>
           </div>
           <div>

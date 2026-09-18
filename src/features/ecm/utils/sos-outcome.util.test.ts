@@ -7,13 +7,18 @@ describe('sos-outcome.util', () => {
     expect(SOS_OUTCOME_CODES.map(row => row.code)).not.toContain('SOS_ACTION_CALLED_CARER')
   })
 
-  it('requires both chips, and a note only for Other', () => {
-    expect(canSubmitSosClose(null, 'SOS_FALSE_ALARM', '', '')).toBe(false)
-    expect(canSubmitSosClose('SOS_ACTION_CALLED_CARER', null, '', '')).toBe(false)
-    expect(canSubmitSosClose('SOS_ACTION_CALLED_CARER', 'SOS_FALSE_ALARM', '', '')).toBe(true)
-    expect(canSubmitSosClose('SOS_ACTION_OTHER', 'SOS_FALSE_ALARM', '', '')).toBe(false)
-    expect(canSubmitSosClose('SOS_ACTION_OTHER', 'SOS_FALSE_ALARM', 'pocket dial', '')).toBe(true)
-    expect(canSubmitSosClose('SOS_ACTION_OTHER', 'SOS_OTHER', 'pocket dial', '')).toBe(false)
+  it('requires both chips and a note for both action and outcome', () => {
+    expect(canSubmitSosClose(null, 'SOS_FALSE_ALARM', 'did x', 'all safe')).toBe(false)
+    expect(canSubmitSosClose('SOS_ACTION_CALLED_CARER', null, 'did x', 'all safe')).toBe(false)
+    // Both chips picked but notes missing → still blocked (notes always required).
+    expect(canSubmitSosClose('SOS_ACTION_CALLED_CARER', 'SOS_FALSE_ALARM', '', '')).toBe(false)
+    expect(canSubmitSosClose('SOS_ACTION_CALLED_CARER', 'SOS_FALSE_ALARM', 'did x', '')).toBe(false)
+    expect(canSubmitSosClose('SOS_ACTION_CALLED_CARER', 'SOS_FALSE_ALARM', '', 'all safe')).toBe(
+      false,
+    )
+    expect(
+      canSubmitSosClose('SOS_ACTION_CALLED_CARER', 'SOS_FALSE_ALARM', 'did x', 'all safe'),
+    ).toBe(true)
     expect(canSubmitSosClose('SOS_ACTION_OTHER', 'SOS_OTHER', 'pocket dial', 'all safe')).toBe(true)
   })
 })

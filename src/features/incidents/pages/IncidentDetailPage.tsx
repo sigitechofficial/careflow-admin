@@ -141,6 +141,20 @@ export default function IncidentDetailPage() {
               <Field label="Reported" value={formatOrganisationIsoDateLong(incident.reportedAt)} />
               <Field label="Specific area" value={incident.specificArea} />
               <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
+              {incident.scheduledJobId && (
+                <Field
+                  label="Reported during visit"
+                  value={
+                    <Link
+                      to="/scheduling/visits/$jobId"
+                      params={{ jobId: incident.scheduledJobId }}
+                      className="text-primary underline underline-offset-2 hover:no-underline"
+                    >
+                      Open visit
+                    </Link>
+                  }
+                />
+              )}
             </dl>
             <div className="mt-4 space-y-3">
               <Field label="What happened" value={<p className="whitespace-pre-wrap">{incident.description}</p>} />

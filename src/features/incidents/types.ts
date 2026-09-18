@@ -44,6 +44,10 @@ export type IncidentListItem = {
   specificArea: string | null
   primaryServiceUserId: string | null
   primaryEmployeeId: string | null
+  primaryPersonKind: IncidentPersonKind | null
+  primaryPersonName: string | null
+  affectedPersonKinds: IncidentPersonKind[]
+  scheduledJobId: string | null
   reportedById: string | null
   ownerId: string | null
   description: string
@@ -446,6 +450,9 @@ export type CreateIncidentInput = {
   specificArea?: string
   primaryServiceUserId?: string
   primaryEmployeeId?: string
+  primaryPersonKind?: IncidentPersonKind
+  primaryPersonName?: string
+  affectedPersonKinds?: IncidentPersonKind[]
   reporterEmployeeId?: string
   description: string
   contextBefore?: string
