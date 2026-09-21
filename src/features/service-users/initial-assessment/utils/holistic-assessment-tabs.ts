@@ -110,6 +110,8 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: Array<Omit<HolisticAssessmentTab, 'displayNu
         questionTextsOnly: ['Previous medical history (summary)', 'Allergies (summary)'],
       },
       { sectionNumber: 1, specRefs: ['1.2'] },
+      // Lone worker / staff safety behaviour & condition factors (feed LONE_WORKER risk)
+      { sectionNumber: 1, specRefs: ['1.21'] },
       { sectionNumber: 4 },
       { sectionNumber: 5 },
       { sectionNumber: 6, specRefs: ['6.1'] },

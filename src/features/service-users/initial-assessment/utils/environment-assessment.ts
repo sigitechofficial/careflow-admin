@@ -25,7 +25,46 @@ export type EnvironmentAssessmentMetadata = {
   referralRequired?: boolean
   equipmentAvailable?: boolean
   staffNotes?: string
+  // ── Lone worker / staff safety factors (feed the aggregated LONE_WORKER risk) ──
+  // Keys MUST match ENV_FACTOR_WEIGHTS in
+  // careflow-api/src/initial-assessments/initial-assessment-lone-worker-risk.util.ts
+  isolatedProperty?: boolean | null
+  poorLightingAccess?: boolean | null
+  unsafeArea?: boolean | null
+  noMobileSignal?: boolean | null
+  othersPresentRisk?: boolean | null
+  carerWorksAlone?: boolean | null
+  nightVisits?: boolean | null
+  longDurationVisits?: boolean | null
+  newServiceUser?: boolean | null
+  pastSafeguardingIncident?: boolean | null
+  previousCarerComplaints?: boolean | null
+  previousSosEvent?: boolean | null
+  unsafeMovingHandlingAlone?: boolean | null
+  twoCarerRecommended?: boolean | null
+  // Staff-Only control fields
+  loneWorkerRiskIdentified?: boolean | null
+  loneWorkerRiskLevel?: LoneWorkerRiskLevel
+  staffSafetyInstructions?: string
 }
+
+export type LoneWorkerRiskLevel = 'Low' | 'Med' | 'High'
+
+export type EnvironmentAssessmentLoneWorkerFactorId =
+  | 'isolatedProperty'
+  | 'poorLightingAccess'
+  | 'unsafeArea'
+  | 'noMobileSignal'
+  | 'othersPresentRisk'
+  | 'carerWorksAlone'
+  | 'nightVisits'
+  | 'longDurationVisits'
+  | 'newServiceUser'
+  | 'pastSafeguardingIncident'
+  | 'previousCarerComplaints'
+  | 'previousSosEvent'
+  | 'unsafeMovingHandlingAlone'
+  | 'twoCarerRecommended'
 
 export const ENVIRONMENT_ASSESSMENT_TABLE_QUESTIONS: ReadonlyArray<{
   id: EnvironmentAssessmentQuestionId
@@ -91,6 +130,41 @@ export const ENVIRONMENT_ASSESSMENT_STAFF_CHECKLIST = [
   { key: 'equipmentAvailable' as const, label: 'Equipment is available that may be required?' },
 ]
 
+/**
+ * Lone worker / staff safety factors, shown as their own Yes/No table.
+ * Each Yes contributes to the aggregated LONE_WORKER risk scored on the server.
+ * Deliberately NOT part of ENVIRONMENT_ASSESSMENT_TABLE_QUESTIONS, so they never
+ * affect isEnvironmentAssessmentComplete (they are optional risk indicators).
+ */
+export const ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS: ReadonlyArray<{
+  id: EnvironmentAssessmentLoneWorkerFactorId
+  label: string
+}> = [
+  { id: 'isolatedProperty', label: 'Is the property isolated / in a remote location?' },
+  { id: 'poorLightingAccess', label: 'Any poor lighting or difficult access at the property?' },
+  { id: 'unsafeArea', label: 'Is the property in an unsafe area / neighbourhood?' },
+  { id: 'noMobileSignal', label: 'Is there no reliable mobile signal at the property?' },
+  {
+    id: 'othersPresentRisk',
+    label: 'Is there anyone else regularly present during visits who may pose a risk to the carer?',
+  },
+  { id: 'carerWorksAlone', label: 'Does the carer usually work alone at this visit?' },
+  { id: 'nightVisits', label: 'Are there night / early-morning / late visits?' },
+  { id: 'longDurationVisits', label: 'Are visits long duration (extended time alone)?' },
+  { id: 'newServiceUser', label: 'Is this a new service user / first visits?' },
+  { id: 'pastSafeguardingIncident', label: 'Any past safeguarding incident involving staff?' },
+  { id: 'previousCarerComplaints', label: 'Any previous carer complaints or reported concerns?' },
+  { id: 'previousSosEvent', label: 'Any previous SOS / emergency event at this service user?' },
+  { id: 'unsafeMovingHandlingAlone', label: 'Do care tasks require moving & handling that is unsafe alone?' },
+  { id: 'twoCarerRecommended', label: 'Is a two-carer (double-up) visit recommended?' },
+]
+
+export const ENVIRONMENT_ASSESSMENT_LONE_WORKER_LEVELS: ReadonlyArray<LoneWorkerRiskLevel> = [
+  'Low',
+  'Med',
+  'High',
+]
+
 const QUESTION_FIELD_MAP: Record<
   EnvironmentAssessmentQuestionId,
   keyof EnvironmentAssessmentMetadata
@@ -150,5 +224,29 @@ export function normalizeEnvironmentAssessmentMetadata(
     referralRequired: row.referralRequired === true ? true : undefined,
     equipmentAvailable: row.equipmentAvailable === true ? true : undefined,
     staffNotes: typeof row.staffNotes === 'string' ? row.staffNotes : undefined,
+    // Lone worker / staff safety factors (all optional)
+    isolatedProperty: row.isolatedProperty ?? undefined,
+    poorLightingAccess: row.poorLightingAccess ?? undefined,
+    unsafeArea: row.unsafeArea ?? undefined,
+    noMobileSignal: row.noMobileSignal ?? undefined,
+    othersPresentRisk: row.othersPresentRisk ?? undefined,
+    carerWorksAlone: row.carerWorksAlone ?? undefined,
+    nightVisits: row.nightVisits ?? undefined,
+    longDurationVisits: row.longDurationVisits ?? undefined,
+    newServiceUser: row.newServiceUser ?? undefined,
+    pastSafeguardingIncident: row.pastSafeguardingIncident ?? undefined,
+    previousCarerComplaints: row.previousCarerComplaints ?? undefined,
+    previousSosEvent: row.previousSosEvent ?? undefined,
+    unsafeMovingHandlingAlone: row.unsafeMovingHandlingAlone ?? undefined,
+    twoCarerRecommended: row.twoCarerRecommended ?? undefined,
+    loneWorkerRiskIdentified: row.loneWorkerRiskIdentified ?? undefined,
+    loneWorkerRiskLevel:
+      row.loneWorkerRiskLevel === 'Low' ||
+      row.loneWorkerRiskLevel === 'Med' ||
+      row.loneWorkerRiskLevel === 'High'
+        ? row.loneWorkerRiskLevel
+        : undefined,
+    staffSafetyInstructions:
+      typeof row.staffSafetyInstructions === 'string' ? row.staffSafetyInstructions : undefined,
   }
 }
