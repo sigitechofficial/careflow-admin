@@ -74,7 +74,7 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Photography consent" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="grid gap-0 overflow-hidden rounded-sm border border-slate-300 dark:border-slate-600 lg:grid-cols-2">
             <div className="space-y-2 border-b border-slate-300 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-900/40 lg:border-b-0 lg:border-r">
               <p className="text-sm font-semibold text-foreground">Allfor Care Services</p>

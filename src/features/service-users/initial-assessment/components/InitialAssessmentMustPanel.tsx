@@ -138,7 +138,7 @@ export function InitialAssessmentMustPanel({ value, disabled, onChange }: Props)
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Malnutrition universal screening tool (MUST)" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <section className="space-y-3">
             <h4 className="text-sm font-semibold text-foreground">Step 1 — BMI score</h4>
             <p className={cn('text-sm', IA_HINT_CLASS)}>

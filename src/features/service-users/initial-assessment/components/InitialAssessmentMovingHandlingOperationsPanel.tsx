@@ -106,7 +106,7 @@ export function InitialAssessmentMovingHandlingOperationsPanel({
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Moving and handling operations — Client risk filter" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <section className="space-y-3">
             <p className={cn('text-sm font-medium text-foreground', IA_HINT_CLASS)}>
               Please circle/tick the appropriate score and wording

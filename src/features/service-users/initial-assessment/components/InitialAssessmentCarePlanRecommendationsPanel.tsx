@@ -223,12 +223,12 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                 return (
                   <li
                     key={group.key}
-                    className="flex h-full min-w-0 flex-col rounded border border-[#c5cdd6] bg-white p-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                    className="flex h-full min-w-0 flex-col rounded border border-[#c5cdd6] bg-white p-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-card"
                     data-testid={`recommended-card-${(group.name || 'plan').replace(/\s+/g, '-').toLowerCase()}`}
                   >
                     <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-start justify-between gap-1.5">
-                      <p className="text-[13px] font-medium leading-snug text-[#1e293b]">{group.name}</p>
+                      <p className="text-[13px] font-medium leading-snug text-[#1e293b] dark:text-foreground">{group.name}</p>
                       <Badge variant="warning" size="sm" className="font-normal">
                         Recommended
                       </Badge>

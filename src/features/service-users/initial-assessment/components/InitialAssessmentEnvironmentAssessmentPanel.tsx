@@ -90,7 +90,7 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Environment Assessment" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <HolisticAssessmentTable
             columns={[
               {

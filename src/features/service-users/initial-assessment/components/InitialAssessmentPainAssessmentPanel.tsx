@@ -100,7 +100,7 @@ function PainToolsWorksheet({
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Pain assessment tool" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <section className="space-y-3" data-testid="ia-pain-scale-used">
             <h4 className={IA_QUESTION_LABEL_CLASS}>Scale used</h4>
             <p

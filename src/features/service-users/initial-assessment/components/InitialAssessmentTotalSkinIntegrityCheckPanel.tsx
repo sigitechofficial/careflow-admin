@@ -47,7 +47,7 @@ export function InitialAssessmentTotalSkinIntegrityCheckPanel({
     <div className={HOLISTIC_SECTION_SHELL_CLASS} data-testid="ia-total-skin-integrity-check">
       <HolisticSectionHeader title="Total skin integrity check" />
 
-      <div className="border border-slate-300 bg-white p-4 dark:border-slate-600">
+      <div className="border border-slate-300 bg-white p-4 dark:bg-card dark:border-slate-600">
         <div className="mb-4 flex flex-wrap items-start justify-center gap-6">
           <figure className="text-center">
             <img

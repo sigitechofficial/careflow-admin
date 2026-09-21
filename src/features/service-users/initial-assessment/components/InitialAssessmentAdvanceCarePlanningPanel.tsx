@@ -97,7 +97,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Advance Care Planning (ACP)" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="flex flex-wrap gap-1">
             {ACP_FIVE_STEPS.map((step) => (
               <div
@@ -153,7 +153,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="'Thinking Ahead' – Allforcare Advance Care Planning Discussion" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="space-y-2">
             {THINKING_AHEAD_INTRO_PARAGRAPHS.map((paragraph) => (
               <p key={paragraph} className={cn('text-sm', IA_HINT_CLASS)}>

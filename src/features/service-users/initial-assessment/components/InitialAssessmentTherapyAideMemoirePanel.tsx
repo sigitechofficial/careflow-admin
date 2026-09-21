@@ -35,7 +35,7 @@ export function InitialAssessmentTherapyAideMemoirePanel({ value, disabled, onCh
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Aide Memoire to establish therapy needs" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <ol className="space-y-4">
             {THERAPY_AIDE_MEMOIRE_SCREENING_ITEMS.map((item) => {
               const state = value[item.key]

@@ -155,7 +155,7 @@ export function InitialAssessmentFallsScreeningPanel({
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Falls screening" />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <section className="space-y-3">
             {FALLS_SCREENING_HEADER_QUESTIONS.filter(
               (q) => !(hideEmbeddedConsent && q.id === 'consentToSixQuestions'),

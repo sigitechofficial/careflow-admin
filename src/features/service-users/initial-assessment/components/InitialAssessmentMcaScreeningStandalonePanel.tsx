@@ -60,7 +60,7 @@ export function InitialAssessmentMcaScreeningStandalonePanel({ value, disabled, 
           subtitle="The two stage test of mental capacity"
         />
 
-        <div className="space-y-4 border border-slate-300 bg-white p-4 dark:border-slate-600">
+        <div className="space-y-4 border border-slate-300 bg-white p-4 dark:bg-card dark:border-slate-600">
           <div className="space-y-2">
             <p className="text-sm font-medium">
               1. Does the person have an impairment or disturbance in the functioning of the mind or

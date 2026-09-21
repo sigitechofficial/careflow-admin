@@ -150,7 +150,7 @@ export function InitialAssessmentEndOfLifeAssessmentPanel({ value, disabled, onC
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="End of Life Assessment" />
 
-        <div className="space-y-2 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-2 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           {END_OF_LIFE_ASSESSMENT_QUESTIONS.map((question) => {
             const showLastWishesHeader =
               question.section === 'lastWishes' && !lastWishesHeaderShown
