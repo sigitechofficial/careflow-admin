@@ -76,6 +76,7 @@ function toRoundLookup(rounds: RoundInput[]): MedicationRoundLookup[] {
 export function visitPlanSlotsFromMedicationRounds(
   rounds: RoundInput[],
   existing?: VisitPlanSlot[],
+  opts?: { defaultRequiredCarers?: number },
 ): VisitPlanSlot[] {
   const sorted = sortMedicationRounds(toRoundLookup(rounds))
   const byCode = new Map(
@@ -96,7 +97,7 @@ export function visitPlanSlotsFromMedicationRounds(
       daysOfWeek: prev?.daysOfWeek ?? [1, 2, 3, 4, 5, 6, 0],
       plannedStartTime: prev?.plannedStartTime ?? start,
       plannedEndTime: prev?.plannedEndTime ?? end,
-      requiredCarers: prev?.requiredCarers ?? 1,
+      requiredCarers: prev?.requiredCarers ?? opts?.defaultRequiredCarers ?? 1,
       isEnabled: prev?.isEnabled ?? false,
       notes: prev?.notes ?? '',
       sortOrder: round.sortOrder ?? index,

@@ -76,7 +76,9 @@ export default function ServiceUserBodyMapPage() {
     scheduledJobId?: string
     scheduledVisitId?: string
     returnTo?: string
+    recordId?: string
   }
+  const focusRecordIdFromUrl = search.recordId
   const visitSearch = parseBodyMapVisitSearch(search)
   const visitContextActive = visitSearch.from === 'schedule-visit' && Boolean(visitSearch.scheduledJobId)
   const showCqcEvidence = search.view === 'export'
@@ -115,6 +117,19 @@ export default function ServiceUserBodyMapPage() {
     setMarkMode(true)
     toastInfo('Place the medication site on the body map, then link to the MAR chart line')
   }, [linkMedicationIdFromUrl])
+
+  // Open the record passed via ?recordId= (e.g. from an incident's "On body map"
+  // badge). Runs once per record id, after records load, so it doesn't override
+  // a later manual selection/close.
+  const focusedRecordRef = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    if (!focusRecordIdFromUrl) return
+    if (focusedRecordRef.current === focusRecordIdFromUrl) return
+    if (records.some(r => r.id === focusRecordIdFromUrl)) {
+      focusedRecordRef.current = focusRecordIdFromUrl
+      setSelectedRecordId(focusRecordIdFromUrl)
+    }
+  }, [focusRecordIdFromUrl, records])
 
   React.useEffect(() => {
     if (mainView === 'attention' && !attention.isLoading && attention.itemCount === 0) {

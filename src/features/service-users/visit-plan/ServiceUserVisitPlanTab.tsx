@@ -339,20 +339,25 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   React.useEffect(() => {
     if (!medicationRounds.length) return
+    // IA lone-worker flag → default new/unset slots to 2 carers (never overrides
+    // a saved plan's explicit values, which come through `prev` in the builder).
+    const defaultRequiredCarers = careContext.loneWorkerTwoCarerRequired ? 2 : 1
     if (!workingPlan) {
-      setSlots(visitPlanSlotsFromMedicationRounds(medicationRounds))
+      setSlots(visitPlanSlotsFromMedicationRounds(medicationRounds, undefined, { defaultRequiredCarers }))
+      if (careContext.loneWorkerTwoCarerRequired) setNumberOfCarers(2)
       return
     }
     setSlots(
       visitPlanSlotsFromMedicationRounds(
         medicationRounds,
         workingPlan.slots?.length ? workingPlan.slots : undefined,
+        { defaultRequiredCarers },
       ),
     )
     setWeeklyHours(workingPlan.weeklyContractedHours ?? '')
     setNumberOfCarers(workingPlan.numberOfCarers)
     setNotes(workingPlan.notes ?? '')
-  }, [workingPlan?.id, workingPlan?.updatedAt, medicationRounds])
+  }, [workingPlan?.id, workingPlan?.updatedAt, medicationRounds, careContext.loneWorkerTwoCarerRequired])
 
   React.useEffect(() => {
     if (!slots.length) return
@@ -919,6 +924,11 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
           </FormField>
           <FormField label="Carers per visit (default)">
             <VisitPlanCarersCountInput value={numberOfCarers} onCommit={setNumberOfCarers} />
+            {careContext.loneWorkerTwoCarerRequired ? (
+              <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                Initial assessment flags a two-carer (double-up) visit — 2 carers recommended.
+              </p>
+            ) : null}
           </FormField>
           <FormField label="Review due">
             <Input readOnly value={formatDate(workingPlan?.reviewDueAt)} />
@@ -966,6 +976,17 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
       </ContentCard>
 
       <VisitPlanIaPreferredVisitTimesPanel serviceUserId={serviceUserId} />
+
+      {careContext.loneWorkerTwoCarerRequired ? (
+        <div
+          className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+          data-testid="visit-plan-two-carer-recommendation"
+        >
+          <span className="font-semibold">Two-carer (double-up) visit recommended.</span>{' '}
+          The initial assessment flags a lone-worker / staff-safety risk for this service user.
+          New visit slots default to 2 carers — review the Carers column below before saving.
+        </div>
+      ) : null}
 
       <ContentCard className="border-2 border-teal-200 dark:border-teal-900">
         <ContentSectionHeader
