@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
 import {
   HolisticAssessmentTable,
@@ -9,6 +10,8 @@ import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/
 import { cn } from '@/shared/lib/utils'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
+  computeLoneWorkerAxes,
+  suggestLoneWorkerControlMeasures,
   ENVIRONMENT_ASSESSMENT_GOALS_PROMPTS,
   ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS,
   ENVIRONMENT_ASSESSMENT_LONE_WORKER_LEVELS,
@@ -85,6 +88,33 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
     patch({ [id]: answer })
   }
 
+  const computedAxes = computeLoneWorkerAxes(value)
+  const computedLevel = computedAxes?.level ?? null
+  const levelWord = (l: 'Low' | 'Med' | 'High') => (l === 'Med' ? 'Medium' : l)
+  const computedLevelLabel = computedLevel ? levelWord(computedLevel) : 'No risk yet'
+  const computedLevelTone =
+    computedLevel === 'High'
+      ? 'bg-destructive/15 text-destructive'
+      : computedLevel === 'Med'
+        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+        : computedLevel === 'Low'
+          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+          : 'bg-muted text-muted-foreground'
+
+  // Rule-based suggested control measures (suggestion only — inserted on click, then editable).
+  const suggestedMeasures = suggestLoneWorkerControlMeasures(value)
+  const insertSuggestedMeasures = () => {
+    const current = value.staffSafetyInstructions ?? ''
+    const currentText = current.replace(/<[^>]+>/g, ' ').toLowerCase()
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const toAdd = suggestedMeasures.filter(
+      (m) => !currentText.includes(m.slice(0, 24).toLowerCase()),
+    )
+    if (toAdd.length === 0) return
+    const html = toAdd.map((m) => `<p>${esc(m)}</p>`).join('')
+    patch({ staffSafetyInstructions: current ? `${current}${html}` : html })
+  }
+
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-environment-assessment-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
@@ -159,28 +189,66 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
                 {ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS.map((q) => {
                   const answer = value[q.id]
                   const name = `environment-lone-worker-${q.id}`
+                  const detailsValue = (value[q.detailsKey] as string | undefined) ?? ''
+                  const detailsMissing = answer === true && detailsValue.trim().length === 0
                   return (
-                    <HolisticAssessmentTableRow key={q.id}>
-                      <HolisticAssessmentTableCell className="align-top text-sm">
-                        {q.label}
-                      </HolisticAssessmentTableCell>
-                      <YesNoColumnCell
-                        name={name}
-                        selected={answer}
-                        column="yes"
-                        disabled={disabled}
-                        ariaLabel={q.label}
-                        onSelect={(v) => patchLoneWorkerFactor(q.id, v)}
-                      />
-                      <YesNoColumnCell
-                        name={name}
-                        selected={answer}
-                        column="no"
-                        disabled={disabled}
-                        ariaLabel={q.label}
-                        onSelect={(v) => patchLoneWorkerFactor(q.id, v)}
-                      />
-                    </HolisticAssessmentTableRow>
+                    <Fragment key={q.id}>
+                      <HolisticAssessmentTableRow>
+                        <HolisticAssessmentTableCell className="align-top text-sm">
+                          {q.label}
+                        </HolisticAssessmentTableCell>
+                        <YesNoColumnCell
+                          name={name}
+                          selected={answer}
+                          column="yes"
+                          disabled={disabled}
+                          ariaLabel={q.label}
+                          onSelect={(v) => patchLoneWorkerFactor(q.id, v)}
+                        />
+                        <YesNoColumnCell
+                          name={name}
+                          selected={answer}
+                          column="no"
+                          disabled={disabled}
+                          ariaLabel={q.label}
+                          onSelect={(v) => patchLoneWorkerFactor(q.id, v)}
+                        />
+                      </HolisticAssessmentTableRow>
+                      {answer === true && (
+                        <HolisticAssessmentTableRow>
+                          <HolisticAssessmentTableCell colSpan={3} className="bg-slate-50/60 dark:bg-slate-900/30">
+                            <Label
+                              htmlFor={`${name}-details`}
+                              className={cn(IA_QUESTION_LABEL_CLASS, 'flex items-center gap-1')}
+                            >
+                              Risk Details / Notes
+                              <span className="text-destructive" aria-hidden="true">
+                                *
+                              </span>
+                            </Label>
+                            <Textarea
+                              id={`${name}-details`}
+                              className={cn('mt-1', IA_FORM_TEXTAREA_COMPACT_CLASS)}
+                              plain
+                              compact
+                              rows={2}
+                              error={detailsMissing}
+                              disabled={disabled}
+                              required
+                              aria-required="true"
+                              placeholder="Please provide details"
+                              value={detailsValue}
+                              onChange={(e) => patch({ [q.detailsKey]: e.target.value })}
+                            />
+                            {detailsMissing && (
+                              <p className="mt-1 text-xs text-destructive">
+                                Please provide details for this risk.
+                              </p>
+                            )}
+                          </HolisticAssessmentTableCell>
+                        </HolisticAssessmentTableRow>
+                      )}
+                    </Fragment>
                   )
                 })}
               </HolisticAssessmentTable>
@@ -223,8 +291,57 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
                 </div>
 
                 <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Auto-calculated from answers:</span>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                        computedLevelTone,
+                      )}
+                      data-testid="lone-worker-computed-level"
+                    >
+                      {computedLevelLabel}
+                    </span>
+                    {computedAxes && (
+                      <span className="text-xs text-muted-foreground">
+                        (Likelihood {levelWord(computedAxes.likelihood)} × Severity{' '}
+                        {levelWord(computedAxes.severity)})
+                      </span>
+                    )}
+                  </div>
+                  <div className="mb-3 rounded-sm border border-slate-200 bg-white/60 p-3 text-xs text-muted-foreground dark:border-slate-700 dark:bg-card/60">
+                    <p className="mb-1 font-semibold text-foreground">
+                      How the risk level is decided (Likelihood × Severity, §13.7)
+                    </p>
+                    <p className="mb-1">
+                      Each answered factor sets a <strong>Likelihood</strong> (how likely an incident
+                      is) and a <strong>Severity</strong> (how serious / how hard to get help). Each
+                      axis takes its worst factor (Low=1, Medium=2, High=3), then:
+                    </p>
+                    <ul className="space-y-1">
+                      <li>
+                        <span className="font-semibold text-destructive">High</span> — score 6–9
+                        (e.g. any High × High factor such as physical violence, past safeguarding, or
+                        previous SOS).
+                      </li>
+                      <li>
+                        <span className="font-semibold text-amber-700 dark:text-amber-400">Medium</span>{' '}
+                        — score 3–5.
+                      </li>
+                      <li>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">Low</span>{' '}
+                        — score 1–2.
+                      </li>
+                      <li>
+                        <span className="font-semibold">No risk</span> — no factors marked Yes.
+                      </li>
+                    </ul>
+                    <p className="mt-1">
+                      Carer works alone <em>and</em> night / late visits pushes Severity to High.
+                    </p>
+                  </div>
                   <Label htmlFor="environment-lone-worker-level" className={IA_QUESTION_LABEL_CLASS}>
-                    Risk level (leave blank to auto-calculate on submit)
+                    Risk level (leave on Auto-calculate to use the value above, or override)
                   </Label>
                   <select
                     id="environment-lone-worker-level"
@@ -251,17 +368,52 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
                   </select>
                 </div>
 
+                {suggestedMeasures.length > 0 && (
+                  <div className="rounded-sm border border-sky-200 bg-sky-50/70 p-3 dark:border-sky-900 dark:bg-sky-950/30">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-foreground">
+                        Suggested control measures ({suggestedMeasures.length})
+                      </p>
+                      {!disabled && (
+                        <button
+                          type="button"
+                          onClick={insertSuggestedMeasures}
+                          className="rounded-sm border border-sky-300 bg-white px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-transparent dark:text-sky-300 dark:hover:bg-sky-900/40"
+                          data-testid="lone-worker-insert-suggestions"
+                        >
+                          Insert into control measures
+                        </button>
+                      )}
+                    </div>
+                    <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                      {suggestedMeasures.map((m) => (
+                        <li key={m}>{m}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] italic text-muted-foreground">
+                      Suggestions only — insert, then edit or add your own. Nothing is saved
+                      automatically.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <Label
                     htmlFor="environment-staff-safety-instructions"
                     className={IA_QUESTION_LABEL_CLASS}
                   >
-                    Staff safety instructions
+                    Control Measures / Safety Actions
                   </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Optional. Record mitigation steps — e.g. two carers required, avoid evening
+                    visits, review before visit, safety monitoring required, contact office before
+                    entering property.
+                  </p>
                   <Textarea
                     id="environment-staff-safety-instructions"
                     className={cn('mt-1 min-h-[120px]', IA_FORM_TEXTAREA_COMPACT_CLASS)}
                     disabled={disabled}
+                    placeholder="e.g. Two carers required; avoid evening visits; contact office before entering property."
                     value={value.staffSafetyInstructions ?? ''}
                     onChange={(e) => patch({ staffSafetyInstructions: e.target.value })}
                   />

@@ -96,7 +96,9 @@ export function ServiceUserProfileSectionContent({
 
       {tab === 'privacy' && <PlaceholderTab title="Privacy" />}
 
-      {tab === 'dom' && <ServiceUserDomCareTab serviceUserId={serviceUserId} />}
+      {tab === 'dom' && (
+        <ServiceUserDomCareTab serviceUserId={serviceUserId} detail={detail} onSaved={onSaved} />
+      )}
 
       {tab === 'assessment' && (
         <ServiceUserInitialAssessmentEnterpriseTab

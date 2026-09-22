@@ -46,13 +46,4 @@ export const SECTION_1_HOLISTIC_EXTRA_CANONICAL = [
   'Instructions for gaining access to client’s home',
   'Any identified risks to visiting staff members?',
   'Lifestyle, role and choices',
-  // Lone worker / staff safety factors (spec ref 1.21) — feed the aggregated LONE_WORKER risk
-  'Has the service user or anyone in the household shown aggression towards carers?',
-  'Any history of verbal abuse or threats towards staff?',
-  'Any history of physical violence?',
-  'Does the service user show unpredictable or challenging behaviour?',
-  'Does the service user have dementia / cognitive impairment affecting behaviour?',
-  'Any mental health condition that may pose a risk to staff?',
-  'Any substance / alcohol misuse in the household?',
-  'Has the service user previously refused care or prevented carers from leaving?',
 ] as const

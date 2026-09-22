@@ -14,6 +14,9 @@ import {
 } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useServiceUserDomCare } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useAuthStore } from '@/features/auth/store'
+import type { ServiceUserDetail } from '@/features/service-users/types'
+import { ServiceUserHomeAndAccessSection } from '@/features/service-users/components/ServiceUserHomeAndAccessSection'
+import { ServiceUserHouseholdSummary } from '@/features/service-users/components/ServiceUserHouseholdSummary'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
@@ -178,7 +181,15 @@ function CarerMultiField({
   )
 }
 
-export function ServiceUserDomCareTab({ serviceUserId }: { serviceUserId: string }) {
+export function ServiceUserDomCareTab({
+  serviceUserId,
+  detail,
+  onSaved,
+}: {
+  serviceUserId: string
+  detail: ServiceUserDetail
+  onSaved: () => void
+}) {
   const can = useAuthStore((s) => s.can)
   const canRead = can('service_users.dom_care.read') || can('service_users.read')
   const canUpdate = can('service_users.dom_care.update') || can('service_users.update')
@@ -289,6 +300,14 @@ export function ServiceUserDomCareTab({ serviceUserId }: { serviceUserId: string
           {error}
         </div>
       )}
+
+      <ServiceUserHomeAndAccessSection
+        serviceUserId={serviceUserId}
+        detail={detail}
+        onSaved={onSaved}
+      />
+
+      <ServiceUserHouseholdSummary serviceUserId={serviceUserId} />
 
       <section className={sectionClass()}>
         <SectionTitle>Access</SectionTitle>

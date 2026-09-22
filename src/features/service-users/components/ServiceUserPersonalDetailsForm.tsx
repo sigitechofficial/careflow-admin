@@ -21,7 +21,6 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { AddressPlacesField } from '@/shared/ui/address-places-field'
 import {
   Select,
   SelectContent,
@@ -30,7 +29,6 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
-import { ServiceUserZoneBranchSelect } from '@/features/service-users/components/ServiceUserZoneBranchSelect'
 import { cn } from '@/shared/lib/utils'
 import {
   profileLookupSelectRows,
@@ -40,7 +38,6 @@ import {
   buildSuProfileReferences,
   SU_PROFILE_REF,
 } from '@/features/service-users/utils/service-user-profile-refs'
-import { HomeAccessFields } from '@/features/service-users/components/HomeAccessFields'
 
 /** @deprecated use SU_PROFILE_REF — kept for local aliases in this file */
 const PROFILE_REF = SU_PROFILE_REF
@@ -405,7 +402,6 @@ export function ServiceUserPersonalDetailsForm({
   onSaved: (d: ServiceUserDetail) => void
 }) {
   const canUpdate = useAuthStore((s) => s.can('service_users.update'))
-  const canAddress = useAuthStore((s) => s.can('service_users.address.update'))
   const canDomCare =
     useAuthStore((s) => s.can('service_users.dom_care.update')) || canUpdate
   const updateMutation = useUpdateServiceUser(serviceUserId)
@@ -564,32 +560,16 @@ export function ServiceUserPersonalDetailsForm({
         careTypeId: form.careTypeId || undefined,
         fundingTypeId: form.fundingTypeId || undefined,
         riskLevelId: form.riskLevelId || undefined,
-        locationId: form.locationId || undefined,
-        serviceUserAreaId: form.serviceUserAreaId || null,
         keyWorkerId: form.keyWorkerId || undefined,
         namedNurseId: form.namedNurseId || undefined,
         references: withoutAs,
       }
 
+      // Address, service location and home-access are edited on the DOM Care tab
+      // (ServiceUserHomeAndAccessSection). Do not send them here to avoid
+      // overwriting fresher values with this form's loaded state.
       await updateMutation.mutateAsync({
         body: payload,
-        address: canAddress
-          ? {
-              addressLine1: form.addressLine1.trim() || undefined,
-              addressLine2: form.addressLine2.trim() || undefined,
-              town: form.town.trim() || undefined,
-              county: form.county.trim() || undefined,
-              country: form.country.trim() || undefined,
-              postcode: form.postcode.trim() || undefined,
-              secondaryPostcode: form.secondaryPostcode.trim() || undefined,
-              accessInstructions: form.accessInstructions.trim() || undefined,
-              keySafeNumber: form.keySafeNumber.trim() || null,
-              accessMethod: form.accessMethod.trim() || null,
-              keySafeLocation: form.keySafeLocation.trim() || null,
-              latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
-              longitude: form.longitude.trim() ? Number(form.longitude) : undefined,
-            }
-          : undefined,
       })
 
       if (canDomCare) {
@@ -803,78 +783,9 @@ export function ServiceUserPersonalDetailsForm({
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
-          Service location
-        </h2>
-        <div className="space-y-1.5">
-          <LabelWithTooltip label="Zone, branch & area" required tooltip={FIELD_HELP.location} />
-          <ServiceUserZoneBranchSelect
-            value={form.locationId}
-            areaId={form.serviceUserAreaId}
-            mainPostcode={form.postcode}
-            onChange={({ locationId, serviceUserAreaId }) =>
-              setForm(prev => ({ ...prev, locationId, serviceUserAreaId }))
-            }
-            onApplyMainPostcode={postcode => setForm(prev => ({ ...prev, postcode }))}
-            required
-          />
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
-          Address (optional — includes map coordinates)
-        </h2>
-        <AddressPlacesField
-          postcodeLabel="Secondary postcode"
-          value={{
-            addressLine1: form.addressLine1,
-            addressLine2: form.addressLine2,
-            town: form.town,
-            county: form.county,
-            country: form.country,
-            postcode: form.secondaryPostcode,
-            latitude: form.latitude,
-            longitude: form.longitude,
-          }}
-          onChange={(patch) =>
-            setForm((prev) => {
-              const { postcode, ...rest } = patch
-              return {
-                ...prev,
-                ...rest,
-                ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
-              }
-            })
-          }
-          disabled={!canAddress}
-        />
-        {!canAddress && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Address fields require the service_users.address.update permission to save.
-          </p>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <h2 className="mb-1 text-sm font-semibold text-sky-600 dark:text-sky-400">
-          How to enter the home
-        </h2>
-        <p className="mb-4 text-xs text-muted-foreground">
-          Separate from the service address. Choose how carers get in, then add only the details they need.
-        </p>
-        <HomeAccessFields
-          value={{
-            accessMethod: form.accessMethod,
-            keySafeLocation: form.keySafeLocation,
-            keySafeNumber: form.keySafeNumber,
-            accessInstructions: form.accessInstructions,
-          }}
-          onChange={patch => setForm(prev => ({ ...prev, ...patch }))}
-          disabled={!canAddress}
-        />
-      </section>
+      {/* Service location, Address, and "How to enter the home" moved to the
+          Domiciliary / Home Care tab (ServiceUserHomeAndAccessSection) so all
+          home-care info lives in one place. */}
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">Reference Information</h2>
