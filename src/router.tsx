@@ -41,6 +41,7 @@ import EditServiceUserPage from '@/features/service-users/pages/EditServiceUserP
 import ViewServiceUserPage from '@/features/service-users/pages/ViewServiceUserPage'
 import ServiceUserProfilePage from '@/features/service-users/pages/ServiceUserProfilePage'
 import ServiceUserMedicationPage from '@/features/service-users/pages/ServiceUserMedicationPage'
+import ServiceUserInitialAssessmentPage from '@/features/service-users/pages/ServiceUserInitialAssessmentPage'
 import ServiceUserCarePlanPage from '@/features/service-users/pages/ServiceUserCarePlanPage'
 import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceUserCarePlanFormPage'
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
@@ -109,6 +110,9 @@ import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/Ser
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
 import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
+import SurveysPage from '@/features/surveys/pages/SurveysPage'
+import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
+import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
 import IncidentsDashboardPage from '@/features/incidents/pages/IncidentsDashboardPage'
@@ -880,6 +884,16 @@ const serviceUsersMedicationRoute = createRoute({
   component: ServiceUserMedicationPage,
 })
 
+const serviceUsersInitialAssessmentPerUserRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/initial-assessment',
+  beforeLoad: requireAnyPermission(
+    'service_users.initial_assessment.read',
+    'service_users.read',
+  ),
+  component: ServiceUserInitialAssessmentPage,
+})
+
 const serviceUsersCarePlanRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/$serviceUserId/care-plan',
@@ -1419,6 +1433,27 @@ const incidentsDashboardRoute = createRoute({
   path: '/incidents/dashboard',
   beforeLoad: requirePermission('incidents.read'),
   component: IncidentsDashboardPage,
+})
+
+const surveysRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveysPage,
+})
+
+const surveyBuilderRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyBuilderPage,
+})
+
+const hoursApprovalsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/hours-approvals',
+  beforeLoad: requirePermission('hours_approvals.read'),
+  component: HoursApprovalsPage,
 })
 
 const incidentsListRoute = createRoute({
@@ -2059,6 +2094,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersProfileRoute,
     serviceUsersInvoicesRoute,
     serviceUsersMedicationRoute,
+    serviceUsersInitialAssessmentPerUserRoute,
     serviceUsersCarePlanRoute,
     serviceUsersCarePlanFormRoute,
     serviceUsersTasksPlannerRoute,
@@ -2105,6 +2141,9 @@ const routeTree = rootRoute.addChildren([
     hrCandidateDetailRoute,
     accidentsIncidentsViewRoute,
     accidentsIncidentsRaiseRoute,
+    surveysRoute,
+    surveyBuilderRoute,
+    hoursApprovalsRoute,
     incidentsDashboardRoute,
     incidentsListRoute,
     incidentsRaiseRoute,

@@ -205,7 +205,7 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: Array<Omit<HolisticAssessmentTab, 'displayNu
   },
   {
     id: 7,
-    title: 'Malnutrition Universal Screening Tool (MUST)',
+    title: 'Alternative to MUST',
     kind: 'must-tool',
     enterpriseSection: 6,
   },

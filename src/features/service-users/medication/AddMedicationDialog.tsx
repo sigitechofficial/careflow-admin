@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Info, Loader2, MapPin, Plus, Trash2 } from 'lucide-react'
+import { Loader2, MapPin, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import type { CreateServiceUserMedicationPayload } from '@/features/service-users/types'
 import {
@@ -33,6 +33,7 @@ import { MedicationFieldLabelWithTooltip } from '@/features/service-users/medica
 import {
   CONTROLLED_MEDICATION_TOOLTIP,
   DECONGESTANT_MEDICATION_TOOLTIP,
+  DOSE_TOOLTIP,
 } from '@/features/service-users/medication/medication-field-help'
 import { TimeSensitiveMedicationFields } from '@/features/service-users/medication/TimeSensitiveMedicationFields'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
@@ -318,6 +319,9 @@ export function AddMedicationDialog({
     const defaultDose = dose.trim()
     const days = schedulePattern === 'WEEKLY' ? scheduleDaysOfWeek : undefined
     return timeSlots
+      // A slot counts only when it has its own dose or a care plan action.
+      // Slots left blank on both are treated as unused and excluded.
+      .filter(s => s.dose.trim() !== '' || s.carePlanAction.trim() !== '')
       .map(s => {
         const dueTime = normalizeTimeInput(s.dueTime)
         const slotDose = s.dose.trim() || defaultDose
@@ -341,7 +345,6 @@ export function AddMedicationDialog({
   function validateMarFields(): string | null {
     if (!startDate.trim()) return 'Start date on system is required.'
     if (!optionalId(routeId)) return 'Route administration is required.'
-    if (!dose.trim()) return 'Dose is required.'
     if (!optionalId(medicationTypeId)) return 'Medication type is required.'
     if (!isPrnMedication && buildSchedules().length === 0) {
       return 'Add at least one administration time under "at times".'
@@ -836,10 +839,7 @@ export function AddMedicationDialog({
             </div>
 
             <div className="space-y-1">
-              <label className="flex items-center gap-1 text-sm font-medium">
-                Dose <span className="text-destructive">*</span>
-                <Info className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-              </label>
+              <MedicationFieldLabelWithTooltip label="Dose" tooltip={DOSE_TOOLTIP} />
               <Input value={dose} onChange={e => setDose(e.target.value)} disabled={disabled} />
             </div>
             <div className="space-y-1">
@@ -1098,8 +1098,9 @@ export function AddMedicationDialog({
                 <p className="min-w-0 flex-1 text-sm text-muted-foreground">
                   at times: <span className="text-destructive">*</span>{' '}
                   <span className="text-xs">
-                    Slots come from Settings → Time slots. Remove any the service user does
-                    not take. Set a dose per slot when it differs from the medication dose above.
+                    Slots come from Settings → Time slots. A slot with no dose and no care
+                    plan action is not counted, so you can leave unused slots blank instead of
+                    removing them. Set a dose per slot when it differs from the medication dose above.
                   </span>
                 </p>
                 <Button

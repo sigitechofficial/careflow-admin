@@ -29,6 +29,7 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/documents'
     | '/service-users/$serviceUserId/activity'
     | '/service-users/$serviceUserId/alerts'
+    | '/service-users/$serviceUserId/initial-assessment'
   /** When set, tab is hidden unless the user has this permission. */
   permission?: Permission
 }
@@ -50,6 +51,7 @@ const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = 
   'body-map': '#F1F2F3',
   alerts: '#FEEEEE',
   activity: '#E8F5F2',
+  'initial-assessment': '#EEF2FF',
 }
 
 export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
@@ -62,6 +64,12 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
     id: 'overview',
     label: 'Overview',
     to: '/service-users/$serviceUserId/view',
+  },
+  {
+    id: 'initial-assessment',
+    label: 'Initial Assessment',
+    to: '/service-users/$serviceUserId/initial-assessment',
+    permission: 'service_users.initial_assessment.read',
   },
   {
     id: 'invoices',
@@ -125,6 +133,7 @@ export function isServiceUserModuleTabActive(tab: ModuleTab, pathname: string): 
   if (!tab.to) return false
   if (tab.id === 'profile') return /\/service-users\/[^/]+\/profile\/?$/.test(pathname)
   if (tab.id === 'overview') return /\/service-users\/[^/]+\/view\/?$/.test(pathname)
+  if (tab.id === 'initial-assessment') return pathname.includes('/initial-assessment')
   if (tab.id === 'invoices') return /\/service-users\/[^/]+\/invoices\/?$/.test(pathname)
   if (tab.id === 'ecm') return /\/service-users\/[^/]+\/ecm\/?$/.test(pathname)
   if (tab.id === 'meds') return pathname.includes('/medication')

@@ -136,7 +136,7 @@ export function InitialAssessmentMustPanel({ value, disabled, onChange }: Props)
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-must-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
-        <HolisticSectionHeader title="Malnutrition universal screening tool (MUST)" />
+        <HolisticSectionHeader title="Alternative to MUST" />
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <section className="space-y-3">

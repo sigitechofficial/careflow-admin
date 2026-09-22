@@ -1,3 +1,6 @@
+export const DOSE_TOOLTIP =
+  'The amount to give at each administration — for example “1 tablet”, “5 ml”, or “2 puffs”. Enter the quantity taken per dose, not the medicine strength (strength is recorded separately).'
+
 export const CONTROLLED_MEDICATION_TOOLTIP =
   'Tick if this is a controlled drug (CD). Controlled medications require additional safeguards such as witness signing on administration and cannot be added to blister packs.'
 

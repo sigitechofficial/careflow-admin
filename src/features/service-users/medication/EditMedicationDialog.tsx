@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Info, Loader2 } from 'lucide-react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { ApiError } from '@/shared/api/api-client'
 import type {
   MedicationRecordStatusValue,
@@ -28,6 +28,7 @@ import { MedicationFieldLabelWithTooltip } from '@/features/service-users/medica
 import {
   CONTROLLED_MEDICATION_TOOLTIP,
   DECONGESTANT_MEDICATION_TOOLTIP,
+  DOSE_TOOLTIP,
 } from '@/features/service-users/medication/medication-field-help'
 import { TimeSensitiveMedicationFields } from '@/features/service-users/medication/TimeSensitiveMedicationFields'
 import { NoYesToggle } from '@/shared/ui/no-yes-toggle'
@@ -124,6 +125,7 @@ export function EditMedicationDialog({
   const [timeCritical, setTimeCritical] = React.useState(false)
   const [timeToleranceMinutes, setTimeToleranceMinutes] = React.useState(30)
   const [isPrnMedication, setIsPrnMedication] = React.useState(false)
+  const [times, setTimes] = React.useState<string[]>([])
   const [formError, setFormError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -145,6 +147,14 @@ export function EditMedicationDialog({
     setTimeCritical(Boolean(medication.timeCritical))
     setTimeToleranceMinutes(medication.timeToleranceMinutes ?? 30)
     setIsPrnMedication(medication.medicationKind === 'PRN')
+    const initialTimes = [
+      ...new Set(
+        (medication.schedules ?? [])
+          .map(s => (s.dueTime ?? '').slice(0, 5))
+          .filter(Boolean),
+      ),
+    ].sort()
+    setTimes(initialTimes)
     setFormError(null)
   }, [open, medication])
 
@@ -154,6 +164,11 @@ export function EditMedicationDialog({
   const saving =
     updateMutation.isPending || statusMutation.isPending || deleteMutation.isPending
   const disabled = !canEdit || saving || lookupsLoading
+
+  const cleanTimes = React.useMemo(
+    () => [...new Set(times.map(t => t.trim()).filter(Boolean))].sort(),
+    [times],
+  )
 
   const buildBody = (): UpdateServiceUserMedicationPayload => ({
     medicationName: medicationName.trim(),
@@ -173,12 +188,19 @@ export function EditMedicationDialog({
     timeCritical,
     timeToleranceMinutes,
     medicationKind: isPrnMedication ? 'PRN' : 'REGULAR',
+    // Timed medicines send their administration times (backend replaces existing).
+    // PRN sends none — the backend clears any times on conversion.
+    ...(isPrnMedication ? {} : { schedules: cleanTimes.map(dueTime => ({ dueTime })) }),
   })
 
   async function saveDetails() {
     if (!medication) return
     if (!medicationName.trim()) {
       setFormError('Medication name is required.')
+      return
+    }
+    if (!isPrnMedication && cleanTimes.length === 0) {
+      setFormError('Add at least one administration time, or mark this medication as PRN.')
       return
     }
     setFormError(null)
@@ -248,8 +270,8 @@ export function EditMedicationDialog({
         <DialogHeader>
           <DialogTitle className="text-teal-800 dark:text-teal-200">Edit medication</DialogTitle>
           <DialogDescription>
-            Update medication details. Administration times are shown below; changing schedule
-            pattern or times is not yet available in this dialog.
+            Update medication details, including the daily administration times and PRN status.
+            Changing the schedule pattern is not yet available in this dialog.
           </DialogDescription>
         </DialogHeader>
 
@@ -341,10 +363,7 @@ export function EditMedicationDialog({
             </div>
 
             <div className="space-y-1">
-              <label className="flex items-center gap-1 text-sm font-medium">
-                Dose <span className="text-destructive">*</span>
-                <Info className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-              </label>
+              <MedicationFieldLabelWithTooltip label="Dose" tooltip={DOSE_TOOLTIP} />
               <Input value={dose} onChange={e => setDose(e.target.value)} disabled={disabled} />
             </div>
             <div className="space-y-1">
@@ -510,8 +529,8 @@ export function EditMedicationDialog({
                 frequencyText={medication.frequencyText}
               />
               <p className="text-xs text-muted-foreground">
-                Schedule pattern and MAR frequency code are set when the medication is added. Edit
-                other fields here; changing times or pattern is not available in this dialog yet.
+                Schedule pattern and MAR frequency code are set when the medication is added. You can
+                edit the daily administration times below; changing the pattern is not available here.
               </p>
             </div>
           )}
@@ -523,40 +542,78 @@ export function EditMedicationDialog({
                 type="checkbox"
                 checked={isPrnMedication}
                 onChange={e => setIsPrnMedication(e.target.checked)}
-                disabled={disabled || wasPrn || inBlisterPack}
+                disabled={disabled || inBlisterPack}
               />
               PRN medication (as required — no fixed daily times)
             </label>
-            {wasPrn ? (
-              <p className="text-xs text-muted-foreground">
-                This line is already PRN. Changing it back to a timed dose is not available here.
-              </p>
-            ) : inBlisterPack ? (
+            {inBlisterPack ? (
               <p className="text-xs text-muted-foreground">
                 Blister pack medicines cannot be PRN. Remove it from the pack first.
               </p>
-            ) : isPrnMedication ? (
+            ) : isPrnMedication && !wasPrn ? (
               <p className="text-xs text-muted-foreground">
-                Save will remove fixed times. It will show on the carer app under PRN · as required.
+                Save will remove the fixed times below. It will show on the carer app under PRN · as
+                required.
+              </p>
+            ) : !isPrnMedication && wasPrn ? (
+              <p className="text-xs text-muted-foreground">
+                Add the daily administration times below to convert this PRN line back to a timed dose.
               </p>
             ) : null}
             {isPrn ? (
               <p className="text-sm text-muted-foreground">PRN — as required (no fixed daily times).</p>
-            ) : (medication.schedules?.length ?? 0) > 0 ? (
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                {medication.schedules!.map(s => (
-                  <li key={s.id} className="rounded-md border border-border/80 bg-card px-3 py-2">
-                    {scheduleSlotLabel(s)}
-                  </li>
-                ))}
-              </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No administration times on file.</p>
+              <div className="space-y-2">
+                {times.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No administration times yet — add one below.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {times.map((t, idx) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={t}
+                          onChange={e =>
+                            setTimes(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))
+                          }
+                          disabled={disabled}
+                          className="w-36"
+                          aria-label={`Administration time ${idx + 1}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 shrink-0 p-0 text-destructive hover:text-destructive"
+                          aria-label="Remove time"
+                          disabled={disabled}
+                          onClick={() => setTimes(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  disabled={disabled}
+                  onClick={() => setTimes(prev => [...prev, ''])}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add time
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Set each daily administration time (24-hour). Saving replaces this medicine’s
+                  current times.
+                </p>
+              </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              To change administration times or pattern, add a new medication row or use schedule
-              maintenance when available.
-            </p>
           </div>
 
           {canEdit && (

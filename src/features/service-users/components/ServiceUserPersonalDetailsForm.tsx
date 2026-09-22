@@ -195,6 +195,12 @@ type FormState = {
   nhsReferences: string
   residentId: string
   residentGuid: string
+  referralAuthority: string
+  referralDate: string
+  referralSource: string
+  referralNotes: string
+  referralRecordedBy: string
+  referralRecordedAt: string
 }
 
 function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle): FormState {
@@ -270,6 +276,12 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     nhsReferences: extValue(r, PROFILE_REF.nhsReferences),
     residentId: d.residentId ?? '',
     residentGuid: d.residentGuid ?? '',
+    referralAuthority: extValue(r, PROFILE_REF.referralAuthority),
+    referralDate: extValue(r, PROFILE_REF.referralDate),
+    referralSource: extValue(r, PROFILE_REF.referralSource),
+    referralNotes: extValue(r, PROFILE_REF.referralNotes),
+    referralRecordedBy: extValue(r, PROFILE_REF.referralRecordedBy),
+    referralRecordedAt: extValue(r, PROFILE_REF.referralRecordedAt),
   }
 }
 
@@ -402,6 +414,7 @@ export function ServiceUserPersonalDetailsForm({
   onSaved: (d: ServiceUserDetail) => void
 }) {
   const canUpdate = useAuthStore((s) => s.can('service_users.update'))
+  const currentUserName = useAuthStore((s) => s.user?.displayName ?? '')
   const canDomCare =
     useAuthStore((s) => s.can('service_users.dom_care.update')) || canUpdate
   const updateMutation = useUpdateServiceUser(serviceUserId)
@@ -504,6 +517,19 @@ export function ServiceUserPersonalDetailsForm({
       return
     }
     try {
+      // Referral: stamp who recorded it and when, the first time any referral
+      // detail is entered (kept stable on later edits).
+      const hasReferralInfo = Boolean(
+        form.referralAuthority.trim() ||
+          form.referralSource.trim() ||
+          form.referralDate.trim() ||
+          form.referralNotes.trim(),
+      )
+      const referralRecordedBy =
+        form.referralRecordedBy || (hasReferralInfo ? currentUserName : '')
+      const referralRecordedAt =
+        form.referralRecordedAt || (hasReferralInfo ? new Date().toISOString() : '')
+
       const withoutAs = buildSuProfileReferences(
         {
           [PROFILE_REF.suffix]: form.suffix,
@@ -533,6 +559,12 @@ export function ServiceUserPersonalDetailsForm({
           [PROFILE_REF.lasNumber]: form.lasNumber,
           [PROFILE_REF.nhsReferences]: form.nhsReferences,
           [PROFILE_REF.asNumber]: form.asNumber,
+          [PROFILE_REF.referralAuthority]: form.referralAuthority,
+          [PROFILE_REF.referralDate]: form.referralDate,
+          [PROFILE_REF.referralSource]: form.referralSource,
+          [PROFILE_REF.referralNotes]: form.referralNotes,
+          [PROFILE_REF.referralRecordedBy]: referralRecordedBy,
+          [PROFILE_REF.referralRecordedAt]: referralRecordedAt,
         },
         detail.references,
       )
@@ -998,6 +1030,67 @@ export function ServiceUserPersonalDetailsForm({
             value={form.residentGuid}
             onChange={set('residentGuid')}
           />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <h2 className="mb-1 text-sm font-semibold text-sky-600 dark:text-sky-400">Referral</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Which authority referred this person, when the referral was received, and who recorded it.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FieldEditable
+            label="Referring authority"
+            tooltip="The council, NHS body, GP or organisation that referred this person."
+            value={form.referralAuthority}
+            onChange={set('referralAuthority')}
+          />
+          <FieldEditable
+            label="Referral date"
+            tooltip="Date the referral was received."
+            value={form.referralDate}
+            onChange={set('referralDate')}
+            type="date"
+          />
+          <FieldEditable
+            label="Referred by (name / contact)"
+            tooltip="Name or contact of the person who made the referral."
+            value={form.referralSource}
+            onChange={set('referralSource')}
+          />
+          <div className="sm:col-span-2 space-y-1">
+            <LabelWithTooltip
+              label="Referral notes"
+              tooltip="Any additional context about the referral."
+            />
+            <textarea
+              rows={3}
+              className={cn(
+                'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm',
+                'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              )}
+              value={form.referralNotes}
+              onChange={(e) => set('referralNotes')(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <LabelWithTooltip
+              label="Recorded by"
+              tooltip="Captured automatically when the referral details are first saved."
+            />
+            <p className="text-sm text-foreground">{form.referralRecordedBy || '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <LabelWithTooltip
+              label="Recorded at"
+              tooltip="Date & time the referral details were first saved."
+            />
+            <p className="text-sm text-foreground">
+              {form.referralRecordedAt
+                ? new Date(form.referralRecordedAt).toLocaleString()
+                : '—'}
+            </p>
+          </div>
         </div>
       </section>
 

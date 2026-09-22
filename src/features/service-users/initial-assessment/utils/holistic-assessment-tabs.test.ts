@@ -143,7 +143,7 @@ describe('holistic tab display numbering and navigation order', () => {
     [4, 'Total Skin Integrity Check'],
     [5, 'Waterlow Pressure Score'],
     [6, 'Equipment Selection'],
-    [7, 'Malnutrition Universal Screening Tool (MUST)'],
+    [7, 'Alternative to MUST'],
     [8, 'Falls Screening'],
     [9, 'Moving and Handling Operations'],
     [10, 'Pain Assessment Tool'],

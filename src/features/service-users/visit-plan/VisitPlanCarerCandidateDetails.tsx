@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Info, ShieldAlert, Star, UserX } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import {
   contentBadgeClass,
@@ -230,10 +230,32 @@ export function VisitPlanCarerCandidateDetails({
                 Cannot allocate
               </span>
             ) : null}
+            {c.exceedsContractedHours ? (
+              <span
+                className={cn('inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200', contentTagClass)}
+                title={`Projected ~${c.projectedWeeklyHours ?? 0}h/wk vs contracted ${c.contractedWeeklyHours ?? 0}h/wk (already assigned ${c.assignedWeeklyHours ?? 0}h)`}
+              >
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                Over contracted hours
+              </span>
+            ) : null}
           </div>
           <p className={contentHelperClass}>
             {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
           </p>
+          {c.contractedWeeklyHours != null ? (
+            <p
+              className={cn(
+                contentHelperClass,
+                c.exceedsContractedHours && 'font-medium text-amber-700 dark:text-amber-300',
+              )}
+            >
+              Weekly hours: ~{c.projectedWeeklyHours ?? c.assignedWeeklyHours ?? 0}h projected ·
+              contracted {c.contractedWeeklyHours}h
+            </p>
+          ) : (
+            <p className={contentHelperClass}>Contracted weekly hours not set</p>
+          )}
         </div>
       ) : null}
 

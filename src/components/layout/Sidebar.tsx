@@ -50,6 +50,7 @@ import {
   GraduationCap,
   CalendarOff,
   Landmark,
+  MessagesSquare,
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
 } from 'lucide-react'
@@ -335,6 +336,13 @@ const navItems: NavItem[] = [
       },
       { label: 'Temporary Inspector Login', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/temp-inspector', permission: 'employees.read' },
       { label: 'General Employee Documents', icon: <FileText className="h-4 w-4" />, href: '/employee/documents', permission: 'employees.documents.read', navTestId: 'nav-employee-documents' },
+      {
+        label: 'Hours approvals',
+        icon: <Clock className="h-4 w-4" />,
+        href: '/hours-approvals',
+        anyPermission: ['hours_approvals.read', 'hours_approvals.manage'],
+        navTestId: 'nav-hours-approvals',
+      },
       { label: 'Send Message', icon: <PlusCircle className="h-4 w-4" />, href: '/in-progress', ready: false },
       { label: 'Add Employee', icon: <UserRoundPlus className="h-4 w-4" />, href: '/employee/add', permission: 'employees.create', navTestId: 'nav-employee-add' },
     ],
@@ -648,6 +656,20 @@ const navItems: NavItem[] = [
       { label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
       { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read' },
       { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/incidents/analytics', permission: 'incidents.view_analytics' },
+    ],
+  },
+  {
+    label: 'Surveys',
+    icon: <MessagesSquare className="h-5 w-5" />,
+    href: '/surveys',
+    children: [
+      {
+        label: 'All surveys',
+        icon: <List className="h-4 w-4" />,
+        href: '/surveys',
+        permission: 'surveys.read',
+        navTestId: 'nav-surveys-all',
+      },
     ],
   },
   {

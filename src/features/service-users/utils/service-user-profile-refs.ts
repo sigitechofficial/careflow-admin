@@ -27,6 +27,12 @@ export const SU_PROFILE_REF = {
   lasNumber: 'SU_PROFILE_LAS_NUMBER',
   nhsReferences: 'SU_PROFILE_NHS_REFERENCES',
   asNumber: 'AS_NUMBER',
+  referralAuthority: 'SU_PROFILE_REFERRAL_AUTHORITY',
+  referralDate: 'SU_PROFILE_REFERRAL_DATE',
+  referralSource: 'SU_PROFILE_REFERRAL_SOURCE',
+  referralNotes: 'SU_PROFILE_REFERRAL_NOTES',
+  referralRecordedBy: 'SU_PROFILE_REFERRAL_RECORDED_BY',
+  referralRecordedAt: 'SU_PROFILE_REFERRAL_RECORDED_AT',
 } as const
 
 export type SuProfileRefType = (typeof SU_PROFILE_REF)[keyof typeof SU_PROFILE_REF]

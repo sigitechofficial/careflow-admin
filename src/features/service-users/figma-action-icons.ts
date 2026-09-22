@@ -114,6 +114,7 @@ export type ServiceUserModuleTabIconId =
   | 'body-map'
   | 'alerts'
   | 'activity'
+  | 'initial-assessment'
 
 export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, string> = {
   profile: `${moduleTabsBase}/profile.svg`,
@@ -131,6 +132,7 @@ export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, s
   'body-map': `${moduleTabsBase}/body-map.svg`,
   alerts: `${moduleTabsBase}/alerts.svg`,
   activity: `${moduleTabsBase}/history.svg`,
+  'initial-assessment': `${moduleTabsBase}/tasks-planner.svg`,
 }
 
 export function figmaModuleTabIcon(id: ServiceUserModuleTabIconId): string {
