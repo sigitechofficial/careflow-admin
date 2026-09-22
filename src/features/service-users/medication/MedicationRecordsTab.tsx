@@ -10,6 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/shared/ui/tooltip'
 import type { ServiceUserMedicationRow, MedicationScheduleSummary } from '@/features/service-users/types'
 import { medicationRequiresBodyMapFromRow } from '@/features/service-users/medication/medication-body-map-eligibility'
 import { MedicationBodyMapSiteBadge } from '@/features/service-users/medication/MedicationBodyMapSiteBadge'
@@ -28,6 +34,59 @@ type MedicationSlotTableRow = {
 
 function formatShortDate(iso: string | null | undefined): string {
   return formatOrganisationDate(iso)
+}
+
+/** Dose / strength value that reveals full dose, route and instructions on hover. */
+function DoseInfoCell({ medication }: { medication: ServiceUserMedicationRow }) {
+  const summary = [medication.dose, medication.strength].filter(Boolean).join(' · ') || '—'
+  const routeName = medication.route?.name ?? null
+  const instructions = medication.instructions?.trim() || null
+  const hasDetails = Boolean(
+    medication.dose || medication.strength || routeName || instructions,
+  )
+
+  if (!hasDetails) return <span>{summary}</span>
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className="cursor-help rounded underline decoration-dotted decoration-muted-foreground/50 underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {summary}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <div className="space-y-1 text-xs">
+          {medication.dose ? (
+            <div>
+              <span className="text-muted-foreground">Dose: </span>
+              <span className="font-medium text-foreground">{medication.dose}</span>
+            </div>
+          ) : null}
+          {medication.strength ? (
+            <div>
+              <span className="text-muted-foreground">Strength: </span>
+              <span className="font-medium text-foreground">{medication.strength}</span>
+            </div>
+          ) : null}
+          {routeName ? (
+            <div>
+              <span className="text-muted-foreground">Route: </span>
+              <span className="font-medium text-foreground">{routeName}</span>
+            </div>
+          ) : null}
+          {instructions ? (
+            <div>
+              <span className="text-muted-foreground">Instructions: </span>
+              <span className="whitespace-pre-wrap text-foreground">{instructions}</span>
+            </div>
+          ) : null}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 function freqLabel(m: ServiceUserMedicationRow): string {
@@ -176,6 +235,7 @@ function MedicationRecordsTable({
     12 + (showEndSource ? 1 : 0) + (canEditMedication ? 1 : 0)
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1100px] text-sm">
         <thead>
@@ -233,7 +293,7 @@ function MedicationRecordsTable({
                   )}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {[m.dose, m.strength].filter(Boolean).join(' · ') || '—'}
+                  <DoseInfoCell medication={m} />
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{m.route?.name ?? '—'}</td>
                 <ChartTextCell value={m.howAssisted} />
@@ -341,6 +401,7 @@ function MedicationRecordsTable({
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   )
 }
 
