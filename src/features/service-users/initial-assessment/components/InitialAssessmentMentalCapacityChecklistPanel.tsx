@@ -148,7 +148,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
           subtitle="This form is used to assess whether or not the client has the mental capacity to make key decisions affecting his / her daily living needs and chosen lifestyle."
         />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white dark:bg-card dark:border-slate-700">
           <AssessmentTypeRow
             value={value.assessmentType ?? null}
             disabled={disabled}

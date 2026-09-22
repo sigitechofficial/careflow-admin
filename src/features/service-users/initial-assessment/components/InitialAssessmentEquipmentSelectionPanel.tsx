@@ -64,7 +64,7 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, disabled, onCh
           subtitle="Pressure relieving / redistribution devices"
         />
 
-        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="equipment-selection-waterlow" className={IA_QUESTION_LABEL_CLASS}>

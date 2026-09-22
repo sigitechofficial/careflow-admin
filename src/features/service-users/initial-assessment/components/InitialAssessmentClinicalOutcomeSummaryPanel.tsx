@@ -132,7 +132,7 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
         <HolisticSectionHeader title="Social and Clinical assessment outcome summary" />
 
-        <div className="overflow-x-auto border-t border-slate-200 bg-white p-4 dark:border-slate-700">
+        <div className="overflow-x-auto border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <table className={cn(HOLISTIC_TABLE_CLASS, 'min-w-[72rem]')}>
             <thead>
               <tr>

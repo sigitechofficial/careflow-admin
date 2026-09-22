@@ -10,7 +10,7 @@ export const HOLISTIC_SUBHEADER_CLASS = 'mt-0.5 text-xs text-muted-foreground'
 export const HOLISTIC_SECTION_SHELL_CLASS =
   'overflow-hidden rounded-sm border border-slate-300 bg-white dark:border-slate-600 dark:bg-card'
 
-export const HOLISTIC_SECTION_BODY_CLASS = 'space-y-4 border-t border-slate-200 bg-white p-4 dark:border-slate-700'
+export const HOLISTIC_SECTION_BODY_CLASS = 'space-y-4 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700'
 
 export const HOLISTIC_TABLE_CLASS = 'w-full border-collapse text-sm'
 

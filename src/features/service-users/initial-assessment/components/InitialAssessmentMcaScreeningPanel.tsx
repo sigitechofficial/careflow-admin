@@ -50,7 +50,7 @@ export function InitialAssessmentMcaScreeningPanel({ allSections, renderField, d
         subtitle="The two stage test of mental capacity"
       />
 
-      <div className="space-y-4 border border-slate-300 bg-white p-4 dark:border-slate-600">
+      <div className="space-y-4 border border-slate-300 bg-white p-4 dark:bg-card dark:border-slate-600">
         {stage1 ? (
           <div className="space-y-1">
             <p className="text-sm font-medium">
