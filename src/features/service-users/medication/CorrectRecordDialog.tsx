@@ -97,7 +97,7 @@ export function CorrectRecordDialog({
         </div>
         <div className="mar-record-modal-body">
           {lookupsQuery.isLoading ? (
-            <div className="flex items-center gap-2 py-4 text-sm text-[#64748b]">
+            <div className="flex items-center gap-2 py-4 text-sm text-[#64748b] dark:text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading…
             </div>
@@ -106,7 +106,7 @@ export function CorrectRecordDialog({
               <MarStatusCodePicker codes={statusCodes} value={statusCode} onChange={setStatusCode} />
               {reasonRequired && (
                 <div style={{ marginTop: 16 }}>
-                  <label className="block text-xs font-medium text-[#374151] mb-1">
+                  <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">
                     Reason (required for status)
                   </label>
                   <textarea
@@ -118,7 +118,7 @@ export function CorrectRecordDialog({
                 </div>
               )}
               <div style={{ marginTop: 16 }}>
-                <label className="block text-xs font-medium text-[#374151] mb-1">Correction reason</label>
+                <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">Correction reason</label>
                 <textarea
                   className="mar-record-textarea"
                   value={correctionReason}
@@ -128,7 +128,7 @@ export function CorrectRecordDialog({
                 />
               </div>
               <div style={{ marginTop: 12 }}>
-                <label className="block text-xs font-medium text-[#374151] mb-1">
+                <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">
                   Correction notes (required)
                 </label>
                 <textarea

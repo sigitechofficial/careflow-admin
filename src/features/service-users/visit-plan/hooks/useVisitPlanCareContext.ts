@@ -21,6 +21,19 @@ function careActivationFromSubmission(submission: InitialAssessmentSubmission | 
   }
 }
 
+/**
+ * The IA lone-worker section can flag that a service user needs a two-carer
+ * (double-up) visit. Read from the Environment Assessment snapshot so the visit
+ * plan can recommend 2 carers per visit.
+ */
+function loneWorkerTwoCarerFromSubmission(submission: InitialAssessmentSubmission | null): boolean {
+  if (!submission?.metadata || typeof submission.metadata !== 'object') return false
+  const meta = submission.metadata as Record<string, unknown>
+  const env = meta.environmentAssessment
+  if (!env || typeof env !== 'object') return false
+  return (env as Record<string, unknown>).twoCarerRecommended === true
+}
+
 export function useVisitPlanCareContext(
   serviceUserId: string,
   visitPlanStatus?: string | null,
@@ -45,6 +58,7 @@ export function useVisitPlanCareContext(
   const acceptedCarePlans: AcceptedCarePlanItem[] = acceptedQuery.data?.items ?? []
   const latestSubmission = (submissionsQuery.data ?? [])[0] ?? null
   const careActivation = careActivationFromSubmission(latestSubmission)
+  const loneWorkerTwoCarerRequired = loneWorkerTwoCarerFromSubmission(latestSubmission)
 
   const pathwaySteps: VisitPlanCareContextStep[] = buildCarePathwaySteps({
     assessmentStatus: latestSubmission?.status ?? null,
@@ -60,6 +74,7 @@ export function useVisitPlanCareContext(
     unresolvedCarePlans: acceptedQuery.data?.unresolved ?? [],
     latestSubmission,
     careActivation,
+    loneWorkerTwoCarerRequired,
     pathwaySteps,
   }
 }

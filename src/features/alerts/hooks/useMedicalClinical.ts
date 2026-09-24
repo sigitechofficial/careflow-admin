@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/features/auth/store'
 import {
+  createMedicalAlert,
   createMedicalHistoryEvent,
   createReasonableAdjustment,
   createServiceUserMedicalCondition,
+  deactivateMedicalAlert,
   deactivateMedicalHistoryEvent,
   deactivateMonitoringConfig,
   deactivateReasonableAdjustment,
@@ -11,21 +13,25 @@ import {
   discontinueServiceUserMedicalCondition,
   fetchMedicalConditionCatalog,
   fetchMedicalSafetySummary,
+  listMedicalAlerts,
   listMedicalHistory,
   listMonitoringConfig,
   listReasonableAdjustments,
   listMedicalConditionCarePlanRecommendations,
   listServiceUserMedicalConditions,
   listUsualParameters,
+  updateMedicalAlert,
   updateMedicalHistoryEvent,
   updateReasonableAdjustment,
   updateServiceUserMedicalCondition,
   updateUsualParameter,
   upsertMonitoringConfig,
   upsertUsualParameter,
+  type CreateMedicalAlertPayload,
   type CreateMedicalConditionPayload,
   type CreateMedicalHistoryPayload,
   type CreateReasonableAdjustmentPayload,
+  type UpdateMedicalAlertPayload,
   type UpdateMedicalConditionPayload,
   type UpdateMedicalHistoryPayload,
   type UpdateReasonableAdjustmentPayload,
@@ -65,6 +71,12 @@ export function useMedicalClinicalPermissions() {
     usual: {
       read: can('service_users.medical_usual_parameters.read'),
       update: can('service_users.medical_usual_parameters.update'),
+    },
+    medicalAlerts: {
+      read: can('service_users.medical_alerts.read'),
+      create: can('service_users.medical_alerts.create'),
+      update: can('service_users.medical_alerts.update'),
+      delete: can('service_users.medical_alerts.delete'),
     },
   }
 }
@@ -245,6 +257,38 @@ export function useUsualParameterMutations(serviceUserId: string) {
     }),
     deactivate: useMutation({
       mutationFn: (id: string) => deactivateUsualParameter(serviceUserId, id),
+      onSuccess: invalidate,
+    }),
+  }
+}
+
+export function useMedicalAlerts(serviceUserId: string, enabled = true) {
+  return useQuery({
+    queryKey: medicalClinicalKeys.medicalAlerts(serviceUserId),
+    queryFn: ({ signal }) => listMedicalAlerts(serviceUserId, { signal }),
+    enabled: enabled && Boolean(serviceUserId),
+  })
+}
+
+export function useMedicalAlertMutations(serviceUserId: string) {
+  const qc = useQueryClient()
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: medicalClinicalKeys.medicalAlerts(serviceUserId) })
+    void qc.invalidateQueries({ queryKey: medicalClinicalKeys.summary(serviceUserId) })
+  }
+  return {
+    create: useMutation({
+      mutationFn: (body: CreateMedicalAlertPayload) =>
+        createMedicalAlert(serviceUserId, body),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: ({ id, body }: { id: string; body: UpdateMedicalAlertPayload }) =>
+        updateMedicalAlert(serviceUserId, id, body),
+      onSuccess: invalidate,
+    }),
+    deactivate: useMutation({
+      mutationFn: (id: string) => deactivateMedicalAlert(serviceUserId, id),
       onSuccess: invalidate,
     }),
   }

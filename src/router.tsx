@@ -988,9 +988,13 @@ const serviceUsersBodyMapRoute = createRoute({
       from?: string
       submissionId?: string
       view?: 'export'
+      recordId?: string
     } = {}
     if (typeof raw.linkMedicationId === 'string' && raw.linkMedicationId.trim()) {
       search.linkMedicationId = raw.linkMedicationId.trim()
+    }
+    if (typeof raw.recordId === 'string' && raw.recordId.trim()) {
+      search.recordId = raw.recordId.trim()
     }
     if (typeof raw.from === 'string' && raw.from.trim()) {
       search.from = raw.from.trim()

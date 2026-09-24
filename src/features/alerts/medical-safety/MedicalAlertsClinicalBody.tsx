@@ -82,32 +82,32 @@ function GateSuggestionCard({
 
   return (
     <div
-      className="mx-2 mb-2 rounded-xl border border-emerald-200/70 bg-[#f0faf5] p-3 shadow-sm"
+      className="mx-2 mb-2 rounded-xl border border-emerald-200/70 dark:border-emerald-900/40 bg-[#f0faf5] dark:bg-emerald-950/30 p-3 shadow-sm"
       data-testid={`clinical-gate-suggestion-card-${row.id}`}
     >
       <div className="flex items-center gap-1.5">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
           <Sparkles className="h-3.5 w-3.5" aria-hidden />
         </span>
-        <p className="text-xs font-semibold tracking-wide text-emerald-900">
+        <p className="text-xs font-semibold tracking-wide text-emerald-900 dark:text-emerald-200">
           Source suggestion · {indication}
         </p>
       </div>
 
       {row.suggestionDetail?.trim() ? (
-        <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed text-[#0f2744]">
+        <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed text-[#0f2744] dark:text-emerald-100">
           {row.suggestionDetail}
         </p>
       ) : null}
 
-      <div className="mt-2.5 space-y-0.5 border-t border-emerald-200/60 pt-2 text-[11px] leading-relaxed text-slate-600">
-        <p className="font-semibold uppercase tracking-wide text-slate-500">Source</p>
+      <div className="mt-2.5 space-y-0.5 border-t border-emerald-200/60 dark:border-emerald-900/40 pt-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+        <p className="font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Source</p>
         <p>{row.sourceLabel}</p>
       </div>
 
       {applied ? (
         <div
-          className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-800"
+          className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-300"
           data-testid={`clinical-gate-suggestion-applied-${row.id}`}
         >
           <Check className="h-4 w-4 shrink-0" aria-hidden />
@@ -126,7 +126,7 @@ function GateSuggestionCard({
           </Button>
         </div>
       ) : (
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
           Reference only — set YES / NO manually when ready.
         </p>
       )}
@@ -149,20 +149,20 @@ function GateRow({
 
   return (
     <div
-      className="border-b border-slate-300 last:border-b-0"
+      className="border-b border-slate-300 dark:border-border last:border-b-0"
       data-testid={`clinical-gate-${row.id}`}
     >
       <div className="flex flex-col gap-1.5 px-2 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-start gap-2.5">
-          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-slate-400 bg-white text-[#0f6b6b]">
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-slate-400 dark:border-border bg-white text-[#0f6b6b]">
             {row.icon}
           </span>
           <div className="min-w-0">
             <p className="text-[13px] font-semibold text-slate-900">{row.title}</p>
-            <p className="text-xs text-slate-600">{row.question}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-300">{row.question}</p>
             {showSuggestion ? (
               <span
-                className="mt-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+                className="mt-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300"
                 data-testid={`clinical-gate-view-suggestion-${row.id}`}
               >
                 <Sparkles className="h-3 w-3" aria-hidden />
@@ -535,7 +535,7 @@ export function MedicalAlertsClinicalBody({
         ) : null
       }
     >
-      <div className={cn('border border-slate-300 bg-white')}>
+      <div className={cn('border border-slate-300 dark:border-border bg-white dark:bg-card')}>
         {gates.map((row) => (
           <GateRow
             key={row.id}

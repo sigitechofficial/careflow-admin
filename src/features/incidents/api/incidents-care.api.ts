@@ -178,6 +178,26 @@ export async function downloadIncidentAttachment(attachment: IncidentAttachmentI
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Fetch an attachment's bytes with the auth token and return an object URL for
+ * inline display (thumbnail / preview). The caller MUST revoke the URL when done
+ * (URL.revokeObjectURL) to avoid leaks. Needed because the download endpoint is
+ * permission-checked, so a plain <img src> (no Authorization header) would 401.
+ */
+export async function fetchIncidentAttachmentObjectUrl(
+  attachment: IncidentAttachmentItem,
+): Promise<string> {
+  const base = getApiBaseUrl()
+  if (!base) throw new ApiError('API base URL is not configured.', 0)
+  const token = useAuthStore.getState().accessToken
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetch(`${base}${attachment.downloadUrl}`, { headers })
+  if (!res.ok) throw new ApiError('Preview failed', res.status)
+  const blob = await res.blob()
+  return URL.createObjectURL(blob)
+}
+
 // --- service user history ---
 export async function fetchServiceUserIncidentHistory(
   serviceUserId: string,

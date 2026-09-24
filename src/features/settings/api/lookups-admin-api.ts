@@ -832,6 +832,104 @@ export type AllergyCatalogRow = {
   isActive: boolean
 }
 
+// ─── Medical condition catalogue ───────────────────────────────────────────
+
+export type MedicalConditionCatalogCategory =
+  | 'MENTAL_HEALTH'
+  | 'NEUROLOGICAL'
+  | 'CARDIOVASCULAR'
+  | 'RESPIRATORY'
+  | 'ENDOCRINE_METABOLIC'
+  | 'LEARNING_DISABILITY'
+  | 'DEVELOPMENTAL'
+  | 'PALLIATIVE'
+  | 'OTHER'
+
+export const MEDICAL_CONDITION_CATALOG_CATEGORY_ORDER: MedicalConditionCatalogCategory[] = [
+  'MENTAL_HEALTH',
+  'NEUROLOGICAL',
+  'CARDIOVASCULAR',
+  'RESPIRATORY',
+  'ENDOCRINE_METABOLIC',
+  'LEARNING_DISABILITY',
+  'DEVELOPMENTAL',
+  'PALLIATIVE',
+  'OTHER',
+]
+
+export const MEDICAL_CONDITION_CATALOG_CATEGORY_LABELS: Record<MedicalConditionCatalogCategory, string> = {
+  MENTAL_HEALTH: 'Mental health',
+  NEUROLOGICAL: 'Neurological',
+  CARDIOVASCULAR: 'Cardiovascular',
+  RESPIRATORY: 'Respiratory',
+  ENDOCRINE_METABOLIC: 'Endocrine / metabolic',
+  LEARNING_DISABILITY: 'Learning disability',
+  DEVELOPMENTAL: 'Developmental',
+  PALLIATIVE: 'Palliative',
+  OTHER: 'Other',
+}
+
+export type MedicalConditionCatalogRow = {
+  id: string
+  code: string
+  name: string
+  category: MedicalConditionCatalogCategory | string
+  description: string | null
+  sortOrder: number
+  isActive: boolean
+}
+
+export async function fetchMedicalConditionCatalogList(params?: {
+  includeInactive?: boolean
+}): Promise<MedicalConditionCatalogRow[]> {
+  const qs = new URLSearchParams()
+  if (params?.includeInactive) qs.set('includeInactive', 'true')
+  const q = qs.toString()
+  const res = await apiJson<ApiEnvelope<MedicalConditionCatalogRow[]>>(
+    `/lookups/medical-condition-catalog${q ? `?${q}` : ''}`,
+    { method: 'GET' },
+  )
+  return res.data
+}
+
+export async function createMedicalConditionCatalog(body: {
+  name: string
+  code: string
+  category?: MedicalConditionCatalogCategory
+  description?: string
+  sortOrder?: number
+}): Promise<MedicalConditionCatalogRow> {
+  const res = await apiJson<ApiEnvelope<MedicalConditionCatalogRow>>(
+    '/lookups/medical-condition-catalog',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateMedicalConditionCatalog(
+  id: string,
+  body: {
+    name?: string
+    code?: string
+    category?: MedicalConditionCatalogCategory
+    description?: string
+    isActive?: boolean
+    sortOrder?: number
+  },
+): Promise<MedicalConditionCatalogRow> {
+  const res = await apiJson<ApiEnvelope<MedicalConditionCatalogRow>>(
+    `/lookups/medical-condition-catalog/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteMedicalConditionCatalog(id: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/lookups/medical-condition-catalog/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function fetchAllergyCatalogList(): Promise<AllergyCatalogRow[]> {
   const res = await apiJson<ApiEnvelope<AllergyCatalogRow[]>>('/lookups/allergy-catalog', {
     method: 'GET',

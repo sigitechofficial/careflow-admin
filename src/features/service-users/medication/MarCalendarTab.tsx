@@ -403,7 +403,7 @@ export function MarCalendarTab({ serviceUserId }: { serviceUserId: string }) {
             )
             <span>{statsOpen ? '▲' : '▼'}</span>
           </button>
-          <p className="mar-month-stats-hint px-3 pb-2 text-[11px] text-[#64748b]">
+          <p className="mar-month-stats-hint px-3 pb-2 text-[11px] text-[#64748b] dark:text-slate-400">
             MAR completion = documented scheduled doses ÷ (documented + still open). PRN is
             reported separately. Aligns with CQC/NICE expectation that every scheduled dose is
             accounted for on the MAR.
@@ -442,7 +442,7 @@ export function MarCalendarTab({ serviceUserId }: { serviceUserId: string }) {
       )}
 
       {chartQuery.isLoading && (
-        <div className="flex items-center gap-2 py-12 text-sm text-[#64748b]">
+        <div className="flex items-center gap-2 py-12 text-sm text-[#64748b] dark:text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading MAR calendar…
         </div>

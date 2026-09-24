@@ -83,7 +83,7 @@ export function CarePlanReviewRow({
 
   return (
     <div
-      className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,39,68,0.04)] dark:border-slate-700 dark:bg-card"
+      className="rounded-xl border border-slate-200 dark:border-border/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,39,68,0.04)] dark:border-slate-700 dark:bg-card"
       data-testid={
         activeSuggestion
           ? `care-plan-field-review-${activeSuggestion.targetFieldKey}`
@@ -144,7 +144,7 @@ function QuestionColumn({
         </p>
       )}
       {category?.trim() ? (
-        <span className="inline-flex max-w-full truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        <span className="inline-flex max-w-full truncate rounded-full border border-slate-200 dark:border-border bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300 dark:border-slate-600 dark:bg-slate-800">
           {category.trim()}
         </span>
       ) : null}
@@ -164,7 +164,7 @@ function QuestionColumn({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="mt-0.5 inline-flex shrink-0 rounded-full text-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/30"
+                className="mt-0.5 inline-flex shrink-0 rounded-full text-slate-400 hover:text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/30"
                 aria-label={`Help: ${help}`}
               >
                 <HelpCircle className="h-3.5 w-3.5" aria-hidden />

@@ -10,6 +10,11 @@ import {
   recordTypeLabel,
   type BodyMapRecordTypeCode,
 } from '@/features/service-users/body-map/catalog/record-types'
+import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
+import {
+  buildBodyMapMarkerColorCatalog,
+  resolveBodyMapMarkerColor,
+} from '@/features/service-users/body-map/utils/body-map-marker-colors'
 import {
   addBodyMapLink,
   fetchBodyMapAudit,
@@ -71,6 +76,15 @@ export function RecordDetailDrawer({
   const [linkMedicationId, setLinkMedicationId] = React.useState('')
   const fileRef = React.useRef<HTMLInputElement>(null)
   const { eligibleMedications } = useBodyMapSiteMedications(serviceUserId, Boolean(record))
+
+  // Resolve the pin number badge colour from the SAME backend-driven catalog the
+  // map pins use, so the badge matches the pin exactly (even if colours are
+  // customised in the DB) instead of drifting from the hardcoded tailwind map.
+  const lookupsQuery = useBodyMapLookups()
+  const markerColorCatalog = React.useMemo(
+    () => buildBodyMapMarkerColorCatalog(lookupsQuery.data?.recordTypes),
+    [lookupsQuery.data],
+  )
 
   const auditQuery = useQuery({
     queryKey: record ? bodyMapKeys.audit(record.id) : ['body-map', 'audit', 'none'],
@@ -166,8 +180,16 @@ export function RecordDetailDrawer({
     <aside className="flex h-full flex-col rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <h3 className="font-semibold text-foreground">
+          <h3 className="flex items-center gap-2 font-semibold text-foreground">
             {recordTypeLabel(record.recordType as BodyMapRecordTypeCode)}
+            {record.canvasDisplayNumber != null ? (
+              <span
+                className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-white"
+                style={{ backgroundColor: resolveBodyMapMarkerColor(markerColorCatalog, record) }}
+              >
+                {record.canvasDisplayNumber}
+              </span>
+            ) : null}
           </h3>
           <p className="text-xs text-muted-foreground">
             {record.status.replace(/_/g, ' ')} · {record.riskLevel} risk
@@ -192,6 +214,11 @@ export function RecordDetailDrawer({
             {record.markers[0].bodyPart}
             {record.markers[0].specificLocation ? ` — ${record.markers[0].specificLocation}` : ''} (
             {record.markers[0].bodyView.toLowerCase()})
+            {record.canvasDisplayNumber != null ? (
+              <span className="font-medium text-muted-foreground">
+                {' '}· Pin #{record.canvasDisplayNumber}
+              </span>
+            ) : null}
           </p>
         ) : null}
         {record.description ? (

@@ -30,6 +30,7 @@ import {
   INCIDENT_STATUS_BADGE,
   INCIDENT_STATUS_LABELS,
   INCIDENT_STATUS_TRANSITIONS,
+  WHO_INFORMED_LABELS,
   type IncidentSeverity,
   type IncidentStatus,
 } from '@/features/incidents/types'
@@ -131,6 +132,10 @@ export default function IncidentDetailPage() {
           </Badge>
         )}
         {incident.injuryOccurred && <Badge variant="warning">Injury recorded</Badge>}
+        {incident.carerSafeguardingConcern && (
+          <Badge variant="destructive"><ShieldAlert className="mr-1 h-3 w-3" /> Safeguarding concern raised</Badge>
+        )}
+        {incident.followUpRequired && <Badge variant="warning">Follow-up required</Badge>}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -164,11 +169,15 @@ export default function IncidentDetailPage() {
               {incident.contextAfter && (
                 <Field label="Afterwards" value={<p className="whitespace-pre-wrap">{incident.contextAfter}</p>} />
               )}
+              {incident.peopleInvolved && (
+                <Field label="People involved" value={<p className="whitespace-pre-wrap">{incident.peopleInvolved}</p>} />
+              )}
             </div>
           </Section>
 
           <Section title="Immediate actions taken">
-            {incident.immediateActionCodes.length === 0 && !incident.immediateActions ? (
+            {incident.immediateActionCodes.length === 0 && !incident.immediateActions &&
+             incident.whoInformedKeys.length === 0 && !incident.emergencyServicesDetails ? (
               <p className="text-sm text-muted-foreground">None recorded.</p>
             ) : (
               <>
@@ -184,6 +193,27 @@ export default function IncidentDetailPage() {
                 {incident.immediateActions && (
                   <p className="whitespace-pre-wrap text-sm text-foreground">{incident.immediateActions}</p>
                 )}
+                {incident.whoInformedKeys.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Who was informed</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {incident.whoInformedKeys.map((key) => (
+                        <Badge key={key} variant="outline" size="sm">
+                          {WHO_INFORMED_LABELS[key] ?? key}
+                        </Badge>
+                      ))}
+                      {incident.familyInformed && !incident.whoInformedKeys.includes('family_nok') && (
+                        <Badge variant="outline" size="sm">Family / NOK informed</Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {incident.emergencyServicesDetails && (
+                  <div className="mt-3">
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Emergency services</p>
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{incident.emergencyServicesDetails}</p>
+                  </div>
+                )}
               </>
             )}
           </Section>
@@ -198,6 +228,9 @@ export default function IncidentDetailPage() {
 
           {(incident.injuryOccurred || incident.injuries.length > 0 || canEdit) && (
             <Section title="Injuries">
+              {incident.injuryDetails && (
+                <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">{incident.injuryDetails}</p>
+              )}
               <IncidentInjuriesPanel
                 incidentId={incident.id}
                 injuries={incident.injuries}
@@ -270,7 +303,22 @@ export default function IncidentDetailPage() {
             <dl className="mt-3 space-y-3">
               <Field label="Reference" value={incident.referenceNumber} />
               <Field label="Submitted" value={formatOrganisationIsoDateLong(incident.reportedAt)} />
+              {incident.carerSafeguardingConcern != null && (
+                <Field label="Safeguarding concern" value={incident.carerSafeguardingConcern ? 'Yes' : 'No'} />
+              )}
+              {incident.followUpRequired && (
+                <Field label="Follow-up required" value="Yes" />
+              )}
+              {incident.familyInformed && (
+                <Field label="Family informed" value="Yes" />
+              )}
             </dl>
+            {incident.carerNotes && (
+              <div className="mt-3">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Carer notes</p>
+                <p className="whitespace-pre-wrap text-sm text-foreground">{incident.carerNotes}</p>
+              </div>
+            )}
           </Section>
 
           {incident.primaryServiceUserId && (

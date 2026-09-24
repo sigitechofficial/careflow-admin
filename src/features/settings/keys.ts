@@ -46,6 +46,8 @@ export const settingsKeys = {
 
   allergyCatalog: () => [...settingsKeys.all(), 'allergy-catalog'] as const,
 
+  medicalConditionCatalog: () => [...settingsKeys.all(), 'medical-condition-catalog'] as const,
+
   taskCatalogue: () => [...settingsKeys.all(), 'task-catalogue'] as const,
 
   vitalAcceptedRanges: () => [...settingsKeys.all(), 'vital-accepted-ranges'] as const,

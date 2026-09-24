@@ -167,6 +167,72 @@ export type UsualParameterRow = {
   observationType?: { id: string; code: string; name: string }
 }
 
+export type MedicalAlertCategory =
+  | 'CAPABILITIES'
+  | 'GENERAL_ALERT'
+  | 'COMMUNICATION'
+  | 'DIABETES'
+  | 'DIETARY'
+  | 'PALLIATIVE'
+  | 'BEHAVIOUR'
+  | 'FALLS'
+  | 'DOLS'
+  | 'CHOKING'
+  | 'COPD'
+  | 'DNACPR'
+  | 'RISK_LEVEL'
+  | 'ALLERGIES'
+  | 'CUSTOM'
+
+export type MedicalAlertSeverity = 'CRITICAL' | 'IMPORTANT' | 'INFO'
+
+export type MedicalAlertRow = {
+  id: string
+  serviceUserId: string
+  title: string
+  category: MedicalAlertCategory | string | null
+  severity: MedicalAlertSeverity | string | null
+  description: string
+  actionForCarer: string
+  notes: string
+  isActive: boolean
+  source: ServiceUserClinicalDataSource | string
+  createdAt: string
+  updatedAt: string
+}
+
+export const MEDICAL_ALERT_CATEGORY_LABELS: Record<MedicalAlertCategory, string> = {
+  CAPABILITIES: 'Capabilities',
+  GENERAL_ALERT: 'General Alert',
+  COMMUNICATION: 'Communication',
+  DIABETES: 'Diabetes',
+  DIETARY: 'Dietary',
+  PALLIATIVE: 'Palliative Care',
+  BEHAVIOUR: 'Behaviour',
+  FALLS: 'Falls',
+  DOLS: 'DoLS',
+  CHOKING: 'Choking',
+  COPD: 'COPD',
+  DNACPR: 'DNACPR',
+  RISK_LEVEL: 'Risk Level',
+  ALLERGIES: 'Allergies',
+  CUSTOM: 'Custom',
+}
+
+export const MEDICAL_ALERT_CATEGORIES = Object.keys(
+  MEDICAL_ALERT_CATEGORY_LABELS,
+) as MedicalAlertCategory[]
+
+export const MEDICAL_ALERT_SEVERITY_LABELS: Record<MedicalAlertSeverity, string> = {
+  CRITICAL: 'Critical',
+  IMPORTANT: 'Important',
+  INFO: 'Info',
+}
+
+export const MEDICAL_ALERT_SEVERITIES = Object.keys(
+  MEDICAL_ALERT_SEVERITY_LABELS,
+) as MedicalAlertSeverity[]
+
 export const MEDICAL_CONDITION_CATEGORY_LABELS: Record<string, string> = {
   MENTAL_HEALTH: 'Mental health',
   NEUROLOGICAL: 'Neurological',

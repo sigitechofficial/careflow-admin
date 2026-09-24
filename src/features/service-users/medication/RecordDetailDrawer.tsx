@@ -107,7 +107,7 @@ function AdministrationTimingSection({ ev }: { ev: MedicationEventDetail }) {
           <div className="value" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <MarEventStatusBadge status={ev.status} statusCode={ev.statusCode} />
             {eventReason(ev) !== '—' && (
-              <span className="text-sm text-[#64748b]">{eventReason(ev)}</span>
+              <span className="text-sm text-[#64748b] dark:text-slate-400">{eventReason(ev)}</span>
             )}
           </div>
         </div>
@@ -230,7 +230,7 @@ export function RecordDetailDrawer({
           </div>
 
           {detailQuery.isLoading && (
-            <div className="flex items-center gap-2 px-6 py-8 text-sm text-[#64748b]">
+            <div className="flex items-center gap-2 px-6 py-8 text-sm text-[#64748b] dark:text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading record…
             </div>

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Download, MapPin, Trash2, Upload } from 'lucide-react'
+import { Download, ImageIcon, MapPin, Trash2, Upload, X } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
 import { canCreateBodyMap } from '@/features/service-users/body-map/body-map-permissions'
 import { IncidentBodyMapDialog } from '@/features/incidents/components/IncidentBodyMapDialog'
@@ -24,7 +24,10 @@ import {
   useUpdateRelatedCareRecord,
   useUploadIncidentAttachment,
 } from '@/features/incidents/hooks/useIncidentCare'
-import { downloadIncidentAttachment } from '@/features/incidents/api/incidents-care.api'
+import {
+  downloadIncidentAttachment,
+  fetchIncidentAttachmentObjectUrl,
+} from '@/features/incidents/api/incidents-care.api'
 import {
   INCIDENT_INJURY_SEVERITY_OPTIONS,
   INCIDENT_PERSON_KIND_OPTIONS,
@@ -85,11 +88,27 @@ export function IncidentInjuriesPanel({
                 <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                   {i.injuryType}
                   <Badge variant={INJURY_SEVERITY_BADGE[i.injurySeverity]} size="sm">{i.injurySeverity}</Badge>
-                  {i.bodyMapRecordId && (
-                    <Badge variant="info" size="sm">
-                      <MapPin className="mr-0.5 h-3 w-3" /> On body map
-                    </Badge>
-                  )}
+                  {i.bodyMapRecordId &&
+                    (serviceUserId ? (
+                      <Link
+                        to="/service-users/$serviceUserId/body-map"
+                        params={{ serviceUserId }}
+                        search={{ recordId: i.bodyMapRecordId }}
+                        title="Open this record on the body map"
+                      >
+                        <Badge
+                          variant="info"
+                          size="sm"
+                          className="cursor-pointer hover:opacity-80"
+                        >
+                          <MapPin className="mr-0.5 h-3 w-3" /> On body map
+                        </Badge>
+                      </Link>
+                    ) : (
+                      <Badge variant="info" size="sm">
+                        <MapPin className="mr-0.5 h-3 w-3" /> On body map
+                      </Badge>
+                    ))}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {[i.bodyRegion, i.side, i.measurements].filter(Boolean).join(' · ') || '—'}
@@ -369,12 +388,115 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
+function isImageAttachment(mimeType: string): boolean {
+  return typeof mimeType === 'string' && mimeType.toLowerCase().startsWith('image/')
+}
+
+/**
+ * Auth-fetched image thumbnail for an incident attachment. Loads the bytes with
+ * the bearer token (the download endpoint is permission-checked, so a plain
+ * <img src> would 401), shows a small preview, and calls onOpen when clicked.
+ */
+function AttachmentThumbnail({
+  attachment,
+  onOpen,
+}: {
+  attachment: IncidentAttachmentItem
+  onOpen: (url: string) => void
+}) {
+  const [url, setUrl] = React.useState<string | null>(null)
+  const [failed, setFailed] = React.useState(false)
+
+  React.useEffect(() => {
+    let active = true
+    let objectUrl: string | null = null
+    fetchIncidentAttachmentObjectUrl(attachment)
+      .then((u) => {
+        if (!active) {
+          URL.revokeObjectURL(u)
+          return
+        }
+        objectUrl = u
+        setUrl(u)
+      })
+      .catch(() => active && setFailed(true))
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [attachment])
+
+  if (failed) {
+    return (
+      <div className="flex h-14 w-14 flex-none items-center justify-center rounded-md border border-border bg-muted text-muted-foreground">
+        <ImageIcon className="h-5 w-5" />
+      </div>
+    )
+  }
+  if (!url) {
+    return <div className="h-14 w-14 flex-none animate-pulse rounded-md border border-border bg-muted" />
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(url)}
+      className="h-14 w-14 flex-none overflow-hidden rounded-md border border-border transition hover:opacity-80"
+      title="Click to enlarge"
+    >
+      <img src={url} alt={attachment.originalName} className="h-full w-full object-cover" />
+    </button>
+  )
+}
+
+/** Full-screen preview overlay for an image attachment. */
+function AttachmentLightbox({
+  url,
+  name,
+  onClose,
+}: {
+  url: string
+  name: string
+  onClose: () => void
+}) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Preview of ${name}`}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close preview"
+        className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <img
+        src={url}
+        alt={name}
+        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
 export function IncidentAttachmentsPanel({ incidentId, canManage }: { incidentId: string; canManage: boolean }) {
   const { data: attachments, isLoading } = useIncidentAttachments(incidentId)
   const upload = useUploadIncidentAttachment(incidentId)
   const del = useDeleteIncidentAttachment()
   const fileRef = React.useRef<HTMLInputElement>(null)
   const [downloading, setDownloading] = React.useState<string | null>(null)
+  const [preview, setPreview] = React.useState<{ url: string; name: string } | null>(null)
 
   async function handleDownload(a: IncidentAttachmentItem) {
     setDownloading(a.id)
@@ -397,11 +519,22 @@ export function IncidentAttachmentsPanel({ incidentId, canManage }: { incidentId
         <ul className="space-y-2">
           {attachments!.map((a) => (
             <li key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{a.originalName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {a.category.replace(/_/g, ' ').toLowerCase()} · {formatBytes(a.fileSize)}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                {isImageAttachment(a.mimeType) && (
+                  <AttachmentThumbnail
+                    attachment={a}
+                    onOpen={(url) => setPreview({ url, name: a.originalName })}
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{a.originalName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {a.category.replace(/_/g, ' ').toLowerCase()} · {formatBytes(a.fileSize)}
+                  </p>
+                  {a.caption && (
+                    <p className="mt-0.5 text-xs italic text-muted-foreground">{a.caption}</p>
+                  )}
+                </div>
               </div>
               <div className="flex gap-1">
                 <Button size="sm" variant="outline" loading={downloading === a.id} onClick={() => handleDownload(a)}>
@@ -434,6 +567,13 @@ export function IncidentAttachmentsPanel({ incidentId, canManage }: { incidentId
             <Upload className="mr-1 h-4 w-4" /> Upload attachment
           </Button>
         </>
+      )}
+      {preview && (
+        <AttachmentLightbox
+          url={preview.url}
+          name={preview.name}
+          onClose={() => setPreview(null)}
+        />
       )}
     </div>
   )

@@ -155,13 +155,13 @@ export function ServiceUserParametersClinical({ serviceUserId }: { serviceUserId
             <p className="text-sm text-destructive">Unable to load alert parameters</p>
           ) : (
             <div className="space-y-2 text-[13px]">
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 Monitoring rules for this person. Weight and fluid flags appear on the matching
                 Observations tabs — they do not create separate alert records.
               </p>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
                 <div>
-                  <label className="text-xs font-medium text-slate-600" htmlFor="weight-kg">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-300" htmlFor="weight-kg">
                     {MONITORING_KEY_LABELS.WEIGHT_CHANGE_THRESHOLD_KG} (kg)
                   </label>
                   <Input
@@ -186,7 +186,7 @@ export function ServiceUserParametersClinical({ serviceUserId }: { serviceUserId
                 </label>
               </div>
               <div className="flex flex-wrap items-center gap-4">
-                <span className="text-xs font-medium text-slate-600">
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
                   {MONITORING_KEY_LABELS.FLUID_TARGET_REQUIRED}
                 </span>
                 <label className="flex items-center gap-2 text-xs">
@@ -232,16 +232,16 @@ export function ServiceUserParametersClinical({ serviceUserId }: { serviceUserId
       {usualPerms.read ? (
         <div className="mt-3">
           <ClinicalSubBand title="Usual Parameters" testId="usual-parameters-section">
-            <p className="mb-2 text-xs text-slate-600">
+            <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">
               Baseline / reference values — not actual observation readings. Shown on the Observations
               tab for matching vital types; out-of-range readings warn but still save.
             </p>
             {usualQuery.isLoading || typesQuery.isLoading ? (
               <Skeleton className="h-24 w-full" />
             ) : (
-              <div className="overflow-x-auto border border-slate-300 bg-white">
+              <div className="overflow-x-auto border border-slate-300 dark:border-border bg-white dark:bg-card">
                 <table className="w-full min-w-[36rem] text-left text-[13px]">
-                  <thead className="bg-[#eef4f4] text-xs text-slate-700">
+                  <thead className="bg-[#eef4f4] text-xs text-slate-700 dark:bg-muted dark:text-slate-200">
                     <tr>
                       <th className="px-2 py-1.5 font-semibold">Parameter</th>
                       <th className="px-2 py-1.5 font-semibold">Usual</th>
@@ -256,7 +256,7 @@ export function ServiceUserParametersClinical({ serviceUserId }: { serviceUserId
                       const draft = usualDraft[item.code]
                       if (!type) {
                         return (
-                          <tr key={item.code} className="border-t border-slate-300 text-slate-500">
+                          <tr key={item.code} className="border-t border-slate-300 text-slate-500 dark:border-border dark:text-slate-400">
                             <td className="px-2 py-1">{item.label}</td>
                             <td className="px-2 py-1.5 text-xs" colSpan={4}>
                               Observation type not available in catalogue
@@ -265,7 +265,7 @@ export function ServiceUserParametersClinical({ serviceUserId }: { serviceUserId
                         )
                       }
                       return (
-                        <tr key={item.code} className="border-t border-slate-300">
+                        <tr key={item.code} className="border-t border-slate-300 dark:border-border">
                           <td className="px-2 py-1 font-medium">{item.label}</td>
                           <td className="px-2 py-1">
                             <Input

@@ -2,6 +2,16 @@ import * as React from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/form-field'
 import { Skeleton } from '@/shared/ui/misc'
 import { Checkbox } from '@/shared/ui/toggle-controls'
 import { cn } from '@/shared/lib/utils'
@@ -67,6 +77,11 @@ export const MedicalConditionsChecklist = React.forwardRef<
   const [synced, setSynced] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
 
+  const [dialogCondition, setDialogCondition] = React.useState<MedicalConditionCatalogRow | null>(null)
+  const [dialogNotes, setDialogNotes] = React.useState('')
+  const [dialogOnsetDate, setDialogOnsetDate] = React.useState('')
+  const [dialogReviewDate, setDialogReviewDate] = React.useState('')
+
   React.useEffect(() => {
     if (assignedQuery.isLoading || catalogQuery.isLoading) return
     setDraft(new Set(assignedActive.keys()))
@@ -96,37 +111,78 @@ export const MedicalConditionsChecklist = React.forwardRef<
 
   const toggle = (conditionId: string) => {
     if (!perms.create && !perms.delete) return
-    setDraft((prev) => {
-      const next = new Set(prev)
-      if (next.has(conditionId)) {
-        if (perms.delete || (perms.update && baseline.has(conditionId))) next.delete(conditionId)
+    const alreadyChecked = draft.has(conditionId)
+    if (alreadyChecked) {
+      if (perms.delete || (perms.update && baseline.has(conditionId))) {
+        setDraft((prev) => {
+          const next = new Set(prev)
+          next.delete(conditionId)
+          return next
+        })
         setIaOriginIds((origins) => {
           const o = new Set(origins)
           o.delete(conditionId)
           return o
         })
-      } else if (perms.create || (perms.update && !baseline.has(conditionId))) {
-        next.add(conditionId)
-        if (suggestedIdSet.has(conditionId)) {
-          setIaOriginIds((origins) => new Set(origins).add(conditionId))
-        }
       }
-      return next
-    })
+    } else if (perms.create || (perms.update && !baseline.has(conditionId))) {
+      const cat = catalog.find((c) => c.id === conditionId)
+      if (cat) {
+        setDialogCondition(cat)
+        setDialogNotes('')
+        setDialogOnsetDate('')
+        setDialogReviewDate('')
+      }
+    }
   }
 
-  const applyAllSuggestions = () => {
+  const onDialogSave = async () => {
+    if (!dialogCondition) return
+    setSaving(true)
+    try {
+      const isIa = suggestedIdSet.has(dialogCondition.id)
+      await mutations.create.mutateAsync({
+        conditionId: dialogCondition.id,
+        notes: dialogNotes.trim() || undefined,
+        onsetDate: dialogOnsetDate || undefined,
+        reviewDate: dialogReviewDate || undefined,
+        source: isIa ? 'INITIAL_ASSESSMENT' : 'MANUAL',
+      })
+      const hint = CONDITION_CARE_PLAN_HINTS[dialogCondition.code.toUpperCase()]
+      if (hint) {
+        toastSuccess(`Condition saved. Care Plan recommendation: ${hint}.`)
+      } else {
+        toastSuccess('Condition saved')
+      }
+      setDialogCondition(null)
+    } catch (err) {
+      toastApiError(err, 'Could not save condition')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onDialogCancel = () => {
+    setDialogCondition(null)
+  }
+
+  const applyAllSuggestions = async () => {
     if (!perms.create && !perms.update) return
-    setDraft((prev) => {
-      const next = new Set(prev)
-      for (const id of suggestedIdSet) next.add(id)
-      return next
-    })
-    setIaOriginIds((prev) => {
-      const next = new Set(prev)
-      for (const id of suggestedIdSet) next.add(id)
-      return next
-    })
+    setSaving(true)
+    try {
+      const toAdd = [...suggestedIdSet].filter((id) => !draft.has(id))
+      for (const conditionId of toAdd) {
+        await mutations.create.mutateAsync({
+          conditionId,
+          source: 'INITIAL_ASSESSMENT',
+        })
+      }
+      toastSuccess(`${toAdd.length} IA condition${toAdd.length === 1 ? '' : 's'} saved`)
+    } catch (err) {
+      toastApiError(err, 'Could not apply IA suggestions')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const cancel = React.useCallback(() => {
@@ -191,12 +247,13 @@ export const MedicalConditionsChecklist = React.forwardRef<
   if (!perms.read) {
     return (
       <ClinicalBand title="Medical Conditions" testId="medical-conditions-checklist">
-        <p className="text-sm text-slate-600">You do not have permission to view medical conditions.</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">You do not have permission to view medical conditions.</p>
       </ClinicalBand>
     )
   }
 
   return (
+    <>
     <ClinicalBand
       title="Medical Conditions"
       testId="medical-conditions-checklist"
@@ -207,10 +264,10 @@ export const MedicalConditionsChecklist = React.forwardRef<
               type="button"
               size="sm"
               variant="secondary"
-              className="h-7 rounded-none bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+              className="h-7 rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
               data-testid="medical-conditions-apply-suggestions"
               disabled={saving}
-              onClick={applyAllSuggestions}
+              onClick={() => void applyAllSuggestions()}
             >
               <Sparkles className="mr-1 h-3.5 w-3.5" />
               Apply {pendingSuggestionCount} IA suggestion
@@ -274,12 +331,12 @@ export const MedicalConditionsChecklist = React.forwardRef<
           </Button>
         </div>
       ) : catalog.length === 0 ? (
-        <p className="text-sm text-slate-600">No conditions in the catalogue.</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">No conditions in the catalogue.</p>
       ) : (
         <>
           {suggestedIdSet.size > 0 ? (
             <p
-              className="mb-2 rounded-xl border border-emerald-200/70 bg-[#f0faf5] px-3 py-2 text-xs text-emerald-900"
+              className="mb-2 rounded-xl border border-emerald-200/70 dark:border-emerald-900/40 bg-[#f0faf5] dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-200"
               data-testid="medical-conditions-ia-banner"
             >
               <Sparkles className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />
@@ -290,7 +347,7 @@ export const MedicalConditionsChecklist = React.forwardRef<
             </p>
           ) : null}
           <div
-            className="grid grid-cols-1 gap-x-5 border border-slate-300 bg-white px-2.5 py-0.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [grid-auto-rows:1.75rem]"
+            className="grid grid-cols-1 gap-x-5 border border-slate-300 dark:border-border bg-white dark:bg-card px-2.5 py-0.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [grid-auto-rows:1.75rem]"
             data-testid="medical-conditions-grid"
           >
             {catalog.map((c: MedicalConditionCatalogRow) => {
@@ -305,10 +362,10 @@ export const MedicalConditionsChecklist = React.forwardRef<
                   className={cn(
                     'flex h-full min-h-0 items-center gap-2 text-xs leading-none',
                     suggested && !baseline.has(c.id)
-                      ? 'rounded-sm bg-emerald-50/80 px-1 font-medium text-emerald-950'
+                      ? 'rounded-sm bg-emerald-50/80 dark:bg-emerald-900/30 px-1 font-medium text-emerald-950 dark:text-emerald-200'
                       : checked
-                        ? 'font-medium text-slate-900'
-                        : 'text-slate-800',
+                        ? 'font-medium text-slate-900 dark:text-slate-100'
+                        : 'text-slate-800 dark:text-slate-200',
                   )}
                   title={c.name}
                   data-testid={`condition-check-${c.code}`}
@@ -323,7 +380,7 @@ export const MedicalConditionsChecklist = React.forwardRef<
                   <span className="min-w-0 truncate">
                     {c.name}
                     {suggested && !baseline.has(c.id) ? (
-                      <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                         IA
                       </span>
                     ) : null}
@@ -335,5 +392,68 @@ export const MedicalConditionsChecklist = React.forwardRef<
         </>
       )}
     </ClinicalBand>
+
+      <Dialog open={Boolean(dialogCondition)} onOpenChange={(o) => !o && onDialogCancel()}>
+        <DialogContent size="md" className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add condition — {dialogCondition?.name}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void onDialogSave()
+            }}
+          >
+            <DialogBody className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" htmlFor="checklist-onset-date">
+                    Onset date
+                  </label>
+                  <Input
+                    id="checklist-onset-date"
+                    type="date"
+                    value={dialogOnsetDate}
+                    onChange={(e) => setDialogOnsetDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" htmlFor="checklist-review-date">
+                    Review date
+                  </label>
+                  <Input
+                    id="checklist-review-date"
+                    type="date"
+                    value={dialogReviewDate}
+                    onChange={(e) => setDialogReviewDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="checklist-notes">
+                  Notes
+                </label>
+                <Textarea
+                  id="checklist-notes"
+                  value={dialogNotes}
+                  onChange={(e) => setDialogNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Add notes, instructions or details about this condition…"
+                />
+              </div>
+            </DialogBody>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onDialogCancel}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 })

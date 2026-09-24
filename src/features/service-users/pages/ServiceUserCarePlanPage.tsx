@@ -83,7 +83,7 @@ function CarePlanAccordion({
         <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
       </summary>
       {children ? (
-        <div className="border-t border-[#c5cdd6] bg-[#f8fafc] p-3 sm:p-4">{children}</div>
+        <div className="border-t border-[#c5cdd6] dark:border-border bg-[#f8fafc] dark:bg-card p-3 sm:p-4">{children}</div>
       ) : null}
     </details>
   )
