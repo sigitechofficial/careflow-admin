@@ -45,7 +45,6 @@ import { ServiceUserModuleTabs } from '@/features/service-users/components/Servi
 import { Button } from '@/shared/ui/button'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
-
 type AttentionSeverity = 'red' | 'amber' | 'blue'
 
 type AttentionItem = {

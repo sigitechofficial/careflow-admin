@@ -29,6 +29,16 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">{children}</h2>
 }
 
+const ACCOMMODATION_OPTIONS = [
+  { value: 'private_house', label: 'Privately owned house' },
+  { value: 'private_bungalow', label: 'Privately owned bungalow' },
+  { value: 'private_flat', label: 'Privately owned flat' },
+  { value: 'housing_authority', label: 'Local/Private housing authority' },
+  { value: 'assisted_living', label: 'Assisted living housing' },
+  { value: 'residential_home', label: 'Residential home' },
+  { value: 'other', label: 'Other' },
+] as const
+
 type CarerMap = Record<string, ServiceUserDomCareCarerBrief>
 
 function mergeCarerMap(prev: CarerMap, carers: ServiceUserDomCareCarerBrief[]): CarerMap {
@@ -246,6 +256,8 @@ export function ServiceUserDomCareTab({
         careInstructions: data.careInstructions,
         weeklyContractedHours: data.weeklyContractedHours,
         numberOfCarers: n,
+        staffGenderPreference: data.staffGenderPreference,
+        accommodationType: data.accommodationType,
         preferredEmployeeIds: preferredIds,
         blockedEmployeeIds: blockedIds,
       })
@@ -337,12 +349,12 @@ export function ServiceUserDomCareTab({
               <button
                 type="button"
                 className="rounded p-1 text-foreground hover:bg-muted"
-                title={doorVisible ? 'Hide door code' : 'Show door code'}
+                title={doorVisible ? 'Hide key safe code' : 'Show key safe code'}
                 onClick={() => setDoorVisible((v) => !v)}
               >
                 {doorVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-              <span>Door Code</span>
+              <span>Key Safe Code</span>
             </div>
             <Input
               type={doorVisible ? 'text' : 'password'}
@@ -476,23 +488,76 @@ export function ServiceUserDomCareTab({
             }}
           />
         </div>
-        <div className="mt-6 grid max-w-md grid-cols-1 items-start gap-3 md:grid-cols-[minmax(140px,200px)_1fr] md:gap-x-6">
-          <label className="pt-2 text-sm text-muted-foreground">
-            Number of Carers <span className="text-destructive">*</span>
-          </label>
-          <Input
-            type="number"
-            min={1}
-            max={99}
-            className="w-24"
-            value={data.numberOfCarers}
-            onChange={(e) => {
-              const raw = Number(e.target.value)
-              const v = Number.isFinite(raw) ? Math.min(99, Math.max(1, raw)) : 1
-              setField('numberOfCarers', v)
-            }}
-            disabled={!canUpdate}
-          />
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-muted-foreground">
+              Gender preference of staff
+            </label>
+            <select
+              value={data.staffGenderPreference ?? ''}
+              onChange={(e) => setField('staffGenderPreference', e.target.value || null)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              disabled={!canUpdate}
+            >
+              <option value="">No preference</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="case_by_case">Case by case</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-muted-foreground">
+              Number of Carers <span className="text-destructive">*</span>
+            </label>
+            <Input
+              type="number"
+              min={1}
+              max={99}
+              className="w-full"
+              value={data.numberOfCarers}
+              onChange={(e) => {
+                const raw = Number(e.target.value)
+                const v = Number.isFinite(raw) ? Math.min(99, Math.max(1, raw)) : 1
+                setField('numberOfCarers', v)
+              }}
+              disabled={!canUpdate}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Type of living accommodation</label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {ACCOMMODATION_OPTIONS.map((opt) => {
+              const checked = data.accommodationType?.includes(opt.value) ?? false
+              return (
+                <label
+                  key={opt.value}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+                    checked
+                      ? 'border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-950'
+                      : 'border-border bg-background hover:bg-muted/50',
+                    !canUpdate && 'pointer-events-none opacity-70',
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300"
+                    checked={checked}
+                    disabled={!canUpdate}
+                    onChange={() => {
+                      const prev = data.accommodationType ?? []
+                      const next = checked ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
+                      setField('accommodationType', next.length ? next : null)
+                    }}
+                  />
+                  {opt.label}
+                </label>
+              )
+            })}
+          </div>
         </div>
       </section>
 

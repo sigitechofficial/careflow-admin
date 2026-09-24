@@ -257,17 +257,7 @@ export function InitialAssessmentSectionQuestions({
       )
     }
     if (isAllergiesSummaryQuestion(q)) {
-      return (
-        <InitialAssessmentAllergiesField
-          question={q}
-          value={merged}
-          serviceUserId={serviceUserId}
-          errorMessage={questionErrors?.get(q.id)}
-          disabled={isFieldDisabled(q)}
-          variant={simpleLayout ? 'simple' : 'default'}
-          onChange={(patch) => onChange(q.id, patch)}
-        />
-      )
+      return null
     }
     if (prefillKeyForQuestion(q) === 'addressContact') {
       const poQuestion = findQuestionByFieldKey(allSections, 'poNumber')

@@ -115,6 +115,10 @@ export type ServiceUserModuleTabIconId =
   | 'alerts'
   | 'activity'
   | 'initial-assessment'
+  | 'flash'
+  | 'service-management'
+  | 'calendar'
+  | 'absence'
 
 export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, string> = {
   profile: `${moduleTabsBase}/profile.svg`,
@@ -133,6 +137,10 @@ export const SERVICE_USER_MODULE_TAB_ICONS: Record<ServiceUserModuleTabIconId, s
   alerts: `${moduleTabsBase}/alerts.svg`,
   activity: `${moduleTabsBase}/history.svg`,
   'initial-assessment': `${moduleTabsBase}/tasks-planner.svg`,
+  flash: `${base}/meeting-room.svg`,
+  'service-management': `${base}/meeting-room-1.svg`,
+  calendar: `${base}/world-care-2.svg`,
+  absence: `${base}/round-pause.svg`,
 }
 
 export function figmaModuleTabIcon(id: ServiceUserModuleTabIconId): string {

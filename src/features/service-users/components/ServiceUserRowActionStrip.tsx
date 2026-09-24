@@ -176,9 +176,11 @@ type Props = {
   className?: string
   archived?: boolean
   onFlashClick?: (user: ServiceUserListRow) => void
+  /** Show only the Overview button (used on the list page). */
+  compact?: boolean
 }
 
-export function ServiceUserRowActionStrip({ user, className, archived, onFlashClick }: Props) {
+export function ServiceUserRowActionStrip({ user, className, archived, onFlashClick, compact }: Props) {
   const id = user.id
   const params = { serviceUserId: id }
   const carePlanIcon = carePlanListStatusPresentation(user.carePlanListStatus)
@@ -203,45 +205,6 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
         testId="su-action-overview"
         figmaIcon="overview"
       />
-      <CircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.carePlan.to}
-        params={params}
-        title={carePlanIcon.title}
-        testId="su-action-care-plan"
-        figmaSrc={carePlanIcon.src}
-        carePlanListStatus={carePlanIcon.status}
-      />
-      <CircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.details.to}
-        params={params}
-        search={SERVICE_USER_ROW_ACTION_LINKS.details.search}
-        title="More Details"
-        testId="su-action-details"
-        figmaIcon="details"
-      />
-      <CircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.serviceManagement.to}
-        params={params}
-        search={SERVICE_USER_ROW_ACTION_LINKS.serviceManagement.search}
-        title="Service Management"
-        testId="su-action-service-management"
-        figmaIcon="serviceManagement"
-      />
-      <CircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.calendar.to}
-        params={params}
-        search={SERVICE_USER_ROW_ACTION_LINKS.calendar.search}
-        title="Calendar"
-        testId="su-action-calendar"
-        figmaIcon="calendar"
-      />
-      <CircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.medication.to}
-        params={params}
-        title="Medication"
-        testId="su-action-medication"
-        figmaIcon="medication"
-      />
       {onFlashClick ? (
         <CircleButton
           title={user.hasActiveFlashMessage ? 'Flash Message (active)' : 'Flash Message'}
@@ -259,36 +222,79 @@ export function ServiceUserRowActionStrip({ user, className, archived, onFlashCl
           figmaIcon="flash"
         />
       )}
-      <PlaceholderCircle title="Create Session" Icon={UserCheck} />
-      <CircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.absence.to}
-        params={params}
-        search={SERVICE_USER_ROW_ACTION_LINKS.absence.search}
-        title={user.hasActiveAbsence ? 'Record Absence (active absence)' : 'Record Absence'}
-        testId="su-action-absence"
-        figmaIcon="absence"
-      />
+      {!compact && (
+        <>
+          <CircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.carePlan.to}
+            params={params}
+            title={carePlanIcon.title}
+            testId="su-action-care-plan"
+            figmaSrc={carePlanIcon.src}
+            carePlanListStatus={carePlanIcon.status}
+          />
+          <CircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.details.to}
+            params={params}
+            search={SERVICE_USER_ROW_ACTION_LINKS.details.search}
+            title="More Details"
+            testId="su-action-details"
+            figmaIcon="details"
+          />
+          <CircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.serviceManagement.to}
+            params={params}
+            search={SERVICE_USER_ROW_ACTION_LINKS.serviceManagement.search}
+            title="Service Management"
+            testId="su-action-service-management"
+            figmaIcon="serviceManagement"
+          />
+          <CircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.calendar.to}
+            params={params}
+            search={SERVICE_USER_ROW_ACTION_LINKS.calendar.search}
+            title="Calendar"
+            testId="su-action-calendar"
+            figmaIcon="calendar"
+          />
+          <CircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.medication.to}
+            params={params}
+            title="Medication"
+            testId="su-action-medication"
+            figmaIcon="medication"
+          />
+          <PlaceholderCircle title="Create Session" Icon={UserCheck} />
+          <CircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.absence.to}
+            params={params}
+            search={SERVICE_USER_ROW_ACTION_LINKS.absence.search}
+            title={user.hasActiveAbsence ? 'Record Absence (active absence)' : 'Record Absence'}
+            testId="su-action-absence"
+            figmaIcon="absence"
+          />
 
-      <span className="mx-1 hidden h-7 w-px shrink-0 bg-border/80 sm:inline-block" aria-hidden />
+          <span className="mx-1 hidden h-7 w-px shrink-0 bg-border/80 sm:inline-block" aria-hidden />
 
-      <ReportCircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.careSummaryReport.to}
-        params={params}
-        reportId="CS"
-        title="Care summary"
-      />
-      <ReportCircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.detailedCareReport.to}
-        params={params}
-        reportId="D"
-        title="Detailed Care report"
-      />
-      <ReportCircleLink
-        to={SERVICE_USER_ROW_ACTION_LINKS.observationsReport.to}
-        params={params}
-        reportId="O"
-        title="Observation Report"
-      />
+          <ReportCircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.careSummaryReport.to}
+            params={params}
+            reportId="CS"
+            title="Care summary"
+          />
+          <ReportCircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.detailedCareReport.to}
+            params={params}
+            reportId="D"
+            title="Detailed Care report"
+          />
+          <ReportCircleLink
+            to={SERVICE_USER_ROW_ACTION_LINKS.observationsReport.to}
+            params={params}
+            reportId="O"
+            title="Observation Report"
+          />
+        </>
+      )}
       {/* Hidden for now: Assessment report, Care plan report, House pack history */}
     </div>
   )

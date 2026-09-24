@@ -20,6 +20,7 @@ import { buildInitialAssessmentEnterpriseSearch } from '@/features/service-users
 
 /** Active route (legacy `/service-users/initial-assessment-checklist` is disabled in router). */
 const ASSESSMENT_PATH = '/service-users/initial-assessment' as const
+const CHECKLIST_PATH = '/service-users/initial-assessment-checklist' as const
 
 function customerLabel(row: ServiceUserListRow): string {
   const name = row.preferredName?.trim() || [row.firstName, row.lastName].filter(Boolean).join(' ')
@@ -43,7 +44,7 @@ export default function InitialAssessmentChecklistPage() {
   const navigate = useNavigate()
   const selectedId = useRouterState({
     select: s =>
-      s.location.pathname === ASSESSMENT_PATH ? serviceUserIdFromSearch(s.location.search) : '',
+      s.location.pathname === CHECKLIST_PATH ? serviceUserIdFromSearch(s.location.search) : '',
   })
   const can = useAuthStore(s => s.can)
   const canRead = can('service_users.initial_assessment.read') || can('service_users.read')
@@ -66,8 +67,8 @@ export default function InitialAssessmentChecklistPage() {
 
   const onCustomerChange = (id: string) => {
     void navigate({
-      to: ASSESSMENT_PATH,
-      search: buildInitialAssessmentEnterpriseSearch(id ? { serviceUserId: id } : {}),
+      to: CHECKLIST_PATH,
+      search: id ? { serviceUserId: id } : {},
       replace: true,
     })
   }

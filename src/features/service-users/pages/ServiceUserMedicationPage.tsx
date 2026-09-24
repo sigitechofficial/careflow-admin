@@ -21,6 +21,7 @@ import { MedicationReviewQueueTab } from '@/features/service-users/medication/Me
 import { MedicationMarExportTab } from '@/features/service-users/medication/MedicationMarExportTab'
 import { MedicationActivityTab } from '@/features/service-users/medication/MedicationActivityTab'
 import { MedicationSupportProfileTab } from '@/features/service-users/medication/MedicationSupportProfileTab'
+import { MedicationAllergiesTab } from '@/features/service-users/medication/MedicationAllergiesTab'
 import { RecordDetailDrawer } from '@/features/service-users/medication/RecordDetailDrawer'
 import { CorrectRecordDialog } from '@/features/service-users/medication/CorrectRecordDialog'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
@@ -54,6 +55,7 @@ import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezo
 type MedicationView =
   | 'records'
   | 'support'
+  | 'allergies'
   | 'calendar'
   | 'supply'
   | 'packs'
@@ -65,6 +67,7 @@ type MedicationView =
 const VIEW_TABS: { id: MedicationView; label: string }[] = [
   { id: 'records', label: 'Records' },
   { id: 'support', label: 'Support profile' },
+  { id: 'allergies', label: 'Allergies' },
   { id: 'calendar', label: 'MAR calendar' },
   { id: 'supply', label: 'Supply & cycles' },
   { id: 'packs', label: 'Blister packs' },
@@ -85,6 +88,7 @@ export default function ServiceUserMedicationPage() {
 
   const view: MedicationView =
     search.view === 'support' ||
+    search.view === 'allergies' ||
     search.view === 'calendar' ||
     search.view === 'supply' ||
     search.view === 'packs' ||
@@ -180,6 +184,7 @@ export default function ServiceUserMedicationPage() {
           : {
               view: next as
                 | 'support'
+                | 'allergies'
                 | 'calendar'
                 | 'supply'
                 | 'packs'
@@ -327,6 +332,9 @@ export default function ServiceUserMedicationPage() {
 
         {!error && apiConfigured && view === 'support' && (
           <MedicationSupportProfileTab serviceUserId={serviceUserId} />
+        )}
+        {!error && apiConfigured && view === 'allergies' && (
+          <MedicationAllergiesTab serviceUserId={serviceUserId} />
         )}
         {!error && apiConfigured && view === 'calendar' && (
           <MarCalendarTab serviceUserId={serviceUserId} />

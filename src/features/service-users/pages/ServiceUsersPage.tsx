@@ -839,16 +839,19 @@ export default function ServiceUsersPage() {
                         />
                       </th>
                       {[
-                        { label: 'Picture', filter: false },
-                        { label: 'Service user', filter: true },
-                        { label: 'Actions', filter: false },
+                        { label: 'Picture', className: 'w-[4.5rem]' },
+                        { label: 'Name', filter: true },
+                        { label: 'DOB' },
+                        { label: 'Status' },
+                        { label: 'Location' },
+                        { label: 'Key Worker' },
+                        { label: 'Actions', className: 'text-right' },
                       ].map((col) => (
                         <th
                           key={col.label}
                           className={cn(
-                            'px-2 py-2.5 text-left text-xs font-medium text-muted-foreground sm:px-3 sm:text-sm',
-                            col.label === 'Picture' && 'w-[5.5rem]',
-                            col.label === 'Actions' && 'w-0 text-right',
+                            'whitespace-nowrap px-2 py-2.5 text-left text-xs font-medium text-muted-foreground sm:px-3 sm:text-sm',
+                            col.className,
                           )}
                         >
                           <div className={cn('flex items-center gap-1', col.label === 'Actions' && 'justify-end')}>
@@ -884,17 +887,60 @@ export default function ServiceUsersPage() {
                         <td className="px-2 py-3 align-middle sm:px-3">
                           <SuAvatar row={user} onPhotoUploaded={onProfilePhotoUploaded} readOnly={viewingDeleted} />
                         </td>
-                        <td className="min-w-0 px-2 py-3 align-middle sm:px-3">
-                          <SuUserDetailsBlock user={user} archived={viewingDeleted} />
+                        <td className="whitespace-nowrap px-2 py-3 align-middle sm:px-3">
+                          <div className="font-medium leading-snug text-foreground">
+                            {viewingDeleted ? (
+                              <span>{displayName(user)}</span>
+                            ) : (
+                              <Link
+                                to={SERVICE_USER_MANAGEMENT_NAME_TO}
+                                params={{ serviceUserId: user.id }}
+                                className="hover:underline"
+                                data-testid="su-list-name-link"
+                              >
+                                {displayName(user)}
+                              </Link>
+                            )}
+                          </div>
+                          {user.serviceUserNumber && (
+                            <span className="text-xs text-muted-foreground">#{user.serviceUserNumber}</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-3 align-middle text-sm text-muted-foreground sm:px-3">
+                          {formatDobList(user.dateOfBirth)}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-3 align-middle sm:px-3">
+                          {user.status?.name && (
+                            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                              {user.status.name}
+                            </span>
+                          )}
+                          {highRiskAlert(user) && (
+                            <span className="ml-1 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                              {user.riskLevel?.name ?? 'Risk'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-3 align-middle text-sm text-muted-foreground sm:px-3">
+                          {formatServiceUserBranchLabel({
+                            locationId: user.location?.id,
+                            locationName: user.location?.name,
+                            zoneName: user.location?.zoneName,
+                            branchName: user.location?.branchName,
+                            branchLayers: user.location?.branchLayers,
+                            displayLabel: user.location?.displayLabel,
+                          }) || '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-3 align-middle text-sm text-muted-foreground sm:px-3">
+                          {employeeLabel(user.keyWorker) || '—'}
                         </td>
                         <td className="px-2 py-3 align-middle text-right sm:px-3">
-                          <div className="inline-block max-w-[min(100vw,28rem)] min-w-0 overflow-x-auto touch-pan-x md:max-w-none">
-                            <ServiceUserRowActionStrip
-                              user={user}
-                              archived={viewingDeleted}
-                              onFlashClick={handleFlashClick}
-                            />
-                          </div>
+                          <ServiceUserRowActionStrip
+                            user={user}
+                            archived={viewingDeleted}
+                            onFlashClick={handleFlashClick}
+                            compact
+                          />
                         </td>
                       </tr>
                     ))}
@@ -931,6 +977,7 @@ export default function ServiceUsersPage() {
                         className="min-w-min justify-start"
                         archived={viewingDeleted}
                         onFlashClick={handleFlashClick}
+                        compact
                       />
                     </div>
                   </article>

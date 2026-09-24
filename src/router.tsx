@@ -32,7 +32,7 @@ import type { Permission } from '@/features/auth/types'
 
 // ΓöÇΓöÇ Service-user pages (canonical) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 import ServiceUsersPage from '@/features/service-users/pages/ServiceUsersPage'
-// import InitialAssessmentChecklistPage from '@/features/service-users/pages/InitialAssessmentChecklistPage'
+import InitialAssessmentChecklistPage from '@/features/service-users/pages/InitialAssessmentChecklistPage'
 import ServiceUserInitialAssessmentEnterprisePage from '@/features/service-users/initial-assessment/pages/ServiceUserInitialAssessmentEnterprisePage'
 import { validateInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
 import { validateServiceUserProfileSearch } from '@/features/service-users/service-user-profile-tabs'
@@ -213,7 +213,7 @@ import {
   prefetchEmployeeEditRoute,
   prefetchEmployeeTab,
   prefetchInitialAssessmentEnterprise,
-  // prefetchInitialAssessmentChecklist,
+  prefetchInitialAssessmentChecklist,
   prefetchLocationManagement,
   prefetchSchedulingBuild,
   prefetchSchedulingJobs,
@@ -249,7 +249,7 @@ const pageTitles: Record<string, string> = {
   '/service-users/hours': 'Service User hours',
   '/service-users/calendar': 'Calendar',
   '/service-users/initial-assessment': 'Initial Assessment',
-  // '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
+  '/service-users/initial-assessment-checklist': 'Initial Assessment (Legacy)',
   '/service-users/add': 'Add Service User',
   '/service-users/$serviceUserId/profile': 'Profile',
   '/service-users/$serviceUserId/alerts': 'Medical & alerts',
@@ -749,7 +749,6 @@ const serviceUsersInitialAssessmentEnterpriseRoute = createRoute({
   component: ServiceUserInitialAssessmentEnterprisePage,
 })
 
-/*
 const serviceUsersInitialAssessmentRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/service-users/initial-assessment-checklist',
@@ -770,7 +769,6 @@ const serviceUsersInitialAssessmentRoute = createRoute({
   },
   component: InitialAssessmentChecklistPage,
 })
-*/
 
 const serviceUsersAddRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -837,13 +835,13 @@ const serviceUsersMedicationRoute = createRoute({
   validateSearch: (
     raw: Record<string, unknown>,
   ): {
-    view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity'
+    view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity' | 'allergies'
     from?: string
     submissionId?: string
   } => {
     const v = raw.view
     const out: {
-      view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity'
+      view?: 'calendar' | 'supply' | 'packs' | 'events' | 'reviews' | 'export' | 'support' | 'activity' | 'allergies'
       from?: string
       submissionId?: string
     } = {}
@@ -855,7 +853,8 @@ const serviceUsersMedicationRoute = createRoute({
       v === 'reviews' ||
       v === 'export' ||
       v === 'support' ||
-      v === 'activity'
+      v === 'activity' ||
+      v === 'allergies'
     ) {
       out.view = v
     }
@@ -2088,7 +2087,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersHoursRoute,
     serviceUsersCalendarRoute,
     serviceUsersInitialAssessmentEnterpriseRoute,
-    // serviceUsersInitialAssessmentRoute,
+    serviceUsersInitialAssessmentRoute,
     serviceUsersAddRoute,
     serviceUsersViewRoute,
     serviceUsersProfileRoute,

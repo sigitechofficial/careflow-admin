@@ -77,6 +77,11 @@ export function ServiceUserModuleHeader({
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {serviceUserDisplayName(detail)}
+              {detail?.serviceUserNumber && (
+                <span className="ml-2 text-lg font-normal text-muted-foreground">
+                  #{detail.serviceUserNumber}
+                </span>
+              )}
             </h1>
             <p className="mt-1 text-sm">
               <span className="font-medium text-destructive">

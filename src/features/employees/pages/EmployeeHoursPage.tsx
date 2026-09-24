@@ -355,6 +355,9 @@ export default function EmployeeHoursPage() {
   const [staffKind, setStaffKind] = React.useState<EmployeeStaffKind>('all')
   const [overContractOnly, setOverContractOnly] = React.useState(false)
   const [overCapOnly, setOverCapOnly] = React.useState(false)
+  const [insight, setInsight] = React.useState<
+    'all' | 'meeting_contracted' | 'missing_visits' | 'habitual_late' | 'over_contracted' | 'under_contracted'
+  >('all')
   const [includeInactive, setIncludeInactive] = React.useState(false)
   const [sortKey, setSortKey] = React.useState<SortKey>('name')
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc')
@@ -396,7 +399,24 @@ export default function EmployeeHoursPage() {
   const facets = data?.facets
 
   const rows = React.useMemo(() => {
-    const base = [...(data?.rows ?? [])]
+    let base = [...(data?.rows ?? [])]
+    if (insight === 'meeting_contracted') {
+      base = base.filter(
+        (r) => r.weeklyHours != null && r.weeklyHours > 0 && r.assignedHours >= r.weeklyHours,
+      )
+    } else if (insight === 'missing_visits') {
+      base = base.filter((r) => r.assignedVisits > r.workedVisits)
+    } else if (insight === 'habitual_late') {
+      base = base.filter((r) => r.lateVisits >= 2)
+    } else if (insight === 'over_contracted') {
+      base = base.filter(
+        (r) => r.weeklyHours != null && r.weeklyHours > 0 && r.assignedHours > r.weeklyHours,
+      )
+    } else if (insight === 'under_contracted') {
+      base = base.filter(
+        (r) => r.weeklyHours != null && r.weeklyHours > 0 && r.assignedHours < r.weeklyHours,
+      )
+    }
     base.sort((a, b) => {
       const av = sortValue(a, sortKey)
       const bv = sortValue(b, sortKey)
@@ -407,7 +427,7 @@ export default function EmployeeHoursPage() {
       return sortDir === 'asc' ? cmp : -cmp
     })
     return base
-  }, [data?.rows, sortKey, sortDir])
+  }, [data?.rows, sortKey, sortDir, insight])
 
   const hasSecondaryFilters =
     Boolean(roleId || jobTitleId || contractTypeId || effectiveLocationId || visaTypeId) ||
@@ -801,6 +821,30 @@ export default function EmployeeHoursPage() {
               Include inactive
             </label>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <span className="text-xs font-medium text-muted-foreground">Insights:</span>
+          {(
+            [
+              ['all', 'All'],
+              ['meeting_contracted', 'Meeting contracted hours'],
+              ['missing_visits', 'Missing visits'],
+              ['habitual_late', 'Habitual late (2+)'],
+              ['over_contracted', 'Over contracted hours'],
+              ['under_contracted', 'Under contracted hours'],
+            ] as const
+          ).map(([id, label]) => (
+            <Button
+              key={id}
+              type="button"
+              size="sm"
+              variant={insight === id ? 'default' : 'outline'}
+              onClick={() => setInsight(id)}
+              data-testid={`employee-hours-insight-${id}`}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
       </ContentCard>
 

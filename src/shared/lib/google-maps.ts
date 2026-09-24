@@ -227,7 +227,7 @@ const postcodeVerifyCache = new Map<string, PostcodeVerification>()
 function postcodeMatchesInput(inputNorm: string, candidate: string): boolean {
   const cand = normalizePostcode(candidate)
   if (!cand || !inputNorm) return false
-  return cand === inputNorm || cand.startsWith(inputNorm) || inputNorm.startsWith(cand)
+  return cand === inputNorm || cand.startsWith(inputNorm)
 }
 
 function predictionsMatchPostcode(

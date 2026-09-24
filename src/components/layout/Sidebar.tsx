@@ -179,6 +179,13 @@ const navItems: NavItem[] = [
         navTestId: 'nav-service-users-initial-assessment',
       },
       {
+        label: 'Initial Assessment (Legacy)',
+        icon: <ClipboardList className="h-4 w-4" />,
+        href: '/service-users/initial-assessment-checklist',
+        permission: 'service_users.initial_assessment.read',
+        navTestId: 'nav-service-users-initial-assessment-legacy',
+      },
+      {
         label: 'IA review queue',
         icon: <ShieldCheck className="h-4 w-4" />,
         href: '/initial-assessments/review-queue',

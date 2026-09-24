@@ -39,6 +39,8 @@ export type EmployeeHoursRow = {
   remainingCapHours: number | null
   assignedVisits: number
   workedVisits: number
+  /** Visits started >15 min after the planned start this week. */
+  lateVisits: number
   /** Worked hours per weekday, Monday = index 0. */
   dayHours: number[]
   hourBand: EmployeeHourBand

@@ -17,6 +17,9 @@ const TABS: { id: HoursApprovalStatus; label: string }[] = [
   { id: 'REJECTED', label: 'Rejected' },
 ]
 
+/** Hard weekly cap — extra hours above this can never be approved (mirrors backend). */
+const MAX_APPROVABLE_WEEKLY_HOURS = 60
+
 const STATUS_TONE: Record<HoursApprovalStatus, string> = {
   PENDING: 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
   APPROVED: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
@@ -133,8 +136,19 @@ export default function HoursApprovalsPage() {
                     <td className="px-4 py-3 text-right tabular-nums">
                       {r.contractedWeeklyHours ?? '—'}h
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium">
+                    <td
+                      className={`px-4 py-3 text-right tabular-nums font-medium ${
+                        (r.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS
+                          ? 'text-destructive'
+                          : ''
+                      }`}
+                    >
                       ~{r.projectedWeeklyHours ?? '—'}h
+                      {(r.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS ? (
+                        <span className="ml-1 text-[10px] font-normal">
+                          over {MAX_APPROVABLE_WEEKLY_HOURS}h
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-amber-700 dark:text-amber-300">
                       +{r.extraHours ?? '—'}h
@@ -153,7 +167,16 @@ export default function HoursApprovalsPage() {
                             type="button"
                             size="sm"
                             className="gap-1.5"
-                            disabled={approveMut.isPending || rejectMut.isPending}
+                            disabled={
+                              approveMut.isPending ||
+                              rejectMut.isPending ||
+                              (r.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS
+                            }
+                            title={
+                              (r.projectedWeeklyHours ?? 0) > MAX_APPROVABLE_WEEKLY_HOURS
+                                ? `Cannot approve — exceeds the ${MAX_APPROVABLE_WEEKLY_HOURS}h weekly maximum. Reduce assigned hours first.`
+                                : undefined
+                            }
                             onClick={() => void handleApprove(r.id)}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />

@@ -1983,6 +1983,8 @@ export type ServiceUserDomCareData = {
   weeklyContractedHours: string | null
   contractDocumentUrl: string | null
   numberOfCarers: number
+  staffGenderPreference: string | null
+  accommodationType: string[] | null
   preferredCarers: ServiceUserDomCareCarerBrief[]
   blockedCarers: ServiceUserDomCareCarerBrief[]
 }
@@ -1994,6 +1996,8 @@ export type PatchServiceUserDomCarePayload = {
   careInstructions?: string
   weeklyContractedHours?: string | null
   numberOfCarers?: number
+  staffGenderPreference?: string | null
+  accommodationType?: string[] | null
   preferredEmployeeIds?: string[]
   blockedEmployeeIds?: string[]
 }

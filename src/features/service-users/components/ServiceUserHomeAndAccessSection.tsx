@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Loader2 } from 'lucide-react'
+import { ChevronDown, Loader2 } from 'lucide-react'
 import { extractApiErrorMessage, toastApiError, toastSuccess } from '@/shared/lib/toast'
 import type { ServiceUserDetail } from '@/features/service-users/types'
 import { useUpdateServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
@@ -70,6 +70,7 @@ export function ServiceUserHomeAndAccessSection({ serviceUserId, detail, onSaved
   const [form, setForm] = React.useState<HomeAccessState>(() => detailToState(detail))
   const [saveError, setSaveError] = React.useState<string | null>(null)
   const [saveOk, setSaveOk] = React.useState(false)
+  const [addressOpen, setAddressOpen] = React.useState(false)
 
   // Reload local state when the underlying service user detail changes.
   React.useEffect(() => {
@@ -149,38 +150,51 @@ export function ServiceUserHomeAndAccessSection({ serviceUserId, detail, onSaved
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">
-          Address (optional — includes map coordinates)
-        </h2>
-        <AddressPlacesField
-          postcodeLabel="Secondary postcode"
-          value={{
-            addressLine1: form.addressLine1,
-            addressLine2: form.addressLine2,
-            town: form.town,
-            county: form.county,
-            country: form.country,
-            postcode: form.secondaryPostcode,
-            latitude: form.latitude,
-            longitude: form.longitude,
-          }}
-          onChange={(patch) =>
-            setForm((prev) => {
-              const { postcode, ...rest } = patch
-              return {
-                ...prev,
-                ...rest,
-                ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+      <section className="rounded-xl border border-border bg-card shadow-sm">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between p-4 sm:p-6"
+          onClick={() => setAddressOpen((v) => !v)}
+        >
+          <h2 className="text-sm font-semibold text-sky-600 dark:text-sky-400">
+            Address (optional — includes map coordinates)
+          </h2>
+          <ChevronDown
+            className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${addressOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {addressOpen && (
+          <div className="border-t border-border px-4 pb-4 pt-4 sm:px-6 sm:pb-6">
+            <AddressPlacesField
+              postcodeLabel="Secondary postcode"
+              value={{
+                addressLine1: form.addressLine1,
+                addressLine2: form.addressLine2,
+                town: form.town,
+                county: form.county,
+                country: form.country,
+                postcode: form.secondaryPostcode,
+                latitude: form.latitude,
+                longitude: form.longitude,
+              }}
+              onChange={(patch) =>
+                setForm((prev) => {
+                  const { postcode, ...rest } = patch
+                  return {
+                    ...prev,
+                    ...rest,
+                    ...(postcode !== undefined ? { secondaryPostcode: postcode } : {}),
+                  }
+                })
               }
-            })
-          }
-          disabled={!canAddress}
-        />
-        {!canAddress && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Address fields require the service_users.address.update permission to save.
-          </p>
+              disabled={!canAddress}
+            />
+            {!canAddress && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Address fields require the service_users.address.update permission to save.
+              </p>
+            )}
+          </div>
         )}
       </section>
 

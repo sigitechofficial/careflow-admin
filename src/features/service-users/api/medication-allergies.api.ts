@@ -60,3 +60,30 @@ export async function listMedicationAllergies(
     .map((row) => normalizeRow(row))
     .filter((row): row is MedicationAllergyRow => row != null)
 }
+
+export type CreateMedicationAllergyInput = {
+  allergyName: string
+  reaction?: string
+  severity?: string
+  notes?: string
+}
+
+export async function createMedicationAllergy(
+  serviceUserId: string,
+  body: CreateMedicationAllergyInput,
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/medication-allergies`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteMedicationAllergy(
+  serviceUserId: string,
+  allergyId: string,
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(
+    `/service-users/${serviceUserId}/medication-allergies/${allergyId}`,
+    { method: 'DELETE' },
+  )
+}

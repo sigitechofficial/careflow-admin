@@ -1,9 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
-import {
-  readSummernoteEditorHtml,
-  SummernoteEditor,
-} from '@/shared/ui/summernote-editor'
+import { SummernoteCustomEditor } from '@/shared/ui/summernote-custom-editor'
 
 export function plainTextFromHtml(html: string): string {
   if (!html?.trim()) return ''
@@ -12,7 +9,7 @@ export function plainTextFromHtml(html: string): string {
   }
   const tmp = document.createElement('div')
   tmp.innerHTML = html
-  return (tmp.textContent ?? tmp.innerText ?? '').replace(/\u00a0/g, ' ').trim()
+  return (tmp.textContent ?? tmp.innerText ?? '').replace(/ /g, ' ').trim()
 }
 
 function rowsToMinHeight(rows?: number): number {
@@ -28,7 +25,7 @@ export type InitialAssessmentTextareaProps = Omit<
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>
   error?: boolean
   compact?: boolean
-  /** Native textarea — no Summernote (e.g. About Me routine grid cells). */
+  /** Native textarea — no rich editor (e.g. About Me routine grid cells). */
   plain?: boolean
 }
 
@@ -81,16 +78,16 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
       )
     }
 
-    const handleChange = (html: string): void | false => {
-      if (maxLength != null && plainTextFromHtml(html).length > maxLength) return false
+    const handleChange = (html: string): void => {
+      if (maxLength != null && plainTextFromHtml(html).length > maxLength) return
       onChange?.({
         target: { value: html },
       } as React.ChangeEvent<HTMLTextAreaElement>)
     }
 
-    const handleBlur = (html: string) => {
+    const handleBlur = () => {
       onBlur?.({
-        target: { value: html },
+        target: { value: value },
       } as React.FocusEvent<HTMLTextAreaElement>)
     }
 
@@ -101,17 +98,20 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
         data-ia-rich-text
         className={cn(
           'initial-assessment-textarea col-span-full w-full max-w-none',
-          error && '[&_.note-editor]:border-destructive',
+          error && '[&_.summernote-custom-wrap]:border-destructive',
           className,
         )}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) handleBlur()
+        }}
       >
-        <SummernoteEditor
+        <SummernoteCustomEditor
           value={value}
           onChange={handleChange}
-          onBlur={onBlur ? handleBlur : undefined}
           placeholder={placeholder}
           disabled={disabled}
           minHeight={minHeight}
+          className="summernote-custom-wrap"
         />
       </div>
     )
@@ -120,12 +120,15 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
 
 InitialAssessmentTextarea.displayName = 'InitialAssessmentTextarea'
 
-/** Focus the Summernote editable region inside a rich-text field wrapper. */
+/** Focus the editor region inside a rich-text field wrapper. */
 export function focusInitialAssessmentTextarea(host: HTMLElement | null | undefined) {
-  host?.querySelector<HTMLElement>('.note-editable')?.focus()
+  host?.querySelector<HTMLElement>('.ProseMirror')?.focus()
 }
 
-/** Read current Summernote HTML from an `InitialAssessmentTextarea` wrapper (`[data-ia-rich-text]`). */
+/** Read current HTML from a mounted editor inside `container` (`[data-ia-rich-text]`). */
 export function readInitialAssessmentTextareaValue(host: HTMLElement | null | undefined): string {
-  return readSummernoteEditorHtml(host)
+  if (!host) return ''
+  const pm = host.querySelector('.ProseMirror')
+  if (pm instanceof HTMLElement) return pm.innerHTML
+  return ''
 }

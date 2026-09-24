@@ -30,6 +30,8 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/activity'
     | '/service-users/$serviceUserId/alerts'
     | '/service-users/$serviceUserId/initial-assessment'
+    | '/service-users/$serviceUserId'
+  search?: Record<string, string>
   /** When set, tab is hidden unless the user has this permission. */
   permission?: Permission
 }
@@ -52,6 +54,10 @@ const MODULE_TAB_CIRCLE_BG: Record<ServiceUserModuleTabIconId, string | null> = 
   alerts: '#FEEEEE',
   activity: '#E8F5F2',
   'initial-assessment': '#EEF2FF',
+  flash: null,
+  'service-management': null,
+  calendar: null,
+  absence: null,
 }
 
 export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
@@ -127,6 +133,30 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
     label: 'Activity',
     to: '/service-users/$serviceUserId/activity',
   },
+  {
+    id: 'flash',
+    label: 'Flash Message',
+    to: '/service-users/$serviceUserId/view',
+    search: { focus: 'flash' },
+  },
+  {
+    id: 'service-management',
+    label: 'Service Mgmt',
+    to: '/service-users/$serviceUserId',
+    search: { tab: 'dom' },
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    to: '/service-users/$serviceUserId',
+    search: { tab: 'calendar' },
+  },
+  {
+    id: 'absence',
+    label: 'Absence',
+    to: '/service-users/$serviceUserId',
+    search: { tab: 'absences' },
+  },
 ]
 
 export function isServiceUserModuleTabActive(tab: ModuleTab, pathname: string): boolean {
@@ -198,10 +228,10 @@ export function ServiceUserModuleTabs({
   const can = useAuthStore((s) => s.can)
 
   return (
-    <div className="border-b border-border bg-card">
+    <div className="border-b border-border bg-card overflow-x-auto">
       <div
         className={cn(
-          'flex flex-wrap items-end justify-center gap-4 py-3 sm:gap-6',
+          'flex flex-nowrap items-end gap-4 py-3 px-4 sm:gap-6 sm:px-6 min-w-max',
           serviceUserModuleShellClass(shellLayout),
         )}
       >
@@ -217,6 +247,7 @@ export function ServiceUserModuleTabs({
                 key={tab.id}
                 to={tab.to}
                 params={{ serviceUserId }}
+                search={tab.search}
                 title={tab.label}
                 data-testid={`su-module-tab-${tab.id}`}
               >

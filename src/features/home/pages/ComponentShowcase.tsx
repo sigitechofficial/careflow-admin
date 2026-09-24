@@ -60,6 +60,7 @@ import { Slider } from '@/shared/ui/slider'
 import { ColorPicker } from '@/shared/ui/color-picker'
 import { SignaturePad } from '@/shared/ui/signature-pad'
 import { RichTextEditor } from '@/shared/ui/rich-text-editor'
+import { SummernoteCustomEditor } from '@/shared/ui/summernote-custom-editor'
 import { Breadcrumbs } from '@/shared/ui/breadcrumbs'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator, ContextMenuTrigger, ContextMenuShortcut } from '@/shared/ui/context-menu'
 import { Fab } from '@/shared/ui/fab'
@@ -87,7 +88,7 @@ import { ActivityFeed } from '@/shared/ui/activity-feed'
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator, CommandShortcut, useCommandPalette } from '@/shared/ui/command'
 import { Users, Home, Settings, HelpCircle, FileText, Bell } from 'lucide-react'
 
-/* â”€â”€â”€ Section Wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Section Wrapper -- */
 function ShowSection({
   title,
   description,
@@ -185,7 +186,7 @@ function ContentTypographyShowcase() {
   )
 }
 
-/* â”€â”€â”€ Sample data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Sample data -- */
 const sampleUsers = [
   { name: 'Margaret Thompson' },
   { name: 'James Carter' },
@@ -219,7 +220,7 @@ export default function ComponentShowcase() {
           ]}
         />
 
-        {/* â”€â”€ Buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Buttons -- */}
         <ShowSection title="Buttons" description="All button variants, sizes, and states.">
           {/* Variants */}
           <div className="space-y-1">
@@ -278,7 +279,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Form Fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Form Fields -- */}
         <ShowSection title="Form Fields" description="Text inputs, labels, textarea, and form field wrappers.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Full Name" htmlFor="name" required>
@@ -294,7 +295,7 @@ export default function ComponentShowcase() {
             </FormField>
 
             <FormField label="Password" htmlFor="password">
-              <Input id="password" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" leftElement={<Lock className="h-3.5 w-3.5" />} />
+              <Input id="password" type="password" placeholder="********" leftElement={<Lock className="h-3.5 w-3.5" />} />
             </FormField>
 
             <FormField label="Date of Birth" htmlFor="dob">
@@ -323,7 +324,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Selects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Selects -- */}
         <ShowSection title="Select Dropdowns" description="Single-select dropdown menus with grouping support.">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField label="Care Type" htmlFor="care-type">
@@ -379,7 +380,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Badges -- */}
         <ShowSection title="Badges" description="Status and category indicators in multiple variants.">
           <div className="space-y-3">
             <div className="space-y-1">
@@ -425,7 +426,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Toggle Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Toggle Controls -- */}
         <ShowSection title="Toggle Controls" description="Switches, checkboxes, and radio groups.">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Switches */}
@@ -494,7 +495,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Avatars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Avatars -- */}
         <ShowSection title="Avatars" description="User avatars with sizes, online indicators, and groups.">
           <div className="space-y-4">
             <div className="space-y-1">
@@ -522,7 +523,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Progress -- */}
         <ShowSection title="Progress" description="Progress bars with variants and value display.">
           <div className="space-y-3 max-w-md">
             <div className="space-y-1">
@@ -551,7 +552,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Tabs -- */}
         <ShowSection title="Tabs" description="Three tab variants: default, pills, and underline.">
           <div className="space-y-6">
             <Tabs defaultValue="overview">
@@ -562,7 +563,7 @@ export default function ComponentShowcase() {
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
               <TabsContent value="overview">
-                <p className="text-sm text-muted-foreground">Default tab style â€” commonly used for main section navigation.</p>
+                <p className="text-sm text-muted-foreground">Default tab style -- commonly used for main section navigation.</p>
               </TabsContent>
               <TabsContent value="care-plan">
                 <p className="text-sm text-muted-foreground">Care plan content would appear here.</p>
@@ -583,7 +584,7 @@ export default function ComponentShowcase() {
                 <TabsTrigger value="pending" variant="pills">Pending</TabsTrigger>
               </TabsList>
               <TabsContent value="all">
-                <p className="text-sm text-muted-foreground">Pills variant â€” good for filters and view toggles.</p>
+                <p className="text-sm text-muted-foreground">Pills variant -- good for filters and view toggles.</p>
               </TabsContent>
               <TabsContent value="active"><p className="text-sm text-muted-foreground">Active employees.</p></TabsContent>
               <TabsContent value="on-leave"><p className="text-sm text-muted-foreground">Employees on leave.</p></TabsContent>
@@ -598,7 +599,7 @@ export default function ComponentShowcase() {
                 <TabsTrigger value="leave" variant="underline">Leave</TabsTrigger>
               </TabsList>
               <TabsContent value="shifts">
-                <p className="text-sm text-muted-foreground">Underline variant â€” clean for record-level detail pages.</p>
+                <p className="text-sm text-muted-foreground">Underline variant -- clean for record-level detail pages.</p>
               </TabsContent>
               <TabsContent value="rota"><p className="text-sm text-muted-foreground">Rota view.</p></TabsContent>
               <TabsContent value="availability"><p className="text-sm text-muted-foreground">Availability grid.</p></TabsContent>
@@ -607,7 +608,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Alerts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Alerts -- */}
         <ShowSection title="Alerts" description="Inline status messages for various scenarios.">
           <div className="space-y-2 max-w-2xl">
             <Alert variant="info" title="DBS Renewal Due">
@@ -625,7 +626,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Toasts (toastr) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Toasts (toastr) -- */}
         <ShowSection
           title="Toasts (toastr)"
           description="Transient notifications used after form submits in Service Users and elsewhere. Triggered via toastSuccess / toastError from @/shared/lib/toast."
@@ -643,7 +644,7 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Status Indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Status Indicators -- */}
         <ShowSection title="Status Indicators" description="Compact status dots for lists and tables.">
           <Row>
             <StatusIndicator status="active" />
@@ -697,7 +698,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Cards -- */}
         <ShowSection title="Cards" description="Content containers with headers, body, and footer.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
@@ -706,7 +707,7 @@ export default function ComponentShowcase() {
                   <CardTitle>Service User Profile</CardTitle>
                   <Badge variant="success" dot>Active</Badge>
                 </div>
-                <CardDescription>Residential care â€” Room 14</CardDescription>
+                <CardDescription>Residential care -- Room 14</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
@@ -727,12 +728,12 @@ export default function ComponentShowcase() {
             <Card hoverable>
               <CardHeader>
                 <CardTitle>Upcoming Shift</CardTitle>
-                <CardDescription>Tomorrow Â· Morning</CardDescription>
+                <CardDescription>Tomorrow · Morning</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2.5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Time</span>
-                  <span className="font-medium">07:00 â€“ 14:00</span>
+                  <span className="font-medium">07:00 -- 14:00</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Location</span>
@@ -748,7 +749,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Dialogs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Dialogs -- */}
         <ShowSection title="Dialogs & Modals" description="Modal dialogs and confirmation dialogs.">
           <Row>
             {/* Standard Dialog */}
@@ -800,7 +801,7 @@ export default function ComponentShowcase() {
               </DialogTrigger>
               <DialogContent size="lg">
                 <DialogHeader>
-                  <DialogTitle>Incident Report â€” Full Form</DialogTitle>
+                  <DialogTitle>Incident Report -- Full Form</DialogTitle>
                   <DialogDescription>Document the incident details accurately and completely.</DialogDescription>
                 </DialogHeader>
                 <DialogBody className="space-y-3">
@@ -863,7 +864,7 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Dropdown Menus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Dropdown Menus -- */}
         <ShowSection title="Dropdown Menus" description="Contextual action menus with grouping and shortcuts.">
           <Row>
             <DropdownMenu>
@@ -877,11 +878,11 @@ export default function ComponentShowcase() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Eye className="h-4 w-4" /> View Profile
-                  <DropdownMenuShortcut>âŒ˜V</DropdownMenuShortcut>
+                  <DropdownMenuShortcut>Cmd+V</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Edit className="h-4 w-4" /> Edit Details
-                  <DropdownMenuShortcut>âŒ˜E</DropdownMenuShortcut>
+                  <DropdownMenuShortcut>Cmd+E</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Share2 className="h-4 w-4" /> Share Record
@@ -889,7 +890,7 @@ export default function ComponentShowcase() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem destructive>
                   <Trash2 className="h-4 w-4" /> Delete Record
-                  <DropdownMenuShortcut>âŒ˜âŒ«</DropdownMenuShortcut>
+                  <DropdownMenuShortcut>Cmd+Del</DropdownMenuShortcut>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -911,7 +912,7 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Tooltips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Tooltips -- */}
         <ShowSection title="Tooltips" description="Hover tooltips for contextual help.">
           <Row>
             {[
@@ -932,7 +933,7 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Skeletons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Skeletons -- */}
         <ShowSection title="Skeleton Loaders" description="Content placeholder animations while data loads.">
           <div className="space-y-3 max-w-sm">
             <div className="flex items-center gap-3">
@@ -950,7 +951,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Table -- */}
         <ShowSection
           title="Data Table"
           description="Default headers (uppercase, compact) for list pages; data variant (sentence case) for dense editable grids such as visit plan."
@@ -1043,7 +1044,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Empty State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Empty State -- */}
         <ShowSection title="Empty States" description="Placeholder views when there's no data to display.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
@@ -1064,7 +1065,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Loading -- */}
         <ShowSection title="Loading States" description="Spinners and loading indicators.">
           <Row className="items-center">
             <LoadingSpinner size="sm" />
@@ -1074,7 +1075,7 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Typography â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Typography -- */}
         <ShowSection title="Typography" description="Font families and raw scale. Module pages should use content typography tokens (below) for consistency.">
           <div className="space-y-2">
             <h1 className="text-3xl font-display font-bold">Display Heading — Outfit Bold</h1>
@@ -1137,48 +1138,48 @@ export default function ComponentShowcase() {
           <MultiSelectDemo />
         </ShowSection>
 
-        {/* â”€â”€ Date Pickers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Date Pickers -- */}
         <ShowSection title="Date Pickers" description="Single date and date range pickers.">
           <DatePickerDemo />
         </ShowSection>
 
-        {/* â”€â”€ Time Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Time Picker -- */}
         <ShowSection title="Time Picker" description="Time input with 24h or AM/PM support.">
           <TimePickerDemo />
         </ShowSection>
 
-        {/* â”€â”€ Combobox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Combobox -- */}
         <ShowSection title="Combobox" description="Searchable single-select with description support.">
           <ComboboxDemo />
         </ShowSection>
 
-        {/* â”€â”€ Sheet / Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Sheet / Drawer -- */}
         <ShowSection title="Sheet / Drawer" description="Slide-in side panels from any edge.">
           <SheetDemo />
         </ShowSection>
 
-        {/* â”€â”€ File Upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- File Upload -- */}
         <ShowSection title="File Upload" description="Drag and drop with validation and file preview.">
           <div className="max-w-md">
             <FileUpload accept="image/*,.pdf" multiple maxSize={5 * 1024 * 1024} maxFiles={5} />
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Stepper -- */}
         <ShowSection title="Stepper / Wizard" description="Multi-step progress indicator, horizontal and vertical.">
           <StepperDemo />
         </ShowSection>
 
-        {/* â”€â”€ Number Input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Number Input -- */}
         <ShowSection title="Number Input" description="Numeric input with increment/decrement controls.">
           <Row className="items-center flex-wrap">
             <NumberInput min={0} max={100} value={5} />
             <NumberInput min={0} max={24} step={0.5} suffix="hrs" value={8} />
-            <NumberInput min={0} prefix="Â£" step={0.01} value={12.50} />
+            <NumberInput min={0} prefix="£" step={0.01} value={12.50} />
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Phone Input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Phone Input -- */}
         <ShowSection title="Phone Input" description="Phone number input with country code selector.">
           <div className="max-w-sm space-y-3">
             <PhoneInput defaultCountry="GB" />
@@ -1186,27 +1187,27 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Activity Feed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Activity Feed -- */}
         <ShowSection title="Activity Feed" description="Timeline of care events and audit entries.">
           <ActivityFeedDemo />
         </ShowSection>
 
-        {/* â”€â”€ Command Palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <ShowSection title="Command Palette" description="Press âŒ˜K or Ctrl+K anywhere to open quick search.">
+        {/* -- Command Palette -- */}
+        <ShowSection title="Command Palette" description="Press Cmd+K or Ctrl+K anywhere to open quick search.">
           <CommandPaletteDemo />
         </ShowSection>
 
-        {/* â”€â”€ Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Banner -- */}
         <ShowSection title="Banner / Announcement" description="Site-wide notices in different severities, with optional actions.">
           <div className="space-y-2 max-w-2xl">
             <Banner variant="announcement" title="CQC Inspection Notice" message="An inspection has been scheduled for 14 June 2026. Please ensure all care records are up to date." action={{ label: "View checklist", onClick: () => {} }} dismissible />
             <Banner variant="warning" message="2 care plans are due for review this week." action={{ label: "Review now", onClick: () => {} }} dismissible />
             <Banner variant="success" title="Payroll processed" message="April payroll has been successfully submitted." dismissible />
-            <Banner variant="destructive" message="System maintenance scheduled tonight 23:00â€“01:00. Save your work." />
+            <Banner variant="destructive" message="System maintenance scheduled tonight 23:00--01:00. Save your work." />
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Breadcrumbs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Breadcrumbs -- */}
         <ShowSection title="Breadcrumbs" description="Navigation trail with collapsible overflow.">
           <div className="space-y-3">
             <Breadcrumbs items={[{ label: "Home" }, { label: "Service Users" }, { label: "Alice Johnson" }]} />
@@ -1214,7 +1215,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Status Stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Status Stepper -- */}
         <ShowSection title="Status Stepper (Read-only)" description="Progress indicator for referrals, onboarding, and workflows.">
           <div className="space-y-8 max-w-2xl">
             <StatusStepper steps={[
@@ -1225,7 +1226,7 @@ export default function ComponentShowcase() {
               { id: "review", label: "First Review", type: "upcoming" },
             ]} />
             <StatusStepper orientation="vertical" steps={[
-              { id: "referral", label: "Referral Received", description: "From GP â€” Dr. Patel", type: "complete", date: new Date("2026-03-01") },
+              { id: "referral", label: "Referral Received", description: "From GP -- Dr. Patel", type: "complete", date: new Date("2026-03-01") },
               { id: "assessment", label: "Needs Assessment", description: "Completed by Sarah Lee", type: "complete", date: new Date("2026-03-08") },
               { id: "care-plan", label: "Care Plan Pending", description: "Awaiting manager approval", type: "error" },
               { id: "started", label: "Care Started", type: "upcoming" },
@@ -1233,8 +1234,8 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Inline Confirm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <ShowSection title="Inline Confirmation" description="Contextual confirm popover â€” no full dialog needed.">
+        {/* -- Inline Confirm -- */}
+        <ShowSection title="Inline Confirmation" description="Contextual confirm popover -- no full dialog needed.">
           <Row>
             <InlineConfirm title="Archive service user?" description="This will hide them from active lists. You can restore them later." confirmLabel="Archive" onConfirm={() => {}}>
               <Button variant="outline">Archive User</Button>
@@ -1245,7 +1246,7 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ PIN Input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- PIN Input -- */}
         <ShowSection title="PIN Input" description="Digit-by-digit secure input with paste support.">
           <div className="space-y-4">
             <Row className="items-start">
@@ -1257,7 +1258,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Rating â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Rating -- */}
         <ShowSection title="Rating / Stars" description="Interactive rating input and read-only display variants.">
           <div className="space-y-4">
             <Row className="items-center">
@@ -1273,16 +1274,16 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Slider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Slider -- */}
         <ShowSection title="Slider" description="Single value and range sliders with optional labels and marks.">
           <div className="max-w-sm space-y-6">
             <Slider defaultValue={[40]} min={0} max={100} showValue suffix="%" />
-            <Slider defaultValue={[20, 70]} min={0} max={100} showValue prefix="Â£" marks={[{value:0,label:"Â£0"},{value:50,label:"Â£50"},{value:100,label:"Â£100"}]} />
+            <Slider defaultValue={[20, 70]} min={0} max={100} showValue prefix="£" marks={[{value:0,label:"£0"},{value:50,label:"£50"},{value:100,label:"£100"}]} />
             <Slider defaultValue={[5]} min={0} max={10} marks={[{value:0,label:"None"},{value:5,label:"Moderate"},{value:10,label:"Severe"}]} showValue suffix=" / 10" />
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Color Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Color Picker -- */}
         <ShowSection title="Color Picker" description="Preset swatches plus hex input and native color wheel.">
           <Row>
             <ColorPicker value="#008060" />
@@ -1291,21 +1292,26 @@ export default function ComponentShowcase() {
           </Row>
         </ShowSection>
 
-        {/* â”€â”€ Signature Pad â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Signature Pad -- */}
         <ShowSection title="Signature Pad" description="Touch and mouse drawing for consent forms and sign-offs.">
           <div className="max-w-lg">
             <SignaturePad />
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Rich Text Editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Rich Text Editor -- */}
         <ShowSection title="Rich Text Editor" description="Full formatting toolbar for care notes, policies, and assessments.">
           <div className="max-w-2xl">
             <RichTextEditor placeholder="Write a care note, policy, or assessment..." minHeight={180} />
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Context Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Summernote Custom Editor -- */}
+        <ShowSection title="Summernote Custom Editor" description="Lightweight Tiptap-based Summernote replacement with text color, highlight, tables, images, sub/superscript, source view, fullscreen, and a bubble menu.">
+          <SummernoteCustomEditor placeholder="Type here -- try tables, colors, images, fullscreen..." minHeight={220} />
+        </ShowSection>
+
+        {/* -- Context Menu -- */}
         <ShowSection title="Context Menu" description="Right-click menu on table rows and cards.">
           <ContextMenu>
             <ContextMenuTrigger>
@@ -1324,17 +1330,17 @@ export default function ComponentShowcase() {
               <ContextMenuItem><Edit className="h-4 w-4" /> Edit Details</ContextMenuItem>
               <ContextMenuItem><FileText className="h-4 w-4" /> View Care Plan</ContextMenuItem>
               <ContextMenuSeparator />
-              <ContextMenuItem destructive><Trash2 className="h-4 w-4" /> Archive User<ContextMenuShortcut>âŒ˜âŒ«</ContextMenuShortcut></ContextMenuItem>
+              <ContextMenuItem destructive><Trash2 className="h-4 w-4" /> Archive User<ContextMenuShortcut>Cmd+Del</ContextMenuShortcut></ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
         </ShowSection>
 
-        {/* â”€â”€ Resizable Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <ShowSection title="Resizable Panels" description="Drag the handle to resize panels â€” useful for split views.">
+        {/* -- Resizable Panels -- */}
+        <ShowSection title="Resizable Panels" description="Drag the handle to resize panels -- useful for split views.">
           <ResizablePanelGroup orientation="horizontal" className="h-40 max-w-2xl rounded-lg border border-border">
             <ResizablePanel defaultSize={35} minSize={20}>
               <div className="flex h-full items-center justify-center p-4">
-                <p className="text-sm text-muted-foreground text-center">Service User List<br /><span className="text-xs">â† drag to resize â†’</span></p>
+                <p className="text-sm text-muted-foreground text-center">Service User List<br /><span className="text-xs">{"<- drag to resize ->"}</span></p>
               </div>
             </ResizablePanel>
             <ResizableHandle withHandle />
@@ -1346,7 +1352,7 @@ export default function ComponentShowcase() {
           </ResizablePanelGroup>
         </ShowSection>
 
-        {/* â”€â”€ Sparkline Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Sparkline Cards -- */}
         <ShowSection title="KPI Cards with Sparklines" description="Metric cards with inline trend charts.">
           <div className="grid grid-cols-2 gap-4 max-w-2xl lg:grid-cols-4">
             <SparklineCard title="Visits This Week" value={142} change={8.2} data={[{value:110},{value:125},{value:118},{value:130},{value:135},{value:128},{value:142}]} />
@@ -1356,7 +1362,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Timeline -- */}
         <ShowSection title="Timeline" description="Chronological event history for service users or audit logs.">
           <div className="max-w-xl">
             <Timeline events={[
@@ -1368,7 +1374,7 @@ export default function ComponentShowcase() {
           </div>
         </ShowSection>
 
-        {/* â”€â”€ Week Scheduler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Week Scheduler -- */}
         <ShowSection title="Week Scheduler" description="Interactive week grid for scheduling care visits.">
           <WeekScheduler events={[
             { id:"e1", title:"Morning Care", carer:"M. Santos", start: (() => { const d = new Date(); d.setHours(9,0); return d })(), end: (() => { const d = new Date(); d.setHours(11,0); return d })(), color:"#008060" },
@@ -1376,7 +1382,7 @@ export default function ComponentShowcase() {
           ]} />
         </ShowSection>
 
-        {/* â”€â”€ Rota Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Rota Grid -- */}
         <ShowSection title="Staff Rota / Gantt" description="Weekly rota grid showing staff shifts across all days.">
           <RotaGrid
             weekLabel="Week of 5 May 2026"
@@ -1386,19 +1392,19 @@ export default function ComponentShowcase() {
               { id:"s3", name:"Sarah Lee", role:"Carer" },
             ]}
             shifts={[
-              { id:"sh1", staffId:"s1", day:0, startHour:7, endHour:15, type:"day", label:"07:00â€“15:00" },
-              { id:"sh2", staffId:"s1", day:1, startHour:7, endHour:15, type:"day", label:"07:00â€“15:00" },
-              { id:"sh3", staffId:"s1", day:4, startHour:15, endHour:23, type:"night", label:"15:00â€“23:00" },
-              { id:"sh4", staffId:"s2", day:0, startHour:15, endHour:23, type:"night", label:"15:00â€“23:00" },
-              { id:"sh5", staffId:"s2", day:2, startHour:7, endHour:15, type:"day", label:"07:00â€“15:00" },
+              { id:"sh1", staffId:"s1", day:0, startHour:7, endHour:15, type:"day", label:"07:00--15:00" },
+              { id:"sh2", staffId:"s1", day:1, startHour:7, endHour:15, type:"day", label:"07:00--15:00" },
+              { id:"sh3", staffId:"s1", day:4, startHour:15, endHour:23, type:"night", label:"15:00--23:00" },
+              { id:"sh4", staffId:"s2", day:0, startHour:15, endHour:23, type:"night", label:"15:00--23:00" },
+              { id:"sh5", staffId:"s2", day:2, startHour:7, endHour:15, type:"day", label:"07:00--15:00" },
               { id:"sh6", staffId:"s2", day:5, startHour:9, endHour:17, type:"training", label:"Training" },
-              { id:"sh7", staffId:"s3", day:0, startHour:9, endHour:17, type:"day", label:"09:00â€“17:00" },
+              { id:"sh7", staffId:"s3", day:0, startHour:9, endHour:17, type:"day", label:"09:00--17:00" },
               { id:"sh8", staffId:"s3", day:3, startHour:0, endHour:0, type:"leave", label:"Annual Leave" },
             ]}
           />
         </ShowSection>
 
-        {/* â”€â”€ Map View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Map View -- */}
         <ShowSection title="Map / Location View" description="Service user addresses on a map with list panel.">
           <MapView
             locations={[
@@ -1411,7 +1417,7 @@ export default function ComponentShowcase() {
           />
         </ShowSection>
 
-        {/* â”€â”€ Diff Viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* -- Diff Viewer -- */}
         <ShowSection title="Diff Viewer" description="Side-by-side comparison of care plan or document changes.">
           <DiffViewerDemo />
         </ShowSection>
@@ -1423,7 +1429,7 @@ export default function ComponentShowcase() {
   )
 }
 
-/* â”€â”€â”€ New Component Demos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- New Component Demos -- */
 
 function MultiSelectDemo() {
   const [val, setVal] = React.useState<string[]>([])
@@ -1478,10 +1484,10 @@ function TimePickerDemo() {
 function ComboboxDemo() {
   const [val, setVal] = React.useState('')
   const users = [
-    { value: 'alice', label: 'Alice Johnson', description: 'Service User Â· Flat 12B' },
-    { value: 'bob', label: 'Bob Williams', description: 'Service User Â· 4 Oak Lane' },
-    { value: 'carol', label: 'Carol Davies', description: 'Service User Â· Room 7' },
-    { value: 'david', label: 'David Osei', description: 'Service User Â· 22 River Road' },
+    { value: 'alice', label: 'Alice Johnson', description: 'Service User · Flat 12B' },
+    { value: 'bob', label: 'Bob Williams', description: 'Service User · 4 Oak Lane' },
+    { value: 'carol', label: 'Carol Davies', description: 'Service User · Room 7' },
+    { value: 'david', label: 'David Osei', description: 'Service User · 22 River Road' },
   ]
   return (
     <div className="max-w-sm">
@@ -1502,7 +1508,7 @@ function SheetDemo() {
         <SheetContent side="right" size="md">
           <SheetHeader>
             <SheetTitle>Alice Johnson</SheetTitle>
-            <SheetDescription>Service user profile â€” quick view</SheetDescription>
+            <SheetDescription>Service user profile -- quick view</SheetDescription>
           </SheetHeader>
           <SheetBody className="space-y-4">
             <div className="space-y-1">
@@ -1511,7 +1517,7 @@ function SheetDemo() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Care Package</p>
-              <p className="text-sm">Personal Care Â· Medication Â· Meals</p>
+              <p className="text-sm">Personal Care · Medication · Meals</p>
             </div>
           </SheetBody>
           <SheetFooter>
@@ -1596,7 +1602,7 @@ function CommandPaletteDemo() {
       <Button variant="outline" onClick={() => setOpen(true)} className="gap-2">
         <Search className="h-4 w-4" />
         Search or jump to...
-        <kbd className="ml-auto inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">âŒ˜K</kbd>
+        <kbd className="ml-auto inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">Cmd+K</kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Search service users, staff, reports..." />
@@ -1614,7 +1620,7 @@ function CommandPaletteDemo() {
           <CommandGroup heading="Navigation">
             <CommandItem onSelect={() => setOpen(false)}><Home className="h-4 w-4 text-muted-foreground" /> Dashboard</CommandItem>
             <CommandItem onSelect={() => setOpen(false)}><Bell className="h-4 w-4 text-muted-foreground" /> Notifications</CommandItem>
-            <CommandItem onSelect={() => setOpen(false)}><Settings className="h-4 w-4 text-muted-foreground" /> Settings <CommandShortcut>âŒ˜,</CommandShortcut></CommandItem>
+            <CommandItem onSelect={() => setOpen(false)}><Settings className="h-4 w-4 text-muted-foreground" /> Settings <CommandShortcut>Cmd+,</CommandShortcut></CommandItem>
           </CommandGroup>
         </CommandList>
       </CommandDialog>

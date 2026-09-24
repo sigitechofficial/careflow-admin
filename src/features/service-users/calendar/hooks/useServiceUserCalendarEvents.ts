@@ -13,9 +13,11 @@ import type {
 export function useCalendarEventMutations(serviceUserId: string) {
   const qc = useQueryClient()
 
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: ['service-users', serviceUserId, 'calendar'] })
-    void qc.invalidateQueries({ queryKey: ['service-users-calendar'] })
+  const invalidate = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['service-users', serviceUserId, 'calendar'] }),
+      qc.invalidateQueries({ queryKey: ['service-users-calendar'] }),
+    ])
   }
 
   const create = useMutation({

@@ -1,20 +1,32 @@
 ﻿import * as React from 'react'
 import { Link } from '@tanstack/react-router'
+import { useQueries } from '@tanstack/react-query'
 import {
-  MessageSquare, ClipboardList, LayoutDashboard,
   Search, X, ChevronLeft,
   ChevronRight, ChevronsLeft, Dot,
-  Filter, Globe, Loader2,
+  Globe, Loader2,
+  Users, UserCheck, CalendarDays, CheckCircle2,
+  Bell, AlertTriangle, ShieldAlert, GraduationCap, Wrench,
 } from 'lucide-react'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card'
+import { Card, CardHeader, CardTitle, CardContent, StatCard } from '@/shared/ui/card'
 import { useAuthStore } from '@/features/auth/store'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
 import type { MultiCarerFunderChargeMode } from '@/features/settings/types'
 import { useHandoverReport } from '@/features/home/hooks/useHandoverReport'
 import type { HandoverReportSortBy } from '@/features/home/api/handover-report.api'
 import { operationalTodayIso, addDaysToOperationalIso } from '@/shared/lib/operational-day.util'
+import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
+import { useEmployeeChartSummary } from '@/features/employees/hooks/useEmployees'
+import { useScheduleList, useHousekeepingJobsNeedingAttention } from '@/features/scheduling/hooks/useScheduling'
+import { getJobsDayTimeline } from '@/features/scheduling/api/scheduling.api'
+import { schedulingKeys } from '@/features/scheduling/keys'
+import { useUnreadNotificationCount } from '@/features/notifications/hooks/useUnreadNotificationCount'
+import { useIncidentStats } from '@/features/incidents/hooks/useIncidents'
+import { useComplianceBoard } from '@/features/employees/hooks/useEmployeeCompliance'
+import { useLearningDashboard } from '@/features/learning/hooks/useLearning'
 
 const systemUpgrades = [
   {
@@ -77,6 +89,54 @@ export default function HomePage() {
   const today = operationalTodayIso()
   const defaultFrom = addDaysToOperationalIso(today, -1)
 
+  const serviceUsersQuery = useServiceUsers({ page: 1, limit: 1 })
+  const employeeSummaryQuery = useEmployeeChartSummary()
+  const todayVisitsQuery = useScheduleList(today)
+
+  const totalServiceUsers = serviceUsersQuery.data?.meta?.total ?? 0
+  const totalCarers = employeeSummaryQuery.data?.staff?.active ?? 0
+  const todayJobs = todayVisitsQuery.data?.jobs ?? []
+  const todayVisitsCount = todayJobs.length
+  const todayCompletedCount = todayJobs.filter(j => j.status === 'COMPLETED').length
+
+  const unreadCount = useUnreadNotificationCount()
+  const incidentStats = useIncidentStats()
+  const complianceBoard = useComplianceBoard()
+  const learningDashboard = useLearningDashboard()
+  const housekeepingJobs = useHousekeepingJobsNeedingAttention(1)
+
+  const weekDates = React.useMemo(() => {
+    const parts = today.split('-').map(Number)
+    const dt = new Date(Date.UTC(parts[0]!, parts[1]! - 1, parts[2]!))
+    const dow = dt.getUTCDay()
+    const mondayOffset = dow === 0 ? -6 : 1 - dow
+    return Array.from({ length: 7 }, (_, i) =>
+      addDaysToOperationalIso(today, mondayOffset + i),
+    )
+  }, [today])
+
+  const weekQueries = useQueries({
+    queries: weekDates.map(date => ({
+      queryKey: schedulingKeys.list(date),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        getJobsDayTimeline(date, { limit: 200 }, { signal }),
+    })),
+  })
+
+  const weekVisitsLoading = weekQueries.some(q => q.isLoading)
+  const weekDataKey = weekQueries.map(q => q.dataUpdatedAt).join(',')
+  const weekStats = React.useMemo(() => {
+    let total = 0
+    let completed = 0
+    for (const q of weekQueries) {
+      const jobs = q.data?.jobs ?? []
+      total += jobs.length
+      completed += jobs.filter(j => j.status === 'COMPLETED').length
+    }
+    return { total, completed, pending: total - completed }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekDataKey])
+
   const [showFilter, setShowFilter] = React.useState(false)
   const [sortBy, setSortBy] = React.useState<SortBy>('latest')
   const [fromDate, setFromDate] = React.useState(defaultFrom)
@@ -130,16 +190,47 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-5 space-y-1.5">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            My Action Page
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Your daily overview, handovers, and quick actions.
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Service Users"
+          value={totalServiceUsers}
+          hint="Active service users"
+          icon={<Users className="h-5 w-5" />}
+          tone="sky"
+          loading={serviceUsersQuery.isLoading}
+          to="/service-users/all"
+          data-testid="home-stat-service-users"
+        />
+        <StatCard
+          label="Total Carers"
+          value={totalCarers}
+          hint="Active employees"
+          icon={<UserCheck className="h-5 w-5" />}
+          tone="emerald"
+          loading={employeeSummaryQuery.isLoading}
+          to="/employee/all"
+          data-testid="home-stat-carers"
+        />
+        <StatCard
+          label="Today's Visits"
+          value={todayVisitsCount}
+          hint={`Scheduled for ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+          icon={<CalendarDays className="h-5 w-5" />}
+          tone="amber"
+          loading={todayVisitsQuery.isLoading}
+          to="/scheduling"
+          data-testid="home-stat-today-visits"
+        />
+        <StatCard
+          label="Completed Visits"
+          value={todayCompletedCount}
+          hint={todayVisitsCount > 0 ? `${Math.round((todayCompletedCount / todayVisitsCount) * 100)}% of today's visits` : 'No visits scheduled'}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          tone="violet"
+          loading={todayVisitsQuery.isLoading}
+          to="/scheduling"
+          data-testid="home-stat-completed-visits"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -150,16 +241,58 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <ActionRow
-                icon={<MessageSquare className="h-5 w-5 text-blue-400" />}
-                text={<>You have <strong>0</strong> new message. <ActionLink>Read Message(s)</ActionLink></>}
+                icon={<Bell className="h-5 w-5 text-blue-400" />}
+                text={
+                  <>
+                    You have <strong>{unreadCount.data ?? 0}</strong> unread notification{(unreadCount.data ?? 0) !== 1 ? 's' : ''}.
+                  </>
+                }
               />
               <ActionRow
-                icon={<ClipboardList className="h-5 w-5 text-teal-500" />}
-                text={<>You have <strong>9</strong> Audit Actions pending. <ActionLink>Audit Action(s)</ActionLink></>}
+                icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
+                text={
+                  <>
+                    <strong>{incidentStats.data?.open ?? 0}</strong> open incident{(incidentStats.data?.open ?? 0) !== 1 ? 's' : ''},{' '}
+                    <strong>{incidentStats.data?.overdueActions ?? 0}</strong> overdue action{(incidentStats.data?.overdueActions ?? 0) !== 1 ? 's' : ''}.{' '}
+                    <Link to="/incidents/dashboard" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
+                      View incidents
+                    </Link>
+                  </>
+                }
               />
               <ActionRow
-                icon={<LayoutDashboard className="h-5 w-5 text-green-500" />}
-                text={<ActionLink>View my Management Dashboard</ActionLink>}
+                icon={<ShieldAlert className="h-5 w-5 text-red-500" />}
+                text={
+                  <>
+                    <strong>{complianceBoard.data?.summary?.expiredCount ?? 0}</strong> expired document{(complianceBoard.data?.summary?.expiredCount ?? 0) !== 1 ? 's' : ''},{' '}
+                    <strong>{complianceBoard.data?.summary?.expiring7Count ?? 0}</strong> expiring within 7 days.{' '}
+                    <Link to="/employee/compliance" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
+                      Compliance board
+                    </Link>
+                  </>
+                }
+              />
+              <ActionRow
+                icon={<GraduationCap className="h-5 w-5 text-violet-500" />}
+                text={
+                  <>
+                    <strong>{learningDashboard.data?.overdueAssignments ?? 0}</strong> overdue training assignment{(learningDashboard.data?.overdueAssignments ?? 0) !== 1 ? 's' : ''}.{' '}
+                    <Link to="/learning" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
+                      Learning dashboard
+                    </Link>
+                  </>
+                }
+              />
+              <ActionRow
+                icon={<Wrench className="h-5 w-5 text-orange-500" />}
+                text={
+                  <>
+                    <strong>{housekeepingJobs.data?.meta?.total ?? 0}</strong> visit{(housekeepingJobs.data?.meta?.total ?? 0) !== 1 ? 's' : ''} needing attention.{' '}
+                    <Link to="/scheduling/jobs" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
+                      Manage jobs
+                    </Link>
+                  </>
+                }
               />
               {canManagePortal ? (
                 <ActionRow
@@ -360,22 +493,76 @@ export default function HomePage() {
         <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardContent className="pt-5">
-              <h2 className="font-bold text-base mb-4">System Upgrades 27/01/2026</h2>
-              <div className="space-y-4">
-                {systemUpgrades.map(group => (
-                  <div key={group.section}>
-                    <p className="text-sm font-medium mb-2">{group.section}</p>
-                    <ul className="space-y-1.5">
-                      {group.items.map(item => (
-                        <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <Dot className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+              <h2 className="font-bold text-base mb-4">
+                Weekly Visits Overview
+              </h2>
+              <p className="text-xs text-muted-foreground mb-3">
+                {weekDates[0] && weekDates[6]
+                  ? `${formatDisplayDate(weekDates[0])} – ${formatDisplayDate(weekDates[6])}`
+                  : 'Current week'}
+              </p>
+              {weekVisitsLoading ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading visits…
+                </div>
+              ) : weekStats.total === 0 ? (
+                <p className="text-sm text-muted-foreground py-12 text-center">
+                  No visits scheduled this week.
+                </p>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Completed', value: weekStats.completed },
+                          { name: 'Pending', value: weekStats.pending },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        <Cell fill="#10b981" />
+                        <Cell fill="#f59e0b" />
+                      </Pie>
+                      <Tooltip
+                        formatter={(value) => [`${value}`, 'Visits']}
+                        contentStyle={{
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--card)',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        iconType="circle"
+                        iconSize={8}
+                        wrapperStyle={{ fontSize: '12px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-3 flex items-center justify-center gap-6 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-foreground tabular-nums">{weekStats.total}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{weekStats.completed}</p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{weekStats.pending}</p>
+                      <p className="text-xs text-muted-foreground">Pending</p>
+                    </div>
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -428,14 +615,6 @@ function ActionRow({ icon, text }: { icon: React.ReactNode; text: React.ReactNod
       <span className="shrink-0">{icon}</span>
       <span>{text}</span>
     </div>
-  )
-}
-
-function ActionLink({ children }: { children: React.ReactNode }) {
-  return (
-    <button className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
-      {children}
-    </button>
   )
 }
 

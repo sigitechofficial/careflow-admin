@@ -44,7 +44,7 @@ export const IA_INTRO_CLASS = 'text-sm font-normal text-muted-foreground'
 
 /** Scoped wrapper — bumps control text; rich-text fields always span the full grid row. */
 export const IA_FORM_ROOT_CLASS =
-  'ia-assessment-form text-sm leading-relaxed text-foreground [&_input:not([type=checkbox]):not([type=radio])]:h-10 [&_input:not([type=checkbox]):not([type=radio])]:text-base [&_textarea]:text-base [&_[data-ia-rich-text]_.note-editable]:text-base [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:text-base [&_.grid>*:has([data-ia-rich-text])]:col-span-full'
+  'ia-assessment-form text-sm leading-relaxed text-foreground [&_input:not([type=checkbox]):not([type=radio])]:h-10 [&_input:not([type=checkbox]):not([type=radio])]:text-base [&_textarea]:text-base [&_[data-ia-rich-text]_.ProseMirror]:text-base [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:text-base [&_.grid>*:has([data-ia-rich-text])]:col-span-full'
 
 export const IA_FORM_TEXTAREA_CLASS =
   'min-h-[80px] w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
