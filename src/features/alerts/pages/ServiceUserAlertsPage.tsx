@@ -14,20 +14,28 @@ import {
 } from '@/features/alerts/hooks/useMedicalClinical'
 import { useServiceUserCarePlanExtras } from '@/features/service-users/hooks/useServiceUserCarePlanExtras'
 import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
-import { isHighRisk } from '@/features/service-users/dashboard/service-user-dashboard-utils'
+import { ClinicalBandHeaderless } from '@/features/alerts/medical-safety/ClinicalRecordPrimitives'
 import { MedicalConditionsChecklist } from '@/features/alerts/medical-safety/MedicalConditionsChecklist'
+import { MedicalConditionsSection } from '@/features/alerts/medical-safety/MedicalConditionsSection'
 import {
   MedicalHistoryClinical,
   ReasonableAdjustmentsClinical,
 } from '@/features/alerts/medical-safety/AdjustmentsAndHistoryClinical'
-import {
-  buildClinicalGates,
-  MedicalAlertsClinicalBody,
-} from '@/features/alerts/medical-safety/MedicalAlertsClinicalBody'
+import { MedicalAlertsSection } from '@/features/alerts/medical-safety/MedicalAlertsSection'
 import { suggestConditionCodesFromSources } from '@/features/alerts/medical-safety/suggest-conditions-from-ia'
 import { ServiceUserParametersClinical } from '@/features/alerts/medical-safety/ServiceUserParametersClinical'
 import { useAuthStore } from '@/features/auth/store'
 import { cn } from '@/shared/lib/utils'
+
+type AlertsTabId = 'conditions' | 'adjustments' | 'history' | 'alerts' | 'parameters'
+
+const ALERTS_TABS: { id: AlertsTabId; label: string }[] = [
+  { id: 'conditions', label: 'Medical Conditions' },
+  { id: 'adjustments', label: 'Reasonable Adjustments' },
+  { id: 'history', label: 'Medical History' },
+  { id: 'alerts', label: 'Medical Alerts' },
+  { id: 'parameters', label: 'Parameters' },
+]
 
 export default function ServiceUserAlertsPage() {
   const { serviceUserId } = useParams({ strict: false }) as { serviceUserId: string }
@@ -35,6 +43,7 @@ export default function ServiceUserAlertsPage() {
   const can = useAuthStore((s) => s.can)
   const canReadServiceUser = can('service_users.read')
   const clinicalPerms = useMedicalClinicalPermissions()
+  const [activeTab, setActiveTab] = React.useState<AlertsTabId>('conditions')
 
   const medical = useServiceUserMedicalSafety(serviceUserId, {
     enabled: canReadServiceUser,
@@ -47,26 +56,9 @@ export default function ServiceUserAlertsPage() {
   const iaSource = useCarePlanIaSource(serviceUserId)
 
   const given = detail ? serviceUserGivenName(detail) : 'Service user'
-  const pageTitle = `${given}'s Medical Conditions & Alerts`
+  const pageTitle = `${given}'s Medical Alerts`
 
-  const hasCode = (code: string) =>
-    (conditionsQuery.data ?? []).some(
-      (c) => c.status === 'ACTIVE' && c.condition?.code === code,
-    )
-
-  const legal = extras.documents?.data?.legal
   const dols = extras.documents?.data?.dols ?? []
-  const documentsReady =
-    medical.sourceReady.documents || Boolean(extras.documents?.data)
-
-  const dnacprStatus =
-    legal?.dnacprStatusConfirmation === 'IN_PLACE' || legal?.dnacprInPlace === true
-      ? 'IN_PLACE'
-      : legal?.dnacprStatusConfirmation === 'NOT_IN_PLACE'
-        ? 'NOT_IN_PLACE'
-        : legal
-          ? 'UNKNOWN'
-          : null
 
   const alreadyActiveCodes = React.useMemo(
     () =>
@@ -95,66 +87,71 @@ export default function ServiceUserAlertsPage() {
     ],
   )
 
-  const gates = buildClinicalGates({
-    serviceUserId,
-    iaRiskRecords: medical.iaRiskRecords,
-    iaRisksReady: medical.sourceReady.iaRisks,
-    conditionsReady: medical.sourceReady.conditions && !medical.snapshot.conditionsUnavailable,
-    hasDiabetesCondition: hasCode('DIABETES'),
-    hasCopdCondition: hasCode('COPD'),
-    hasPalliativeCondition: hasCode('PALLIATIVE_CARE'),
-    flashReady: medical.sourceReady.flash,
-    flashMessage:
-      medical.snapshot.immediate.find((i) => i.id.startsWith('flash-'))?.description ?? null,
-    documentsReady,
-    dolsSummaries: dols.map((d) => {
-      const bits = [
-        d.isCurrent ? 'Current authorisation' : 'Authorisation recorded',
-        d.issueDate ? `Issued ${String(d.issueDate).slice(0, 10)}` : null,
-        d.applicationDate ? `Applied ${String(d.applicationDate).slice(0, 10)}` : null,
-        d.renewalDate ? `Renewal ${String(d.renewalDate).slice(0, 10)}` : null,
-        d.notes?.trim() || null,
-      ].filter(Boolean)
-      return bits.join(' · ')
-    }),
-    dnacprStatus,
-    dnacprSummary: [
-      legal?.dnacprPhysicalLocation ? `Location: ${legal.dnacprPhysicalLocation}` : null,
-      legal?.dnacprStartDate ? `Start: ${String(legal.dnacprStartDate).slice(0, 10)}` : null,
-    ]
-      .filter(Boolean)
-      .join(' · '),
-    allergySourceReady: medical.sourceReady.allergies,
-    allergyItems: medical.snapshot.allergies,
-    riskLevelName: detail?.riskLevel?.name ?? detail?.riskLevel?.code ?? null,
-    isHighRisk: detail ? isHighRisk(detail) : false,
-  })
-
   return (
     <div className={cn(SERVICE_USER_MODULE_PAGE_CLASS, 'pb-10')}>
       <ServiceUserModuleHeader serviceUserId={serviceUserId} detail={detail ?? null} />
       <ServiceUserModuleTabs serviceUserId={serviceUserId} />
 
       <div
-        className="mx-auto w-full max-w-7xl space-y-4 px-3 py-5 sm:px-6"
+        className="mx-auto w-full max-w-7xl px-3 py-5 sm:px-6"
         data-testid="su-alerts-page"
       >
-        <header className="pb-1">
-          <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">{pageTitle}</h1>
+        <header className="pb-3">
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">{pageTitle}</h1>
         </header>
 
-        <MedicalConditionsChecklist
-          serviceUserId={serviceUserId}
-          suggestedCodes={suggestedConditionCodes}
-        />
+        <div
+          className="flex gap-0 overflow-x-auto border-b border-slate-300 dark:border-border"
+          role="tablist"
+          aria-label="Medical alerts sections"
+        >
+          {ALERTS_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              data-testid={`alerts-tab-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                activeTab === tab.id
+                  ? 'border-[#0f6b6b] text-[#0f6b6b] dark:border-teal-400 dark:text-teal-300'
+                  : 'border-transparent text-muted-foreground hover:border-slate-300 hover:text-foreground',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        <ReasonableAdjustmentsClinical serviceUserId={serviceUserId} />
-
-        <MedicalHistoryClinical serviceUserId={serviceUserId} />
-
-        <MedicalAlertsClinicalBody serviceUserId={serviceUserId} gates={gates} />
-
-        <ServiceUserParametersClinical serviceUserId={serviceUserId} />
+        <ClinicalBandHeaderless>
+          <div className="pt-4">
+            {activeTab === 'conditions' && (
+              <>
+                <MedicalConditionsChecklist
+                  serviceUserId={serviceUserId}
+                  suggestedCodes={suggestedConditionCodes}
+                />
+                <div className="mt-6">
+                  <MedicalConditionsSection serviceUserId={serviceUserId} />
+                </div>
+              </>
+            )}
+            {activeTab === 'adjustments' && (
+              <ReasonableAdjustmentsClinical serviceUserId={serviceUserId} />
+            )}
+            {activeTab === 'history' && (
+              <MedicalHistoryClinical serviceUserId={serviceUserId} />
+            )}
+            {activeTab === 'alerts' && (
+              <MedicalAlertsSection serviceUserId={serviceUserId} />
+            )}
+            {activeTab === 'parameters' && (
+              <ServiceUserParametersClinical serviceUserId={serviceUserId} />
+            )}
+          </div>
+        </ClinicalBandHeaderless>
       </div>
     </div>
   )

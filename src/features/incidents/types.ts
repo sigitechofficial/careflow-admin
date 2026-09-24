@@ -56,6 +56,14 @@ export type IncidentListItem = {
   immediateActions: string | null
   immediateActionCodes: string[]
   injuryOccurred: boolean
+  injuryDetails: string | null
+  peopleInvolved: string | null
+  whoInformedKeys: string[]
+  carerSafeguardingConcern: boolean | null
+  followUpRequired: boolean
+  emergencyServicesDetails: string | null
+  familyInformed: boolean
+  carerNotes: string | null
   isArchived: boolean
   createdAt: string
   updatedAt: string
@@ -181,6 +189,7 @@ export type IncidentAttachmentItem = {
   originalName: string
   mimeType: string
   fileSize: number
+  caption: string | null
   createdAt: string
   downloadUrl: string
 }
@@ -531,3 +540,13 @@ export const IMMEDIATE_ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: 'MEDICATION_WITHHELD', label: 'Medication withheld' },
   { value: 'OTHER', label: 'Other' },
 ]
+
+export const WHO_INFORMED_LABELS: Record<string, string> = {
+  office: 'Office',
+  on_call_manager: 'On-call manager',
+  family_nok: 'Family / NOK',
+  gp: 'GP',
+  emergency_999: '999',
+  safeguarding_lead: 'Safeguarding lead',
+  local_authority: 'Local authority',
+}

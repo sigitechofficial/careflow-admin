@@ -1,5 +1,8 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  MedicalAlertCategory,
+  MedicalAlertRow,
+  MedicalAlertSeverity,
   MedicalConditionCatalogRow,
   MedicalHistoryEventRow,
   MonitoringConfigRow,
@@ -342,6 +345,67 @@ export async function deactivateUsualParameter(
 ): Promise<UsualParameterRow> {
   const res = await apiJson<ApiEnvelope<UsualParameterRow>>(
     `/service-users/${serviceUserId}/usual-parameters/${id}`,
+    { method: 'DELETE' },
+  )
+  return unwrapData(res)
+}
+
+// ─── Medical Alerts CRUD ──────────────────────────────────────────────────────
+
+export async function listMedicalAlerts(
+  serviceUserId: string,
+  init?: RequestInit,
+): Promise<MedicalAlertRow[]> {
+  const res = await apiJson<ApiEnvelope<MedicalAlertRow[]>>(
+    `/service-users/${serviceUserId}/medical-alerts`,
+    { method: 'GET', ...init },
+  )
+  return unwrapData(res) ?? []
+}
+
+export type CreateMedicalAlertPayload = {
+  title: string
+  category?: MedicalAlertCategory
+  severity?: MedicalAlertSeverity
+  description?: string
+  actionForCarer?: string
+  notes?: string
+  source?: ServiceUserClinicalDataSource
+}
+
+export type UpdateMedicalAlertPayload = Partial<CreateMedicalAlertPayload> & {
+  isActive?: boolean
+}
+
+export async function createMedicalAlert(
+  serviceUserId: string,
+  body: CreateMedicalAlertPayload,
+): Promise<MedicalAlertRow> {
+  const res = await apiJson<ApiEnvelope<MedicalAlertRow>>(
+    `/service-users/${serviceUserId}/medical-alerts`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return unwrapData(res)
+}
+
+export async function updateMedicalAlert(
+  serviceUserId: string,
+  id: string,
+  body: UpdateMedicalAlertPayload,
+): Promise<MedicalAlertRow> {
+  const res = await apiJson<ApiEnvelope<MedicalAlertRow>>(
+    `/service-users/${serviceUserId}/medical-alerts/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return unwrapData(res)
+}
+
+export async function deactivateMedicalAlert(
+  serviceUserId: string,
+  id: string,
+): Promise<MedicalAlertRow> {
+  const res = await apiJson<ApiEnvelope<MedicalAlertRow>>(
+    `/service-users/${serviceUserId}/medical-alerts/${id}`,
     { method: 'DELETE' },
   )
   return unwrapData(res)

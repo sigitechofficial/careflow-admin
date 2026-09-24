@@ -108,7 +108,7 @@ export function RecordPrnDialog({
         <div className="mar-record-modal-body">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
-              <label className="block text-xs font-medium text-[#374151] mb-1">
+              <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">
                 Dose given <span className="text-red-600">*</span>
               </label>
               <input
@@ -119,7 +119,7 @@ export function RecordPrnDialog({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#374151] mb-1">Time given</label>
+              <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">Time given</label>
               <input
                 type="time"
                 className="mar-record-input w-full"
@@ -128,7 +128,7 @@ export function RecordPrnDialog({
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label className="block text-xs font-medium text-[#374151] mb-1">
+            <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">
               Reason for giving <span className="text-red-600">*</span>
             </label>
             <input
@@ -139,7 +139,7 @@ export function RecordPrnDialog({
             />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label className="block text-xs font-medium text-[#374151] mb-1">Outcome</label>
+            <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">Outcome</label>
             <select
               className="mar-record-input w-full"
               value={prnOutcome}
@@ -153,7 +153,7 @@ export function RecordPrnDialog({
             </select>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label className="block text-xs font-medium text-[#374151] mb-1">Notes (optional)</label>
+            <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">Notes (optional)</label>
             <textarea
               className="mar-record-textarea"
               value={notes}

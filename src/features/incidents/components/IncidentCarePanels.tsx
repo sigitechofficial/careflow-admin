@@ -531,6 +531,9 @@ export function IncidentAttachmentsPanel({ incidentId, canManage }: { incidentId
                   <p className="text-xs text-muted-foreground">
                     {a.category.replace(/_/g, ' ').toLowerCase()} · {formatBytes(a.fileSize)}
                   </p>
+                  {a.caption && (
+                    <p className="mt-0.5 text-xs italic text-muted-foreground">{a.caption}</p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-1">

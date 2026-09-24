@@ -13,6 +13,8 @@ export const medicalClinicalKeys = {
     [...medicalClinicalKeys.all(), 'monitoring', serviceUserId] as const,
   usual: (serviceUserId: string) =>
     [...medicalClinicalKeys.all(), 'usual', serviceUserId] as const,
+  medicalAlerts: (serviceUserId: string) =>
+    [...medicalClinicalKeys.all(), 'medical-alerts', serviceUserId] as const,
   summary: (serviceUserId: string) =>
     [...medicalClinicalKeys.all(), 'summary', serviceUserId] as const,
 }

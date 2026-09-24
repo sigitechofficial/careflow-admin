@@ -104,9 +104,9 @@ export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId
       ) : query.isError ? (
         <p className="text-sm text-destructive">Unable to load reasonable adjustments</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-600">No reasonable adjustments recorded.</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">No reasonable adjustments recorded.</p>
       ) : (
-        <ul className="divide-y divide-slate-300 border border-slate-300 bg-white">
+        <ul className="divide-y divide-slate-300 dark:divide-border border border-slate-300 dark:border-border bg-white dark:bg-card">
           {rows.map((row) => (
             <li
               key={row.id}
@@ -117,9 +117,9 @@ export function ReasonableAdjustmentsClinical({ serviceUserId }: { serviceUserId
                   {REASONABLE_ADJUSTMENT_TYPE_LABELS[row.type as ReasonableAdjustmentType] ??
                     row.type}
                 </p>
-                <p className="text-slate-700">{row.description}</p>
+                <p className="text-slate-700 dark:text-slate-200">{row.description}</p>
                 {row.notes?.trim() ? (
-                  <p className="text-xs text-slate-500">{row.notes}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{row.notes}</p>
                 ) : null}
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-1">
@@ -296,14 +296,14 @@ export function MedicalHistoryClinical({ serviceUserId }: { serviceUserId: strin
 
   return (
     <ClinicalBand title="Medical History" testId="medical-history-clinical">
-      <p className="mb-2 text-xs text-slate-600">
+      <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">
         Past clinical events. Separate from current medical conditions.
       </p>
       {showForm ? (
-        <form onSubmit={addEvent} className="mb-3 space-y-2 border border-slate-300 bg-white p-3">
+        <form onSubmit={addEvent} className="mb-3 space-y-2 border border-slate-300 dark:border-border bg-white dark:bg-card p-3">
           <div className="grid gap-2 sm:grid-cols-[1fr_11rem]">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="history-title">
+              <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" htmlFor="history-title">
                 Title
               </label>
               <Input
@@ -316,7 +316,7 @@ export function MedicalHistoryClinical({ serviceUserId }: { serviceUserId: strin
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="history-date">
+              <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" htmlFor="history-date">
                 Date
               </label>
               <Input
@@ -329,7 +329,7 @@ export function MedicalHistoryClinical({ serviceUserId }: { serviceUserId: strin
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="history-notes">
+            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" htmlFor="history-notes">
               Description / notes
             </label>
             <Textarea
@@ -369,21 +369,21 @@ export function MedicalHistoryClinical({ serviceUserId }: { serviceUserId: strin
       ) : query.isError ? (
         <p className="text-sm text-destructive">Unable to load medical history</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-600">No medical history events recorded.</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">No medical history events recorded.</p>
       ) : (
-        <ul className="divide-y divide-slate-300 border border-slate-300 bg-white">
+        <ul className="divide-y divide-slate-300 dark:divide-border border border-slate-300 dark:border-border bg-white dark:bg-card">
           {rows.map((row) => (
             <li key={row.id} className="px-3 py-1.5 text-[13px]">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-slate-900">{row.title}</p>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {row.eventDate?.slice(0, 10) || row.approximateDate || 'Date not specified'}
                 </span>
               </div>
               {row.description?.trim() ? (
-                <p className="mt-0.5 text-xs text-slate-700 whitespace-pre-wrap">{row.description}</p>
+                <p className="mt-0.5 text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{row.description}</p>
               ) : row.notes?.trim() ? (
-                <p className="mt-0.5 text-xs text-slate-700 whitespace-pre-wrap">{row.notes}</p>
+                <p className="mt-0.5 text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{row.notes}</p>
               ) : null}
               {perms.update || perms.delete ? (
                 <div className="mt-1 flex flex-wrap gap-1">

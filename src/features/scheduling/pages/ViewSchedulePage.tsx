@@ -62,29 +62,29 @@ function VisitCard({ job, carePlanNameById, onAssign }: JobCardProps) {
       title={attention ? `${attention} — click to assign carers` : 'Click to manage carers'}
       onClick={() => onAssign(job)}
     >
-      <p className="text-xs font-semibold text-slate-800 leading-tight truncate">
+      <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate">
         {serviceUserLabel(job.serviceUser)}
       </p>
       {slotLabel ? (
-        <p className="text-[10px] font-medium text-slate-700 leading-tight mt-0.5 truncate">{slotLabel}</p>
+        <p className="text-[10px] font-medium text-slate-700 dark:text-slate-200 leading-tight mt-0.5 truncate">{slotLabel}</p>
       ) : null}
-      <p className="text-[10px] text-slate-700 leading-tight mt-0.5">{formatJobTimeRange(job)}</p>
-      <p className="text-[10px] text-slate-600 leading-tight truncate flex items-center gap-1 mt-0.5">
+      <p className="text-[10px] text-slate-700 dark:text-slate-200 leading-tight mt-0.5">{formatJobTimeRange(job)}</p>
+      <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-tight truncate flex items-center gap-1 mt-0.5">
         <ClipboardList className="h-3 w-3 shrink-0" aria-hidden />
         <span className="truncate">{carePlans}</span>
       </p>
-      <p className="text-[10px] text-slate-600 leading-tight truncate flex items-center gap-1 mt-0.5">
+      <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-tight truncate flex items-center gap-1 mt-0.5">
         <User className="h-3 w-3 shrink-0" aria-hidden />
         <span className="truncate">{carers}</span>
       </p>
       <div className="flex items-center gap-1 mt-1 flex-wrap">
         {job.requiredCarers > 1 ? (
-          <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3 text-slate-600" />
+          <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3 text-slate-600 dark:text-slate-300" />
         ) : null}
         {alert ? <AlertCircle className="h-3 w-3 text-red-600" aria-hidden /> : null}
         {job.scheduleRun ? (
           <span
-            className="text-[9px] font-semibold text-slate-800 bg-white/70 px-1 rounded"
+            className="text-[9px] font-semibold text-slate-800 dark:text-slate-100 bg-white/70 px-1 rounded"
             title={`In run: ${job.scheduleRun.name}`}
           >
             Run {job.runSequence ?? '·'}
@@ -112,26 +112,26 @@ function JobCard({ job, carePlanNameById, onAssign }: JobCardProps) {
       type="button"
       className={cn(
         'relative w-full rounded-sm border-l-2 px-2 py-1.5 transition-colors overflow-hidden text-left cursor-pointer hover:brightness-95',
-        alert ? 'bg-amber-50/80 border-amber-500' : 'bg-slate-200/80 border-slate-400',
+        alert ? 'bg-amber-50/80 border-amber-500' : 'bg-slate-200/80 border-slate-400 dark:border-border',
       )}
       title={attention ? `${attention} — click to assign carers` : 'Click to manage carers'}
       onClick={() => onAssign(job)}
     >
-      <p className="relative text-xs font-semibold text-slate-800 leading-tight truncate">
+      <p className="relative text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate">
         {serviceUserLabel(job.serviceUser)}
       </p>
       {slotLabel ? (
-        <p className="text-[10px] font-medium text-slate-700 truncate">{slotLabel}</p>
+        <p className="text-[10px] font-medium text-slate-700 dark:text-slate-200 truncate">{slotLabel}</p>
       ) : (
-        <p className="text-[10px] text-slate-600 truncate">{job.jobName}</p>
+        <p className="text-[10px] text-slate-600 dark:text-slate-300 truncate">{job.jobName}</p>
       )}
-      <p className="text-[10px] text-slate-600 mt-0.5">{formatJobTimeRange(job)}</p>
-      <p className="text-[10px] text-slate-600 truncate">{carePlans}</p>
+      <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">{formatJobTimeRange(job)}</p>
+      <p className="text-[10px] text-slate-600 dark:text-slate-300 truncate">{carePlans}</p>
       <div className="relative flex items-center justify-between mt-0.5 gap-1">
-        <p className="text-[10px] text-slate-600 truncate">{carers}</p>
+        <p className="text-[10px] text-slate-600 dark:text-slate-300 truncate">{carers}</p>
         <div className="flex items-center gap-1 shrink-0">
           {job.requiredCarers > 1 ? (
-            <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3 text-slate-500" />
+            <ScheduleJobRequiredCarersIcon requiredCarers={job.requiredCarers} className="h-3 w-3 text-slate-500 dark:text-slate-400" />
           ) : null}
           {alert ? <AlertCircle className="h-3 w-3 text-red-500" aria-hidden /> : null}
         </div>

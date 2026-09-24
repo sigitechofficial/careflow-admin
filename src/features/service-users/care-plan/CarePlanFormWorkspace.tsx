@@ -123,7 +123,7 @@ function StatusToggle({
               'min-w-[5.5rem] px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50',
               active && opt === 'Active' && 'bg-destructive text-white',
               active && opt !== 'Active' && 'bg-muted text-foreground',
-              !active && 'bg-white text-foreground hover:bg-muted/50',
+              !active && 'bg-white dark:bg-card text-foreground hover:bg-muted/50',
             )}
           >
             {opt}
@@ -1079,7 +1079,7 @@ export function CarePlanFormWorkspace({
   return (
     <div data-testid="care-plan-form-workspace">
       {!published && (
-        <div className="mb-4 flex items-start gap-3 rounded-sm border border-border bg-white px-4 py-3 shadow-sm">
+        <div className="mb-4 flex items-start gap-3 rounded-sm border border-border bg-white dark:bg-card px-4 py-3 shadow-sm">
           <div className="flex h-full min-h-[2.5rem] w-1 shrink-0 rounded-full bg-primary" />
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />

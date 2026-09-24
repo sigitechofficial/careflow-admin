@@ -64,7 +64,7 @@ export function CarePlanCard({
       onClick={onOpen}
       className={cn(
         CARD_SHELL,
-        appearance === 'available' ? 'border-[#d5dbe3] bg-[#f8fafc]' : 'border-[#c5cdd6] bg-white',
+        appearance === 'available' ? 'border-[#d5dbe3] dark:border-border bg-[#f8fafc] dark:bg-card' : 'border-[#c5cdd6] bg-white',
       )}
       data-testid={`care-plan-card-${title.replace(/\s+/g, '-').toLowerCase()}`}
     >
@@ -86,7 +86,7 @@ export function CarePlanCard({
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-start justify-between gap-1.5">
-            <p className="text-[13px] font-medium leading-snug text-[#1e293b]">{title}</p>
+            <p className="text-[13px] font-medium leading-snug text-[#1e293b] dark:text-slate-100">{title}</p>
             {statusLabel || secondaryBadge ? (
               <div className="flex flex-wrap items-center gap-1">
                 {statusLabel ? (

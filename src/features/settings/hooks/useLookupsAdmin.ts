@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createAllergyCatalog,
   createBodyMapRecordType,
+  createMedicalConditionCatalog,
   createComplianceType,
   createLookupItem,
   createServiceUserCareType,
@@ -10,6 +11,7 @@ import {
   createServiceUserLanguage,
   deleteAllergyCatalog,
   deleteBodyMapRecordType,
+  deleteMedicalConditionCatalog,
   deleteComplianceType,
   deleteLookupItem,
   deleteServiceUserCareType,
@@ -49,6 +51,7 @@ import {
   deleteServiceUserLanguage,
   fetchAllergyCatalogList,
   fetchBodyMapRecordTypesList,
+  fetchMedicalConditionCatalogList,
   fetchComplianceTypesList,
   fetchLookupList,
   fetchLookupListWithInterval,
@@ -59,6 +62,7 @@ import {
   fetchVitalAcceptedRangesCatalog,
   updateAllergyCatalog,
   updateBodyMapRecordType,
+  updateMedicalConditionCatalog,
   updateComplianceType,
   updateLookupItem,
   updateLookupIntervalItem,
@@ -413,6 +417,69 @@ export function useDeleteBodyMapRecordType() {
   return useMutation({
     mutationFn: (id: string) => deleteBodyMapRecordType(id),
     onSuccess: () => invalidateBodyMapLookupCaches(qc),
+  })
+}
+
+// ─── Medical condition catalogue ──────────────────────────────────────────
+
+export function useMedicalConditionCatalogSettings(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.medicalConditionCatalog(),
+    queryFn: () => fetchMedicalConditionCatalogList({ includeInactive: true }),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateMedicalConditionCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      name: string
+      code: string
+      category?: import('@/features/settings/api/lookups-admin-api').MedicalConditionCatalogCategory
+      description?: string
+      sortOrder?: number
+    }) => createMedicalConditionCatalog(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.medicalConditionCatalog() })
+      invalidateServiceUserLookupCaches(qc)
+    },
+  })
+}
+
+export function useUpdateMedicalConditionCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: {
+        name?: string
+        code?: string
+        category?: import('@/features/settings/api/lookups-admin-api').MedicalConditionCatalogCategory
+        description?: string
+        isActive?: boolean
+        sortOrder?: number
+      }
+    }) => updateMedicalConditionCatalog(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.medicalConditionCatalog() })
+      invalidateServiceUserLookupCaches(qc)
+    },
+  })
+}
+
+export function useDeleteMedicalConditionCatalog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteMedicalConditionCatalog(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.medicalConditionCatalog() })
+      invalidateServiceUserLookupCaches(qc)
+    },
   })
 }
 

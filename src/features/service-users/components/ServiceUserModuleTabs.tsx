@@ -111,7 +111,7 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
   },
   {
     id: 'alerts',
-    label: 'Medical & Alerts',
+    label: 'Medical Alerts',
     to: '/service-users/$serviceUserId/alerts',
   },
   {

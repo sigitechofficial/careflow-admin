@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
   Calendar,
@@ -132,6 +133,13 @@ export default function CarerVisitHubPage() {
 
   const clockIn = job.actualStartDateTime ? formatOrganisationIsoTime(job.actualStartDateTime) : null
   const clockOut = job.actualEndDateTime ? formatOrganisationIsoTime(job.actualEndDateTime) : null
+  // Flag a stuck visit: clocked in, never clocked out, and the planned end has passed.
+  const plannedEnd = job.scheduledEndDateTime ? new Date(job.scheduledEndDateTime) : null
+  const missingCheckout =
+    Boolean(job.actualStartDateTime) &&
+    !job.actualEndDateTime &&
+    plannedEnd != null &&
+    plannedEnd.getTime() < Date.now()
   const allocations = job.allocations ?? []
 
   return (
@@ -245,7 +253,19 @@ export default function CarerVisitHubPage() {
               </DetailRow>
 
               <DetailRow icon={<LogOut className="h-4 w-4" />} label="Clocked out">
-                {clockOut ? <span className="tabular-nums">{clockOut}</span> : '—'}
+                {clockOut ? (
+                  <span className="tabular-nums">{clockOut}</span>
+                ) : missingCheckout ? (
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-400"
+                  >
+                    <AlertTriangle className="h-3 w-3" aria-hidden />
+                    Missing check-out — still clocked in
+                  </Badge>
+                ) : (
+                  '—'
+                )}
               </DetailRow>
 
               <DetailRow icon={<Users className="h-4 w-4" />} label={`Carers (${allocations.length}/${job.requiredCarers})`}>

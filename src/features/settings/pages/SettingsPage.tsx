@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
   AlertTriangle,
+  ClipboardList,
   Award,
   BadgeCheck,
   Briefcase,
@@ -53,6 +54,7 @@ import { VisitOutcomeReasonsSettingsPanel } from '@/features/settings/components
 import { EcmThresholdLookupsSettingsPanel } from '@/features/settings/components/EcmThresholdLookupsSettingsPanel'
 import { EmergencyProtocolsSettingsPanel } from '@/features/settings/components/EmergencyProtocolsSettingsPanel'
 import { GeneralSettingsEmployeeVisaPanel } from '@/features/settings/components/GeneralSettingsEmployeeVisaPanel'
+import { MedicalConditionsCatalogSettingsPanel } from '@/features/settings/components/MedicalConditionsCatalogSettingsPanel'
 
 export type SettingsTabId =
   | 'job-titles'
@@ -77,6 +79,7 @@ export type SettingsTabId =
   | 'languages'
   | 'record-types'
   | 'allergies'
+  | 'medical-conditions'
   | 'tasks-planner'
   | 'vital-ranges'
   | 'welfare-outcomes'
@@ -112,6 +115,7 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string; Icon: LucideIcon }[] = 
   { id: 'languages', label: 'Languages', Icon: Languages },
   { id: 'record-types', label: 'Record types', Icon: Stethoscope },
   { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
+  { id: 'medical-conditions', label: 'Medical conditions', Icon: ClipboardList },
   { id: 'vital-ranges', label: 'Accepted ranges', Icon: Timer },
   { id: 'welfare-outcomes', label: 'On-entry welfare outcomes', Icon: ShieldAlert },
   { id: 'clock-in-arrival-reasons', label: 'Clock-in arrival reasons', Icon: Clock },
@@ -287,6 +291,7 @@ export default function SettingsPage() {
           {activeTab === 'languages' && <ServiceUserCodeNameLookupSettingsPanel variant="languages" />}
           {activeTab === 'record-types' && <BodyMapRecordTypesSettingsPanel />}
           {activeTab === 'allergies' && <AllergiesCatalogSettingsPanel />}
+          {activeTab === 'medical-conditions' && <MedicalConditionsCatalogSettingsPanel />}
           {activeTab === 'tasks-planner' && <TaskCatalogueSettingsPanel />}
           {activeTab === 'vital-ranges' && <VitalAcceptedRangesSettingsPanel />}
           {activeTab === 'welfare-outcomes' && <WelfareOutcomesSettingsPanel />}

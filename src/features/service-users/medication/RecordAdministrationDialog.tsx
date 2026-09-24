@@ -212,7 +212,7 @@ export function RecordAdministrationDialog({
         </div>
 
         {lookupsQuery.isLoading ? (
-          <div className="mar-record-modal-body flex items-center gap-2 text-sm text-[#64748b]">
+          <div className="mar-record-modal-body flex items-center gap-2 text-sm text-[#64748b] dark:text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading status codes…
           </div>
@@ -283,7 +283,7 @@ export function RecordAdministrationDialog({
               </label>
               {recordingMode === 'on-behalf' && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0' }}>
-                  <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                  <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1.5">
                     Carer who administered <span className="text-red-600">*</span>
                   </label>
                   <select
@@ -325,7 +325,7 @@ export function RecordAdministrationDialog({
             )}
 
             <div style={{ marginBottom: 14 }}>
-              <label className="block text-xs font-medium text-[#374151] mb-1">
+              <label className="block text-xs font-medium text-[#374151] dark:text-slate-300 mb-1">
                 {notesRequired ? (
                   <>
                     Notes <span style={{ color: '#dc2626' }}>*</span>
@@ -348,8 +348,8 @@ export function RecordAdministrationDialog({
             </div>
 
             {slot && (
-              <p className="mb-4 text-xs text-[#64748b]">
-                Time slot: <strong className="text-[#1e293b]">{slot.label}</strong>
+              <p className="mb-4 text-xs text-[#64748b] dark:text-slate-400">
+                Time slot: <strong className="text-[#1e293b] dark:text-slate-100">{slot.label}</strong>
                 {slot.time ? ` · ${slot.time}` : ''}
               </p>
             )}

@@ -100,7 +100,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function BentoCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="rounded-[14px] border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-[18px]">
+    <div className="rounded-[14px] border border-slate-200 dark:border-border bg-white p-4 shadow-sm dark:bg-card sm:p-[18px]">
       <div className="mb-3 flex items-center gap-1.5 text-base font-semibold uppercase tracking-wide text-slate-400">
         {icon}
         {title}
@@ -121,10 +121,10 @@ function RowItem({
 }) {
   return (
     <div className="flex items-center justify-between border-b border-slate-100 py-2 text-base last:border-0 dark:border-border/60">
-      <span className="text-slate-600 dark:text-muted-foreground">{label}</span>
+      <span className="text-slate-600 dark:text-slate-300 dark:text-muted-foreground">{label}</span>
       <span
         className={cn(
-          'text-right font-medium text-slate-900 dark:text-foreground',
+          'text-right font-medium text-slate-900 dark:text-slate-100 dark:text-foreground',
           tone === 'ok' && 'text-green-700',
           tone === 'warn' && 'text-amber-700',
           tone === 'danger' && 'text-red-700',
@@ -431,7 +431,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
       </div>
 
       {/* Module strip */}
-      <div className="sticky top-[116px] z-40 border-b border-slate-200 bg-white dark:border-border dark:bg-card">
+      <div className="sticky top-[116px] z-40 border-b border-slate-200 dark:border-border bg-white dark:bg-card">
         <div className="mx-auto flex max-w-[1200px] items-center gap-0.5 overflow-x-auto px-5">
           {MODULE_TABS.map(tab => {
             const inner = (
@@ -446,7 +446,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
                 ? 'border-[#115E59] text-[#115E59]'
                 : tab.disabled
                   ? 'cursor-default border-transparent text-muted-foreground opacity-60'
-                  : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-muted-foreground',
+                  : 'border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-slate-100 dark:text-muted-foreground',
             )
             if (tab.disabled || !tab.to) {
               return (
@@ -502,7 +502,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
             </Link>
           </div>
         ) : (
-          <p className="mb-4 rounded-[10px] border border-dashed border-slate-200 bg-white px-4 py-2.5 text-base text-muted-foreground">
+          <p className="mb-4 rounded-[10px] border border-dashed border-slate-200 dark:border-border bg-white dark:bg-card px-4 py-2.5 text-base text-muted-foreground">
             No active flash message.
           </p>
         )}
@@ -513,7 +513,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
           Needs attention today
         </SectionLabel>
         {attentionItems.length === 0 ? (
-          <p className="mb-2 rounded-[10px] border border-slate-200 bg-white px-4 py-6 text-center text-base text-muted-foreground">
+          <p className="mb-2 rounded-[10px] border border-slate-200 dark:border-border bg-white dark:bg-card px-4 py-6 text-center text-base text-muted-foreground">
             No urgent items right now.
           </p>
         ) : (
@@ -524,7 +524,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
                 to={item.to}
                 params={item.params}
                 search={item.search}
-                className="flex cursor-pointer items-start gap-3 rounded-[10px] border border-slate-200 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md dark:border-border dark:bg-card"
+                className="flex cursor-pointer items-start gap-3 rounded-[10px] border border-slate-200 dark:border-border bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md dark:bg-card"
               >
                 <div
                   className={cn(
@@ -535,8 +535,8 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold text-slate-900 dark:text-foreground">{item.title}</div>
-                  <div className="mt-0.5 text-sm text-slate-600 dark:text-muted-foreground">{item.detail}</div>
+                  <div className="text-base font-semibold text-slate-900 dark:text-slate-100 dark:text-foreground">{item.title}</div>
+                  <div className="mt-0.5 text-sm text-slate-600 dark:text-slate-300 dark:text-muted-foreground">{item.detail}</div>
                   <span className="mt-1.5 inline-flex items-center gap-0.5 text-sm font-medium text-teal-700">
                     {item.linkLabel}
                     <ArrowRight className="h-3 w-3" />
@@ -593,20 +593,20 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
                   <span className="text-sm text-muted-foreground">{riskMeterPercent(detail)}%</span>
                 ) : null}
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-amber-500 to-red-500"
                   style={{ width: `${riskMeterPercent(detail)}%` }}
                 />
               </div>
               {detail.notes?.trim() ? (
-                <p className="mt-1.5 text-sm text-slate-600 line-clamp-3">{detail.notes}</p>
+                <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300 line-clamp-3">{detail.notes}</p>
               ) : null}
             </div>
             <hr className="my-2 border-slate-100 dark:border-border" />
             <div className="my-2">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-600">
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                   Allergies — {allergyRows.length} recorded
                 </span>
                 <div className="flex items-center gap-2">
@@ -653,7 +653,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
               ) : null}
             </div>
             <hr className="my-2 border-slate-100 dark:border-border" />
-            <p className="mb-1.5 text-sm font-semibold text-slate-600">Body map — active records</p>
+            <p className="mb-1.5 text-sm font-semibold text-slate-600 dark:text-slate-300">Body map — active records</p>
             <RowItem label="Active records" value={bm?.activeCount ?? 0} />
             <RowItem
               label="Reviews due"
@@ -668,7 +668,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
           </BentoCard>
 
           <BentoCard title="People & admin" icon={<Users className="h-3.5 w-3.5" />}>
-            <p className="mb-2 text-sm font-semibold text-slate-600">Assigned staff</p>
+            <p className="mb-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Assigned staff</p>
             {employeeDisplayName(detail.keyWorker) ? (
               <StaffMini name={employeeDisplayName(detail.keyWorker)!} role="Key worker" tone="teal" />
             ) : (
@@ -678,9 +678,9 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
               <StaffMini name={employeeDisplayName(detail.namedNurse)!} role="Named nurse" tone="blue" />
             ) : null}
             <hr className="my-2.5 border-slate-100 dark:border-border" />
-            <p className="mb-1.5 text-sm font-semibold text-slate-600">Location</p>
+            <p className="mb-1.5 text-sm font-semibold text-slate-600 dark:text-slate-300">Location</p>
             {addr ? (
-              <address className="text-sm not-italic leading-relaxed text-slate-900 dark:text-foreground">
+              <address className="text-sm not-italic leading-relaxed text-slate-900 dark:text-slate-100 dark:text-foreground">
                 {[addr.addressLine1, addr.addressLine2, addr.town, addr.postcode].filter(Boolean).join(', ') ||
                   detail.location?.name ||
                   '—'}
@@ -716,7 +716,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
               tone={primaryFunding?.reviewDate ? 'warn' : undefined}
             />
             <hr className="my-2.5 border-slate-100 dark:border-border" />
-            <p className="mb-1.5 text-sm font-semibold text-slate-600">
+            <p className="mb-1.5 text-sm font-semibold text-slate-600 dark:text-slate-300">
               Contacts {contactsTotal > 0 ? `(${contactsTotal})` : ''}
             </p>
             {primaryContacts.length === 0 ? (
@@ -857,16 +857,16 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
           />
           <ModuleTile
             icon={<Coins className="h-[18px] w-[18px]" />}
-            iconBg="bg-slate-100 text-slate-600"
+            iconBg="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
             title="Funding"
             sub={primaryFunding?.reviewDate ? `Review ${formatShortUk(primaryFunding.reviewDate)}` : 'Packages'}
             to="/service-users/$serviceUserId"
             search={{ tab: 'funding' }}
             serviceUserId={serviceUserId}
           />
-          <ModuleTile disabled icon={<MessageCircle className="h-[18px] w-[18px]" />} iconBg="bg-slate-100 text-slate-500" title="Comms" sub="Coming soon" />
-          <ModuleTile disabled icon={<Bell className="h-[18px] w-[18px]" />} iconBg="bg-slate-100 text-slate-500" title="Alerts" sub="Coming soon" />
-          <ModuleTile disabled icon={<History className="h-[18px] w-[18px]" />} iconBg="bg-slate-100 text-slate-500" title="History" sub="Coming soon" />
+          <ModuleTile disabled icon={<MessageCircle className="h-[18px] w-[18px]" />} iconBg="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" title="Comms" sub="Coming soon" />
+          <ModuleTile disabled icon={<Bell className="h-[18px] w-[18px]" />} iconBg="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" title="Alerts" sub="Coming soon" />
+          <ModuleTile disabled icon={<History className="h-[18px] w-[18px]" />} iconBg="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" title="History" sub="Coming soon" />
         </div>
 
         {/* Activity placeholder */}
@@ -965,17 +965,17 @@ function ModuleTile({
         </span>
       ) : null}
       {disabled ? (
-        <span className="absolute right-2.5 top-2.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-sm text-muted-foreground">
+        <span className="absolute right-2.5 top-2.5 rounded-full bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-sm text-muted-foreground">
           Soon
         </span>
       ) : null}
       <div className={cn('mb-1 flex h-9 w-9 items-center justify-center rounded-md', iconBg)}>{icon}</div>
-      <div className="text-base font-semibold text-slate-900 dark:text-foreground">{title}</div>
+      <div className="text-base font-semibold text-slate-900 dark:text-slate-100 dark:text-foreground">{title}</div>
       <div className="text-sm leading-snug text-muted-foreground">{sub}</div>
     </>
   )
   const className = cn(
-    'relative flex flex-col items-start rounded-[14px] border border-slate-200 bg-white p-3.5 transition-all dark:border-border dark:bg-card',
+    'relative flex flex-col items-start rounded-[14px] border border-slate-200 dark:border-border bg-white p-3.5 transition-all dark:bg-card',
     disabled ? 'cursor-default opacity-55' : 'hover:border-teal-600 hover:shadow-md',
   )
   if (disabled || !to || !serviceUserId) {
