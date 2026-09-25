@@ -1,4 +1,5 @@
 ﻿import type { InitialAssessmentQuestion, InitialAssessmentSection } from '@/features/service-users/initial-assessment/types'
+import { isMcaRequiredYes } from '@/features/service-users/initial-assessment/utils/mca-required'
 import { specRefOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { isAboutMeIaSpecRef } from '@/features/service-users/initial-assessment/utils/about-me-ia-questions'
 import type { SectionNavStatus } from '@/features/service-users/initial-assessment/utils/validation-maps'
@@ -149,7 +150,6 @@ const HOLISTIC_ASSESSMENT_TAB_DEFS: Array<Omit<HolisticAssessmentTab, 'displayNu
         questionTextsOnly: [
           'Cognitive impairment level',
           'AMT completed?',
-          'Mental Capacity Assessment required?',
           'GP referral for cognition requested?',
           'GP referral for cognition made?',
         ],
@@ -685,7 +685,8 @@ export function buildHolisticTabNavStatus(params: {
     }
 
     if (tab.kind === 'mental-capacity-checklist') {
-      if (editable && !mentalCapacityChecklistComplete) {
+      const mcaRequired = isMcaRequiredYes(sections, draftAnswers)
+      if (editable && mcaRequired && !mentalCapacityChecklistComplete) {
         status.set(tab.id, 'incomplete')
       } else {
         status.set(tab.id, 'ok')

@@ -24,7 +24,6 @@ export const SECTION_1_1_PERSONAL_DETAILS_ORDER = [
   'LPOA appointed?',
   'LPOA designation',
   'LPOA name',
-  'Assessor name',
   'Assessor designation',
   'LPOA contact details',
   'Social worker contact',

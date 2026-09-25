@@ -4,7 +4,8 @@ const SECTION_FOOTER_NOTE_TEXT: Partial<Record<number, string>> = {
   7: 'Continence / oral care notes',
   8: 'Communication support notes',
   9: 'Medication safety notes',
-  11: 'Skin / wound notes',
+  // Section 11 notes live inside Skin Integrity panel ("Skin integrity additional comments") —
+  // do not also render them as a trailing footer outside the collapsible shell.
   13: 'Safeguarding / emergency notes',
   14: 'Review and sign-off notes',
 }

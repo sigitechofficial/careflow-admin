@@ -137,6 +137,14 @@ import {
   type EquipmentSelectionMetadata,
 } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import { syncFallsScreeningDerivedState } from '@/features/service-users/initial-assessment/utils/falls-screening-questions'
+import {
+  syncDnacprFromEndOfLife,
+  syncEnvPetsToSection3,
+  syncFallsToMovingHandling,
+  syncWaterlowScoreToEquipment,
+  prefillAcpFromIdentityAnswers,
+  prefillPhotographyFromIdentityAnswers,
+} from '@/features/service-users/initial-assessment/utils/semantic-cross-tab-sync'
 import { syncFillDemoCatalogueAnswers } from '@/features/service-users/initial-assessment/utils/fill-demo-worksheet-sync'
 import {
   mustTemplateQuestionIds,
@@ -478,6 +486,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const skipAutosaveRef = React.useRef(true)
   const syncSaveQuestionIdsRef = React.useRef<Set<string>>(new Set())
   const sectionContentRef = React.useRef<HTMLDivElement>(null)
+  /** Left-nav tab switch: show feedback before heavy section mount blocks the main thread. */
+  const [pendingHolisticTab, setPendingHolisticTab] = React.useState<number | null>(null)
+  const tabSwitchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tabSwitchLoading = pendingHolisticTab != null
   const sectionCommentsLocalEditRef = React.useRef(false)
   const sectionCommentDraftRef = React.useRef<Record<string, string>>({})
   const saveSectionInProgressRef = React.useRef(false)
@@ -986,25 +998,83 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   }, [submissionId])
 
   const goToHolisticTab = React.useCallback(
-    (tabId: number) => setActiveSection(tabId),
-    [setActiveSection],
+    (tabId: number) => {
+      if (tabId === activeHolisticTab && pendingHolisticTab == null) return
+      if (tabSwitchTimerRef.current != null) {
+        clearTimeout(tabSwitchTimerRef.current)
+        tabSwitchTimerRef.current = null
+      }
+      setPendingHolisticTab(tabId)
+      // Let the loading UI paint before the heavy section commit freezes the main thread.
+      tabSwitchTimerRef.current = setTimeout(() => {
+        tabSwitchTimerRef.current = null
+        setActiveSection(tabId)
+      }, 40)
+    },
+    [activeHolisticTab, pendingHolisticTab, setActiveSection],
   )
 
+  React.useEffect(() => {
+    if (pendingHolisticTab == null) return
+    if (activeHolisticTab !== pendingHolisticTab) return
+    let cancelled = false
+    const clearLoading = () => {
+      if (!cancelled) setPendingHolisticTab(null)
+    }
+    const outer = requestAnimationFrame(() => {
+      requestAnimationFrame(clearLoading)
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(outer)
+    }
+  }, [activeHolisticTab, pendingHolisticTab])
+
+  React.useEffect(() => {
+    return () => {
+      if (tabSwitchTimerRef.current != null) clearTimeout(tabSwitchTimerRef.current)
+    }
+  }, [])
+
   const goToWaterlowTab = React.useCallback(() => {
-    setActiveSection(5)
-  }, [setActiveSection])
+    goToHolisticTab(5)
+  }, [goToHolisticTab])
 
   const goToSkinIntegrityCheckTab = React.useCallback(() => {
-    setActiveSection(4)
-  }, [setActiveSection])
+    goToHolisticTab(4)
+  }, [goToHolisticTab])
 
   const goToEnvironmentAssessmentTab = React.useCallback(() => {
-    setActiveSection(12)
-  }, [setActiveSection])
+    goToHolisticTab(12)
+  }, [goToHolisticTab])
 
   const goToFallsScreeningTab = React.useCallback(() => {
-    setActiveSection(8)
-  }, [setActiveSection])
+    goToHolisticTab(8)
+  }, [goToHolisticTab])
+
+  const goToMcaScreeningTab = React.useCallback(() => {
+    goToHolisticTab(3)
+  }, [goToHolisticTab])
+
+  const goToMustTab = React.useCallback(() => {
+    goToHolisticTab(7)
+  }, [goToHolisticTab])
+
+  const goToPersonalDetailsTab = React.useCallback(() => {
+    goToHolisticTab(1)
+  }, [goToHolisticTab])
+
+  const goToEndOfLifeTab = React.useCallback(() => {
+    goToHolisticTab(14)
+  }, [goToHolisticTab])
+
+  const goToAdvanceCarePlanningTab = React.useCallback(() => {
+    goToHolisticTab(13)
+  }, [goToHolisticTab])
+
+  const goToInfectionControlTab = React.useCallback(() => {
+    goToHolisticTab(21)
+  }, [goToHolisticTab])
 
   /** Validation banners pass enterprise § numbers — map to the matching holistic tab. */
   const goToSection = React.useCallback(
@@ -1026,6 +1096,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     if (hubTab !== 'form') return
     sectionContentRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [activeHolisticTab, hubTab])
+
   const overallPercent = React.useMemo(
     () => overallAssessmentProgress(sections, draftAnswers, progressContext),
     [sections, draftAnswers, progressContext],
@@ -1403,13 +1474,54 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [submissionId, editable, canUpdate, submission?.metadata, updateSubmissionMutation],
   )
 
+  /** Prefill identity/GP/LPOA into ACP / Photography when those tabs open (empty fields only). */
+  const identityPrefillTabRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    if (hubTab !== 'form' || sections.length === 0) return
+    if (activeHolisticTab !== 13 && activeHolisticTab !== 18) {
+      identityPrefillTabRef.current = null
+      return
+    }
+    if (identityPrefillTabRef.current === activeHolisticTab) return
+    identityPrefillTabRef.current = activeHolisticTab
+
+    if (activeHolisticTab === 13) {
+      const next = prefillAcpFromIdentityAnswers(sections, draftAnswers, advanceCarePlanning)
+      if (next !== advanceCarePlanning) {
+        setAdvanceCarePlanning(next)
+        void persistMetadata({ advanceCarePlanning: next })
+      }
+    }
+    if (activeHolisticTab === 18) {
+      const next = prefillPhotographyFromIdentityAnswers(sections, draftAnswers, photographyConsent)
+      if (next !== photographyConsent) {
+        setPhotographyConsent(next)
+        void persistMetadata({ photographyConsent: next })
+      }
+    }
+  }, [
+    activeHolisticTab,
+    hubTab,
+    sections,
+    draftAnswers,
+    advanceCarePlanning,
+    photographyConsent,
+    persistMetadata,
+  ])
+
   const onWaterlowChange = React.useCallback(
     (next: typeof waterlow) => {
       setWaterlow(next)
-      void persistMetadata({ waterlow: next })
+      const nextEquipment = syncWaterlowScoreToEquipment(next, equipmentSelection)
+      if (nextEquipment !== equipmentSelection) {
+        setEquipmentSelection(nextEquipment)
+        void persistMetadata({ waterlow: next, equipmentSelection: nextEquipment })
+      } else {
+        void persistMetadata({ waterlow: next })
+      }
       syncWaterlowCompletedAnswer(sections, next, onAnswerChange)
     },
-    [sections, persistMetadata, onAnswerChange],
+    [sections, persistMetadata, onAnswerChange, equipmentSelection],
   )
 
   const onSectionFooterChange = React.useCallback(
@@ -1529,8 +1641,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     (next: EnvironmentAssessmentMetadata) => {
       setEnvironmentAssessment(next)
       void persistMetadata({ environmentAssessment: next })
+      syncEnvPetsToSection3(sections, next.pets, draftAnswers, onAnswerChange)
     },
-    [persistMetadata],
+    [persistMetadata, sections, draftAnswers, onAnswerChange],
   )
 
   const onAdvanceCarePlanningChange = React.useCallback(
@@ -1545,8 +1658,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     (next: EndOfLifeAssessmentMetadata) => {
       setEndOfLifeAssessment(next)
       void persistMetadata({ endOfLifeAssessment: next })
+      syncDnacprFromEndOfLife(sections, next, onAnswerChange)
     },
-    [persistMetadata],
+    [persistMetadata, sections, onAnswerChange],
   )
 
   const onClinicalOutcomeSummaryChange = React.useCallback(
@@ -1634,18 +1748,28 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const onFallsScreeningChange = React.useCallback(
     (next: FallsScreeningMetadata) => {
       setFallsScreening(next)
+      const nextMh = syncFallsToMovingHandling(next, movingHandlingOperations)
+      if (nextMh !== movingHandlingOperations) {
+        setMovingHandlingOperations(nextMh)
+      }
       syncFallsScreeningDerivedState(
         sections,
         next,
         adl,
         (nextAdl) => {
           setAdl(nextAdl)
-          void persistMetadata({ fallsScreening: next, adl: nextAdl })
+          void persistMetadata({
+            fallsScreening: next,
+            adl: nextAdl,
+            ...(nextMh !== movingHandlingOperations
+              ? { movingHandlingOperations: nextMh }
+              : {}),
+          })
         },
         onAnswerChange,
       )
     },
-    [sections, adl, persistMetadata, onAnswerChange],
+    [sections, adl, persistMetadata, onAnswerChange, movingHandlingOperations],
   )
 
   const resolveSectionCommentText = React.useCallback((holisticTabId: number): string => {
@@ -2502,6 +2626,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       : { percent: 0, total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 }
                     const hasComment = Boolean(sectionComments[String(tab.id)]?.text?.trim())
                     const navStatus = holisticTabNavStatus.get(tab.id) ?? 'ok'
+                    const isSwitchTarget = pendingHolisticTab === tab.id
                     return (
                       <button
                         key={tab.id}
@@ -2511,13 +2636,24 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           activeHolisticTab === tab.id
                             ? 'bg-teal-900 text-white dark:bg-teal-800'
                             : 'hover:bg-muted',
+                          isSwitchTarget && activeHolisticTab !== tab.id
+                            ? 'bg-teal-100 text-teal-950 dark:bg-teal-950 dark:text-teal-100'
+                            : null,
                         )}
+                        aria-busy={isSwitchTarget || undefined}
+                        disabled={tabSwitchLoading}
                         onClick={() => goToHolisticTab(tab.id)}
                       >
                         <span className="flex items-center gap-1.5">
                           <span className="font-semibold">{holisticTabDisplayNumber(tab)}.</span>
                           <span className="min-w-0 flex-1">{tab.title}</span>
-                          {navStatus === 'blocking' ? (
+                          {isSwitchTarget ? (
+                            <Loader2
+                              className="h-3.5 w-3.5 shrink-0 animate-spin"
+                              aria-hidden
+                              data-testid={`ia-nav-loading-${tab.id}`}
+                            />
+                          ) : navStatus === 'blocking' ? (
                             <span
                               className="h-2 w-2 shrink-0 rounded-full bg-red-500"
                               title="Blocking issues — fix before submit"
@@ -2548,7 +2684,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                             )
                           ) : null}
                         </span>
-                        <span className={IA_FORM_NAV_META_CLASS}>{formatSectionNavMeta(prog)}</span>
+                        <span className={IA_FORM_NAV_META_CLASS}>
+                          {isSwitchTarget ? 'Loading…' : formatSectionNavMeta(prog)}
+                        </span>
                       </button>
                     )
                   })}
@@ -2570,15 +2708,36 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       </Button>
                     </div>
                   ) : null}
+                  {tabSwitchLoading ? (
+                    <div
+                      className="mb-3 flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50/90 px-3 py-2 text-sm font-medium text-teal-950 dark:border-teal-900 dark:bg-teal-950/60 dark:text-teal-100"
+                      role="status"
+                      aria-live="polite"
+                      data-testid="ia-tab-switch-loading"
+                    >
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                      Loading section…
+                    </div>
+                  ) : null}
                   <div
                     ref={sectionContentRef}
                     key={`holistic-tab-${activeHolisticTab}-${currentSection?.id ?? 'none'}`}
                     className={cn(
-                      'min-w-0 space-y-6 rounded-sm border border-slate-300 bg-white p-6 shadow-sm dark:border-slate-600 dark:bg-card',
+                      'relative min-w-0 space-y-6 rounded-sm border border-slate-300 bg-white p-6 shadow-sm dark:border-slate-600 dark:bg-card',
                       IA_FORM_ROOT_CLASS,
                       HOLISTIC_FORM_PAGE_CLASS,
                     )}
+                    aria-busy={tabSwitchLoading || undefined}
                   >
+                  {tabSwitchLoading ? (
+                    <div
+                      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-sm bg-white/75 backdrop-blur-[1px] dark:bg-card/80"
+                      data-testid="ia-tab-switch-overlay"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-teal-800 dark:text-teal-300" aria-hidden />
+                      <p className="text-sm font-medium text-muted-foreground">Loading section…</p>
+                    </div>
+                  ) : null}
                   {import.meta.env.DEV && canUpdate ? (
                     <SectionQaDemoDataPanel
                       tabId={currentHolisticTab.id}
@@ -2660,6 +2819,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onOpenSkinIntegrityCheckTab={goToSkinIntegrityCheckTab}
                         onOpenEnvironmentAssessmentTab={goToEnvironmentAssessmentTab}
                         onOpenFallsScreeningTab={goToFallsScreeningTab}
+                        onOpenMcaScreeningTab={goToMcaScreeningTab}
+                        onOpenMustTab={goToMustTab}
+                        onOpenPersonalDetailsTab={goToPersonalDetailsTab}
+                        onOpenEndOfLifeTab={goToEndOfLifeTab}
+                        onOpenAdvanceCarePlanningTab={goToAdvanceCarePlanningTab}
+                        onOpenInfectionControlTab={goToInfectionControlTab}
                         onPainAssessmentChange={onPainAssessmentChange}
                         onWaterlowChange={onWaterlowChange}
                         onMustAssessmentChange={onMustAssessmentChange}

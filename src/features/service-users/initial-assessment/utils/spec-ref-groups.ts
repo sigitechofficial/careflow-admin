@@ -47,7 +47,7 @@ const SECTION_1_ACT_DIVIDERS: Record<string, { title: string; hint?: string }> =
     hint: 'Morning, meals, personal care preferences, and known triggers.',
   },
   '1.5': {
-    title: 'Likes and dislikes',
+    title: 'Food Likes and dislikes',
     hint: 'Food, activities, and care preferences.',
   },
   '1.6': {
@@ -77,7 +77,7 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '1.3f': 'My Favourite Things',
   '1.3g': 'Identification Characteristics',
   '1.4': '1.4 Daily routine',
-  '1.5': '1.5 Likes and dislikes',
+  '1.5': '1.5 Food Likes and dislikes',
   '1.6': '1.6 Dignity and privacy',
   '1.7': '1.7 Equality and cultural needs',
   '1.8': '1.8 Accessible care needs',

@@ -375,7 +375,9 @@ export function AddMedicationDialog({
     const monthlyDay = Math.min(31, Math.max(1, parseInt(monthlyDayOfMonth, 10) || 1))
     return {
       medicationKind: isPrnMedication ? ('PRN' as const) : ('REGULAR' as const),
-      dose: dose.trim(),
+      dose: isPrnMedication
+        ? dose.trim()
+        : (schedules?.find(s => s.dose?.trim())?.dose?.trim() ?? dose.trim()),
       startDate: startDate.trim(),
       endDate: endDate.trim() || undefined,
       expiryDate: expiryDate.trim() || undefined,
@@ -574,7 +576,14 @@ export function AddMedicationDialog({
     if (fields.reasonForMedication) setReasonForMedication(fields.reasonForMedication)
     if (fields.medicationTypeId) setMedicationTypeId(fields.medicationTypeId)
     if (fields.routeId) setRouteId(fields.routeId)
-    if (fields.dose && !dose.trim()) setDose(fields.dose)
+    if (fields.dose && !dose.trim()) {
+      setDose(fields.dose)
+      setTimeSlots(prev => {
+        const idx = prev.findIndex(s => !s.dose.trim())
+        if (idx < 0) return prev
+        return prev.map((s, i) => (i === idx ? { ...s, dose: fields.dose! } : s))
+      })
+    }
     if (fields.isControlledMedication) setIsControlledMedication(true)
   }
 
@@ -839,10 +848,6 @@ export function AddMedicationDialog({
             </div>
 
             <div className="space-y-1">
-              <MedicationFieldLabelWithTooltip label="Dose" tooltip={DOSE_TOOLTIP} />
-              <Input value={dose} onChange={e => setDose(e.target.value)} disabled={disabled} />
-            </div>
-            <div className="space-y-1">
               <label className="text-sm font-medium">
                 Route administration <span className="text-destructive">*</span>
               </label>
@@ -986,6 +991,13 @@ export function AddMedicationDialog({
               PRN medication (as required — no fixed daily times)
             </label>
 
+            {isPrnMedication && (
+              <div className="space-y-1">
+                <MedicationFieldLabelWithTooltip label="Dose" tooltip={DOSE_TOOLTIP} />
+                <Input value={dose} onChange={e => setDose(e.target.value)} disabled={disabled} />
+              </div>
+            )}
+
             {!isPrnMedication && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-end gap-3">
@@ -1100,7 +1112,7 @@ export function AddMedicationDialog({
                   <span className="text-xs">
                     Slots come from Settings → Time slots. A slot with no dose and no care
                     plan action is not counted, so you can leave unused slots blank instead of
-                    removing them. Set a dose per slot when it differs from the medication dose above.
+                    removing them. Enter the dose on each slot you use (e.g. Morning, Evening).
                   </span>
                 </p>
                 <Button
@@ -1131,7 +1143,7 @@ export function AddMedicationDialog({
                     rounds={lookups?.rounds ?? []}
                     usedRoundIds={usedRoundIds}
                     disabled={disabled}
-                    dosePlaceholder={dose.trim() || 'e.g. 2 tablets'}
+                    dosePlaceholder="e.g. 2 tablets"
                     canRemove={timeSlots.length > 1}
                     onChange={patch => updateTimeSlot(slot.id, patch)}
                     onRemove={() => removeTimeSlot(slot.id)}

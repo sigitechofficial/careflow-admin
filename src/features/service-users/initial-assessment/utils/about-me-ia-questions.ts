@@ -19,7 +19,7 @@ export type AboutMeIaTabId =
   | 'id-chars'
 
 export const ABOUT_ME_IA_TABS: ReadonlyArray<{ id: AboutMeIaTabId; label: string }> = [
-  { id: 'about-main', label: 'About Me' },
+  { id: 'about-main', label: 'What matters to me' },
   { id: 'interests', label: 'Interests' },
   { id: 'history', label: 'My Life History' },
   { id: 'routine', label: 'My Daily Routine' },

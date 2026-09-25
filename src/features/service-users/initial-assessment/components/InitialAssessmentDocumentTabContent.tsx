@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { HolisticFooterFields } from '@/features/service-users/initial-assessment/components/holistic/HolisticFooterFields'
 import { InitialAssessmentDocumentPlaceholder } from '@/features/service-users/initial-assessment/components/InitialAssessmentDocumentPlaceholder'
+import { InitialAssessmentMcaLinkBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentMcaLinkBanner'
+import { InitialAssessmentTabLinkBanner } from '@/features/service-users/initial-assessment/components/InitialAssessmentTabLinkBanner'
 import { InitialAssessmentMcaScreeningPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMcaScreeningPanel'
 import { InitialAssessmentPainAssessmentPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPainAssessmentPanel'
 import { InitialAssessmentTherapyAideMemoirePanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTherapyAideMemoirePanel'
@@ -60,6 +62,11 @@ import type { PhotographyConsentMetadata } from '@/features/service-users/initia
 import type { EquipmentSelectionMetadata } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import type { MustMetadata } from '@/features/service-users/initial-assessment/utils/must-scoring'
 import type { WaterlowMetadata } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
+import {
+  findMcaCompletedQuestion,
+  findMcaRequiredQuestion,
+  isMcaRequiredYes,
+} from '@/features/service-users/initial-assessment/utils/mca-required'
 import {
   mergePrefillAnswer,
   prefillHintForQuestion,
@@ -125,6 +132,12 @@ type Props = {
   onOpenEnvironmentAssessmentTab?: () => void
   onOpenFallsScreeningTab?: () => void
   onOpenSkinIntegrityCheckTab?: () => void
+  onOpenMcaScreeningTab?: () => void
+  onOpenMustTab?: () => void
+  onOpenPersonalDetailsTab?: () => void
+  onOpenEndOfLifeTab?: () => void
+  onOpenAdvanceCarePlanningTab?: () => void
+  onOpenInfectionControlTab?: () => void
   onPainAssessmentChange: (next: PainAssessmentMetadata) => void
   onWaterlowChange: (next: WaterlowMetadata) => void
   onMustAssessmentChange: (next: MustMetadata) => void
@@ -202,6 +215,12 @@ export function InitialAssessmentDocumentTabContent({
   onOpenEnvironmentAssessmentTab,
   onOpenFallsScreeningTab,
   onOpenSkinIntegrityCheckTab,
+  onOpenMcaScreeningTab,
+  onOpenMustTab,
+  onOpenPersonalDetailsTab,
+  onOpenEndOfLifeTab,
+  onOpenAdvanceCarePlanningTab,
+  onOpenInfectionControlTab,
   onPainAssessmentChange,
   onWaterlowChange,
   onMustAssessmentChange,
@@ -259,8 +278,26 @@ export function InitialAssessmentDocumentTabContent({
 
   if (tab.kind === 'mca-screening') {
     const section2 = sections.find((s) => s.sectionNumber === 2)
+    const mcaRequiredQ = findMcaRequiredQuestion(sections)
+    const mcaCompletedQ = findMcaCompletedQuestion(sections)
+    const gateQuestions = [mcaRequiredQ, mcaCompletedQ].filter(
+      (q): q is NonNullable<typeof q> => Boolean(q),
+    )
     return (
       <>
+        {gateQuestions.length > 0 ? (
+          <div
+            className="space-y-4 rounded-sm border border-slate-300 bg-white p-4 dark:border-slate-600 dark:bg-card"
+            data-testid="ia-mca-required-gate"
+          >
+            <p className="text-sm font-semibold text-foreground">MCA requirement</p>
+            <p className="text-sm text-muted-foreground">
+              Answer here once. Screening questions appear when MCA is required; the full checklist
+              (Tab 17) is only needed when this is Yes.
+            </p>
+            {gateQuestions.map((q) => renderMcaField(q))}
+          </div>
+        ) : null}
         <InitialAssessmentMcaScreeningPanel
           allSections={sections}
           renderField={renderMcaField}
@@ -296,17 +333,33 @@ export function InitialAssessmentDocumentTabContent({
 
   if (tab.kind === 'waterlow') {
     return (
-      <InitialAssessmentWaterlowPanel
-        value={waterlow}
-        disabled={disabled}
-        onChange={onWaterlowChange}
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Measurements & MUST"
+          body="Use Tab 1 for height/weight/appetite narrative. Waterlow scores pressure risk here; MUST (Tab 7) scores malnutrition. Score also syncs to Equipment Selection."
+          actionLabel="Open MUST (Tab 7)"
+          onAction={onOpenMustTab}
+          testId="ia-waterlow-link-banner"
+        />
+        <InitialAssessmentWaterlowPanel
+          value={waterlow}
+          disabled={disabled}
+          onChange={onWaterlowChange}
+        />
+      </>
     )
   }
 
   if (tab.kind === 'equipment-selection') {
     return (
       <>
+        <InitialAssessmentTabLinkBanner
+          title="Waterlow score"
+          body="Pressure ulcer risk score comes from Tab 5 (Waterlow) and syncs into this form when available."
+          actionLabel="Open Waterlow (Tab 5)"
+          onAction={onOpenWaterlowTab}
+          testId="ia-equipment-waterlow-link-banner"
+        />
         <InitialAssessmentEquipmentSelectionPanel
           value={equipmentSelection}
           disabled={disabled}
@@ -329,11 +382,20 @@ export function InitialAssessmentDocumentTabContent({
 
   if (tab.kind === 'must-tool') {
     return (
-      <InitialAssessmentMustPanel
-        value={mustAssessment}
-        disabled={disabled}
-        onChange={onMustAssessmentChange}
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Weight & nutrition measurements"
+          body="Height, weight and appetite live on Tab 1. This MUST tool scores malnutrition risk — don’t re-enter kg/BMI here as free text."
+          actionLabel="Open Personal Details (Tab 1)"
+          onAction={onOpenPersonalDetailsTab}
+          testId="ia-must-link-banner"
+        />
+        <InitialAssessmentMustPanel
+          value={mustAssessment}
+          disabled={disabled}
+          onChange={onMustAssessmentChange}
+        />
+      </>
     )
   }
 
@@ -349,11 +411,20 @@ export function InitialAssessmentDocumentTabContent({
 
   if (tab.kind === 'moving-handling') {
     return (
-      <InitialAssessmentMovingHandlingOperationsPanel
-        value={movingHandlingOperations}
-        disabled={disabled}
-        onChange={onMovingHandlingOperationsChange}
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Fall history"
+          body="Recent falls and medicines-related fall risk are recorded on Tab 8 (Falls Screening). Answers sync into this risk filter when empty."
+          actionLabel="Open Falls Screening (Tab 8)"
+          onAction={onOpenFallsScreeningTab}
+          testId="ia-mh-falls-link-banner"
+        />
+        <InitialAssessmentMovingHandlingOperationsPanel
+          value={movingHandlingOperations}
+          disabled={disabled}
+          onChange={onMovingHandlingOperationsChange}
+        />
+      </>
     )
   }
 
@@ -370,43 +441,83 @@ export function InitialAssessmentDocumentTabContent({
 
   if (tab.kind === 'therapy-memoire') {
     return (
-      <InitialAssessmentTherapyAideMemoirePanel
-        value={painAssessment.therapyAideMemoire ?? {}}
-        disabled={disabled}
-        onChange={(therapyAideMemoire) =>
-          onPainAssessmentChange({ ...painAssessment, therapyAideMemoire })
-        }
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Swallow, mobility & care package"
+          body="Full swallow/SALT detail is on Tab 1 (§5/§8). Fall history on Tab 8. Care package existence on Tab 1 Social history; practical tasks on Tab 2. Use this aide-memoire for therapy referral flags only."
+          actionLabel="Open Falls Screening (Tab 8)"
+          onAction={onOpenFallsScreeningTab}
+          testId="ia-therapy-link-banner"
+        />
+        <InitialAssessmentTherapyAideMemoirePanel
+          value={painAssessment.therapyAideMemoire ?? {}}
+          disabled={disabled}
+          onChange={(therapyAideMemoire) =>
+            onPainAssessmentChange({ ...painAssessment, therapyAideMemoire })
+          }
+        />
+      </>
     )
   }
 
   if (tab.kind === 'environment-assessment') {
     return (
-      <InitialAssessmentEnvironmentAssessmentPanel
-        value={environmentAssessment}
-        disabled={disabled}
-        onChange={onEnvironmentAssessmentChange}
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Pets & home hazards"
+          body="This worksheet is the master for pets/hazards. Answers sync to §3 template fields when those are empty. Infection detail → Tab 21; fire → Tab 22."
+          actionLabel="Open Infection Control (Tab 21)"
+          onAction={onOpenInfectionControlTab}
+          testId="ia-env-link-banner"
+        />
+        <InitialAssessmentEnvironmentAssessmentPanel
+          value={environmentAssessment}
+          disabled={disabled}
+          onChange={onEnvironmentAssessmentChange}
+        />
+      </>
     )
   }
 
   if (tab.kind === 'advance-care-planning') {
     return (
-      <InitialAssessmentAdvanceCarePlanningPanel
-        value={advanceCarePlanning}
-        disabled={disabled}
-        onChange={onAdvanceCarePlanningChange}
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Identity, GP & LPA"
+          body="Name, DOB, NHS number, GP and LPA prefill from Tab 1 when empty. Resuscitation / DNACPR Yes-No is mastered on Tab 14 (EOL) and syncs to DNACPR template fields."
+          actionLabel="Open End of Life (Tab 14)"
+          onAction={onOpenEndOfLifeTab}
+          testId="ia-acp-link-banner"
+        />
+        <InitialAssessmentAdvanceCarePlanningPanel
+          value={advanceCarePlanning}
+          disabled={disabled}
+          onChange={onAdvanceCarePlanningChange}
+        />
+      </>
     )
   }
 
   if (tab.kind === 'end-of-life-assessment') {
     return (
-      <InitialAssessmentEndOfLifeAssessmentPanel
-        value={endOfLifeAssessment}
-        disabled={disabled}
-        onChange={onEndOfLifeAssessmentChange}
-      />
+      <>
+        <InitialAssessmentMcaLinkBanner
+          variant="eol"
+          onOpenMcaScreeningTab={onOpenMcaScreeningTab}
+        />
+        <InitialAssessmentTabLinkBanner
+          title="DNACPR / resuscitation"
+          body="Record DNR status here. Advance wishes / ADRT stay on Tab 13 (ACP). DNACPR template fields sync from this answer."
+          actionLabel="Open Advance Care Planning (Tab 13)"
+          onAction={onOpenAdvanceCarePlanningTab}
+          testId="ia-eol-dnacpr-link-banner"
+        />
+        <InitialAssessmentEndOfLifeAssessmentPanel
+          value={endOfLifeAssessment}
+          disabled={disabled}
+          onChange={onEndOfLifeAssessmentChange}
+        />
+      </>
     )
   }
 
@@ -446,22 +557,40 @@ export function InitialAssessmentDocumentTabContent({
   }
 
   if (tab.kind === 'mental-capacity-checklist') {
+    const mcaRequiredYes = isMcaRequiredYes(sections, draftAnswers)
     return (
-      <InitialAssessmentMentalCapacityChecklistPanel
-        value={mentalCapacityChecklist}
-        disabled={disabled}
-        onChange={onMentalCapacityChecklistChange}
-      />
+      <>
+        {!mcaRequiredYes ? (
+          <InitialAssessmentMcaLinkBanner
+            variant="not-required"
+            onOpenMcaScreeningTab={onOpenMcaScreeningTab}
+          />
+        ) : null}
+        <InitialAssessmentMentalCapacityChecklistPanel
+          value={mentalCapacityChecklist}
+          disabled={disabled || !mcaRequiredYes}
+          onChange={onMentalCapacityChecklistChange}
+        />
+      </>
     )
   }
 
   if (tab.kind === 'photography-consent') {
     return (
-      <InitialAssessmentPhotographyConsentPanel
-        value={photographyConsent}
-        disabled={disabled}
-        onChange={onPhotographyConsentChange}
-      />
+      <>
+        <InitialAssessmentTabLinkBanner
+          title="Identity & LPA"
+          body="Name, DOB, NHS number and LPA prefill from Tab 1 when empty. Edit the master on Personal Details."
+          actionLabel="Open Personal Details (Tab 1)"
+          onAction={onOpenPersonalDetailsTab}
+          testId="ia-photo-identity-link-banner"
+        />
+        <InitialAssessmentPhotographyConsentPanel
+          value={photographyConsent}
+          disabled={disabled}
+          onChange={onPhotographyConsentChange}
+        />
+      </>
     )
   }
 
@@ -598,6 +727,7 @@ export function InitialAssessmentDocumentTabContent({
             {blockSlices.map((blockSlice, blockOffset) =>
               renderMultiSectionSlice(blockSlice, blockStart + blockOffset, false, true),
             )}
+            <InitialAssessmentMcaLinkBanner onOpenMcaScreeningTab={onOpenMcaScreeningTab} />
           </InitialAssessmentPaperSection5EmotionalBlock>,
         )
         continue

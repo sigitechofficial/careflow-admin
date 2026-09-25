@@ -9,7 +9,6 @@ import {
 const SORT_BY_TEXT: Record<string, number> = {
   'Cognitive impairment level': 20,
   'AMT completed?': 31,
-  'Mental Capacity Assessment required?': 34,
   'GP referral for cognition made?': 36,
 }
 
@@ -37,9 +36,10 @@ describe('section 10 paper section 5 form', () => {
     expect(isPaperSection5Question(q('Sleeping pattern', '10.4'))).toBe(true)
     expect(isPaperSection5Question(q('Diagnosed dementia?', '10.6a'))).toBe(false)
     expect(isPaperSection5Question(q('No concerns identified in this section', '10.0'))).toBe(false)
+    expect(isPaperSection5Question(q('Mental Capacity Assessment required?', '10.8'))).toBe(false)
   })
 
-  it('merges 10.7 and 10.8 yes/no fields into paper §5b without AMT score panels', () => {
+  it('merges 10.6–10.7 yes/no fields into paper §5b without AMT score or MCA required', () => {
     const merged = collectPaperSection5CognitiveQuestions([
       {
         specRef: '10.6',
@@ -64,7 +64,6 @@ describe('section 10 paper section 5 form', () => {
     expect(merged.map((x) => x.questionText)).toEqual([
       'Cognitive impairment level',
       'AMT completed?',
-      'Mental Capacity Assessment required?',
       'GP referral for cognition made?',
     ])
   })

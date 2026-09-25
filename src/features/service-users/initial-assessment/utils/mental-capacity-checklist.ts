@@ -13,7 +13,6 @@ export type MentalCapacityQuestionId =
   | 'getUpBed'
   | 'washingBathing'
   | 'hairCare'
-  | 'getUpBed2'
   | 'clothes'
   | 'oralCare'
   | 'grooming'
@@ -67,7 +66,6 @@ export const MENTAL_CAPACITY_DETAILED_QUESTION_IDS: MentalCapacityQuestionId[] =
   'getUpBed',
   'washingBathing',
   'hairCare',
-  'getUpBed2',
   'clothes',
   'oralCare',
   'grooming',
@@ -168,62 +166,55 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
   {
     kind: 'question',
     number: 11,
-    id: 'getUpBed2',
-    detailed: true,
-    label: 'Can the client make decisions about when to get up and go to bed?',
-  },
-  {
-    kind: 'question',
-    number: 12,
     id: 'clothes',
     detailed: true,
     label: 'Can the client make decisions about what clothes he/she would like to wear?',
   },
   {
     kind: 'question',
-    number: 13,
+    number: 12,
     id: 'oralCare',
     detailed: true,
     label: 'Can the client make decisions about oral care (teeth, toothbrush etc)?',
   },
   {
     kind: 'question',
-    number: 14,
+    number: 13,
     id: 'grooming',
     detailed: true,
     label: 'Can the client make decisions about grooming (hair care, shaving etc)?',
   },
   {
     kind: 'question',
-    number: 15,
+    number: 14,
     id: 'toilet',
     detailed: true,
     label: 'Can the client make decisions about when to use the toilet?',
   },
   {
     kind: 'question',
-    number: 16,
+    number: 15,
     id: 'oralCareGrooming',
     detailed: true,
     label: 'Can the client make decisions about oral care and grooming (teeth, shaving etc)?',
   },
   {
     kind: 'question',
-    number: 17,
+    number: 16,
     id: 'medication',
     detailed: true,
     label: 'Can the client manage his / her medication?',
   },
   {
     kind: 'question',
-    number: 18,
+    number: 17,
     id: 'financialAffairs',
     detailed: true,
     label: 'Can the client manage his / her financial affairs?',
   },
   {
     kind: 'question',
-    number: 19,
+    number: 18,
     id: 'dailyLivingAids',
     detailed: true,
     label:
@@ -231,14 +222,14 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
   },
   {
     kind: 'question',
-    number: 20,
+    number: 19,
     id: 'walking',
     detailed: true,
     label: 'Can the client make decisions about walking',
   },
   {
     kind: 'question',
-    number: 21,
+    number: 20,
     id: 'seeDoctor',
     detailed: true,
     label: 'Can the client make decisions about the need to see a doctor',

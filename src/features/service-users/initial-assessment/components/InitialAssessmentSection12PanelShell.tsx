@@ -1,16 +1,12 @@
-import type { ReactNode } from 'react'
-import { cn } from '@/shared/lib/utils'
-import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
-import {
-  HOLISTIC_SECTION_BODY_CLASS,
-  HOLISTIC_SECTION_SHELL_CLASS,
-} from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
+import { HolisticCollapsibleSection } from '@/features/service-users/initial-assessment/components/holistic/HolisticCollapsibleSection'
 import {
   IA_HINT_CLASS,
   IA_SUBSECTION_PANEL_CLASS,
   IA_SUBSECTION_PANEL_HEADER_CLASS,
   IA_SUBSECTION_PANEL_TITLE_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
+import { cn } from '@/shared/lib/utils'
+import type { ReactNode } from 'react'
 
 type Props = {
   title: string
@@ -33,23 +29,22 @@ export function InitialAssessmentSection12PanelShell({
 }: Props) {
   if (variant === 'holistic') {
     return (
-      <section className={HOLISTIC_SECTION_SHELL_CLASS} data-testid={testId}>
-        <HolisticSectionHeader title={title} subtitle={hint} />
+      <HolisticCollapsibleSection
+        title={title}
+        subtitle={hint}
+        testId={testId}
+        bodyClassName={cn(
+          bodyVariant === 'rows' && 'divide-y divide-slate-200 space-y-0 p-0 dark:divide-slate-700',
+        )}
+      >
         <div
           className={cn(
-            HOLISTIC_SECTION_BODY_CLASS,
-            bodyVariant === 'rows' && 'divide-y divide-slate-200 space-y-0 p-0 dark:divide-slate-700',
+            bodyVariant === 'rows' ? 'divide-y divide-slate-200 px-3 dark:divide-slate-700' : 'space-y-4',
           )}
         >
-          <div
-            className={cn(
-              bodyVariant === 'rows' ? 'divide-y divide-slate-200 px-3 dark:divide-slate-700' : 'space-y-4',
-            )}
-          >
-            {children}
-          </div>
+          {children}
         </div>
-      </section>
+      </HolisticCollapsibleSection>
     )
   }
 

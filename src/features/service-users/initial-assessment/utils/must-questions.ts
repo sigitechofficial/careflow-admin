@@ -66,4 +66,5 @@ export function syncMustAssessmentAnswers(
       textValue: String(score),
     })
   }
+  // BMI completed?/BMI value stay hub-hidden (mustTemplateQuestionIds) — not overwritten from MUST bands.
 }

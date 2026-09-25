@@ -21,13 +21,12 @@ export const PAPER_SECTION_5_EMOTIONAL_WELLBEING_QUESTION_TEXT = [
 export const PAPER_SECTION_5_COGNITIVE_QUESTION_TEXT = [
   'Cognitive impairment level',
   'AMT completed?',
-  'Mental Capacity Assessment required?',
   'GP referral for cognition requested?',
   'GP referral for cognition made?',
 ] as const
 
 /** Enterprise spec refs folded into paper §5b — not separate subsection headers. */
-export const PAPER_SECTION_5_COGNITIVE_SPEC_REFS = ['10.6', '10.7', '10.8'] as const
+export const PAPER_SECTION_5_COGNITIVE_SPEC_REFS = ['10.6', '10.7'] as const
 
 const PAPER_SECTION_5_COGNITIVE_ALLOWED = new Set<string>(PAPER_SECTION_5_COGNITIVE_QUESTION_TEXT)
 
@@ -56,7 +55,7 @@ export function isPaperSection5HiddenCognitiveSpecRef(specRef: string): boolean 
   return specRef === '10.7' || specRef === '10.8'
 }
 
-/** Merge §10.6–10.8 fields into one paper §5b panel (no 10.7 / 10.8 headers). */
+/** Merge §10.6–10.7 fields into one paper §5b panel (MCA required lives on Tab 3). */
 export function collectPaperSection5CognitiveQuestions(
   groups: SpecRefGroup[],
 ): InitialAssessmentQuestion[] {

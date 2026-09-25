@@ -49,7 +49,7 @@ export const ACP_FIVE_STEPS = [
   {
     number: 2,
     title: 'Talk',
-    text: 'with family and friends, and ask someone to be your proxy spokesperson or Lasting Power of Attorney (LPOA) if you could no longer speak for yourself',
+    text: 'with family and friends, and ask someone to be your proxy spokesperson or Lasting Power of Attorney (LPA) if you could no longer speak for yourself',
   },
   {
     number: 3,
@@ -79,7 +79,7 @@ export const ACP_DISCUSSION_BRANCHES = [
   },
   {
     title: 'Who will speak for you',
-    content: 'Proxy or LPOA- Lasting power of Attorney',
+    content: 'Proxy or LPA- Lasting power of Attorney',
   },
 ] as const
 

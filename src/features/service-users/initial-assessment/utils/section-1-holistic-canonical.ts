@@ -16,7 +16,6 @@ export const SECTION_1_HOLISTIC_EXTRA_CANONICAL = [
   'GP contact details',
   'Pendant / telecare in use?',
   'Assessment completed date and time',
-  'Assessor name',
   'Assessor designation',
   'LPOA appointed?',
   'LPOA contact details',

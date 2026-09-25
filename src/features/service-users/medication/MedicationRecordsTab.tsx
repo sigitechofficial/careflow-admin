@@ -25,6 +25,11 @@ import {
   medicationEndSourceWhen,
 } from '@/features/service-users/medication/medication-status-end-display'
 import { formatOrganisationDate } from '@/shared/lib/organisation-display-format.store'
+import { useWorkingServiceUserVisitPlan } from '@/features/service-users/visit-plan/hooks'
+import {
+  dueTimeOutsideAllVisitWindows,
+  type VisitHmWindow,
+} from '@/features/scheduling/utils/visit-medication-window.util'
 
 type MedicationSlotTableRow = {
   rowKey: string
@@ -122,6 +127,9 @@ function statusBadgeClass(status: string): string {
   if (status === 'CANCELLED') {
     return 'bg-red-500/15 text-red-800 dark:text-red-200'
   }
+  if (status === 'NOT_LINKED') {
+    return 'bg-orange-500/20 text-orange-950 dark:text-orange-100'
+  }
   return 'bg-muted text-muted-foreground'
 }
 
@@ -193,6 +201,7 @@ function MedicationRecordsTable({
   showEndSource,
   serviceUserId,
   bodyMapSiteByMedId,
+  visitWindows,
 }: {
   slotRows: MedicationSlotTableRow[]
   canEditMedication: boolean
@@ -201,6 +210,7 @@ function MedicationRecordsTable({
   showEndSource?: boolean
   serviceUserId: string
   bodyMapSiteByMedId: ReturnType<typeof useMedicationBodyMapSiteIndex>['byMedicationId']
+  visitWindows: VisitHmWindow[]
 }) {
   const firstRowKeyByMedId = React.useMemo(() => {
     const map = new Map<string, string>()
@@ -272,6 +282,10 @@ function MedicationRecordsTable({
             const body = group.slotRows.map(({ rowKey, medication: m, schedule }) => {
             const showActions = firstRowKeyByMedId.get(m.id) === rowKey
             const reasonText = m.reasonForMedication?.trim() ?? ''
+            const notOnVisit =
+              m.medicationKind !== 'PRN' &&
+              Boolean(schedule?.dueTime?.trim()) &&
+              dueTimeOutsideAllVisitWindows(schedule?.dueTime, visitWindows)
             return (
               <tr key={rowKey} className="border-b border-border/80 last:border-0">
                 <td className="px-3 py-2 font-medium">
@@ -323,14 +337,36 @@ function MedicationRecordsTable({
                   {schedule?.dueTime ?? '—'}
                 </td>
                 <td className="px-3 py-2">
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-xs font-medium',
-                      statusBadgeClass(String(m.status)),
-                    )}
-                  >
-                    {m.status}
-                  </span>
+                  {notOnVisit && (m.status === 'ACTIVE' || m.status === 'PAUSED') ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={cn(
+                            'inline-flex max-w-[9.5rem] cursor-help items-center justify-center rounded-full px-2 py-0.5 text-center text-xs font-medium leading-snug',
+                            statusBadgeClass('NOT_LINKED'),
+                          )}
+                        >
+                          Not linked with any visit
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        {visitWindows.length === 0
+                          ? 'No enabled visit plan slots — this dose will not appear on a visit.'
+                          : `Due at ${schedule?.dueTime} is outside every visit window (${visitWindows
+                              .map(w => `${w.start}–${w.end}`)
+                              .join(', ')}). Record status is still ${m.status}.`}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-xs font-medium',
+                        statusBadgeClass(String(m.status)),
+                      )}
+                    >
+                      {m.status}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {showActions ? (
@@ -417,6 +453,7 @@ function MedicationRecordsSection({
   muted,
   serviceUserId,
   bodyMapSiteByMedId,
+  visitWindows,
 }: {
   title: string
   rows: ServiceUserMedicationRow[]
@@ -429,6 +466,7 @@ function MedicationRecordsSection({
   muted?: boolean
   serviceUserId: string
   bodyMapSiteByMedId: ReturnType<typeof useMedicationBodyMapSiteIndex>['byMedicationId']
+  visitWindows: VisitHmWindow[]
 }) {
   const slotRows = React.useMemo(() => expandMedicationsToSlotRows(rows), [rows])
 
@@ -474,6 +512,7 @@ function MedicationRecordsSection({
           showEndSource={muted}
           serviceUserId={serviceUserId}
           bodyMapSiteByMedId={bodyMapSiteByMedId}
+          visitWindows={visitWindows}
         />
       )}
     </div>
@@ -558,6 +597,14 @@ export function MedicationRecordsTab({
   onRestoreMedication?: (medication: ServiceUserMedicationRow) => void
 }) {
   const { byMedicationId: bodyMapSiteByMedId } = useMedicationBodyMapSiteIndex(serviceUserId)
+  const visitPlanQuery = useWorkingServiceUserVisitPlan(serviceUserId)
+  const visitWindows = React.useMemo<VisitHmWindow[]>(() => {
+    const slots = visitPlanQuery.data?.slots ?? []
+    return slots
+      .filter(s => s.isEnabled && s.plannedStartTime?.trim() && s.plannedEndTime?.trim())
+      .map(s => ({ start: s.plannedStartTime.trim(), end: s.plannedEndTime.trim() }))
+  }, [visitPlanQuery.data?.slots])
+
   const currentRows = React.useMemo(() => rows.filter(isCurrentMedication), [rows])
   const endedRows = React.useMemo(() => rows.filter(m => !isCurrentMedication(m)), [rows])
 
@@ -606,6 +653,7 @@ export function MedicationRecordsTab({
         emptyMessage="No active or paused medications. Stopped prescriptions appear below."
         serviceUserId={serviceUserId}
         bodyMapSiteByMedId={bodyMapSiteByMedId}
+        visitWindows={visitWindows}
       />
       {endedRows.length > 0 && (
         <MedicationRecordsSection
@@ -617,6 +665,7 @@ export function MedicationRecordsTab({
           muted
           serviceUserId={serviceUserId}
           bodyMapSiteByMedId={bodyMapSiteByMedId}
+          visitWindows={visitWindows}
         />
       )}
       {archivedRows.length > 0 && onRestoreMedication && (

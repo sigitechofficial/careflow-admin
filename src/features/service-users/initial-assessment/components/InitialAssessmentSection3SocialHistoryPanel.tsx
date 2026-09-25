@@ -1,10 +1,5 @@
 import type { ReactNode } from 'react'
-import { cn } from '@/shared/lib/utils'
-import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
-import {
-  HOLISTIC_SECTION_BODY_CLASS,
-  HOLISTIC_SECTION_SHELL_CLASS,
-} from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
+import { HolisticCollapsibleSection } from '@/features/service-users/initial-assessment/components/holistic/HolisticCollapsibleSection'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
@@ -149,13 +144,13 @@ export function InitialAssessmentSection3SocialHistoryPanel({
   const fallbackQuestions = questions.filter((q) => !placed.has(q))
 
   return (
-    <section className={HOLISTIC_SECTION_SHELL_CLASS} data-testid="ia-section3-social-history">
-      <HolisticSectionHeader
-        title="Section 3 — Social history"
-        subtitle="Next of kin, informal carers, accommodation, property access, and lifestyle."
-      />
-      <div className={cn(HOLISTIC_SECTION_BODY_CLASS, 'space-y-5')}>
-        <div className="grid gap-4 lg:grid-cols-2">
+    <HolisticCollapsibleSection
+      title="Section 3 — Social history"
+      subtitle="Next of kin, informal carers, accommodation, property access, and lifestyle."
+      testId="ia-section3-social-history"
+      bodyClassName="space-y-5"
+    >
+      <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-4">
             {nextOfKin ? renderQuestion(nextOfKin, renderField, renderMultiSelect) : null}
             {relationship ? renderQuestion(relationship, renderField, renderMultiSelect) : null}
@@ -242,8 +237,7 @@ export function InitialAssessmentSection3SocialHistoryPanel({
             ))}
           </div>
         ) : null}
-      </div>
-    </section>
+    </HolisticCollapsibleSection>
   )
 }
 

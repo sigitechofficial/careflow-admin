@@ -50,12 +50,11 @@ describe('sortPersonalDetailsQuestions', () => {
     ])
   })
 
-  it('interleaves LPOA and assessor fields per paper form', () => {
+  it('interleaves LPOA and assessor designation per paper form', () => {
     const sorted = sortPersonalDetailsQuestions([
       q('Assessor designation', 3),
       q('LPOA name', 2),
       q('LPOA appointed?', 1),
-      q('Assessor name', 4),
       q('LPOA contact details', 5),
       q('Assessment completed date and time', 6),
       q('LPOA designation', 7),
@@ -66,7 +65,6 @@ describe('sortPersonalDetailsQuestions', () => {
       'LPOA appointed?',
       'LPOA designation',
       'LPOA name',
-      'Assessor name',
       'Assessor designation',
       'LPOA contact details',
     ])

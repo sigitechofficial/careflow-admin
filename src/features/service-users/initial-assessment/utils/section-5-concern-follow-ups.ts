@@ -65,7 +65,9 @@ export const SWALLOWING_CONCERN_FOLLOW_UP_GROUPS: ConcernFollowUpGroup[] = [
     optionValues: ['salt_made'],
     title: 'SALT referral made',
     matches: (q) =>
-      q.questionText === 'SALT referral made?' || q.questionText === 'SALT referral date',
+      q.questionText === 'SALT referral made?' ||
+      q.questionText === 'SALT referral date' ||
+      q.questionText === 'Communication SALT referral date',
   },
 ]
 

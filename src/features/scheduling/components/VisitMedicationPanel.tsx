@@ -36,10 +36,13 @@ import {
 import { splitPackAndStandaloneRows } from '@/features/service-users/medication/mar-pack-calendar-layout'
 import {
   filterCompartmentsForVisitRound,
-  marRowMatchesVisitRound,
   resolveVisitMedicationRound,
   type VisitMedicationRound,
 } from '@/features/scheduling/utils/visit-medication-round.util'
+import {
+  filterCompartmentsForVisitWindow,
+  marRowMatchesVisitWindow,
+} from '@/features/scheduling/utils/visit-medication-window.util'
 import {
   chartCellForVisitDate,
   collectVisitDateMarSlots,
@@ -99,6 +102,8 @@ function VisitBlisterPackCard({
   canRecord,
   chartMedications,
   visitRound,
+  visitWindowStartHm,
+  visitWindowEndHm,
   onViewRecord,
 }: {
   serviceUserId: string
@@ -107,6 +112,8 @@ function VisitBlisterPackCard({
   canRecord: boolean
   chartMedications: MarChartMedicationRow[]
   visitRound: VisitMedicationRound | null
+  visitWindowStartHm?: string | null
+  visitWindowEndHm?: string | null
   onViewRecord: (recordId: string, medLabel: string) => void
 }) {
   const compartmentsQuery = useMedicationPackCompartments(serviceUserId, pack.id)
@@ -120,10 +127,12 @@ function VisitBlisterPackCard({
   )
 
   const allCompartments = compartmentsQuery.data ?? []
-  const compartments = React.useMemo(
-    () => filterCompartmentsForVisitRound(allCompartments, visitRound),
-    [allCompartments, visitRound],
-  )
+  const compartments = React.useMemo(() => {
+    if (visitWindowStartHm && visitWindowEndHm) {
+      return filterCompartmentsForVisitWindow(allCompartments, visitWindowStartHm, visitWindowEndHm)
+    }
+    return filterCompartmentsForVisitRound(allCompartments, visitRound)
+  }, [allCompartments, visitRound, visitWindowStartHm, visitWindowEndHm])
   const members = (membersQuery.data ?? []).filter(m => m.status === 'ACTIVE')
   const loading = compartmentsQuery.isLoading || membersQuery.isLoading
 
@@ -143,12 +152,10 @@ function VisitBlisterPackCard({
   }
 
   if (compartments.length === 0) {
-    return visitRound ? (
+    return (
       <p className="text-sm text-muted-foreground">
-        No {visitRound.name} compartment in {pack.name} for this visit.
+        No pack compartment due in this visit window for {pack.name}.
       </p>
-    ) : (
-      <p className="text-sm text-muted-foreground">No compartments defined for {pack.name}.</p>
     )
   }
 
@@ -354,20 +361,26 @@ export function VisitMedicationPanel({
   visitId,
   medicationRoundCode,
   medicationRoundLabel,
+  visitWindowStartHm,
+  visitWindowEndHm,
 }: {
   serviceUserId: string
   visitDate: string
   /** ScheduledVisit id — scopes PRN "recorded" status to THIS visit. */
   visitId?: string | null
-  /** From visit plan — limits UI to this administration round only. */
+  /** From visit plan — label only; med matching uses visit window when provided. */
   medicationRoundCode?: string | null
   medicationRoundLabel?: string | null
+  /** Visit planned/scheduled window (HH:mm) — meds match when dueTime is inside. */
+  visitWindowStartHm?: string | null
+  visitWindowEndHm?: string | null
 }) {
   const normalizedDate = normalizeVisitDate(visitDate)
   const visitRound = React.useMemo(
     () => resolveVisitMedicationRound(medicationRoundCode, medicationRoundLabel),
     [medicationRoundCode, medicationRoundLabel],
   )
+  const hasVisitWindow = Boolean(visitWindowStartHm?.trim() && visitWindowEndHm?.trim())
   const permissions = useAuthStore(s => s.user?.permissions) as string[] | undefined
   const canRecord = (permissions ?? []).some(p =>
     ['service_users.medications.administer', 'service_users.update'].includes(p),
@@ -397,15 +410,19 @@ export function VisitMedicationPanel({
 
   const chartMedications = chart?.medications ?? []
 
-  // Scheduled standalone (non-PRN) medicines — filtered to the visit round.
+  // Scheduled standalone (non-PRN) medicines — filtered to this visit's clock window.
   const standaloneSlots = React.useMemo(() => {
     if (!chartMedications.length) return []
     const { standaloneRows } = splitPackAndStandaloneRows(chartMedications)
     const scheduled = standaloneRows.filter(r => r.scheduleType !== 'prn')
     const slots = collectVisitDateMarSlots(scheduled, normalizedDate)
-    if (!visitRound) return slots
-    return slots.filter(s => marRowMatchesVisitRound(s.row, visitRound))
-  }, [chartMedications, normalizedDate, visitRound])
+    if (hasVisitWindow) {
+      return slots.filter(s =>
+        marRowMatchesVisitWindow(s.row, visitWindowStartHm, visitWindowEndHm),
+      )
+    }
+    return []
+  }, [chartMedications, normalizedDate, hasVisitWindow, visitWindowStartHm, visitWindowEndHm])
 
   // PRN (as-needed) medicines are NOT tied to a round — always surface them for
   // the visit date so a carer's PRN dose is visible/recordable in any visit.
@@ -419,9 +436,13 @@ export function VisitMedicationPanel({
   const visitSlots = React.useMemo(() => {
     const scheduled = chartMedications.filter(r => r.scheduleType !== 'prn')
     const slots = collectVisitDateMarSlots(scheduled, normalizedDate)
-    if (!visitRound) return slots
-    return slots.filter(s => marRowMatchesVisitRound(s.row, visitRound))
-  }, [chartMedications, normalizedDate, visitRound])
+    if (hasVisitWindow) {
+      return slots.filter(s =>
+        marRowMatchesVisitWindow(s.row, visitWindowStartHm, visitWindowEndHm),
+      )
+    }
+    return []
+  }, [chartMedications, normalizedDate, hasVisitWindow, visitWindowStartHm, visitWindowEndHm])
 
   const summary = React.useMemo(
     () => summarizeVisitDateMarSlots([...visitSlots, ...prnSlots]),
@@ -459,10 +480,14 @@ export function VisitMedicationPanel({
           <div>
             <p className="text-sm font-semibold text-foreground">Medication for visit day</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{formatVisitDateLabel(normalizedDate)}</p>
-            {visitRound ? (
+            {hasVisitWindow ? (
               <p className="mt-1 text-xs font-medium text-teal-800 dark:text-teal-200">
-                {visitRound.name} round only — matched from visit plan
-                {visitRound.dueTime ? ` (${visitRound.dueTime})` : ''}
+                Doses due {visitWindowStartHm}–{visitWindowEndHm}
+                {visitRound ? ` (${visitRound.name})` : ''}
+              </p>
+            ) : visitRound ? (
+              <p className="mt-1 text-xs font-medium text-teal-800 dark:text-teal-200">
+                {visitRound.name} — visit window missing; no scheduled doses matched
               </p>
             ) : null}
           </div>
@@ -500,8 +525,8 @@ export function VisitMedicationPanel({
       {empty ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
           <Pill className="mx-auto mb-2 h-8 w-8 opacity-40" aria-hidden />
-          {visitRound
-            ? `No ${visitRound.name} medicines scheduled or recorded for this date.`
+          {hasVisitWindow
+            ? `No medicines due between ${visitWindowStartHm} and ${visitWindowEndHm} for this date.`
             : 'No active blister pack or scheduled doses for this date.'}
         </div>
       ) : (
@@ -515,6 +540,8 @@ export function VisitMedicationPanel({
               canRecord={canRecord}
               chartMedications={chartMedications}
               visitRound={visitRound}
+              visitWindowStartHm={visitWindowStartHm}
+              visitWindowEndHm={visitWindowEndHm}
               onViewRecord={(recordId, medLabel) => {
                 setDetailEventId(recordId)
                 setDetailMedLabel(medLabel)

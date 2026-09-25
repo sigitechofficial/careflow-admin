@@ -49,8 +49,8 @@ function LpoaYesNo({
   onChange: (value: boolean) => void
 }) {
   return (
-    <div className="flex items-center gap-3" role="radiogroup" aria-label="LPoA">
-      <span className="text-sm text-muted-foreground">LPoA</span>
+    <div className="flex items-center gap-3" role="radiogroup" aria-label="LPA">
+      <span className="text-sm text-muted-foreground">LPA</span>
       {(
         [
           { v: true, text: 'Y' },
@@ -453,7 +453,7 @@ export function InitialAssessmentAdvanceCarePlanningPanel({ value, disabled, onC
             <p className={IA_QUESTION_LABEL_CLASS}>
               5. Who else would you like to be involved if it ever becomes difficult for you to make
               decisions or if there was an emergency? Do they have official Lasting Power of Attorney
-              (LPoA)?
+              (LPA)?
             </p>
             {([1, 2] as const).map((index) => (
               <div

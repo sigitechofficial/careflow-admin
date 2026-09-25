@@ -24,7 +24,7 @@ import {
   formatOrganisationIsoDate,
   formatOrganisationIsoTime,
 } from '@/shared/lib/organisation-display-format.store'
-import { formatOpsClockTime } from '@/shared/lib/operational-day.util'
+import { formatOpsClockTime, formatOpsHm } from '@/shared/lib/operational-day.util'
 import { BodyMapHandoverPreview } from '@/features/service-users/body-map/components/BodyMapHandoverPreview'
 import { scheduleVisitBodyMapSearch } from '@/features/service-users/body-map/utils/body-map-visit-navigation'
 import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
@@ -807,6 +807,16 @@ export function ScheduleVisitWorkspaceContent({
             visitId={visitContext.scheduledVisitId}
             medicationRoundCode={job.visitPlan?.medicationRoundCode ?? job.visitPlan?.slotCode}
             medicationRoundLabel={job.visitPlan?.label}
+            visitWindowStartHm={
+              job.visitPlan?.plannedStartTime ??
+              formatOpsHm(job.scheduledStartDateTime) ??
+              null
+            }
+            visitWindowEndHm={
+              job.visitPlan?.plannedEndTime ??
+              formatOpsHm(job.scheduledEndDateTime) ??
+              null
+            }
           />
         </div>
       ) : tab === 'observations' ? (
