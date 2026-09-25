@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import {
   ArrowRight,
   Loader2,
@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { cn, formatDateTime } from '@/shared/lib/utils'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { resolveMediaUrl } from '@/shared/lib/media-url'
-import type { ServiceUserDolsRow, ServiceUserDetail } from '@/features/service-users/types'
+import type { ServiceUserDolsRow, ServiceUserDetail, ServiceUserListRow } from '@/features/service-users/types'
 import { useServiceUserDetail } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserCarePlan } from '@/features/service-users/hooks/useServiceUserCarePlan'
 import { useCarePlanInstances, useCarePlanReviewSummary } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
@@ -42,6 +42,7 @@ import {
   ServiceUserModuleHeader,
 } from '@/features/service-users/components/ServiceUserModuleHeader'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
+import { EditFlashMessageDialog } from '@/features/service-users/components/EditFlashMessageDialog'
 import { Button } from '@/shared/ui/button'
 import { ServiceUserAllergiesManageDialog } from '@/features/service-users/components/ServiceUserAllergiesManageDialog'
 import { ServiceUserSafetySummary } from '@/features/alerts/components/ServiceUserSafetySummary'
@@ -53,9 +54,11 @@ type AttentionItem = {
   title: string
   detail: string
   linkLabel: string
-  to: string
-  params: { serviceUserId: string }
+  to?: string
+  params?: { serviceUserId: string }
   search?: Record<string, string>
+  /** Same-page action (e.g. scroll to flash). Prefer over Link when already on target. */
+  onAction?: () => void
 }
 
 const ECM_OPEN_LIFECYCLES = new Set([
@@ -188,8 +191,35 @@ function isFundingReviewOverdue(iso: string | null | undefined): boolean {
   return day < today
 }
 
+function listRowFromDetail(detail: ServiceUserDetail): ServiceUserListRow {
+  return {
+    id: detail.id,
+    serviceUserNumber: detail.serviceUserNumber ?? null,
+    firstName: detail.firstName,
+    lastName: detail.lastName,
+    preferredName: detail.preferredName ?? null,
+    dateOfBirth: detail.dateOfBirth ?? null,
+    isActive: detail.isActive,
+    serviceStartDate: detail.serviceStartDate ?? null,
+    profilePhotoUrl: detail.profilePhotoUrl ?? null,
+    title: detail.title ?? null,
+    gender: detail.gender ?? null,
+    status: detail.status ?? null,
+    careType: detail.careType ?? null,
+    fundingType: detail.fundingType ?? null,
+    riskLevel: detail.riskLevel ?? null,
+    location: detail.location,
+    keyWorker: detail.keyWorker,
+    namedNurse: detail.namedNurse,
+    hasActiveFlashMessage: true,
+  }
+}
+
 export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: string }) {
   const apiConfigured = Boolean(getApiBaseUrl())
+  const search = useSearch({ strict: false }) as { focus?: string }
+  const flashSectionRef = React.useRef<HTMLDivElement>(null)
+  const [flashDialogOpen, setFlashDialogOpen] = React.useState(false)
 
   const { profile, documents, allergies, inventory, initialAssessment, flashMessage } =
     useServiceUserDetail(serviceUserId)
@@ -225,6 +255,22 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
   const legal = documents.data?.legal
   const allergyRows = allergies.data ?? []
   const flashData = flashMessage.data ?? null
+
+  // Scroll to flash banner when opened via ?focus=flash (module tab / deep link).
+  React.useEffect(() => {
+    if (search.focus !== 'flash' || loading || !flashData) return
+    const el = flashSectionRef.current
+    if (!el) return
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2')
+      window.setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2')
+      }, 1600)
+    }, 150)
+    return () => window.clearTimeout(t)
+  }, [search.focus, loading, flashData])
+
   const ia = initialAssessment.data ?? null
   const bm = bodyMapSummary.data
   const acceptedItems = carePlan.acceptedCarePlans.data?.items ?? []
@@ -389,9 +435,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             ? `${flashData.message.slice(0, 80)}…`
             : flashData.message,
         linkLabel: 'Edit message',
-        to: '/service-users/$serviceUserId',
-        params: { serviceUserId },
-        search: { tab: 'personal' },
+        onAction: () => setFlashDialogOpen(true),
       })
     }
     if (!ia) {
@@ -504,6 +548,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
 
         {flashData ? (
           <div
+            ref={flashSectionRef}
             className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:bg-amber-950/30"
             role="alert"
             data-testid="service-user-dashboard-flash"
@@ -515,6 +560,15 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
             <span className="text-xs text-amber-800">
               Until {formatFlashUntil(flashData.displayUntil)}
             </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 border-amber-300 bg-white/80 text-amber-950"
+              onClick={() => setFlashDialogOpen(true)}
+            >
+              Edit
+            </Button>
           </div>
         ) : null}
 
@@ -526,14 +580,11 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         {attentionItems.length > 0 ? (
           <SimpleCard title="Needs attention">
             <ul className="space-y-2">
-              {attentionItems.map((item) => (
-                <li key={item.id}>
-                  <Link
-                    to={item.to}
-                    params={item.params}
-                    search={item.search}
-                    className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
-                  >
+              {attentionItems.map((item) => {
+                const rowClass =
+                  'flex w-full items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted/50'
+                const body = (
+                  <>
                     <span
                       className={cn(
                         'mt-1 h-8 w-1 shrink-0 rounded-full',
@@ -550,9 +601,27 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
                       {item.linkLabel}
                       <ArrowRight className="h-3 w-3" />
                     </span>
-                  </Link>
-                </li>
-              ))}
+                  </>
+                )
+                return (
+                  <li key={item.id}>
+                    {item.onAction ? (
+                      <button type="button" onClick={item.onAction} className={rowClass}>
+                        {body}
+                      </button>
+                    ) : (
+                      <Link
+                        to={item.to!}
+                        params={item.params}
+                        search={item.search}
+                        className={rowClass}
+                      >
+                        {body}
+                      </Link>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </SimpleCard>
         ) : null}
@@ -914,6 +983,11 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
         serviceUserId={serviceUserId}
         open={allergiesOpen}
         onOpenChange={setAllergiesOpen}
+      />
+      <EditFlashMessageDialog
+        user={detail ? listRowFromDetail(detail) : null}
+        open={flashDialogOpen && Boolean(detail)}
+        onOpenChange={setFlashDialogOpen}
       />
     </div>
   )
