@@ -125,7 +125,11 @@ const DETAILS_TAB_BY_PAGE_TAB: Partial<Record<VisitPlanPageTab, 'calendar' | 'hi
 
 export default function ServiceUserVisitPlanPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
-  const search = useSearch({ strict: false }) as { planId?: string; view?: string; detailsTab?: string }
+  const search = useSearch({ strict: false }) as {
+    planId?: string
+    view?: string
+    detailsTab?: 'calendar' | 'history' | 'guide' | 'care-pathway' | 'dev-tools'
+  }
   const navigate = useNavigate()
   const serviceUserId = params.serviceUserId ?? ''
   const apiConfigured = Boolean(getApiBaseUrl())
