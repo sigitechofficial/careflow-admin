@@ -34,7 +34,6 @@ import {
   formatFlashUntil,
   formatShortUk,
   hasDiabetesAllergyFlag,
-  isHighRisk,
   riskMeterPercent,
 } from '@/features/service-users/dashboard/service-user-dashboard-utils'
 import {
@@ -318,7 +317,6 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
   const medMissingSites = bm?.medicationAlerts?.missingBodyMapSiteCount ?? 0
   const overduePatches = bm?.medicationAlerts?.overduePatchChangeCount ?? 0
 
-  const highRisk = isHighRisk(detail)
   const diabetesFlag = hasDiabetesAllergyFlag(allergyRows.map((a) => a.allergyName))
   const [allergiesOpen, setAllergiesOpen] = React.useState(false)
 
@@ -511,7 +509,7 @@ export function ServiceUserDashboardSimple({ serviceUserId }: { serviceUserId: s
 
   return (
     <div
-      className={cn(SERVICE_USER_MODULE_PAGE_CLASS, highRisk && 'border-l-4 border-l-red-500')}
+      className={SERVICE_USER_MODULE_PAGE_CLASS}
       data-testid="service-user-dashboard"
     >
       <ServiceUserModuleHeader

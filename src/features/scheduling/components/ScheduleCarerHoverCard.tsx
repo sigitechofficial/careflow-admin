@@ -103,6 +103,10 @@ export function ScheduleCarerHoverCard({ row, catalog, locationNames }: Props) {
         {employee.contractedWeeklyHours != null ? (
           <DetailRow label="Contracted" value={`${employee.contractedWeeklyHours}h / week`} />
         ) : null}
+        {employee.approvedWeeklyHours != null &&
+        employee.approvedWeeklyHours !== employee.contractedWeeklyHours ? (
+          <DetailRow label="Approved hours" value={`${employee.approvedWeeklyHours}h / week`} />
+        ) : null}
         {employee.maximumWeeklyHours != null ? (
           <DetailRow label="Max hours" value={`${employee.maximumWeeklyHours}h / week`} />
         ) : null}

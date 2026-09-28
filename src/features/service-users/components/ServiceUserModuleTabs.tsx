@@ -25,6 +25,7 @@ type ModuleTab = {
     | '/service-users/$serviceUserId/care-plan'
     | '/service-users/$serviceUserId/medication'
     | '/service-users/$serviceUserId/observations'
+    | '/service-users/$serviceUserId/comms'
     | '/service-users/$serviceUserId/body-map'
     | '/service-users/$serviceUserId/documents'
     | '/service-users/$serviceUserId/activity'
@@ -92,7 +93,11 @@ export const SERVICE_USER_MODULE_TABS: ModuleTab[] = [
     label: 'Observations',
     to: '/service-users/$serviceUserId/observations',
   },
-  { id: 'comms', label: 'Comms' },
+  {
+    id: 'comms',
+    label: 'Comms',
+    to: '/service-users/$serviceUserId/comms',
+  },
   {
     id: 'tasks-planner',
     label: 'Tasks Planner',
@@ -168,6 +173,7 @@ export function isServiceUserModuleTabActive(tab: ModuleTab, pathname: string): 
   if (tab.id === 'ecm') return /\/service-users\/[^/]+\/ecm\/?$/.test(pathname)
   if (tab.id === 'meds') return pathname.includes('/medication')
   if (tab.id === 'observations') return pathname.includes('/observations')
+  if (tab.id === 'comms') return pathname.includes('/comms')
   if (tab.id === 'tasks-planner') return pathname.includes('/tasks-planner')
   if (tab.id === 'visit-plan') return pathname.includes('/visit-plan')
   if (tab.id === 'care-plan') return pathname.includes('/care-plan')

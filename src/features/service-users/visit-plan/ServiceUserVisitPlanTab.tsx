@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Loader2, Package, PanelRightOpen, Pause, Play, RefreshCw, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
+import { CalendarOff, CalendarClock, ClipboardList, Eye, History, Info, Loader2, Package, PanelRightOpen, Pause, Play, RefreshCw, Save, Sparkles, StopCircle, UserPlus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { FormField, Textarea } from '@/shared/ui/form-field'
@@ -46,11 +46,9 @@ import { VisitPlanSlotLifecyclePanel } from '@/features/service-users/visit-plan
 import { VisitPlanSlotCarerByDayPanel } from '@/features/service-users/visit-plan/VisitPlanSlotCarerByDayPanel'
 import { VisitPlanSlotExceptionsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotExceptionsPanel'
 import { VisitPlanWeeklyHoursPanel } from '@/features/service-users/visit-plan/VisitPlanWeeklyHoursPanel'
-import { VisitPlanSetupGuide } from '@/features/service-users/visit-plan/VisitPlanSetupGuide'
 import { useScheduleAreas } from '@/features/scheduling/hooks/useScheduling'
 import { VisitPlanSlotAdditionalDetailsPanel } from '@/features/service-users/visit-plan/VisitPlanSlotAdditionalDetailsPanel'
 import { VisitPlanSlotDetailsSheet } from '@/features/service-users/visit-plan/VisitPlanSlotDetailsSheet'
-import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
 import { VisitPlanIaPreferredVisitTimesPanel } from '@/features/service-users/visit-plan/VisitPlanIaPreferredVisitTimesPanel'
 import { VisitPlanSlotCarersDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarersDialog'
 import { VisitPlanSlotCarePlansDialog } from '@/features/service-users/visit-plan/VisitPlanSlotCarePlansDialog'
@@ -78,7 +76,6 @@ import {
   formatCarerAssignmentGroupDaysLabel,
   groupCarerAssignments,
 } from '@/features/service-users/visit-plan/visit-plan-carer-by-day.util'
-import { shouldShowVisitPlanCarePathwayPanel } from '@/features/service-users/visit-plan/visit-plan-care-plan-links.util'
 import {
   resolveEditableVisitPlan,
   sortVisitPlanVersions,
@@ -91,7 +88,6 @@ import { VisitPlanReactivateDialog } from '@/features/service-users/visit-plan/V
 import { VisitPlanActivateDialog } from '@/features/service-users/visit-plan/VisitPlanActivateDialog'
 import { VisitPlanGeneratePreviewDialog } from '@/features/service-users/visit-plan/VisitPlanGeneratePreviewDialog'
 import { VisitPlanWorkingPatternSyncDialog } from '@/features/service-users/visit-plan/VisitPlanWorkingPatternSyncDialog'
-import { VisitPlanDevClearRotaToolbar } from '@/features/service-users/visit-plan/VisitPlanDevClearRotaToolbar'
 import { VisitPlanConfirmGate } from '@/features/service-users/visit-plan/components/VisitPlanConfirmGate'
 import {
   previewVisitPlanAmendmentImpact,
@@ -129,6 +125,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+
+function VisitPlanCarePackageInfoIcon() {
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="About visit plan (care package)"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-sm space-y-2 text-left text-xs leading-snug">
+          <p>
+            Authorised call pattern — when visits happen, how long, and how many carers. Separate from the clinical
+            care plan. Changes are amendment-audited for CQC. Use{' '}
+            <strong className="font-medium">Call pattern</strong> or{' '}
+            <strong className="font-medium">Visit calendar</strong> at the top of this page to review without editing.
+          </p>
+          <p>
+            Enter weekly contracted hours above, configure the call pattern below, then create a draft. You can also
+            auto-create a plan when care package activation is approved on initial assessment (hours must be on the DOM
+            Care profile).
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
 
 function statusBadge(status: ServiceUserVisitPlan['status']) {
   const styles: Record<ServiceUserVisitPlan['status'], string> = {
@@ -144,10 +176,17 @@ function statusBadge(status: ServiceUserVisitPlan['status']) {
   )
 }
 
+type SetupGuideData = {
+  slots: VisitPlanSlot[]
+  planStatus: ServiceUserVisitPlan['status'] | null
+  hasPlan: boolean
+}
+
 type Props = {
   serviceUserId: string
   planId?: string
   onSelectPlan?: (planId: string) => void
+  onSetupGuideData?: (data: SetupGuideData) => void
 }
 
 const DRAFT_SAVE_DEFAULT_REASON = 'Draft visit plan updated'
@@ -213,7 +252,7 @@ function toSlotInput(slots: VisitPlanSlot[]) {
 const GENERATE_ROTA_STEP = 5
 const BACKFILL_STEP = SHOW_GENERATE_ROTA_SECTION ? 6 : 5
 
-export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }: Props) {
+export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, onSetupGuideData }: Props) {
   const { data: plans, isLoading } = useServiceUserVisitPlans(serviceUserId)
   const { data: activePlan } = useActiveServiceUserVisitPlan(serviceUserId)
   const { create, update, activate, suspend, end, generateSchedule } =
@@ -324,16 +363,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   const careContext = useVisitPlanCareContext(serviceUserId, workingPlan?.status ?? null)
 
-  const showCarePathwayPanel = React.useMemo(
-    () =>
-      shouldShowVisitPlanCarePathwayPanel(
-        careContext.pathwaySteps,
-        slots,
-        careContext.acceptedCarePlans,
-      ),
-    [careContext.pathwaySteps, careContext.acceptedCarePlans, slots],
-  )
-
   const assignedEmployeeIds = React.useMemo(() => assignedEmployeeIdsFromSlots(slots), [slots])
   const employeeNameById = useEmployeeNameMap(assignedEmployeeIds)
 
@@ -361,12 +390,18 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   React.useEffect(() => {
     if (!slots.length) return
-    const selected = slots.find((s) => s.slotCode === configSlotCode)
-    if (selected?.isEnabled) return
+    if (slots.some((s) => s.slotCode === configSlotCode)) return
     const firstEnabled = slots.find((s) => s.isEnabled)
-    if (firstEnabled) setConfigSlotCode(firstEnabled.slotCode)
-    else if (!configSlotCode) setConfigSlotCode(slots[0]!.slotCode)
+    setConfigSlotCode((firstEnabled ?? slots[0]!).slotCode)
   }, [slots, configSlotCode])
+
+  React.useEffect(() => {
+    onSetupGuideData?.({
+      slots,
+      planStatus: workingPlan?.status ?? null,
+      hasPlan: Boolean(workingPlan?.id),
+    })
+  }, [slots, workingPlan?.id, workingPlan?.status, onSetupGuideData])
 
   const toggleDay = (slotIndex: number, day: number) => {
     setSlots((prev) =>
@@ -830,8 +865,6 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
 
   return (
     <div className="space-y-6">
-      <VisitPlanDevClearRotaToolbar serviceUserId={serviceUserId} />
-
       {editablePlans.length > 1 && workingPlan ? (
         <section className="rounded-lg border border-border bg-muted/20 px-4 py-3">
           <div className="flex gap-3">
@@ -863,47 +896,19 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
         </section>
       ) : null}
 
-      <VisitPlanSetupGuide
-        slots={slots}
-        planStatus={workingPlan?.status ?? null}
-        hasPlan={Boolean(workingPlan?.id)}
-      />
-
-      {showCarePathwayPanel ? (
-        <VisitPlanCarePathwayContextPanel
-          serviceUserId={serviceUserId}
-          isLoading={careContext.isLoading}
-          pathwaySteps={careContext.pathwaySteps}
-          acceptedCarePlans={careContext.acceptedCarePlans}
-          slots={slots}
-        />
-      ) : null}
-
       <ContentCard>
         <ContentSectionHeader
           icon={<ClipboardList className="h-5 w-5" aria-hidden />}
           iconClassName="bg-sky-500/10 text-sky-700 dark:text-sky-300"
-          title="Visit plan (care package)"
-          titleClassName="text-sky-600 dark:text-sky-400"
-          description={
-            <>
-              Authorised call pattern — when visits happen, how long, and how many carers. Separate from the clinical
-              care plan. Changes are amendment-audited for CQC. Use{' '}
-              <strong className={contentEmphasisClass}>Call pattern</strong> or{' '}
-              <strong className={contentEmphasisClass}>Visit calendar</strong> at the top of this page to review
-              without editing.
-            </>
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              Visit plan (care package)
+              <VisitPlanCarePackageInfoIcon />
+            </span>
           }
+          titleClassName="text-sky-600 dark:text-sky-400"
           action={workingPlan ? statusBadge(workingPlan.status) : null}
         />
-
-        {!workingPlan ? (
-          <p className={cn('mt-4', contentBodyClass)}>
-            Enter weekly contracted hours above, configure the call pattern below, then create a draft. You can also
-            auto-create a plan when care package activation is approved on initial assessment (hours must be on the DOM
-            Care profile).
-          </p>
-        ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <FormField
@@ -1040,15 +1045,12 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                       <TableRow
                         key={slot.slotCode}
                         className={cn(
-                          'border-b border-border/60',
-                          slot.isEnabled && 'cursor-pointer hover:bg-muted/40',
-                          configSlotCode === slot.slotCode && slot.isEnabled && 'bg-teal-50/90 dark:bg-teal-950/30',
+                          'cursor-pointer border-b border-border/60 hover:bg-muted/40',
+                          configSlotCode === slot.slotCode && 'bg-teal-50/90 dark:bg-teal-950/30',
                         )}
-                        onClick={() => {
-                          if (slot.isEnabled) setConfigSlotCode(slot.slotCode)
-                        }}
+                        onClick={() => setConfigSlotCode(slot.slotCode)}
                       >
-                        <TableCell variant="data" className="pr-0" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pr-0">
                           <div className={contentTableRowLabelClass}>{slot.label}</div>
                           {slot.nightDuty !== 'NONE' ? (
                             <p className="mt-0.5 text-[11px] text-sky-700 dark:text-sky-300">
@@ -1267,12 +1269,17 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
                 </TableBody>
               </Table>
 
-        {configSlot && configSlot.isEnabled ? (
+        {configSlot ? (
           <div className="mt-6 space-y-3 border-t border-border pt-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className={contentBodyClass}>
                 Optional settings for <strong className="font-medium text-foreground">{configSlot.label}</strong> — click a row
                 above to switch slot.
+                {!configSlot.isEnabled ? (
+                  <span className={cn('ml-1', contentHelperClass)}>
+                    This visit is off — turn it on to schedule it.
+                  </span>
+                ) : null}
               </p>
               <Button
                 type="button"
@@ -1368,7 +1375,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan }:
           </div>
         ) : (
           <p className={cn('mt-4 border-t border-border pt-4', contentHelperClass)}>
-            Click an enabled visit row above to see optional settings for that slot.
+            Click a visit row above to see optional settings for that slot.
           </p>
         )}
       </ContentCard>

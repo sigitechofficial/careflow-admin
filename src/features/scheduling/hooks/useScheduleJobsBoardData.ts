@@ -358,8 +358,13 @@ export function useScheduleJobsBoardData({
   )
   const contractedWeeklyHoursByEmployee = React.useMemo(() => {
     const map = new Map<string, number>()
-    const setIfPresent = (employee: { id: string; contractedWeeklyHours?: number | null }) => {
-      const hours = employee.contractedWeeklyHours
+    const setIfPresent = (employee: {
+      id: string
+      contractedWeeklyHours?: number | null
+      approvedWeeklyHours?: number | null
+    }) => {
+      // Prefer approved extra weekly hours when set; otherwise contracted.
+      const hours = employee.approvedWeeklyHours ?? employee.contractedWeeklyHours
       if (hours != null && hours > 0) map.set(employee.id, Number(hours))
     }
     for (const row of employees) {

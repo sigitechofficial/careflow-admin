@@ -33,6 +33,7 @@ export type SurveyListItem = {
   isAnonymous: boolean
   opensAt: string | null
   closesAt: string | null
+  locationIds: string[]
   questionCount: number
   recipientCount: number
   createdAt: string
@@ -59,6 +60,7 @@ export type SurveyDetail = {
   isAnonymous: boolean
   opensAt: string | null
   closesAt: string | null
+  locationIds: string[]
   createdAt: string
   updatedAt: string
   recipientCount: number
@@ -82,6 +84,7 @@ export type CreateSurveyInput = {
   description?: string
   targetKind?: SurveyTargetKind
   isAnonymous?: boolean
+  locationIds?: string[]
 }
 
 export type UpdateSurveyInput = Partial<CreateSurveyInput> & {

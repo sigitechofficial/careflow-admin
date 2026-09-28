@@ -27,6 +27,15 @@ import { SurveyPreviewDialog } from '@/features/surveys/components/SurveyPreview
 import type { SurveyListItem, SurveyStatus } from '@/features/surveys/types'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
+import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
 
 const STATUS_TONE: Record<SurveyStatus, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
@@ -46,27 +55,67 @@ export default function SurveysPage() {
   const createMut = useCreateSurvey()
   const deleteMut = useDeleteSurvey()
 
+  const { data: locationTree } = useLocationManagementTree()
+
   const [createOpen, setCreateOpen] = React.useState(false)
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [isAnonymous, setIsAnonymous] = React.useState(false)
+  const [selectedZoneId, setSelectedZoneId] = React.useState('')
+  const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
   const [toDelete, setToDelete] = React.useState<SurveyListItem | null>(null)
   const [previewId, setPreviewId] = React.useState<string | null>(null)
+
+  const selectedZone = locationTree?.zones.find(z => z.id === selectedZoneId)
+  const branchOptions = React.useMemo<MultiSelectOption[]>(
+    () =>
+      selectedZone?.branches
+        .filter((b): b is typeof b & { locationId: string } => b.locationId != null)
+        .map(b => ({ value: b.locationId, label: b.name })) ?? [],
+    [selectedZone],
+  )
+
+  const resolveLocationLabel = React.useCallback(
+    (locIds: string[]) => {
+      if (!locationTree || locIds.length === 0) return null
+      const parts: string[] = []
+      for (const zone of locationTree.zones) {
+        const matched = zone.branches.filter(b => b.locationId != null && locIds.includes(b.locationId))
+        if (matched.length === 0) continue
+        if (matched.length === zone.branches.length) {
+          parts.push(zone.name)
+        } else {
+          parts.push(...matched.map(b => b.name))
+        }
+      }
+      return parts.length > 0 ? parts.join(', ') : null
+    },
+    [locationTree],
+  )
 
   const resetCreate = () => {
     setTitle('')
     setDescription('')
     setIsAnonymous(false)
+    setSelectedZoneId('')
+    setSelectedLocationIds([])
   }
 
   const handleCreate = async () => {
     if (!title.trim()) return
     try {
+      let locIds: string[] = []
+      if (selectedLocationIds.length > 0) {
+        locIds = selectedLocationIds
+      } else if (selectedZone) {
+        locIds = selectedZone.branches.map(b => b.locationId).filter((id): id is string => id != null)
+      }
       const survey = await createMut.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
         targetKind: 'EMPLOYEE',
         isAnonymous,
+        locationIds: locIds.length > 0 ? locIds : undefined,
       })
       toastSuccess('Survey created')
       setCreateOpen(false)
@@ -134,6 +183,7 @@ export default function SurveysPage() {
                 <tr>
                   <th className="px-4 py-2.5">Title</th>
                   <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5">Location</th>
                   <th className="px-4 py-2.5 text-right">Questions</th>
                   <th className="px-4 py-2.5 text-right">Recipients</th>
                   <th className="px-4 py-2.5">Updated</th>
@@ -161,6 +211,9 @@ export default function SurveysPage() {
                       >
                         {s.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {resolveLocationLabel(s.locationIds ?? []) ?? <span className="text-xs italic">All</span>}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{s.questionCount}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{s.recipientCount}</td>
@@ -243,6 +296,38 @@ export default function SurveysPage() {
               />
               Anonymous responses (recommended for honest staff feedback)
             </label>
+            <div className="space-y-1 text-sm">
+              <span className="font-medium">Zone</span>
+              <Select
+                value={selectedZoneId}
+                onValueChange={v => {
+                  setSelectedZoneId(v)
+                  setSelectedLocationIds([])
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All zones" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locationTree?.zones.map(z => (
+                    <SelectItem key={z.id} value={z.id}>
+                      {z.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedZoneId && branchOptions.length > 0 && (
+              <div className="space-y-1 text-sm">
+                <span className="font-medium">Branch</span>
+                <MultiSelect
+                  options={branchOptions}
+                  value={selectedLocationIds}
+                  onChange={setSelectedLocationIds}
+                  placeholder="All branches in zone"
+                />
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">Audience: Employees</p>
           </DialogBody>
           <DialogFooter>

@@ -212,11 +212,7 @@ export function ScheduleJobsGantt({
         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm"
       >
         <div data-schedule-jobs-legend>
-          <ScheduleJobsGanttLegend
-            focusedPeriodBandId={focusedPeriodBandId}
-            onPeriodBandDoubleClick={handlePeriodBandDoubleClick}
-            onClearPeriodFocus={handleClearPeriodFocus}
-          />
+          <ScheduleJobsGanttLegend />
           {showRunsOnBoard ? (
             <ScheduleJobsRunLegend runs={runs} onReassignRun={onReassignRun} />
           ) : null}

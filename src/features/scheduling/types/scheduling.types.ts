@@ -248,6 +248,8 @@ export type EmployeeBrief = {
   role?: { id: string; name: string } | null
   jobTitle?: { id: string; name: string } | null
   contractedWeeklyHours?: number | null
+  /** Active approved extra weekly hours threshold (override), else contracted. */
+  approvedWeeklyHours?: number | null
   maximumWeeklyHours?: number | null
   isBankStaff?: boolean
   isAgencyStaff?: boolean

@@ -201,7 +201,7 @@ function Section({ children }: { children: React.ReactNode }) {
 }
 
 function SHead({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-4 text-sm font-semibold text-sky-600 dark:text-sky-400">{children}</h2>
+  return <h2 className="mb-4 text-sm font-semibold text-primary">{children}</h2>
 }
 
 function LabelWithTip({
@@ -222,7 +222,7 @@ function LabelWithTip({
       {tip ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" className="text-sky-600" aria-label="Help">
+            <button type="button" className="text-primary" aria-label="Help">
               <Info className="h-3.5 w-3.5" />
             </button>
           </TooltipTrigger>
@@ -617,7 +617,7 @@ export default function AddServiceUserPage() {
         {selectedId ? (
           <p className="text-xs text-muted-foreground">
             Selected: {selectedLabel || selectedId}{' '}
-            <button type="button" className="text-sky-600 underline" onClick={onClear}>
+            <button type="button" className="text-primary underline" onClick={onClear}>
               Clear
             </button>
           </p>
@@ -1015,7 +1015,7 @@ export default function AddServiceUserPage() {
               }
               className={cn(
                 'relative h-7 w-12 rounded-full transition-colors',
-                form.accessServiceUserApp ? 'bg-sky-600' : 'bg-slate-300 dark:bg-slate-600',
+                form.accessServiceUserApp ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600',
               )}
             >
               <span

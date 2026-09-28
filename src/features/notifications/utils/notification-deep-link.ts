@@ -38,10 +38,14 @@ export function parseEcmLiveHref(href: string): EcmLiveUrlSearch | null {
   return validateEcmLiveSearch(Object.fromEntries(new URLSearchParams(query)))
 }
 
+function isInternalAppHref(href: string): boolean {
+  return href.startsWith('/') && !href.startsWith('//')
+}
+
 export function notificationDeepLink(item: NotificationDeepLinkInput): string | null {
   const metadata = item.metadata ?? {}
   const href = metadataString(metadata, 'href')
-  if (href?.startsWith('/ecm/live')) return href
+  if (href && isInternalAppHref(href)) return href
 
   const kind = metadataString(metadata, 'kind')
   const jobId = metadataString(metadata, 'scheduledJobId')

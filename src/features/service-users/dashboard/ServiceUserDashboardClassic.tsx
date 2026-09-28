@@ -51,7 +51,6 @@ import {
   formatShortUk,
   hasDiabetesAllergyFlag,
   initialsFromName,
-  isHighRisk,
   riskMeterPercent,
 } from '@/features/service-users/dashboard/service-user-dashboard-utils'
 
@@ -213,7 +212,6 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
   const preferred = detail?.preferredName?.trim()
   const photoSrc = resolveMediaUrl(detail?.profilePhoto?.fileUrl ?? detail?.profilePhotoUrl)
   const age = ageFromDob(detail?.dateOfBirth ?? null)
-  const highRisk = isHighRisk(detail)
   const diabetesFlag = hasDiabetesAllergyFlag(allergyRows.map(a => a.allergyName))
   const [allergiesOpen, setAllergiesOpen] = React.useState(false)
 
@@ -295,7 +293,7 @@ export function ServiceUserDashboardClassic({ serviceUserId }: { serviceUserId: 
 
   return (
     <div
-      className={cn('min-h-full bg-[#f4f6f8] pb-10 dark:bg-background', highRisk && 'border-l-4 border-l-red-500')}
+      className="min-h-full bg-[#f4f6f8] pb-10 dark:bg-background"
       data-testid="service-user-dashboard"
     >
       {/* Sticky identity bar */}

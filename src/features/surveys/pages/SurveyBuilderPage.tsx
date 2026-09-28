@@ -36,6 +36,16 @@ import {
   type SurveyQuestion,
   type SurveyQuestionType,
 } from '@/features/surveys/types'
+import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
+import { listAllEmployees } from '@/features/employees/api/employees.api'
+import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
 
 const QUESTION_TYPE_ORDER: SurveyQuestionType[] = [
   'YES_NO',
@@ -160,6 +170,18 @@ export default function SurveyBuilderPage() {
   const [editDraft, setEditDraft] = React.useState<QuestionDraft>(emptyDraft())
   const [removeTarget, setRemoveTarget] = React.useState<SurveyQuestion | null>(null)
   const [sendOpen, setSendOpen] = React.useState(false)
+  const [selectedZoneId, setSelectedZoneId] = React.useState('')
+  const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
+  const { data: locationTree } = useLocationManagementTree(sendOpen)
+  const [sendingEmployees, setSendingEmployees] = React.useState(false)
+
+  const selectedZone = locationTree?.zones.find(z => z.id === selectedZoneId)
+  const branchOptions = React.useMemo<MultiSelectOption[]>(() => {
+    if (!selectedZone) return []
+    return selectedZone.branches
+      .filter(b => b.locationId)
+      .map(b => ({ value: b.locationId!, label: b.name }))
+  }, [selectedZone])
 
   const openEdit = (q: SurveyQuestion) => {
     setEditing(q)
@@ -205,13 +227,39 @@ export default function SurveyBuilderPage() {
     }
   }
 
+  const resetSendState = () => {
+    setSelectedZoneId('')
+    setSelectedLocationIds([])
+    setSendingEmployees(false)
+  }
+
   const handleSend = async () => {
     try {
-      const res = await sendMut.mutateAsync(undefined)
+      setSendingEmployees(true)
+      let employeeIds: string[] | undefined
+      const locationIds =
+        selectedLocationIds.length > 0
+          ? selectedLocationIds
+          : selectedZone
+            ? selectedZone.branches.filter(b => b.locationId).map(b => b.locationId!)
+            : []
+      if (locationIds.length > 0) {
+        const employees = await listAllEmployees({ locationIds })
+        employeeIds = employees.map(e => e.id)
+        if (employeeIds.length === 0) {
+          toastApiError(new Error('No employees found in selected branches'), 'No employees')
+          setSendingEmployees(false)
+          return
+        }
+      }
+      const res = await sendMut.mutateAsync(employeeIds)
       toastSuccess(`Sent to ${res.sent} employee(s)${res.skippedExisting ? `, ${res.skippedExisting} already had it` : ''}.`)
       setSendOpen(false)
+      resetSendState()
     } catch (e) {
       toastApiError(e, 'Could not send survey')
+    } finally {
+      setSendingEmployees(false)
     }
   }
 
@@ -397,30 +445,80 @@ export default function SurveyBuilderPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Send confirm */}
-      <AlertDialog open={sendOpen} onOpenChange={setSendOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Send this survey to employees?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This creates a response task for every active employee and marks the survey ACTIVE.
-              Employees who already received it are skipped.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={sendMut.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={sendMut.isPending}
-              onClick={e => {
-                e.preventDefault()
-                void handleSend()
+      {/* Send confirm with branch selection */}
+      <Dialog
+        open={sendOpen}
+        onOpenChange={o => {
+          setSendOpen(o)
+          if (!o) resetSendState()
+        }}
+      >
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>Send this survey to employees</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This creates a response task and marks the survey ACTIVE. Employees who already
+              received it are skipped.
+            </p>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Zone</span>
+              <Select
+                value={selectedZoneId}
+                onValueChange={v => {
+                  setSelectedZoneId(v)
+                  setSelectedLocationIds([])
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All zones" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locationTree?.zones.map(z => (
+                    <SelectItem key={z.id} value={z.id}>
+                      {z.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+
+            {selectedZoneId ? (
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">Branches</span>
+                <MultiSelect
+                  options={branchOptions}
+                  value={selectedLocationIds}
+                  onChange={setSelectedLocationIds}
+                  placeholder="All branches in zone"
+                  searchPlaceholder="Search branches…"
+                />
+                <span className="text-xs text-muted-foreground">
+                  Leave empty to send to all employees in this zone
+                </span>
+              </label>
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSendOpen(false)
+                resetSendState()
               }}
             >
-              {sendMut.isPending ? 'Sending…' : 'Send survey'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              Cancel
+            </Button>
+            <Button
+              disabled={sendMut.isPending || sendingEmployees}
+              onClick={() => void handleSend()}
+            >
+              {sendMut.isPending || sendingEmployees ? 'Sending…' : 'Send survey'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
