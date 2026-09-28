@@ -76,13 +76,12 @@ export function OrganisationDisplayFormatProvider({ children }: { children: Reac
     syncOrganisationDateDisplayFormat(dateDisplayFormat)
   }, [dateDisplayFormat, timeDisplayFormat])
 
-  React.useEffect(() => {
-    syncOrganisationOperationalTimezone(operationalTimezone)
-  }, [operationalTimezone])
+  // Synced during render (not in an effect) so consumers re-rendered by the memo below already see the org timezone.
+  syncOrganisationOperationalTimezone(operationalTimezone)
 
   const value = React.useMemo(
     () => buildFormatters(dateDisplayFormat, timeDisplayFormat),
-    [dateDisplayFormat, timeDisplayFormat],
+    [dateDisplayFormat, timeDisplayFormat, operationalTimezone],
   )
 
   return (

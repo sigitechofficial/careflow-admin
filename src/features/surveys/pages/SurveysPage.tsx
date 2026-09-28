@@ -26,7 +26,7 @@ import { useCreateSurvey, useDeleteSurvey, useSurveys } from '@/features/surveys
 import { SurveyPreviewDialog } from '@/features/surveys/components/SurveyPreviewDialog'
 import type { SurveyListItem, SurveyStatus } from '@/features/surveys/types'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import { combineOperationalDateAndHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
 import {
@@ -63,6 +63,8 @@ export default function SurveysPage() {
   const [isAnonymous, setIsAnonymous] = React.useState(false)
   const [selectedZoneId, setSelectedZoneId] = React.useState('')
   const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
+  const [opensAt, setOpensAt] = React.useState('')
+  const [closesAt, setClosesAt] = React.useState('')
   const [toDelete, setToDelete] = React.useState<SurveyListItem | null>(null)
   const [previewId, setPreviewId] = React.useState<string | null>(null)
 
@@ -99,10 +101,14 @@ export default function SurveysPage() {
     setIsAnonymous(false)
     setSelectedZoneId('')
     setSelectedLocationIds([])
+    setOpensAt('')
+    setClosesAt('')
   }
 
+  const scheduleInvalid = Boolean(opensAt && closesAt && closesAt <= opensAt)
+
   const handleCreate = async () => {
-    if (!title.trim()) return
+    if (!title.trim() || scheduleInvalid) return
     try {
       let locIds: string[] = []
       if (selectedLocationIds.length > 0) {
@@ -115,6 +121,8 @@ export default function SurveysPage() {
         description: description.trim() || undefined,
         targetKind: 'EMPLOYEE',
         isAnonymous,
+        opensAt: opensAt ? combineOperationalDateAndHm(opensAt.slice(0, 10), opensAt.slice(11, 16)) : undefined,
+        closesAt: closesAt ? combineOperationalDateAndHm(closesAt.slice(0, 10), closesAt.slice(11, 16)) : undefined,
         locationIds: locIds.length > 0 ? locIds : undefined,
       })
       toastSuccess('Survey created')
@@ -178,12 +186,14 @@ export default function SurveysPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead className="border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2.5">Title</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Location</th>
+                  <th className="px-4 py-2.5">Published</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">Start → End</th>
                   <th className="px-4 py-2.5 text-right">Questions</th>
                   <th className="px-4 py-2.5 text-right">Recipients</th>
                   <th className="px-4 py-2.5">Updated</th>
@@ -214,6 +224,19 @@ export default function SurveysPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {resolveLocationLabel(s.locationIds ?? []) ?? <span className="text-xs italic">All</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums">
+                      {s.publishedAt ? formatInstant(s.publishedAt) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums">
+                      {s.opensAt || s.closesAt ? (
+                        <div className="leading-snug">
+                          <div>{s.opensAt ? formatInstant(s.opensAt) : '—'}</div>
+                          <div>→ {s.closesAt ? formatInstant(s.closesAt) : 'No end'}</div>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{s.questionCount}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{s.recipientCount}</td>
@@ -328,13 +351,34 @@ export default function SurveysPage() {
                 />
               </div>
             )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">Start</span>
+                <Input type="datetime-local" value={opensAt} onChange={e => setOpensAt(e.target.value)} />
+              </label>
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">End</span>
+                <Input
+                  type="datetime-local"
+                  value={closesAt}
+                  min={opensAt || undefined}
+                  onChange={e => setClosesAt(e.target.value)}
+                />
+              </label>
+            </div>
+            {scheduleInvalid ? (
+              <p className="text-xs text-destructive">End must be after the start.</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">Audience: Employees</p>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={!title.trim() || createMut.isPending} onClick={() => void handleCreate()}>
+            <Button
+              disabled={!title.trim() || scheduleInvalid || createMut.isPending}
+              onClick={() => void handleCreate()}
+            >
               {createMut.isPending ? 'Creating…' : 'Create & add questions'}
             </Button>
           </DialogFooter>
