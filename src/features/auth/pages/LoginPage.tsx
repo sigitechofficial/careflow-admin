@@ -15,9 +15,15 @@ export default function LoginPage() {
   const apiUrl = getApiBaseUrl()
   const [mode, setMode] = React.useState<'staff' | 'inspector'>(apiUrl ? 'staff' : 'staff')
 
-  const [email, setEmail] = React.useState(apiUrl ? 'admin@careadmin.local' : 'admin@care.local')
+  // Pre-fill the local seed admin only under `npm run dev`. Production builds start empty,
+  // and Vite drops the dev-only branch so these credentials never ship in the bundle.
+  const [email, setEmail] = React.useState(
+    import.meta.env.DEV ? (apiUrl ? 'admin@careadmin.local' : 'admin@care.local') : '',
+  )
   const [inspectorUsername, setInspectorUsername] = React.useState('')
-  const [password, setPassword] = React.useState(apiUrl ? 'Admin@12345' : 'CareAdmin1!')
+  const [password, setPassword] = React.useState(
+    import.meta.env.DEV ? (apiUrl ? 'Admin@12345' : 'CareAdmin1!') : '',
+  )
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
 
