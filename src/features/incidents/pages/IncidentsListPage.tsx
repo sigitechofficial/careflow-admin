@@ -16,7 +16,7 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from '@/features/incidents/types'
-import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 
 const STATUS_OPTIONS: { value: IncidentStatus | ''; label: string }[] = [
   { value: '', label: 'All statuses' },
@@ -182,8 +182,8 @@ export default function IncidentsListPage() {
                     <td className="px-3 py-2.5">
                       <Badge variant={INCIDENT_STATUS_BADGE[inc.status]} size="sm">{inc.statusLabel}</Badge>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationIsoDateLong(inc.occurredAt)}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationIsoDateLong(inc.reportedAt)}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.occurredAt)}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.reportedAt)}</td>
                   </tr>
                 ))
               )}

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Loader2, Plus, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Loader2, Pencil, Plus, Send, Trash2, Users } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -23,21 +23,28 @@ import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import {
   useAddQuestion,
+  usePublishSurvey,
   useRemoveQuestion,
   useSendSurvey,
   useSurvey,
   useSurveyResults,
   useUpdateQuestion,
+  useUpdateSurvey,
 } from '@/features/surveys/hooks/useSurveys'
+import { buildSurveyShareUrl } from '@/features/surveys/api/surveys.api'
+import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
 import {
   CHOICE_QUESTION_TYPES,
   SURVEY_QUESTION_TYPE_LABELS,
+  SURVEY_RECURRENCE_LABELS,
   type CreateQuestionInput,
   type SurveyQuestion,
   type SurveyQuestionType,
+  type SurveyRecurrence,
 } from '@/features/surveys/types'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
 import { listAllEmployees } from '@/features/employees/api/employees.api'
+import { combineOperationalDateAndHm, dayKeyFromInstant, formatOpsHm } from '@/shared/lib/operational-day.util'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
 import {
   Select,
@@ -68,6 +75,18 @@ type QuestionDraft = {
 
 function emptyDraft(): QuestionDraft {
   return { questionText: '', questionType: 'YES_NO', helpText: '', isRequired: false, optionsText: '' }
+}
+
+function isoToDatetimeLocal(iso: string | null | undefined): string {
+  const day = dayKeyFromInstant(iso ?? null)
+  const hm = formatOpsHm(iso)
+  if (!day || !hm) return ''
+  return `${day}T${hm}`
+}
+
+function datetimeLocalToIso(value: string): string | undefined {
+  if (!value) return undefined
+  return combineOperationalDateAndHm(value.slice(0, 10), value.slice(11, 16)) || undefined
 }
 
 function draftToInput(draft: QuestionDraft): CreateQuestionInput {
@@ -162,8 +181,10 @@ export default function SurveyBuilderPage() {
   const updateMut = useUpdateQuestion(surveyId)
   const removeMut = useRemoveQuestion(surveyId)
   const sendMut = useSendSurvey(surveyId)
+  const publishMut = usePublishSurvey(surveyId)
+  const updateMutSurvey = useUpdateSurvey(surveyId)
   const alreadySent = (survey?.recipientCount ?? 0) > 0
-  const { data: results } = useSurveyResults(surveyId, alreadySent)
+  const { data: results } = useSurveyResults(surveyId, Boolean(surveyId))
 
   const [addDraft, setAddDraft] = React.useState<QuestionDraft>(emptyDraft())
   const [editing, setEditing] = React.useState<SurveyQuestion | null>(null)
@@ -174,6 +195,14 @@ export default function SurveyBuilderPage() {
   const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
   const { data: locationTree } = useLocationManagementTree(sendOpen)
   const [sendingEmployees, setSendingEmployees] = React.useState(false)
+  const [distributeAtLocal, setDistributeAtLocal] = React.useState('')
+  const [recurrenceLocal, setRecurrenceLocal] = React.useState<SurveyRecurrence | ''>('')
+  const [detailsOpen, setDetailsOpen] = React.useState(false)
+  const [editTitle, setEditTitle] = React.useState('')
+  const [editDescription, setEditDescription] = React.useState('')
+  const [editAnonymous, setEditAnonymous] = React.useState(false)
+  const [editOpensAt, setEditOpensAt] = React.useState('')
+  const [editClosesAt, setEditClosesAt] = React.useState('')
 
   const selectedZone = locationTree?.zones.find(z => z.id === selectedZoneId)
   const branchOptions = React.useMemo<MultiSelectOption[]>(() => {
@@ -227,15 +256,67 @@ export default function SurveyBuilderPage() {
     }
   }
 
+  const copyShareLink = async () => {
+    if (!survey) return
+    const questionCount = survey.questions.length
+    if (questionCount === 0) {
+      toastApiError(new Error('Add at least one question first'), 'Cannot share yet')
+      return
+    }
+    try {
+      let token = survey.shareToken
+      if (survey.status === 'DRAFT') {
+        const published = await publishMut.mutateAsync()
+        token = published.shareToken
+        toastSuccess('Survey published')
+      }
+      const url = buildSurveyShareUrl(token)
+      try {
+        await navigator.clipboard.writeText(url)
+        toastSuccess('Shareable link copied')
+      } catch {
+        window.prompt('Copy this survey link:', url)
+      }
+    } catch (e) {
+      toastApiError(e, 'Could not prepare shareable link')
+    }
+  }
+
   const resetSendState = () => {
     setSelectedZoneId('')
     setSelectedLocationIds([])
     setSendingEmployees(false)
+    setDistributeAtLocal('')
+    setRecurrenceLocal('')
   }
 
-  const handleSend = async () => {
+  const handleSend = async (schedule: boolean) => {
     try {
       setSendingEmployees(true)
+      if (schedule) {
+        const iso = datetimeLocalToIso(distributeAtLocal)
+        if (!iso) {
+          toastApiError(new Error('Pick a date and time'), 'Schedule time required')
+          return
+        }
+        const res = await sendMut.mutateAsync({
+          distributeAt: iso,
+          recurrence: recurrenceLocal || null,
+        })
+        toastSuccess(
+          res.scheduled
+            ? res.recurrence
+              ? `${SURVEY_RECURRENCE_LABELS[res.recurrence]} distribution scheduled${
+                  res.distributeAt ? ` — first run ${new Date(res.distributeAt).toLocaleString()}` : ''
+                }. Each run creates a new survey.`
+              : `Distribution scheduled${res.distributeAt ? ` for ${new Date(res.distributeAt).toLocaleString()}` : ''}.`
+            : `Sent to ${res.sent} employee(s).`,
+        )
+        setSendOpen(false)
+        resetSendState()
+        return
+      }
+
       let employeeIds: string[] | undefined
       const locationIds =
         selectedLocationIds.length > 0
@@ -248,18 +329,61 @@ export default function SurveyBuilderPage() {
         employeeIds = employees.map(e => e.id)
         if (employeeIds.length === 0) {
           toastApiError(new Error('No employees found in selected branches'), 'No employees')
-          setSendingEmployees(false)
           return
         }
       }
-      const res = await sendMut.mutateAsync(employeeIds)
-      toastSuccess(`Sent to ${res.sent} employee(s)${res.skippedExisting ? `, ${res.skippedExisting} already had it` : ''}.`)
+      const res = await sendMut.mutateAsync({ employeeIds })
+      toastSuccess(
+        `Sent to ${res.sent} employee(s)${res.skippedExisting ? `, ${res.skippedExisting} already had it` : ''}.`,
+      )
       setSendOpen(false)
       resetSendState()
     } catch (e) {
-      toastApiError(e, 'Could not send survey')
+      toastApiError(e, schedule ? 'Could not schedule survey' : 'Could not send survey')
     } finally {
       setSendingEmployees(false)
+    }
+  }
+
+  const handleCancelSchedule = async () => {
+    try {
+      await updateMutSurvey.mutateAsync({ distributeAt: null, recurrence: null })
+      toastSuccess('Scheduled distribution cancelled')
+    } catch (e) {
+      toastApiError(e, 'Could not cancel schedule')
+    }
+  }
+
+  const openDetailsEditor = () => {
+    if (!survey) return
+    setEditTitle(survey.title)
+    setEditDescription(survey.description ?? '')
+    setEditAnonymous(survey.isAnonymous)
+    setEditOpensAt(isoToDatetimeLocal(survey.opensAt))
+    setEditClosesAt(isoToDatetimeLocal(survey.closesAt))
+    setDetailsOpen(true)
+  }
+
+  const detailsScheduleInvalid = Boolean(editOpensAt && editClosesAt && editClosesAt <= editOpensAt)
+
+  const handleSaveDetails = async () => {
+    if (!editTitle.trim() || detailsScheduleInvalid) return
+    try {
+      await updateMutSurvey.mutateAsync({
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        isAnonymous: editAnonymous,
+        opensAt: editOpensAt
+          ? combineOperationalDateAndHm(editOpensAt.slice(0, 10), editOpensAt.slice(11, 16))
+          : null,
+        closesAt: editClosesAt
+          ? combineOperationalDateAndHm(editClosesAt.slice(0, 10), editClosesAt.slice(11, 16))
+          : null,
+      })
+      toastSuccess('Survey details saved')
+      setDetailsOpen(false)
+    } catch (e) {
+      toastApiError(e, 'Could not save survey details')
     }
   }
 
@@ -284,7 +408,7 @@ export default function SurveyBuilderPage() {
   const questions = [...survey.questions].sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
+    <div className="w-full flex-1 px-4 py-6 sm:px-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div className="flex items-start gap-2">
           <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" asChild>
@@ -302,20 +426,149 @@ export default function SurveyBuilderPage() {
           </div>
         </div>
         {canManage ? (
-          <Button
-            type="button"
-            size="sm"
-            className="gap-1.5"
-            disabled={questions.length === 0 || sendMut.isPending}
-            onClick={() => setSendOpen(true)}
-          >
-            <Send className="h-3.5 w-3.5" aria-hidden />
-            {alreadySent ? 'Send to new employees' : 'Send to employees'}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={openDetailsEditor}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit details
+            </Button>
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+              <Link to="/surveys/$surveyId/responses" params={{ surveyId }}>
+                <Users className="h-3.5 w-3.5" aria-hidden />
+                Responses
+                {typeof survey.responseCount === 'number' && survey.responseCount > 0
+                  ? ` (${survey.responseCount})`
+                  : ''}
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={questions.length === 0 || publishMut.isPending}
+              onClick={() => void copyShareLink()}
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              {publishMut.isPending
+                ? 'Preparing…'
+                : survey.status === 'DRAFT'
+                  ? 'Publish & copy link'
+                  : 'Copy shareable link'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="gap-1.5"
+              disabled={questions.length === 0 || sendMut.isPending}
+              onClick={() => setSendOpen(true)}
+            >
+              <Send className="h-3.5 w-3.5" aria-hidden />
+              {alreadySent ? 'Send to new employees' : 'Send or schedule'}
+            </Button>
+          </div>
+        ) : (
+          <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+            <Link to="/surveys/$surveyId/responses" params={{ surveyId }}>
+              <Users className="h-3.5 w-3.5" aria-hidden />
+              Responses
+            </Link>
           </Button>
-        ) : null}
+        )}
       </div>
 
-      {alreadySent && results ? (
+      {survey.shareToken ? (
+        <div className="mb-5 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-foreground">Shareable link</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                One link for everyone. Copy it and send by email, SMS, or chat.
+                {survey.status === 'DRAFT'
+                  ? ' Publishing activates the survey so people can respond.'
+                  : ''}
+              </p>
+              <p className="mt-2 break-all rounded-md bg-muted/50 px-2.5 py-1.5 font-mono text-xs text-foreground">
+                {buildSurveyShareUrl(survey.shareToken)}
+              </p>
+            </div>
+            {canManage ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5"
+                disabled={questions.length === 0 || publishMut.isPending}
+                onClick={() => void copyShareLink()}
+              >
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+                Copy
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {survey.distributeAt && !survey.distributedAt ? (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              {survey.recurrence ? 'Recurring distribution' : 'Scheduled distribution'}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {survey.recurrence ? (
+                <>
+                  A new survey is created and sent {SURVEY_RECURRENCE_LABELS[survey.recurrence].toLowerCase()}.
+                  Next run:{' '}
+                  <span className="font-medium text-foreground">
+                    {isoToDatetimeLocal(survey.distributeAt).replace('T', ' ')}
+                  </span>
+                  .
+                </>
+              ) : (
+                <>
+                  Employees will receive this survey automatically at{' '}
+                  <span className="font-medium text-foreground">
+                    {isoToDatetimeLocal(survey.distributeAt).replace('T', ' ')}
+                  </span>
+                  .
+                </>
+              )}
+            </p>
+          </div>
+          {canManage ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={updateMutSurvey.isPending}
+              onClick={() => void handleCancelSchedule()}
+            >
+              {updateMutSurvey.isPending ? 'Cancelling…' : 'Cancel schedule'}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <SurveyCompletionProgress
+        className="mb-5"
+        completed={results?.completed ?? survey.responseCount ?? 0}
+        recipients={results?.recipients ?? survey.recipientCount ?? 0}
+        hint={
+          results?.includesPeriodRuns
+            ? 'Includes all weekly/monthly period runs created from this survey.'
+            : survey.recurrence
+              ? 'Progress updates when period runs are sent and people respond.'
+              : undefined
+        }
+      />
+
+      {(alreadySent || survey.status === 'ACTIVE') && results && results.recipients > 0 ? (
         <div className="mb-5 grid grid-cols-3 gap-3">
           {[
             { label: 'Recipients', value: results.recipients },
@@ -397,6 +650,81 @@ export default function SurveyBuilderPage() {
         </div>
       ) : null}
 
+      {/* Edit survey details */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>Edit survey details</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Title *</span>
+              <Input
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                placeholder="e.g. Staff satisfaction Q3"
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Description</span>
+              <textarea
+                value={editDescription}
+                onChange={e => setEditDescription(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Optional context shown to recipients"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={editAnonymous}
+                onChange={e => setEditAnonymous(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              Anonymous responses (recommended for honest staff feedback)
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">Start</span>
+                <Input
+                  type="datetime-local"
+                  value={editOpensAt}
+                  onChange={e => setEditOpensAt(e.target.value)}
+                />
+              </label>
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">End</span>
+                <Input
+                  type="datetime-local"
+                  value={editClosesAt}
+                  min={editOpensAt || undefined}
+                  onChange={e => setEditClosesAt(e.target.value)}
+                />
+              </label>
+            </div>
+            {detailsScheduleInvalid ? (
+              <p className="text-xs text-destructive">End must be after the start.</p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Leave Start or End empty for no open/close limit. Schedule / repeat is managed with
+              Send or schedule.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!editTitle.trim() || detailsScheduleInvalid || updateMutSurvey.isPending}
+              onClick={() => void handleSaveDetails()}
+            >
+              {updateMutSurvey.isPending ? 'Saving…' : 'Save details'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit dialog */}
       <Dialog open={editing != null} onOpenChange={o => !o && setEditing(null)}>
         <DialogContent size="md">
@@ -450,6 +778,7 @@ export default function SurveyBuilderPage() {
         open={sendOpen}
         onOpenChange={o => {
           setSendOpen(o)
+          if (o && survey?.recurrence) setRecurrenceLocal(survey.recurrence)
           if (!o) resetSendState()
         }}
       >
@@ -459,9 +788,41 @@ export default function SurveyBuilderPage() {
           </DialogHeader>
           <DialogBody className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This creates a response task and marks the survey ACTIVE. Employees who already
-              received it are skipped.
+              Send now to selected branches, or schedule a one-time or repeating distribution. Repeating
+              runs create a new survey each period from this template.
             </p>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Schedule for</span>
+              <Input
+                type="datetime-local"
+                value={distributeAtLocal}
+                onChange={e => setDistributeAtLocal(e.target.value)}
+              />
+              <span className="text-xs text-muted-foreground">
+                Optional. Leave empty and use Send now, or set a future time and Schedule.
+              </span>
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Repeat</span>
+              <Select
+                value={recurrenceLocal || 'none'}
+                onValueChange={v =>
+                  setRecurrenceLocal(v === 'none' ? '' : (v as SurveyRecurrence))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="One-time only" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">One-time only</SelectItem>
+                  {(Object.keys(SURVEY_RECURRENCE_LABELS) as SurveyRecurrence[]).map(key => (
+                    <SelectItem key={key} value={key}>
+                      {SURVEY_RECURRENCE_LABELS[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Zone</span>
               <Select
@@ -511,10 +872,17 @@ export default function SurveyBuilderPage() {
               Cancel
             </Button>
             <Button
-              disabled={sendMut.isPending || sendingEmployees}
-              onClick={() => void handleSend()}
+              disabled={sendMut.isPending || sendingEmployees || !distributeAtLocal}
+              variant="outline"
+              onClick={() => void handleSend(true)}
             >
-              {sendMut.isPending || sendingEmployees ? 'Sending…' : 'Send survey'}
+              {sendMut.isPending || sendingEmployees ? 'Scheduling…' : 'Schedule'}
+            </Button>
+            <Button
+              disabled={sendMut.isPending || sendingEmployees}
+              onClick={() => void handleSend(false)}
+            >
+              {sendMut.isPending || sendingEmployees ? 'Sending…' : 'Send now'}
             </Button>
           </DialogFooter>
         </DialogContent>

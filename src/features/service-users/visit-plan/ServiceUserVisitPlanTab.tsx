@@ -1046,6 +1046,8 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                         key={slot.slotCode}
                         className={cn(
                           'cursor-pointer border-b border-border/60 hover:bg-muted/40',
+                          // Disabled controls swallow clicks; let them reach the row so the slot can be selected.
+                          !slot.isEnabled && '[&_:disabled]:pointer-events-none',
                           configSlotCode === slot.slotCode && 'bg-teal-50/90 dark:bg-teal-950/30',
                         )}
                         onClick={() => setConfigSlotCode(slot.slotCode)}
@@ -1068,7 +1070,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             }
                           />
                         </TableCell>
-                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data">
                           <Switch
                             checked={slot.isEnabled}
                             onCheckedChange={(isEnabled) => {
@@ -1079,7 +1081,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                           />
                         </TableCell>
                         {VISIT_PLAN_DAY_LABELS.map((_, dayIndex) => (
-                          <TableCell key={dayIndex} variant="data" className="px-1 text-center" onClick={(e) => e.stopPropagation()}>
+                          <TableCell key={dayIndex} variant="data" className="px-1 text-center">
                             <Checkbox
                               checked={slot.daysOfWeek.includes(dayIndex)}
                               disabled={
@@ -1099,7 +1101,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             />
                           </TableCell>
                         ))}
-                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pl-2">
                           <Input
                             type="time"
                             className="h-8 w-[7.25rem] text-sm"
@@ -1118,7 +1120,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             }}
                           />
                         </TableCell>
-                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pl-2">
                           <Input
                             type="text"
                             inputMode="numeric"
@@ -1147,7 +1149,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             onFocus={(e) => e.currentTarget.select()}
                           />
                         </TableCell>
-                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pl-2">
                           <Input
                             type="time"
                             className="h-8 w-[7.25rem] text-sm"
@@ -1165,7 +1167,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             }}
                           />
                         </TableCell>
-                        <TableCell variant="data" className="pl-2" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data" className="pl-2">
                           <VisitPlanCarersCountInput
                             className="h-8 w-16 text-sm"
                             disabled={!slot.isEnabled}
@@ -1186,7 +1188,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             }}
                           />
                         </TableCell>
-                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data">
                           {slot.isEnabled ? (
                             <div className="flex min-w-[120px]">
                               <Button
@@ -1204,7 +1206,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             <span className={contentBodyClass}>—</span>
                           )}
                         </TableCell>
-                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data">
                           {slot.isEnabled ? (
                             <div className="flex min-w-[140px] flex-col gap-1">
                               <p
@@ -1232,7 +1234,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             <span className={contentBodyClass}>—</span>
                           )}
                         </TableCell>
-                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data">
                           {slot.isEnabled ? (
                             <Button
                               type="button"
@@ -1248,7 +1250,7 @@ export function ServiceUserVisitPlanTab({ serviceUserId, planId, onSelectPlan, o
                             <span className={contentBodyClass}>—</span>
                           )}
                         </TableCell>
-                        <TableCell variant="data" onClick={(e) => e.stopPropagation()}>
+                        <TableCell variant="data">
                           <Button
                             type="button"
                             variant="outline"
