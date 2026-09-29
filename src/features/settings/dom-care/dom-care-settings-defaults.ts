@@ -17,44 +17,12 @@ export const DEFAULT_DOM_JOB_CANCELLATION_RULES: DomJobCancellationRule[] = [
   },
 ]
 
-export const DEFAULT_DOM_LATE_VISIT_ZONE_LABELS = [
-  'Croydon - Croydon 2',
-  'Croydon - Croydon 3',
-  'Croydon - Croydon 4',
-  'Croydon - Croydon 5',
-  'Croydon - Croydon 1',
-  'Merton - Merton',
-  'Hackney - Harrow 1',
-  'Haringey - Haringey',
-  'Croydon Private - Croydon 2 Private',
-  'Croydon Private - Croydon 5 Private',
-  'Croydon Private - Croydon 4 Private',
-  'Croydon Private - Croydon 3 Private',
-  'Croydon Private - Croydon 1 Private',
-  'Croydon admin - Croydon office',
-  'Bexley ISF - Bexley',
-  'Cleaners - Cleaning 1',
-  'ALF Private - ALF Private',
-  'Greenwich council - Greenwich',
-  'Transport - Croydon Transport',
-] as const
-
 export function domCareZoneKey(label: string): string {
   return label
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-}
-
-export function defaultDomLateVisitZoneAlerts(): DomLateVisitZoneAlert[] {
-  return DEFAULT_DOM_LATE_VISIT_ZONE_LABELS.map(label => ({
-    zoneKey: domCareZoneKey(label),
-    label,
-    scheduleAreaId: null,
-    emailEmployeeIds: [],
-    notificationEmployeeIds: [],
-  }))
 }
 
 export function scheduleAreaDisplayLabel(area: {
@@ -65,4 +33,37 @@ export function scheduleAreaDisplayLabel(area: {
   if (area.location?.name) return area.location.name
   if (area.zone?.name) return `${area.zone.name} - ${area.name}`
   return area.name
+}
+
+/**
+ * Late-visit alert rows = one per live branch (schedule area). Saved recipients are matched by
+ * scheduleAreaId, then by the label-derived zoneKey (legacy rows). Saved rows for branches that
+ * no longer exist — e.g. the old hard-coded sample branch names — are not shown.
+ * While the branch list is unavailable, the saved rows (already branch-derived by the API) are shown.
+ */
+export function mergeDomLateVisitZoneAlerts(
+  saved: DomLateVisitZoneAlert[],
+  scheduleAreas: Array<Parameters<typeof scheduleAreaDisplayLabel>[0] & { id: string }>,
+): DomLateVisitZoneAlert[] {
+  if (scheduleAreas.length === 0) return saved.map(zone => ({ ...zone }))
+  const byAreaId = new Map<string, DomLateVisitZoneAlert>()
+  const byKey = new Map<string, DomLateVisitZoneAlert>()
+  for (const zone of saved) {
+    if (zone.scheduleAreaId) byAreaId.set(zone.scheduleAreaId, zone)
+    else byKey.set(zone.zoneKey, zone)
+  }
+  return scheduleAreas
+    .map(area => {
+      const label = scheduleAreaDisplayLabel(area)
+      const zoneKey = domCareZoneKey(label)
+      const existing = byAreaId.get(area.id) ?? byKey.get(zoneKey)
+      return {
+        zoneKey,
+        label,
+        scheduleAreaId: area.id,
+        emailEmployeeIds: existing?.emailEmployeeIds ?? [],
+        notificationEmployeeIds: existing?.notificationEmployeeIds ?? [],
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label))
 }

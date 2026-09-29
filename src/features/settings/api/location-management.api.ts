@@ -1,6 +1,9 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CreateLocationBranchPayload,
   LocationActiveUser,
+  LocationBranchResult,
+  UpdateLocationBranchPayload,
   LocationManagementTree,
   LocationLookup,
   LocationZoneDetail,
@@ -55,33 +58,27 @@ export async function createLocationZone(payload: {
   return res.data
 }
 
-export async function createLocationBranch(payload: {
-  zoneId: string
-  name: string
-  address?: string
-  code?: string
-  visitRefCode?: string
-}): Promise<{
-  id: string
-  name: string
-  scheduleAreaId: string
-  locationId: string | null
-  locationName: string | null
-  address: string | null
-}> {
-  const res = await apiJson<
-    ApiEnvelope<{
-      id: string
-      name: string
-      scheduleAreaId: string
-      locationId: string | null
-      locationName: string | null
-      address: string | null
-    }>
-  >('/location-management/branches', {
+export async function createLocationBranch(
+  payload: CreateLocationBranchPayload,
+): Promise<LocationBranchResult> {
+  const res = await apiJson<ApiEnvelope<LocationBranchResult>>('/location-management/branches', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+  return res.data
+}
+
+export async function updateLocationBranch(
+  branchId: string,
+  payload: UpdateLocationBranchPayload,
+): Promise<LocationBranchResult> {
+  const res = await apiJson<ApiEnvelope<LocationBranchResult>>(
+    `/location-management/branches/${branchId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+  )
   return res.data
 }
 

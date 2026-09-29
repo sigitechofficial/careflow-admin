@@ -17,6 +17,11 @@ import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { useAuthStore } from '@/features/auth/store'
 import { useCompanyStore } from '@/store/company.store'
+import {
+  companyLegalDraft,
+  companyLegalPayload,
+  type CompanyLegalDraft,
+} from '@/features/settings/company/company-legal.util'
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -78,6 +83,8 @@ export function CompanyDetailsSettingsPanel() {
   const displayLogoRef = React.useRef<HTMLInputElement>(null)
   const companyLogoRef = React.useRef<HTMLInputElement>(null)
 
+  const [legal, setLegal] = React.useState<CompanyLegalDraft | null>(null)
+
   const [draft, setDraft] = React.useState({
     groupName: '',
     companyName: '',
@@ -87,7 +94,6 @@ export function CompanyDetailsSettingsPanel() {
     contactName: '',
     email: '',
     phoneNumber: '',
-    companyNumber: '',
     vatNumber: '',
     bankName: '',
     bankSortCode: '',
@@ -109,13 +115,13 @@ export function CompanyDetailsSettingsPanel() {
       contactName: p.contactName,
       email: p.email,
       phoneNumber: p.phoneNumber,
-      companyNumber: p.companyNumber ?? '',
       vatNumber: p.vatNumber ?? '',
       bankName: p.bankName ?? '',
       bankSortCode: p.bankSortCode ?? '',
       bankAccountNumber: p.bankAccountNumber ?? '',
       activeModules: [...p.activeModules],
     })
+    setLegal(companyLegalDraft(p))
   }, [syncCompanyStore])
 
   React.useEffect(() => {
@@ -124,6 +130,10 @@ export function CompanyDetailsSettingsPanel() {
 
   function setField<K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) {
     setDraft(prev => ({ ...prev, [key]: value }))
+  }
+
+  function setLegalField<K extends keyof CompanyLegalDraft>(key: K, value: CompanyLegalDraft[K]) {
+    setLegal(prev => (prev ? { ...prev, [key]: value } : prev))
   }
 
   async function onSave() {
@@ -138,12 +148,12 @@ export function CompanyDetailsSettingsPanel() {
         contactName: draft.contactName.trim(),
         email: draft.email.trim(),
         phoneNumber: draft.phoneNumber.trim(),
-        companyNumber: draft.companyNumber.trim() || undefined,
         vatNumber: draft.vatNumber.trim() || undefined,
         bankName: draft.bankName.trim() || undefined,
         bankSortCode: draft.bankSortCode.trim() || undefined,
         bankAccountNumber: draft.bankAccountNumber.trim() || undefined,
         activeModules: draft.activeModules,
+        ...(legal ? companyLegalPayload(legal) : {}),
       })
       applyProfile(updated)
       toastSuccess('Saved', 'Company details updated.')
@@ -351,13 +361,6 @@ export function CompanyDetailsSettingsPanel() {
         </div>
 
         <div className="space-y-4">
-          <FieldRow label="Company Number">
-            <Input
-              value={draft.companyNumber}
-              onChange={e => setField('companyNumber', e.target.value)}
-              disabled={!canUpdate}
-            />
-          </FieldRow>
           <FieldRow label="VAT Number">
             <Input
               value={draft.vatNumber}
@@ -408,6 +411,152 @@ export function CompanyDetailsSettingsPanel() {
           </FieldRow>
         </div>
       </div>
+
+      {legal ? (
+        <section className="space-y-4 border-t border-border pt-6" data-testid="company-legal-section">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Legal &amp; regulatory</h3>
+            <p className="text-sm text-muted-foreground">
+              Companies House and CQC registration details for the organisation.
+            </p>
+          </div>
+          <div className="grid gap-8 lg:grid-cols-2">
+            <div className="space-y-4">
+              <FieldRow label="Legal Name" hint="Registered name at Companies House">
+                <Input
+                  value={legal.legalName}
+                  onChange={e => setLegalField('legalName', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-legalName"
+                />
+              </FieldRow>
+              <FieldRow label="Companies House Number">
+                <Input
+                  value={legal.companyNumber}
+                  onChange={e => setLegalField('companyNumber', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-companyNumber"
+                />
+              </FieldRow>
+              <FieldRow label="CQC Provider ID" hint="e.g. 1-101656545">
+                <Input
+                  value={legal.cqcProviderId}
+                  onChange={e => setLegalField('cqcProviderId', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-cqcProviderId"
+                />
+              </FieldRow>
+              <FieldRow label="Company Status" hint="As published by Companies House, e.g. Active">
+                <Input
+                  value={legal.companyStatus}
+                  onChange={e => setLegalField('companyStatus', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-companyStatus"
+                />
+              </FieldRow>
+              <FieldRow label="Company Type">
+                <Input
+                  value={legal.companyType}
+                  onChange={e => setLegalField('companyType', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-companyType"
+                />
+              </FieldRow>
+              <FieldRow label="Incorporation Date">
+                <Input
+                  type="date"
+                  value={legal.incorporationDate}
+                  onChange={e => setLegalField('incorporationDate', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-incorporationDate"
+                />
+              </FieldRow>
+              <FieldRow label="SIC Codes" hint="UK SIC 2007 codes, separated by commas">
+                <Input
+                  value={legal.sicCodes}
+                  onChange={e => setLegalField('sicCodes', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-sicCodes"
+                />
+              </FieldRow>
+            </div>
+            <div className="space-y-4">
+              <FieldRow label="Registered Address Line 1">
+                <Input
+                  value={legal.registeredAddressLine1}
+                  onChange={e => setLegalField('registeredAddressLine1', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-registeredAddressLine1"
+                />
+              </FieldRow>
+              <FieldRow label="Registered Address Line 2">
+                <Input
+                  value={legal.registeredAddressLine2}
+                  onChange={e => setLegalField('registeredAddressLine2', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-registeredAddressLine2"
+                />
+              </FieldRow>
+              <FieldRow label="Registered Town">
+                <Input
+                  value={legal.registeredTown}
+                  onChange={e => setLegalField('registeredTown', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-registeredTown"
+                />
+              </FieldRow>
+              <FieldRow label="Registered County">
+                <Input
+                  value={legal.registeredCounty}
+                  onChange={e => setLegalField('registeredCounty', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-registeredCounty"
+                />
+              </FieldRow>
+              <FieldRow label="Registered Postcode">
+                <Input
+                  value={legal.registeredPostcode}
+                  onChange={e => setLegalField('registeredPostcode', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-registeredPostcode"
+                />
+              </FieldRow>
+              <FieldRow label="Registered Country">
+                <Input
+                  value={legal.registeredCountry}
+                  onChange={e => setLegalField('registeredCountry', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-registeredCountry"
+                />
+              </FieldRow>
+              <FieldRow label="Country Code" hint="ISO 3166-1 alpha-2, e.g. GB">
+                <Input
+                  value={legal.countryCode}
+                  onChange={e => setLegalField('countryCode', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-countryCode"
+                />
+              </FieldRow>
+              <FieldRow label="Currency" hint="ISO 4217, e.g. GBP">
+                <Input
+                  value={legal.currency}
+                  onChange={e => setLegalField('currency', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-currency"
+                />
+              </FieldRow>
+              <FieldRow label="Locale" hint="e.g. en-GB">
+                <Input
+                  value={legal.locale}
+                  onChange={e => setLegalField('locale', e.target.value)}
+                  disabled={!canUpdate}
+                  data-testid="company-legal-locale"
+                />
+              </FieldRow>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <div className="flex justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>

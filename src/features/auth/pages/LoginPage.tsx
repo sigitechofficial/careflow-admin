@@ -66,7 +66,9 @@ export default function LoginPage() {
       <h1 className="text-lg font-semibold text-foreground">Sign in</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {apiUrl
-          ? `API mode: ${apiUrl} — staff use email; temporary inspectors use the username issued by your organisation.`
+          ? import.meta.env.DEV
+            ? `API mode: ${apiUrl} — staff use email; temporary inspectors use the username issued by your organisation.`
+            : 'Staff sign in with their email; temporary inspectors use the username issued by your organisation.'
           : 'Demo mode: local mock accounts. Set VITE_API_BASE_URL to sign in against the CareAdmin API.'}
       </p>
 
