@@ -66,7 +66,12 @@ export async function deleteIncidentWitness(witnessId: string): Promise<void> {
 // --- related care records ---
 export async function addRelatedCareRecord(
   incidentId: string,
-  input: { recordType: IncidentRelatedRecordType; referenceLabel: string; note?: string },
+  input: {
+    recordType: IncidentRelatedRecordType
+    referenceLabel: string
+    externalId?: string
+    note?: string
+  },
 ): Promise<IncidentRelatedCareRecord> {
   const res = await apiJson<ApiEnvelope<IncidentRelatedCareRecord>>(`/incidents/${incidentId}/care-records`, {
     method: 'POST',

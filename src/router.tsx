@@ -113,6 +113,8 @@ import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAcciden
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
 import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
+import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
+import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
@@ -585,6 +587,12 @@ const legalPrivacyPolicyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/legal/privacy-policy',
   component: PrivacyPolicyPage,
+})
+
+const publicTakeSurveyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/survey/$token',
+  component: TakeSurveyPage,
 })
 
 function PortalRootShell() {
@@ -1487,6 +1495,13 @@ const surveyBuilderRoute = createRoute({
   component: SurveyBuilderPage,
 })
 
+const surveyResponsesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/responses',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyResponsesPage,
+})
+
 const hoursApprovalsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hours-approvals',
@@ -1511,7 +1526,12 @@ const incidentsRaiseRoute = createRoute({
 const incidentsMyActionsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/my-actions',
-  beforeLoad: requirePermission('incidents.read'),
+  beforeLoad: () => {
+    const { can, user } = useAuthStore.getState()
+    if (user?.role === 'super_admin' || !can('incidents.read')) {
+      throw redirect({ to: '/' })
+    }
+  },
   component: MyActionsPage,
 })
 
@@ -2106,6 +2126,7 @@ const routeTree = rootRoute.addChildren([
     authBlockedRoute,
   ]),
   legalPrivacyPolicyRoute,
+  publicTakeSurveyRoute,
   portalLoginRoute,
   portalShellRoute.addChildren([
     portalIndexRoute,
@@ -2182,6 +2203,7 @@ const routeTree = rootRoute.addChildren([
     accidentsIncidentsRaiseRoute,
     surveysRoute,
     surveyBuilderRoute,
+    surveyResponsesRoute,
     hoursApprovalsRoute,
     incidentsDashboardRoute,
     incidentsListRoute,

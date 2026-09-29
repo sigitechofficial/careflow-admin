@@ -26,7 +26,8 @@ function valueToTri(v: string): boolean | undefined {
   return v === 'yes' ? true : v === 'no' ? false : undefined
 }
 
-const CLOSABLE_FROM = ['AWAITING_CLOSURE', 'AWAITING_REVIEW', 'UNDER_INVESTIGATION', 'ACTIONS_REQUIRED', 'REOPENED']
+/** Prefer ready-to-close; investigate-stage close is not offered in the primary path. */
+const CLOSABLE_FROM = ['AWAITING_CLOSURE']
 
 export function IncidentOutcomeSection({
   incident,
@@ -55,6 +56,11 @@ export function IncidentOutcomeSection({
 
   const isClosed = incident.status === 'CLOSED'
   const canShowClose = canClose && CLOSABLE_FROM.includes(incident.status)
+  const canReinvestigate =
+    canReopen &&
+    (incident.status === 'CLOSED' ||
+      incident.status === 'AWAITING_CLOSURE' ||
+      incident.status === 'REOPENED')
 
   function toggleChange(code: string) {
     setChanges((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))
@@ -81,10 +87,10 @@ export function IncidentOutcomeSection({
     })
   }
 
-  function reopen() {
-    const reason = window.prompt('Reason for reopening this incident?')
+  function submitForReinvestigation() {
+    const reason = window.prompt('Reason for re-investigation?')
     if (!reason?.trim()) return
-    statusMutation.mutate({ status: 'REOPENED', reason: reason.trim() })
+    statusMutation.mutate({ status: 'UNDER_INVESTIGATION', reason: reason.trim() })
   }
 
   // Read-only view for users who can't edit the outcome.
@@ -101,6 +107,17 @@ export function IncidentOutcomeSection({
         )}
         {outcome?.finalOutcome && <ReadField label="Final outcome" value={outcome.finalOutcome} />}
         {outcome?.lessonsLearned && <ReadField label="Lessons learned" value={outcome.lessonsLearned} />}
+        {canReinvestigate && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            loading={statusMutation.isPending}
+            onClick={submitForReinvestigation}
+          >
+            <RotateCcw className="mr-1 h-4 w-4" /> Submit for re-investigation
+          </Button>
+        )}
       </div>
     )
   }
@@ -112,11 +129,29 @@ export function IncidentOutcomeSection({
           <span className="flex items-center gap-1.5 text-sm font-medium text-success">
             <CheckCircle2 className="h-4 w-4" /> Incident closed
           </span>
-          {canReopen && (
-            <Button size="sm" variant="outline" loading={statusMutation.isPending} onClick={reopen}>
-              <RotateCcw className="mr-1 h-4 w-4" /> Reopen
+          {canReinvestigate && (
+            <Button
+              size="sm"
+              variant="outline"
+              loading={statusMutation.isPending}
+              onClick={submitForReinvestigation}
+            >
+              <RotateCcw className="mr-1 h-4 w-4" /> Submit for re-investigation
             </Button>
           )}
+        </div>
+      )}
+
+      {!isClosed && canReinvestigate && incident.status === 'AWAITING_CLOSURE' && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            loading={statusMutation.isPending}
+            onClick={submitForReinvestigation}
+          >
+            <RotateCcw className="mr-1 h-4 w-4" /> Submit for re-investigation
+          </Button>
         </div>
       )}
 
@@ -171,8 +206,13 @@ export function IncidentOutcomeSection({
           </Button>
         )}
       </div>
-      {!isClosed && !finalOutcome.trim() && (
+      {!isClosed && canShowClose && !finalOutcome.trim() && (
         <p className="text-xs text-muted-foreground">A final outcome is required before an incident can be closed.</p>
+      )}
+      {!isClosed && !canShowClose && incident.status !== 'CLOSED' && (
+        <p className="text-xs text-muted-foreground">
+          Move the incident to “Awaiting Closure” (Ready to close) before closing.
+        </p>
       )}
     </div>
   )

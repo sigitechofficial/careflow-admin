@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ClipboardList, Eye, Loader2, Plus, Trash2 } from 'lucide-react'
+import { ClipboardList, Eye, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
@@ -24,9 +24,11 @@ import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useCreateSurvey, useDeleteSurvey, useSurveys } from '@/features/surveys/hooks/useSurveys'
 import { SurveyPreviewDialog } from '@/features/surveys/components/SurveyPreviewDialog'
-import type { SurveyListItem, SurveyStatus } from '@/features/surveys/types'
+import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
+import type { SurveyListItem, SurveyRecurrence, SurveyStatus } from '@/features/surveys/types'
+import { SURVEY_RECURRENCE_LABELS } from '@/features/surveys/types'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
-import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import { combineOperationalDateAndHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
 import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
 import {
@@ -63,8 +65,16 @@ export default function SurveysPage() {
   const [isAnonymous, setIsAnonymous] = React.useState(false)
   const [selectedZoneId, setSelectedZoneId] = React.useState('')
   const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>([])
+  const [opensAt, setOpensAt] = React.useState('')
+  const [closesAt, setClosesAt] = React.useState('')
+  const [distributeAt, setDistributeAt] = React.useState('')
+  const [recurrence, setRecurrence] = React.useState<SurveyRecurrence | ''>('')
   const [toDelete, setToDelete] = React.useState<SurveyListItem | null>(null)
   const [previewId, setPreviewId] = React.useState<string | null>(null)
+  const [locationsView, setLocationsView] = React.useState<{
+    surveyTitle: string
+    names: string[]
+  } | null>(null)
 
   const selectedZone = locationTree?.zones.find(z => z.id === selectedZoneId)
   const branchOptions = React.useMemo<MultiSelectOption[]>(
@@ -75,10 +85,10 @@ export default function SurveysPage() {
     [selectedZone],
   )
 
-  const resolveLocationLabel = React.useCallback(
+  const resolveLocationNames = React.useCallback(
     (locIds: string[]) => {
-      if (!locationTree || locIds.length === 0) return null
       const parts: string[] = []
+      if (!locationTree || locIds.length === 0) return parts
       for (const zone of locationTree.zones) {
         const matched = zone.branches.filter(b => b.locationId != null && locIds.includes(b.locationId))
         if (matched.length === 0) continue
@@ -88,7 +98,7 @@ export default function SurveysPage() {
           parts.push(...matched.map(b => b.name))
         }
       }
-      return parts.length > 0 ? parts.join(', ') : null
+      return parts
     },
     [locationTree],
   )
@@ -99,10 +109,16 @@ export default function SurveysPage() {
     setIsAnonymous(false)
     setSelectedZoneId('')
     setSelectedLocationIds([])
+    setOpensAt('')
+    setClosesAt('')
+    setDistributeAt('')
+    setRecurrence('')
   }
 
+  const scheduleInvalid = Boolean(opensAt && closesAt && closesAt <= opensAt)
+
   const handleCreate = async () => {
-    if (!title.trim()) return
+    if (!title.trim() || scheduleInvalid) return
     try {
       let locIds: string[] = []
       if (selectedLocationIds.length > 0) {
@@ -115,6 +131,12 @@ export default function SurveysPage() {
         description: description.trim() || undefined,
         targetKind: 'EMPLOYEE',
         isAnonymous,
+        opensAt: opensAt ? combineOperationalDateAndHm(opensAt.slice(0, 10), opensAt.slice(11, 16)) : undefined,
+        closesAt: closesAt ? combineOperationalDateAndHm(closesAt.slice(0, 10), closesAt.slice(11, 16)) : undefined,
+        distributeAt: distributeAt
+          ? combineOperationalDateAndHm(distributeAt.slice(0, 10), distributeAt.slice(11, 16))
+          : undefined,
+        recurrence: recurrence || undefined,
         locationIds: locIds.length > 0 ? locIds : undefined,
       })
       toastSuccess('Survey created')
@@ -138,7 +160,7 @@ export default function SurveysPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600/10 text-teal-700 dark:text-teal-300">
@@ -159,7 +181,7 @@ export default function SurveysPage() {
         ) : null}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-border">
+      <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {isLoading ? (
           <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading surveys…
@@ -178,22 +200,26 @@ export default function SurveysPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <table className="w-full min-w-[1160px] text-sm">
+              <thead className="whitespace-nowrap border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2.5">Title</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5">Location</th>
-                  <th className="px-4 py-2.5 text-right">Questions</th>
-                  <th className="px-4 py-2.5 text-right">Recipients</th>
-                  <th className="px-4 py-2.5">Updated</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
+                  <th className="px-3 py-2.5">Title</th>
+                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5">Location</th>
+                  <th className="px-3 py-2.5">Published</th>
+                  <th className="px-3 py-2.5">Start</th>
+                  <th className="px-3 py-2.5">End</th>
+                  <th className="px-3 py-2.5 text-right">Questions</th>
+                  <th className="px-3 py-2.5">Progress</th>
+                  <th className="px-3 py-2.5 text-right">Recipients</th>
+                  <th className="px-3 py-2.5">Updated</th>
+                  <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {surveys.map(s => (
                   <tr key={s.id} className="border-b border-border/70 last:border-0 hover:bg-muted/20">
-                    <td className="px-4 py-3">
+                    <td className="min-w-[150px] px-3 py-3">
                       <Link
                         to="/surveys/$surveyId"
                         params={{ surveyId: s.id }}
@@ -202,26 +228,84 @@ export default function SurveysPage() {
                         {s.title}
                       </Link>
                       {s.isAnonymous ? (
-                        <span className="ml-2 text-xs text-muted-foreground">· Anonymous</span>
+                        <div className="mt-0.5 text-xs text-muted-foreground">Anonymous</div>
+                      ) : null}
+                      {s.distributeAt && !s.distributedAt ? (
+                        <div className="mt-0.5 text-xs text-teal-700 dark:text-teal-300">
+                          {s.recurrence
+                            ? `${SURVEY_RECURRENCE_LABELS[s.recurrence]} · next ${formatInstant(s.distributeAt)}`
+                            : `Scheduled ${formatInstant(s.distributeAt)}`}
+                        </div>
+                      ) : s.recurrence && !s.clonedFromId ? (
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          Repeats {SURVEY_RECURRENCE_LABELS[s.recurrence].toLowerCase()}
+                        </div>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[s.status]}`}
                       >
                         {s.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {resolveLocationLabel(s.locationIds ?? []) ?? <span className="text-xs italic">All</span>}
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {(() => {
+                        const names = resolveLocationNames(s.locationIds ?? [])
+                        if (names.length === 0) return <span className="text-xs italic">All</span>
+                        if (names.length === 1) {
+                          return <span className="whitespace-nowrap">{names[0]}</span>
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            <span className="min-w-0 truncate" title={names[0]}>
+                              {names[0]}
+                            </span>
+                            <Badge variant="muted" size="sm">
+                              +{names.length - 1}
+                            </Badge>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 shrink-0 px-2 text-xs"
+                              onClick={() =>
+                                setLocationsView({ surveyTitle: s.title, names })
+                              }
+                            >
+                              View
+                            </Button>
+                          </div>
+                        )
+                      })()}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{s.questionCount}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{s.recipientCount}</td>
-                    <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground tabular-nums">
+                      {s.publishedAt ? formatInstant(s.publishedAt) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground tabular-nums">
+                      {s.opensAt ? formatInstant(s.opensAt) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground tabular-nums">
+                      {s.closesAt ? formatInstant(s.closesAt) : 'No end'}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">{s.questionCount}</td>
+                    <td className="px-3 py-3">
+                      {s.recipientCount > 0 ? (
+                        <SurveyCompletionProgress
+                          compact
+                          completed={s.completedCount ?? 0}
+                          recipients={s.recipientCount}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">{s.recipientCount}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground tabular-nums">
                       {formatInstant(s.updatedAt)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
+                    <td className="px-3 py-3">
+                      <div className="flex justify-end gap-1.5">
                         <Button
                           type="button"
                           size="sm"
@@ -233,9 +317,24 @@ export default function SurveysPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button asChild size="sm" variant="outline">
-                          <Link to="/surveys/$surveyId" params={{ surveyId: s.id }}>
-                            Open
+                        <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <Link
+                            to="/surveys/$surveyId/responses"
+                            params={{ surveyId: s.id }}
+                            aria-label={`View responses for ${s.title}`}
+                            title="Response audience"
+                          >
+                            <Users className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <Link
+                            to="/surveys/$surveyId"
+                            params={{ surveyId: s.id }}
+                            aria-label={`Edit ${s.title}`}
+                            title="Edit survey"
+                          >
+                            <Pencil className="h-4 w-4" />
                           </Link>
                         </Button>
                         {canManage ? (
@@ -268,7 +367,7 @@ export default function SurveysPage() {
           if (!o) resetCreate()
         }}
       >
-        <DialogContent size="md">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>New employee survey</DialogTitle>
           </DialogHeader>
@@ -328,14 +427,107 @@ export default function SurveysPage() {
                 />
               </div>
             )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">Start</span>
+                <Input type="datetime-local" value={opensAt} onChange={e => setOpensAt(e.target.value)} />
+              </label>
+              <label className="block space-y-1 text-sm">
+                <span className="font-medium">End</span>
+                <Input
+                  type="datetime-local"
+                  value={closesAt}
+                  min={opensAt || undefined}
+                  onChange={e => setClosesAt(e.target.value)}
+                />
+              </label>
+            </div>
+            {scheduleInvalid ? (
+              <p className="text-xs text-destructive">End must be after the start.</p>
+            ) : null}
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Distribute to employees at</span>
+              <Input
+                type="datetime-local"
+                value={distributeAt}
+                onChange={e => setDistributeAt(e.target.value)}
+              />
+              <span className="text-xs text-muted-foreground">
+                Optional first run time. After you add questions, a new survey is created and sent at
+                this time (and again each period if you choose a repeat below).
+              </span>
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Repeat</span>
+              <Select
+                value={recurrence || 'none'}
+                onValueChange={v => setRecurrence(v === 'none' ? '' : (v as SurveyRecurrence))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="One-time only" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">One-time only</SelectItem>
+                  {(Object.keys(SURVEY_RECURRENCE_LABELS) as SurveyRecurrence[]).map(key => (
+                    <SelectItem key={key} value={key}>
+                      {SURVEY_RECURRENCE_LABELS[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground">
+                Monthly (and other periods) create a fresh survey each time from this template.
+              </span>
+            </label>
             <p className="text-xs text-muted-foreground">Audience: Employees</p>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={!title.trim() || createMut.isPending} onClick={() => void handleCreate()}>
+            <Button
+              disabled={!title.trim() || scheduleInvalid || createMut.isPending}
+              onClick={() => void handleCreate()}
+            >
               {createMut.isPending ? 'Creating…' : 'Create & add questions'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* All locations for a survey */}
+      <Dialog
+        open={locationsView != null}
+        onOpenChange={o => {
+          if (!o) setLocationsView(null)
+        }}
+      >
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Locations</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            {locationsView ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Locations for <span className="font-medium text-foreground">{locationsView.surveyTitle}</span>
+                </p>
+                <ul className="max-h-72 space-y-1.5 overflow-y-auto rounded-md border border-border p-2">
+                  {locationsView.names.map(name => (
+                    <li
+                      key={name}
+                      className="rounded-md bg-muted/40 px-2.5 py-1.5 text-sm text-foreground"
+                    >
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setLocationsView(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -6,6 +6,8 @@ import type {
   IncidentAnalytics,
   IncidentAnalyticsFilters,
   IncidentCategoryOption,
+  IncidentCarerSuspension,
+  IncidentCarerCourseRecommendation,
   IncidentDetail,
   IncidentInvestigation,
   IncidentListFilters,
@@ -151,6 +153,56 @@ export async function upsertIncidentInvestigation(
     method: 'POST',
     body: JSON.stringify(input),
   })
+  return res.data
+}
+
+export async function suspendIncidentCarer(
+  id: string,
+  input: { employeeId?: string; reason: string; suspendFrom: string; suspendTo: string },
+): Promise<IncidentCarerSuspension> {
+  const res = await apiJson<ApiEnvelope<IncidentCarerSuspension>>(`/incidents/${id}/suspend-carer`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+export async function removeIncidentCarerSuspension(
+  id: string,
+  suspensionId: string,
+): Promise<{ id: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string }>>(
+    `/incidents/${id}/carer-suspensions/${suspensionId}/remove`,
+    { method: 'POST', body: JSON.stringify({}) },
+  )
+  return res.data
+}
+
+export async function recommendIncidentCarerCourse(
+  id: string,
+  input: {
+    employeeId?: string
+    courseId: string
+    dueAt?: string
+    reason?: string
+    isMandatory?: boolean
+  },
+): Promise<IncidentCarerCourseRecommendation> {
+  const res = await apiJson<ApiEnvelope<IncidentCarerCourseRecommendation>>(
+    `/incidents/${id}/recommend-carer-course`,
+    { method: 'POST', body: JSON.stringify(input) },
+  )
+  return res.data
+}
+
+export async function removeIncidentCarerCourseRecommendation(
+  id: string,
+  recommendationId: string,
+): Promise<{ id: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string }>>(
+    `/incidents/${id}/carer-course-recommendations/${recommendationId}/remove`,
+    { method: 'POST', body: JSON.stringify({}) },
+  )
   return res.data
 }
 
