@@ -54,7 +54,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { GoogleBranchAddressField } from '@/shared/ui/google-branch-address-field'
+import {
+  GoogleBranchAddressField,
+  type GoogleBranchAddressMeta,
+} from '@/shared/ui/google-branch-address-field'
 import {
   GooglePostcodesField,
   type GooglePostcodesValidity,
@@ -63,6 +66,19 @@ import { useAuthStore } from '@/features/auth/store'
 import { formatLocationAuditLine } from '@/features/settings/location-management/location-management-audit'
 import { filterZonesByHierarchy } from '@/features/settings/location-management/location-management-hierarchy.util'
 import type { LocationManagementHierarchyState } from '@/features/settings/hooks/useLocationManagementHierarchyFilters'
+import {
+  addBranchDetailsPayload,
+  CQC_RATING_OPTIONS,
+  EMPTY_ADD_BRANCH_CQC,
+  formatBranchStatus,
+  formatCqcRating,
+  type AddBranchCqcDraft,
+  type BranchRatingChoice,
+} from '@/features/settings/location-management/branch-form.util'
+import {
+  EditableStringList,
+  LocationBranchEditDialog,
+} from '@/features/settings/components/location-management/LocationBranchEditDialog'
 import { cn } from '@/shared/lib/utils'
 
 function parsePostcodesInput(raw: string): string[] {
@@ -149,6 +165,7 @@ type AreaModalState =
   | { mode: 'edit'; zone: LocationTreeZone; branch: LocationTreeBranch; area: LocationTreeArea }
 
 type ZoneEditState = { zone: LocationTreeZone }
+type BranchEditState = { zone: LocationTreeZone; branch: LocationTreeBranch }
 type PostcodesViewState = { zone: LocationTreeZone; branch: LocationTreeBranch | null }
 
 export function LocationManagementZonesPanel({
@@ -175,6 +192,7 @@ export function LocationManagementZonesPanel({
   const [viewZone, setViewZone] = React.useState<LocationTreeZone | null>(null)
   const [postcodesView, setPostcodesView] = React.useState<PostcodesViewState | null>(null)
   const [areaModal, setAreaModal] = React.useState<AreaModalState | null>(null)
+  const [branchEdit, setBranchEdit] = React.useState<BranchEditState | null>(null)
   const [saving, setSaving] = React.useState(false)
 
   const [zoneName, setZoneName] = React.useState('')
@@ -184,6 +202,9 @@ export function LocationManagementZonesPanel({
   const [branchZoneId, setBranchZoneId] = React.useState('')
   const [branchName, setBranchName] = React.useState('')
   const [branchAddress, setBranchAddress] = React.useState('')
+  /** Structured parts + coordinates of the picked Google suggestion (cleared when typing). */
+  const [branchAddressMeta, setBranchAddressMeta] = React.useState<GoogleBranchAddressMeta | undefined>()
+  const [branchCqc, setBranchCqc] = React.useState<AddBranchCqcDraft>(EMPTY_ADD_BRANCH_CQC)
 
   const [areaName, setAreaName] = React.useState('')
   const [areaPostcodes, setAreaPostcodes] = React.useState('')
@@ -236,6 +257,10 @@ export function LocationManagementZonesPanel({
           const pcs = allPostcodes(z).join(' ').toLowerCase()
           const branchNames = z.branches.map(b => b.name).join(' ').toLowerCase()
           const addresses = z.branches.map(b => b.address ?? '').join(' ').toLowerCase()
+          const cqc = z.branches
+            .map(b => [b.cqcLocationId, b.officialCqcName, b.localAuthority, b.postcode].join(' '))
+            .join(' ')
+            .toLowerCase()
           const areaNames = z.branches
             .flatMap(b => (b.areas ?? []).map(a => a.name))
             .join(' ')
@@ -246,6 +271,7 @@ export function LocationManagementZonesPanel({
             (z.country ?? '').toLowerCase().includes(q) ||
             branchNames.includes(q) ||
             addresses.includes(q) ||
+            cqc.includes(q) ||
             areaNames.includes(q) ||
             pcs.includes(q)
           )
@@ -393,6 +419,8 @@ export function LocationManagementZonesPanel({
     setBranchZoneId(preselectZoneId || zoneOptions[0]?.id || '')
     setBranchName('')
     setBranchAddress('')
+    setBranchAddressMeta(undefined)
+    setBranchCqc(EMPTY_ADD_BRANCH_CQC)
     setBranchOpen(true)
   }
 
@@ -456,7 +484,7 @@ export function LocationManagementZonesPanel({
       await createBranchMutation.mutateAsync({
         zoneId: branchZoneId,
         name: branchName.trim(),
-        address: branchAddress.trim() || undefined,
+        ...addBranchDetailsPayload(branchAddress, branchAddressMeta, branchCqc),
       })
       toastSuccess('Created', 'Branch added.')
       setBranchOpen(false)
@@ -786,7 +814,10 @@ export function LocationManagementZonesPanel({
                               label={branch.name}
                               onToggle={() => toggleBranchExpanded(branch.id)}
                             />
-                            <div className="font-medium text-foreground">{branch.name}</div>
+                            <div>
+                              <div className="font-medium text-foreground">{branch.name}</div>
+                              <BranchCqcSummary branch={branch} />
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
@@ -818,7 +849,7 @@ export function LocationManagementZonesPanel({
                           <AuditCell audit={branch} />
                         </td>
                         <td className="px-4 py-3.5">
-                          <StatusBadge />
+                          <StatusBadge status={branch.status} />
                         </td>
                         <td className="px-4 py-3.5">
                           <BranchActions
@@ -826,6 +857,7 @@ export function LocationManagementZonesPanel({
                             hasPostcodes={pcs.length > 0}
                             onViewPostcodes={() => setPostcodesView({ zone, branch })}
                             onAddArea={() => openCreateArea(zone, branch)}
+                            onEdit={() => setBranchEdit({ zone, branch })}
                           />
                         </td>
                       </tr>
@@ -976,6 +1008,7 @@ export function LocationManagementZonesPanel({
                               {subtitle ? (
                                 <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>
                               ) : null}
+                              <BranchCqcSummary branch={branch} />
                               {formatLocationAuditLine(branch) ? (
                                 <div className="mt-0.5 text-[11px] text-muted-foreground">
                                   {formatLocationAuditLine(branch)}
@@ -1004,6 +1037,7 @@ export function LocationManagementZonesPanel({
                             hasPostcodes={pcs.length > 0}
                             onViewPostcodes={() => setPostcodesView({ zone, branch })}
                             onAddArea={() => openCreateArea(zone, branch)}
+                            onEdit={() => setBranchEdit({ zone, branch })}
                           />
                         </td>
                       </tr>
@@ -1118,7 +1152,7 @@ export function LocationManagementZonesPanel({
       {/* Add branch + Google address */}
       <Dialog open={branchOpen} onOpenChange={setBranchOpen}>
         <DialogContent
-          size="md"
+          size="lg"
           onPointerDownOutside={e => {
             // Keep dialog open when clicking our portaled address suggestions.
             if (e.target instanceof Element && e.target.closest('[role="listbox"]')) {
@@ -1176,13 +1210,88 @@ export function LocationManagementZonesPanel({
               <GoogleBranchAddressField
                 id="lm-branch-address"
                 value={branchAddress}
-                onChange={addr => setBranchAddress(addr)}
+                onChange={(addr, meta) => {
+                  setBranchAddress(addr)
+                  setBranchAddressMeta(meta)
+                }}
                 countryRestriction={
                   ZONE_COUNTRY_OPTIONS.find(c => c.name === (
                     zones.find(z => zoneLookupId(z) === branchZoneId)?.country ?? 'United Kingdom'
                   ))?.code.toLowerCase() ?? 'gb'
                 }
               />
+              {branchAddressMeta ? (
+                <p className="text-xs text-muted-foreground" data-testid="lm-branch-address-parts">
+                  {[branchAddressMeta.city, branchAddressMeta.postcode].filter(Boolean).join(' · ') ||
+                    'Address resolved'}
+                  {typeof branchAddressMeta.lat === 'number' ? ' · location pinned' : ''}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="text-sm font-semibold">
+                CQC registration <span className="font-normal text-muted-foreground">(optional)</span>
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="lm-branch-cqc-id" className="text-sm font-medium">
+                    CQC location ID
+                  </label>
+                  <Input
+                    id="lm-branch-cqc-id"
+                    value={branchCqc.cqcLocationId}
+                    onChange={e => setBranchCqc(c => ({ ...c, cqcLocationId: e.target.value }))}
+                    placeholder="e.g. 1-115898258"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="lm-branch-cqc-rating" className="text-sm font-medium">
+                    CQC rating
+                  </label>
+                  <select
+                    id="lm-branch-cqc-rating"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={branchCqc.rating}
+                    onChange={e =>
+                      setBranchCqc(c => ({ ...c, rating: e.target.value as BranchRatingChoice }))
+                    }
+                  >
+                    {CQC_RATING_OPTIONS.map(o => (
+                      <option key={o.value || 'none'} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="lm-branch-cqc-name" className="text-sm font-medium">
+                    Official CQC name
+                  </label>
+                  <Input
+                    id="lm-branch-cqc-name"
+                    value={branchCqc.officialCqcName}
+                    onChange={e => setBranchCqc(c => ({ ...c, officialCqcName: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="lm-branch-la" className="text-sm font-medium">
+                    Local authority
+                  </label>
+                  <Input
+                    id="lm-branch-la"
+                    value={branchCqc.localAuthority}
+                    onChange={e => setBranchCqc(c => ({ ...c, localAuthority: e.target.value }))}
+                  />
+                </div>
+                <EditableStringList
+                  id="lm-branch-managers"
+                  label="Registered managers"
+                  items={branchCqc.registeredManagers}
+                  onChange={next => setBranchCqc(c => ({ ...c, registeredManagers: next }))}
+                  addLabel="Add manager"
+                  placeholder="Full name"
+                />
+              </div>
             </div>
           </DialogBody>
           <DialogFooter>
@@ -1250,16 +1359,28 @@ export function LocationManagementZonesPanel({
                             <p className="text-xs text-muted-foreground">
                               {branch.address || 'No address'}
                             </p>
+                            <BranchCqcSummary branch={branch} />
                           </div>
                           {canUpdate ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => openCreateArea(liveViewZone, branch)}
-                            >
-                              + Area
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setBranchEdit({ zone: liveViewZone, branch })}
+                              >
+                                <Pencil className="mr-1 h-3 w-3" />
+                                Edit branch
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openCreateArea(liveViewZone, branch)}
+                              >
+                                + Area
+                              </Button>
+                            </div>
                           ) : null}
                         </div>
                         {(branch.areas?.length ?? 0) > 0 ? (
@@ -1484,6 +1605,39 @@ export function LocationManagementZonesPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LocationBranchEditDialog
+        key={branchEdit?.branch.id ?? 'closed'}
+        target={branchEdit}
+        onClose={() => setBranchEdit(null)}
+      />
+    </div>
+  )
+}
+
+/** Key CQC facts under the branch name (only what is recorded). */
+function BranchCqcSummary({ branch }: { branch: LocationTreeBranch }) {
+  const rating = formatCqcRating(branch)
+  const managers = (branch.registeredManagers ?? []).filter(Boolean)
+  const official =
+    branch.officialCqcName && !namesEqual(branch.officialCqcName, branch.name)
+      ? branch.officialCqcName
+      : null
+  const facts = [
+    branch.cqcLocationId ? `CQC ${branch.cqcLocationId}` : null,
+    branch.localAuthority ? `LA: ${branch.localAuthority}` : null,
+    rating ? `Rating: ${rating}` : null,
+  ].filter((f): f is string => Boolean(f))
+  if (!facts.length && !official && !managers.length) return null
+  return (
+    <div className="mt-0.5 space-y-0.5 text-[11px] leading-snug text-muted-foreground" data-testid="branch-cqc-summary">
+      {facts.length ? <div>{facts.join(' · ')}</div> : null}
+      {official ? <div>Official CQC name: {official}</div> : null}
+      {managers.length ? (
+        <div>
+          Registered {managers.length === 1 ? 'manager' : 'managers'}: {managers.join(', ')}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1624,11 +1778,13 @@ function BranchActions({
   hasPostcodes,
   onViewPostcodes,
   onAddArea,
+  onEdit,
 }: {
   canUpdate: boolean
   hasPostcodes: boolean
   onViewPostcodes: () => void
   onAddArea: () => void
+  onEdit: () => void
 }) {
   return (
     <div className="flex items-center gap-1">
@@ -1643,15 +1799,20 @@ function BranchActions({
         <Eye className="h-3.5 w-3.5" />
       </Button>
       {canUpdate ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          title="Add area"
-          onClick={onAddArea}
-        >
-          <MapPinned className="h-3.5 w-3.5" />
-        </Button>
+        <>
+          <Button type="button" variant="outline" size="icon-sm" title="Edit branch" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            title="Add area"
+            onClick={onAddArea}
+          >
+            <MapPinned className="h-3.5 w-3.5" />
+          </Button>
+        </>
       ) : null}
     </div>
   )
@@ -1733,10 +1894,17 @@ function AreasCountCell({
   )
 }
 
-function StatusBadge() {
+function StatusBadge({ status }: { status?: LocationTreeBranch['status'] }) {
+  const active = !status || status === 'ACTIVE'
   return (
-    <Badge variant="secondary" className="bg-emerald-500/10 font-normal text-emerald-800">
-      Active
+    <Badge
+      variant="secondary"
+      className={cn(
+        'font-normal',
+        active ? 'bg-emerald-500/10 text-emerald-800' : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {formatBranchStatus(status)}
     </Badge>
   )
 }

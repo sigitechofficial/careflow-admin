@@ -23,19 +23,112 @@ export type LocationTreeArea = LocationAuditFields & {
   children: LocationTreeChild[]
 }
 
-export type LocationTreeBranch = LocationAuditFields & {
+export type CqcRating = 'OUTSTANDING' | 'GOOD' | 'REQUIRES_IMPROVEMENT' | 'INADEQUATE'
+export type CqcRatingStatus = 'RATED' | 'NOT_YET_RATED'
+export type BranchStatus = 'ACTIVE' | 'INACTIVE' | 'CLOSED'
+
+/** CQC registration, structured address and locale details of a branch (ScheduleArea). */
+export type LocationBranchDetails = {
+  cqcLocationId: string | null
+  officialCqcName: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  town: string | null
+  county: string | null
+  postcode: string | null
+  country: string | null
+  countryCode: string
+  localAuthority: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  serviceTypes: string[]
+  regulatedActivities: string[]
+  registeredManagers: string[]
+  nominatedIndividual: string | null
+  /** YYYY-MM-DD */
+  cqcRegistrationDate: string | null
+  cqcRating: CqcRating | null
+  cqcRatingStatus: CqcRatingStatus | null
+  status: BranchStatus
+  timezone: string
+  currency: string
+  locale: string
+  /** Set by geocoding (never guessed); read-only in the admin. */
+  latitude: number | null
+  longitude: number | null
+}
+
+export type LocationTreeBranch = LocationAuditFields &
+  Partial<LocationBranchDetails> & {
   id: string
   name: string
   scheduleAreaId: string
   locationId: string | null
   locationName: string | null
   address: string | null
-  /** 3-character visit reference branch code, e.g. L09. */
+  /** 3-character visit reference branch code, e.g. L09 (read-only). */
   visitRefCode?: string | null
   areas: LocationTreeArea[]
   /** Unassigned service users + employees (area members nest under areas). */
   children: LocationTreeChild[]
 }
+
+/** Branch detail fields accepted by POST / PATCH branches (null or '' clears on update). */
+export type LocationBranchDetailsPayload = {
+  address?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  town?: string | null
+  county?: string | null
+  postcode?: string | null
+  country?: string | null
+  countryCode?: string
+  localAuthority?: string | null
+  phone?: string | null
+  email?: string | null
+  website?: string | null
+  cqcLocationId?: string | null
+  officialCqcName?: string | null
+  serviceTypes?: string[]
+  regulatedActivities?: string[]
+  registeredManagers?: string[]
+  nominatedIndividual?: string | null
+  cqcRegistrationDate?: string | null
+  cqcRating?: CqcRating | null
+  cqcRatingStatus?: CqcRatingStatus | null
+  status?: BranchStatus
+  timezone?: string
+  currency?: string
+  locale?: string
+  /** Only from a Google-resolved address — never typed or guessed. */
+  latitude?: number | null
+  longitude?: number | null
+}
+
+export type CreateLocationBranchPayload = LocationBranchDetailsPayload & {
+  zoneId: string
+  name: string
+  code?: string
+  visitRefCode?: string
+}
+
+/** PATCH /location-management/branches/:id — code / visitRefCode are read-only. */
+export type UpdateLocationBranchPayload = LocationBranchDetailsPayload & {
+  name?: string
+}
+
+/** Response of POST / PATCH branches. */
+export type LocationBranchResult = LocationAuditFields &
+  Partial<LocationBranchDetails> & {
+    id: string
+    name: string
+    scheduleAreaId: string
+    locationId: string | null
+    locationName: string | null
+    address: string | null
+    visitRefCode?: string | null
+  }
 
 export type LocationTreeZone = LocationAuditFields & {
   id: string
