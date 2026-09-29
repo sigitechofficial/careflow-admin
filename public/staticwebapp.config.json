@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "*.{js,mjs,css,map,json,txt,xml,webmanifest}",
+      "*.{png,jpg,jpeg,gif,svg,webp,ico,avif}",
+      "*.{woff,woff2,ttf,otf,eot}",
+      "*.{pdf,mp4,webm}"
+    ]
+  },
+  "routes": [
+    {
+      "route": "/assets/*",
+      "headers": {
+        "Cache-Control": "public, max-age=86400"
+      }
+    },
+    {
+      "route": "/index.html",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
+    }
+  ],
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), payment=(), usb=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+  }
+}
