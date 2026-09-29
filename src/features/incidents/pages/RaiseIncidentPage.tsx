@@ -175,6 +175,7 @@ export default function RaiseIncidentPage() {
   const [affectedKinds, setAffectedKinds] = React.useState<IncidentPersonKind[]>(['SERVICE_USER'])
   const [employeeId, setEmployeeId] = React.useState('')
   const [affectedPersonName, setAffectedPersonName] = React.useState('')
+  const [zoneId, setZoneId] = React.useState('')
   const [locationId, setLocationId] = React.useState('')
 
   const [categoryId, setCategoryId] = React.useState('')
@@ -231,10 +232,15 @@ export default function RaiseIncidentPage() {
     [employeesQuery.data],
   )
 
-  const locationOptions = React.useMemo(
-    () => locationsQuery.data?.locations ?? [],
+  const zoneOptions = React.useMemo(
+    () => locationsQuery.data?.zones ?? [],
     [locationsQuery.data],
   )
+
+  const branchOptions = React.useMemo(() => {
+    const zone = zoneOptions.find((z) => z.id === zoneId)
+    return zone?.branches ?? []
+  }, [zoneOptions, zoneId])
 
   // Free any created object URLs when the form unmounts (ref keeps the latest list).
   const photosRef = React.useRef<PendingPhoto[]>([])
@@ -448,6 +454,7 @@ export default function RaiseIncidentPage() {
               setServiceUserId('')
               setEmployeeId('')
               setAffectedPersonName('')
+              setZoneId('')
               setLocationId('')
               setWitnesses([])
               setWitName('')
@@ -605,17 +612,46 @@ export default function RaiseIncidentPage() {
               </FormField>
             )}
 
-            <FormField label="Location (branch)" htmlFor="inc-location">
+            <FormField label="Zone" htmlFor="inc-zone">
+              <select
+                id="inc-zone"
+                value={zoneId}
+                onChange={(e) => {
+                  setZoneId(e.target.value)
+                  setLocationId('')
+                }}
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                disabled={locationsQuery.isLoading}
+              >
+                <option value="">
+                  {locationsQuery.isLoading ? 'Loading zones…' : 'Select zone…'}
+                </option>
+                {zoneOptions.map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="Branch" htmlFor="inc-location">
               <select
                 id="inc-location"
                 value={locationId}
                 onChange={(e) => setLocationId(e.target.value)}
                 className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                disabled={!zoneId || locationsQuery.isLoading}
               >
-                <option value="">Select…</option>
-                {locationOptions.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
+                <option value="">
+                  {!zoneId
+                    ? 'Select zone first'
+                    : branchOptions.length === 0
+                      ? 'No branches in this zone'
+                      : 'Select branch…'}
+                </option>
+                {branchOptions.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
                   </option>
                 ))}
               </select>

@@ -13,6 +13,10 @@ function isPublicLegalPath(path: string): boolean {
   return path === '/legal/privacy-policy' || path.startsWith('/legal/')
 }
 
+function isPublicSurveyPath(path: string): boolean {
+  return path === '/survey' || path.startsWith('/survey/')
+}
+
 function isPortalPath(path: string) {
   return path === '/portal' || path.startsWith('/portal/')
 }
@@ -53,7 +57,7 @@ export async function rootAuthBeforeLoad({ location }: { location: { pathname: s
     return
   }
 
-  if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path)) {
+  if (STAFF_PUBLIC_PATHS.has(path) || isPublicLegalPath(path) || isPublicSurveyPath(path)) {
     if (path === '/auth/login' && isAuthenticated()) {
       throw redirect({ to: isServiceUser() ? '/portal' : '/' })
     }

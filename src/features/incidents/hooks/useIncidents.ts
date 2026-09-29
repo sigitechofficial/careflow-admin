@@ -18,6 +18,10 @@ import {
   upsertIncidentInvestigation,
   upsertIncidentOutcome,
   upsertIncidentReview,
+  suspendIncidentCarer,
+  removeIncidentCarerSuspension,
+  recommendIncidentCarerCourse,
+  removeIncidentCarerCourseRecommendation,
 } from '@/features/incidents/api/incidents.api'
 import type {
   CreateIncidentActionInput,
@@ -93,6 +97,66 @@ export function useUpsertIncidentInvestigation(id: string) {
   })
 }
 
+export function useSuspendIncidentCarer(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      employeeId?: string
+      reason: string
+      suspendFrom: string
+      suspendTo: string
+    }) => suspendIncidentCarer(id, input),
+    onSuccess: () => {
+      toastSuccess('Carer suspended')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useRemoveIncidentCarerSuspension(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (suspensionId: string) => removeIncidentCarerSuspension(id, suspensionId),
+    onSuccess: () => {
+      toastSuccess('Carer suspension removed')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useRecommendIncidentCarerCourse(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      employeeId?: string
+      courseId: string
+      dueAt?: string
+      reason?: string
+      isMandatory?: boolean
+    }) => recommendIncidentCarerCourse(id, input),
+    onSuccess: () => {
+      toastSuccess('Course recommended')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useRemoveIncidentCarerCourseRecommendation(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (recommendationId: string) =>
+      removeIncidentCarerCourseRecommendation(id, recommendationId),
+    onSuccess: () => {
+      toastSuccess('Course recommendation removed')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
 export function useUpsertIncidentOutcome(id: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -125,7 +189,7 @@ export function useCreateIncidentAction(id: string) {
   return useMutation({
     mutationFn: (input: CreateIncidentActionInput) => createIncidentAction(id, input),
     onSuccess: () => {
-      toastSuccess('Action created')
+      toastSuccess('Corrective measure created')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
     },
     onError: (e) => toastApiError(e),
@@ -138,6 +202,7 @@ export function useUpdateIncidentAction() {
     mutationFn: (vars: { actionId: string; input: UpdateIncidentActionInput }) =>
       updateIncidentAction(vars.actionId, vars.input),
     onSuccess: () => {
+      toastSuccess('Corrective measure updated')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
     },
     onError: (e) => toastApiError(e),
@@ -150,7 +215,7 @@ export function useCompleteIncidentAction() {
     mutationFn: (vars: { actionId: string; completionNotes?: string }) =>
       completeIncidentAction(vars.actionId, vars.completionNotes),
     onSuccess: () => {
-      toastSuccess('Action completed')
+      toastSuccess('Corrective measure completed')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
     },
     onError: (e) => toastApiError(e),
