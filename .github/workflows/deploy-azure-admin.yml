@@ -1,0 +1,79 @@
+name: Deploy admin to Azure
+
+# Every merge into `azure` (or a manual run): build the admin SPA against the Azure API
+# and upload it to Static Web Apps. Signs in with OIDC (managed identity
+# id-careflow-github-deploy); the SWA deployment token is fetched per run, never stored.
+on:
+  push:
+    branches: [azure]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-azure-admin
+  cancel-in-progress: false
+
+env:
+  RG: rg-careflow-prod
+  SWA: swa-careflow-prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ vars.AZURE_API_BASE_URL }}
+
+      - name: Check build output
+        run: |
+          set -euo pipefail
+          test -f dist/staticwebapp.config.json
+          grep -rq "${{ vars.AZURE_API_BASE_URL }}" dist/assets || { echo "::error::API URL not baked into the bundle"; exit 1; }
+          if grep -rq 'Admin@12345' dist; then echo "::error::default admin credentials found in bundle"; exit 1; fi
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch deployment token (masked, not stored)
+        run: |
+          TOKEN=$(az staticwebapp secrets list -n "$SWA" -g "$RG" --query properties.apiKey -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "SWA_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "SWA_HOST=$(az staticwebapp show -n "$SWA" -g "$RG" --query defaultHostname -o tsv)" >> "$GITHUB_ENV"
+
+      - name: Upload to Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
+          action: upload
+          app_location: dist
+          skip_app_build: true
+          skip_api_build: true
+
+      - name: Verify live site serves this build
+        run: |
+          set -euo pipefail
+          ENTRY=$(grep -o 'assets/index-[^"]*\.js' dist/index.html | head -1)
+          for i in $(seq 1 20); do curl -fsS "https://$SWA_HOST/" | grep -q "$ENTRY" && break; sleep 6; done
+          curl -fsS "https://$SWA_HOST/" | grep -q "$ENTRY" || { echo "::error::live site is not serving this build"; exit 1; }
+          [ "$(curl -s -o /dev/null -w '%{http_code}' "https://$SWA_HOST/service-users/123")" = 200 ]
+          echo "### ✅ Admin live at https://$SWA_HOST ($ENTRY)" >> "$GITHUB_STEP_SUMMARY"
