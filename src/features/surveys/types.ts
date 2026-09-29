@@ -1,5 +1,14 @@
 export type SurveyTargetKind = 'EMPLOYEE' | 'SERVICE_USER'
 export type SurveyStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED'
+export type SurveyRecurrence = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+
+export const SURVEY_RECURRENCE_LABELS: Record<SurveyRecurrence, string> = {
+  WEEKLY: 'Weekly',
+  MONTHLY: 'Monthly',
+  QUARTERLY: 'Quarterly',
+  YEARLY: 'Yearly',
+}
+
 export type SurveyQuestionType =
   | 'YES_NO'
   | 'SINGLE_SELECT'
@@ -34,9 +43,16 @@ export type SurveyListItem = {
   opensAt: string | null
   closesAt: string | null
   publishedAt: string | null
+  distributeAt: string | null
+  distributedAt: string | null
+  recurrence: SurveyRecurrence | null
+  clonedFromId: string | null
   locationIds: string[]
+  shareToken: string
   questionCount: number
   recipientCount: number
+  completedCount: number
+  responseRate: number
   createdAt: string
   updatedAt: string
 }
@@ -62,7 +78,12 @@ export type SurveyDetail = {
   opensAt: string | null
   closesAt: string | null
   publishedAt: string | null
+  distributeAt: string | null
+  distributedAt: string | null
+  recurrence: SurveyRecurrence | null
+  clonedFromId: string | null
   locationIds: string[]
+  shareToken: string
   createdAt: string
   updatedAt: string
   recipientCount: number
@@ -74,6 +95,83 @@ export type SurveyResults = {
   recipients: number
   completed: number
   responseRate: number
+  includesPeriodRuns?: boolean
+}
+
+export type SurveyResponseAnswer = {
+  questionId: string
+  questionText: string
+  questionType: SurveyQuestionType
+  booleanValue: boolean | null
+  textValue: string | null
+  numberValue: number | null
+  selectedOptions: string[] | null
+  displayValue: string
+}
+
+export type SurveyResponseItem = {
+  id: string
+  submittedAt: string
+  respondentLabel: string
+  employeeId: string | null
+  answerCount: number
+  answers: SurveyResponseAnswer[]
+}
+
+export type SurveyResponsesPayload = {
+  isAnonymous: boolean
+  total: number
+  responses: SurveyResponseItem[]
+}
+
+export type SurveyRecipientStatus = 'PENDING' | 'SENT' | 'STARTED' | 'COMPLETED'
+
+export type SurveyRecipientItem = {
+  id: string
+  token: string
+  status: SurveyRecipientStatus
+  employeeId: string | null
+  employeeName: string | null
+  sentAt: string | null
+  submittedAt: string | null
+  createdAt: string
+}
+
+export type PublicSurveyQuestion = {
+  id: string
+  questionText: string
+  helpText: string | null
+  questionType: SurveyQuestionType
+  options: string[] | null
+  config: Record<string, unknown> | null
+  isRequired: boolean
+  sortOrder: number
+}
+
+export type PublicSurveyForm = {
+  title: string
+  description: string | null
+  isAnonymous: boolean
+  status: SurveyStatus
+  opensAt: string | null
+  closesAt: string | null
+  alreadyCompleted: boolean
+  canSubmit: boolean
+  unavailableReason: string | null
+  linkKind?: 'share' | 'recipient'
+  questions: PublicSurveyQuestion[]
+}
+
+export type SurveyAnswerInput = {
+  questionId: string
+  booleanValue?: boolean
+  textValue?: string
+  numberValue?: number
+  selectedOptions?: string[]
+}
+
+export type SubmitSurveyResponseInput = {
+  answers: SurveyAnswerInput[]
 }
 
 export type SurveyListFilters = {
@@ -88,11 +186,16 @@ export type CreateSurveyInput = {
   isAnonymous?: boolean
   opensAt?: string
   closesAt?: string
+  distributeAt?: string | null
+  recurrence?: SurveyRecurrence | null
   locationIds?: string[]
 }
 
-export type UpdateSurveyInput = Partial<CreateSurveyInput> & {
+export type UpdateSurveyInput = Partial<Omit<CreateSurveyInput, 'opensAt' | 'closesAt' | 'description'>> & {
   status?: SurveyStatus
+  description?: string | null
+  opensAt?: string | null
+  closesAt?: string | null
 }
 
 export type CreateQuestionInput = {
@@ -111,4 +214,7 @@ export type SendSurveyResult = {
   sent: number
   skippedExisting: number
   status: SurveyStatus
+  scheduled?: boolean
+  distributeAt?: string | null
+  recurrence?: SurveyRecurrence | null
 }

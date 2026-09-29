@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { AlertTriangle, TrendingUp } from 'lucide-react'
 import { Badge } from '@/shared/ui/badge'
-import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import { useServiceUserIncidentHistory } from '@/features/incidents/hooks/useIncidentCare'
 import { INCIDENT_SEVERITY_BADGE } from '@/features/incidents/types'
 
@@ -61,7 +61,7 @@ export function ServiceUserIncidentHistoryPanel({
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <Badge variant={INCIDENT_SEVERITY_BADGE[i.severity]} size="sm">{i.severityLabel}</Badge>
-                <span className="text-xs text-muted-foreground">{formatOrganisationIsoDateLong(i.occurredAt)}</span>
+                <span className="text-xs text-muted-foreground">{formatOrganisationDateTime(i.occurredAt)}</span>
               </div>
             </li>
           ))}

@@ -4,11 +4,16 @@ import {
   addSurveyQuestion,
   createSurvey,
   deleteSurvey,
+  fetchPublicSurvey,
   fetchSurvey,
+  fetchSurveyRecipients,
+  fetchSurveyResponses,
   fetchSurveyResults,
   fetchSurveys,
+  publishSurvey,
   removeSurveyQuestion,
   sendSurvey,
+  submitPublicSurveyResponse,
   updateSurvey,
   updateSurveyQuestion,
 } from '@/features/surveys/api/surveys.api'
@@ -16,6 +21,7 @@ import type {
   CreateQuestionInput,
   CreateSurveyInput,
   SurveyListFilters,
+  SubmitSurveyResponseInput,
   UpdateQuestionInput,
   UpdateSurveyInput,
 } from '@/features/surveys/types'
@@ -39,6 +45,14 @@ export function useSurveyResults(id: string | undefined, enabled = true) {
   return useQuery({
     queryKey: surveyKeys.results(id ?? ''),
     queryFn: ({ signal }) => fetchSurveyResults(id as string, { signal }),
+    enabled: Boolean(id) && enabled,
+  })
+}
+
+export function useSurveyResponses(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: surveyKeys.responses(id ?? ''),
+    queryFn: ({ signal }) => fetchSurveyResponses(id as string, { signal }),
     enabled: Boolean(id) && enabled,
   })
 }
@@ -98,11 +112,56 @@ export function useRemoveQuestion(surveyId: string) {
 export function useSendSurvey(surveyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (employeeIds?: string[]) => sendSurvey(surveyId, employeeIds),
+    mutationFn: (args?: {
+      employeeIds?: string[]
+      distributeAt?: string
+      recurrence?: string | null
+    }) => sendSurvey(surveyId, args?.employeeIds, args?.distributeAt, args?.recurrence),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: surveyKeys.detail(surveyId) })
       void qc.invalidateQueries({ queryKey: surveyKeys.results(surveyId) })
+      void qc.invalidateQueries({ queryKey: surveyKeys.responses(surveyId) })
+      void qc.invalidateQueries({ queryKey: surveyKeys.recipients(surveyId) })
       void qc.invalidateQueries({ queryKey: surveyKeys.all() })
+    },
+  })
+}
+
+export function usePublishSurvey(surveyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => publishSurvey(surveyId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: surveyKeys.detail(surveyId) })
+      void qc.invalidateQueries({ queryKey: surveyKeys.responses(surveyId) })
+      void qc.invalidateQueries({ queryKey: surveyKeys.all() })
+    },
+  })
+}
+
+export function useSurveyRecipients(surveyId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: surveyKeys.recipients(surveyId ?? ''),
+    queryFn: ({ signal }) => fetchSurveyRecipients(surveyId as string, { signal }),
+    enabled: Boolean(surveyId) && enabled,
+  })
+}
+
+export function usePublicSurvey(token: string | undefined) {
+  return useQuery({
+    queryKey: surveyKeys.publicForm(token ?? ''),
+    queryFn: ({ signal }) => fetchPublicSurvey(token as string, { signal }),
+    enabled: Boolean(token),
+    retry: false,
+  })
+}
+
+export function useSubmitPublicSurvey(token: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: SubmitSurveyResponseInput) => submitPublicSurveyResponse(token, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: surveyKeys.publicForm(token) })
     },
   })
 }

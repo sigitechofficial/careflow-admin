@@ -2,12 +2,17 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   CreateQuestionInput,
   CreateSurveyInput,
+  PublicSurveyForm,
   SendSurveyResult,
   SurveyDetail,
   SurveyListFilters,
   SurveyListItem,
   SurveyQuestion,
+  SurveyRecipientItem,
+  SurveyResponseItem,
+  SurveyResponsesPayload,
   SurveyResults,
+  SubmitSurveyResponseInput,
   UpdateQuestionInput,
   UpdateSurveyInput,
 } from '@/features/surveys/types'
@@ -44,6 +49,23 @@ export async function fetchSurveyResults(id: string, init?: RequestInit): Promis
     ...init,
   })
   return res.data as SurveyResults
+}
+
+export async function fetchSurveyResponses(
+  id: string,
+  init?: RequestInit,
+): Promise<SurveyResponsesPayload> {
+  const res = await apiJson<ApiEnvelope<SurveyResponsesPayload>>(`/surveys/${id}/responses`, {
+    method: 'GET',
+    ...init,
+  })
+  return (
+    res.data ?? {
+      isAnonymous: false,
+      total: 0,
+      responses: [] as SurveyResponseItem[],
+    }
+  )
 }
 
 export async function createSurvey(input: CreateSurveyInput): Promise<SurveyDetail> {
@@ -98,10 +120,63 @@ export async function removeSurveyQuestion(surveyId: string, questionId: string)
 export async function sendSurvey(
   surveyId: string,
   employeeIds?: string[],
+  distributeAt?: string,
+  recurrence?: string | null,
 ): Promise<SendSurveyResult> {
   const res = await apiJson<ApiEnvelope<SendSurveyResult>>(`/surveys/${surveyId}/send`, {
     method: 'POST',
-    body: JSON.stringify(employeeIds?.length ? { employeeIds } : {}),
+    body: JSON.stringify({
+      ...(employeeIds?.length ? { employeeIds } : {}),
+      ...(distributeAt ? { distributeAt } : {}),
+      ...(recurrence !== undefined ? { recurrence } : {}),
+    }),
   })
   return res.data as SendSurveyResult
+}
+
+export async function publishSurvey(
+  surveyId: string,
+): Promise<{ id: string; status: string; publishedAt: string | null; shareToken: string }> {
+  const res = await apiJson<
+    ApiEnvelope<{ id: string; status: string; publishedAt: string | null; shareToken: string }>
+  >(`/surveys/${surveyId}/publish`, { method: 'POST', body: '{}' })
+  return res.data as { id: string; status: string; publishedAt: string | null; shareToken: string }
+}
+
+export async function fetchSurveyRecipients(
+  surveyId: string,
+  init?: RequestInit,
+): Promise<SurveyRecipientItem[]> {
+  const res = await apiJson<ApiEnvelope<SurveyRecipientItem[]>>(
+    `/surveys/${surveyId}/recipients`,
+    { method: 'GET', ...init },
+  )
+  return res.data ?? []
+}
+
+export async function fetchPublicSurvey(
+  token: string,
+  init?: RequestInit,
+): Promise<PublicSurveyForm> {
+  const res = await apiJson<ApiEnvelope<PublicSurveyForm>>(`/surveys/public/${encodeURIComponent(token)}`, {
+    method: 'GET',
+    ...init,
+  })
+  return res.data as PublicSurveyForm
+}
+
+export async function submitPublicSurveyResponse(
+  token: string,
+  input: SubmitSurveyResponseInput,
+): Promise<{ id: string; submittedAt: string }> {
+  const res = await apiJson<ApiEnvelope<{ id: string; submittedAt: string }>>(
+    `/surveys/public/${encodeURIComponent(token)}/responses`,
+    { method: 'POST', body: JSON.stringify(input) },
+  )
+  return res.data as { id: string; submittedAt: string }
+}
+
+export function buildSurveyShareUrl(token: string): string {
+  if (typeof window === 'undefined') return `/survey/${token}`
+  return `${window.location.origin}/survey/${token}`
 }

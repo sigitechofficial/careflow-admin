@@ -74,6 +74,8 @@ export type IncidentTimelineEvent = {
   kind: string
   detail: string
   byId: string | null
+  /** Display name of the user who performed the action (when known). */
+  byName?: string | null
 }
 
 export type IncidentPreventability = 'YES' | 'NO' | 'PARTIALLY' | 'UNKNOWN'
@@ -94,9 +96,14 @@ export type IncidentReview = {
   updatedAt: string
 }
 
+export type IncidentInvestigationScope = 'INTERNAL' | 'EXTERNAL'
+export type IncidentExternalInvestigationType = 'POLICE' | 'AGENCY' | 'COMBINED'
+
 export type IncidentInvestigation = {
   id: string
   incidentId: string
+  investigationScope: IncidentInvestigationScope | null
+  externalType: IncidentExternalInvestigationType | null
   whatHappened: string | null
   whyHappened: string | null
   contributingFactors: string[]
@@ -105,6 +112,31 @@ export type IncidentInvestigation = {
   conclusion: string | null
   completedAt: string | null
   updatedAt: string
+}
+
+export type IncidentCarerSuspension = {
+  id: string
+  incidentId: string
+  employeeId: string
+  reason: string
+  suspendFrom: string
+  suspendTo: string
+  suspendedAt: string
+  createdAt: string
+}
+
+export type IncidentCarerCourseRecommendation = {
+  id: string
+  incidentId: string
+  employeeId: string
+  courseId: string
+  courseTitle: string | null
+  courseCode: string | null
+  learningAssignmentId: string | null
+  reason: string | null
+  dueAt: string | null
+  recommendedAt: string
+  createdAt: string
 }
 
 export type IncidentPersonKind =
@@ -291,6 +323,8 @@ export type IncidentDetail = IncidentListItem & {
   investigation: IncidentInvestigation | null
   outcome: IncidentOutcome | null
   actions: IncidentAction[]
+  carerSuspensions: IncidentCarerSuspension[]
+  courseRecommendations: IncidentCarerCourseRecommendation[]
   injuries: IncidentInjury[]
   witnesses: IncidentWitness[]
   relatedCareRecords: IncidentRelatedCareRecord[]
@@ -375,8 +409,14 @@ export type CreateIncidentActionInput = {
   isMandatory?: boolean
 }
 
-export type UpdateIncidentActionInput = Partial<CreateIncidentActionInput> & {
+export type UpdateIncidentActionInput = Partial<
+  Omit<CreateIncidentActionInput, 'assignedEmployeeId' | 'dueDate' | 'description'>
+> & {
   status?: IncidentActionStatus
+  description?: string | null
+  dueDate?: string | null
+  /** Null or empty string clears the assignee. */
+  assignedEmployeeId?: string | null
 }
 
 export const INCIDENT_ACTION_STATUS_BADGE: Record<
@@ -410,6 +450,8 @@ export type UpsertIncidentReviewInput = {
 }
 
 export type UpsertIncidentInvestigationInput = {
+  investigationScope?: IncidentInvestigationScope
+  externalType?: IncidentExternalInvestigationType | null
   whatHappened?: string
   whyHappened?: string
   contributingFactors?: string[]
@@ -418,6 +460,23 @@ export type UpsertIncidentInvestigationInput = {
   conclusion?: string
   markComplete?: boolean
 }
+
+export const INCIDENT_INVESTIGATION_SCOPE_OPTIONS: {
+  value: IncidentInvestigationScope
+  label: string
+}[] = [
+  { value: 'INTERNAL', label: 'Internal' },
+  { value: 'EXTERNAL', label: 'External' },
+]
+
+export const INCIDENT_EXTERNAL_INVESTIGATION_TYPE_OPTIONS: {
+  value: IncidentExternalInvestigationType
+  label: string
+}[] = [
+  { value: 'POLICE', label: 'Police' },
+  { value: 'AGENCY', label: 'Agency' },
+  { value: 'COMBINED', label: 'Combined' },
+]
 
 export const INCIDENT_CONTRIBUTING_FACTOR_OPTIONS: { value: string; label: string }[] = [
   { value: 'CARE_PLAN', label: 'Care plan' },
@@ -511,13 +570,52 @@ export const INCIDENT_STATUS_BADGE: Record<
 
 /** Mirrors the backend workflow rules for UX (backend still enforces authoritatively). */
 export const INCIDENT_STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  REPORTED: ['AWAITING_REVIEW', 'UNDER_INVESTIGATION'],
+  REPORTED: ['UNDER_INVESTIGATION', 'AWAITING_REVIEW'],
   AWAITING_REVIEW: ['UNDER_INVESTIGATION', 'ACTIONS_REQUIRED', 'AWAITING_CLOSURE'],
-  UNDER_INVESTIGATION: ['ACTIONS_REQUIRED', 'AWAITING_CLOSURE'],
+  UNDER_INVESTIGATION: ['AWAITING_CLOSURE', 'ACTIONS_REQUIRED'],
   ACTIONS_REQUIRED: ['UNDER_INVESTIGATION', 'AWAITING_CLOSURE'],
-  AWAITING_CLOSURE: ['CLOSED', 'ACTIONS_REQUIRED', 'UNDER_INVESTIGATION'],
-  CLOSED: ['REOPENED'],
-  REOPENED: ['UNDER_INVESTIGATION', 'ACTIONS_REQUIRED', 'AWAITING_CLOSURE'],
+  AWAITING_CLOSURE: ['CLOSED', 'UNDER_INVESTIGATION', 'ACTIONS_REQUIRED'],
+  CLOSED: ['UNDER_INVESTIGATION', 'REOPENED'],
+  REOPENED: ['UNDER_INVESTIGATION', 'AWAITING_CLOSURE', 'ACTIONS_REQUIRED'],
+}
+
+/** Statuses from which moving to UNDER_INVESTIGATION is a re-investigate. */
+export const REINVESTIGATE_FROM_STATUSES: IncidentStatus[] = [
+  'CLOSED',
+  'AWAITING_CLOSURE',
+  'REOPENED',
+]
+
+export function isReinvestigateTransition(from: IncidentStatus, to: IncidentStatus): boolean {
+  return to === 'UNDER_INVESTIGATION' && REINVESTIGATE_FROM_STATUSES.includes(from)
+}
+
+export type IncidentWorkflowStage = 'raise' | 'investigate' | 'close' | 'outcome'
+
+export const INCIDENT_WORKFLOW_STEPS: { id: IncidentWorkflowStage; label: string }[] = [
+  { id: 'raise', label: 'Raise' },
+  { id: 'investigate', label: 'Investigate' },
+  { id: 'close', label: 'Close' },
+  { id: 'outcome', label: 'Outcome' },
+]
+
+/** Map status (+ outcome) onto the Raise → Investigate → Close → Outcome stepper. */
+export function incidentWorkflowStageIndex(
+  status: IncidentStatus,
+  hasFinalOutcome: boolean,
+): number {
+  if (status === 'REPORTED') return 0
+  if (
+    status === 'AWAITING_REVIEW' ||
+    status === 'UNDER_INVESTIGATION' ||
+    status === 'ACTIONS_REQUIRED' ||
+    status === 'REOPENED'
+  ) {
+    return 1
+  }
+  if (status === 'AWAITING_CLOSURE') return hasFinalOutcome ? 3 : 2
+  if (status === 'CLOSED') return 3
+  return 0
 }
 
 export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
