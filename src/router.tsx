@@ -100,6 +100,7 @@ import PortalCalendarPage from '@/features/service-user-portal/pages/PortalCalen
 import PortalPhotosPage from '@/features/service-user-portal/pages/PortalPhotosPage'
 import PortalVisitPlansPage from '@/features/service-user-portal/pages/PortalVisitPlansPage'
 import PortalCompletedVisitsPage from '@/features/service-user-portal/pages/PortalCompletedVisitsPage'
+import PortalSurveysPage from '@/features/service-user-portal/pages/PortalSurveysPage'
 import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
@@ -683,6 +684,12 @@ const portalCompletedVisitsRoute = createRoute({
   getParentRoute: () => portalShellRoute,
   path: '/portal/completed-visits',
   component: PortalCompletedVisitsPage,
+})
+
+const portalSurveysRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/surveys',
+  component: PortalSurveysPage,
 })
 
 const appShellRoute = createRoute({
@@ -2151,6 +2158,7 @@ const routeTree = rootRoute.addChildren([
     portalCalendarRoute,
     portalVisitPlansRoute,
     portalCompletedVisitsRoute,
+    portalSurveysRoute,
     portalPhotosRoute,
   ]),
   appShellRoute.addChildren([

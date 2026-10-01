@@ -5,6 +5,7 @@ import { useSurvey, useSurveyResults } from '@/features/surveys/hooks/useSurveys
 import { SurveyResponsesPanel } from '@/features/surveys/components/SurveyResponsesPanel'
 import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
 import { SurveySummaryPanel } from '@/features/surveys/components/SurveySummaryPanel'
+import { SurveyRecipientsPanel } from '@/features/surveys/components/SurveyRecipientsPanel'
 
 export default function SurveyResponsesPage() {
   const { surveyId = '' } = useParams({ strict: false }) as { surveyId?: string }
@@ -93,6 +94,8 @@ export default function SurveyResponsesPage() {
       {results?.questionSummaries && results.questionSummaries.length > 0 ? (
         <SurveySummaryPanel className="mb-5" summaries={results.questionSummaries} />
       ) : null}
+
+      <SurveyRecipientsPanel className="mb-5" surveyId={surveyId} targetKind={survey.targetKind} />
 
       <SurveyResponsesPanel surveyId={surveyId} />
     </div>

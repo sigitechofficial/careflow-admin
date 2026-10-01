@@ -25,8 +25,8 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { useCreateSurvey, useDeleteSurvey, useSurveys } from '@/features/surveys/hooks/useSurveys'
 import { SurveyPreviewDialog } from '@/features/surveys/components/SurveyPreviewDialog'
 import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
-import type { SurveyListItem, SurveyRecurrence, SurveyStatus } from '@/features/surveys/types'
-import { SURVEY_RECURRENCE_LABELS } from '@/features/surveys/types'
+import type { SurveyListItem, SurveyRecurrence, SurveyStatus, SurveyTargetKind } from '@/features/surveys/types'
+import { SURVEY_RECURRENCE_LABELS, SURVEY_TARGET_KIND_LABELS } from '@/features/surveys/types'
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { combineOperationalDateAndHm, dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
@@ -73,6 +73,7 @@ export default function SurveysPage() {
 
   const [createOpen, setCreateOpen] = React.useState(false)
   const [title, setTitle] = React.useState('')
+  const [targetKind, setTargetKind] = React.useState<SurveyTargetKind>('EMPLOYEE')
   const [description, setDescription] = React.useState('')
   const [isAnonymous, setIsAnonymous] = React.useState(false)
   const [selectedZoneId, setSelectedZoneId] = React.useState('')
@@ -117,6 +118,7 @@ export default function SurveysPage() {
 
   const resetCreate = () => {
     setTitle('')
+    setTargetKind('EMPLOYEE')
     setDescription('')
     setIsAnonymous(false)
     setSelectedZoneId('')
@@ -141,7 +143,7 @@ export default function SurveysPage() {
       const survey = await createMut.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
-        targetKind: 'EMPLOYEE',
+        targetKind,
         isAnonymous,
         opensAt: opensAt ? combineOperationalDateAndHm(opensAt.slice(0, 10), opensAt.slice(11, 16)) : undefined,
         closesAt: closesAt ? combineOperationalDateAndHm(closesAt.slice(0, 10), closesAt.slice(11, 16)) : undefined,
@@ -181,7 +183,8 @@ export default function SurveysPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-semibold text-foreground">Surveys</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Create survey forms and send them to employees. Responses feed quality assurance.
+              Create survey forms and send them to employees or service users. Responses feed quality
+              assurance.
             </p>
           </div>
         </div>
@@ -257,16 +260,17 @@ export default function SurveysPage() {
             </div>
             <p className="text-sm font-medium text-foreground">No surveys yet</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Create your first employee survey to get started.
+              Create your first survey to get started.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] text-sm">
+            <table className="w-full min-w-[1380px] text-sm">
               <thead className="whitespace-nowrap border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2.5">Title</th>
                   <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5">Audience</th>
                   <th className="px-3 py-2.5">Location</th>
                   <th className="px-3 py-2.5">Published</th>
                   <th className="px-3 py-2.5">Start</th>
@@ -310,6 +314,9 @@ export default function SurveysPage() {
                       >
                         {s.status}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
+                      {SURVEY_TARGET_KIND_LABELS[s.targetKind]}
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
                       {(() => {
@@ -431,13 +438,30 @@ export default function SurveysPage() {
       >
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>New employee survey</DialogTitle>
+            <DialogTitle>New survey</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Title *</span>
               <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Staff satisfaction Q3" />
             </label>
+            <div className="space-y-1 text-sm">
+              <span className="font-medium">Audience *</span>
+              <Select value={targetKind} onValueChange={v => setTargetKind(v as SurveyTargetKind)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EMPLOYEE">{SURVEY_TARGET_KIND_LABELS.EMPLOYEE}</SelectItem>
+                  <SelectItem value="SERVICE_USER">{SURVEY_TARGET_KIND_LABELS.SERVICE_USER}</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="block text-xs text-muted-foreground">
+                {targetKind === 'SERVICE_USER'
+                  ? 'Answered in the Service User Portal by the service user, or by a family member or representative on their behalf. Only service users with a portal account receive it.'
+                  : 'Each employee receives a personal link by push notification and email.'}
+              </span>
+            </div>
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Description</span>
               <textarea
@@ -455,7 +479,7 @@ export default function SurveysPage() {
                 onChange={e => setIsAnonymous(e.target.checked)}
                 className="h-4 w-4 rounded border-border"
               />
-              Anonymous responses (recommended for honest staff feedback)
+              Anonymous responses (recommended for honest feedback)
             </label>
             <div className="space-y-1 text-sm">
               <span className="font-medium">Zone</span>
@@ -508,7 +532,9 @@ export default function SurveysPage() {
               <p className="text-xs text-destructive">End must be after the start.</p>
             ) : null}
             <label className="block space-y-1 text-sm">
-              <span className="font-medium">Distribute to employees at</span>
+              <span className="font-medium">
+                Distribute to {SURVEY_TARGET_KIND_LABELS[targetKind].toLowerCase()} at
+              </span>
               <Input
                 type="datetime-local"
                 value={distributeAt}
@@ -541,7 +567,6 @@ export default function SurveysPage() {
                 Monthly (and other periods) create a fresh survey each time from this template.
               </span>
             </label>
-            <p className="text-xs text-muted-foreground">Audience: Employees</p>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>

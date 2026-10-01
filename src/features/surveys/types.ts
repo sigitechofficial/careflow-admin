@@ -2,6 +2,20 @@ export type SurveyTargetKind = 'EMPLOYEE' | 'SERVICE_USER'
 export type SurveyStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED'
 export type SurveyRecurrence = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
 
+export const SURVEY_TARGET_KIND_LABELS: Record<SurveyTargetKind, string> = {
+  EMPLOYEE: 'Employees',
+  SERVICE_USER: 'Service users',
+}
+
+/** Who answered a service-user survey. */
+export type SurveyRespondentRelation = 'SELF' | 'FAMILY_MEMBER' | 'REPRESENTATIVE'
+
+export const SURVEY_RESPONDENT_RELATION_LABELS: Record<SurveyRespondentRelation, string> = {
+  SELF: 'The service user',
+  FAMILY_MEMBER: 'Family member',
+  REPRESENTATIVE: 'Representative',
+}
+
 export const SURVEY_RECURRENCE_LABELS: Record<SurveyRecurrence, string> = {
   WEEKLY: 'Weekly',
   MONTHLY: 'Monthly',
@@ -136,6 +150,9 @@ export type SurveyResponseItem = {
   submittedAt: string
   respondentLabel: string
   employeeId: string | null
+  serviceUserId?: string | null
+  respondentRelation?: SurveyRespondentRelation | null
+  respondentName?: string | null
   answerCount: number
   answers: SurveyResponseAnswer[]
 }
@@ -154,8 +171,12 @@ export type SurveyRecipientItem = {
   status: SurveyRecipientStatus
   employeeId: string | null
   employeeName: string | null
+  serviceUserId: string | null
+  serviceUserName: string | null
   sentAt: string | null
   submittedAt: string | null
+  respondentRelation: SurveyRespondentRelation | null
+  respondentName: string | null
   createdAt: string
 }
 
@@ -181,6 +202,10 @@ export type PublicSurveyForm = {
   canSubmit: boolean
   unavailableReason: string | null
   linkKind?: 'share' | 'recipient'
+  /** Service-user links: ask who is answering (self / family member / representative). */
+  askRespondent?: boolean
+  /** Service-user links: whose survey this is. */
+  forName?: string | null
   questions: PublicSurveyQuestion[]
 }
 
@@ -194,6 +219,8 @@ export type SurveyAnswerInput = {
 
 export type SubmitSurveyResponseInput = {
   answers: SurveyAnswerInput[]
+  respondentRelation?: SurveyRespondentRelation
+  respondentName?: string
 }
 
 export type SurveyListFilters = {
@@ -235,8 +262,24 @@ export type UpdateQuestionInput = Partial<CreateQuestionInput>
 export type SendSurveyResult = {
   sent: number
   skippedExisting: number
+  /** Service-user surveys: people in scope without an enabled portal account. */
+  skippedNoPortal?: number
   status: SurveyStatus
   scheduled?: boolean
   distributeAt?: string | null
   recurrence?: SurveyRecurrence | null
+}
+
+/** Portal: a survey sent to the signed-in service user. */
+export type PortalSurveyItem = {
+  token: string
+  title: string
+  description: string | null
+  sentAt: string | null
+  opensAt: string | null
+  closesAt: string | null
+  state: 'OPEN' | 'UNAVAILABLE' | 'COMPLETED'
+  unavailableReason: string | null
+  completedAt: string | null
+  respondentRelation: SurveyRespondentRelation | null
 }
