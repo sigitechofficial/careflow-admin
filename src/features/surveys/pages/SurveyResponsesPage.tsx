@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button'
 import { useSurvey, useSurveyResults } from '@/features/surveys/hooks/useSurveys'
 import { SurveyResponsesPanel } from '@/features/surveys/components/SurveyResponsesPanel'
 import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
+import { SurveySummaryPanel } from '@/features/surveys/components/SurveySummaryPanel'
 
 export default function SurveyResponsesPage() {
   const { surveyId = '' } = useParams({ strict: false }) as { surveyId?: string }
@@ -49,6 +50,7 @@ export default function SurveyResponsesPage() {
             <p className="mt-0.5 text-sm text-muted-foreground">
               {survey.status}
               {survey.isAnonymous ? ' · Anonymous' : ''}
+              {survey.createdByName ? ` · Created by ${survey.createdByName}` : ''}
               {typeof survey.responseCount === 'number'
                 ? ` · ${survey.responseCount} response${survey.responseCount === 1 ? '' : 's'}`
                 : ''}
@@ -86,6 +88,10 @@ export default function SurveyResponsesPage() {
             </div>
           ))}
         </div>
+      ) : null}
+
+      {results?.questionSummaries && results.questionSummaries.length > 0 ? (
+        <SurveySummaryPanel className="mb-5" summaries={results.questionSummaries} />
       ) : null}
 
       <SurveyResponsesPanel surveyId={surveyId} />

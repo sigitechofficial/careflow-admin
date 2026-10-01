@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ClipboardList, Eye, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Eye, FileEdit, Loader2, Lock, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Badge } from '@/shared/ui/badge'
@@ -56,6 +56,18 @@ export default function SurveysPage() {
   const { data: surveys = [], isLoading, isError } = useSurveys()
   const createMut = useCreateSurvey()
   const deleteMut = useDeleteSurvey()
+
+  const statusCounts = React.useMemo(() => {
+    let draft = 0
+    let active = 0
+    let closed = 0
+    for (const s of surveys) {
+      if (s.status === 'DRAFT') draft += 1
+      else if (s.status === 'ACTIVE') active += 1
+      else if (s.status === 'CLOSED') closed += 1
+    }
+    return { total: surveys.length, draft, active, closed }
+  }, [surveys])
 
   const { data: locationTree } = useLocationManagementTree()
 
@@ -181,6 +193,56 @@ export default function SurveysPage() {
         ) : null}
       </div>
 
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          {
+            label: 'Total',
+            value: statusCounts.total,
+            tone: 'text-foreground',
+            icon: <ClipboardList className="h-5 w-5" aria-hidden />,
+            iconClass: 'bg-teal-600/10 text-teal-700 dark:text-teal-300',
+          },
+          {
+            label: 'Draft',
+            value: statusCounts.draft,
+            tone: 'text-muted-foreground',
+            icon: <FileEdit className="h-5 w-5" aria-hidden />,
+            iconClass: 'bg-muted text-muted-foreground',
+          },
+          {
+            label: 'Active',
+            value: statusCounts.active,
+            tone: 'text-emerald-700 dark:text-emerald-300',
+            icon: <CheckCircle2 className="h-5 w-5" aria-hidden />,
+            iconClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+          },
+          {
+            label: 'Closed',
+            value: statusCounts.closed,
+            tone: 'text-amber-800 dark:text-amber-200',
+            icon: <Lock className="h-5 w-5" aria-hidden />,
+            iconClass: 'bg-amber-500/10 text-amber-800 dark:text-amber-200',
+          },
+        ].map(card => (
+          <div
+            key={card.label}
+            className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
+          >
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${card.iconClass}`}
+            >
+              {card.icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
+              <p className={`mt-0.5 text-2xl font-semibold tabular-nums ${card.tone}`}>
+                {isLoading ? '—' : card.value}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {isLoading ? (
           <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
@@ -200,7 +262,7 @@ export default function SurveysPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1160px] text-sm">
+            <table className="w-full min-w-[1280px] text-sm">
               <thead className="whitespace-nowrap border-b border-border bg-muted/40 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2.5">Title</th>
@@ -212,7 +274,7 @@ export default function SurveysPage() {
                   <th className="px-3 py-2.5 text-right">Questions</th>
                   <th className="px-3 py-2.5">Progress</th>
                   <th className="px-3 py-2.5 text-right">Recipients</th>
-                  <th className="px-3 py-2.5">Updated</th>
+                  <th className="px-3 py-2.5">Created by</th>
                   <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -301,8 +363,8 @@ export default function SurveysPage() {
                       )}
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">{s.recipientCount}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-muted-foreground tabular-nums">
-                      {formatInstant(s.updatedAt)}
+                    <td className="max-w-[140px] truncate px-3 py-3 text-muted-foreground" title={s.createdByName ?? undefined}>
+                      {s.createdByName ?? '—'}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex justify-end gap-1.5">

@@ -53,6 +53,8 @@ export type SurveyListItem = {
   recipientCount: number
   completedCount: number
   responseRate: number
+  createdById: string | null
+  createdByName: string | null
   createdAt: string
   updatedAt: string
 }
@@ -84,6 +86,8 @@ export type SurveyDetail = {
   clonedFromId: string | null
   locationIds: string[]
   shareToken: string
+  createdById: string | null
+  createdByName: string | null
   createdAt: string
   updatedAt: string
   recipientCount: number
@@ -91,11 +95,29 @@ export type SurveyDetail = {
   questions: SurveyQuestion[]
 }
 
+export type SurveyQuestionOptionSummary = {
+  label: string
+  count: number
+  percent: number
+}
+
+export type SurveyQuestionSummary = {
+  questionId: string
+  questionText: string
+  questionType: SurveyQuestionType
+  sortOrder: number
+  answerCount: number
+  options?: SurveyQuestionOptionSummary[]
+  numeric?: { average: number | null; min: number | null; max: number | null }
+  textSamples?: string[]
+}
+
 export type SurveyResults = {
   recipients: number
   completed: number
   responseRate: number
   includesPeriodRuns?: boolean
+  questionSummaries?: SurveyQuestionSummary[]
 }
 
 export type SurveyResponseAnswer = {
