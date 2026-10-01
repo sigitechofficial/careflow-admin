@@ -64,6 +64,8 @@ export interface BudgetStatus {
 export interface CostOverview extends CostFreshness {
   monthToDate: number
   forecastMonthEnd: number | null
+  /** 'azure' = Azure Cost Management forecast; 'projection' = straight line from actual spend so far. */
+  forecastSource?: 'azure' | 'projection'
   lastMonthTotal: number
   lastMonthSamePeriod: number
   changeVsLastMonthPercent: number | null

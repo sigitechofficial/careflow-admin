@@ -91,7 +91,13 @@ export function OverviewTab({ onNavigateTab }: { onNavigateTab: (tab: AzurePrici
         <KpiCard
           label="Forecast month end"
           value={formatMoney(data.forecastMonthEnd, currency)}
-          sub="Azure Cost Management forecast"
+          sub={
+            data.forecastSource === 'azure'
+              ? 'Azure Cost Management forecast'
+              : data.forecastSource === 'projection'
+                ? 'Projected from actual spend so far (Azure forecast not available yet)'
+                : 'Month-end forecast'
+          }
           icon={<TrendingUp className="h-5 w-5" aria-hidden />}
           testId="azure-kpi-forecast"
         />
