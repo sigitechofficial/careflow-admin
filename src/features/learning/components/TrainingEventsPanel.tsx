@@ -13,6 +13,8 @@ import {
 } from '@/shared/ui/dialog'
 import { ContentSectionHeader } from '@/shared/ui/content-section'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import {
   useCreateLearningTrainingEvent,
   useDeleteLearningTrainingEvent,
@@ -50,7 +52,12 @@ export function TrainingEventsPanel() {
     if (submittingRef.current || createMut.isPending) return
     submittingRef.current = true
     try {
-      await createMut.mutateAsync(form)
+      // datetime-local values carry no timezone: send them as organisation-time instants.
+      await createMut.mutateAsync({
+        ...form,
+        startAt: orgDatetimeLocalToIso(form.startAt) || form.startAt,
+        endAt: orgDatetimeLocalToIso(form.endAt) || form.endAt,
+      })
       toastSuccess('Training event created')
       setForm(EMPTY_FORM)
       setDialogOpen(false)
@@ -124,7 +131,7 @@ export function TrainingEventsPanel() {
                   <tr key={row.id} className="border-t border-border">
                     <td className="px-3 py-2 font-medium">{row.title}</td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {new Date(row.startAt).toLocaleString()}
+                      {formatOrganisationDateTime(row.startAt)}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {row.location ?? row.virtualMeetingUrl ?? '—'}

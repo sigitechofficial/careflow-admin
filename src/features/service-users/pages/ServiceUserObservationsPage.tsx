@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { dayKeyFromInstant, isoToOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Calendar, Loader2, UserCircle, Users } from 'lucide-react'
 import {
@@ -68,24 +69,22 @@ import {
 } from '@/features/service-users/hooks/useServiceUserObservations'
 import { serviceUserKeys } from '@/features/service-users/keys'
 
+// Observation times are entered and shown in the organisation timezone, not the device's.
 function toDatetimeLocalValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (Number.isNaN(d.getTime())) return ''
+  return isoToOrgDatetimeLocal(d.toISOString())
 }
 
 function datetimeLocalToIso(value: string): string {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) throw new Error('Invalid date')
-  return d.toISOString()
+  const iso = orgDatetimeLocalToIso(value)
+  if (!iso) throw new Error('Invalid date')
+  return iso
 }
 
 function formatDmy(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  return `${dd}/${mm}/${yyyy}`
+  const day = dayKeyFromInstant(iso)
+  if (!day) return '—'
+  return `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`
 }
 
 export default function ServiceUserObservationsPage() {

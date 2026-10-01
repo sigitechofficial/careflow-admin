@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { toastApiError, toastInfo, toastSuccess } from '@/shared/lib/toast'
@@ -119,11 +120,11 @@ export function VisitBodyMapCapture({ visitContext, onRecorded }: Props) {
         causeSummary: values.causeSummary || undefined,
         actionSummary: values.actionSummary || undefined,
         firstNoticedAt: values.firstNoticedAt
-          ? new Date(values.firstNoticedAt).toISOString()
+          ? orgDatetimeLocalToIso(values.firstNoticedAt)
           : undefined,
         noticedByType: values.noticedByType,
         nextReviewAt: values.nextReviewAt
-          ? new Date(values.nextReviewAt).toISOString()
+          ? orgDatetimeLocalToIso(values.nextReviewAt)
           : undefined,
         safeguardingTriggered: values.safeguardingTriggered,
         managerReviewRequired: values.safeguardingTriggered || undefined,

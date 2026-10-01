@@ -108,8 +108,6 @@ import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
-import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
-import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
 import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
@@ -1457,20 +1455,21 @@ const hrCandidateDetailRoute = createRoute({
   component: CandidateDetailPage,
 })
 
+// Legacy URLs kept for old bookmarks/links; the API-backed Incident module replaces these pages.
 const accidentsIncidentsViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/view',
-  beforeLoad: requirePermission('incidents.read'),
-  // UI-only register page ΓÇö no list API to prefetch yet
-  component: ViewAccidentsIncidentsPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/incidents/view' })
+  },
 })
 
 const accidentsIncidentsRaiseRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/raise',
-  beforeLoad: requirePermission('incidents.read'),
-  // UI-only form page ΓÇö no lookup API to prefetch yet
-  component: RaiseAccidentsIncidentsPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/incidents/raise' })
+  },
 })
 
 // Incident Management module (real, API-backed).
@@ -1512,6 +1511,20 @@ const hoursApprovalsRoute = createRoute({
 const incidentsListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/view',
+  // Optional presets so dashboard figures can open the matching filtered list.
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { status?: string; severity?: string; open?: boolean; closedFrom?: string; overdue?: boolean } => {
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const flag = (v: unknown) => (v === true || v === 'true' || v === '1' || v === 1 ? true : undefined)
+    return {
+      status: str(raw.status),
+      severity: str(raw.severity),
+      open: flag(raw.open),
+      closedFrom: str(raw.closedFrom),
+      overdue: flag(raw.overdue),
+    }
+  },
   beforeLoad: requirePermission('incidents.read'),
   component: IncidentsListPage,
 })

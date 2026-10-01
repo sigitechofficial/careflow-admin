@@ -56,6 +56,18 @@ export function IncidentOutcomeSection({
 
   const isClosed = incident.status === 'CLOSED'
   const canShowClose = canClose && CLOSABLE_FROM.includes(incident.status)
+  // Mirrors the backend rule: incomplete mandatory measures block High/Critical closure unless
+  // the closer overrides with an audited reason.
+  const outstandingMandatory =
+    incident.severity === 'HIGH' || incident.severity === 'CRITICAL'
+      ? incident.actions.filter(
+          (a) => a.isMandatory && a.status !== 'COMPLETED' && a.status !== 'CANCELLED',
+        ).length
+      : 0
+  const [overrideMandatory, setOverrideMandatory] = React.useState(false)
+  const [overrideReason, setOverrideReason] = React.useState('')
+  const closeBlockedByMandatory =
+    outstandingMandatory > 0 && (!overrideMandatory || !overrideReason.trim())
   const canReinvestigate =
     canReopen &&
     (incident.status === 'CLOSED' ||
@@ -83,7 +95,11 @@ export function IncidentOutcomeSection({
     // Persist the outcome first so the closure validation passes, then close.
     saveOutcome.mutate(buildInput(), {
       onSuccess: () =>
-        statusMutation.mutate({ status: 'CLOSED', reason: 'Closed with recorded outcome' }),
+        statusMutation.mutate(
+          outstandingMandatory > 0
+            ? { status: 'CLOSED', reason: overrideReason.trim(), overrideMandatoryActions: true }
+            : { status: 'CLOSED', reason: 'Closed with recorded outcome' },
+        ),
     })
   }
 
@@ -142,7 +158,7 @@ export function IncidentOutcomeSection({
         </div>
       )}
 
-      {!isClosed && canReinvestigate && incident.status === 'AWAITING_CLOSURE' && (
+      {!isClosed && canReinvestigate && (
         <div className="flex justify-end">
           <Button
             size="sm"
@@ -191,6 +207,33 @@ export function IncidentOutcomeSection({
         <Textarea rows={2} value={comments} onChange={(e) => setComments(e.target.value)} />
       </FieldLabel>
 
+      {canShowClose && !isClosed && outstandingMandatory > 0 && (
+        <div className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3">
+          <p className="text-sm text-warning">
+            This {incident.severityLabel.toLowerCase()} incident has {outstandingMandatory} incomplete
+            mandatory corrective measure{outstandingMandatory === 1 ? '' : 's'}. Complete{' '}
+            {outstandingMandatory === 1 ? 'it' : 'them'} before closing, or override with a reason.
+          </p>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={overrideMandatory}
+              onChange={(e) => setOverrideMandatory(e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            Override and close anyway
+          </label>
+          {overrideMandatory && (
+            <Textarea
+              rows={2}
+              placeholder="Reason for overriding (required, recorded in the audit log)"
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+            />
+          )}
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Button size="sm" variant="outline" loading={saveOutcome.isPending} onClick={() => saveOutcome.mutate(buildInput())}>
           Save outcome
@@ -199,7 +242,7 @@ export function IncidentOutcomeSection({
           <Button
             size="sm"
             loading={saveOutcome.isPending || statusMutation.isPending}
-            disabled={!finalOutcome.trim()}
+            disabled={!finalOutcome.trim() || closeBlockedByMandatory}
             onClick={close}
           >
             <Lock className="mr-1 h-4 w-4" /> Close incident

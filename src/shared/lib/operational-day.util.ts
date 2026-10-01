@@ -268,3 +268,31 @@ export function dayKeyFromInstant(
   if (!iso) return ''
   return dayKeyInTimeZone(iso, timeZone)
 }
+
+// <input type="datetime-local"> values carry no timezone. Staff enter organisation wall-clock time,
+// so convert via the org timezone — `new Date(value)` would use the device's timezone instead.
+
+/** datetime-local value (YYYY-MM-DDTHH:mm, organisation wall clock) → UTC ISO; '' when unparseable. */
+export function orgDatetimeLocalToIso(
+  value: string | null | undefined,
+  timeZone = getSyncedOperationalTimeZone(),
+): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return ''
+  return combineOperationalDateAndHm(value.slice(0, 10), value.slice(11, 16), timeZone)
+}
+
+/** UTC ISO → datetime-local value in the organisation timezone; '' when missing/invalid. */
+export function isoToOrgDatetimeLocal(
+  iso: string | null | undefined,
+  timeZone = getSyncedOperationalTimeZone(),
+): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${dayKeyInTimeZone(d, timeZone)}T${formatOpsHm(d.toISOString(), timeZone)}`
+}
+
+/** Current organisation wall-clock time as a datetime-local value. */
+export function nowOrgDatetimeLocal(timeZone = getSyncedOperationalTimeZone()): string {
+  return isoToOrgDatetimeLocal(new Date().toISOString(), timeZone)
+}

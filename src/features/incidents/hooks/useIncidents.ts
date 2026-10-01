@@ -59,10 +59,11 @@ export function useIncident(id: string | undefined) {
   })
 }
 
-export function useIncidentStats(locationId?: string | null) {
+export function useIncidentStats(locationId?: string | null, enabled = true) {
   return useQuery({
     queryKey: incidentKeys.stats(locationId),
     queryFn: ({ signal }) => fetchIncidentStats(locationId ?? undefined, { signal }),
+    enabled,
   })
 }
 
@@ -236,8 +237,8 @@ export function useCreateIncident() {
 export function useChangeIncidentStatus(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (vars: { status: IncidentStatus; reason?: string }) =>
-      changeIncidentStatus(id, vars.status, vars.reason),
+    mutationFn: (vars: { status: IncidentStatus; reason?: string; overrideMandatoryActions?: boolean }) =>
+      changeIncidentStatus(id, vars.status, vars.reason, vars.overrideMandatoryActions),
     onSuccess: () => {
       toastSuccess('Incident status updated')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
