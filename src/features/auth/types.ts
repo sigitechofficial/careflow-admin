@@ -252,6 +252,8 @@ export type Permission =
   | 'incidents.view_analytics'
   | 'incidents.manage_settings'
   | 'security.admin'
+  | 'platform_costs.read'
+  | 'platform_costs.manage'
   | 'sso.configure'
   | 'temporary_inspector.session'
   | 'service_user.portal.session'

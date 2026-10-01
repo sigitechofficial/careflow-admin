@@ -45,6 +45,7 @@ import {
   Wallet,
   Banknote,
   CircleDollarSign,
+  Cloud,
   Radio,
   FileBarChart2,
   GraduationCap,
@@ -735,6 +736,12 @@ const navItems: NavItem[] = [
   },
   { label: 'UI Showcase',       icon: <Sparkles className="h-5 w-5" />,      href: '/showcase', ready: false },
   {
+    label: 'Azure Pricing',
+    icon: <Cloud className="h-5 w-5" />,
+    href: '/azure-pricing',
+    permission: 'platform_costs.read',
+  },
+  {
     label: 'Administration',
     icon: <Shield className="h-5 w-5" />,
     href: '/admin/audit',
@@ -780,7 +787,8 @@ function filterNavByPermission(
     .map((item) => {
       if (item.ready === false) return null
       if (!item.children?.length) {
-        // Top-level leaves (Home): always keep. Stub leaves without children already handled.
+        // Top-level leaves (Home): keep unless gated by a permission the user lacks.
+        if (item.permission && !can(item.permission)) return null
         return item
       }
       const children = item.children.filter((ch) => navChildAllowed(ch, can, role))

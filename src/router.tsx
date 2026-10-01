@@ -106,6 +106,8 @@ import HomePage from '@/features/home/pages/HomePage'
 import InProgressPage from '@/features/home/pages/InProgressPage'
 import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
+import AzurePricingPage from '@/features/azure-pricing/pages/AzurePricingPage'
+import { isAzurePricingTabId, type AzurePricingTabId } from '@/features/azure-pricing/types'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
@@ -290,6 +292,7 @@ const pageTitles: Record<string, string> = {
   '/account': 'My account',
   '/admin/security': 'Security administration',
   '/admin/audit': 'Audit log',
+  '/azure-pricing': 'Azure Pricing',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
@@ -1566,6 +1569,16 @@ const adminSecurityRoute = createRoute({
   component: SecurityAdminPage,
 })
 
+const azurePricingRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/azure-pricing',
+  validateSearch: (raw: Record<string, unknown>): { tab?: AzurePricingTabId } => ({
+    tab: isAzurePricingTabId(raw.tab) ? raw.tab : undefined,
+  }),
+  beforeLoad: requirePermission('platform_costs.read'),
+  component: AzurePricingPage,
+})
+
 const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
@@ -2214,6 +2227,7 @@ const routeTree = rootRoute.addChildren([
     accountRoute,
     adminSecurityRoute,
     adminAuditRoute,
+    azurePricingRoute,
     adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,
