@@ -22,6 +22,8 @@ export interface NavItem {
   badgeVariant?: 'default' | 'destructive' | 'warning' | 'success'
   children?: SubNavItem[]
   ready?: boolean
+  /** Top-level leaf only: hide the item unless the user holds this permission. */
+  permission?: Permission
 }
 
 export type LayoutVariant = 'admin' | 'portal'
