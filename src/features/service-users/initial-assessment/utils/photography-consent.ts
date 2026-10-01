@@ -2,7 +2,19 @@
 
 export type PhotographyConsentGender = 'male' | 'female' | null
 
+/** IA Consent tab gate — only "yes" asks for the consent record; "not_now" = revisit if a skin concern appears. */
+export type PhotographyNeeded = 'yes' | 'no' | 'not_now'
+
+export const PHOTOGRAPHY_NEEDED_OPTIONS: { value: PhotographyNeeded; label: string }[] = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+  { value: 'not_now', label: 'Not now' },
+]
+
 export type PhotographyConsentMetadata = {
+  photographyNeeded?: PhotographyNeeded
+  /** IA compact record: the statements were explained and consent was given (replaces typed signatures). */
+  statementsAgreed?: boolean
   surname?: string
   firstNames?: string
   dateOfBirth?: string
@@ -44,7 +56,13 @@ export function normalizePhotographyConsentMetadata(raw: unknown): PhotographyCo
   const gender =
     row.gender === 'male' || row.gender === 'female' ? row.gender : row.gender === null ? null : undefined
 
+  const needed = PHOTOGRAPHY_NEEDED_OPTIONS.some((o) => o.value === row.photographyNeeded)
+    ? row.photographyNeeded
+    : undefined
+
   return {
+    photographyNeeded: needed,
+    statementsAgreed: row.statementsAgreed === true ? true : undefined,
     surname: str(row.surname),
     firstNames: str(row.firstNames),
     dateOfBirth: str(row.dateOfBirth),
@@ -76,4 +94,25 @@ export function isPhotographyConsentComplete(meta: PhotographyConsentMetadata | 
   if (!meta.consentDate?.trim()) return false
   if (!meta.consentPrintName?.trim()) return false
   return true
+}
+
+/** Compact IA record (Consent tab, photography needed = Yes). */
+export function isCompactPhotographyConsentRecorded(meta: PhotographyConsentMetadata | undefined): boolean {
+  return Boolean(
+    meta?.statementsAgreed &&
+      meta.consentPrintName?.trim() &&
+      meta.consentDate?.trim() &&
+      meta.professionalName?.trim(),
+  )
+}
+
+/**
+ * Consent tab completeness: answering No / Not now is complete; Yes needs the compact record.
+ * IAs saved before the gate existed still count when the full paper form was filled in.
+ */
+export function isIaPhotographyConsentComplete(meta: PhotographyConsentMetadata | undefined): boolean {
+  if (!meta) return false
+  if (meta.photographyNeeded === 'no' || meta.photographyNeeded === 'not_now') return true
+  if (meta.photographyNeeded === 'yes') return isCompactPhotographyConsentRecorded(meta)
+  return isPhotographyConsentComplete(meta)
 }

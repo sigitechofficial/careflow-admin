@@ -6,4 +6,4 @@ export function section12PanelTitle(specRef: string): string {
 }
 
 /** Paper worksheet block spanning §12.1 legend through §12.5 activity score groups. */
-export const SECTION_12_ADL_WORKSHEET_PANEL_TITLE = '12.1–12.5 Activities of daily living'
+export const SECTION_12_ADL_WORKSHEET_PANEL_TITLE = 'Activities of daily living'

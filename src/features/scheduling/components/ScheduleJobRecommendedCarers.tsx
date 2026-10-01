@@ -11,6 +11,8 @@ type Props = {
   allocatingEmployeeId?: string | null
   replacingEmployeeId?: string | null
   onAssign: (employeeId: string) => void
+  /** Multi-carer team picking: toggle selection instead of assigning. */
+  selectedEmployeeIds?: Set<string>
   onCandidatesChange?: (candidates: VisitPlanCarerCandidate[]) => void
   hideHeader?: boolean
   searchQuery?: string

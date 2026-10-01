@@ -73,6 +73,11 @@ export function VisitLogTimelinePanel({ jobId }: { jobId: string }) {
               </span>
               <div className="min-w-0 flex-1 pb-4">
                 <p className="text-sm font-medium text-foreground">{item.title}</p>
+                {item.author ? (
+                  <p className="text-xs text-muted-foreground" data-testid="visit-log-author">
+                    {item.author.label} · {item.timeLabel || item.time}
+                  </p>
+                ) : null}
                 {/* subtitle mirrors detail server-side, so only render detail */}
                 {item.detail ? (
                   <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground">

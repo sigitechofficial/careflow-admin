@@ -579,6 +579,28 @@ export async function fetchAcceptedCarePlans(
   return res.data
 }
 
+/** Staff-safety facts the system already holds (visit plan, DOM Care, SOS events, incidents). */
+export type LoneWorkerSystemFacts = {
+  isNewServiceUser: boolean | null
+  plannedCarersPerVisit: number | null
+  plannedCarersSource: 'visit_plan' | 'dom_care' | null
+  hasNightOrLateVisits: boolean | null
+  longestVisitMinutes: number | null
+  sosEventCount: number
+  safeguardingIncidentCount: number
+}
+
+export async function fetchLoneWorkerSystemFacts(
+  serviceUserId: string,
+  init?: RequestInit,
+): Promise<LoneWorkerSystemFacts> {
+  const res = await apiJson<ApiEnvelope<LoneWorkerSystemFacts>>(
+    `/service-users/${serviceUserId}/initial-assessments/lone-worker-facts`,
+    { method: 'GET', ...init },
+  )
+  return res.data
+}
+
 export async function decideInitialAssessmentCarePlanRecommendation(
   serviceUserId: string,
   submissionId: string,

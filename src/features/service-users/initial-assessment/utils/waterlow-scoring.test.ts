@@ -11,6 +11,8 @@ import {
   waterlowCarePlanRequired,
   WATERLOW_TABLE_SECTIONS,
   defaultWaterlowMetadata,
+  waterlowSelectionBreakdown,
+  waterlowFollowUpPrefill,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 
 describe('waterlow-scoring', () => {
@@ -95,5 +97,55 @@ describe('waterlow-scoring', () => {
     expect(computeWaterlowScoreFromSelections(meta)).toBe(17)
     expect(computeWaterlowScore(meta)).toBe(17)
     expect(waterlowBand(17).level).toBe('high')
+  })
+})
+
+describe('waterlowSelectionBreakdown', () => {
+  it('lists the chosen options and adds up to the score', () => {
+    const meta = {
+      singleOptionIds: { gender: 'female', age: '65-74', mobility: 'restricted', continence: 'continent' },
+      gender: 2,
+      age: 3,
+      mobility: 3,
+      continence: 0,
+      skinTypes: ['dry'],
+      weightLossOptionId: 'none',
+      weightLoss: 0,
+    }
+    const items = waterlowSelectionBreakdown(meta)
+    expect(items.filter((i) => i.score > 0).map((i) => `${i.category}:${i.score}`)).toEqual([
+      'Gender:2',
+      'Age:3',
+      'Skin type — visual risk areas:1',
+      'Mobility:3',
+    ])
+    expect(items.reduce((sum, i) => sum + i.score, 0)).toBe(computeWaterlowScore(meta))
+  })
+
+  it('is empty when nothing is chosen', () => {
+    expect(waterlowSelectionBreakdown({})).toEqual([])
+  })
+})
+
+describe('waterlowFollowUpPrefill', () => {
+  const scored = { singleOptionIds: { gender: 'female', age: '65-74' }, gender: 2, age: 3 }
+
+  it('fills empty follow-up fields with a one-month review date', () => {
+    expect(waterlowFollowUpPrefill(scored, { assessorName: 'A. Assessor', assessmentDate: '2026-09-30' })).toEqual({
+      recommendation: 'Minimal risk (0–9): Follow agency policy.',
+      recommendationBy: 'A. Assessor',
+      recommendationDate: '2026-09-30',
+      nextReviewDate: '2026-10-30',
+    })
+  })
+
+  it('never overwrites what is already written, and waits for a score', () => {
+    const filled = { ...scored, recommendation: '<p>Own text</p>', recommendationBy: 'X', recommendationDate: '2026-01-01', nextReviewDate: '2026-02-01' }
+    expect(waterlowFollowUpPrefill(filled, { assessorName: 'A', assessmentDate: '2026-09-30' })).toBeNull()
+    expect(waterlowFollowUpPrefill({}, { assessorName: 'A', assessmentDate: '2026-09-30' })).toBeNull()
+  })
+
+  it('clamps to the last day of a shorter month', () => {
+    expect(waterlowFollowUpPrefill(scored, { assessmentDate: '2027-01-31' })?.nextReviewDate).toBe('2027-02-28')
   })
 })

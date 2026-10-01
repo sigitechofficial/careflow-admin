@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 import { InitialAssessmentPaperYesNoRow } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperYesNoRow'
 import { IA_YES_NO_CARD_CLASS } from '@/features/service-users/initial-assessment/utils/form-typography'
+import { cn } from '@/shared/lib/utils'
 
 type Props = ComponentProps<typeof InitialAssessmentPaperYesNoRow>
 
@@ -11,7 +12,7 @@ export function InitialAssessmentYesNoCardField({
   ...props
 }: Props) {
   return (
-    <div className={IA_YES_NO_CARD_CLASS}>
+    <div className={cn(IA_YES_NO_CARD_CLASS, 'ia-yes-no-card')}>
       <InitialAssessmentPaperYesNoRow {...props} showDivider={showDivider} compact={compact} />
     </div>
   )

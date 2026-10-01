@@ -62,6 +62,18 @@ const SECTION_1_ACT_DIVIDERS: Record<string, { title: string; hint?: string }> =
     title: 'Accessible care needs',
     hint: 'Communication format, interpreter, and sensory support.',
   },
+  '1.9': {
+    title: 'Recent hospital stay',
+    hint: 'Admissions in the last 6 months, discharge summary and follow-up after discharge.',
+  },
+  '1.10': {
+    title: 'Social wellbeing',
+    hint: 'Loneliness, contact with others, wish for more social connection, and caring for others.',
+  },
+  '1.11': {
+    title: 'Smoking, alcohol and drugs',
+    hint: "The person's own use — health, medication and fire safety.",
+  },
 }
 
 const SUBSECTION_LABELS: Record<string, string> = {
@@ -81,6 +93,9 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '1.6': '1.6 Dignity and privacy',
   '1.7': '1.7 Equality and cultural needs',
   '1.8': '1.8 Accessible care needs',
+  '1.9': '1.9 Recent hospital stay',
+  '1.10': '1.10 Social wellbeing',
+  '1.11': '1.11 Smoking, alcohol and drugs',
   '2.1': '2.1 Consent to assessment',
   '2.2': '2.2 Consent to receive care',
   '2.3': '2.3 Understanding and communication',
@@ -89,7 +104,10 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '2.6': '2.6 Best interest decision',
   '2.7': '2.7 Representative involvement',
   '2.8': '2.8 Information sharing',
-  '2.9': '2.9 DoLS / LPS status',
+  '2.9': '2.9 Deprivation of liberty',
+  '2.9a': '2.9a Supervision and restrictions',
+  '2.11': '2.11 Consent limits',
+  '2.12': '2.12 Restrictions and record',
   '3.3': '3.3 Home environment safety',
   '3.4': '3.4 Safety measures required',
   '3.5': '3.5 Property access',
@@ -139,6 +157,7 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '9.3': '9.3 Insulin, covert medication and controlled drugs',
   '9.4': '9.4 Medication list',
   '9.5': '9.5 Dispensing, MAR and safety notes',
+  '9.6': '9.6 Managing medicines',
   '10.0': '10.0 No concerns gate',
   '10.1': 'Emotional wellbeing',
   '10.2': 'a. Emotional well being — client states:',
@@ -185,20 +204,49 @@ const SUBSECTION_LABELS: Record<string, string> = {
   '15.2': '15.2 PPE and staff instructions',
   '15.3': '15.3 Escalation',
   '18.1': '18.1 Fire hazards',
-  '18.2': '18.2 London Fire Brigade',
+  '18.2': '18.2 Local fire and rescue service',
   '18.3': '18.3 Smoke and fire alarms',
   '18.4': '18.4 Smoking-related fire risk',
   '18.5': '18.5 Cooking-related fire risk',
   '18.6': '18.6 Escape route and emergency arrangements',
   '14.8': '14.8 Assessor sign-off details',
+  // Refs that had no label (headings showed a bare number)
+  '2.mca': '2.mca MCA screening',
+  '3.2': '3.2 Fire and rescue service',
+  '6.6': '6.6 Nutritional supplements',
+  '11.4': '11.4 Waterlow assessment',
+  '16.1': '16.1 Self-evacuation',
+  '16.2': '16.2 Evacuation assistance and equipment',
+  '16.3': '16.3 Evacuation procedure',
+  '16.4': '16.4 Alarm and warning considerations',
+  '16.5': '16.5 Refuge or waiting location',
+  '16.6': '16.6 PEEP discussed with the person',
+  '16.7': '16.7 PEEP review',
+  '17.1': '17.1 Bed rails in use',
+  '17.2': '17.2 Bed rails required and in place',
+  '17.3': '17.3 Reason for bed rails',
+  '17.4': '17.4 Alternatives considered',
+  '17.5': '17.5 Entrapment risk',
+  '17.6': '17.6 Consent and capacity',
+  '17.7': '17.7 Bed rails review',
+  '17.8': '17.8 Additional notes',
 }
 
 /**
  * Merge groups that share a specRef, then sort by canonical spec order (not visibility order).
  */
-/** Human-readable subsection label for a spec reference (e.g. `2.1` → `2.1 Consent to assessment`). */
+/**
+ * Headings show the name only (`2.1` → `Consent to assessment`). Spec numbers stay internal: they come
+ * from the old 14-section template and no longer match the tab order, so on screen they only confused.
+ */
+function withoutSpecNumber(label: string): string {
+  return label.replace(/^Section\s+\d+(?:\s*[–-]\s*\d+)?\s+—\s+/, '').replace(/^\d+(?:\.\w+)+\s+/, '')
+}
+
+/** Human-readable subsection label for a spec reference (e.g. `2.1` → `Consent to assessment`). */
 export function specRefLabel(specRef: string): string {
-  return SUBSECTION_LABELS[specRef] ?? specRef
+  const label = SUBSECTION_LABELS[specRef]
+  return label ? withoutSpecNumber(label) : specRef
 }
 
 export function mergeSpecRefGroups(groups: SpecRefGroup[]): SpecRefGroup[] {
@@ -289,7 +337,7 @@ export function groupQuestionsBySpecRef(
         : undefined
     groups.push({
       specRef: currentRef,
-      label: SUBSECTION_LABELS[currentRef] ?? currentRef,
+      label: specRefLabel(currentRef),
       questions: currentQuestions,
       actDivider,
     })

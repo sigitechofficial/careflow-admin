@@ -156,9 +156,9 @@ export const RECOMMENDED_EVIDENCE_PREVIEW_LIMIT = 3
 
 /** Documented Care Plan page section order (lifecycle before supporting risk/assessment). */
 export const CARE_PLAN_PAGE_SECTION_ORDER = [
-  'recommended',
-  'in-progress',
   'live',
+  'in-progress',
+  'recommended',
   'monitor',
   'assessment-risk',
   'available',

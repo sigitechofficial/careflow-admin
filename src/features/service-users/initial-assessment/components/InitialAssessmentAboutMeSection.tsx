@@ -16,8 +16,6 @@ import type {
 import { compareSpecRefs } from '@/features/service-users/initial-assessment/utils/compare-spec-ref'
 import {
   IA_HINT_CLASS,
-  IA_SUBSECTION_PANEL_CLASS,
-  IA_SUBSECTION_PANEL_HEADER_CLASS,
   IA_SUBSECTION_PANEL_TITLE_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
@@ -65,12 +63,12 @@ function AboutMeSubsection({
   const panelId = React.useId()
 
   return (
-    <div className={IA_SUBSECTION_PANEL_CLASS} data-testid={`ia-about-me-${id}`}>
+    // A heading + divider rather than a card: the About Me section is already the one bordered box.
+    <div className="border-b border-border/60 last:border-b-0" data-testid={`ia-about-me-${id}`}>
       <button
         type="button"
         className={cn(
-          IA_SUBSECTION_PANEL_HEADER_CLASS,
-          'flex w-full items-center gap-3 text-left cursor-pointer select-none',
+          'flex w-full items-center gap-3 rounded-md py-3 text-left cursor-pointer select-none',
           'hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30',
         )}
         aria-expanded={open}
@@ -86,7 +84,7 @@ function AboutMeSubsection({
           aria-hidden
         />
       </button>
-      <div id={panelId} role="region" hidden={!open} className={cn('space-y-4 p-4', !open && 'hidden')}>
+      <div id={panelId} role="region" hidden={!open} className={cn('space-y-5 pb-5', !open && 'hidden')}>
         {children}
       </div>
     </div>
@@ -126,7 +124,7 @@ export function InitialAssessmentAboutMeSection({
       title="About Me"
       subtitle="Person-centred profile — saved as initial assessment answers. Pre-filled from the service user About Me profile where available."
       testId="ia-about-me-section"
-      bodyClassName="space-y-4"
+      bodyClassName="space-y-0"
     >
       {ABOUT_ME_IA_TABS.map((t) => (
         <AboutMeSubsection key={t.id} id={t.id} label={t.label}>
@@ -144,7 +142,7 @@ export function InitialAssessmentAboutMeSection({
         </AboutMeSubsection>
       ))}
 
-      <p className={cn('flex items-start gap-2', IA_HINT_CLASS, 'text-xs')}>
+      <p className={cn('mt-4 flex items-start gap-2', IA_HINT_CLASS, 'text-xs')}>
         <Heart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" aria-hidden />
         Answers save with this assessment submission. Updating the service user About Me profile still
         pre-fills empty fields on load.

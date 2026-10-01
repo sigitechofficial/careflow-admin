@@ -7,6 +7,7 @@ import { InitialAssessmentQuestionField } from '@/features/service-users/initial
 import { useBodyMapLookups } from '@/features/service-users/body-map/hooks/useBodyMapLookups'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { mapLookupRowsToQuestionOptions } from '@/features/service-users/initial-assessment/utils/question-options'
+import { InitialAssessmentSpecialistTriggerNote } from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecialistTriggerNote'
 import { InitialAssessmentAddressContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentAddressContactField'
 import { InitialAssessmentGpContactField } from '@/features/service-users/initial-assessment/components/InitialAssessmentGpContactField'
 import {
@@ -62,12 +63,14 @@ import {
 } from '@/features/service-users/initial-assessment/utils/section-notes'
 import { groupQuestionsBySpecRef, sectionIntroCopy } from '@/features/service-users/initial-assessment/utils/spec-ref-groups'
 import {
+  answerIsPrefillValue,
   hasAssessmentAnswer,
   mergePrefillAnswer,
   prefillKeyForQuestion,
   prefillHintForQuestion,
 } from '@/features/service-users/initial-assessment/utils/question-prefill'
 import { isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
+import { autoFillSourceNote } from '@/features/service-users/initial-assessment/utils/cross-tab-answer-defaults'
 import { getVisibleSectionQuestions } from '@/features/service-users/initial-assessment/utils/visible-section-questions'
 import {
   isClinicalMeasurementField,
@@ -216,13 +219,29 @@ export function InitialAssessmentSectionQuestions({
   const isFieldDisabled = (q: InitialAssessmentQuestion) =>
     disabled || shouldLockVitalQuestion(q, allSections, draftAnswers)
 
-  const renderField = (
+  // A Core answer that makes a specialist assessment Required says so right under the question.
+  const renderField = (q: InitialAssessmentQuestion, fieldOptions?: { hideLabel?: boolean }) => {
+    const node = renderFieldInner(q, fieldOptions)
+    if (!node) return node
+    return (
+      <>
+        {node}
+        <InitialAssessmentSpecialistTriggerNote questionId={q.id} />
+      </>
+    )
+  }
+
+  const renderFieldInner = (
     q: InitialAssessmentQuestion,
     fieldOptions?: { hideLabel?: boolean },
   ) => {
     const raw = draftAnswers[q.id]
     const merged = mergePrefill(q, raw, prefillMap)
-    const hint = prefillHintForQuestion(q, prefillMap)
+    const hint = prefillHintForQuestion(q, prefillMap, {
+      fundingTypeCatalog,
+      ethnicityCatalog,
+      languageCatalog,
+    })
     const simpleLayout =
       isSection1SimpleGroup(specRefOf(q)) || isSection4FullWidthSpecRef(specRefOf(q))
     if (
@@ -289,7 +308,11 @@ export function InitialAssessmentSectionQuestions({
       <InitialAssessmentQuestionField
         question={q}
         value={merged}
-        prefillHint={hasAssessmentAnswer(raw, q) ? null : hint}
+        prefillHint={
+          !hasAssessmentAnswer(raw, q) || answerIsPrefillValue(q, raw, prefillMap)
+            ? hint
+            : autoFillSourceNote(q, allSections, draftAnswers)
+        }
         errorMessage={questionErrors?.get(q.id)}
         disabled={isFieldDisabled(q)}
         hideLabel={fieldOptions?.hideLabel}
@@ -706,6 +729,15 @@ export function InitialAssessmentSectionQuestions({
     )
   }
 
+  // §2.9a restrictions screen sits in Personal Details (Core) — plain fields, not the consent panels.
+  const restrictionsScreenOnly =
+    section.sectionNumber === 2 &&
+    visibleQuestions.length > 0 &&
+    visibleQuestions.every((q) => specRefOf(q) === '2.9a')
+  if (restrictionsScreenOnly) {
+    return <div className={IA_SECTION_BODY_CLASS}>{groups.map((group, i) => renderPanelGroup(group, i))}</div>
+  }
+
   if (isConsentCapacitySection(section.sectionNumber)) {
     return (
       <InitialAssessmentConsentCapacitySection
@@ -717,6 +749,8 @@ export function InitialAssessmentSectionQuestions({
         serviceUserId={serviceUserId}
         submissionId={submissionId}
         renderField={renderField}
+        onChange={onChange}
+        flat={holisticTab?.kind === 'consent'}
       />
     )
   }
@@ -748,7 +782,11 @@ export function InitialAssessmentSectionQuestions({
     const renderCatalogGroups = () =>
       groups.map((group, groupIndex) => {
         if (section.sectionNumber === 14 && SIGN_OFF_WORKFLOW_SPEC_REFS.has(group.specRef)) {
-          if (group.specRef !== '14.3') return null
+          // Prefer 14.7 as anchor; fall back so workflow still mounts if only 14.3/14.4 remain.
+          const workflowGroups = groups.filter((g) => SIGN_OFF_WORKFLOW_SPEC_REFS.has(g.specRef))
+          const anchor =
+            workflowGroups.find((g) => g.specRef === '14.7') ?? workflowGroups[0]
+          if (!anchor || group.specRef !== anchor.specRef) return null
           return (
             <InitialAssessmentSignOffWorkflowPanel
               key="ia-14-workflow"

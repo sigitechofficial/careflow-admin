@@ -75,25 +75,14 @@ export function InitialAssessmentPaperSection7AdlBlock({
           onChange={patchAdl}
         />
 
-        <InitialAssessmentYesNoCardField
-          label="Do you want Fall Screening assessment?"
-          name="paper-adl-falls-screening-requested"
-          value={adlDisplay.fallsScreeningRequested ?? null}
-          disabled={disabled}
-          showDivider={false}
-          onChange={(v) =>
-            patchAdl({
-              ...adlDisplay,
-              fallsScreeningRequested: v,
-            })
-          }
-        />
-
-        {adlDisplay.fallsScreeningRequested === true && onOpenFallsScreeningTab ? (
-          <div className={cn(IA_CALLOUT_TEAL_CLASS, 'text-sm')}>
-            <p className="font-medium text-teal-950 dark:text-teal-100">
-              Complete the falls screening worksheet on the Falls Screening tab.
-            </p>
+        {/* Falls status is derived from the Falls tab (§12.7 case-finding + screen) — not a manual answer. */}
+        <div className={cn(IA_CALLOUT_TEAL_CLASS, 'text-sm')} data-testid="ia-adl-falls-status">
+          <p className="font-medium text-teal-950 dark:text-teal-100">
+            {adlDisplay.fallsAssessmentCompleted === true
+              ? `Falls assessment completed${adlDisplay.fallsAssessmentDate ? ` on ${adlDisplay.fallsAssessmentDate}` : ''}.`
+              : 'Falls history, concerns and the falls screen are recorded on the Falls Screening tab.'}
+          </p>
+          {onOpenFallsScreeningTab ? (
             <Button
               type="button"
               variant="outline"
@@ -104,30 +93,8 @@ export function InitialAssessmentPaperSection7AdlBlock({
               <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
               Open Falls Screening
             </Button>
-            <p className={cn('mt-2', IA_HINT_CLASS)}>
-              Record fall history, consent, and the six screening questions there.
-            </p>
-          </div>
-        ) : null}
-
-        <InitialAssessmentYesNoCardField
-          label="Falls trigger assessment completed?"
-          name="paper-adl-falls-completed"
-          value={adlDisplay.fallsAssessmentCompleted ?? null}
-          disabled={disabled}
-          showDivider={false}
-          dateLabel="Date:"
-          dateValue={adlDisplay.fallsAssessmentDate ?? undefined}
-          dateDisabled={adlDisplay.fallsAssessmentCompleted !== true}
-          onChange={(v) =>
-            patchAdl({
-              ...adlDisplay,
-              fallsAssessmentCompleted: v,
-              fallsAssessmentDate: v ? adlDisplay.fallsAssessmentDate : null,
-            })
-          }
-          onDateChange={(d) => patchAdl({ ...adlDisplay, fallsAssessmentDate: d || null })}
-        />
+          ) : null}
+        </div>
 
         <InitialAssessmentYesNoCardField
           label="Are mobility aids in use or required?"

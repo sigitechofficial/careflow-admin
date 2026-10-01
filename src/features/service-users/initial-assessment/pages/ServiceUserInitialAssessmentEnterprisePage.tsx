@@ -12,7 +12,8 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { ApiError } from '@/shared/api/api-client'
-import { toastApiError, toastInfo, toastSuccess } from '@/shared/lib/toast'
+import { toastApiError, toastError, toastInfo, toastSuccess, toastWarning } from '@/shared/lib/toast'
+import { useToastStore } from '@/store/toast.store'
 import { fetchServiceUserBodyMap } from '@/features/service-users/body-map/api'
 import { type ServiceUserDetail, type ServiceUserListRow } from '@/features/service-users/types'
 import { serviceUserKeys } from '@/features/service-users/keys'
@@ -72,14 +73,18 @@ import { HOLISTIC_FORM_TITLE } from '@/features/service-users/initial-assessment
 import { InitialAssessmentDocumentTabContent } from '@/features/service-users/initial-assessment/components/InitialAssessmentDocumentTabContent'
 import { SectionQaDemoDataPanel } from '@/features/service-users/initial-assessment/components/SectionQaDemoDataPanel'
 import {
+  applySpecialistNavStatus,
   buildHolisticTabNavStatus,
-  firstHolisticTabForEnterpriseSection,
   HOLISTIC_ASSESSMENT_TABS,
+  HOLISTIC_TAB_GROUP_LABEL,
   HOLISTIC_TAB_COUNT,
   holisticTabById,
   holisticTabDisplayNumber,
+  holisticTabForValidationIssue,
+  holisticTabRef,
   holisticTabTitle,
   questionsForDocumentTab,
+  retiredHolisticTabIdsFor,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import { getVisibleSectionQuestions } from '@/features/service-users/initial-assessment/utils/visible-section-questions'
 import { demoFillQuestionsForDocumentTab } from '@/features/service-users/initial-assessment/utils/demo-fill-tab-questions'
@@ -105,7 +110,9 @@ import {
 } from '@/features/service-users/initial-assessment/utils/moving-handling-operations'
 import { isTherapyAideMemoireComplete } from '@/features/service-users/initial-assessment/utils/therapy-aide-memoire'
 import {
+  ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS,
   isEnvironmentAssessmentComplete,
+  type EnvironmentAssessmentLoneWorkerFactorId,
   type EnvironmentAssessmentMetadata,
 } from '@/features/service-users/initial-assessment/utils/environment-assessment'
 import {
@@ -122,14 +129,16 @@ import {
 } from '@/features/service-users/initial-assessment/utils/clinical-assessment-outcome-summary'
 import {
   isCarePlanObjectivesComplete,
+  carePlanVisitIdsFromSections,
   type CarePlanObjectivesMetadata,
 } from '@/features/service-users/initial-assessment/utils/care-plan-objectives'
 import {
   isMentalCapacityChecklistComplete,
+  syncMentalCapacityChecklistFromScreening,
   type MentalCapacityChecklistMetadata,
 } from '@/features/service-users/initial-assessment/utils/mental-capacity-checklist'
 import {
-  isPhotographyConsentComplete,
+  isIaPhotographyConsentComplete,
   type PhotographyConsentMetadata,
 } from '@/features/service-users/initial-assessment/utils/photography-consent'
 import {
@@ -154,7 +163,48 @@ import {
   syncWaterlowCompletedAnswer,
   waterlowTemplateQuestionIds,
 } from '@/features/service-users/initial-assessment/utils/waterlow-questions'
-import { computeWaterlowScore } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
+import {
+  computeWaterlowScore,
+  isWaterlowAllSectionsComplete,
+  waterlowFollowUpPrefill,
+  WATERLOW_REVIEW_INTERVAL_MONTHS,
+  WATERLOW_REVIEW_SOURCE,
+} from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
+import {
+  specialistInputsFromAssessment,
+  specialistRelevance,
+  type SpecialistOverrides,
+} from '@/features/service-users/initial-assessment/utils/specialist-relevance'
+import { useServiceUserDocuments } from '@/features/service-users/hooks/useServiceUserTabs'
+import {
+  capacityDecisionNeeds,
+  isCapacityDecisionComplete,
+  normalizeCapacityDecisions,
+  usesLegacyCapacityScreening,
+  type CapacityDecisionRecord,
+} from '@/features/service-users/initial-assessment/utils/capacity-decisions'
+import {
+  normalizeConditionProposals,
+  type ConditionProposal,
+} from '@/features/service-users/initial-assessment/utils/condition-proposals'
+import {
+  specialistTriggerNotes,
+  SpecialistTriggerNotesContext,
+} from '@/features/service-users/initial-assessment/utils/specialist-question-triggers'
+import { buildAssessmentSummary } from '@/features/service-users/initial-assessment/utils/assessment-summary'
+import {
+  autoOutcomeValues,
+  fillOutcomeSummaryFromAssessment,
+} from '@/features/service-users/initial-assessment/utils/outcome-summary-auto'
+import { labelForQuestionOptionValue } from '@/features/service-users/initial-assessment/utils/question-options'
+import { MCA_SCREENING_SPEC_REF } from '@/features/service-users/initial-assessment/utils/mca-screening'
+import type { SpecialistOverride } from '@/features/service-users/initial-assessment/utils/specialist-relevance-rules'
+import {
+  InitialAssessmentSpecialistRelevanceBanner,
+  SPECIALIST_STATUS_LABEL,
+} from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecialistRelevanceBanner'
+import type { SpecialistStatus } from '@/features/service-users/initial-assessment/utils/specialist-relevance-rules'
+
 import { InitialAssessmentSidePanels } from '@/features/service-users/initial-assessment/components/InitialAssessmentSidePanels'
 import { InitialAssessmentSubmitDialog } from '@/features/service-users/initial-assessment/components/InitialAssessmentSubmitDialog'
 import { InitialAssessmentVersionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentVersionsPanel'
@@ -190,9 +240,26 @@ import { applyNoConcernLogic } from '@/features/service-users/initial-assessment
 import { applyCrossFieldSync, collectAnswersForSave } from '@/features/service-users/initial-assessment/utils/cross-field-sync'
 import { mergeLiveRichTextAnswersForQuestions } from '@/features/service-users/initial-assessment/utils/rich-text-save.util'
 import { syncDerivedConcernGates } from '@/features/service-users/initial-assessment/utils/concern-gate-utils'
+import {
+  hasAgreedGoal,
+  prefillFirstGoalFromSupportGoals,
+  type AgreedGoalsMetadata,
+} from '@/features/service-users/initial-assessment/utils/agreed-goals'
+import {
+  substanceMisuseImpliedByAnswers,
+  syncCrossTabAnswerDefaults,
+} from '@/features/service-users/initial-assessment/utils/cross-tab-answer-defaults'
+import { syncHoistFromMovingHandling } from '@/features/service-users/initial-assessment/utils/sync-hoist-from-moving-handling'
 import { draftAnswersEqual } from '@/features/service-users/initial-assessment/utils/draft-answers-equality'
-import { getSubmitValidationIssues } from '@/features/service-users/initial-assessment/utils/submit-validation'
-import { findQuestionBySpecRef } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import {
+  getSubmitValidationIssues,
+  type ValidationIssue,
+  specialistRequiredBlocks,
+} from '@/features/service-users/initial-assessment/utils/submit-validation'
+import {
+  findQuestionByFieldKey,
+  findQuestionBySpecRef,
+} from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { isYesAnswer } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { DEFAULT_INITIAL_ASSESSMENT_AGENCY_SETTINGS } from '@/features/service-users/initial-assessment/utils/agency-settings-defaults'
 import {
@@ -233,11 +300,13 @@ import {
   useUpdateInitialAssessmentSubmission,
   useValidateInitialAssessment,
   useInitialAssessmentAgencySettings,
+  useLoneWorkerSystemFacts,
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
   InitialAssessmentSection,
+  VisitPlanDraftOutcome,
 } from '@/features/service-users/initial-assessment/types'
 import type { IaAutofillLevel } from '@/features/service-users/initial-assessment/utils/ia-autofill-dev'
 import {
@@ -246,6 +315,18 @@ import {
   IA_QA_DEMO_DATA_BUTTON_TOOLTIP,
 } from '@/features/service-users/initial-assessment/utils/ia-autofill-levels'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
+import {
+  fillLoneWorkerFactorsFromFacts,
+  loneWorkerFactsByFactor,
+} from '@/features/service-users/initial-assessment/utils/lone-worker-system-facts'
+
+/** Nav badge colours for specialist tabs. */
+const SPECIALIST_NAV_BADGE_CLASS: Record<SpecialistStatus, string> = {
+  required: 'bg-red-600 font-bold uppercase tracking-wide text-white dark:bg-red-500 dark:text-white',
+  suggested: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+  not_needed: 'bg-muted text-muted-foreground',
+  pending: 'bg-muted text-muted-foreground',
+}
 
 const ENTERPRISE_PATH = '/service-users/initial-assessment'
 // const LEGACY_PATH = '/service-users/initial-assessment-checklist'
@@ -295,7 +376,12 @@ function questionsHaveDirtyAnswers(
   return questions.some((q) => dirtyIds.has(q.id))
 }
 
-type SaveIndicator = 'idle' | 'saving' | 'saved' | 'error'
+type SaveIndicator = 'idle' | 'saving' | 'saved' | 'error' | 'retrying'
+
+/** Waits between automatic retries after an autosave fails (then we stop and ask for a manual save). */
+const AUTOSAVE_RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 20_000, 30_000]
+const AUTOSAVE_FAILED_TOAST_ID = 'ia-autosave-failed'
+const AUTOSAVE_GAVE_UP_TOAST_ID = 'ia-autosave-gave-up'
 
 function customerLabel(row: Pick<ServiceUserListRow, 'id' | 'preferredName' | 'firstName' | 'lastName' | 'serviceUserNumber'>): string {
   const name = row.preferredName?.trim() || [row.firstName, row.lastName].filter(Boolean).join(' ')
@@ -332,6 +418,27 @@ function worksheetHasMeaningfulValue(value: unknown): boolean {
   return false
 }
 
+/** The review is saved either way — only the auto visit-plan draft can be skipped (e.g. no weekly hours). */
+function notifyReviewOutcome(visitPlanDraft: VisitPlanDraftOutcome | null | undefined) {
+  if (!visitPlanDraft) {
+    toastSuccess('Reviewed', 'Assessment marked reviewed.')
+    return
+  }
+  if (visitPlanDraft.status === 'skipped') {
+    toastWarning(
+      'Approved — visit plan not created',
+      `${visitPlanDraft.message} The approval is saved; create the visit plan once this is fixed.`,
+    )
+    return
+  }
+  toastSuccess(
+    'Approved for care start',
+    visitPlanDraft.status === 'created'
+      ? 'A draft visit plan has been created from this assessment.'
+      : 'A visit plan already exists for this assessment.',
+  )
+}
+
 export default function ServiceUserInitialAssessmentEnterprisePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -344,7 +451,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const selectedId = urlSearch.serviceUserId ?? ''
   const hubTab = urlSearch.tab ?? 'form'
   /** Holistic document tab (1–30); stored in URL as `section`. */
-  const activeHolisticTab = urlSearch.section ?? 1
+  const activeHolisticTab = urlSearch.section ?? HOLISTIC_ASSESSMENT_TABS[0]!.id
 
   const patchUrlSearch = React.useCallback(
     (patch: Partial<InitialAssessmentEnterpriseSearch>) => {
@@ -437,6 +544,14 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [carePlanObjectives, setCarePlanObjectives] = React.useState<CarePlanObjectivesMetadata>(
     parseSubmissionMetadata(undefined).carePlanObjectives,
   )
+  const [agreedGoals, setAgreedGoals] = React.useState<AgreedGoalsMetadata>(
+    parseSubmissionMetadata(undefined).agreedGoals,
+  )
+  const agreedGoalsPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [capacityDecisions, setCapacityDecisions] = React.useState<CapacityDecisionRecord[]>([])
+  const [conditionProposals, setConditionProposals] = React.useState<ConditionProposal[]>([])
+  const conditionProposalsPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const capacityDecisionsPersistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mentalCapacityChecklist, setMentalCapacityChecklist] =
     React.useState<MentalCapacityChecklistMetadata>(
       parseSubmissionMetadata(undefined).mentalCapacityChecklist,
@@ -447,6 +562,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   const [equipmentSelection, setEquipmentSelection] = React.useState<EquipmentSelectionMetadata>(
     parseSubmissionMetadata(undefined).equipmentSelection,
   )
+  /** Audited overrides of a specialist tab's screening result (`metadata.tabRelevanceOverrides`). */
+  const [relevanceOverrides, setRelevanceOverrides] = React.useState<SpecialistOverrides>({})
+  const [showNotNeededSpecialists, setShowNotNeededSpecialists] = React.useState(false)
   const vitalAcceptedRangeLookup = useVitalAcceptedRangeLookup()
   const vitalAcceptedRanges = React.useMemo(
     () => vitalAcceptedRangesFromLookup(vitalAcceptedRangeLookup.data ?? []),
@@ -651,6 +769,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         ? prev
         : parsed.carePlanObjectives,
     )
+    setAgreedGoals((prev) =>
+      agreedGoalsPersistTimerRef.current || JSON.stringify(prev) === JSON.stringify(parsed.agreedGoals)
+        ? prev
+        : parsed.agreedGoals,
+    )
     setMentalCapacityChecklist((prev) => {
       if (mentalCapacityLocalEditRef.current) return prev
       return JSON.stringify(prev) === JSON.stringify(parsed.mentalCapacityChecklist)
@@ -666,6 +789,24 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       JSON.stringify(prev) === JSON.stringify(parsed.equipmentSelection)
         ? prev
         : parsed.equipmentSelection,
+    )
+    const storedConditions = normalizeConditionProposals(submission?.metadata?.conditionProposals)
+    setConditionProposals((prev) =>
+      conditionProposalsPersistTimerRef.current || JSON.stringify(prev) === JSON.stringify(storedConditions)
+        ? prev
+        : storedConditions,
+    )
+    const storedDecisions = normalizeCapacityDecisions(submission?.metadata?.capacityDecisions)
+    setCapacityDecisions((prev) =>
+      capacityDecisionsPersistTimerRef.current || JSON.stringify(prev) === JSON.stringify(storedDecisions)
+        ? prev
+        : storedDecisions,
+    )
+    const storedOverrides = submission?.metadata?.tabRelevanceOverrides
+    setRelevanceOverrides(
+      storedOverrides && typeof storedOverrides === 'object' && !Array.isArray(storedOverrides)
+        ? (storedOverrides as SpecialistOverrides)
+        : {},
     )
     setSectionFooters((prev) =>
       JSON.stringify(prev) === JSON.stringify(parsed.sectionFooters) ? prev : parsed.sectionFooters,
@@ -716,12 +857,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         ? applyPrefillToDraftAnswers(sections, map, prefill)
         : map
     const { answers: gateSynced } = syncDerivedConcernGates(sections, merged)
+    const hoistSynced = syncHoistFromMovingHandling(
+      sections,
+      gateSynced,
+      movingHandlingOperations,
+    )
     const isFirstHydration = !answersHydratedRef.current
 
     setDraftAnswers((prev) => {
       let next: Record<string, InitialAssessmentAnswerInput>
       if (isFirstHydration) {
-        next = gateSynced
+        next = hoistSynced
       } else {
         // Preserve locally-edited (dirty) AND in-memory demo-filled answers so a refetch does
         // not clobber values the user has not saved yet.
@@ -730,13 +876,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           ...demoFilledQuestionIdsRef.current,
         ])
         if (!preserveIds.size) {
-          next = gateSynced
+          next = hoistSynced
         } else {
-          const merged = { ...gateSynced }
+          const mergedLocal = { ...hoistSynced }
           for (const id of preserveIds) {
-            if (prev[id]) merged[id] = prev[id]
+            if (prev[id]) mergedLocal[id] = prev[id]
           }
-          next = syncDerivedConcernGates(sections, merged).answers
+          next = syncHoistFromMovingHandling(
+            sections,
+            syncDerivedConcernGates(sections, mergedLocal).answers,
+            movingHandlingOperations,
+          )
         }
       }
       return draftAnswersEqual(prev, next) ? prev : next
@@ -755,6 +905,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     allergiesQuery.dataUpdatedAt,
     sectionsHydrationKey,
     submission?.status,
+    movingHandlingOperations,
   ])
   const waterlowExcludedIds = React.useMemo(() => waterlowTemplateQuestionIds(sections), [sections])
   const mustExcludedIds = React.useMemo(() => mustTemplateQuestionIds(sections), [sections])
@@ -809,16 +960,9 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         x.metadata?.fieldKey === 'usesHoistOrSling' ||
         x.questionText.toLowerCase().includes('uses hoist or sling'),
     )
-    const equipmentGate = sec12.questions.find(
-      (x) =>
-        x.metadata?.fieldKey === 'clinicalEquipmentInUse' ||
-        x.questionText.toLowerCase().includes('hoist / profiling bed'),
-    )
-    return (
-      (hoistSling ? isYesAnswer(draftAnswers[hoistSling.id]) : false) ||
-      (equipmentGate ? isYesAnswer(draftAnswers[equipmentGate.id]) : false)
-    )
-  }, [sections, draftAnswers])
+    const equipmentSelected = Boolean(equipmentSelection.selectedEquipment?.trim())
+    return (hoistSling ? isYesAnswer(draftAnswers[hoistSling.id]) : false) || equipmentSelected
+  }, [sections, draftAnswers, equipmentSelection.selectedEquipment])
 
   const financeConsentQuestion = React.useMemo(() => {
     const sec12 = sections.find((s) => s.sectionNumber === 12)
@@ -853,6 +997,67 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     practicalCare,
   ])
 
+  const screeningSyncedMentalCapacityChecklist = React.useMemo(
+    () => syncMentalCapacityChecklistFromScreening(mentalCapacityChecklist, sections, draftAnswers),
+    [mentalCapacityChecklist, sections, draftAnswers],
+  )
+
+  // Specialist / conditional assessments: Required / Suggested / Not needed / Screening pending from
+  // the Core IA screening answers, with any audited override applied.
+  const specialistRelevanceByTab = React.useMemo(() => {
+    const ctx = { sections, answers: draftAnswers, waterlow, mustAssessment, adl, movingHandlingOperations }
+    const inputs = specialistInputsFromAssessment(ctx)
+    const map = new Map<number, NonNullable<ReturnType<typeof specialistRelevance>>>()
+    for (const tab of HOLISTIC_ASSESSMENT_TABS) {
+      if (tab.group !== 'specialist') continue
+      const relevance = specialistRelevance(tab.id, ctx, relevanceOverrides, inputs)
+      if (relevance) map.set(tab.id, relevance)
+    }
+    return map
+  }, [sections, draftAnswers, waterlow, mustAssessment, adl, movingHandlingOperations, relevanceOverrides])
+
+  const specialistStatusByTab = React.useMemo(
+    () => new Map([...specialistRelevanceByTab].map(([id, r]) => [id, r.status] as const)),
+    [specialistRelevanceByTab],
+  )
+  const specialistRequiredCount = React.useMemo(
+    () => [...specialistStatusByTab.values()].filter((s) => s === 'required').length,
+    [specialistStatusByTab],
+  )
+  const specialistTriggerNoteMap = React.useMemo(
+    () => specialistTriggerNotes(sections, draftAnswers, specialistStatusByTab),
+    [sections, draftAnswers, specialistStatusByTab],
+  )
+
+  const specialistBlocks = React.useMemo(
+    () =>
+      specialistRequiredBlocks(specialistRelevanceByTab, {
+        10: isPainToolComplete(painAssessment),
+        7: isMustScoringComplete(mustAssessment),
+        4: skinIntegrityCheckHasEntries(skinIntegrityCheck),
+        5: isWaterlowAllSectionsComplete(waterlow),
+        8: isFallsScreeningComplete(fallsScreening),
+        9: isMovingHandlingOperationsComplete(movingHandlingOperations),
+        6: isEquipmentSelectionComplete(equipmentSelection),
+        13: isAdvanceCarePlanningComplete(advanceCarePlanning),
+        14: isEndOfLifeAssessmentComplete(endOfLifeAssessment),
+        17: isMentalCapacityChecklistComplete(screeningSyncedMentalCapacityChecklist),
+      }),
+    [
+      specialistRelevanceByTab,
+      painAssessment,
+      mustAssessment,
+      skinIntegrityCheck,
+      waterlow,
+      fallsScreening,
+      movingHandlingOperations,
+      equipmentSelection,
+      advanceCarePlanning,
+      endOfLifeAssessment,
+      screeningSyncedMentalCapacityChecklist,
+    ],
+  )
+
   const clientValidation = React.useMemo(
     () =>
       getSubmitValidationIssues({
@@ -860,11 +1065,27 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         draftAnswers,
         waterlow,
         adl,
+        environmentAssessment,
+        agreedGoals,
         status: submission?.status,
         agencySettings,
         progressContext,
+        specialistBlocks,
+        capacityDecisions,
       }),
-    [sections, draftAnswers, waterlow, adl, submission?.status, agencySettings, progressContext],
+    [
+      capacityDecisions,
+      sections,
+      draftAnswers,
+      waterlow,
+      adl,
+      environmentAssessment,
+      agreedGoals,
+      submission?.status,
+      agencySettings,
+      progressContext,
+      specialistBlocks,
+    ],
   )
 
   const vitalsFieldErrors = React.useMemo(
@@ -927,20 +1148,19 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     section12FinanceRequired,
   ])
 
-  const holisticTabNavStatus = React.useMemo(
-    () =>
-      buildHolisticTabNavStatus({
+  // Raw status = real completion; the specialist rules are applied on top (see below).
+  const holisticTabNavStatusInput = React.useMemo(
+    () => ({
         tabs: HOLISTIC_ASSESSMENT_TABS,
         sections,
         visibleQuestionsBySection,
         draftAnswers,
-        editable,
         progressContext,
         sectionBlocks: validationMaps.sectionBlocks,
         sectionWarnings: validationMaps.sectionWarnings,
         questionErrors: validationMaps.questionErrors,
         revealFieldErrors: validationRevealed,
-        waterlowComplete: computeWaterlowScore(waterlow) > 0,
+        waterlowComplete: isWaterlowAllSectionsComplete(waterlow),
         painToolComplete: isPainToolComplete(painAssessment),
         skinIntegrityCheckComplete: skinIntegrityCheckHasEntries(skinIntegrityCheck),
         mustToolComplete: isMustScoringComplete(mustAssessment),
@@ -952,16 +1172,19 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         endOfLifeAssessmentComplete: isEndOfLifeAssessmentComplete(endOfLifeAssessment),
         clinicalOutcomeSummaryComplete:
           isClinicalAssessmentOutcomeSummaryComplete(clinicalOutcomeSummary),
-        carePlanObjectivesComplete: isCarePlanObjectivesComplete(carePlanObjectives),
-        mentalCapacityChecklistComplete: isMentalCapacityChecklistComplete(mentalCapacityChecklist),
-        photographyConsentComplete: isPhotographyConsentComplete(photographyConsent),
+        carePlanObjectivesComplete:
+          isCarePlanObjectivesComplete(
+            carePlanObjectives,
+            carePlanVisitIdsFromSections(sections, draftAnswers, carePlanObjectives),
+          ) && hasAgreedGoal(agreedGoals),
+        mentalCapacityChecklistComplete: isMentalCapacityChecklistComplete(screeningSyncedMentalCapacityChecklist),
+        photographyConsentComplete: isIaPhotographyConsentComplete(photographyConsent),
         equipmentSelectionComplete: isEquipmentSelectionComplete(equipmentSelection),
       }),
     [
       sections,
       visibleQuestionsBySection,
       draftAnswers,
-      editable,
       progressContext,
       validationMaps.sectionBlocks,
       validationMaps.sectionWarnings,
@@ -978,16 +1201,29 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       endOfLifeAssessment,
       clinicalOutcomeSummary,
       carePlanObjectives,
-      mentalCapacityChecklist,
+      agreedGoals,
+      screeningSyncedMentalCapacityChecklist,
       photographyConsent,
       equipmentSelection,
     ],
   )
+  const rawHolisticTabNavStatus = React.useMemo(
+    () => buildHolisticTabNavStatus({ ...holisticTabNavStatusInput, editable }),
+    [holisticTabNavStatusInput, editable],
+  )
+  /** Real completion, also on a read-only (submitted / reviewed) IA where the nav shows every tab as ok. */
+  const holisticTabCompletionStatus = React.useMemo(
+    () =>
+      editable
+        ? rawHolisticTabNavStatus
+        : buildHolisticTabNavStatus({ ...holisticTabNavStatusInput, editable: true }),
+    [editable, rawHolisticTabNavStatus, holisticTabNavStatusInput],
+  )
 
-  const openSubmitReview = React.useCallback(() => {
-    setValidationRevealed(true)
-    setSubmitModalOpen(true)
-  }, [])
+  const holisticTabNavStatus = React.useMemo(
+    () => applySpecialistNavStatus(rawHolisticTabNavStatus, specialistStatusByTab),
+    [rawHolisticTabNavStatus, specialistStatusByTab],
+  )
 
   React.useEffect(() => {
     if (submitModalOpen) setValidationRevealed(true)
@@ -1078,11 +1314,18 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
 
   /** Validation banners pass enterprise § numbers — map to the matching holistic tab. */
   const goToSection = React.useCallback(
-    (n: number) => {
-      const tabId = holisticTabById(n) ? n : firstHolisticTabForEnterpriseSection(n)
-      goToHolisticTab(tabId)
+    (sectionNumber: number, message = '') => {
+      goToHolisticTab(
+        holisticTabForValidationIssue({ sectionNumber, message }, sections, visibleQuestionsBySection),
+      )
     },
-    [goToHolisticTab],
+    [goToHolisticTab, sections, visibleQuestionsBySection],
+  )
+
+  const issueTabLabel = React.useCallback(
+    (issue: ValidationIssue) =>
+      holisticTabRef(holisticTabForValidationIssue(issue, sections, visibleQuestionsBySection)),
+    [sections, visibleQuestionsBySection],
   )
 
   React.useEffect(() => {
@@ -1221,8 +1464,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       14: endOfLifeAssessment,
       15: clinicalOutcomeSummary,
       16: carePlanObjectives,
-      17: mentalCapacityChecklist,
-      18: photographyConsent,
+      17: screeningSyncedMentalCapacityChecklist,
+      23: photographyConsent,
     }
     return worksheetHasMeaningfulValue(worksheetByTab[currentHolisticTab.id])
   }, [
@@ -1270,12 +1513,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         )
         for (const id of syncedQuestionIds) syncSaveQuestionIdsRef.current.add(id)
         const gateSync = syncDerivedConcernGates(sections, answers)
-        for (const id of gateSync.syncedQuestionIds) {
+        const defaults = syncCrossTabAnswerDefaults(sections, gateSync.answers)
+        for (const id of [...gateSync.syncedQuestionIds, ...defaults.syncedQuestionIds]) {
           syncSaveQuestionIdsRef.current.add(id)
           dirtyAnswerQuestionIdsRef.current.add(id)
         }
-        if (draftAnswersEqual(prev, gateSync.answers)) return prev
-        return gateSync.answers
+        if (draftAnswersEqual(prev, defaults.answers)) return prev
+        return defaults.answers
       })
     },
     [sections],
@@ -1474,14 +1718,60 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [submissionId, editable, canUpdate, submission?.metadata, updateSubmissionMutation],
   )
 
-  /** Prefill identity/GP/LPOA into ACP / Photography when those tabs open (empty fields only). */
+  const currentUser = useAuthStore((st) => st.user)
+  /**
+   * Override a specialist tab's screening result. Downgrading a trigger needs a reason; every change
+   * is kept (who, when, why, from → to) in `tabRelevanceOverrideHistory` for audit.
+   */
+  const onSpecialistOverride = React.useCallback(
+    (tabId: number, next: SpecialistOverride['status'] | null, reason?: string) => {
+      const computedStatus = specialistRelevanceByTab.get(tabId)?.computed?.status ?? null
+      const at = new Date().toISOString()
+      const nextOverrides: SpecialistOverrides = { ...relevanceOverrides }
+      if (next) {
+        nextOverrides[String(tabId)] = {
+          status: next,
+          ...(reason ? { reason } : {}),
+          byUserId: currentUser?.id,
+          byName: currentUser?.displayName,
+          at,
+        }
+      } else {
+        delete nextOverrides[String(tabId)]
+      }
+      const history = Array.isArray(submissionMetadataRef.current.tabRelevanceOverrideHistory)
+        ? (submissionMetadataRef.current.tabRelevanceOverrideHistory as unknown[])
+        : []
+      setRelevanceOverrides(nextOverrides)
+      void persistMetadata({
+        tabRelevanceOverrides: nextOverrides,
+        tabRelevanceOverrideHistory: [
+          ...history,
+          {
+            tabId,
+            from: computedStatus,
+            to: next ?? 'screening',
+            reason: reason ?? null,
+            byUserId: currentUser?.id ?? null,
+            byName: currentUser?.displayName ?? null,
+            at,
+          },
+        ],
+      })
+    },
+    [specialistRelevanceByTab, relevanceOverrides, currentUser, persistMetadata],
+  )
+
+  /** Prefill identity/GP/LPOA into ACP / Photography (Consent tab) when those tabs open (empty fields only). */
   const identityPrefillTabRef = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (hubTab !== 'form' || sections.length === 0) return
-    if (activeHolisticTab !== 13 && activeHolisticTab !== 18) {
+    if (activeHolisticTab !== 13 && activeHolisticTab !== 23) {
       identityPrefillTabRef.current = null
       return
     }
+    // Consent is the first tab, so it can open before answers hydrate — wait for them.
+    if (!answersHydratedRef.current) return
     if (identityPrefillTabRef.current === activeHolisticTab) return
     identityPrefillTabRef.current = activeHolisticTab
 
@@ -1492,7 +1782,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         void persistMetadata({ advanceCarePlanning: next })
       }
     }
-    if (activeHolisticTab === 18) {
+    if (activeHolisticTab === 23) {
       const next = prefillPhotographyFromIdentityAnswers(sections, draftAnswers, photographyConsent)
       if (next !== photographyConsent) {
         setPhotographyConsent(next)
@@ -1524,6 +1814,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [sections, persistMetadata, onAnswerChange, equipmentSelection],
   )
 
+  // Equipment Selection keeps a read-only copy of the Waterlow score / band: bring older or stale
+  // copies (typed by hand before the copy became derived) back in line with the Waterlow tab.
+  React.useEffect(() => {
+    if (!isEditableInitialAssessmentStatus(submission?.status)) return
+    const synced = syncWaterlowScoreToEquipment(waterlow, equipmentSelection)
+    if (synced === equipmentSelection) return
+    setEquipmentSelection(synced)
+    void persistMetadata({ equipmentSelection: synced })
+  }, [waterlow, equipmentSelection, submission?.status, persistMetadata])
+
   const onSectionFooterChange = React.useCallback(
     (sectionNumber: number, patch: { dateCompleted?: string; assessorNameDesignation?: string }) => {
       setSectionFooters((prev) => {
@@ -1535,6 +1835,42 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     },
     [persistMetadata],
   )
+
+  // Specialist tools: stamp "completed on / by" when the tab opens and nothing is recorded yet
+  // (editable — the assessor can change it). Never touches other tabs' saved footers.
+  React.useEffect(() => {
+    if (hubTab !== 'form' || !editable || !canUpdate || !answersHydratedRef.current) return
+    const footerTab = holisticTabById(activeHolisticTab)
+    if (footerTab?.group !== 'specialist') return
+    // Only tabs that show the footer (worksheet tools keep their own completed-by fields).
+    if (!['form-section', 'mca-screening', 'section12-blocks'].includes(footerTab.kind)) return
+    const key = String(activeHolisticTab)
+    const stored = (submission?.metadata?.sectionFooters as Record<string, { dateCompleted?: string; assessorNameDesignation?: string }> | undefined)?.[key]
+    const current = sectionFooters[key]
+    const patch: { dateCompleted?: string; assessorNameDesignation?: string } = {}
+    if (!current?.dateCompleted && !stored?.dateCompleted) {
+      patch.dateCompleted = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`
+    }
+    if (!current?.assessorNameDesignation?.trim() && !stored?.assessorNameDesignation?.trim()) {
+      const who =
+        iaAssessorNameDesignation(sections, draftAnswers) ||
+        [currentUser?.displayName, currentUser?.jobTitle].filter(Boolean).join(' — ')
+      if (who) patch.assessorNameDesignation = who
+    }
+    if (Object.keys(patch).length) onSectionFooterChange(activeHolisticTab, patch)
+  }, [
+    hubTab,
+    editable,
+    canUpdate,
+    activeHolisticTab,
+    submission?.metadata,
+    sectionFooters,
+    sections,
+    draftAnswers,
+    currentUser?.displayName,
+    currentUser?.jobTitle,
+    onSectionFooterChange,
+  ])
 
   const onPainAssessmentChange = React.useCallback(
     (next: PainAssessmentMetadata) => {
@@ -1633,8 +1969,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     (next: MovingHandlingOperationsMetadata) => {
       setMovingHandlingOperations(next)
       void persistMetadata({ movingHandlingOperations: next })
+      setDraftAnswers((prev) => {
+        const synced = syncHoistFromMovingHandling(sections, prev, next)
+        return draftAnswersEqual(prev, synced) ? prev : synced
+      })
     },
-    [persistMetadata],
+    [persistMetadata, sections],
   )
 
   const onEnvironmentAssessmentChange = React.useCallback(
@@ -1645,6 +1985,44 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     },
     [persistMetadata, sections, draftAnswers, onAnswerChange],
   )
+
+  // Lone-worker factors the system already knows (visit plan, DOM Care, SOS, incidents): shown as
+  // hints and used to answer unanswered factors when the Environment tab opens.
+  const loneWorkerFactsQuery = useLoneWorkerSystemFacts(selectedId, hubTab === 'form' && activeHolisticTab === 12)
+  // Legal authority register — which verified authority (if any) covers each capacity decision (MCA tab).
+  const legalAuthoritiesQuery = useServiceUserDocuments(selectedId, hubTab === 'form' && activeHolisticTab === 3)
+  const loneWorkerFacts = React.useMemo(
+    () => loneWorkerFactsByFactor(loneWorkerFactsQuery.data),
+    [loneWorkerFactsQuery.data],
+  )
+  const loneWorkerFactorHints = React.useMemo(() => {
+    const hints: Partial<Record<EnvironmentAssessmentLoneWorkerFactorId, string>> = {}
+    for (const [id, fact] of Object.entries(loneWorkerFacts)) {
+      hints[id as EnvironmentAssessmentLoneWorkerFactorId] = `System: ${fact.note}`
+    }
+    if (substanceMisuseImpliedByAnswers(sections, draftAnswers)) {
+      hints.substanceMisuse =
+        'Personal Details records alcohol / drug use — answer Yes only if it has affected staff safety.'
+    }
+    return hints
+  }, [loneWorkerFacts, sections, draftAnswers])
+  React.useEffect(() => {
+    if (!editable || !canUpdate || activeHolisticTab !== 12 || !loneWorkerFactsQuery.data) return
+    const next = fillLoneWorkerFactorsFromFacts(environmentAssessment, loneWorkerFacts, (id) =>
+      ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS.find((f) => f.id === id)!.detailsKey,
+    )
+    if (next === environmentAssessment) return
+    setEnvironmentAssessment(next)
+    void persistMetadata({ environmentAssessment: next })
+  }, [
+    editable,
+    canUpdate,
+    activeHolisticTab,
+    loneWorkerFactsQuery.data,
+    loneWorkerFacts,
+    environmentAssessment,
+    persistMetadata,
+  ])
 
   const onAdvanceCarePlanningChange = React.useCallback(
     (next: AdvanceCarePlanningMetadata) => {
@@ -1671,6 +2049,74 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     [persistMetadata],
   )
 
+  // Waterlow follow-up: fill empty recommendation / by whom / date / next review (6-monthly) once scored.
+  React.useEffect(() => {
+    if (!editable || !canUpdate) return
+    if (hubTab !== 'waterlow' && !(hubTab === 'form' && activeHolisticTab === 5)) return
+    const dateQ = findQuestionByFieldKey(sections, 'assessmentDate')
+    const answered = dateQ ? draftAnswers[dateQ.id]?.dateValue : undefined
+    const today = new Date()
+    const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const patch = waterlowFollowUpPrefill(waterlow, {
+      assessorName: currentUser?.displayName,
+      assessmentDate: answered || localToday,
+    })
+    if (patch) onWaterlowChange({ ...waterlow, ...patch })
+  }, [editable, canUpdate, hubTab, activeHolisticTab, sections, draftAnswers, waterlow, currentUser?.displayName, onWaterlowChange])
+
+  // Outcome summary: fill empty "initial" cells from the worksheets and baseline vitals (fill-empty).
+  React.useEffect(() => {
+    if (!editable || !canUpdate || activeHolisticTab !== 15) return
+    const answerOf = (key: string) => {
+      const q = findQuestionByFieldKey(sections, key)
+      return q ? { q, a: draftAnswers[q.id] } : null
+    }
+    const numberOf = (key: string): number | null => {
+      const a = answerOf(key)?.a
+      const n = a?.numberValue ?? (a?.textValue?.trim() ? Number(a.textValue) : undefined)
+      return typeof n === 'number' && Number.isFinite(n) ? n : null
+    }
+    const rhythm = answerOf('pulseRhythm')
+    const rhythmRaw = rhythm?.a?.selectedOptions
+    const rhythmValue = Array.isArray(rhythmRaw) ? rhythmRaw[0] : rhythmRaw
+    const values = autoOutcomeValues({
+      waterlow,
+      must: mustAssessment,
+      pain: painAssessment,
+      movingHandlingComplete: isMovingHandlingOperationsComplete(movingHandlingOperations),
+      skinRecorded: skinIntegrityCheckHasEntries(skinIntegrityCheck),
+      vitals: {
+        bpSystolic: numberOf('bpSystolic'),
+        bpDiastolic: numberOf('bpDiastolic'),
+        pulse: numberOf('pulse'),
+        pulseRhythm:
+          typeof rhythmValue === 'string' && rhythm ? labelForQuestionOptionValue(rhythmValue, rhythm.q) : null,
+        spo2: numberOf('spo2'),
+        respirations: numberOf('respirations'),
+        temperature: numberOf('temperature'),
+      },
+    })
+    const next = fillOutcomeSummaryFromAssessment(clinicalOutcomeSummary, values, {
+      assessmentDate: new Date().toISOString().slice(0, 10),
+      practitioner: currentUser?.displayName,
+    })
+    if (next !== clinicalOutcomeSummary) onClinicalOutcomeSummaryChange(next)
+  }, [
+    editable,
+    canUpdate,
+    activeHolisticTab,
+    sections,
+    draftAnswers,
+    waterlow,
+    mustAssessment,
+    painAssessment,
+    movingHandlingOperations,
+    skinIntegrityCheck,
+    clinicalOutcomeSummary,
+    currentUser?.displayName,
+    onClinicalOutcomeSummaryChange,
+  ])
+
   const onCarePlanObjectivesChange = React.useCallback(
     (next: CarePlanObjectivesMetadata) => {
       setCarePlanObjectives(next)
@@ -1678,6 +2124,121 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     },
     [persistMetadata],
   )
+
+  const onConditionProposalsChange = React.useCallback(
+    (next: ConditionProposal[]) => {
+      setConditionProposals(next)
+      if (conditionProposalsPersistTimerRef.current) clearTimeout(conditionProposalsPersistTimerRef.current)
+      conditionProposalsPersistTimerRef.current = setTimeout(() => {
+        conditionProposalsPersistTimerRef.current = null
+        void persistMetadata({ conditionProposals: next })
+      }, AUTOSAVE_MS)
+    },
+    [persistMetadata],
+  )
+
+  const onCapacityDecisionsChange = React.useCallback(
+    (next: CapacityDecisionRecord[]) => {
+      setCapacityDecisions(next)
+      if (capacityDecisionsPersistTimerRef.current) clearTimeout(capacityDecisionsPersistTimerRef.current)
+      capacityDecisionsPersistTimerRef.current = setTimeout(() => {
+        capacityDecisionsPersistTimerRef.current = null
+        void persistMetadata({ capacityDecisions: next })
+      }, AUTOSAVE_MS)
+    },
+    [persistMetadata],
+  )
+
+  // Old IAs recorded one global MCA screening (§2.mca); they keep it until a decision record is added.
+  const legacyCapacityScreeningAnswered = React.useMemo(
+    () =>
+      sections.some((sec) =>
+        sec.questions.some((q) => {
+          if (q.metadata?.specRef !== MCA_SCREENING_SPEC_REF) return false
+          const a = draftAnswers[q.id]
+          if (!a) return false
+          if (typeof a.booleanValue === 'boolean' || typeof a.checked === 'boolean') return true
+          const opts = a.selectedOptions
+          if (Array.isArray(opts) ? opts.length > 0 : typeof opts === 'string' && opts !== '') return true
+          return Boolean(a.textValue?.replace(/<[^>]*>/g, '').trim())
+        }),
+      ),
+    [sections, draftAnswers],
+  )
+  const legacyCapacityScreening = usesLegacyCapacityScreening(capacityDecisions, legacyCapacityScreeningAnswered)
+
+  /** Required / Suggested specialist assessments that are done — shown as "Completed" in the nav. */
+  const specialistCompleteTabs = React.useMemo(() => {
+    const done = new Set<number>()
+    for (const [tabId, status] of specialistStatusByTab) {
+      if (status !== 'required' && status !== 'suggested') continue
+      if (holisticTabCompletionStatus.get(tabId) !== 'ok') continue
+      // MCA: a decision-specific record (or the old global screening on legacy IAs).
+      if (
+        tabId === 3 &&
+        !(legacyCapacityScreeningAnswered || capacityDecisions.some(isCapacityDecisionComplete))
+      ) {
+        continue
+      }
+      done.add(tabId)
+    }
+    return done
+  }, [specialistStatusByTab, holisticTabCompletionStatus, legacyCapacityScreeningAnswered, capacityDecisions])
+  const specialistOutstandingRequiredCount = [...specialistStatusByTab].filter(
+    ([tabId, status]) => status === 'required' && !specialistCompleteTabs.has(tabId),
+  ).length
+
+  /** Read-only whole-assessment overview for the outcome summary tab. */
+  const assessmentSummary = React.useMemo(
+    () =>
+      buildAssessmentSummary({
+        sections,
+        answers: draftAnswers,
+        specialists: HOLISTIC_ASSESSMENT_TABS.filter((tab) => tab.group === 'specialist').flatMap((tab) => {
+          const status = specialistStatusByTab.get(tab.id)
+          return status
+            ? [{ tabId: tab.id, title: tab.title, status, completed: specialistCompleteTabs.has(tab.id) }]
+            : []
+        }),
+        capacityDecisions,
+        goals: (agreedGoals.goals ?? []).map((g) => g.goal ?? ''),
+        conditions: conditionProposals.map((c) => c.conditionName ?? ''),
+      }),
+    [sections, draftAnswers, specialistStatusByTab, specialistCompleteTabs, capacityDecisions, agreedGoals, conditionProposals],
+  )
+  const capacityNeeds = React.useMemo(() => {
+    const inputs = specialistInputsFromAssessment({ sections, answers: draftAnswers })
+    return capacityDecisionNeeds({
+      capacityDoubt: inputs.capacityDoubt,
+      covertMedication: inputs.covertMedication,
+      dolRestrictions: inputs.dolRestrictions,
+      dolConcern: inputs.dolConcern,
+    })
+  }, [sections, draftAnswers])
+
+  const onAgreedGoalsChange = React.useCallback(
+    (next: AgreedGoalsMetadata) => {
+      setAgreedGoals(next)
+      if (agreedGoalsPersistTimerRef.current) clearTimeout(agreedGoalsPersistTimerRef.current)
+      agreedGoalsPersistTimerRef.current = setTimeout(() => {
+        agreedGoalsPersistTimerRef.current = null
+        void persistMetadata({ agreedGoals: next })
+      }, AUTOSAVE_MS)
+    },
+    [persistMetadata],
+  )
+
+  /** Goal #1 starts from §1.3 "What do they want support to achieve?" the first time the final tab opens. */
+  React.useEffect(() => {
+    if (hubTab !== 'form' || activeHolisticTab !== 16) return
+    if (!editable || !canUpdate || !answersHydratedRef.current) return
+    const supportGoalsQ = findQuestionByFieldKey(sections, 'supportGoals')
+    const text = supportGoalsQ ? draftAnswers[supportGoalsQ.id]?.textValue : undefined
+    const next = prefillFirstGoalFromSupportGoals(agreedGoals, text)
+    if (next === agreedGoals) return
+    setAgreedGoals(next)
+    void persistMetadata({ agreedGoals: next })
+  }, [hubTab, activeHolisticTab, editable, canUpdate, sections, draftAnswers, agreedGoals, persistMetadata])
 
   const scheduleMentalCapacityPersist = React.useCallback(
     (payload: MentalCapacityChecklistMetadata, immediate: boolean) => {
@@ -1720,14 +2281,34 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       options?: { immediate?: boolean },
     ) => {
       mentalCapacityLocalEditRef.current = true
-      const next =
+      const edited =
         typeof updater === 'function' ? updater(mentalCapacityChecklistRef.current) : updater
+      // Rows 1–6 always mirror the Tab 3 screening answers.
+      const next = syncMentalCapacityChecklistFromScreening(edited, sections, draftAnswers)
       mentalCapacityChecklistRef.current = next
       setMentalCapacityChecklist(next)
       scheduleMentalCapacityPersist(next, options?.immediate ?? false)
     },
-    [scheduleMentalCapacityPersist],
+    [scheduleMentalCapacityPersist, sections, draftAnswers],
   )
+
+  /** Opening the checklist tab writes the mirrored screening answers so exports/promotion see them. */
+  React.useEffect(() => {
+    if (hubTab !== 'form' || activeHolisticTab !== 17) return
+    if (!editable || !canUpdate || !answersHydratedRef.current) return
+    if (screeningSyncedMentalCapacityChecklist === mentalCapacityChecklist) return
+    mentalCapacityChecklistRef.current = screeningSyncedMentalCapacityChecklist
+    setMentalCapacityChecklist(screeningSyncedMentalCapacityChecklist)
+    scheduleMentalCapacityPersist(screeningSyncedMentalCapacityChecklist, true)
+  }, [
+    hubTab,
+    activeHolisticTab,
+    editable,
+    canUpdate,
+    screeningSyncedMentalCapacityChecklist,
+    mentalCapacityChecklist,
+    scheduleMentalCapacityPersist,
+  ])
 
   const onPhotographyConsentChange = React.useCallback(
     (next: PhotographyConsentMetadata) => {
@@ -1793,9 +2374,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         else delete next[key]
         return next
       })
+      // Saving on a tab also clears any comment left under a retired alias id (e.g. photography 18 → 23).
+      const retiredKeys = Object.fromEntries(
+        retiredHolisticTabIdsFor(holisticTabId).map((id) => [String(id), '']),
+      )
       try {
         await persistMetadata({
-          sectionComments: { [key]: entry ?? '' },
+          sectionComments: { ...retiredKeys, [key]: entry ?? '' },
           sectionCommentsKeyedByHolisticTab: true,
         })
       } finally {
@@ -1848,11 +2433,15 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         break
       case 'care-plan-objectives':
         patch.carePlanObjectives = carePlanObjectives
+        patch.agreedGoals = agreedGoals
         break
       case 'mental-capacity-checklist':
-        patch.mentalCapacityChecklist = mentalCapacityChecklist
+        patch.mentalCapacityChecklist = screeningSyncedMentalCapacityChecklist
         break
-      case 'photography-consent':
+      case 'mca-screening':
+        patch.capacityDecisions = capacityDecisions
+        break
+      case 'consent':
         patch.photographyConsent = photographyConsent
         break
       case 'section12-blocks':
@@ -1898,7 +2487,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     endOfLifeAssessment,
     clinicalOutcomeSummary,
     carePlanObjectives,
-    mentalCapacityChecklist,
+    agreedGoals,
+    screeningSyncedMentalCapacityChecklist,
     photographyConsent,
     adl,
     transfers,
@@ -1912,6 +2502,105 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     sectionFooters,
     persistMetadata,
   ])
+
+  // Autosave retry: failures used to only flip the small indicator, so answers could silently stay unsaved.
+  const autosaveRetryRef = React.useRef<{
+    attempt: number
+    timer: ReturnType<typeof setTimeout> | null
+    failing: boolean
+    gaveUp: boolean
+  }>({ attempt: 0, timer: null, failing: false, gaveUp: false })
+  const persistTabAnswersRef = React.useRef<
+    (questions: InitialAssessmentQuestion[], silent?: boolean) => Promise<void>
+  >(async () => undefined)
+  const currentTabQuestionsRef = React.useRef(currentTabQuestions)
+  currentTabQuestionsRef.current = currentTabQuestions
+
+  const retryAutosaveNow = React.useCallback(() => {
+    const state = autosaveRetryRef.current
+    if (state.timer) {
+      clearTimeout(state.timer)
+      state.timer = null
+    }
+    void persistTabAnswersRef.current(currentTabQuestionsRef.current, true)
+  }, [])
+
+  const scheduleAutosaveRetry = React.useCallback(() => {
+    const state = autosaveRetryRef.current
+    if (state.timer) {
+      setSaveIndicator('retrying')
+      return
+    }
+    if (!state.failing) {
+      state.failing = true
+      useToastStore.getState().push({
+        id: AUTOSAVE_FAILED_TOAST_ID,
+        variant: 'destructive',
+        title: 'Autosave failed',
+        description: 'Your latest answers are not saved yet. Retrying automatically — keep this page open.',
+      })
+    }
+    const delay = AUTOSAVE_RETRY_DELAYS_MS[state.attempt]
+    if (delay == null) {
+      setSaveIndicator('error')
+      if (!state.gaveUp) {
+        state.gaveUp = true
+        // Stays until the answers save (or it is closed) — this one must not be missed.
+        useToastStore.getState().push({
+          id: AUTOSAVE_GAVE_UP_TOAST_ID,
+          variant: 'destructive',
+          duration: 0,
+          title: 'Answers still not saved',
+          description:
+            'Check your connection, then press "Save section". Your answers are kept on this page until then.',
+        })
+      }
+      return
+    }
+    state.attempt += 1
+    setSaveIndicator('retrying')
+    state.timer = setTimeout(() => {
+      state.timer = null
+      void persistTabAnswersRef.current(currentTabQuestionsRef.current, true)
+    }, delay)
+  }, [])
+
+  const markAutosaveRecovered = React.useCallback(() => {
+    const state = autosaveRetryRef.current
+    if (state.timer) clearTimeout(state.timer)
+    const wasFailing = state.failing
+    autosaveRetryRef.current = { attempt: 0, timer: null, failing: false, gaveUp: false }
+    if (wasFailing) {
+      const toasts = useToastStore.getState()
+      toasts.dismiss(AUTOSAVE_FAILED_TOAST_ID)
+      toasts.dismiss(AUTOSAVE_GAVE_UP_TOAST_ID)
+      toastSuccess('Saved', 'Your answers are saved again.')
+    }
+  }, [])
+
+  // A pending retry belongs to the assessment it failed on.
+  React.useEffect(() => {
+    const state = autosaveRetryRef.current
+    if (state.timer) clearTimeout(state.timer)
+    autosaveRetryRef.current = { attempt: 0, timer: null, failing: false, gaveUp: false }
+  }, [submissionId])
+
+  // Connection back → retry straight away instead of waiting for the next back-off step.
+  React.useEffect(() => {
+    const onOnline = () => {
+      const state = autosaveRetryRef.current
+      if (!state.failing) return
+      state.attempt = 0
+      state.gaveUp = false
+      retryAutosaveNow()
+    }
+    window.addEventListener('online', onOnline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      const state = autosaveRetryRef.current
+      if (state.timer) clearTimeout(state.timer)
+    }
+  }, [retryAutosaveNow])
 
   const persistTabAnswers = React.useCallback(
     async (questions: InitialAssessmentQuestion[], silent = false) => {
@@ -1934,6 +2623,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         questionsForSave,
         collectAnswersForSave(questionsForSave, draftForSave, extraIds),
       )
+      const pendingSyncIds = [...syncSaveQuestionIdsRef.current]
       syncSaveQuestionIdsRef.current.clear()
       const tabLabel = holisticTabTitle(currentHolisticTab.id)
       if (answers.length === 0) {
@@ -1956,10 +2646,17 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
           setDraftAnswers((prev) => ({ ...prev, ...draftForSave }))
         }
         setSaveIndicator('saved')
+        markAutosaveRecovered()
         if (!silent) toastSuccess('Saved', `${tabLabel} saved.`)
       } catch (e) {
-        setSaveIndicator('error')
-        if (!silent) toastApiError(e, 'Save failed')
+        // Dirty ids are still set; keep the synced extras too so the retry saves the same answers.
+        for (const id of pendingSyncIds) syncSaveQuestionIdsRef.current.add(id)
+        if (silent) {
+          scheduleAutosaveRetry()
+        } else {
+          setSaveIndicator('error')
+          toastApiError(e, 'Save failed')
+        }
       }
     },
     [
@@ -1970,8 +2667,11 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
       saveMutation,
       sections,
       currentHolisticTab,
+      markAutosaveRecovered,
+      scheduleAutosaveRetry,
     ],
   )
+  persistTabAnswersRef.current = persistTabAnswers
 
   React.useEffect(() => {
     if (!editable || !canUpdate || !answersHydratedRef.current) return
@@ -2063,64 +2763,6 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     setMentalCapacityChecklist(parsed.mentalCapacityChecklist)
   }, [submission])
 
-  const saveAllPendingChanges = React.useCallback(async (): Promise<boolean> => {
-    if (!submissionId || !editable || !canUpdate) return true
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur()
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
-    }
-    for (const key of Object.keys(sectionCommentDraftRef.current)) {
-      const tabId = Number(key)
-      if (!holisticTabById(tabId)) continue
-      const text = resolveSectionCommentText(tabId)
-      const saved = sectionComments[key]?.text ?? ''
-      if (plainTextFromHtml(text) === plainTextFromHtml(saved)) continue
-      await persistSectionComment(tabId, text)
-    }
-    await flushHolisticTabMetadata()
-    if (skinIntegrityPersistTimerRef.current) {
-      clearTimeout(skinIntegrityPersistTimerRef.current)
-      skinIntegrityPersistTimerRef.current = null
-    }
-    if (skinIntegrityPendingPersistRef.current) {
-      await persistMetadata({ skinIntegrityCheck: skinIntegrityPendingPersistRef.current })
-      skinIntegrityPendingPersistRef.current = null
-      skinIntegrityLocalEditRef.current = false
-    }
-    if (mentalCapacityPersistTimerRef.current) {
-      clearTimeout(mentalCapacityPersistTimerRef.current)
-      mentalCapacityPersistTimerRef.current = null
-    }
-    if (mentalCapacityPendingPersistRef.current) {
-      await persistMetadata({ mentalCapacityChecklist: mentalCapacityPendingPersistRef.current })
-      mentalCapacityPendingPersistRef.current = null
-      mentalCapacityLocalEditRef.current = false
-    }
-    const dirtyIds = [...dirtyAnswerQuestionIdsRef.current]
-    if (dirtyIds.length > 0) {
-      const dirtyQuestions = sections
-        .flatMap((s) => s.questions)
-        .filter((q) => dirtyIds.includes(q.id))
-      await persistTabAnswers(dirtyQuestions, true)
-      if (dirtyAnswerQuestionIdsRef.current.size > 0) {
-        toastApiError(new Error('Some answers could not be saved'), 'Save failed')
-        return false
-      }
-    }
-    return true
-  }, [
-    submissionId,
-    editable,
-    canUpdate,
-    sectionComments,
-    resolveSectionCommentText,
-    persistSectionComment,
-    flushHolisticTabMetadata,
-    persistMetadata,
-    sections,
-    persistTabAnswers,
-  ])
-
   const leaveBlocker = useBlocker({
     shouldBlockFn: ({ current, next }) => {
       if (!assessmentHasUnsavedChanges()) return false
@@ -2188,6 +2830,104 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
   )
   */
 
+  const saveAllPendingChanges = React.useCallback(async (): Promise<boolean> => {
+    if (!submissionId || !editable || !canUpdate) return true
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+    }
+    for (const key of Object.keys(sectionCommentDraftRef.current)) {
+      const tabId = Number(key)
+      if (!holisticTabById(tabId)) continue
+      const text = resolveSectionCommentText(tabId)
+      const saved = sectionComments[key]?.text ?? ''
+      if (plainTextFromHtml(text) === plainTextFromHtml(saved)) continue
+      await persistSectionComment(tabId, text)
+    }
+    await flushHolisticTabMetadata()
+    if (skinIntegrityPersistTimerRef.current) {
+      clearTimeout(skinIntegrityPersistTimerRef.current)
+      skinIntegrityPersistTimerRef.current = null
+    }
+    if (skinIntegrityPendingPersistRef.current) {
+      await persistMetadata({ skinIntegrityCheck: skinIntegrityPendingPersistRef.current })
+      skinIntegrityPendingPersistRef.current = null
+      skinIntegrityLocalEditRef.current = false
+    }
+    if (mentalCapacityPersistTimerRef.current) {
+      clearTimeout(mentalCapacityPersistTimerRef.current)
+      mentalCapacityPersistTimerRef.current = null
+    }
+    if (mentalCapacityPendingPersistRef.current) {
+      await persistMetadata({ mentalCapacityChecklist: mentalCapacityPendingPersistRef.current })
+      mentalCapacityPendingPersistRef.current = null
+      mentalCapacityLocalEditRef.current = false
+    }
+    if (agreedGoalsPersistTimerRef.current) {
+      clearTimeout(agreedGoalsPersistTimerRef.current)
+      agreedGoalsPersistTimerRef.current = null
+      await persistMetadata({ agreedGoals })
+    }
+    if (capacityDecisionsPersistTimerRef.current) {
+      clearTimeout(capacityDecisionsPersistTimerRef.current)
+      capacityDecisionsPersistTimerRef.current = null
+      await persistMetadata({ capacityDecisions })
+    }
+    if (conditionProposalsPersistTimerRef.current) {
+      clearTimeout(conditionProposalsPersistTimerRef.current)
+      conditionProposalsPersistTimerRef.current = null
+      await persistMetadata({ conditionProposals })
+    }
+    const dirtyIds = [...dirtyAnswerQuestionIdsRef.current]
+    if (dirtyIds.length > 0 || syncSaveQuestionIdsRef.current.size > 0) {
+      const dirtyQuestions = sections
+        .flatMap((s) => s.questions)
+        .filter((q) => dirtyIds.includes(q.id))
+      await persistTabAnswers(dirtyQuestions, true)
+      // The autosave-failed toast + retry already tell the assessor; callers add their own message.
+      if (dirtyAnswerQuestionIdsRef.current.size > 0 || syncSaveQuestionIdsRef.current.size > 0) {
+        return false
+      }
+    }
+    return true
+  }, [
+    submissionId,
+    editable,
+    canUpdate,
+    sectionComments,
+    resolveSectionCommentText,
+    persistSectionComment,
+    flushHolisticTabMetadata,
+    persistMetadata,
+    agreedGoals,
+    capacityDecisions,
+    conditionProposals,
+    sections,
+    persistTabAnswers,
+  ])
+
+  // B7: answers still waiting for autosave (400 ms debounce, paused while the submit dialog is open)
+  // were never sent, so an IA could be submitted — and locked — without the last change.
+  const [submitSaving, setSubmitSaving] = React.useState(false)
+
+  /** Sends every pending change; false (after an error toast) when something could not be saved. */
+  const savePendingBeforeSubmit = React.useCallback(async (): Promise<boolean> => {
+    setSubmitSaving(true)
+    try {
+      return await saveAllPendingChanges()
+    } catch {
+      return false // persistMetadata already showed why
+    } finally {
+      setSubmitSaving(false)
+    }
+  }, [saveAllPendingChanges])
+
+  /** Save first so the dialog's server check sees what is on screen, then open it. */
+  const openSubmitReview = React.useCallback(() => {
+    setValidationRevealed(true)
+    void savePendingBeforeSubmit().then(() => setSubmitModalOpen(true))
+  }, [savePendingBeforeSubmit])
+
   const promptIfUnsaved = React.useCallback((action: () => void) => {
     action()
   }, [])
@@ -2208,7 +2948,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
             ...parseInitialAssessmentEnterpriseSearch(prev),
             serviceUserId: selectedId || undefined,
             submissionId: id,
-            section: 1,
+            section: HOLISTIC_ASSESSMENT_TABS[0]!.id,
             tab: 'form',
           }),
         replace: true,
@@ -2238,6 +2978,10 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     if (!submissionId) return
     if (!skipIncompleteValidation && !validation.canSubmit) return
     if (skipIncompleteValidation && !validation.canSubmitIncomplete) return
+    if (!(await savePendingBeforeSubmit())) {
+      toastError('Not submitted', 'Some changes are not saved yet. Check your connection and try again.')
+      return
+    }
     try {
       await submitMutation.mutateAsync(
         skipIncompleteValidation ? { skipIncompleteValidation: true } : undefined,
@@ -2375,7 +3119,13 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
               ) : null}
               {saveIndicator !== 'idle' && submission ? (
                 <span className="text-xs text-muted-foreground">
-                  {saveIndicator === 'saving' ? 'Saving…' : saveIndicator === 'saved' ? 'All changes saved' : 'Save failed'}
+                  {saveIndicator === 'saving'
+                    ? 'Saving…'
+                    : saveIndicator === 'saved'
+                      ? 'All changes saved'
+                      : saveIndicator === 'retrying'
+                        ? 'Not saved — retrying…'
+                        : 'Save failed'}
                 </span>
               ) : null}
               {canCreate && !editable ? (
@@ -2449,6 +3199,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 reviewNotes={reviewNotes}
                 onReviewNotesChange={setReviewNotes}
                 approvedForCareStart={approvedForCareStart}
+                weeklyHoursMissing={domCareQuery.isSuccess && !domCareQuery.data?.weeklyContractedHours?.trim()}
                 onApprovedForCareStartChange={setApprovedForCareStart}
                 careStartConditions={careStartConditions}
                 onCareStartConditionsChange={setCareStartConditions}
@@ -2466,7 +3217,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       approvedForCareStart,
                       careStartConditions: careStartConditions.trim() || undefined,
                     })
-                    .then(() => toastSuccess('Reviewed', 'Assessment marked reviewed.'))
+                    .then((reviewed) => notifyReviewOutcome(reviewed.visitPlanDraft))
                     .catch((e) => toastApiError(e, 'Review failed'))
                 }
                 onArchive={() =>
@@ -2482,6 +3233,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 submissionId={submissionId}
                 canUpdate={canUpdate}
                 editable={editable || submission?.status === 'SUBMITTED'}
+                showOwner
               />
             </div>
           ) : null}
@@ -2498,6 +3250,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 draftAnswers={draftAnswers}
               />
               <InitialAssessmentCarePlanRecommendationsPanel
+                layout="grid"
                 serviceUserId={selectedId}
                 submissionId={submissionId}
                 recommendations={summaryQuery.data?.carePlanRecommendations ?? []}
@@ -2510,7 +3263,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 serviceUserId={selectedId}
                 submissionId={submissionId}
                 canUpdate={canUpdate}
-                editable={editable}
+                // Actions are worked after submit (e.g. verify DNACPR), so their status stays editable then too.
+                editable={editable || submission?.status === 'SUBMITTED' || submission?.status === 'REVIEWED'}
               />
             </div>
           ) : null}
@@ -2548,6 +3302,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                 value={waterlow}
                 disabled={!editable || !canUpdate}
                 onChange={onWaterlowChange}
+                nextReviewHint={`Filled as ${WATERLOW_REVIEW_INTERVAL_MONTHS} month after the assessment (${WATERLOW_REVIEW_SOURCE}); reassess sooner if the person's condition changes.`}
               />
             </div>
           ) : hubTab === 'waterlow' ? (
@@ -2574,6 +3329,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                   warnings={validation.warnings}
                   editable={editable}
                   onGoToSection={goToSection}
+                  issueTabLabel={issueTabLabel}
                   onGoToHubTab={(tab) => setHubTab(tab)}
                   onReviewSubmit={openSubmitReview}
                 />
@@ -2609,7 +3365,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                   data-testid="ia-section-nav"
                   className="flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-sm min-[900px]:sticky min-[900px]:top-4 min-[900px]:self-start"
                 >
-                  {HOLISTIC_ASSESSMENT_TABS.map((tab) => {
+                  {(['core', 'specialist', 'finalisation'] as const).map((group) => {
+                    const renderNavTab = (tab: (typeof HOLISTIC_ASSESSMENT_TABS)[number]) => {
                     const enterprise = sections.find((s) => s.sectionNumber === tab.enterpriseSection)
                     const tabQuestions = questionsForDocumentTab(
                       tab,
@@ -2626,6 +3383,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       : { percent: 0, total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 }
                     const hasComment = Boolean(sectionComments[String(tab.id)]?.text?.trim())
                     const navStatus = holisticTabNavStatus.get(tab.id) ?? 'ok'
+                    const relevance = specialistRelevanceByTab.get(tab.id)
                     const isSwitchTarget = pendingHolisticTab === tab.id
                     return (
                       <button
@@ -2686,8 +3444,80 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         </span>
                         <span className={IA_FORM_NAV_META_CLASS}>
                           {isSwitchTarget ? 'Loading…' : formatSectionNavMeta(prog)}
+                          {relevance && relevance.status !== 'pending' ? (
+                            <span
+                              className={cn(
+                                'ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold',
+                                SPECIALIST_NAV_BADGE_CLASS[relevance.status],
+                              )}
+                              data-testid={`ia-nav-relevance-${tab.id}`}
+                            >
+                              {SPECIALIST_STATUS_LABEL[relevance.status]}
+                            </span>
+                          ) : null}
+                          {relevance && specialistCompleteTabs.has(tab.id) ? (
+                            <span
+                              className="ml-1 rounded bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold text-white dark:bg-emerald-500"
+                              data-testid={`ia-nav-completed-${tab.id}`}
+                            >
+                              ✓ Completed
+                            </span>
+                          ) : null}
                         </span>
                       </button>
+                    )
+                  }
+                    const inGroup = HOLISTIC_ASSESSMENT_TABS.filter((tab) => tab.group === group)
+                    // Required, then Suggested, float to the top of the group (stable; numbers unchanged so
+                    // "Tab n" references stay valid).
+                    // Outstanding first, then completed ones, then the rest.
+                    const statusOf = (tabId: number) =>
+                      specialistCompleteTabs.has(tabId) ? 'completed' : specialistRelevanceByTab.get(tabId)?.status
+                    const groupTabs =
+                      group === 'specialist'
+                        ? [
+                            ...inGroup.filter((tab) => statusOf(tab.id) === 'required'),
+                            ...inGroup.filter((tab) => statusOf(tab.id) === 'suggested'),
+                            ...inGroup.filter((tab) => statusOf(tab.id) === 'completed'),
+                            ...inGroup.filter(
+                              (tab) => !['required', 'suggested', 'completed'].includes(String(statusOf(tab.id))),
+                            ),
+                          ]
+                        : inGroup
+                    const hidden =
+                      group === 'specialist' && !showNotNeededSpecialists
+                        ? groupTabs.filter(
+                            (tab) =>
+                              specialistRelevanceByTab.get(tab.id)?.status === 'not_needed' &&
+                              tab.id !== activeHolisticTab,
+                          )
+                        : []
+                    const hiddenIds = new Set(hidden.map((tab) => tab.id))
+                    return (
+                      <React.Fragment key={group}>
+                        <p className="mt-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground first:mt-0">
+                          {HOLISTIC_TAB_GROUP_LABEL[group]}
+                          {group === 'specialist' && specialistOutstandingRequiredCount > 0 ? (
+                            <span
+                              className="ml-1 font-bold text-red-700 dark:text-red-400"
+                              data-testid="ia-nav-specialist-required-count"
+                            >
+                              — {specialistOutstandingRequiredCount} required
+                            </span>
+                          ) : null}
+                        </p>
+                        {groupTabs.filter((tab) => !hiddenIds.has(tab.id)).map(renderNavTab)}
+                        {group === 'specialist' && (hidden.length > 0 || showNotNeededSpecialists) ? (
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 text-left text-xs font-medium text-teal-700 hover:underline dark:text-teal-300"
+                            onClick={() => setShowNotNeededSpecialists((v) => !v)}
+                            data-testid="ia-nav-not-needed-toggle"
+                          >
+                            {showNotNeededSpecialists ? 'Hide not needed' : `Not needed (${hidden.length})`}
+                          </button>
+                        ) : null}
+                      </React.Fragment>
                     )
                   })}
                 </nav>
@@ -2779,13 +3609,22 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                       currentHolisticTab.kind !== 'end-of-life-assessment' &&
                       currentHolisticTab.kind !== 'clinical-outcome-summary' &&
                       currentHolisticTab.kind !== 'care-plan-objectives' &&
-                      currentHolisticTab.kind !== 'mental-capacity-checklist' &&
-                      currentHolisticTab.kind !== 'photography-consent' ? (
+                      currentHolisticTab.kind !== 'mental-capacity-checklist' ? (
                         <h2 className={IA_SECTION_TITLE_CLASS}>
                           {holisticTabDisplayNumber(currentHolisticTab)}. {holisticTabTitle(currentHolisticTab.id)}
                         </h2>
                       ) : null}
+                      {specialistRelevanceByTab.get(currentHolisticTab.id) ? (
+                        <InitialAssessmentSpecialistRelevanceBanner
+                          key={`relevance-${currentHolisticTab.id}`}
+                          relevance={specialistRelevanceByTab.get(currentHolisticTab.id)!}
+                          disabled={!editable || !canUpdate}
+                          onOverride={(next, reason) => onSpecialistOverride(currentHolisticTab.id, next, reason)}
+                        />
+                      ) : null}
+                      <SpecialistTriggerNotesContext.Provider value={specialistTriggerNoteMap}>
                       <InitialAssessmentDocumentTabContent
+                        loneWorkerFactorHints={loneWorkerFactorHints}
                         tab={currentHolisticTab}
                         sections={sections}
                         draftAnswers={draftAnswers}
@@ -2806,7 +3645,8 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         endOfLifeAssessment={endOfLifeAssessment}
                         clinicalOutcomeSummary={clinicalOutcomeSummary}
                         carePlanObjectives={carePlanObjectives}
-                        mentalCapacityChecklist={mentalCapacityChecklist}
+                        agreedGoals={agreedGoals}
+                        mentalCapacityChecklist={screeningSyncedMentalCapacityChecklist}
                         photographyConsent={photographyConsent}
                         equipmentSelection={equipmentSelection}
                         skinIntegrityCheck={skinIntegrityCheck}
@@ -2827,6 +3667,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onOpenInfectionControlTab={goToInfectionControlTab}
                         onPainAssessmentChange={onPainAssessmentChange}
                         onWaterlowChange={onWaterlowChange}
+                        capacityDecisions={capacityDecisions}
+                        capacityDecisionNeeds={capacityNeeds}
+                        legacyCapacityScreening={legacyCapacityScreening}
+                        legacyCapacityScreeningAnswered={legacyCapacityScreeningAnswered}
+                        capacityAssessorName={currentUser?.displayName}
+                        assessmentSummary={assessmentSummary}
+                        legalAuthorities={legalAuthoritiesQuery.data?.legalAuthorities ?? []}
+                        conditionProposals={conditionProposals}
+                        onConditionProposalsChange={editable && canUpdate ? onConditionProposalsChange : undefined}
+                        onCapacityDecisionsChange={editable && canUpdate ? onCapacityDecisionsChange : undefined}
                         onMustAssessmentChange={onMustAssessmentChange}
                         onFallsScreeningChange={onFallsScreeningChange}
                         onMovingHandlingOperationsChange={onMovingHandlingOperationsChange}
@@ -2835,12 +3685,19 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                         onEndOfLifeAssessmentChange={onEndOfLifeAssessmentChange}
                         onClinicalOutcomeSummaryChange={onClinicalOutcomeSummaryChange}
                         onCarePlanObjectivesChange={onCarePlanObjectivesChange}
+                        onAgreedGoalsChange={onAgreedGoalsChange}
                         onMentalCapacityChecklistChange={onMentalCapacityChecklistChange}
                         onPhotographyConsentChange={onPhotographyConsentChange}
                         onEquipmentSelectionChange={onEquipmentSelectionChange}
                         onSkinIntegrityRowSideChange={onSkinIntegrityRowSideChange}
                         sectionFooter={sectionFooters[String(activeHolisticTab)]}
-                        onSectionFooterChange={(patch) => onSectionFooterChange(activeHolisticTab, patch)}
+                        onSectionFooterChange={
+                          // "Completed by / on" only matters for specialist tools; Core tabs are covered by
+                          // the final sign-off and the audit trail.
+                          holisticTabById(activeHolisticTab)?.group === 'specialist'
+                            ? (patch) => onSectionFooterChange(activeHolisticTab, patch)
+                            : undefined
+                        }
                         onChange={onAnswerChange}
                         section12={{
                           adl,
@@ -2900,6 +3757,7 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                           },
                         }}
                       />
+                      </SpecialistTriggerNotesContext.Provider>
                       {showEmarCta && currentHolisticTab.id === 1 && selectedId ? (
                         <Button type="button" variant="outline" size="sm" asChild>
                           <Link
@@ -2934,7 +3792,12 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
                             Save section
                           </Button>
                           {canSubmit ? (
-                            <Button type="button" variant="secondary" onClick={openSubmitReview}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={openSubmitReview}
+                              disabled={submitSaving}
+                            >
                               Submit assessment
                             </Button>
                           ) : null}
@@ -2987,15 +3850,16 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
         warnings={validation.warnings}
         canSubmit={validation.canSubmit}
         canSubmitIncomplete={validation.canSubmitIncomplete}
-        submitting={submitMutation.isPending}
+        submitting={submitMutation.isPending || submitSaving}
         validating={validateQuery.isLoading}
         flaggedRiskCount={riskQuery.data?.count}
         carePlanTriggerCount={triggersQuery.data?.count}
         openActionsCount={openActionsCount}
-        onGoToSection={(n) => {
+        onGoToSection={(n, message) => {
           setSubmitModalOpen(false)
-          goToSection(n)
+          goToSection(n, message)
         }}
+        issueTabLabel={issueTabLabel}
         onGoToHubTab={(tab) => {
           setSubmitModalOpen(false)
           setHubTab(tab)

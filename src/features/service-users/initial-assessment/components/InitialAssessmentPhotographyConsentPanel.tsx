@@ -303,10 +303,10 @@ export function InitialAssessmentPhotographyConsentPanel({ value, disabled, onCh
               </div>
 
               <div className="space-y-3 p-4">
-                <h4 className={IA_SUBSECTION_PANEL_HEADER_CLASS}>L.P.A</h4>
+                <h4 className={IA_SUBSECTION_PANEL_HEADER_CLASS}>LPA</h4>
                 <div className="space-y-1">
                   <Label htmlFor="photo-consent-lpoa-name" className={IA_QUESTION_LABEL_CLASS}>
-                    L.P.A name
+                    LPA name
                   </Label>
                   <Input
                     id="photo-consent-lpoa-name"

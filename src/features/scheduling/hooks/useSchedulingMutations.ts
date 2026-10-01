@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { CancelHousekeepingJobPayload } from '@/features/scheduling/utils/visit-cancellation.constants'
 import {
   allocateJob,
+  allocateJobTeam,
   buildSchedule,
   cancelHousekeepingJob,
   completeHousekeepingJob,
@@ -242,6 +243,30 @@ export function useAllocateJob() {
     onSuccess: (result) => {
       invalidateSchedulingQueries(qc)
       invalidateVisitPlanForAllocation(qc, result.data)
+    },
+  })
+}
+
+/** Multi-carer visit: whole team (or missing carers) in one all-or-nothing save. */
+export function useAllocateJobTeam() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      ...body
+    }: {
+      jobId: string
+      employeeIds: string[]
+      leadEmployeeId: string
+      scheduledVisitId?: string
+      force?: boolean
+      notes?: string
+      scheduledStartDateTime?: string
+      scheduledEndDateTime?: string
+    }) => allocateJobTeam(jobId, body),
+    onSuccess: (result) => {
+      invalidateSchedulingQueries(qc)
+      invalidateVisitPlanForAllocation(qc, result.data[0])
     },
   })
 }

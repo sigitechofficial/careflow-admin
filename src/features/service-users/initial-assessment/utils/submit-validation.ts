@@ -1,3 +1,12 @@
+import {
+  consentRefusalRoute,
+  isCapacityInDoubt,
+  understandingInDoubt,
+} from '@/features/service-users/initial-assessment/utils/consent-capacity'
+import {
+  hasAgreedGoal,
+  type AgreedGoalsMetadata,
+} from '@/features/service-users/initial-assessment/utils/agreed-goals'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
 import {
   overallAssessmentProgress,
@@ -32,6 +41,22 @@ import type {
 import { isWaterlowScoringComplete } from '@/features/service-users/initial-assessment/utils/waterlow-questions'
 import { vitalsCompetencyWarning } from '@/features/service-users/initial-assessment/utils/vitals-validation'
 import { DEFAULT_INITIAL_ASSESSMENT_AGENCY_SETTINGS } from '@/features/service-users/initial-assessment/utils/agency-settings-defaults'
+import {
+  FALLS_ASSESSMENT_REQUIRED_MESSAGE,
+  fallsCaseFindingFromAnswers,
+} from '@/features/service-users/initial-assessment/utils/falls-case-finding'
+import {
+  SPECIALIST_WORKSHEET_TITLES,
+  specialistRequiredMessage,
+} from '@/features/service-users/initial-assessment/utils/specialist-relevance-rules'
+import { holisticTabById } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import { specialistInputsFromAssessment } from '@/features/service-users/initial-assessment/utils/specialist-relevance'
+import {
+  capacityDecisionIssues,
+  completedDecisionFor,
+  usesLegacyCapacityScreening,
+  type CapacityDecisionRecord,
+} from '@/features/service-users/initial-assessment/utils/capacity-decisions'
 
 export type ValidationIssue = {
   message: string
@@ -44,14 +69,16 @@ export type ValidationIssue = {
 /** Missing answers / worksheets — allowed when user confirms incomplete submit. */
 export function isSkippableIncompleteValidationMessage(message: string): boolean {
   if (message.startsWith('Required: ')) return true
+  if (message.startsWith('Specialist assessment required:')) return true
   if (message.startsWith('Assessor sign-off required:')) return true
   if (message.includes('Next review date is required')) return true
   if (message.includes('ADL dependency scores incomplete')) return true
   if (message.includes('Complete the Waterlow assessment')) return true
-  if (message.includes('Falls trigger assessment') || message.includes('Falls reported')) return true
-  if (message.includes('Falls assessment completed but date')) return true
+  if (message.includes('Falls trigger assessment') || message.includes('Falls assessment')) return true
   if (message.includes('Mobility aids')) return true
   if (message.includes('Emergency contact 1 not recorded')) return true
+  if (message.startsWith('Agreed goals:')) return true
+  if (message.startsWith('Capacity assessment incomplete')) return true
   return false
 }
 
@@ -96,9 +123,17 @@ export function getSubmitValidationIssues(params: {
   draftAnswers: Record<string, InitialAssessmentAnswerInput>
   waterlow?: WaterlowMetadata
   adl?: AdlMetadata
+  /** Tab 12 environment worksheet — lone-worker Yes replaces retired §3.9 question. */
+  environmentAssessment?: { loneWorkerRiskIdentified?: boolean | null }
+  /** Final-tab goals agreed with the person (`metadata.agreedGoals`). Omit to skip the check. */
+  agreedGoals?: AgreedGoalsMetadata
   status?: InitialAssessmentStatus
   agencySettings?: InitialAssessmentAgencySettings
   progressContext?: SectionProgressContext
+  /** Skippable "Specialist assessment required: …" blocks built by the page (see specialistRequiredBlocks). */
+  specialistBlocks?: ValidationIssue[]
+  /** Decision-specific capacity records (`metadata.capacityDecisions`). */
+  capacityDecisions?: CapacityDecisionRecord[]
 }): {
   blocks: ValidationIssue[]
   warnings: ValidationIssue[]
@@ -107,7 +142,8 @@ export function getSubmitValidationIssues(params: {
   canSubmitIncomplete: boolean
   overallPercent: number
 } {
-  const { sections, draftAnswers, waterlow, adl, status, progressContext } = params
+  const { sections, draftAnswers, waterlow, adl, environmentAssessment, agreedGoals, status, progressContext } =
+    params
   const agencySettings = params.agencySettings ?? DEFAULT_INITIAL_ASSESSMENT_AGENCY_SETTINGS
   const blocks: ValidationIssue[] = []
   const warnings: ValidationIssue[] = []
@@ -116,29 +152,59 @@ export function getSubmitValidationIssues(params: {
     return { blocks, warnings, canSubmit: false, canSubmitIncomplete: false, overallPercent: 0 }
   }
 
-  const consentQ = findQuestionBySpecRef(sections, '2.1')
-  if (consentQ && isExplicitNo(draftAnswers[consentQ.id])) {
-    blocks.push({
-      message: 'Consent to assessment is No — cannot submit (section 2.1)',
+  const capacityInDoubt = isCapacityInDoubt(sections, draftAnswers)
+  // A refusal is never ignored (CQC Regulation 11, MCA 2005). With capacity it stands; with capacity in
+  // doubt the IA goes on only once capacity for this decision is assessed as lacking AND a best-interests
+  // decision (recording the person's wishes and objection) or a covering legal authority is recorded —
+  // and a manager reviews it. Mirrors careflow-api initial-assessment-validation.
+  // Decision-specific capacity records replace the one global screening; IAs that only have the old
+  // §2.mca screening keep the old rules.
+  const capacityRecords = params.capacityDecisions ?? []
+  const legacyScreeningAnswered = sections.some((sec) =>
+    sec.questions.some((q) => specRefOf(q) === '2.mca' && isAnsweredForValidation(q, draftAnswers[q.id])),
+  )
+  const legacyCapacity = usesLegacyCapacityScreening(capacityRecords, legacyScreeningAnswered)
+  const consentQ = findQuestionByFieldKey(sections, 'consentToAssessment') ?? findQuestionBySpecRef(sections, '2.1')
+  const careConsentQ = findQuestionByFieldKey(sections, 'consentToCare') ?? findQuestionBySpecRef(sections, '2.2')
+  for (const [q, label, ref, decision] of [
+    [consentQ, 'Consent to assessment', '2.1', 'consent_to_assessment'],
+    [careConsentQ, 'Consent to receive care', '2.2', 'consent_to_care'],
+  ] as const) {
+    const route = consentRefusalRoute(
+      sections,
+      draftAnswers,
+      Boolean(q && isExplicitNo(draftAnswers[q.id])),
+      legacyCapacity ? undefined : completedDecisionFor(capacityRecords, decision),
+    )
+    if (route === 'refusal_stands') {
+      blocks.push({ message: `${label} is No — cannot submit (section ${ref})`, sectionNumber: 2, blocking: true })
+    } else if (route === 'needs_capacity_and_best_interests') {
+      blocks.push({
+        message: `${label} is No and capacity is in doubt — record the capacity assessment for this decision and a best-interests decision (including the person's wishes and objection) or a covering legal authority (section ${ref})`,
+        sectionNumber: 2,
+        blocking: true,
+      })
+    } else if (route === 'proceed_with_manager_review') {
+      warnings.push({
+        message: `${label} refused by a person assessed as lacking capacity — manager review required; their wishes and objection must be considered (section ${ref})`,
+        sectionNumber: 2,
+        blocking: false,
+      })
+    }
+  }
+
+  if (understandingInDoubt(sections, draftAnswers) && !capacityInDoubt) {
+    warnings.push({
+      message: 'Service user may not understand the assessment — consider a Mental Capacity Assessment (section 2.3)',
       sectionNumber: 2,
-      blocking: true,
+      blocking: false,
     })
   }
 
-  const careConsentQ = findQuestionBySpecRef(sections, '2.2')
-  if (careConsentQ && isExplicitNo(draftAnswers[careConsentQ.id])) {
-    blocks.push({
-      message: 'Consent to receive care is No — cannot submit (section 2.2)',
-      sectionNumber: 2,
-      blocking: true,
-    })
-  }
-
-  const capacityQ = findQuestionBySpecRef(sections, '2.4')
   const mcaDone = findQuestionByTextIncludes(sections, 'mca completed')
-  if (capacityQ && isExplicitNo(draftAnswers[capacityQ.id]) && (!mcaDone || !isYesAnswer(draftAnswers[mcaDone.id]))) {
+  if (capacityInDoubt && (!mcaDone || !isYesAnswer(draftAnswers[mcaDone.id]))) {
     blocks.push({
-      message: 'Capacity not intact — MCA must be completed before submit (section 2.4–2.5)',
+      message: 'Capacity in doubt — MCA must be completed before submit (section 2.4–2.5)',
       sectionNumber: 2,
       blocking: true,
     })
@@ -183,26 +249,24 @@ export function getSubmitValidationIssues(params: {
     }
   }
 
-  const fallsReportedQ = findQuestionBySpecRefAndText(sections, '12.7', 'falls in')
-  if (fallsReportedQ && isYesAnswer(draftAnswers[fallsReportedQ.id]) && adl?.fallsAssessmentCompleted !== true) {
-    blocks.push({
-      message: 'Falls reported but falls trigger assessment not completed (section 12.7)',
+  // Falls: §12.7 case-finding (always asked) decides whether the Falls tab is needed. Mirrors API
+  // initial-assessment-validation — change both together.
+  const fallsFinding = fallsCaseFindingFromAnswers(sections, draftAnswers)
+  if (fallsFinding.status === 'required' && adl?.fallsAssessmentCompleted !== true) {
+    blocks.push({ message: FALLS_ASSESSMENT_REQUIRED_MESSAGE, sectionNumber: 12, blocking: true })
+  } else if (fallsFinding.status === 'suggested' && adl?.fallsAssessmentCompleted !== true) {
+    warnings.push({
+      message: `Falls assessment suggested — ${fallsFinding.reasons.join(', ').toLowerCase()} recorded (section 12.7)`,
       sectionNumber: 12,
-      blocking: true,
+      blocking: false,
     })
   }
-
-  if (adl?.fallsAssessmentCompleted == null) {
-    blocks.push({
-      message: 'Falls trigger assessment completion not recorded (section 12.7)',
+  const fallInjuryQ = findQuestionByFieldKey(sections, 'fallInjury')
+  if (fallInjuryQ && isYesAnswer(draftAnswers[fallInjuryQ.id])) {
+    warnings.push({
+      message: 'Fall-related injury reported — manager review recommended (section 12.7)',
       sectionNumber: 12,
-      blocking: true,
-    })
-  } else if (adl.fallsAssessmentCompleted === true && !adl.fallsAssessmentDate?.trim()) {
-    blocks.push({
-      message: 'Falls trigger assessment date required when completed (section 12.7)',
-      sectionNumber: 12,
-      blocking: true,
+      blocking: false,
     })
   }
 
@@ -308,6 +372,14 @@ export function getSubmitValidationIssues(params: {
     }
   }
 
+  if (agreedGoals && !hasAgreedGoal(agreedGoals)) {
+    blocks.push({
+      message: 'Agreed goals: add at least one goal agreed with the person',
+      sectionNumber: 14,
+      blocking: true,
+    })
+  }
+
   const nextReviewQ = findQuestionByFieldKey(sections, 'nextReviewDate')
   if (
     agencySettings.requireNextReviewDate &&
@@ -324,6 +396,8 @@ export function getSubmitValidationIssues(params: {
   for (const sec of sections) {
     for (const q of sec.questions) {
       if (!q.isRequired) continue
+      // The old global screening is only required on IAs that already use it.
+      if (!legacyCapacity && specRefOf(q) === '2.mca') continue
       if (!shouldShowQuestion(q, sections, draftAnswers)) continue
       if (isAnsweredForValidation(q, draftAnswers[q.id])) continue
       blocks.push({
@@ -333,6 +407,22 @@ export function getSubmitValidationIssues(params: {
       })
     }
   }
+
+  const capacityInputs = specialistInputsFromAssessment({ sections, answers: draftAnswers })
+  const capacity = capacityDecisionIssues(
+    capacityRecords,
+    {
+      capacityDoubt: capacityInputs.capacityDoubt,
+      covertMedication: capacityInputs.covertMedication,
+      dolRestrictions: capacityInputs.dolRestrictions,
+      dolConcern: capacityInputs.dolConcern,
+    },
+    legacyScreeningAnswered,
+  )
+  for (const message of capacity.blocks) blocks.push({ message, sectionNumber: 2, blocking: true })
+  for (const message of capacity.warnings) warnings.push({ message, sectionNumber: 2, blocking: false })
+
+  blocks.push(...(params.specialistBlocks ?? []))
 
   const pressureRiskQ = findQuestionByTextIncludes(sections, 'pressure ulcer risk assessment completed')
   const waterlowRequired =
@@ -374,7 +464,8 @@ export function getSubmitValidationIssues(params: {
   }
 
   const loneWorkerQ = findQuestionByTextIncludes(sections, 'lone worker risk')
-  if (loneWorkerQ && isYesAnswer(draftAnswers[loneWorkerQ.id])) {
+  const loneWorkerFromWorksheet = environmentAssessment?.loneWorkerRiskIdentified === true
+  if ((loneWorkerQ && isYesAnswer(draftAnswers[loneWorkerQ.id])) || loneWorkerFromWorksheet) {
     warnings.push({
       message: 'Lone worker risk identified — double-up visits may be required',
       sectionNumber: 3,
@@ -425,4 +516,26 @@ export function getSubmitValidationIssues(params: {
     canSubmitIncomplete: hardBlocks.length === 0 && skippableBlocks.length > 0,
     overallPercent,
   }
+}
+
+/**
+ * Required specialist worksheets that are not complete → skippable blocks (same text as the server's
+ * `specialistRequiredIssues`, which is authoritative at submit).
+ */
+export function specialistRequiredBlocks(
+  relevanceByTab: ReadonlyMap<number, { status: string; reasons: string[] }>,
+  worksheetComplete: Readonly<Record<number, boolean>>,
+): ValidationIssue[] {
+  const out: ValidationIssue[] = []
+  for (const [tabIdText, title] of Object.entries(SPECIALIST_WORKSHEET_TITLES)) {
+    const tabId = Number(tabIdText)
+    const relevance = relevanceByTab.get(tabId)
+    if (relevance?.status !== 'required' || worksheetComplete[tabId]) continue
+    out.push({
+      message: specialistRequiredMessage(title, relevance.reasons),
+      sectionNumber: holisticTabById(tabId)?.enterpriseSection ?? 0,
+      blocking: true,
+    })
+  }
+  return out
 }

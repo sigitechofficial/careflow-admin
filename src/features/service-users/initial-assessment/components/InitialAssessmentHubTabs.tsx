@@ -16,7 +16,7 @@ const TABS: { id: HubTabId; label: string }[] = [
   { id: 'submissions', label: 'Submissions' },
   { id: 'versions', label: 'Versions & history' },
   { id: 'review', label: 'Manager review' },
-  { id: 'schedule', label: 'Review schedule' },
+  { id: 'schedule', label: 'Actions & care plans' },
   { id: 'audit', label: 'Audit trail' },
   { id: 'compare', label: 'Compare' },
 ]

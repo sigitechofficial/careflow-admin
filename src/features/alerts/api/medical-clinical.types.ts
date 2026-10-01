@@ -99,6 +99,11 @@ export type ServiceUserMedicalConditionRow = {
   notes: string
   onsetDate: string | null
   reviewDate: string | null
+  /** Older API builds omit the care details. */
+  impactOnCare?: string
+  carerGuidance?: string
+  confirmationSource?: string
+  sourceSubmissionId?: string | null
   source: ServiceUserClinicalDataSource | string
   isActive: boolean
   createdAt: string

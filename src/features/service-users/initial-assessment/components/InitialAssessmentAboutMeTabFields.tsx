@@ -150,13 +150,7 @@ export function InitialAssessmentAboutMeTabFields({
   return (
     <div className="space-y-4">
       {tabQuestions.map((q) => (
-        <div
-          key={q.id}
-          className={cn(
-            'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5',
-            q.questionType === 'TEXT' && 'sm:max-w-2xl',
-          )}
-        >
+        <div key={q.id} className={cn(q.questionType === 'TEXT' && 'sm:max-w-2xl')}>
           <InitialAssessmentQuestionField
             question={q}
             value={mergePrefillAnswer(q, draftAnswers[q.id], prefillMap)}

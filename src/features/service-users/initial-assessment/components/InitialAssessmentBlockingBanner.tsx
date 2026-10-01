@@ -8,7 +8,9 @@ type Props = {
   blocks: ValidationIssue[]
   warnings: ValidationIssue[]
   editable: boolean
-  onGoToSection: (sectionNumber: number) => void
+  onGoToSection: (sectionNumber: number, message?: string) => void
+  /** Label for the tab an issue lives on (e.g. "Tab 14"); falls back to the § number. */
+  issueTabLabel?: (issue: ValidationIssue) => string
   onGoToHubTab?: (tab: HubTabId) => void
   onReviewSubmit?: () => void
 }
@@ -18,6 +20,7 @@ export function InitialAssessmentBlockingBanner({
   warnings,
   editable,
   onGoToSection,
+  issueTabLabel,
   onGoToHubTab,
   onReviewSubmit,
 }: Props) {
@@ -68,8 +71,13 @@ export function InitialAssessmentBlockingBanner({
                 Open Waterlow tab
               </Button>
             ) : (
-              <Button type="button" size="sm" variant="outline" onClick={() => onGoToSection(topBlock.sectionNumber)}>
-                Go to section {topBlock.sectionNumber}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onGoToSection(topBlock.sectionNumber, topBlock.message)}
+              >
+                Go to {issueTabLabel?.(topBlock) ?? `section ${topBlock.sectionNumber}`}
               </Button>
             )
           ) : topWarning != null ? (
@@ -78,8 +86,13 @@ export function InitialAssessmentBlockingBanner({
                 Open Waterlow tab
               </Button>
             ) : (
-              <Button type="button" size="sm" variant="outline" onClick={() => onGoToSection(topWarning.sectionNumber)}>
-                Go to section {topWarning.sectionNumber}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onGoToSection(topWarning.sectionNumber, topWarning.message)}
+              >
+                Go to {issueTabLabel?.(topWarning) ?? `section ${topWarning.sectionNumber}`}
               </Button>
             )
           ) : null}
