@@ -1,5 +1,5 @@
 import type * as React from 'react'
-import type { Permission } from '@/features/auth/types'
+import type { Permission, RoleId } from '@/features/auth/types'
 
 export interface SubNavItem {
   label: string
@@ -8,6 +8,8 @@ export interface SubNavItem {
   search?: Record<string, string>
   permission?: Permission
   anyPermission?: Permission[]
+  /** Hide this item for these UI roles (e.g. Super Admin personal inboxes). */
+  hideForRoles?: RoleId[]
   ready?: boolean
   navTestId?: string
 }

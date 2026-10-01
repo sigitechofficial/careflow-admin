@@ -61,7 +61,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shar
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import type { Permission } from '@/features/auth/types'
+import type { Permission, RoleId } from '@/features/auth/types'
 import { useAuthStore } from '@/features/auth/store'
 import { CompanyBrandMark } from '@/components/company/CompanyBrandMark'
 import { portalNavItems } from '@/features/service-user-portal/portal-nav'
@@ -661,7 +661,7 @@ const navItems: NavItem[] = [
       { label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" />, href: '/incidents/dashboard', permission: 'incidents.read' },
       { label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
-      { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read' },
+      { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
       { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/incidents/analytics', permission: 'incidents.view_analytics' },
     ],
   },
@@ -761,15 +761,21 @@ const navItems: NavItem[] = [
 function navChildAllowed(
   child: SubNavItem,
   can: (p: Permission) => boolean,
+  role?: RoleId,
 ): boolean {
   if (child.ready === false) return false
+  if (role && child.hideForRoles?.includes(role)) return false
   if (child.anyPermission?.length) return child.anyPermission.some((p) => can(p))
   if (child.permission) return can(child.permission)
   // No permission key → hide (prevents tabs for modules the user cannot access).
   return false
 }
 
-function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean): NavItem[] {
+function filterNavByPermission(
+  items: NavItem[],
+  can: (p: Permission) => boolean,
+  role?: RoleId,
+): NavItem[] {
   return items
     .map((item) => {
       if (item.ready === false) return null
@@ -777,7 +783,7 @@ function filterNavByPermission(items: NavItem[], can: (p: Permission) => boolean
         // Top-level leaves (Home): always keep. Stub leaves without children already handled.
         return item
       }
-      const children = item.children.filter((ch) => navChildAllowed(ch, can))
+      const children = item.children.filter((ch) => navChildAllowed(ch, can, role))
       if (!children.length) return null
       return { ...item, children }
     })
@@ -995,7 +1001,7 @@ export function Sidebar({ variant = 'admin' }: { variant?: LayoutVariant }) {
     if (isPortal) return navSource
     // Temporary inspector list is already curated; skip strict ACL filter.
     if (user?.role === 'temporary_inspector') return navSource
-    return filterNavByPermission(navSource, can)
+    return filterNavByPermission(navSource, can, user?.role)
   }, [can, isPortal, navSource, user?.role])
   const [menuQuery, setMenuQuery] = React.useState('')
   const isMenuSearching = !sidebarCollapsed && menuQuery.trim().length > 0

@@ -1,14 +1,21 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Download, ImageIcon, MapPin, Trash2, Upload, X } from 'lucide-react'
+import { Download, ExternalLink, ImageIcon, MapPin, Trash2, Upload, X } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
 import { canCreateBodyMap } from '@/features/service-users/body-map/body-map-permissions'
+import { recordTypeLabel, type BodyMapRecordTypeCode } from '@/features/service-users/body-map/catalog/record-types'
+import { useServiceUserBodyMap } from '@/features/service-users/body-map/hooks/useBodyMap'
+import { useCarePlanInstances } from '@/features/service-users/care-plans/hooks/useServiceUserCarePlanInstances'
+import { useServiceUserMedications } from '@/features/service-users/hooks/useServiceUserMedications'
+import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
+import { useServiceUserVisitPlans } from '@/features/service-users/visit-plan/hooks'
 import { IncidentBodyMapDialog } from '@/features/incidents/components/IncidentBodyMapDialog'
 import { Button } from '@/shared/ui/button'
+import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 import { Badge } from '@/shared/ui/badge'
-import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDate, formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import {
   useAddIncidentInjury,
   useAddIncidentWitness,
@@ -209,7 +216,7 @@ export function IncidentWitnessesPanel({
               <div>
                 <p className="text-sm font-medium text-foreground">{w.personName || 'Unnamed'} <span className="text-xs text-muted-foreground">({w.personKind.toLowerCase().replace(/_/g, ' ')})</span></p>
                 {w.statement && <p className="mt-0.5 whitespace-pre-wrap text-sm text-muted-foreground">{w.statement}</p>}
-                {w.statementDate && <p className="mt-1 text-xs text-muted-foreground">Statement dated {formatOrganisationIsoDateLong(w.statementDate)}</p>}
+                {w.statementDate && <p className="mt-1 text-xs text-muted-foreground">Statement dated {formatOrganisationDate(w.statementDate)}</p>}
               </div>
               {canManage && (
                 <Button size="sm" variant="ghost" aria-label="Remove witness" onClick={() => del.mutate(w.id)}>
@@ -245,21 +252,291 @@ export function IncidentWitnessesPanel({
 }
 
 /* ---------------- Related care records ---------------- */
+
+const PICKABLE_RECORD_TYPES = new Set<IncidentRelatedRecordType>([
+  'CARE_PLAN',
+  'RISK_ASSESSMENT',
+  'MEDICATION',
+  'BODY_MAP',
+  'VISIT',
+])
+
+type CareRecordOption = ComboboxOption & { formId?: string }
+
+function recordTypeDisplayLabel(type: IncidentRelatedRecordType): string {
+  return INCIDENT_RELATED_RECORD_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type
+}
+
+function CareRecordOpenLink({
+  record,
+  serviceUserId,
+  carePlanFormId,
+}: {
+  record: IncidentRelatedCareRecord
+  serviceUserId: string | null | undefined
+  carePlanFormId?: string | null
+}) {
+  if (!record.externalId || !serviceUserId) return null
+
+  if (record.recordType === 'CARE_PLAN' || record.recordType === 'RISK_ASSESSMENT') {
+    if (carePlanFormId) {
+      return (
+        <Button size="sm" variant="outline" asChild>
+          <Link
+            to="/service-users/$serviceUserId/care-plan/forms/$formId"
+            params={{ serviceUserId, formId: carePlanFormId }}
+          >
+            <ExternalLink className="mr-1 h-4 w-4" /> Open
+          </Link>
+        </Button>
+      )
+    }
+    return (
+      <Button size="sm" variant="outline" asChild>
+        <Link to="/service-users/$serviceUserId/care-plan" params={{ serviceUserId }}>
+          <ExternalLink className="mr-1 h-4 w-4" /> Open
+        </Link>
+      </Button>
+    )
+  }
+
+  if (record.recordType === 'BODY_MAP') {
+    return (
+      <Button size="sm" variant="outline" asChild>
+        <Link
+          to="/service-users/$serviceUserId/body-map"
+          params={{ serviceUserId }}
+          search={{ recordId: record.externalId }}
+        >
+          <ExternalLink className="mr-1 h-4 w-4" /> Open
+        </Link>
+      </Button>
+    )
+  }
+
+  if (record.recordType === 'MEDICATION') {
+    return (
+      <Button size="sm" variant="outline" asChild>
+        <Link to="/service-users/$serviceUserId/medication" params={{ serviceUserId }}>
+          <ExternalLink className="mr-1 h-4 w-4" /> Open
+        </Link>
+      </Button>
+    )
+  }
+
+  if (record.recordType === 'VISIT') {
+    return (
+      <Button size="sm" variant="outline" asChild>
+        <Link to="/service-users/$serviceUserId/visit-plan" params={{ serviceUserId }}>
+          <ExternalLink className="mr-1 h-4 w-4" /> Open
+        </Link>
+      </Button>
+    )
+  }
+
+  return null
+}
+
 export function IncidentCareRecordsPanel({
   incidentId,
   records,
   canManage,
+  serviceUserId: incidentServiceUserId,
 }: {
   incidentId: string
   records: IncidentRelatedCareRecord[]
   canManage: boolean
+  serviceUserId?: string | null
 }) {
   const add = useAddRelatedCareRecord(incidentId)
   const update = useUpdateRelatedCareRecord()
   const del = useDeleteRelatedCareRecord()
+  const currentUser = useAuthStore((s) => s.user)
+  const reviewerLabel =
+    currentUser?.displayName ||
+    [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') ||
+    currentUser?.email ||
+    'Staff'
+
   const [open, setOpen] = React.useState(false)
-  const [recordType, setRecordType] = React.useState<IncidentRelatedRecordType>('RISK_ASSESSMENT')
-  const [label, setLabel] = React.useState('')
+  const [recordType, setRecordType] = React.useState<IncidentRelatedRecordType>('CARE_PLAN')
+  const [pickedServiceUserId, setPickedServiceUserId] = React.useState('')
+  const [suSearch, setSuSearch] = React.useState('')
+  const [selectedRecordId, setSelectedRecordId] = React.useState('')
+  const [freeTextLabel, setFreeTextLabel] = React.useState('')
+  const [note, setNote] = React.useState('')
+
+  const serviceUserId = incidentServiceUserId || pickedServiceUserId || ''
+  const needsServiceUserPicker = !incidentServiceUserId
+  const usesRecordPicker = PICKABLE_RECORD_TYPES.has(recordType)
+
+  const linkedExternalIds = React.useMemo(
+    () => new Set(records.map((r) => r.externalId).filter((id): id is string => Boolean(id))),
+    [records],
+  )
+
+  const serviceUsersQuery = useServiceUsers(
+    {
+      limit: 50,
+      search: suSearch || undefined,
+    },
+    needsServiceUserPicker && open && usesRecordPicker,
+  )
+  const carePlansQuery = useCarePlanInstances(
+    serviceUserId,
+    Boolean(serviceUserId) &&
+      (recordType === 'CARE_PLAN' ||
+        recordType === 'RISK_ASSESSMENT' ||
+        records.some((r) => r.recordType === 'CARE_PLAN' || r.recordType === 'RISK_ASSESSMENT')),
+  )
+  const medicationsQuery = useServiceUserMedications(serviceUserId)
+  const bodyMapQuery = useServiceUserBodyMap(serviceUserId, true, {
+    enabled:
+      Boolean(serviceUserId) &&
+      (recordType === 'BODY_MAP' || records.some((r) => r.recordType === 'BODY_MAP')),
+  })
+  const visitPlansQuery = useServiceUserVisitPlans(serviceUserId)
+
+  const carePlanFormByInstanceId = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const row of carePlansQuery.data ?? []) {
+      map.set(row.id, row.carePathwayFormId)
+    }
+    return map
+  }, [carePlansQuery.data])
+
+  const serviceUserOptions: ComboboxOption[] = React.useMemo(
+    () =>
+      (serviceUsersQuery.data?.rows ?? []).map((row) => ({
+        value: row.id,
+        label: [row.preferredName || row.firstName, row.lastName].filter(Boolean).join(' ') || 'Service user',
+      })),
+    [serviceUsersQuery.data],
+  )
+
+  const recordOptions: CareRecordOption[] = React.useMemo(() => {
+    if (!serviceUserId || !usesRecordPicker) return []
+
+    if (recordType === 'CARE_PLAN' || recordType === 'RISK_ASSESSMENT') {
+      return (carePlansQuery.data ?? [])
+        .filter((row) => !linkedExternalIds.has(row.id))
+        .map((row) => ({
+          value: row.id,
+          label: row.formName?.trim() || 'Care Plan',
+          description: row.displayStatus?.replace(/_/g, ' ').toLowerCase(),
+          formId: row.carePathwayFormId,
+        }))
+    }
+
+    if (recordType === 'MEDICATION') {
+      return (medicationsQuery.data?.rows ?? [])
+        .filter((row) => !linkedExternalIds.has(row.id))
+        .map((row) => ({
+          value: row.id,
+          label: row.medicationName,
+          description: row.medicationKind ?? undefined,
+        }))
+    }
+
+    if (recordType === 'BODY_MAP') {
+      return (bodyMapQuery.data?.records ?? [])
+        .filter((row) => !linkedExternalIds.has(row.id))
+        .map((row) => ({
+          value: row.id,
+          label:
+            row.title?.trim() ||
+            recordTypeLabel(row.recordType as BodyMapRecordTypeCode) ||
+            'Body map record',
+          description: row.status?.replace(/_/g, ' ').toLowerCase(),
+        }))
+    }
+
+    if (recordType === 'VISIT') {
+      return (visitPlansQuery.data ?? [])
+        .filter((row) => !linkedExternalIds.has(row.id))
+        .map((row) => ({
+          value: row.id,
+          label: `Visit plan (${row.status.toLowerCase()})`,
+          description: row.effectiveFrom
+            ? `From ${formatOrganisationDate(row.effectiveFrom)}`
+            : undefined,
+        }))
+    }
+
+    return []
+  }, [
+    serviceUserId,
+    usesRecordPicker,
+    recordType,
+    carePlansQuery.data,
+    medicationsQuery.data,
+    bodyMapQuery.data,
+    visitPlansQuery.data,
+    linkedExternalIds,
+  ])
+
+  const recordsLoading =
+    usesRecordPicker &&
+    Boolean(serviceUserId) &&
+    (((recordType === 'CARE_PLAN' || recordType === 'RISK_ASSESSMENT') && carePlansQuery.isFetching) ||
+      (recordType === 'MEDICATION' && medicationsQuery.isFetching) ||
+      (recordType === 'BODY_MAP' && bodyMapQuery.isFetching) ||
+      (recordType === 'VISIT' && visitPlansQuery.isFetching))
+
+  function resetForm() {
+    setSelectedRecordId('')
+    setFreeTextLabel('')
+    setNote('')
+    setSuSearch('')
+  }
+
+  function onRecordTypeChange(next: IncidentRelatedRecordType) {
+    setRecordType(next)
+    setSelectedRecordId('')
+    setFreeTextLabel('')
+  }
+
+  function linkRecord() {
+    if (usesRecordPicker) {
+      if (!serviceUserId || !selectedRecordId) return
+      const option = recordOptions.find((o) => o.value === selectedRecordId)
+      if (!option) return
+      add.mutate(
+        {
+          recordType,
+          referenceLabel: option.label,
+          externalId: selectedRecordId,
+          note: note.trim() || undefined,
+        },
+        {
+          onSuccess: () => {
+            setOpen(false)
+            resetForm()
+          },
+        },
+      )
+      return
+    }
+
+    if (!freeTextLabel.trim()) return
+    add.mutate(
+      {
+        recordType,
+        referenceLabel: freeTextLabel.trim(),
+        note: note.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setOpen(false)
+          resetForm()
+        },
+      },
+    )
+  }
+
+  const canSubmit = usesRecordPicker
+    ? Boolean(serviceUserId && selectedRecordId)
+    : freeTextLabel.trim().length > 0
 
   return (
     <div className="space-y-3">
@@ -268,54 +545,158 @@ export function IncidentCareRecordsPanel({
       ) : (
         <ul className="space-y-2">
           {records.map((r) => (
-            <li key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">{r.referenceLabel}</p>
-                <div className="mt-1 flex items-center gap-1.5">
+            <li key={r.id} className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                  {r.referenceLabel}
+                  <Badge variant="muted" size="sm">{recordTypeDisplayLabel(r.recordType)}</Badge>
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <Badge variant={r.status === 'UPDATED' ? 'success' : 'warning'} size="sm">
                     {r.status === 'UPDATED' ? 'Updated' : 'Review required'}
                   </Badge>
                   {r.status === 'UPDATED' && r.updatedByLabel && (
                     <span className="text-xs text-muted-foreground">
-                      by {r.updatedByLabel}{r.resolvedAt ? ` · ${formatOrganisationIsoDateLong(r.resolvedAt)}` : ''}
+                      by {r.updatedByLabel}
+                      {r.resolvedAt ? ` · ${formatOrganisationDateTime(r.resolvedAt)}` : ''}
                     </span>
                   )}
                 </div>
+                {r.note && <p className="mt-1 text-xs text-muted-foreground">{r.note}</p>}
               </div>
-              {canManage && (
-                <div className="flex gap-1">
-                  {r.status !== 'UPDATED' && (
-                    <Button size="sm" variant="outline" loading={update.isPending} onClick={() => update.mutate({ recordId: r.id, input: { status: 'UPDATED' } })}>
-                      Mark reviewed
-                    </Button>
-                  )}
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                <CareRecordOpenLink
+                  record={r}
+                  serviceUserId={serviceUserId || incidentServiceUserId}
+                  carePlanFormId={
+                    r.externalId ? carePlanFormByInstanceId.get(r.externalId) ?? null : null
+                  }
+                />
+                {canManage && r.status !== 'UPDATED' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={update.isPending}
+                    onClick={() =>
+                      update.mutate({
+                        recordId: r.id,
+                        input: { status: 'UPDATED', updatedByLabel: reviewerLabel },
+                      })
+                    }
+                  >
+                    Mark reviewed
+                  </Button>
+                )}
+                {canManage && (
                   <Button size="sm" variant="ghost" aria-label="Remove link" onClick={() => del.mutate(r.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </li>
           ))}
         </ul>
       )}
+
       {canManage &&
         (open ? (
           <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
-            <div className="flex gap-2">
-              <select className={selectClass} value={recordType} onChange={(e) => setRecordType(e.target.value as IncidentRelatedRecordType)}>
-                {INCIDENT_RELATED_RECORD_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <div>
+              <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Record type</p>
+              <select
+                className={`${selectClass} w-full`}
+                value={recordType}
+                onChange={(e) => onRecordTypeChange(e.target.value as IncidentRelatedRecordType)}
+                aria-label="Care record type"
+              >
+                {INCIDENT_RELATED_RECORD_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
-              <Input placeholder="Reference (e.g. Falls Risk Assessment)" value={label} onChange={(e) => setLabel(e.target.value)} />
             </div>
+
+            {needsServiceUserPicker && usesRecordPicker && (
+              <div>
+                <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Service user</p>
+                <Combobox
+                  value={pickedServiceUserId}
+                  onChange={(id) => {
+                    setPickedServiceUserId(id)
+                    setSelectedRecordId('')
+                  }}
+                  options={serviceUserOptions}
+                  onSearchChange={setSuSearch}
+                  loading={serviceUsersQuery.isLoading}
+                  placeholder="Select service user"
+                  searchPlaceholder="Search service users…"
+                  emptyText="No service users match."
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  This incident has no primary service user. Choose whose records to link.
+                </p>
+              </div>
+            )}
+
+            {usesRecordPicker ? (
+              <div>
+                <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Record</p>
+                <Combobox
+                  value={selectedRecordId}
+                  onChange={setSelectedRecordId}
+                  options={recordOptions}
+                  loading={Boolean(recordsLoading)}
+                  placeholder={
+                    serviceUserId ? 'Select a care record' : 'Select a service user first'
+                  }
+                  emptyText={
+                    serviceUserId
+                      ? 'No matching records found (or all already linked).'
+                      : 'Select a service user first.'
+                  }
+                  disabled={!serviceUserId}
+                />
+              </div>
+            ) : (
+              <div>
+                <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Reference</p>
+                <Input
+                  placeholder="e.g. Behaviour support plan — review after fall"
+                  value={freeTextLabel}
+                  onChange={(e) => setFreeTextLabel(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div>
+              <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Note (optional)</p>
+              <Textarea
+                rows={2}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Why does this record need review?"
+              />
+            </div>
+
             <div className="flex gap-2">
-              <Button size="sm" loading={add.isPending} disabled={!label.trim()} onClick={() => add.mutate({ recordType, referenceLabel: label.trim() }, { onSuccess: () => { setOpen(false); setLabel('') } })}>
+              <Button size="sm" loading={add.isPending} disabled={!canSubmit} onClick={linkRecord}>
                 Link record
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setOpen(false)
+                  resetForm()
+                }}
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         ) : (
-          <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Link care record</Button>
+          <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+            Link care record
+          </Button>
         ))}
     </div>
   )

@@ -1830,9 +1830,10 @@ export default function AddEmployeePage({ editEmployeeId }: { editEmployeeId?: s
                             Approved extra weekly hours
                           </h4>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Use when immigration status cap is too low but you have documented approval to
-                            increase hours for this person (e.g. holiday cover). Rostering will warn at the
-                            effective cap.
+                            Documented approval for this person to work above their usual contracted /
+                            immigration status limit (e.g. holiday cover). When set, visit plans and hours
+                            approvals use this as the allowed weekly threshold until it expires. Rostering
+                            also warns against this cap.
                           </p>
                         </div>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

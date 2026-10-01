@@ -4,10 +4,13 @@ import type { LucideIcon } from 'lucide-react'
 import {
   CalendarDays,
   ClipboardList,
+  FileText,
   History,
+  ListChecks,
   Loader2,
   Pencil,
   Settings2,
+  Trash2,
 } from 'lucide-react'
 import {
   SERVICE_USER_MODULE_CONTENT_WIDE_CLASS,
@@ -26,6 +29,10 @@ import { useVisitPlanCareContext } from '@/features/service-users/visit-plan/hoo
 import { VisitPlanHistoryPanel } from '@/features/service-users/visit-plan/VisitPlanHistoryPanel'
 import { VisitPlanVersionPicker } from '@/features/service-users/visit-plan/VisitPlanVersionPicker'
 import { VisitPlanContextBanner } from '@/features/service-users/visit-plan/VisitPlanContextBanner'
+import { VisitPlanSetupGuide } from '@/features/service-users/visit-plan/VisitPlanSetupGuide'
+import { VisitPlanCarePathwayContextPanel } from '@/features/service-users/visit-plan/VisitPlanCarePathwayContextPanel'
+import { VisitPlanDevClearRotaToolbar } from '@/features/service-users/visit-plan/VisitPlanDevClearRotaToolbar'
+import type { ServiceUserVisitPlan, VisitPlanSlot } from '@/features/service-users/visit-plan/types'
 import { assignedEmployeeIdsFromSlots } from '@/features/service-users/visit-plan/visit-plan-employee-names.util'
 import { sortVisitPlanVersions, resolveEditableVisitPlan } from '@/features/service-users/visit-plan/visit-plan-version.util'
 import {
@@ -39,7 +46,14 @@ import { Button } from '@/shared/ui/button'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 
-type VisitPlanPageTab = 'setup' | 'summary' | 'calendar' | 'history'
+type VisitPlanPageTab =
+  | 'setup'
+  | 'summary'
+  | 'calendar'
+  | 'history'
+  | 'guide'
+  | 'carePathway'
+  | 'devTools'
 
 const PAGE_TABS: {
   id: VisitPlanPageTab
@@ -71,18 +85,51 @@ const PAGE_TABS: {
     hint: 'Compare plan versions and amendment history',
     icon: History,
   },
+  {
+    id: 'guide',
+    label: 'Setup guide',
+    hint: 'Step-by-step checklist for configuring visits',
+    icon: ListChecks,
+  },
+  {
+    id: 'carePathway',
+    label: 'Care pathway',
+    hint: 'Assessment and care plan prerequisites before visits go live',
+    icon: FileText,
+  },
+  {
+    id: 'devTools',
+    label: 'Reset rota',
+    hint: 'Dev tool to clear all visit plans and scheduling data',
+    icon: Trash2,
+  },
 ]
 
 function resolvePageTab(search: { view?: string; detailsTab?: string }): VisitPlanPageTab {
   if (search.view !== 'details') return 'setup'
   if (search.detailsTab === 'calendar') return 'calendar'
   if (search.detailsTab === 'history') return 'history'
+  if (search.detailsTab === 'guide') return 'guide'
+  if (search.detailsTab === 'care-pathway') return 'carePathway'
+  if (search.detailsTab === 'dev-tools') return 'devTools'
   return 'summary'
+}
+
+const DETAILS_TAB_BY_PAGE_TAB: Partial<Record<VisitPlanPageTab, 'calendar' | 'history' | 'guide' | 'care-pathway' | 'dev-tools'>> = {
+  calendar: 'calendar',
+  history: 'history',
+  guide: 'guide',
+  carePathway: 'care-pathway',
+  devTools: 'dev-tools',
 }
 
 export default function ServiceUserVisitPlanPage() {
   const params = useParams({ strict: false }) as { serviceUserId?: string }
-  const search = useSearch({ strict: false }) as { planId?: string; view?: string; detailsTab?: string }
+  const search = useSearch({ strict: false }) as {
+    planId?: string
+    view?: string
+    detailsTab?: 'calendar' | 'history' | 'guide' | 'care-pathway' | 'dev-tools'
+  }
   const navigate = useNavigate()
   const serviceUserId = params.serviceUserId ?? ''
   const apiConfigured = Boolean(getApiBaseUrl())
@@ -107,6 +154,36 @@ export default function ServiceUserVisitPlanPage() {
     return resolveEditableVisitPlan(sortedPlans, activePlan, undefined, !plansLoading) ?? sortedPlans[0] ?? null
   }, [search.planId, activePlan, sortedPlans, plansLoading])
 
+  const editablePlan = React.useMemo(
+    () => resolveEditableVisitPlan(sortedPlans, activePlan, search.planId, !plansLoading),
+    [sortedPlans, activePlan, search.planId, plansLoading],
+  )
+
+  const [liveSetupGuide, setLiveSetupGuide] = React.useState<{
+    slots: VisitPlanSlot[]
+    planStatus: ServiceUserVisitPlan['status'] | null
+    hasPlan: boolean
+  } | null>(null)
+
+  React.useEffect(() => {
+    if (activeTab !== 'setup') {
+      setLiveSetupGuide(null)
+    }
+  }, [activeTab])
+
+  const setupGuideProps = React.useMemo(() => {
+    if (activeTab === 'setup' && liveSetupGuide) {
+      return liveSetupGuide
+    }
+    const plan =
+      activeTab === 'setup' || activeTab === 'guide' || activeTab === 'carePathway' ? editablePlan : selectedPlan
+    return {
+      slots: plan?.slots ?? [],
+      planStatus: plan?.status ?? null,
+      hasPlan: Boolean(plan?.id),
+    }
+  }, [activeTab, liveSetupGuide, editablePlan, selectedPlan])
+
   React.useEffect(() => {
     if (plansLoading) return
     const stalePlanId =
@@ -120,8 +197,7 @@ export default function ServiceUserVisitPlanPage() {
         ...(search.view === 'details'
           ? {
               view: 'details' as const,
-              ...(search.detailsTab === 'calendar' ? { detailsTab: 'calendar' as const } : {}),
-              ...(search.detailsTab === 'history' ? { detailsTab: 'history' as const } : {}),
+              ...(search.detailsTab ? { detailsTab: search.detailsTab as typeof search.detailsTab } : {}),
             }
           : {}),
       },
@@ -138,10 +214,19 @@ export default function ServiceUserVisitPlanPage() {
     })
   }
 
-  const careContext = useVisitPlanCareContext(
-    serviceUserId,
-    selectedPlan?.status ?? activePlan?.status ?? null,
-  )
+  const careContextPlanStatus =
+    activeTab === 'setup' || activeTab === 'guide' || activeTab === 'carePathway'
+      ? editablePlan?.status ?? activePlan?.status ?? null
+      : selectedPlan?.status ?? activePlan?.status ?? null
+
+  const careContext = useVisitPlanCareContext(serviceUserId, careContextPlanStatus)
+
+  const carePathwaySlots = React.useMemo(() => {
+    if (activeTab === 'setup' && liveSetupGuide) {
+      return liveSetupGuide.slots
+    }
+    return editablePlan?.slots ?? []
+  }, [activeTab, liveSetupGuide, editablePlan?.slots])
 
   const assignedEmployeeIds = React.useMemo(
     () => assignedEmployeeIdsFromSlots(selectedPlan?.slots ?? []),
@@ -159,8 +244,9 @@ export default function ServiceUserVisitPlanPage() {
           ? {}
           : {
               view: 'details' as const,
-              ...(next === 'calendar' ? { detailsTab: 'calendar' as const } : {}),
-              ...(next === 'history' ? { detailsTab: 'history' as const } : {}),
+              ...(DETAILS_TAB_BY_PAGE_TAB[next]
+                ? { detailsTab: DETAILS_TAB_BY_PAGE_TAB[next] }
+                : {}),
             }),
       },
       replace: true,
@@ -174,8 +260,7 @@ export default function ServiceUserVisitPlanPage() {
       search: {
         planId,
         view: 'details',
-        ...(tab === 'calendar' ? { detailsTab: 'calendar' } : {}),
-        ...(tab === 'history' ? { detailsTab: 'history' } : {}),
+        ...(DETAILS_TAB_BY_PAGE_TAB[tab] ? { detailsTab: DETAILS_TAB_BY_PAGE_TAB[tab] } : {}),
       },
       replace: true,
     })
@@ -248,7 +333,26 @@ export default function ServiceUserVisitPlanPage() {
             serviceUserId={serviceUserId}
             planId={search.planId}
             onSelectPlan={selectPlanForConfigure}
+            onSetupGuideData={setLiveSetupGuide}
           />
+        ) : activeTab === 'guide' ? (
+          <VisitPlanSetupGuide
+            slots={setupGuideProps.slots}
+            planStatus={setupGuideProps.planStatus}
+            hasPlan={setupGuideProps.hasPlan}
+            defaultOpen
+          />
+        ) : activeTab === 'carePathway' ? (
+          <VisitPlanCarePathwayContextPanel
+            serviceUserId={serviceUserId}
+            isLoading={careContext.isLoading}
+            pathwaySteps={careContext.pathwaySteps}
+            acceptedCarePlans={careContext.acceptedCarePlans}
+            slots={carePathwaySlots}
+            defaultOpen
+          />
+        ) : activeTab === 'devTools' ? (
+          <VisitPlanDevClearRotaToolbar serviceUserId={serviceUserId} />
         ) : !selectedPlan ? (
           <ContentCard className="text-center">
             <h2 className={cn(contentTitleClass, 'inline-flex items-center justify-center gap-2')}>

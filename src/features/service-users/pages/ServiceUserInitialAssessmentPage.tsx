@@ -1,5 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router'
 import {
+  SERVICE_USER_MODULE_CONTENT_WIDE_CLASS,
   SERVICE_USER_MODULE_PAGE_CLASS,
   ServiceUserModuleHeader,
 } from '@/features/service-users/components/ServiceUserModuleHeader'
@@ -36,9 +37,13 @@ export default function ServiceUserInitialAssessmentPage() {
 
   return (
     <div className={SERVICE_USER_MODULE_PAGE_CLASS}>
-      <ServiceUserModuleHeader serviceUserId={serviceUserId} detail={detail} />
-      <ServiceUserModuleTabs serviceUserId={serviceUserId} />
-      <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
+      <ServiceUserModuleHeader
+        serviceUserId={serviceUserId}
+        detail={detail}
+        shellLayout="wide"
+      />
+      <ServiceUserModuleTabs serviceUserId={serviceUserId} shellLayout="wide" />
+      <div className={SERVICE_USER_MODULE_CONTENT_WIDE_CLASS}>
         <ServiceUserInitialAssessmentEnterpriseTab
           serviceUserId={serviceUserId}
           displayName={displayName(detail)}

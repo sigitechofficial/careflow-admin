@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, Clock, Lock, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Lock, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { useAuthStore } from '@/features/auth/store'
-import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
+import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
 import {
   useIncident,
   useChangeIncidentSeverity,
@@ -24,6 +24,11 @@ import {
 } from '@/features/incidents/components/IncidentCarePanels'
 import { ServiceUserIncidentHistoryPanel } from '@/features/incidents/components/ServiceUserIncidentHistoryPanel'
 import { IncidentOutcomeSection } from '@/features/incidents/components/IncidentOutcomeSection'
+import { IncidentTimeline } from '@/features/incidents/components/IncidentTimeline'
+import {
+  IncidentWorkflowStepCard,
+  resolveIncidentDetailWorkflow,
+} from '@/features/incidents/components/IncidentWorkflowStepCard'
 import {
   IMMEDIATE_ACTION_OPTIONS,
   INCIDENT_SEVERITY_BADGE,
@@ -31,6 +36,7 @@ import {
   INCIDENT_STATUS_LABELS,
   INCIDENT_STATUS_TRANSITIONS,
   WHO_INFORMED_LABELS,
+  isReinvestigateTransition,
   type IncidentSeverity,
   type IncidentStatus,
 } from '@/features/incidents/types'
@@ -53,6 +59,15 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</dd>
+    </div>
+  )
+}
+
+function SubBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border/80 bg-muted/20 p-3 sm:p-4">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h4>
+      {children}
     </div>
   )
 }
@@ -94,10 +109,45 @@ export default function IncidentDetailPage() {
     )
   }
 
-  // CLOSED / REOPENED are driven by the dedicated Outcome & Closure controls.
   const validNext = (INCIDENT_STATUS_TRANSITIONS[incident.status] ?? []).filter(
-    (s) => s !== 'CLOSED' && s !== 'REOPENED',
+    (s) => s !== 'CLOSED',
   )
+  const hasFinalOutcome = Boolean(incident.outcome?.finalOutcome?.trim())
+  const workflow = resolveIncidentDetailWorkflow(incident.status, hasFinalOutcome)
+  const stepState = Object.fromEntries(workflow.steps.map((s) => [s.id, s])) as Record<
+    (typeof workflow.steps)[number]['id'],
+    (typeof workflow.steps)[number]
+  >
+
+  const canStartInvestigation =
+    canReview && incident.status === 'REPORTED' && validNext.includes('UNDER_INVESTIGATION')
+  const canMarkActionsRequired =
+    canReview &&
+    (incident.status === 'UNDER_INVESTIGATION' ||
+      incident.status === 'AWAITING_REVIEW' ||
+      incident.status === 'REOPENED' ||
+      incident.status === 'AWAITING_CLOSURE') &&
+    validNext.includes('ACTIONS_REQUIRED')
+  const canMarkReadyToClose =
+    canReview &&
+    (incident.status === 'UNDER_INVESTIGATION' ||
+      incident.status === 'ACTIONS_REQUIRED' ||
+      incident.status === 'AWAITING_REVIEW' ||
+      incident.status === 'REOPENED') &&
+    validNext.includes('AWAITING_CLOSURE')
+  const canSubmitReinvestigate =
+    canReopen &&
+    validNext.includes('UNDER_INVESTIGATION') &&
+    isReinvestigateTransition(incident.status, 'UNDER_INVESTIGATION')
+
+  const legacyNext = validNext.filter((s) => {
+    if (s === 'UNDER_INVESTIGATION' && (canStartInvestigation || canSubmitReinvestigate)) return false
+    if (s === 'AWAITING_CLOSURE' && canMarkReadyToClose) return false
+    if (s === 'ACTIONS_REQUIRED' && canMarkActionsRequired) return false
+    return true
+  })
+
+  const currentHint = stepState[workflow.currentId]?.hint
 
   return (
     <div className="space-y-4">
@@ -128,56 +178,125 @@ export default function IncidentDetailPage() {
         <Badge variant={INCIDENT_STATUS_BADGE[incident.status]}>{incident.statusLabel}</Badge>
         {incident.privacyLevel !== 'NORMAL' && (
           <Badge variant="destructive">
-            <Lock className="mr-1 h-3 w-3" /> {incident.privacyLevel === 'RESTRICTED' ? 'Restricted' : 'Highly confidential'}
+            <Lock className="mr-1 h-3 w-3" />{' '}
+            {incident.privacyLevel === 'RESTRICTED' ? 'Restricted' : 'Highly confidential'}
           </Badge>
         )}
         {incident.injuryOccurred && <Badge variant="warning">Injury recorded</Badge>}
         {incident.carerSafeguardingConcern && (
-          <Badge variant="destructive"><ShieldAlert className="mr-1 h-3 w-3" /> Safeguarding concern raised</Badge>
+          <Badge variant="destructive">
+            <ShieldAlert className="mr-1 h-3 w-3" /> Safeguarding concern raised
+          </Badge>
         )}
         {incident.followUpRequired && <Badge variant="warning">Follow-up required</Badge>}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <Section title="Overview">
-            <dl className="grid grid-cols-2 gap-4">
-              <Field label="Incident date & time" value={formatOrganisationIsoDateLong(incident.occurredAt)} />
-              <Field label="Reported" value={formatOrganisationIsoDateLong(incident.reportedAt)} />
-              <Field label="Specific area" value={incident.specificArea} />
-              <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
-              {incident.scheduledJobId && (
-                <Field
-                  label="Reported during visit"
-                  value={
-                    <Link
-                      to="/scheduling/visits/$jobId"
-                      params={{ jobId: incident.scheduledJobId }}
-                      className="text-primary underline underline-offset-2 hover:no-underline"
-                    >
-                      Open visit
-                    </Link>
-                  }
-                />
-              )}
-            </dl>
-            <div className="mt-4 space-y-3">
-              <Field label="What happened" value={<p className="whitespace-pre-wrap">{incident.description}</p>} />
-              {incident.contextBefore && (
-                <Field label="Immediately before" value={<p className="whitespace-pre-wrap">{incident.contextBefore}</p>} />
-              )}
-              {incident.contextAfter && (
-                <Field label="Afterwards" value={<p className="whitespace-pre-wrap">{incident.contextAfter}</p>} />
-              )}
-              {incident.peopleInvolved && (
-                <Field label="People involved" value={<p className="whitespace-pre-wrap">{incident.peopleInvolved}</p>} />
-              )}
-            </div>
-          </Section>
+      <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Workflow
+        </p>
+        <ol className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+          {workflow.steps.map((step, index) => (
+            <li key={step.id} className="flex items-center gap-2 text-sm">
+              {index > 0 ? (
+                <span className="hidden text-muted-foreground sm:inline" aria-hidden>
+                  →
+                </span>
+              ) : null}
+              <span
+                className={
+                  step.state === 'current'
+                    ? 'font-semibold text-foreground'
+                    : step.state === 'complete'
+                      ? 'text-muted-foreground'
+                      : 'text-muted-foreground/70'
+                }
+              >
+                {step.label.replace(/^\d+\.\s*/, '')}
+                {step.state === 'current' ? ' (now)' : ''}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {currentHint && (
+          <p className="mt-2 text-sm text-foreground">
+            <span className="font-medium">Next: </span>
+            {currentHint}
+          </p>
+        )}
+      </div>
 
-          <Section title="Immediate actions taken">
-            {incident.immediateActionCodes.length === 0 && !incident.immediateActions &&
-             incident.whoInformedKeys.length === 0 && !incident.emergencyServicesDetails ? (
+      <div className="space-y-4">
+        {/* Step 1 — Raise */}
+        <IncidentWorkflowStepCard
+          stepNumber={1}
+          title="Raise"
+          hint={stepState.raise.hint}
+          state={stepState.raise.state}
+          nextAction={
+            canStartInvestigation ? (
+              <Button
+                size="sm"
+                loading={statusMutation.isPending}
+                onClick={() =>
+                  statusMutation.mutate({
+                    status: 'UNDER_INVESTIGATION',
+                    reason: 'Started investigation',
+                  })
+                }
+              >
+                Start investigation
+              </Button>
+            ) : undefined
+          }
+        >
+          <dl className="grid grid-cols-2 gap-4">
+            <Field label="Incident date & time" value={formatOrganisationDateTime(incident.occurredAt)} />
+            <Field label="Reported" value={formatOrganisationDateTime(incident.reportedAt)} />
+            <Field label="Specific area" value={incident.specificArea} />
+            <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
+            {incident.scheduledJobId && (
+              <Field
+                label="Reported during visit"
+                value={
+                  <Link
+                    to="/scheduling/visits/$jobId"
+                    params={{ jobId: incident.scheduledJobId }}
+                    className="text-primary underline underline-offset-2 hover:no-underline"
+                  >
+                    Open visit
+                  </Link>
+                }
+              />
+            )}
+          </dl>
+          <div className="mt-4 space-y-3">
+            <Field label="What happened" value={<p className="whitespace-pre-wrap">{incident.description}</p>} />
+            {incident.contextBefore && (
+              <Field
+                label="Immediately before"
+                value={<p className="whitespace-pre-wrap">{incident.contextBefore}</p>}
+              />
+            )}
+            {incident.contextAfter && (
+              <Field
+                label="Afterwards"
+                value={<p className="whitespace-pre-wrap">{incident.contextAfter}</p>}
+              />
+            )}
+            {incident.peopleInvolved && (
+              <Field
+                label="People involved"
+                value={<p className="whitespace-pre-wrap">{incident.peopleInvolved}</p>}
+              />
+            )}
+          </div>
+
+          <SubBlock title="Immediate actions taken">
+            {incident.immediateActionCodes.length === 0 &&
+            !incident.immediateActions &&
+            incident.whoInformedKeys.length === 0 &&
+            !incident.emergencyServicesDetails ? (
               <p className="text-sm text-muted-foreground">None recorded.</p>
             ) : (
               <>
@@ -195,7 +314,9 @@ export default function IncidentDetailPage() {
                 )}
                 {incident.whoInformedKeys.length > 0 && (
                   <div className="mt-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Who was informed</p>
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Who was informed
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {incident.whoInformedKeys.map((key) => (
                         <Badge key={key} variant="outline" size="sm">
@@ -203,31 +324,29 @@ export default function IncidentDetailPage() {
                         </Badge>
                       ))}
                       {incident.familyInformed && !incident.whoInformedKeys.includes('family_nok') && (
-                        <Badge variant="outline" size="sm">Family / NOK informed</Badge>
+                        <Badge variant="outline" size="sm">
+                          Family / NOK informed
+                        </Badge>
                       )}
                     </div>
                   </div>
                 )}
                 {incident.emergencyServicesDetails && (
                   <div className="mt-3">
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Emergency services</p>
-                    <p className="whitespace-pre-wrap text-sm text-foreground">{incident.emergencyServicesDetails}</p>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Emergency services
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm text-foreground">
+                      {incident.emergencyServicesDetails}
+                    </p>
                   </div>
                 )}
               </>
             )}
-          </Section>
-
-          <Section title="Corrective actions">
-            <IncidentActionsSection
-              incidentId={incident.id}
-              actions={incident.actions}
-              canManage={canManageActions}
-            />
-          </Section>
+          </SubBlock>
 
           {(incident.injuryOccurred || incident.injuries.length > 0 || canEdit) && (
-            <Section title="Injuries">
+            <SubBlock title="Injuries">
               {incident.injuryDetails && (
                 <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">{incident.injuryDetails}</p>
               )}
@@ -237,183 +356,297 @@ export default function IncidentDetailPage() {
                 canManage={canEdit}
                 serviceUserId={incident.primaryServiceUserId}
               />
-            </Section>
+            </SubBlock>
           )}
 
-          <Section title="Witnesses">
-            <IncidentWitnessesPanel incidentId={incident.id} witnesses={incident.witnesses} canManage={canEdit} />
-          </Section>
+          <SubBlock title="Witnesses">
+            <IncidentWitnessesPanel
+              incidentId={incident.id}
+              witnesses={incident.witnesses}
+              canManage={canEdit}
+            />
+          </SubBlock>
+        </IncidentWorkflowStepCard>
 
-          <Section title="Related care records">
-            <IncidentCareRecordsPanel incidentId={incident.id} records={incident.relatedCareRecords} canManage={canEdit} />
-          </Section>
-
-          <Section title="Related incidents">
-            <IncidentRelatedPanel incidentId={incident.id} canManage={canEdit} />
-          </Section>
-
-          <Section title="Documents & attachments">
-            <IncidentAttachmentsPanel incidentId={incident.id} canManage={canEdit} />
-          </Section>
-
-          {(canReview || incident.outcome || incident.status === 'CLOSED') && (
-            <Section title="Outcome & closure">
-              <IncidentOutcomeSection
-                incident={incident}
-                outcome={incident.outcome}
-                canEditOutcome={canReview}
-                canClose={canClose}
-                canReopen={canReopen}
-              />
-            </Section>
-          )}
-
+        {/* Step 2 — Investigate */}
+        <IncidentWorkflowStepCard
+          stepNumber={2}
+          title="Investigate"
+          hint={stepState.investigate.hint}
+          state={stepState.investigate.state}
+          nextAction={
+            canMarkActionsRequired ? (
+              <Button
+                size="sm"
+                loading={statusMutation.isPending}
+                onClick={() =>
+                  statusMutation.mutate({
+                    status: 'ACTIONS_REQUIRED',
+                    reason: 'Corrective measures required',
+                  })
+                }
+              >
+                Actions required
+              </Button>
+            ) : undefined
+          }
+        >
           {(canInvestigate || incident.investigation) && (
-            <Section title="Investigation">
-              <IncidentInvestigationSection
-                incidentId={incident.id}
-                investigation={incident.investigation}
-                canEdit={canInvestigate}
-              />
-            </Section>
+            <IncidentInvestigationSection
+              incidentId={incident.id}
+              investigation={incident.investigation}
+              carerSuspensions={incident.carerSuspensions ?? []}
+              courseRecommendations={incident.courseRecommendations ?? []}
+              canEdit={canInvestigate}
+              primaryEmployeeId={incident.primaryEmployeeId}
+            />
           )}
-
-          <Section title="Timeline">
-            <ol className="space-y-3">
-              {incident.history.map((ev, i) => (
-                <li key={i} className="flex gap-3">
-                  <div className="mt-0.5">
-                    <Clock className="h-4 w-4 text-muted-foreground" aria-hidden />
-                  </div>
-                  <div>
-                    <p className="text-sm text-foreground">{ev.detail}</p>
-                    <p className="text-xs text-muted-foreground">{formatOrganisationIsoDateLong(ev.at)}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </Section>
-        </div>
-
-        <div className="space-y-4">
-          <Section title="Original report">
-            <p className="text-sm text-muted-foreground">
-              This is the preserved frontline report. Management updates are recorded separately and audited.
-            </p>
-            <dl className="mt-3 space-y-3">
-              <Field label="Reference" value={incident.referenceNumber} />
-              <Field label="Submitted" value={formatOrganisationIsoDateLong(incident.reportedAt)} />
-              {incident.carerSafeguardingConcern != null && (
-                <Field label="Safeguarding concern" value={incident.carerSafeguardingConcern ? 'Yes' : 'No'} />
-              )}
-              {incident.followUpRequired && (
-                <Field label="Follow-up required" value="Yes" />
-              )}
-              {incident.familyInformed && (
-                <Field label="Family informed" value="Yes" />
-              )}
-            </dl>
-            {incident.carerNotes && (
-              <div className="mt-3">
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Carer notes</p>
-                <p className="whitespace-pre-wrap text-sm text-foreground">{incident.carerNotes}</p>
-              </div>
-            )}
-          </Section>
-
-          {incident.primaryServiceUserId && (
-            <Section title="This service user's incidents">
-              <ServiceUserIncidentHistoryPanel
-                serviceUserId={incident.primaryServiceUserId}
-                excludeIncidentId={incident.id}
-              />
-            </Section>
+          {!canInvestigate && !incident.investigation && (
+            <p className="text-sm text-muted-foreground">No investigation recorded yet.</p>
           )}
-
           {(canReview || incident.review) && (
-            <Section title="Manager review">
-              <IncidentReviewSection incidentId={incident.id} review={incident.review} canEdit={canReview} />
-            </Section>
+            <SubBlock title="Manager review">
+              <IncidentReviewSection
+                incidentId={incident.id}
+                review={incident.review}
+                canEdit={canReview}
+              />
+            </SubBlock>
           )}
+        </IncidentWorkflowStepCard>
 
-          {canReview && (
-            <Section title="Workflow">
-              <div className="space-y-4">
+        {/* Step 3 — Corrective measures */}
+        <IncidentWorkflowStepCard
+          stepNumber={3}
+          title="Corrective measures"
+          hint={stepState.actions.hint}
+          state={stepState.actions.state}
+          nextAction={
+            canMarkReadyToClose ? (
+              <Button
+                size="sm"
+                loading={statusMutation.isPending}
+                onClick={() =>
+                  statusMutation.mutate({
+                    status: 'AWAITING_CLOSURE',
+                    reason: 'Ready to close',
+                  })
+                }
+              >
+                Ready to close
+              </Button>
+            ) : undefined
+          }
+        >
+          <IncidentActionsSection
+            incidentId={incident.id}
+            actions={incident.actions}
+            canManage={canManageActions}
+          />
+        </IncidentWorkflowStepCard>
+
+        {/* Step 4 — Outcome & close */}
+        <IncidentWorkflowStepCard
+          stepNumber={4}
+          title="Outcome & close"
+          hint={stepState.outcome.hint}
+          state={stepState.outcome.state}
+          nextAction={
+            canSubmitReinvestigate ? (
+              <Button
+                size="sm"
+                variant="outline"
+                loading={statusMutation.isPending}
+                onClick={() => {
+                  const reason = window.prompt('Reason for re-investigation?')
+                  if (!reason?.trim()) return
+                  statusMutation.mutate({
+                    status: 'UNDER_INVESTIGATION',
+                    reason: reason.trim(),
+                  })
+                }}
+              >
+                Submit for re-investigation
+              </Button>
+            ) : undefined
+          }
+        >
+          {canReview || incident.outcome || incident.status === 'CLOSED' || incident.status === 'AWAITING_CLOSURE' ? (
+            <IncidentOutcomeSection
+              incident={incident}
+              outcome={incident.outcome}
+              canEditOutcome={canReview}
+              canClose={canClose}
+              canReopen={canReopen}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Move to Ready to close when investigation and corrective measures are finished.
+            </p>
+          )}
+        </IncidentWorkflowStepCard>
+
+        <Section title="Supporting records">
+          <div className="space-y-4">
+            <SubBlock title="Documents & attachments">
+              <IncidentAttachmentsPanel incidentId={incident.id} canManage={canEdit} />
+            </SubBlock>
+            <SubBlock title="Related care records">
+              <IncidentCareRecordsPanel
+                incidentId={incident.id}
+                records={incident.relatedCareRecords ?? []}
+                canManage={canEdit}
+                serviceUserId={incident.primaryServiceUserId}
+              />
+            </SubBlock>
+            <SubBlock title="Related incidents">
+              <IncidentRelatedPanel incidentId={incident.id} canManage={canEdit} />
+            </SubBlock>
+            {incident.primaryServiceUserId && (
+              <SubBlock title="This service user's incidents">
+                <ServiceUserIncidentHistoryPanel
+                  serviceUserId={incident.primaryServiceUserId}
+                  excludeIncidentId={incident.id}
+                />
+              </SubBlock>
+            )}
+            <SubBlock title="Original report">
+              <p className="text-sm text-muted-foreground">
+                Preserved frontline report. Management updates are recorded separately and audited.
+              </p>
+              <dl className="mt-3 space-y-3">
+                <Field label="Reference" value={incident.referenceNumber} />
+                <Field label="Submitted" value={formatOrganisationDateTime(incident.reportedAt)} />
+                {incident.carerSafeguardingConcern != null && (
+                  <Field
+                    label="Safeguarding concern"
+                    value={incident.carerSafeguardingConcern ? 'Yes' : 'No'}
+                  />
+                )}
+                {incident.followUpRequired && <Field label="Follow-up required" value="Yes" />}
+                {incident.familyInformed && <Field label="Family informed" value="Yes" />}
+              </dl>
+              {incident.carerNotes && (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Carer notes
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm text-foreground">{incident.carerNotes}</p>
+                </div>
+              )}
+            </SubBlock>
+          </div>
+        </Section>
+
+        <Section title="Timeline">
+          <IncidentTimeline events={incident.history ?? []} />
+        </Section>
+
+        {canReview && (
+          <Section title="Admin controls">
+            <div className="space-y-4">
+              {legacyNext.length > 0 && (
                 <div>
-                  <label className="text-xs uppercase tracking-wide text-muted-foreground">Move to status</label>
+                  <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Other status
+                  </label>
                   <select
                     className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     value={nextStatus}
                     onChange={(e) => setNextStatus(e.target.value as IncidentStatus | '')}
-                    disabled={validNext.length === 0}
                   >
-                    <option value="">{validNext.length ? 'Select…' : 'No transitions available'}</option>
-                    {validNext.map((s) => (
-                      <option key={s} value={s}>{INCIDENT_STATUS_LABELS[s]}</option>
+                    <option value="">Select…</option>
+                    {legacyNext.map((s) => (
+                      <option key={s} value={s}>
+                        {INCIDENT_STATUS_LABELS[s]}
+                      </option>
                     ))}
                   </select>
                   <input
                     className="mt-2 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="Reason (optional)"
+                    placeholder={
+                      nextStatus && isReinvestigateTransition(incident.status, nextStatus)
+                        ? 'Reason (required)'
+                        : 'Reason (optional)'
+                    }
                     value={statusReason}
                     onChange={(e) => setStatusReason(e.target.value)}
                   />
                   <Button
-                    className="mt-2 w-full"
+                    className="mt-2"
                     size="sm"
-                    disabled={!nextStatus}
+                    variant="outline"
+                    disabled={
+                      !nextStatus ||
+                      (isReinvestigateTransition(incident.status, nextStatus) &&
+                        !statusReason.trim())
+                    }
                     loading={statusMutation.isPending}
                     onClick={() => {
                       if (!nextStatus) return
                       statusMutation.mutate(
                         { status: nextStatus, reason: statusReason || undefined },
-                        { onSuccess: () => { setNextStatus(''); setStatusReason('') } },
+                        {
+                          onSuccess: () => {
+                            setNextStatus('')
+                            setStatusReason('')
+                          },
+                        },
                       )
                     }}
                   >
                     Update status
                   </Button>
                 </div>
+              )}
 
-                <div className="border-t border-border pt-4">
-                  <label className="text-xs uppercase tracking-wide text-muted-foreground">Change severity</label>
-                  <select
-                    className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    value={nextSeverity}
-                    onChange={(e) => setNextSeverity(e.target.value as IncidentSeverity | '')}
-                  >
-                    <option value="">Select…</option>
-                    {SEVERITIES.filter((s) => s !== incident.severity).map((s) => (
-                      <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
-                    ))}
-                  </select>
-                  <input
-                    className="mt-2 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="Reason (optional)"
-                    value={severityReason}
-                    onChange={(e) => setSeverityReason(e.target.value)}
-                  />
-                  <Button
-                    className="mt-2 w-full"
-                    size="sm"
-                    variant="outline"
-                    disabled={!nextSeverity}
-                    loading={severityMutation.isPending}
-                    onClick={() => {
-                      if (!nextSeverity) return
-                      severityMutation.mutate(
-                        { severity: nextSeverity, reason: severityReason || undefined },
-                        { onSuccess: () => { setNextSeverity(''); setSeverityReason('') } },
-                      )
-                    }}
-                  >
-                    Update severity
-                  </Button>
-                </div>
+              <div className={legacyNext.length > 0 ? 'border-t border-border pt-4' : undefined}>
+                <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Change severity
+                </label>
+                <select
+                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={nextSeverity}
+                  onChange={(e) => setNextSeverity(e.target.value as IncidentSeverity | '')}
+                >
+                  <option value="">Select…</option>
+                  {SEVERITIES.filter((s) => s !== incident.severity).map((s) => (
+                    <option key={s} value={s}>
+                      {s.charAt(0) + s.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="mt-2 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Reason (optional)"
+                  value={severityReason}
+                  onChange={(e) => setSeverityReason(e.target.value)}
+                />
+                <Button
+                  className="mt-2"
+                  size="sm"
+                  variant="outline"
+                  disabled={!nextSeverity}
+                  loading={severityMutation.isPending}
+                  onClick={() => {
+                    if (!nextSeverity) return
+                    severityMutation.mutate(
+                      { severity: nextSeverity, reason: severityReason || undefined },
+                      {
+                        onSuccess: () => {
+                          setNextSeverity('')
+                          setSeverityReason('')
+                        },
+                      },
+                    )
+                  }}
+                >
+                  Update severity
+                </Button>
               </div>
-            </Section>
-          )}
-        </div>
+            </div>
+          </Section>
+        )}
       </div>
     </div>
   )

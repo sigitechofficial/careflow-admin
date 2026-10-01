@@ -14,7 +14,7 @@ import { Button } from '@/shared/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, StatCard } from '@/shared/ui/card'
 import { useAuthStore } from '@/features/auth/store'
 import { useGeneralSettings } from '@/features/settings/hooks/useGeneralSettings'
-import type { MultiCarerFunderChargeMode } from '@/features/settings/types'
+import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
 import { useHandoverReport } from '@/features/home/hooks/useHandoverReport'
 import type { HandoverReportSortBy } from '@/features/home/api/handover-report.api'
 import { operationalTodayIso, addDaysToOperationalIso } from '@/shared/lib/operational-day.util'
@@ -44,20 +44,22 @@ const systemUpgrades = [
 
 type SortBy = HandoverReportSortBy
 
-function multiCarerFunderChargeLabel(mode: MultiCarerFunderChargeMode | undefined): {
-  title: string
-  detail: string
-} {
-  if (mode === 'FIXED') {
-    return {
-      title: 'Fixed visit pay',
-      detail: 'Funder is charged once for the visit window length.',
-    }
+function countActiveServiceUsersByZone(
+  zones: Array<{ name: string }>,
+  members: Array<{ isActive: boolean; zoneName?: string | null }>,
+): Array<{ zoneName: string; count: number }> {
+  const counts = new Map<string, number>()
+  for (const zone of zones) {
+    counts.set(zone.name, 0)
   }
-  return {
-    title: 'Combined visit pay',
-    detail: 'Funder is charged for each carer’s hours (default).',
+  for (const member of members) {
+    if (!member.isActive) continue
+    const zoneName = member.zoneName?.trim() || 'Unassigned'
+    counts.set(zoneName, (counts.get(zoneName) ?? 0) + 1)
   }
+  return [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([zoneName, count]) => ({ zoneName, count }))
 }
 
 function toIsoDateInput(value: string): string {
@@ -82,8 +84,15 @@ export default function HomePage() {
     s => s.can('schedule.read') || s.can('scheduled_visits.read') || s.can('service_users.read'),
   )
   const generalSettingsQuery = useGeneralSettings(canReadSettings)
-  const multiCarerMode = generalSettingsQuery.data?.multiCarerFunderChargeMode ?? 'COMBINED'
-  const multiCarerLabel = multiCarerFunderChargeLabel(multiCarerMode)
+  const serviceUserLocationsQuery = useServiceUserLocations(canReadSettings)
+  const serviceUsersByZone = React.useMemo(
+    () =>
+      countActiveServiceUsersByZone(
+        serviceUserLocationsQuery.data?.zones ?? [],
+        serviceUserLocationsQuery.data?.members ?? [],
+      ),
+    [serviceUserLocationsQuery.data],
+  )
   const windowHours = generalSettingsQuery.data?.handoverReportLastHours ?? 12
 
   const today = operationalTodayIso()
@@ -567,34 +576,40 @@ export default function HomePage() {
           </Card>
 
           {canReadSettings ? (
-            <Card data-testid="home-multi-carer-funder-charging">
+            <Card data-testid="home-service-users-by-zone">
               <CardContent className="pt-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-bold text-base">Multi-carer funder charging</h2>
+                  <h2 className="font-bold text-base">Service users by zone</h2>
                   <Link
-                    to="/settings/general"
-                    search={{ tab: 'dom-care' }}
+                    to="/settings/location-management"
                     className="shrink-0 text-xs font-medium text-primary hover:underline"
                   >
-                    Change in settings
+                    Manage zones
                   </Link>
                 </div>
-                {generalSettingsQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading setting…</p>
-                ) : generalSettingsQuery.isError ? (
-                  <p className="text-sm text-destructive">Could not load this setting.</p>
-                ) : (
-                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 space-y-1">
-                    <p className="text-sm font-medium text-foreground">{multiCarerLabel.title}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {multiCarerLabel.detail}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground pt-1">
-                      Mode:{' '}
-                      <span className="font-mono font-medium text-foreground">{multiCarerMode}</span>
-                    </p>
-                  </div>
-                )}
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-3">
+                  {serviceUserLocationsQuery.isLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading zones…</p>
+                  ) : serviceUserLocationsQuery.isError ? (
+                    <p className="text-sm text-destructive">Could not load zone counts.</p>
+                  ) : serviceUsersByZone.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No zones configured.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {serviceUsersByZone.map(row => (
+                        <li
+                          key={row.zoneName}
+                          className="flex items-center justify-between gap-3 text-sm"
+                        >
+                          <span className="truncate text-foreground">{row.zoneName}</span>
+                          <span className="shrink-0 tabular-nums font-medium text-foreground">
+                            {row.count}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : null}

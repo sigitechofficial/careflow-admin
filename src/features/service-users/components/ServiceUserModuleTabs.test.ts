@@ -29,6 +29,11 @@ describe('ServiceUserModuleTabs active state', () => {
     expect(isServiceUserModuleTabActive(invoices, `/service-users/${su}/invoices`)).toBe(true)
     expect(isServiceUserModuleTabActive(invoices, `/service-users/${su}/view`)).toBe(false)
     expect(isServiceUserModuleTabActive(carePlan, `/service-users/${su}/care-plan`)).toBe(true)
+
+    const comms = SERVICE_USER_MODULE_TABS.find(t => t.id === 'comms')!
+    expect(comms.to).toBe('/service-users/$serviceUserId/comms')
+    expect(isServiceUserModuleTabActive(comms, `/service-users/${su}/comms`)).toBe(true)
+    expect(isServiceUserModuleTabActive(comms, `/service-users/${su}/view`)).toBe(false)
   })
 
   it('does not treat the legacy Edit route as Profile', () => {

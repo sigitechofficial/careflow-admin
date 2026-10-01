@@ -233,17 +233,17 @@ export function VisitPlanCarerCandidateDetails({
             {c.exceedsContractedHours ? (
               <span
                 className={cn('inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200', contentTagClass)}
-                title={`Projected ~${c.projectedWeeklyHours ?? 0}h/wk vs contracted ${c.contractedWeeklyHours ?? 0}h/wk (already assigned ${c.assignedWeeklyHours ?? 0}h)`}
+                title={`Projected ~${c.projectedWeeklyHours ?? 0}h/wk vs allowed ${c.allowedWeeklyHours ?? c.contractedWeeklyHours ?? 0}h/wk (already assigned ${c.assignedWeeklyHours ?? 0}h)`}
               >
                 <AlertTriangle className="h-3 w-3" aria-hidden />
-                Over contracted hours
+                Over weekly hours
               </span>
             ) : null}
           </div>
           <p className={contentHelperClass}>
             {formatVisitPlanCarerRoleLine(c.role, c.jobTitle) || 'Employee'}
           </p>
-          {c.contractedWeeklyHours != null ? (
+          {c.contractedWeeklyHours != null || c.allowedWeeklyHours != null ? (
             <p
               className={cn(
                 contentHelperClass,
@@ -251,7 +251,10 @@ export function VisitPlanCarerCandidateDetails({
               )}
             >
               Weekly hours: ~{c.projectedWeeklyHours ?? c.assignedWeeklyHours ?? 0}h projected ·
-              contracted {c.contractedWeeklyHours}h
+              {c.allowedWeeklyHours != null &&
+              c.allowedWeeklyHours !== c.contractedWeeklyHours
+                ? ` approved ${c.allowedWeeklyHours}h`
+                : ` contracted ${c.contractedWeeklyHours ?? c.allowedWeeklyHours}h`}
             </p>
           ) : (
             <p className={contentHelperClass}>Contracted weekly hours not set</p>

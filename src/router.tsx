@@ -47,6 +47,7 @@ import ServiceUserCarePlanFormPage from '@/features/service-users/pages/ServiceU
 import ServiceUserVisitPlanPage from '@/features/service-users/pages/ServiceUserVisitPlanPage'
 import ServiceUserTasksPlannerPage from '@/features/service-users/pages/ServiceUserTasksPlannerPage'
 import ServiceUserObservationsPage from '@/features/service-users/pages/ServiceUserObservationsPage'
+import ServiceUserCommsPage from '@/features/service-users/pages/ServiceUserCommsPage'
 import ServiceUserActivityPage from '@/features/service-users/pages/ServiceUserActivityPage'
 import ServiceUserEcmPage from '@/features/service-users/pages/ServiceUserEcmPage'
 import ServiceUserBodyMapPage from '@/features/service-users/body-map/pages/ServiceUserBodyMapPage'
@@ -112,6 +113,8 @@ import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAcciden
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
 import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
+import SurveyResponsesPage from '@/features/surveys/pages/SurveyResponsesPage'
+import TakeSurveyPage from '@/features/surveys/pages/TakeSurveyPage'
 import HoursApprovalsPage from '@/features/hours-approvals/pages/HoursApprovalsPage'
 import RaiseIncidentPage from '@/features/incidents/pages/RaiseIncidentPage'
 import IncidentDetailPage from '@/features/incidents/pages/IncidentDetailPage'
@@ -432,6 +435,10 @@ function AppRootShell() {
           ? 'Medication'
           : /^\/service-users\/[^/]+\/observations$/.test(pathname)
             ? 'Observations'
+            : /^\/service-users\/[^/]+\/comms$/.test(pathname)
+              ? 'Communication Notes'
+            : /^\/service-users\/[^/]+\/initial-assessment$/.test(pathname)
+              ? 'Initial Assessment'
             : /^\/service-users\/[^/]+\/ecm$/.test(pathname)
               ? 'ECM'
             : /^\/service-users\/[^/]+\/body-map$/.test(pathname)
@@ -453,6 +460,18 @@ function AppRootShell() {
             : /^\/service-users\/[^/]+$/.test(pathname)
             ? 'Edit Service User'
             : companyDisplayName?.trim() || 'CareAdmin')
+  const serviceUserIdPath = pathname.match(/^\/service-users\/([^/]+)$/)
+  const serviceUserStaticSegments = new Set([
+    'all',
+    'add',
+    'hours',
+    'calendar',
+    'initial-assessment',
+    'initial-assessment-checklist',
+  ])
+  const isServiceUserDetailRoot =
+    Boolean(serviceUserIdPath?.[1]) && !serviceUserStaticSegments.has(serviceUserIdPath![1]!)
+
   const fullBleed =
     pathname === '/service-users/all' ||
     pathname === '/service-users/initial-assessment' ||
@@ -463,6 +482,8 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/invoices$/.test(pathname) ||
     /^\/service-users\/[^/]+\/medication$/.test(pathname) ||
     /^\/service-users\/[^/]+\/observations$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/comms$/.test(pathname) ||
+    /^\/service-users\/[^/]+\/initial-assessment$/.test(pathname) ||
     /^\/service-users\/[^/]+\/ecm$/.test(pathname) ||
     /^\/service-users\/[^/]+\/body-map$/.test(pathname) ||
     /^\/service-users\/[^/]+\/documents$/.test(pathname) ||
@@ -470,11 +491,11 @@ function AppRootShell() {
     /^\/service-users\/[^/]+\/visit-plan$/.test(pathname) ||
     /^\/service-users\/[^/]+\/activity$/.test(pathname) ||
     /^\/service-users\/[^/]+\/tasks-planner$/.test(pathname) ||
-    /^\/service-users\/[^/]+$/.test(pathname)
+    isServiceUserDetailRoot
   const employeeManagementWide =
     /^\/employee(?:\/(?:staff-list|hours|compliance|review-status|skills|non-core-activity|reports|add)|\/[^/]+\/edit)?$/.test(
       pathname,
-    )
+    ) || pathname === '/hours-approvals'
   const serviceUserHoursWide = pathname === '/service-users/hours'
   const contentLayout =
     fullBleed ? 'full' : employeeManagementWide || serviceUserHoursWide ? 'wide' : 'default'
@@ -566,6 +587,12 @@ const legalPrivacyPolicyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/legal/privacy-policy',
   component: PrivacyPolicyPage,
+})
+
+const publicTakeSurveyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/survey/$token',
+  component: TakeSurveyPage,
 })
 
 function PortalRootShell() {
@@ -929,12 +956,18 @@ const serviceUsersVisitPlanRoute = createRoute({
   validateSearch: (raw: Record<string, unknown>): {
     planId?: string
     view?: 'details'
-    detailsTab?: 'calendar' | 'history'
+    detailsTab?: 'calendar' | 'history' | 'guide' | 'care-pathway' | 'dev-tools'
   } => {
     const planId = raw.planId
     const view = raw.view === 'details' ? 'details' : undefined
     const detailsTab =
-      raw.detailsTab === 'calendar' || raw.detailsTab === 'history' ? raw.detailsTab : undefined
+      raw.detailsTab === 'calendar' ||
+      raw.detailsTab === 'history' ||
+      raw.detailsTab === 'guide' ||
+      raw.detailsTab === 'care-pathway' ||
+      raw.detailsTab === 'dev-tools'
+        ? raw.detailsTab
+        : undefined
     return {
       planId: typeof planId === 'string' && planId.trim() ? planId.trim() : undefined,
       view,
@@ -970,6 +1003,16 @@ const serviceUsersObservationsRoute = createRoute({
     prefetchServiceUserObservationsRoute(qc, serviceUserId)
   },
   component: ServiceUserObservationsPage,
+})
+
+const serviceUsersCommsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/service-users/$serviceUserId/comms',
+  beforeLoad: requirePermission('service_users.read'),
+  loader: ({ context: { queryClient: qc }, params: { serviceUserId } }) => {
+    prefetchServiceUserProfile(qc, serviceUserId)
+  },
+  component: ServiceUserCommsPage,
 })
 
 const serviceUsersEcmRoute = createRoute({
@@ -1452,6 +1495,13 @@ const surveyBuilderRoute = createRoute({
   component: SurveyBuilderPage,
 })
 
+const surveyResponsesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/surveys/$surveyId/responses',
+  beforeLoad: requirePermission('surveys.read'),
+  component: SurveyResponsesPage,
+})
+
 const hoursApprovalsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/hours-approvals',
@@ -1476,7 +1526,12 @@ const incidentsRaiseRoute = createRoute({
 const incidentsMyActionsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/my-actions',
-  beforeLoad: requirePermission('incidents.read'),
+  beforeLoad: () => {
+    const { can, user } = useAuthStore.getState()
+    if (user?.role === 'super_admin' || !can('incidents.read')) {
+      throw redirect({ to: '/' })
+    }
+  },
   component: MyActionsPage,
 })
 
@@ -2071,6 +2126,7 @@ const routeTree = rootRoute.addChildren([
     authBlockedRoute,
   ]),
   legalPrivacyPolicyRoute,
+  publicTakeSurveyRoute,
   portalLoginRoute,
   portalShellRoute.addChildren([
     portalIndexRoute,
@@ -2104,6 +2160,7 @@ const routeTree = rootRoute.addChildren([
     serviceUsersVisitPlanRoute,
     serviceUsersActivityRoute,
     serviceUsersObservationsRoute,
+    serviceUsersCommsRoute,
     serviceUsersEcmRoute,
     serviceUsersBodyMapRoute,
     serviceUsersAlertsRoute,
@@ -2146,6 +2203,7 @@ const routeTree = rootRoute.addChildren([
     accidentsIncidentsRaiseRoute,
     surveysRoute,
     surveyBuilderRoute,
+    surveyResponsesRoute,
     hoursApprovalsRoute,
     incidentsDashboardRoute,
     incidentsListRoute,

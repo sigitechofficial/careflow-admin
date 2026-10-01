@@ -70,6 +70,10 @@ export const serviceUserKeys = {
   flashMessage: (id: string) =>
     [...serviceUserKeys.detail(id), 'flash-message'] as const,
 
+  /** Communication notes (Comms tab). */
+  communicationNotes: (id: string) =>
+    [...serviceUserKeys.detail(id), 'communication-notes'] as const,
+
   /** Dom care profile. */
   domCare: (id: string) =>
     [...serviceUserKeys.detail(id), 'dom-care'] as const,

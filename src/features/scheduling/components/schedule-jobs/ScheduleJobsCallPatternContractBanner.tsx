@@ -139,7 +139,6 @@ export function ScheduleJobsCallPatternContractBanner({
 
   return (
     <details
-      open
       className={cn(
         'group mb-3 shrink-0 overflow-hidden rounded-lg border border-amber-300 bg-amber-50/90',
         'dark:border-amber-900 dark:bg-amber-950/30',

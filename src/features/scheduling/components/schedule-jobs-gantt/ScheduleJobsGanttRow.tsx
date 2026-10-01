@@ -150,7 +150,8 @@ export const ScheduleJobsGanttRow = React.memo(function ScheduleJobsGanttRow({
         minWidth: boardMinWidth,
       }}
     >
-      <div className="sticky left-0 z-10 flex shrink-0 self-stretch bg-card/95 backdrop-blur-sm">
+      {/* z-40 above job blocks (live-alert cards use inline zIndex 30) so scroll does not cover names */}
+      <div className="sticky left-0 z-40 flex shrink-0 self-stretch bg-card">
         <ScheduleJobsGanttCarerLabel
           name={label}
           fullName={fullName}

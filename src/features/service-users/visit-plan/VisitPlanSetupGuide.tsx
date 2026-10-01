@@ -29,6 +29,7 @@ type Props = {
   slots: VisitPlanSlot[]
   planStatus: ServiceUserVisitPlan['status'] | null
   hasPlan: boolean
+  defaultOpen?: boolean
 }
 
 function buildSteps(slots: VisitPlanSlot[], planStatus: ServiceUserVisitPlan['status'] | null, hasPlan: boolean): Step[] {
@@ -97,7 +98,7 @@ function buildSteps(slots: VisitPlanSlot[], planStatus: ServiceUserVisitPlan['st
   return steps
 }
 
-export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
+export function VisitPlanSetupGuide({ slots, planStatus, hasPlan, defaultOpen }: Props) {
   const steps = buildSteps(slots, planStatus, hasPlan)
   const doneCount = steps.filter((s) => s.done).length
 
@@ -105,6 +106,7 @@ export function VisitPlanSetupGuide({ slots, planStatus, hasPlan }: Props) {
     <details
       className="group rounded-xl border border-teal-200 bg-teal-50/50 dark:border-teal-900 dark:bg-teal-950/20 sm:p-5 [&_summary::-webkit-details-marker]:hidden"
       data-testid="visit-plan-setup-guide"
+      {...(defaultOpen ? { open: true } : {})}
     >
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 sm:p-0 sm:pb-0">
         <div className="flex min-w-0 gap-3">

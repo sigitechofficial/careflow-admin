@@ -37,6 +37,7 @@ type Props = {
   applyingSuggestedLinks?: boolean
   /** Setup tab: full pathway + care-plan matrix. Review tab should not use this panel. */
   variant?: 'setup' | 'compact'
+  defaultOpen?: boolean
 }
 
 export function VisitPlanCarePathwayContextPanel({
@@ -48,6 +49,7 @@ export function VisitPlanCarePathwayContextPanel({
   onApplySuggestedLinks,
   applyingSuggestedLinks,
   variant = 'setup',
+  defaultOpen,
 }: Props) {
   const enabledSlots = slots.filter((s) => s.isEnabled)
   const needsSuggestedLinks =
@@ -61,6 +63,7 @@ export function VisitPlanCarePathwayContextPanel({
     <details
       className="group rounded-xl border border-border bg-card shadow-sm [&_summary::-webkit-details-marker]:hidden"
       data-testid="visit-plan-care-pathway-panel"
+      {...(defaultOpen ? { open: true } : {})}
     >
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-6">
         <div className="min-w-0">
@@ -140,7 +143,7 @@ export function VisitPlanCarePathwayContextPanel({
             </p>
           ) : enabledSlots.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Enable at least one call slot below to see which care plans each visit will deliver.
+              Enable at least one call slot on Set up visits to see which care plans each visit will deliver.
             </p>
           ) : variant === 'setup' ? (
             <div>

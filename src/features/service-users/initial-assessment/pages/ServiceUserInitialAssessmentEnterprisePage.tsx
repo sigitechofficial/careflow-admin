@@ -22,6 +22,7 @@ import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 import { useServiceUserLookups } from '@/features/service-users/hooks/useServiceUserLookups'
 import { useServiceUserDomCare, useServiceUserAllergies } from '@/features/service-users/hooks/useServiceUserTabs'
 import { useAuthStore } from '@/features/auth/store'
+import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { Label } from '@/shared/ui/form-field'
 import {
@@ -481,9 +482,20 @@ export default function ServiceUserInitialAssessmentEnterprisePage() {
     can('service_users.initial_assessment.read') ||
     can('service_users.read')
   const hasApi = !!getApiBaseUrl()
+  const { locationId: globalLocationId } = useGlobalLocationScope()
+
+  const listParams = React.useMemo(
+    () => ({
+      limit: 100,
+      sortBy: 'lastName' as const,
+      sortOrder: 'asc' as const,
+      locationId: globalLocationId ?? undefined,
+    }),
+    [globalLocationId],
+  )
 
   const { data: listData, isLoading: listLoading } = useServiceUsers(
-    { limit: 100, sortBy: 'lastName', sortOrder: 'asc' },
+    listParams,
     hasApi && canRead,
   )
   const serviceUsers = listData?.rows ?? []

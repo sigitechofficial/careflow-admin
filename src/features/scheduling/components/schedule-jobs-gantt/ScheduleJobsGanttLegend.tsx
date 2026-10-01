@@ -1,14 +1,19 @@
+import * as React from 'react'
 import type { CSSProperties } from 'react'
-import { Clock } from 'lucide-react'
-import { useScheduleJobsDisplayFormat } from '@/features/scheduling/context/schedule-jobs-display-format.context'
-import { SCHEDULE_JOBS_GANTT_PERIOD_ICONS } from '@/features/scheduling/components/schedule-jobs-gantt/schedule-jobs-gantt.util'
+import { Clock, Info } from 'lucide-react'
 import {
-  SCHEDULE_JOBS_DAY_PERIOD_BANDS,
   jobBlockCompletedSurfaceStyle,
   jobBlockUnableToStartSurfaceStyle,
-  scheduleJobsPeriodBandHeaderClass,
 } from '@/features/scheduling/utils/schedule-jobs-timeline.util'
 import { cn } from '@/shared/lib/utils'
+import { Button } from '@/shared/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog'
 
 function LegendPill({
   swatch,
@@ -44,72 +49,71 @@ function LegendPill({
   )
 }
 
-type ScheduleJobsGanttLegendProps = {
-  onPeriodBandDoubleClick?: (bandId: string) => void
-  focusedPeriodBandId?: string | null
-  onClearPeriodFocus?: () => void
-}
+const LEGEND_ITEMS: Array<{
+  swatch?: string
+  label: string
+  striped?: boolean
+  hatchStyle?: CSSProperties
+}> = [
+  { swatch: 'bg-emerald-500', label: 'Available' },
+  { swatch: 'bg-rose-500', label: 'Booked' },
+  { swatch: 'bg-amber-500', label: 'Possibly available' },
+  { striped: true, label: 'Outside hours' },
+  { striped: true, label: 'Over weekly contract' },
+  { swatch: 'bg-rose-500', label: 'Over booked (extra carers)' },
+  { swatch: 'border-2 border-orange-500 bg-orange-100/80', label: 'Travel time conflict' },
+  { swatch: 'border-b-4 border-primary bg-background', label: 'Part of a run' },
+  { swatch: 'bg-red-600', label: 'Time-sensitive medicine / task' },
+  { swatch: 'bg-sky-600', label: 'Medicine / task early' },
+  { swatch: 'bg-amber-500', label: 'Medicine / task delayed' },
+  { swatch: 'bg-destructive', label: 'Medicine / task missed' },
+  { swatch: 'bg-sky-600', label: 'Early start / end' },
+  { swatch: 'bg-orange-600', label: 'Late start / end / overrun' },
+  { swatch: 'bg-destructive', label: 'Critically late' },
+  { hatchStyle: jobBlockCompletedSurfaceStyle, label: 'Completed' },
+  { hatchStyle: jobBlockUnableToStartSurfaceStyle, label: 'Unable to start' },
+  { swatch: 'border-2 border-red-500 bg-rose-50', label: 'SOS / left visit area' },
+  { swatch: 'border-2 border-amber-500 bg-amber-50', label: 'Unable to start / auth request' },
+]
 
-export function ScheduleJobsGanttLegend({
-  onPeriodBandDoubleClick,
-  focusedPeriodBandId,
-  onClearPeriodFocus,
-}: ScheduleJobsGanttLegendProps) {
-  const displayFormat = useScheduleJobsDisplayFormat()
+export function ScheduleJobsGanttLegend() {
+  const [open, setOpen] = React.useState(false)
+
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border/80 bg-gradient-to-r from-muted/40 via-muted/20 to-transparent px-4 py-2.5">
-      <LegendPill swatch="bg-emerald-500" label="Available" />
-      <LegendPill swatch="bg-rose-500" label="Booked" />
-      <LegendPill swatch="bg-amber-500" label="Possibly available" />
-      <LegendPill striped label="Outside hours" />
-      <LegendPill striped label="Over weekly contract" />
-      <LegendPill swatch="bg-rose-500" label="Over booked (extra carers)" />
-      <LegendPill swatch="border-2 border-orange-500 bg-orange-100/80" label="Travel time conflict" />
-      <LegendPill swatch="border-b-4 border-primary bg-background" label="Part of a run" />
-      <LegendPill swatch="bg-red-600" label="Time-sensitive medicine / task" />
-      <LegendPill swatch="bg-sky-600" label="Medicine / task early" />
-      <LegendPill swatch="bg-amber-500" label="Medicine / task delayed" />
-      <LegendPill swatch="bg-destructive" label="Medicine / task missed" />
-      <LegendPill swatch="bg-sky-600" label="Early start / end" />
-      <LegendPill swatch="bg-orange-600" label="Late start / end / overrun" />
-      <LegendPill swatch="bg-destructive" label="Critically late" />
-      <LegendPill hatchStyle={jobBlockCompletedSurfaceStyle} label="Completed" />
-      <LegendPill hatchStyle={jobBlockUnableToStartSurfaceStyle} label="Unable to start" />
-      <LegendPill swatch="border-2 border-red-500 bg-rose-50" label="SOS / left visit area" />
-      <LegendPill swatch="border-2 border-amber-500 bg-amber-50" label="Unable to start / auth request" />
-      <div className="hidden h-4 w-px bg-border/80 sm:block" />
-      {SCHEDULE_JOBS_DAY_PERIOD_BANDS.map((band) => (
-        <button
-          key={band.id}
+    <>
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/80 bg-gradient-to-r from-muted/40 via-muted/20 to-transparent px-4 py-2">
+        <Button
           type="button"
-          className={cn(
-            'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-shadow',
-            scheduleJobsPeriodBandHeaderClass(band.period),
-            focusedPeriodBandId === band.id && 'ring-2 ring-primary/40',
-          )}
-          title={
-            focusedPeriodBandId === band.id
-              ? `${displayFormat.formatPeriodRange(band)} — double-click for full day`
-              : `${displayFormat.formatPeriodRange(band)} — double-click to zoom`
-          }
-          onDoubleClick={(event) => {
-            event.preventDefault()
-            if (!onPeriodBandDoubleClick) return
-            if (focusedPeriodBandId === band.id) {
-              onClearPeriodFocus?.()
-            } else {
-              onPeriodBandDoubleClick(band.id)
-            }
-          }}
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          data-testid="schedule-jobs-legend-button"
+          onClick={() => setOpen(true)}
         >
-          <span aria-hidden>{SCHEDULE_JOBS_GANTT_PERIOD_ICONS[band.period]}</span>
-          {band.label}
-        </button>
-      ))}
-      <span className="ml-auto hidden items-center gap-1.5 text-[10px] text-muted-foreground lg:inline-flex">
-        <Clock className="h-3 w-3" />
-        Click job to assign · drag job to move · double-click period to zoom · Esc for full day
-      </span>
-    </div>
+          <Info className="h-3.5 w-3.5" aria-hidden />
+          Legend
+        </Button>
+        <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <Clock className="h-3 w-3 shrink-0" aria-hidden />
+          Click job to assign · drag job to move · double-click period to zoom · Esc for full day
+        </span>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Schedule board legend</DialogTitle>
+            <DialogDescription>
+              Colours and markers used on visit blocks, carer availability, and alerts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {LEGEND_ITEMS.map((item) => (
+              <LegendPill key={item.label} {...item} />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

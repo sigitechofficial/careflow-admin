@@ -45,11 +45,11 @@ export function ScheduleJobsGanttHeader({
   return (
     <div
       data-schedule-timeline-header
-      className="sticky top-0 z-20 flex shrink-0 border-b border-border/80 bg-card/95 shadow-sm backdrop-blur-md"
+      className="sticky top-0 z-50 flex shrink-0 border-b border-border/80 bg-card shadow-sm"
       style={{ width: boardMinWidth, minWidth: boardMinWidth }}
     >
       <div
-        className="sticky left-0 z-30 flex shrink-0 flex-col justify-end gap-2 border-r border-border/80 bg-card/95 px-3 py-2 backdrop-blur-md"
+        className="sticky left-0 z-[60] flex shrink-0 flex-col justify-end gap-2 border-r border-border/80 bg-card px-3 py-2"
         style={{ width: SCHEDULE_JOBS_CARER_COL_WIDTH, minWidth: SCHEDULE_JOBS_CARER_COL_WIDTH }}
       >
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">

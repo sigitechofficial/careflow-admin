@@ -226,7 +226,7 @@ export function ServiceUserCarerPreferencesSection({
   return (
     <div className={cn('space-y-4', className)}>
       <div>
-        <h3 className="text-base font-semibold text-blue-600 dark:text-blue-400">{heading}</h3>
+        <h3 className="text-base font-semibold text-primary">{heading}</h3>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

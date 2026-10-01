@@ -38,6 +38,12 @@ const FIELD_LABELS: Record<string, string> = {
   accessMethod: 'Access method',
   accessInstructions: 'How to enter the property',
   username: 'Username',
+  durationMinutes: 'Duration',
+  weeklyContractedHours: 'Weekly contracted hours',
+  numberOfCarers: 'Number of carers',
+  startTime: 'Start time',
+  endTime: 'End time',
+  slots: 'Visits',
 }
 
 const KNOWN_FIELDS = Object.keys(FIELD_LABELS)
@@ -86,6 +92,18 @@ function constraintTexts(constraints: unknown): string[] {
   return []
 }
 
+function humanizeNumericLimit(field: string, value: number): string {
+  if (/minutes$/i.test(field)) {
+    const h = Math.floor(value / 60)
+    const m = value % 60
+    if (h > 0 && m === 0) return `${h} hour${h !== 1 ? 's' : ''}`
+    if (h > 0) return `${h} hour${h !== 1 ? 's' : ''} ${m} minute${m !== 1 ? 's' : ''}`
+    return `${value} minute${value !== 1 ? 's' : ''}`
+  }
+  if (/hours$/i.test(field)) return `${value} hour${value !== 1 ? 's' : ''}`
+  return String(value)
+}
+
 function friendlyMessage(field: string, raw: string): string {
   const label = humanFieldLabel(field)
   const text = raw.replace(new RegExp(`^${field}\\s*[:\\-]?\\s*`, 'i'), '').trim() || raw
@@ -100,6 +118,13 @@ function friendlyMessage(field: string, raw: string): string {
   }
   if (/not a valid selection|invalid reference/i.test(text)) {
     return `${label} is not a valid selection`
+  }
+  const minMax = text.match(/must not be (greater|less) than (\d+)/i)
+  if (minMax) {
+    const dir = minMax[1]!.toLowerCase() === 'greater' ? 'more' : 'less'
+    const num = Number(minMax[2])
+    const unit = humanizeNumericLimit(field, num)
+    return `${label} must not be ${dir} than ${unit}`
   }
   if (text.toLowerCase().startsWith(label.toLowerCase())) return text
   return `${label}: ${text}`

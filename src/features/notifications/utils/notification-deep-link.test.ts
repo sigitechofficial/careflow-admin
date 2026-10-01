@@ -24,6 +24,15 @@ describe('notificationDeepLink', () => {
     ).toBe('/ecm/live?tab=exceptions&jobId=abc')
   })
 
+  it('routes hours approval notifications to Hours Approvals', () => {
+    expect(
+      notificationDeepLink({
+        recordType: 'EmployeeHoursApproval',
+        metadata: { href: '/hours-approvals', approvalId: 'approval-1' },
+      }),
+    ).toBe('/hours-approvals')
+  })
+
   it('returns null for unrelated notifications', () => {
     expect(
       notificationDeepLink({
