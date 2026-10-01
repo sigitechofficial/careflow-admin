@@ -4,44 +4,26 @@ import {
   isFallsScreeningComplete,
   type FallsScreeningMetadata,
 } from '@/features/service-users/initial-assessment/utils/falls-screening'
-import { findQuestionBySpecRefAndText } from '@/features/service-users/initial-assessment/utils/question-lookup'
 
-function yesNoAnswer(questionId: string, value: boolean): InitialAssessmentAnswerInput {
-  return {
-    questionId,
-    checked: value,
-    booleanValue: value,
-  }
-}
-
-/** Keep §12.7 template fields and ADL footer in sync with the falls screening tab. */
+/**
+ * Keep the ADL footer status in step with the Falls tab. Completion is derived only (never a manual
+ * answer). §12.7 falls history is its own always-asked question, so the paper Q1 ("falls … that need
+ * investigating") no longer writes "Falls in last 12 months?" — a known, already-investigated fall
+ * would otherwise be recorded as No.
+ */
 export function syncFallsScreeningDerivedState(
-  sections: InitialAssessmentSection[],
+  _sections: InitialAssessmentSection[],
   screening: FallsScreeningMetadata | undefined,
   adl: AdlWorksheetMetadata,
   onAdlChange: (next: AdlWorksheetMetadata) => void,
-  onAnswerChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void,
+  _onAnswerChange?: (questionId: string, patch: InitialAssessmentAnswerInput) => void,
 ): void {
   const complete = isFallsScreeningComplete(screening)
   const today = new Date().toISOString().slice(0, 10)
-
   const nextAdl: AdlWorksheetMetadata = {
     ...adl,
-    fallsAssessmentCompleted: complete ? true : null,
-    fallsAssessmentDate:
-      complete && !adl.fallsAssessmentDate?.trim() ? today : adl.fallsAssessmentDate ?? null,
+    fallsAssessmentCompleted: complete,
+    fallsAssessmentDate: complete ? adl.fallsAssessmentDate?.trim() || today : null,
   }
   onAdlChange(nextAdl)
-
-  const fallsLast12Q = findQuestionBySpecRefAndText(sections, '12.7', 'falls in last 12 months')
-  if (
-    fallsLast12Q &&
-    screening?.consentToSixQuestions === true &&
-    screening?.q1FallsNeedInvestigating != null
-  ) {
-    onAnswerChange(
-      fallsLast12Q.id,
-      yesNoAnswer(fallsLast12Q.id, screening.q1FallsNeedInvestigating),
-    )
-  }
 }

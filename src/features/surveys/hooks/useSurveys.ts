@@ -4,6 +4,7 @@ import {
   addSurveyQuestion,
   createSurvey,
   deleteSurvey,
+  fetchPortalSurveys,
   fetchPublicSurvey,
   fetchSurvey,
   fetchSurveyRecipients,
@@ -114,9 +115,11 @@ export function useSendSurvey(surveyId: string) {
   return useMutation({
     mutationFn: (args?: {
       employeeIds?: string[]
+      locationIds?: string[]
       distributeAt?: string
       recurrence?: string | null
-    }) => sendSurvey(surveyId, args?.employeeIds, args?.distributeAt, args?.recurrence),
+    }) =>
+      sendSurvey(surveyId, args?.employeeIds, args?.distributeAt, args?.recurrence, args?.locationIds),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: surveyKeys.detail(surveyId) })
       void qc.invalidateQueries({ queryKey: surveyKeys.results(surveyId) })
@@ -162,6 +165,15 @@ export function useSubmitPublicSurvey(token: string) {
     mutationFn: (input: SubmitSurveyResponseInput) => submitPublicSurveyResponse(token, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: surveyKeys.publicForm(token) })
+      void qc.invalidateQueries({ queryKey: surveyKeys.portal() })
     },
+  })
+}
+
+/** Portal: surveys sent to the signed-in service user. */
+export function usePortalSurveys() {
+  return useQuery({
+    queryKey: surveyKeys.portal(),
+    queryFn: ({ signal }) => fetchPortalSurveys({ signal }),
   })
 }

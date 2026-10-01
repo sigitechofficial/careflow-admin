@@ -121,12 +121,16 @@ describe('demoFillQuestionsForDocumentTab', () => {
     expect(ids.has('lone')).toBe(false)
   })
 
-  it('tab 3 includes §2.1–2.8 consent as well as the MCA tool', () => {
-    const tab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 3)!
-    const ids = new Set(demoFillQuestionsForDocumentTab(tab, sections).map((x) => x.id))
-    expect(ids.has('consent')).toBe(true)
-    expect(ids.has('mca-tool')).toBe(true)
-    expect(ids.has('sg')).toBe(false)
+  it('Consent tab (23) demo-fills §2 consent; MCA tab (3) keeps the MCA tool only', () => {
+    const consentTab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 23)!
+    const consentIds = new Set(demoFillQuestionsForDocumentTab(consentTab, sections).map((x) => x.id))
+    expect(consentIds.has('consent')).toBe(true)
+    expect(consentIds.has('sg')).toBe(false)
+
+    const mcaTab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 3)!
+    const mcaIds = new Set(demoFillQuestionsForDocumentTab(mcaTab, sections).map((x) => x.id))
+    expect(mcaIds.has('mca-tool')).toBe(true)
+    expect(mcaIds.has('consent')).toBe(false)
   })
 
   it('tab 12 owns remaining §3 template questions including manage-home and lone worker', () => {
@@ -137,8 +141,8 @@ describe('demoFillQuestionsForDocumentTab', () => {
     expect(ids.has('manage')).toBe(true)
   })
 
-  it('tab 13 owns safeguarding / emergency contact', () => {
-    const tab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 13)!
+  it('Safeguarding & Emergency tab (24) owns safeguarding / emergency contact', () => {
+    const tab = HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 24)!
     const ids = new Set(demoFillQuestionsForDocumentTab(tab, sections).map((x) => x.id))
     expect(ids.has('sg')).toBe(true)
     expect(ids.has('emergency')).toBe(true)

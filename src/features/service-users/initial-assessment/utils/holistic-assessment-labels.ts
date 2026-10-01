@@ -25,14 +25,13 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Preferred name': "Like to be called",
   'Date of birth': 'Date of Birth',
   'Address and contact details': 'Client Address and Postcode',
-  'Previous medical history (summary)': 'Details',
+  'Previous medical history (summary)': 'Past medical history',
   'Allergies (summary)': 'Allergies',
   'Family, representative, next of kin, advocate, key contacts':
     'Contact details for next of kin / significant other',
   'Representative relationship': 'Relationship to client',
   'Staff gender preference for personal care': 'Gender preference if staff',
-  'Religion, culture, language, reasonable adjustments': 'Beliefs / culture / reasonable adjustments',
-  'Language required': 'Languages',
+  'Language required': 'Interpreter language',
   'Interpreter required?': 'Interpreter required?',
   'Reason for admission / starting care': 'Section 1 — Reason for referral',
   'No concerns identified in this section': 'No concern/need identified',
@@ -42,15 +41,13 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'PO number': 'PO Number',
   'GP contact details': "Client's GP Contact Details",
   'Key safe present?': 'Keysafe Yes/No',
-  'Key safe code': 'Keysafe Number',
   'Pendant / telecare in use?': 'Pendant/Telecare Yes/No',
   'Assessment completed date and time': 'Date and Time of Completion of Assessment',
   'Assessor name': 'Assessor Name',
-  'Assessor designation': 'Assessor Designation',
-  'LPOA appointed?': 'LPA appointed Yes/No: Health, Finance, both',
-  'LPOA contact details': 'LPA Contact Details',
-  'LPOA designation': 'LPA Designation',
-  'LPOA name': 'LPA Name',
+  'LPA appointed?': 'LPA appointed Yes/No: Health, Finance, both',
+  'LPA contact details': 'LPA Contact Details',
+  'LPA designation': 'LPA Designation',
+  'LPA name': 'LPA Name',
   'Social worker contact': 'Social Worker',
   'Care manager contact': 'Care Manager',
   'Mental health team contact': 'Mental Health Team',
@@ -69,7 +66,6 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Type of living accommodation': 'Type of living accommodation',
   'Is client able to answer front door?': 'Is client able to answer front door? Yes/No',
   'Does the client live alone?': 'Does the client live alone? Yes/No',
-  'Instructions for gaining access to client’s home': 'Instructions for gaining access to client’s home',
   'Any identified risks to visiting staff members?': 'Any identified risks to visiting staff members? Please state',
   'Lifestyle, role and choices': 'Lifestyle role and choices, e.g. employment, dependants, smoking etc.',
   'Breathing concern options': 'b. Breathing difficulties',
@@ -98,12 +94,9 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
     'Does the client know when to take their prescribed medication?',
   'Knows how to take prescribed medication?':
     'Does the client know how to take their prescribed medication?',
-  'Recommended medication support level': 'What level of support is required?',
-  'Prompting or reminding required?': 'Prompting or reminding person to take their medicines',
-  'Help removing medicines from packaging required?':
-    'Helping person remove medicines from packaging',
-  'Assistance administering medication?':
-    'Assist to administering some or all of a person’s medicines',
+  'Recommended medication support level': 'What do carers do with medicines?',
+  'Service User agrees with assessment?':
+    'Service user (or their legal representative) agrees with the assessment?',
   'Independent with self-administration of all prescribed medications?':
     'Independent with self administration of all prescribed medications',
   'Current medication list available?': 'Current Medication',
@@ -112,7 +105,8 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Supervision during insulin self-administration required?':
     'Supervision with self administration of Insulin required',
   'Insulin administration required?': 'Administration of Insulin required',
-  'Medication safety notes': 'Physical assessment additional comments',
+  // Refusal / missed doses have their own §9.6 question.
+  'Medication safety notes': 'Other medication safety notes',
   'Current mental health issues reported?':
     'Does the client report any current mental health issues?',
   'Community psychiatric nurse involved?': 'Does the client have a Community Psychiatric Nurse?',
@@ -151,6 +145,9 @@ export const HOLISTIC_QUESTION_LABELS: Record<string, string> = {
   'Any fire safety risks identified? (Please state)': 'Please state the fire safety risks',
   'London Fire Brigade informed?': 'London Fire Brigade informed?',
   'London Fire Brigade informed — details': 'Details',
+  'Local fire and rescue service informed (home fire safety visit)?':
+    'Local fire and rescue service informed (home fire safety visit)?',
+  'Local fire and rescue service — details': 'Details',
   Details: 'Details',
   'Can client manage home environment safely?': 'Can client manage home environment safely?',
   'If no, what measure should be taken?': 'If no, what measure should be taken?',

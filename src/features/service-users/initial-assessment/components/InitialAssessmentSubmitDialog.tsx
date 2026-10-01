@@ -26,7 +26,9 @@ type Props = {
   flaggedRiskCount?: number
   carePlanTriggerCount?: number
   openActionsCount?: number
-  onGoToSection: (sectionNumber: number) => void
+  onGoToSection: (sectionNumber: number, message?: string) => void
+  /** Label for the tab an issue lives on (e.g. "Tab 14"); falls back to the § number. */
+  issueTabLabel?: (issue: ValidationIssue) => string
   onGoToHubTab?: (tab: HubTabId) => void
   onConfirm: () => void
   onConfirmIncomplete?: () => void
@@ -45,6 +47,7 @@ export function InitialAssessmentSubmitDialog({
   carePlanTriggerCount,
   openActionsCount,
   onGoToSection,
+  issueTabLabel,
   onGoToHubTab,
   onConfirm,
   onConfirmIncomplete,
@@ -129,9 +132,9 @@ export function InitialAssessmentSubmitDialog({
                         size="sm"
                         variant="outline"
                         className="mt-3 w-fit bg-white/80"
-                        onClick={() => onGoToSection(b.sectionNumber)}
+                        onClick={() => onGoToSection(b.sectionNumber, b.message)}
                       >
-                        Go to section
+                        {issueTabLabel ? `Go to ${issueTabLabel(b)}` : 'Go to section'}
                       </Button>
                     )}
                   </li>
@@ -156,9 +159,9 @@ export function InitialAssessmentSubmitDialog({
                       size="sm"
                       variant="link"
                       className="h-auto p-0 text-amber-900"
-                      onClick={() => onGoToSection(b.sectionNumber)}
+                      onClick={() => onGoToSection(b.sectionNumber, b.message)}
                     >
-                      Section {b.sectionNumber}
+                      {issueTabLabel?.(b) ?? `Section ${b.sectionNumber}`}
                     </Button>
                   </li>
                 ))}

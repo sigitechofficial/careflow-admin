@@ -306,7 +306,8 @@ export function IncidentInvestigationSection({
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   For {nameMap.get(r.employeeId) ?? 'carer'}
-                  {r.dueAt ? ` · Due ${formatOrganisationIsoDateLong(r.dueAt)}` : ''}
+                  {/* dueAt is the picked calendar day stored as UTC midnight — format its date part. */}
+                  {r.dueAt ? ` · Due ${formatOrganisationIsoDateLong(r.dueAt.slice(0, 10))}` : ''}
                 </p>
                 {r.reason && (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{r.reason}</p>

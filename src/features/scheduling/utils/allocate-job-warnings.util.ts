@@ -37,3 +37,34 @@ export function isDragAllocationHardBlock(warnings: AllocationWarning[]): boolea
     )
   })
 }
+
+export type TeamCarerWarnings = {
+  employeeId: string
+  name: string
+  hardBlocked: boolean
+  requiresConfirmation: boolean
+  warnings: AllocationWarning[]
+}
+
+/** Per-carer warnings from POST /scheduled-jobs/:id/allocate-team (nothing was saved). */
+export function teamWarningsFromAllocateError(e: unknown): {
+  carers: TeamCarerWarnings[]
+  /** True when every warning can be overridden with "Assign anyway". */
+  canForce: boolean
+} | null {
+  if (!(e instanceof ApiError)) return null
+  const body = e.body
+  if (!body || typeof body !== 'object') return null
+  const record = body as Record<string, unknown>
+  if (!Array.isArray(record.carers)) return null
+  const carers = (record.carers as TeamCarerWarnings[]).filter(
+    (c) => c && typeof c.employeeId === 'string',
+  )
+  const flagged = carers.filter((c) => c.hardBlocked || c.warnings?.length)
+  if (!flagged.length) return null
+  const anyHardBlock = carers.some((c) => c.hardBlocked)
+  return {
+    carers: flagged,
+    canForce: !anyHardBlock && record.requiresConfirmation === true,
+  }
+}

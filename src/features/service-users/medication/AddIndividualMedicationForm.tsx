@@ -766,7 +766,7 @@ export function AddIndividualMedicationForm({
                   rounds={lookups?.rounds ?? []}
                   usedRoundIds={usedRoundIds}
                   disabled={disabled}
-                  dosePlaceholder="e.g. 2 tablets"
+                  dosePlaceholder="No of tablets"
                   canRemove={timeSlots.length > 1}
                   onChange={patch => updateTimeSlot(slot.id, patch)}
                   onRemove={() => removeTimeSlot(slot.id)}

@@ -6,6 +6,10 @@ import {
 } from '@/features/service-users/utils/service-user-profile-lookup-rows'
 import { parseAboutMeFromReferences, ROUTINE_DAYS, ROUTINE_SLOTS } from '@/features/service-users/service-user-about-me'
 import { multiSelectHasAnswer } from '@/features/service-users/initial-assessment/utils/preferred-visit-times'
+import {
+  labelForQuestionOptionValue,
+  type QuestionOptionCatalogs,
+} from '@/features/service-users/initial-assessment/utils/question-options'
 import { hasTextAnswerValue, isSecureQuestion } from '@/features/service-users/initial-assessment/utils/secure-field'
 import type {
   InitialAssessmentAnswerInput,
@@ -75,14 +79,42 @@ function formatEmergencyContact(detail: ServiceUserDetail): string {
   return [name, rel, phone].filter(Boolean).join(' · ')
 }
 
+const ROUTINE_SLOT_LABEL: Record<(typeof ROUTINE_SLOTS)[number], string> = {
+  getUp: 'Get up',
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  afternoon: 'Afternoon',
+  teaTime: 'Tea time',
+  bedtime: 'Bedtime',
+}
+
+/**
+ * §1.4 routine from the About Me weekly grid (every day, not only Monday). Empty when nothing is
+ * recorded, so the required question is never "answered" by a placeholder.
+ */
 function routineSummary(detail: ServiceUserDetail): string {
   const about = parseAboutMeFromReferences(detail.references)
-  const slots = about.routine?.monday
-  if (!slots) return ''
-  const parts = Object.entries(slots)
-    .filter(([, v]) => v?.trim())
-    .map(([k, v]) => `${k}: ${v}`)
-  return parts.length ? parts.join('; ') : 'See About Me → My Daily Routine'
+  const lines: string[] = []
+  for (const day of ROUTINE_DAYS) {
+    const slots = about.routine?.[day]
+    if (!slots) continue
+    const parts = ROUTINE_SLOTS.filter((slot) => slots[slot]?.trim()).map(
+      (slot) => `${ROUTINE_SLOT_LABEL[slot]}: ${slots[slot]!.trim()}`,
+    )
+    if (parts.length) lines.push(`${day.charAt(0).toUpperCase()}${day.slice(1)} — ${parts.join('; ')}`)
+  }
+  return lines.join('\n')
+}
+
+/** Lookup display name for a stored profile value (free-text questions want "English", not "english"). */
+function prefillLookupAnswerName(
+  stored: string,
+  rows: ReadonlyArray<CodeNameLookupRow> | undefined,
+): string {
+  if (!stored.trim()) return ''
+  if (!rows?.length) return stored.trim()
+  const code = resolveStoredLookupCode(stored, rows).trim().toLowerCase()
+  return rows.find((r) => r.code.trim().toLowerCase() === code)?.name?.trim() || stored.trim()
 }
 
 /** Map service-user gender lookup codes to initial assessment SINGLE_SELECT values. */
@@ -109,6 +141,19 @@ function mapFundingTypeCode(code: string | undefined | null): string {
 function setIfNonEmpty(map: Map<string, string>, key: string, value: string | undefined | null): void {
   const v = value?.trim()
   if (v) map.set(key, v)
+}
+
+/** Non-empty answers, each once, one per line. */
+function joinDistinct(...parts: Array<string | null | undefined>): string {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const part of parts) {
+    const v = part?.trim()
+    if (!v || seen.has(v.toLowerCase())) continue
+    seen.add(v.toLowerCase())
+    out.push(v)
+  }
+  return out.join('\n')
 }
 
 export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
@@ -144,6 +189,10 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
     aboutMe_myOccupation: about.myOccupation?.trim() ?? '',
     aboutMe_myAdulthood: about.myAdulthood?.trim() ?? '',
     aboutMe_lifeHistoryFavourites: about.lifeHistoryFavourites?.trim() ?? '',
+    // IA merges two About Me profile answers into one question (profile keeps both)
+    aboutMe_peopleAndFamily: joinDistinct(about.peopleImportantToMe, about.familyAndFriends),
+    aboutMe_happyGoodDay: joinDistinct(about.whatMakesMeHappy, about.whatMakesAGoodDay),
+    aboutMe_unhappyBadDay: joinDistinct(about.whatMakesMeUnhappy, about.whatMakesABadDay),
     aboutMe_personalHygiene: about.personalHygiene?.trim() ?? '',
     aboutMe_domesticSupport: about.domesticSupport?.trim() ?? '',
     aboutMe_shoppingArrangements: about.shoppingArrangements?.trim() ?? '',
@@ -181,19 +230,19 @@ export function buildPrefillMap(ctx: PrefillContext): Map<string, string> {
       .join('\n'),
     emergencyContact: formatEmergencyContact(detail),
     gpContact: formatGpContact(detail),
-    aboutMePriorities: about.whatIsMostImportantToMe?.trim() || about.whatMakesAGoodDay?.trim() || '',
     aboutMeRoutine: routineSummary(detail),
     foodLikes: [about.foodDrinksLike, about.foodDrinksDontLike ? `Dislikes: ${about.foodDrinksDontLike}` : '']
       .filter(Boolean)
       .join('\n'),
-    activityLikes: about.favouriteActivities?.trim() || about.hobbiesAndInterests?.trim() || '',
     culture: cultureParts.join(' · '),
     ethnicity: prefillLookupAnswerCode(ethnicityStored, lookups?.ethnicities),
     language: prefillLookupAnswerCode(languageStored, lookups?.languages),
+    languageName: prefillLookupAnswerName(languageStored, lookups?.languages),
     careInstructions: domCare?.careInstructions?.trim() ?? '',
     plannedCarers: domCare?.numberOfCarers != null ? String(domCare.numberOfCarers) : '',
     accessInstruction: domCare?.accessInstruction?.trim() ?? '',
-    doorCode: domCare?.doorCode ? '•••• (on file in DOM Care)' : '',
+    // Home & access key-safe code is the master carers see; the legacy DOM Care door code is a fallback.
+    doorCode: detail.address?.keySafeNumber?.trim() || domCare?.doorCode ? '•••• (hidden)' : '',
     fundingType: mapFundingTypeCode(detail.fundingType?.code),
     nhsNumber: detail.nhsNumber?.trim() ?? '',
     nationalInsuranceNumber: detail.nationalInsuranceNumber?.trim() ?? '',
@@ -228,14 +277,69 @@ export function prefillValueForQuestion(
   return prefillMap.get(key) ?? ''
 }
 
+/** Where each prefill value comes from — shown to the assessor next to the value. */
+const PREFILL_SOURCE_BY_KEY: Readonly<Record<string, string>> = {
+  firstName: 'Profile',
+  middleName: 'Profile',
+  lastName: 'Profile',
+  preferredName: 'Profile',
+  dateOfBirth: 'Profile',
+  gender: 'Profile',
+  addressContact: 'Profile',
+  ethnicity: 'Profile',
+  language: 'Profile',
+  languageName: 'Profile',
+  nhsNumber: 'Profile',
+  nationalInsuranceNumber: 'Profile',
+  serviceUserNumber: 'Profile',
+  fundingType: 'Profile (funding)',
+  emergencyContact: 'Contacts',
+  gpContact: 'Contacts (GP)',
+  careInstructions: 'DOM Care',
+  plannedCarers: 'DOM Care',
+  accessInstruction: 'DOM Care',
+  doorCode: 'Home & access',
+  allergies: 'Allergies',
+  aboutMeRoutine: 'About Me',
+  foodLikes: 'About Me',
+  culture: 'About Me',
+}
+
+export function prefillSourceForKey(key: string): string {
+  if (key.startsWith('aboutMe_')) return 'About Me'
+  return PREFILL_SOURCE_BY_KEY[key] ?? 'Profile'
+}
+
+/** Option codes → labels and ISO dates → "19 Dec 1986", so the hint reads like the field. */
+function prefillDisplayValue(
+  q: InitialAssessmentQuestion,
+  value: string,
+  catalogs: QuestionOptionCatalogs,
+): string {
+  if (q.questionType === 'SINGLE_SELECT' || q.questionType === 'MULTI_SELECT') {
+    return labelForQuestionOptionValue(value, q, catalogs)
+  }
+  if (q.questionType === 'DATE' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const d = new Date(`${value.slice(0, 10)}T00:00:00Z`)
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    }
+  }
+  return value
+}
+
+/** "<Source>: <value>" for the field hint (rendered as "From …"). */
 export function prefillHintForQuestion(
   q: InitialAssessmentQuestion,
   prefillMap: Map<string, string>,
+  catalogs: QuestionOptionCatalogs = {},
 ): string | null {
+  const key = prefillKeyForQuestion(q)
   const val = prefillValueForQuestion(q, prefillMap)
-  if (!val) return null
-  const short = val.length > 140 ? `${val.slice(0, 140)}…` : val
-  return short
+  if (!key || !val) return null
+  const shown = prefillDisplayValue(q, val, catalogs)
+  const short = shown.length > 140 ? `${shown.slice(0, 140)}…` : shown
+  return `${prefillSourceForKey(key)}: ${short}`
 }
 
 export function hasAssessmentAnswer(
@@ -304,6 +408,34 @@ export function buildAnswerFromPrefill(
     return { ...base, textValue: trimmed }
   }
   return null
+}
+
+function plainText(value: string | undefined | null): string {
+  return (value ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/** True while the answer is still the value prefill put there (the assessor has not changed it). */
+export function answerIsPrefillValue(
+  q: InitialAssessmentQuestion,
+  answer: InitialAssessmentAnswerInput | undefined,
+  prefillMap: Map<string, string>,
+): boolean {
+  if (!answer) return false
+  const built = buildAnswerFromPrefill(q, prefillValueForQuestion(q, prefillMap))
+  if (!built) return false
+  if (built.textValue !== undefined) {
+    return plainText(answer.textValue) === plainText(built.textValue)
+  }
+  if (built.selectedOptions !== undefined) {
+    const sel = answer.selectedOptions
+    const have = Array.isArray(sel) ? sel.map(String) : typeof sel === 'string' ? [sel] : []
+    return have.length === 1 && have[0] === String((built.selectedOptions as string[])[0])
+  }
+  if (built.numberValue !== undefined) return answer.numberValue === built.numberValue
+  if (built.dateValue !== undefined) {
+    return String(answer.dateValue ?? '').slice(0, 10) === String(built.dateValue).slice(0, 10)
+  }
+  return false
 }
 
 /** Merge service-user profile values into draft answers where the submission has no saved value. */

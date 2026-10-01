@@ -1441,9 +1441,93 @@ export type ServiceUserDolsRow = {
   updatedAt: string
 }
 
+export type ServiceUserLegalAuthorityCategory =
+  | 'LPA_HEALTH_WELFARE'
+  | 'LPA_PROPERTY_FINANCE'
+  | 'EPA'
+  | 'DEPUTY_HEALTH_WELFARE'
+  | 'DEPUTY_PROPERTY_AFFAIRS'
+  | 'COURT_ORDER'
+  | 'APPOINTEE'
+  | 'OTHER'
+
+export type ServiceUserLegalAuthorityVerification = 'REPORTED' | 'DOCUMENT_SEEN' | 'VERIFIED' | 'NOT_VALID'
+
+export type ServiceUserLegalAuthorityRow = {
+  id: string
+  serviceUserId: string
+  category: ServiceUserLegalAuthorityCategory
+  holderName: string
+  holderRelationship: string
+  holderContact: string
+  scope: string
+  lifeSustainingTreatment: boolean | null
+  registeredOn: string | null
+  expiresOn: string | null
+  reference: string
+  verificationStatus: ServiceUserLegalAuthorityVerification
+  verificationMethod: string
+  verifiedAt: string | null
+  verifiedById: string | null
+  documentUrl: string | null
+  notes: string
+  source: string
+  sourceSubmissionId: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type ServiceUserLegalAuthorityPayload = Partial<{
+  category: ServiceUserLegalAuthorityCategory
+  holderName: string
+  holderRelationship: string
+  holderContact: string
+  scope: string
+  lifeSustainingTreatment: boolean | null
+  registeredOn: string | null
+  expiresOn: string | null
+  reference: string
+  verificationStatus: ServiceUserLegalAuthorityVerification
+  verificationMethod: string
+  notes: string
+  isActive: boolean
+}>
+
 export type ServiceUserDocumentsBundle = {
   legal: ServiceUserLegalDocuments
   dols: ServiceUserDolsRow[]
+  /** Older API builds omit this. */
+  legalAuthorities?: ServiceUserLegalAuthorityRow[]
+}
+
+export async function createServiceUserLegalAuthority(
+  serviceUserId: string,
+  body: ServiceUserLegalAuthorityPayload,
+): Promise<ServiceUserLegalAuthorityRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserLegalAuthorityRow>>(
+    `/service-users/${serviceUserId}/documents/legal-authorities`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function updateServiceUserLegalAuthority(
+  serviceUserId: string,
+  authorityId: string,
+  body: ServiceUserLegalAuthorityPayload,
+): Promise<ServiceUserLegalAuthorityRow> {
+  const res = await apiJson<ApiEnvelope<ServiceUserLegalAuthorityRow>>(
+    `/service-users/${serviceUserId}/documents/legal-authorities/${authorityId}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
+  return res.data
+}
+
+export async function deleteServiceUserLegalAuthority(serviceUserId: string, authorityId: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/service-users/${serviceUserId}/documents/legal-authorities/${authorityId}`, {
+    method: 'DELETE',
+  })
 }
 
 export type PatchServiceUserLegalDocumentsPayload = {

@@ -5,6 +5,7 @@ import { InitialAssessmentActionsPanel } from '@/features/service-users/initial-
 import { InitialAssessmentCarePlanRecommendationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanRecommendationsPanel'
 import { InitialAssessmentRiskRecordsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentRiskRecordsPanel'
 import { buildInitialAssessmentEnterpriseSearch } from '@/features/service-users/initial-assessment/utils/initial-assessment-url-search'
+import { firstHolisticTabForEnterpriseSection } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import { useCarePlanIaSource } from '@/features/service-users/hooks/useCarePlanIaSource'
 import { useCarePlanRecommendations } from '@/features/service-users/hooks/useCarePlanRecommendations'
 import type { InitialAssessmentStatus } from '@/features/service-users/initial-assessment/types'
@@ -185,7 +186,8 @@ export function CarePlanIaRecommendationsBody({
                   search: buildInitialAssessmentEnterpriseSearch({
                     serviceUserId,
                     submissionId: submission.id,
-                    section: sectionNumber,
+                    // Recommendations carry the enterprise § number — open the tab that shows it.
+                    section: firstHolisticTabForEnterpriseSection(sectionNumber),
                     tab: 'form',
                   }),
                 })

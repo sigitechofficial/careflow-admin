@@ -109,7 +109,7 @@ export function InitialAssessmentSafeguardingSection({
         </div>
       ) : null}
 
-      <InitialAssessmentSection12PanelShell title="13.1 Safeguarding concern" bodyVariant="content">
+      <InitialAssessmentSection12PanelShell title="Safeguarding concern" bodyVariant="content">
         {safeguardingQ ? (
           <InitialAssessmentSection12FieldRow>{renderField(safeguardingQ)}</InitialAssessmentSection12FieldRow>
         ) : null}
@@ -132,7 +132,7 @@ export function InitialAssessmentSafeguardingSection({
 
       {concernActive && immediateQs.length > 0 ? (
         <InitialAssessmentSection12PanelShell
-          title="13.7 Immediate action & referrals"
+          title="Immediate action & referrals"
           hint="Document what was done at the time of identification — do not delay manager notification."
           bodyVariant="content"
         >
@@ -150,7 +150,7 @@ export function InitialAssessmentSafeguardingSection({
       />
 
       {emergencyRecordedQ ? (
-        <InitialAssessmentSection12PanelShell title="13.3 Emergency contacts" bodyVariant="content">
+        <InitialAssessmentSection12PanelShell title="Emergency contacts" bodyVariant="content">
           <InitialAssessmentSection12FieldRow>{renderField(emergencyRecordedQ)}</InitialAssessmentSection12FieldRow>
         </InitialAssessmentSection12PanelShell>
       ) : null}
@@ -202,7 +202,7 @@ function SafeguardingAbuseTypeGrid({
   }
 
   return (
-    <InitialAssessmentSection12PanelShell title="13.2 Concern types" bodyVariant="content">
+    <InitialAssessmentSection12PanelShell title="Concern types" bodyVariant="content">
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {options.map((opt) => {
           const active = selected.has(opt.value)

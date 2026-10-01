@@ -1,7 +1,11 @@
+import {
+  normalizeAgreedGoalsMetadata,
+  type AgreedGoalsMetadata,
+} from '@/features/service-users/initial-assessment/utils/agreed-goals'
 import type { InitialAssessmentSubmission } from '@/features/service-users/initial-assessment/types'
 import {
   firstHolisticTabForEnterpriseSection,
-  holisticTabById,
+  resolveHolisticTabId,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import { parseMobilityMetadata } from '@/features/service-users/initial-assessment/utils/mobility-metadata'
 import {
@@ -182,6 +186,7 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
 
   const photographyConsent: PhotographyConsentMetadata =
     normalizePhotographyConsentMetadata(meta.photographyConsent)
+  const agreedGoals: AgreedGoalsMetadata = normalizeAgreedGoalsMetadata(meta.agreedGoals)
 
   const equipmentSelection: EquipmentSelectionMetadata =
     normalizeEquipmentSelectionMetadata(meta.equipmentSelection)
@@ -207,6 +212,7 @@ export function parseSubmissionMetadata(submission: InitialAssessmentSubmission 
     carePlanObjectives,
     mentalCapacityChecklist,
     photographyConsent,
+    agreedGoals,
     equipmentSelection,
     vitalAcceptedRanges,
     managerReviewRequired,
@@ -279,8 +285,11 @@ export function normalizeSectionComments(
     if (!Number.isInteger(n) || n < 1) continue
 
     if (tabKeyed) {
-      if (holisticTabById(n)) {
-        sectionComments[String(n)] = entry
+      const tabId = resolveHolisticTabId(n)
+      if (tabId == null) continue
+      // A comment saved on the live tab wins over one left on a retired alias (e.g. '23' over '18').
+      if (tabId === n || !sectionComments[String(tabId)]) {
+        sectionComments[String(tabId)] = entry
       }
       continue
     }

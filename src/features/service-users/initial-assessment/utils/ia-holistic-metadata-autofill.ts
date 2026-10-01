@@ -265,7 +265,6 @@ function buildCarePlanObjectives(level: IaHolisticAutofillLevel): CarePlanObject
     acc[section.id] = {
       agreedTask: `${prefix} — ${section.title} task (E2E)`,
       objectives: `${prefix} — objectives`,
-      outcomes: `${prefix} — outcomes`,
     }
     return acc
   }, {})
@@ -280,7 +279,6 @@ function buildCarePlanObjectives(level: IaHolisticAutofillLevel): CarePlanObject
       whichProfessionalVisit: 'District nurse',
       agreedTask: 'E2E visit task',
       objectives: 'E2E visit objectives',
-      outcomes: 'E2E visit outcomes',
     },
     otherEquipmentRequired: level === 'critical' ? 'Profiling bed (E2E)' : '',
   }
@@ -299,6 +297,8 @@ function buildMentalCapacityChecklist(): MentalCapacityChecklistMetadata {
 
 function buildPhotographyConsent(): PhotographyConsentMetadata {
   return {
+    photographyNeeded: 'yes',
+    statementsAgreed: true,
     surname: 'E2E',
     firstNames: 'Client',
     dateOfBirth: isoDate(-900),

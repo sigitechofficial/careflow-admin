@@ -15,7 +15,6 @@ export const SECTION_6_CANONICAL_QUESTION_TEXT = [
   'Adequately hydrated?',
   'Hydration comment',
   'Daily fluid target (ml)',
-  'Thickened fluids required?',
   'Nutrition status',
   'Malnourished or at nutrition risk?',
   'BMI completed?',

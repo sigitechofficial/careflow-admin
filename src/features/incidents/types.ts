@@ -318,6 +318,9 @@ export type IncidentAnalyticsFilters = {
 }
 
 export type IncidentDetail = IncidentListItem & {
+  primaryServiceUser: { id: string; name: string | null; serviceUserNumber: string | null } | null
+  primaryEmployee: { id: string; name: string | null } | null
+  location: { id: string; name: string } | null
   history: IncidentTimelineEvent[]
   review: IncidentReview | null
   investigation: IncidentInvestigation | null
@@ -371,6 +374,8 @@ export type IncidentStats = {
   underInvestigation: number
   actionsRequired: number
   highOrCritical: number
+  /** First day of the current organisation month (YYYY-MM-DD). */
+  monthStart?: string
   byStatus: Partial<Record<IncidentStatus, number>>
   bySeverity: Partial<Record<IncidentSeverity, number>>
 }
@@ -417,6 +422,8 @@ export type UpdateIncidentActionInput = Partial<
   dueDate?: string | null
   /** Null or empty string clears the assignee. */
   assignedEmployeeId?: string | null
+  /** Required when cancelling a mandatory measure or making it optional. */
+  reason?: string
 }
 
 export const INCIDENT_ACTION_STATUS_BADGE: Record<
@@ -537,6 +544,11 @@ export type IncidentListFilters = {
   search?: string
   status?: IncidentStatus
   severity?: IncidentSeverity
+  /** Any of these severities (ignored when `severity` is set). */
+  severities?: IncidentSeverity[]
+  /** Closed on or after this organisation day (YYYY-MM-DD). */
+  closedFrom?: string
+  hasOverdueActions?: boolean
   categoryId?: string
   serviceUserId?: string
   locationId?: string

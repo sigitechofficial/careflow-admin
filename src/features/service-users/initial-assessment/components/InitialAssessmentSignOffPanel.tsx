@@ -95,7 +95,7 @@ export function InitialAssessmentSignOffPanel({
         organisation&apos;s sign-off policy.
       </p>
       <SignOffGroup
-        title="14.6 Service user agreement"
+        title="Service user agreement"
         hint="Confirm the person receiving care (or their representative) has agreed to the assessment findings."
         questions={suQuestions}
         allSections={allSections}
@@ -107,7 +107,7 @@ export function InitialAssessmentSignOffPanel({
         onChange={onChange}
       />
       <SignOffGroup
-        title="14.8 Assessor sign-off details"
+        title="Assessor sign-off details"
         hint="Assessor confirms accuracy of the assessment and records their sign-off details."
         questions={assessorQuestions}
         allSections={allSections}

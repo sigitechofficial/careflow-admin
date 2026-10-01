@@ -1,6 +1,17 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeftRight, CheckCircle2, Clock, Crown, Loader2, UserMinus, UserPlus } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  CheckCircle2,
+  Clock,
+  Crown,
+  Loader2,
+  UserMinus,
+  UserPlus,
+  Users,
+  X,
+} from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { useAuthStore } from '@/features/auth/store'
 import { toastApiError, toastSuccess, toastWarning } from '@/shared/lib/toast'
@@ -21,6 +32,7 @@ import { useScheduleEmployeesCatalog } from '@/features/scheduling/hooks/useSche
 import { collectJobServiceUserLocationIds } from '@/features/scheduling/utils/employee-branch-scope.util'
 import {
   useAllocateJob,
+  useAllocateJobTeam,
   useConfirmJobAllocation,
   useSetJobLeadCarer,
   useUnallocateJob,
@@ -59,8 +71,14 @@ import {
 import {
   warningsFromAllocateError,
   isDragAllocationHardBlock,
+  teamWarningsFromAllocateError,
   type AllocationWarning,
+  type TeamCarerWarnings,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
+import {
+  clockedInRemovalMessage,
+  jobLeadCarer,
+} from '@/features/scheduling/utils/schedule-job-lead-carer.util'
 import { scheduleJobCarerRotaConflictMessage } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
 import { buildRotaBookedEmployeeIds } from '@/features/scheduling/utils/schedule-carer-suggest.util'
 import type { VisitPlanCarerCandidate } from '@/features/service-users/visit-plan/types'
@@ -120,10 +138,16 @@ export function ScheduleJobAllocateDialog({
   const [suggestCandidates, setSuggestCandidates] = React.useState<VisitPlanCarerCandidate[]>([])
   const [assignAsLead, setAssignAsLead] = React.useState(false)
   const [confirmingAllocationId, setConfirmingAllocationId] = React.useState<string | null>(null)
+  /** Multi-carer team picking (new visit / gap fill): carers to add + chosen lead. */
+  const [teamSelection, setTeamSelection] = React.useState<string[]>([])
+  const [teamLeadId, setTeamLeadId] = React.useState<string | null>(null)
+  const [teamWarnings, setTeamWarnings] = React.useState<TeamCarerWarnings[] | null>(null)
+  const [teamCanForce, setTeamCanForce] = React.useState(false)
 
   const canConfirmAllocation = useAuthStore((s) => s.can('job_allocations.confirm'))
   const showBlockedCarers = useShowBlockedCarersInSchedule()
   const allocate = useAllocateJob()
+  const allocateTeam = useAllocateJobTeam()
   const confirmAllocation = useConfirmJobAllocation()
   const setLeadCarer = useSetJobLeadCarer()
   const unallocate = useUnallocateJob()
@@ -155,6 +179,17 @@ export function ScheduleJobAllocateDialog({
       setAssignAsLead(false)
     }
   }, [open])
+
+  const resetTeamPick = React.useCallback(() => {
+    setTeamSelection([])
+    setTeamLeadId(null)
+    setTeamWarnings(null)
+    setTeamCanForce(false)
+  }, [])
+
+  React.useEffect(() => {
+    resetTeamPick()
+  }, [open, job?.id, resetTeamPick])
 
   /** Keep carer drafts that still match the visit window in lockstep with visit edits. */
   const applyVisitWindowHm = React.useCallback(
@@ -298,6 +333,36 @@ export function ScheduleJobAllocateDialog({
   const replacingName = replacingEmployeeId
     ? (job?.allocations ?? []).find((a) => a.employeeId === replacingEmployeeId)
     : null
+  const effectiveLead = job ? jobLeadCarer(job) : null
+  /** Lead the carer app uses today (flagged, else first assigned) — replace/drag keep it on the new carer. */
+  const effectiveLeadEmployeeId = effectiveLead?.allocation.employeeId ?? null
+  const explicitLeadEmployeeId = effectiveLead?.explicit ? effectiveLeadEmployeeId : null
+  const missingLeadOnExistingTeam =
+    multiCarerJob && allocatedCount > 0 && effectiveLead != null && !effectiveLead.explicit
+  /**
+   * Multi-carer visit with open places: pick every missing carer + one lead and save
+   * once (all-or-nothing). Replace keeps the single-carer flow.
+   */
+  const teamMode =
+    !!job && !isScheduleJobReadOnly(job) && multiCarerJob && !replacingEmployeeId && slotsRemaining > 0
+  const chosenTeamLeadId = teamLeadId ?? explicitLeadEmployeeId
+  const teamLeadValid =
+    chosenTeamLeadId != null &&
+    (allocatedEmployeeIds.has(chosenTeamLeadId) || teamSelection.includes(chosenTeamLeadId))
+  const teamMissingCount = Math.max(0, slotsRemaining - teamSelection.length)
+  const teamIssues: string[] = []
+  if (teamMode) {
+    if (teamMissingCount > 0) {
+      teamIssues.push(`Select ${teamMissingCount} more carer${teamMissingCount === 1 ? '' : 's'}`)
+    }
+    if (!teamLeadValid) {
+      teamIssues.push(
+        missingLeadOnExistingTeam ? 'No lead carer set — choose a lead' : 'Choose a lead carer',
+      )
+    }
+  }
+  const canSubmitTeam = teamMode && teamIssues.length === 0
+  const selectedTeamIds = React.useMemo(() => new Set(teamSelection), [teamSelection])
 
   const rotaBookedEmployeeIds = React.useMemo(
     () => buildRotaBookedEmployeeIds(suggestCandidates),
@@ -430,9 +495,8 @@ export function ScheduleJobAllocateDialog({
         return
       }
     }
-    const replacingWasLead =
-      multiCarerJob &&
-      (job.allocations ?? []).some((a) => a.employeeId === oldEmployeeId && a.isLeadCarer)
+    // The new carer takes the lead (also when the old carer was lead only by fallback order).
+    const replacingWasLead = multiCarerJob && effectiveLeadEmployeeId === oldEmployeeId
     setAllocatingEmployeeId(newEmployeeId)
     try {
       await unallocate.mutateAsync({ jobId: job.id, employeeId: oldEmployeeId })
@@ -473,7 +537,90 @@ export function ScheduleJobAllocateDialog({
     }
   }
 
+  const employeeDisplayName = (employeeId: string): string => {
+    const row = employeesQuery.employees.find((e) => e.id === employeeId)
+    if (row) return employeeListRowDisplayName(row)
+    const candidate = suggestCandidates.find((c) => c.employeeId === employeeId)
+    if (candidate?.displayName) return candidate.displayName
+    const allocation = (job?.allocations ?? []).find((a) => a.employeeId === employeeId)
+    return allocation ? employeeNameFromAllocation(allocation) : 'Carer'
+  }
+
+  const toggleTeamCarer = (employeeId: string) => {
+    if (!job) return
+    setTeamWarnings(null)
+    setTeamCanForce(false)
+    if (teamSelection.includes(employeeId)) {
+      setTeamSelection((rows) => rows.filter((id) => id !== employeeId))
+      if (teamLeadId === employeeId) setTeamLeadId(null)
+      return
+    }
+    if (teamSelection.length >= slotsRemaining) {
+      toastWarning(
+        'Enough carers selected',
+        `This visit needs ${slotsRemaining} more carer${slotsRemaining === 1 ? '' : 's'}. Remove a selected carer first.`,
+      )
+      return
+    }
+    if (boardJobs?.length) {
+      const scheduleWindow =
+        startTime && endTime
+          ? buildJobScheduleDateTimes(jobScheduleDateIso(job), startTime, endTime)
+          : undefined
+      const rotaConflict = scheduleJobCarerRotaConflictMessage(
+        job,
+        employeeId,
+        boardJobs,
+        scheduleWindow ?? undefined,
+      )
+      if (rotaConflict) {
+        toastWarning('Carer not selected', rotaConflict)
+        return
+      }
+    }
+    setTeamSelection((rows) => [...rows, employeeId])
+  }
+
+  const runAllocateTeam = async (force = false) => {
+    if (!job || !canSubmitTeam || !chosenTeamLeadId) return
+    try {
+      const scheduleWindow =
+        startTime && endTime
+          ? buildJobScheduleDateTimes(jobScheduleDateIso(job), startTime, endTime)
+          : null
+      const result = await allocateTeam.mutateAsync({
+        jobId: job.id,
+        employeeIds: teamSelection,
+        leadEmployeeId: chosenTeamLeadId,
+        scheduledVisitId: visitId,
+        force,
+        scheduledStartDateTime: scheduleWindow?.scheduledStartDateTime,
+        scheduledEndDateTime: scheduleWindow?.scheduledEndDateTime ?? undefined,
+      })
+      resetTeamPick()
+      setSearch('')
+      if (result.requiresConfirmation) {
+        toastWarning('Confirmation required', result.message)
+      } else {
+        toastSuccess('Carers allocated', result.message)
+      }
+      onAllocated?.()
+    } catch (e) {
+      const team = teamWarningsFromAllocateError(e)
+      if (team) {
+        setTeamWarnings(team.carers)
+        setTeamCanForce(team.canForce)
+        return
+      }
+      toastApiError(e, 'Could not allocate carers')
+    }
+  }
+
   const handlePickEmployee = (employeeId: string, force = false) => {
+    if (teamMode) {
+      toggleTeamCarer(employeeId)
+      return
+    }
     if (replacingEmployeeId) {
       void runReplace(employeeId, replacingEmployeeId, force)
       return
@@ -482,6 +629,10 @@ export function ScheduleJobAllocateDialog({
   }
 
   const handleAllocate = () => {
+    if (teamMode) {
+      void runAllocateTeam()
+      return
+    }
     if (!selectedEmployeeId) return
     handlePickEmployee(selectedEmployeeId)
   }
@@ -604,7 +755,12 @@ export function ScheduleJobAllocateDialog({
       { jobId: job.id, employeeId },
       {
         onSuccess: (res) => {
-          toastSuccess('Carer removed', res.message ?? 'Allocation removed')
+          toastSuccess(
+            'Carer removed',
+            res.promotedLeadCarer
+              ? `${res.promotedLeadCarer.name} is now the lead carer.`
+              : (res.message ?? 'Allocation removed'),
+          )
           onAllocated?.()
         },
         onError: (e) => toastApiError(e, 'Could not remove carer'),
@@ -637,7 +793,11 @@ export function ScheduleJobAllocateDialog({
     : needsMoreCarers
       ? 'Assign carers'
       : 'Manage job carers'
-  const pickSectionTitle = replacingEmployeeId ? 'Choose replacement' : 'Choose carer'
+  const pickSectionTitle = replacingEmployeeId
+    ? 'Choose replacement'
+    : teamMode
+      ? `Choose ${slotsRemaining} carer${slotsRemaining === 1 ? '' : 's'}`
+      : 'Choose carer'
   const isSearchingCarers = search.trim().length > 0
   const allocationStatusText = readOnly
     ? 'Read-only'
@@ -655,7 +815,9 @@ export function ScheduleJobAllocateDialog({
       : overAllocated
         ? 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200'
         : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-  const canSubmitAllocate = Boolean(selectedEmployeeId && canAddOrReplaceCarer)
+  const canSubmitAllocate = teamMode
+    ? canSubmitTeam
+    : Boolean(selectedEmployeeId && canAddOrReplaceCarer)
   const showSaveTimesPrimary = Boolean(timesChanged && nextScheduleTimes && !canSubmitAllocate)
   const showAllocatePrimary = canSubmitAllocate
   const visitSlotVisual = scheduleVisitSlotVisual(job)
@@ -842,6 +1004,19 @@ export function ScheduleJobAllocateDialog({
                 </p>
               ) : null}
             </div>
+            {missingLeadOnExistingTeam && !readOnly && !teamMode ? (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <p>
+                  <strong>No lead carer set — choose a lead.</strong> Until you do, the carer app
+                  treats {effectiveLead ? employeeNameFromAllocation(effectiveLead.allocation) : 'the first assigned carer'}{' '}
+                  (first assigned) as lead. Use <strong>Set lead</strong> below.
+                </p>
+              </div>
+            ) : null}
             {pendingConfirmationCount > 0 ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
                 <p className="font-medium">
@@ -861,6 +1036,8 @@ export function ScheduleJobAllocateDialog({
               <ul className="space-y-2">
                 {(job.allocations ?? []).map((allocation, index) => {
                   const pendingConfirmation = isAllocationPendingConfirmation(allocation.status)
+                  // Clocked-in carers can't be removed or replaced until they clock out.
+                  const clockedInBlock = clockedInRemovalMessage(job, allocation)
                   const timing = carerTimings.find(t => t.allocationId === allocation.id)
                   const timingError =
                     showPerCarerTiming && timing
@@ -902,6 +1079,7 @@ export function ScheduleJobAllocateDialog({
                         )}
                       >
                         {allocationStatusLabel(allocation.status)}
+                        {clockedInBlock && !readOnly ? ' · Clocked in — can’t be removed' : ''}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
@@ -924,7 +1102,7 @@ export function ScheduleJobAllocateDialog({
                           Confirm
                         </Button>
                       ) : null}
-                      {!readOnly && multiCarerJob && !allocation.isLeadCarer ? (
+                      {!readOnly && multiCarerJob && !teamMode && !allocation.isLeadCarer ? (
                         <Button
                           type="button"
                           size="sm"
@@ -937,12 +1115,15 @@ export function ScheduleJobAllocateDialog({
                         </Button>
                       ) : null}
                       {!readOnly ? (
-                        <>
+                        <span
+                          className="inline-flex flex-wrap items-center gap-1.5"
+                          title={clockedInBlock ?? undefined}
+                        >
                           <Button
                             type="button"
                             size="sm"
                             variant={replacingEmployeeId === allocation.employeeId ? 'default' : 'outline'}
-                            disabled={!!allocatingEmployeeId || unallocate.isPending}
+                            disabled={!!allocatingEmployeeId || unallocate.isPending || !!clockedInBlock}
                             onClick={() => {
                               setReplacingEmployeeId(allocation.employeeId)
                               setSelectedEmployeeId(null)
@@ -958,13 +1139,13 @@ export function ScheduleJobAllocateDialog({
                             type="button"
                             size="sm"
                             variant="outline"
-                            disabled={unallocate.isPending || !!allocatingEmployeeId}
+                            disabled={unallocate.isPending || !!allocatingEmployeeId || !!clockedInBlock}
                             onClick={() => handleUnallocate(allocation.employeeId)}
                           >
                             <UserMinus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                             Remove
                           </Button>
-                        </>
+                        </span>
                       ) : null}
                     </div>
                     </div>
@@ -1069,7 +1250,102 @@ export function ScheduleJobAllocateDialog({
                   .join(' ')}
               </p>
             ) : null}
-            {multiCarerJob && (needsMoreCarers || replacingEmployeeId) ? (
+            {teamMode ? (
+              <div
+                className="space-y-2 rounded-lg border border-border bg-muted/20 px-3 py-3"
+                data-testid="allocate-team-panel"
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  <p className="text-sm font-semibold text-foreground">
+                    Team for this visit ({allocatedCount + teamSelection.length}/{job.requiredCarers})
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {allocatedCount > 0
+                    ? `Select the ${slotsRemaining} missing carer${slotsRemaining === 1 ? '' : 's'} and choose the lead. Everyone is saved together.`
+                    : `Select all ${job.requiredCarers} carers and choose one lead. Everyone is saved together.`}
+                </p>
+                <ul className="space-y-1.5" role="radiogroup" aria-label="Lead carer">
+                  {(job.allocations ?? []).map((allocation) => (
+                    <li
+                      key={allocation.id}
+                      className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1.5"
+                    >
+                      <span className="min-w-0 truncate text-sm">
+                        {employeeNameFromAllocation(allocation)}
+                        <span className="ml-1.5 text-xs text-muted-foreground">Already assigned</span>
+                      </span>
+                      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-medium text-foreground">
+                        <input
+                          type="radio"
+                          name="team-lead-carer"
+                          className="h-3.5 w-3.5"
+                          checked={chosenTeamLeadId === allocation.employeeId}
+                          onChange={() => {
+                            setTeamLeadId(allocation.employeeId)
+                            setTeamWarnings(null)
+                          }}
+                        />
+                        <Crown className="h-3 w-3" aria-hidden />
+                        Lead
+                      </label>
+                    </li>
+                  ))}
+                  {teamSelection.map((employeeId) => (
+                    <li
+                      key={employeeId}
+                      className="flex items-center justify-between gap-2 rounded-md border border-sky-300 bg-sky-50/60 px-3 py-1.5 dark:border-sky-800 dark:bg-sky-950/20"
+                    >
+                      <span className="min-w-0 truncate text-sm font-medium">
+                        {employeeDisplayName(employeeId)}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-foreground">
+                          <input
+                            type="radio"
+                            name="team-lead-carer"
+                            className="h-3.5 w-3.5"
+                            checked={chosenTeamLeadId === employeeId}
+                            onChange={() => {
+                              setTeamLeadId(employeeId)
+                              setTeamWarnings(null)
+                            }}
+                          />
+                          <Crown className="h-3 w-3" aria-hidden />
+                          Lead
+                        </label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          aria-label={`Remove ${employeeDisplayName(employeeId)} from selection`}
+                          disabled={allocateTeam.isPending}
+                          onClick={() => toggleTeamCarer(employeeId)}
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden />
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                  {Array.from({ length: teamMissingCount }, (_, index) => (
+                    <li
+                      key={`empty-${index}`}
+                      className="rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground"
+                    >
+                      Carer {allocatedCount + teamSelection.length + index + 1} — select below
+                    </li>
+                  ))}
+                </ul>
+                {teamIssues.length > 0 ? (
+                  <p className="text-xs font-medium text-destructive" role="alert">
+                    {teamIssues.join(' · ')}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {multiCarerJob && replacingEmployeeId ? (
               <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                 <input
                   type="checkbox"
@@ -1102,6 +1378,7 @@ export function ScheduleJobAllocateDialog({
                 replacingEmployeeId={replacingEmployeeId}
                 hideHeader
                 onAssign={(employeeId) => handlePickEmployee(employeeId)}
+                selectedEmployeeIds={teamMode ? selectedTeamIds : undefined}
                 onCandidatesChange={setSuggestCandidates}
               />
             </div>
@@ -1122,18 +1399,22 @@ export function ScheduleJobAllocateDialog({
                   ) : (
                     filteredEmployees.map((row) => {
                       const assigning = allocatingEmployeeId === row.id
+                      const teamSelected = teamMode && selectedTeamIds.has(row.id)
                       return (
                         <li
                           key={row.id}
                           className={cn(
                             'flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2',
-                            selectedEmployeeId === row.id && 'ring-1 ring-sky-300',
+                            (teamMode ? teamSelected : selectedEmployeeId === row.id) &&
+                              'ring-1 ring-sky-300',
                           )}
                         >
                           <button
                             type="button"
                             className="min-w-0 flex-1 text-left"
-                            onClick={() => setSelectedEmployeeId(row.id)}
+                            onClick={() =>
+                              teamMode ? toggleTeamCarer(row.id) : setSelectedEmployeeId(row.id)
+                            }
                           >
                             <span className="text-sm font-medium">
                               {employeeListRowDisplayName(row)}
@@ -1142,21 +1423,32 @@ export function ScheduleJobAllocateDialog({
                           <Button
                             type="button"
                             size="sm"
-                            variant="secondary"
+                            variant={teamSelected ? 'default' : 'secondary'}
                             disabled={
-                              !!allocatingEmployeeId || allocate.isPending || unallocate.isPending
+                              !!allocatingEmployeeId ||
+                              allocate.isPending ||
+                              unallocate.isPending ||
+                              allocateTeam.isPending
                             }
                             onClick={() => {
-                              setSelectedEmployeeId(row.id)
+                              if (!teamMode) setSelectedEmployeeId(row.id)
                               handlePickEmployee(row.id)
                             }}
                           >
                             {assigning ? (
                               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : teamSelected ? (
+                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                             ) : (
                               <UserPlus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                             )}
-                            {replacingEmployeeId ? 'Change to' : 'Assign'}
+                            {teamMode
+                              ? teamSelected
+                                ? 'Selected'
+                                : 'Select'
+                              : replacingEmployeeId
+                                ? 'Change to'
+                                : 'Assign'}
                           </Button>
                         </li>
                       )
@@ -1164,6 +1456,52 @@ export function ScheduleJobAllocateDialog({
                   )}
                 </ul>
               )
+            ) : null}
+
+            {teamMode && teamWarnings?.length ? (
+              <div
+                className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30"
+                data-testid="allocate-team-warnings"
+              >
+                <p className="font-semibold text-amber-950 dark:text-amber-100">
+                  Carers not assigned — nothing was saved
+                </p>
+                <ul className="mt-2 space-y-2">
+                  {teamWarnings.map((carer) => (
+                    <li key={carer.employeeId}>
+                      <p className="flex flex-wrap items-center gap-1.5 font-medium text-amber-950 dark:text-amber-100">
+                        {carer.name}
+                        {carer.hardBlocked ? (
+                          <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-900 dark:bg-rose-950 dark:text-rose-200">
+                            Cannot assign
+                          </span>
+                        ) : null}
+                      </p>
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4 text-amber-900 dark:text-amber-200">
+                        {carer.warnings.map((w) => (
+                          <li key={`${carer.employeeId}-${w.type}-${w.message}`}>{w.message}</li>
+                        ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+                {teamCanForce ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-3"
+                    variant="secondary"
+                    disabled={allocateTeam.isPending}
+                    onClick={() => void runAllocateTeam(true)}
+                  >
+                    Assign anyway
+                  </Button>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-900 dark:text-amber-200">
+                    Remove the blocked carer from the selection and choose someone else.
+                  </p>
+                )}
+              </div>
             ) : null}
 
             {pendingWarnings.length > 0 ? (
@@ -1217,6 +1555,11 @@ export function ScheduleJobAllocateDialog({
         </DialogBody>
 
         <DialogFooter className="border-t border-border">
+          {teamMode && teamIssues.length > 0 ? (
+            <p className="mr-auto self-center text-xs font-medium text-destructive" role="status">
+              {teamIssues.join(' · ')}
+            </p>
+          ) : null}
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -1242,20 +1585,23 @@ export function ScheduleJobAllocateDialog({
               disabled={
                 !canSubmitAllocate ||
                 allocate.isPending ||
-                unallocate.isPending
+                unallocate.isPending ||
+                allocateTeam.isPending
               }
               onClick={handleAllocate}
             >
-              {allocate.isPending || unallocate.isPending ? (
+              {allocate.isPending || unallocate.isPending || allocateTeam.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
               ) : (
                 <UserPlus className="mr-2 h-4 w-4" aria-hidden />
               )}
-              {replacingEmployeeId
-                ? 'Change carer'
-                : needsMoreCarers
-                  ? 'Allocate carer'
-                  : 'Assign carer'}
+              {teamMode
+                ? `Assign ${slotsRemaining} carer${slotsRemaining === 1 ? '' : 's'} (${teamSelection.length}/${slotsRemaining})`
+                : replacingEmployeeId
+                  ? 'Change carer'
+                  : needsMoreCarers
+                    ? 'Allocate carer'
+                    : 'Assign carer'}
             </Button>
           ) : null}
         </DialogFooter>

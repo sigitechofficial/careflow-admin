@@ -28,26 +28,17 @@ import { Card, CardContent } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { MultiSelect } from '@/shared/ui/multi-select'
+import { operationalTodayIso, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
 const PAGE_SIZE = 5
 
 const RESIDENT_SCOPE_TOOLTIP =
   'The temporary user will be able to see data only for the selected service users. Leave empty (or clear all) for access to all service users.'
 
-function toDatetimeLocalValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
+/** Today 09:00–17:00 in the organisation timezone (datetime-local values). */
 function defaultWindow(): { from: string; to: string } {
-  const from = new Date()
-  from.setHours(9, 0, 0, 0)
-  const to = new Date()
-  to.setHours(17, 0, 0, 0)
-  if (to.getTime() <= from.getTime()) {
-    to.setDate(to.getDate() + 1)
-  }
-  return { from: toDatetimeLocalValue(from), to: toDatetimeLocalValue(to) }
+  const day = operationalTodayIso()
+  return { from: `${day}T09:00`, to: `${day}T17:00` }
 }
 
 function FormRow({
@@ -167,8 +158,9 @@ export default function TempInspectorPage() {
       setBanner({ type: 'error', text: 'Fill in all required fields.' })
       return
     }
-    const vf = new Date(dateWindow.from)
-    const vt = new Date(dateWindow.to)
+    // The access window is entered in organisation time, not the device's.
+    const vf = new Date(orgDatetimeLocalToIso(dateWindow.from))
+    const vt = new Date(orgDatetimeLocalToIso(dateWindow.to))
     if (Number.isNaN(vf.getTime()) || Number.isNaN(vt.getTime()) || vt.getTime() <= vf.getTime()) {
       setBanner({ type: 'error', text: 'Valid to must be after valid from.' })
       return

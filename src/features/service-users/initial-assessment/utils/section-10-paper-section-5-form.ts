@@ -13,7 +13,6 @@ export const PAPER_SECTION_5_INTRO_QUESTION_TEXT = [
 
 export const PAPER_SECTION_5_EMOTIONAL_WELLBEING_QUESTION_TEXT = [
   'Emotional wellbeing status',
-  'Feels low in mood?',
   'Feels depressed?',
   'GP referral for mental health made?',
 ] as const

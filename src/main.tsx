@@ -6,8 +6,15 @@ import { loadAuditFromStorage } from '@/features/auth/audit'
 import { AppRouter } from '@/router'
 import { queryClient } from '@/app/query-client'
 import { QueryDevtools } from '@/app/query-devtools'
+import { useAuthStore } from '@/features/auth/store'
 
 loadAuditFromStorage()
+
+// Cached server data belongs to the signed-in user: drop it on logout or account switch so the
+// next person on this browser never sees the previous user's records.
+useAuthStore.subscribe((state, prev) => {
+  if (prev.user && state.user?.id !== prev.user.id) queryClient.clear()
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -128,7 +128,9 @@ describe('suggestLoneWorkerControlMeasures', () => {
   it('suggests a measure for each Yes factor, in display order, deduped', () => {
     const s = suggestLoneWorkerControlMeasures({ physicalViolence: true, nightVisits: true })
     expect(s.length).toBe(2)
-    expect(s.some((m) => /two-carer/i.test(m))).toBe(true)
+    // One answer never makes a double-up mandatory — the manager decides the controls.
+    expect(s.some((m) => /manager to review/i.test(m))).toBe(true)
+    expect(s.some((m) => /mandatory/i.test(m))).toBe(false)
     expect(s.some((m) => /night visits/i.test(m))).toBe(true)
     // no duplicate strings
     expect(new Set(s).size).toBe(s.length)

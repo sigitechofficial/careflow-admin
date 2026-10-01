@@ -97,6 +97,9 @@ export type CreateMedicalConditionPayload = {
   onsetDate?: string
   reviewDate?: string
   source?: ServiceUserClinicalDataSource
+  impactOnCare?: string
+  carerGuidance?: string
+  confirmationSource?: string
 }
 
 export type UpdateMedicalConditionPayload = Partial<CreateMedicalConditionPayload>

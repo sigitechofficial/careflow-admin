@@ -13,6 +13,8 @@ import {
 type Props = {
   visible: boolean
   value: EquipmentChecklistMetadata
+  /** A hoist is recorded in use (Moving & Handling tasks / §12.5a). The hoist warning needs it. */
+  hoistInUse?: boolean
   disabled?: boolean
   /** When true, omit outer card title (parent §12.8 panel provides context). */
   embedded?: boolean
@@ -22,6 +24,7 @@ type Props = {
 export function InitialAssessmentEquipmentChecklistPanel({
   visible,
   value,
+  hoistInUse = false,
   disabled,
   embedded,
   onChange,
@@ -90,7 +93,7 @@ export function InitialAssessmentEquipmentChecklistPanel({
         </label>
       </div>
 
-      {!value.hoistServiced && !value.staffTrainingCoversHoist ? (
+      {hoistInUse && (!value.hoistServiced || !value.staffTrainingCoversHoist) ? (
         <p className="text-xs text-amber-800 dark:text-amber-200">
           Hoist in use without confirmed servicing or training — manager review recommended before hoist tasks.
         </p>

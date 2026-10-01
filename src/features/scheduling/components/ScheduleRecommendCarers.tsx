@@ -24,6 +24,11 @@ type JobAssignVariant = {
   allocatingEmployeeId?: string | null
   replacingEmployeeId?: string | null
   onAssign: (employeeId: string) => void
+  /**
+   * Multi-carer team picking: rows toggle selection ("Select" / "Selected")
+   * instead of assigning immediately.
+   */
+  selectedEmployeeIds?: Set<string>
   onCandidatesChange?: (candidates: VisitPlanCarerCandidate[]) => void
   /** Hide title/hint chrome when parent owns search + heading. */
   hideHeader?: boolean
@@ -302,7 +307,15 @@ export function ScheduleRecommendCarers(props: ScheduleRecommendCarersProps) {
           const blocked = candidate.isBlocked
           if (props.variant === 'job-assign') {
             const assigning = props.allocatingEmployeeId === candidate.employeeId
-            const actionLabel = props.replacingEmployeeId ? 'Change to' : 'Assign'
+            const teamPick = props.selectedEmployeeIds != null
+            const isSelected = teamPick && props.selectedEmployeeIds!.has(candidate.employeeId)
+            const actionLabel = teamPick
+              ? isSelected
+                ? 'Selected'
+                : 'Select'
+              : props.replacingEmployeeId
+                ? 'Change to'
+                : 'Assign'
             return (
               <ScheduleRecommendCarersListItem
                 key={candidate.employeeId}
@@ -311,7 +324,8 @@ export function ScheduleRecommendCarers(props: ScheduleRecommendCarersProps) {
                 actionLabel={actionLabel}
                 actionDisabled={blocked || assigning || !!props.allocatingEmployeeId}
                 actionBusy={assigning}
-                actionVariant="secondary"
+                actionVariant={isSelected ? 'default' : 'secondary'}
+                selected={isSelected}
                 showEmployeeRole
                 onAction={() => props.onAssign(candidate.employeeId)}
               />

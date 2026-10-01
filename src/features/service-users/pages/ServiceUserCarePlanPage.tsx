@@ -308,30 +308,48 @@ export default function ServiceUserCarePlanPage() {
                 className="flex flex-wrap items-center gap-1.5"
                 data-testid="care-plans-summary"
               >
-                <Badge variant="warning" size="sm" className="font-normal">
-                  {recommendedCount} Recommended
+                <Badge variant="success" size="sm" className="font-normal">
+                  {liveCount} Live
                 </Badge>
                 <Badge variant="info" size="sm" className="font-normal">
                   {inProgressCount} In Progress
                 </Badge>
-                <Badge variant="success" size="sm" className="font-normal">
-                  {liveCount} Live
+                <Badge variant="warning" size="sm" className="font-normal">
+                  {recommendedCount} Recommended
                 </Badge>
               </p>
             </div>
 
             <CarePlanLifecycleSection
-              title="Recommended"
-              description="Care plans recommended from medical conditions and the latest Initial Assessment."
-              testId="recommended-care-plans"
-              headingId="care-plans-recommended"
+              title="Live Care Plans"
+              testId="live-care-plans"
+              headingId="care-plans-live"
             >
-              <CarePlanIaRecommendationsBody
-                serviceUserId={serviceUserId}
-                layout="lifecycle"
-                includePendingFormIds={recommendedFormIds}
-                cataloguedFormIds={cataloguedFormIds}
-              />
+              {buckets.live.length === 0 ? (
+                <p className={contentHelperClass}>No published care plans yet.</p>
+              ) : (
+                <div className={CARE_PLAN_GRID}>
+                  {buckets.live.map((plan) => {
+                    const instance = instancesByFormId.get(plan.id)
+                    const withDraft = instance?.displayStatus === 'PUBLISHED_WITH_DRAFT'
+                    return (
+                      <CarePlanCard
+                        key={plan.id}
+                        title={plan.name}
+                        pictureUrl={plan.pictureUrl}
+                        onOpen={() => openCarePlanForm(plan.id)}
+                        displayState={withDraft ? 'LIVE_WITH_DRAFT' : 'LIVE'}
+                        displayStatus={instance?.displayStatus}
+                        statusLabel="Live"
+                        secondaryBadge={withDraft ? 'Update in progress' : null}
+                        review={instance?.review}
+                        meta={liveCardMeta(instance)}
+                        actionLabel={withDraft ? 'Continue editing' : 'View plan'}
+                      />
+                    )
+                  })}
+                </div>
+              )}
             </CarePlanLifecycleSection>
 
             <CarePlanLifecycleSection
@@ -370,35 +388,17 @@ export default function ServiceUserCarePlanPage() {
             </CarePlanLifecycleSection>
 
             <CarePlanLifecycleSection
-              title="Live Care Plans"
-              testId="live-care-plans"
-              headingId="care-plans-live"
+              title="Recommended"
+              description="Care plans recommended from medical conditions and the latest Initial Assessment."
+              testId="recommended-care-plans"
+              headingId="care-plans-recommended"
             >
-              {buckets.live.length === 0 ? (
-                <p className={contentHelperClass}>No published care plans yet.</p>
-              ) : (
-                <div className={CARE_PLAN_GRID}>
-                  {buckets.live.map((plan) => {
-                    const instance = instancesByFormId.get(plan.id)
-                    const withDraft = instance?.displayStatus === 'PUBLISHED_WITH_DRAFT'
-                    return (
-                      <CarePlanCard
-                        key={plan.id}
-                        title={plan.name}
-                        pictureUrl={plan.pictureUrl}
-                        onOpen={() => openCarePlanForm(plan.id)}
-                        displayState={withDraft ? 'LIVE_WITH_DRAFT' : 'LIVE'}
-                        displayStatus={instance?.displayStatus}
-                        statusLabel="Live"
-                        secondaryBadge={withDraft ? 'Update in progress' : null}
-                        review={instance?.review}
-                        meta={liveCardMeta(instance)}
-                        actionLabel={withDraft ? 'Continue editing' : 'View plan'}
-                      />
-                    )
-                  })}
-                </div>
-              )}
+              <CarePlanIaRecommendationsBody
+                serviceUserId={serviceUserId}
+                layout="lifecycle"
+                includePendingFormIds={recommendedFormIds}
+                cataloguedFormIds={cataloguedFormIds}
+              />
             </CarePlanLifecycleSection>
 
             <section

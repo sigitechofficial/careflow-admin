@@ -50,23 +50,21 @@ describe('sortPersonalDetailsQuestions', () => {
     ])
   })
 
-  it('interleaves LPOA and assessor designation per paper form', () => {
+  it('orders LPOA fields after assessment completed date', () => {
     const sorted = sortPersonalDetailsQuestions([
-      q('Assessor designation', 3),
-      q('LPOA name', 2),
-      q('LPOA appointed?', 1),
-      q('LPOA contact details', 5),
+      q('LPA name', 2),
+      q('LPA appointed?', 1),
+      q('LPA contact details', 5),
       q('Assessment completed date and time', 6),
-      q('LPOA designation', 7),
+      q('LPA designation', 7),
     ])
 
     expect(sorted.map((x) => x.questionText)).toEqual([
       'Assessment completed date and time',
-      'LPOA appointed?',
-      'LPOA designation',
-      'LPOA name',
-      'Assessor designation',
-      'LPOA contact details',
+      'LPA appointed?',
+      'LPA designation',
+      'LPA name',
+      'LPA contact details',
     ])
   })
 })

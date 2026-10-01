@@ -1,33 +1,7 @@
 /** Quick Guide to Equipment Selection — Pressure relieving / redistribution devices (paper reference). */
 
-export type PressureRiskEquipmentRow = {
-  riskLevel: string
-  scoreRange: string
-  recommendedEquipment: string
-}
-
-export const PRESSURE_RISK_EQUIPMENT_ROWS: PressureRiskEquipmentRow[] = [
-  {
-    riskLevel: 'Minimal risk',
-    scoreRange: '< 10',
-    recommendedEquipment: 'High risk foam mattress / alternating overlay',
-  },
-  {
-    riskLevel: 'At risk',
-    scoreRange: '10–14',
-    recommendedEquipment: 'High risk foam mattress / alternating overlay',
-  },
-  {
-    riskLevel: 'High risk',
-    scoreRange: '15–19',
-    recommendedEquipment: 'Full replacement mattress',
-  },
-  {
-    riskLevel: 'Very high risk',
-    scoreRange: '20+',
-    recommendedEquipment: 'Full replacement mattress',
-  },
-]
+// Risk bands and the equipment to consider per band come from the Waterlow tab's
+// WATERLOW_EQUIPMENT_CATALOG (single source) — no second, contradicting table here.
 
 export const EQUIPMENT_SELECTION_ADVISORY_NOTES = [
   'Consider postural alignment, distribution of weight, balance, stability, and pressure risk adjustment when positioning or selecting equipment.',
@@ -44,7 +18,7 @@ export const EQUIPMENT_PRODUCT_GUIDE_ROWS: EquipmentProductGuideRow[] = [
   {
     product: 'Foam cushion',
     information: 'Fits chairs and wheelchairs',
-    indicationsForUse: 'At risk / high risk',
+    indicationsForUse: 'At risk (10–14) / high risk (15–19)',
   },
   {
     product: 'Dynamic cushion (high risk)',
@@ -55,23 +29,23 @@ export const EQUIPMENT_PRODUCT_GUIDE_ROWS: EquipmentProductGuideRow[] = [
     product: 'Foam overlay',
     information:
       "Foam pad placed on top of mattress; can be used on client's own mattress",
-    indicationsForUse: 'At risk / medium risk',
+    indicationsForUse: 'At risk (10–14)',
   },
   {
     product: 'Foam replacement mattress',
     information: "For use with hospital bed and client's own bed",
-    indicationsForUse: 'At risk / medium risk',
+    indicationsForUse: 'At risk (10–14)',
   },
   {
     product: 'Electric alternating mattress (overlay)',
     information:
       'Can be placed on top of existing mattress (single); assess the height of the bed to ensure client safety',
-    indicationsForUse: 'Medium to high risk; weight restriction to 140 kg',
+    indicationsForUse: 'At risk to high risk (10–19); weight restriction to 140 kg',
   },
   {
     product: 'Electric alternating mattress (full replacement mattress)',
     information: 'Requires hospital bed',
-    indicationsForUse: 'High risk; existing pressure ulcer; limited mobility',
+    indicationsForUse: 'High / very high risk (15+); existing pressure ulcer; limited mobility',
   },
   {
     product: 'Off loading boot',

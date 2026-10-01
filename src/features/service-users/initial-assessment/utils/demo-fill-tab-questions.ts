@@ -14,7 +14,8 @@ function fieldKeyOf(q: InitialAssessmentQuestion): string | undefined {
   return typeof key === 'string' ? key : undefined
 }
 
-const CONSENT_SPEC_REFS = new Set(['2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9'])
+/** §2 capacity / MCA gate, best interest and deprivation-of-liberty fields live on the MCA tab (id 3). */
+const MCA_TAB_SECTION_2_SPEC_REFS = new Set(['2.5', '2.6', '2.9'])
 
 /**
  * Template questions this tab's Fill Demo Data must include even when they are hidden
@@ -31,10 +32,15 @@ export function extraDemoFillQuestionsForTab(
       const assessor = (sec1?.questions ?? []).filter((q) => fieldKeyOf(q) === 'assessorName')
       return assessor
     }
+    case 23:
+      return all.filter((q) => {
+        const ref = specRefOf(q)
+        return ref === '2.1' || ref === '2.3' || ref === '2.4' || ref === '2.8' || ref === '2.11' || ref === '2.12'
+      })
     case 3:
       return all.filter((q) => {
         const ref = specRefOf(q)
-        return ref != null && CONSENT_SPEC_REFS.has(ref)
+        return ref != null && MCA_TAB_SECTION_2_SPEC_REFS.has(ref)
       })
     case 8:
       return all.filter((q) => specRefOf(q) === '12.7')
@@ -42,13 +48,16 @@ export function extraDemoFillQuestionsForTab(
       const sec3 = sections.find((s) => s.sectionNumber === 3)
       return (sec3?.questions ?? []).filter((q) => !isSection31FireQuestion(q))
     }
-    case 13: {
+    case 24: {
       const sec13 = sections.find((s) => s.sectionNumber === 13)
       return sec13?.questions ?? []
     }
     case 16: {
       const sec14 = sections.find((s) => s.sectionNumber === 14)
-      return (sec14?.questions ?? []).filter((q) => specRefOf(q) === '14.1')
+      return [
+        ...(sec14?.questions ?? []).filter((q) => specRefOf(q) === '14.1'),
+        ...all.filter((q) => specRefOf(q) === '2.2'),
+      ]
     }
     case 21: {
       const sec15 = sections.find((s) => s.sectionNumber === 15)

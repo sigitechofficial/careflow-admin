@@ -32,27 +32,23 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { cn } from '@/shared/lib/utils'
+import { isoToOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
 const REASON_NONE = '__none__'
 
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
+/** DD-MM-YYYY HH:mm in the organisation timezone (not the device's). */
 function formatActivityCell(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  const local = isoToOrgDatetimeLocal(iso)
+  if (!local) return '—'
+  return `${local.slice(8, 10)}-${local.slice(5, 7)}-${local.slice(0, 4)} ${local.slice(11, 16)}`
 }
 
 function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  return isoToOrgDatetimeLocal(iso)
 }
 
 function fromDatetimeLocalValue(local: string): string {
-  return new Date(local).toISOString()
+  return orgDatetimeLocalToIso(local)
 }
 
 function employeeDisplayName(emp: EmployeeListRow): string {

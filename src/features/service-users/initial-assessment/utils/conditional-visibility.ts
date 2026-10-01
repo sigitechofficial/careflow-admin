@@ -5,6 +5,7 @@ import {
   isYesAnswer,
   specRefOf,
 } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import { isCapacityInDoubt } from '@/features/service-users/initial-assessment/utils/consent-capacity'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
@@ -16,7 +17,8 @@ type ShowWhenRule = {
   gateFieldKey?: string
   yes?: boolean
   no?: boolean
-  selectedIncludes?: string
+  /** Select gates: shown when any of these option values is chosen. */
+  selectedIncludes?: string | string[]
 }
 
 /** Follow-up questions in the enterprise seed that depend on a prior Yes/No gate. */
@@ -136,7 +138,12 @@ function parseMetadataShowWhen(metadata: Record<string, unknown> | null | undefi
     gateFieldKey,
     yes: row.yes === true ? true : undefined,
     no: row.no === true ? true : undefined,
-    selectedIncludes: typeof row.selectedIncludes === 'string' ? row.selectedIncludes : undefined,
+    selectedIncludes:
+      typeof row.selectedIncludes === 'string'
+        ? row.selectedIncludes
+        : Array.isArray(row.selectedIncludes)
+          ? row.selectedIncludes.filter((v): v is string => typeof v === 'string')
+          : undefined,
   }
 }
 
@@ -162,8 +169,10 @@ function gateAnswerMatches(
 
   const answer = draftAnswers[gate.id]
   if (rule.selectedIncludes) {
-    const needle = rule.selectedIncludes.toLowerCase()
-    return selectedOptionValues(answer).some((v) => v.toLowerCase() === needle)
+    const wanted = (Array.isArray(rule.selectedIncludes) ? rule.selectedIncludes : [rule.selectedIncludes]).map((v) =>
+      v.toLowerCase(),
+    )
+    return selectedOptionValues(answer).some((v) => wanted.includes(v.toLowerCase()))
   }
   if (rule.yes) return isYesAnswer(answer)
   if (rule.no) return isExplicitNo(answer)
@@ -183,6 +192,15 @@ export function shouldShowQuestion(
   sections: InitialAssessmentSection[],
   draftAnswers: Record<string, InitialAssessmentAnswerInput>,
 ): boolean {
+  // Capacity in doubt (Consent) surfaces the MCA block even when "MCA required?" is not yet Yes —
+  // checked before the gate rules so the "mca completed ← mca required" rule cannot hide it.
+  // Mirrors careflow-api `shouldShowQuestionForValidation`.
+  if (
+    (specRefOf(q) === '2.mca' || q.questionText.toLowerCase().includes('mca completed')) &&
+    isCapacityInDoubt(sections, draftAnswers)
+  ) {
+    return true
+  }
   if (specRefOf(q) === '2.mca') {
     const requiredQ =
       findQuestionByFieldKey(sections, 'mcaRequired') ?? findQuestionByTextIncludes(sections, 'mca required')
@@ -199,12 +217,6 @@ export function shouldShowQuestion(
   if (fieldKey === 'weightKg' || q.questionText.trim().toLowerCase() === 'weight (kg)') {
     const unableGate = findQuestionByFieldKey(sections, 'unableToWeigh')
     if (unableGate && isYesAnswer(draftAnswers[unableGate.id])) return false
-  }
-
-  // Capacity not intact → surface MCA block when capacity is No
-  if (q.questionText.toLowerCase().includes('mca completed')) {
-    const capacityQ = sections.flatMap((s) => s.questions).find((x) => x.metadata?.specRef === '2.4')
-    if (capacityQ && isExplicitNo(draftAnswers[capacityQ.id])) return true
   }
 
   // Assessor sign-off fields only on section 14

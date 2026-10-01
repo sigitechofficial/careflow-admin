@@ -66,6 +66,10 @@ export function recommendedPainScale(
   sections: InitialAssessmentSection[],
   answers: Record<string, InitialAssessmentAnswerInput>,
 ): Exclude<PainScaleUsed, 'both'> {
+  const painQ = findQuestionByFieldKey(sections, 'painConcerns')
+  const painSel = painQ ? answers[painQ.id]?.selectedOptions : undefined
+  if (Array.isArray(painSel) && painSel.map(String).includes('unable_to_self_report')) return 'abbey'
+
   const cognitiveQ = findQuestionByFieldKey(sections, 'cognitiveImpairment')
   const cognitive = cognitiveQ ? singleSelectValue(answers[cognitiveQ.id]) : undefined
   if (cognitive && cognitive !== 'none') return 'abbey'

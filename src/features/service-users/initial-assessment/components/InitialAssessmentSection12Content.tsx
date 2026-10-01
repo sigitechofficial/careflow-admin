@@ -10,6 +10,7 @@ import { InitialAssessmentQuestionField } from '@/features/service-users/initial
 import { InitialAssessmentSection12QuestionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12QuestionPanel'
 import { InitialAssessmentTransferMatrixPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentTransferMatrixPanel'
 import {
+  answerIsPrefillValue,
   hasAssessmentAnswer,
   mergePrefillAnswer,
   prefillHintForQuestion,
@@ -161,7 +162,9 @@ export function InitialAssessmentSection12Content({
       <InitialAssessmentQuestionField
         question={q}
         value={merged}
-        prefillHint={hasAssessmentAnswer(raw, q) ? null : hint}
+        prefillHint={
+          !hasAssessmentAnswer(raw, q) || answerIsPrefillValue(q, raw, prefillMap) ? hint : null
+        }
         errorMessage={questionErrors?.get(q.id)}
         disabled={isFieldDisabled(q)}
         serviceUserId={serviceUserId}

@@ -10,9 +10,33 @@ import { InitialAssessmentEnvironmentAssessmentPanel } from '@/features/service-
 import { InitialAssessmentAdvanceCarePlanningPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAdvanceCarePlanningPanel'
 import { InitialAssessmentEndOfLifeAssessmentPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEndOfLifeAssessmentPanel'
 import { InitialAssessmentClinicalOutcomeSummaryPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentClinicalOutcomeSummaryPanel'
+import { InitialAssessmentAgreedGoalsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAgreedGoalsPanel'
+import type { AgreedGoalsMetadata } from '@/features/service-users/initial-assessment/utils/agreed-goals'
 import { InitialAssessmentCarePlanObjectivesPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCarePlanObjectivesPanel'
 import { InitialAssessmentMentalCapacityChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMentalCapacityChecklistPanel'
-import { InitialAssessmentPhotographyConsentPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentPhotographyConsentPanel'
+import { InitialAssessmentConsentPhotographyPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentConsentPhotographyPanel'
+import { consentGiver } from '@/features/service-users/initial-assessment/utils/consent-capacity'
+import {
+  completedDecisionFor,
+  consentToCareCapacityState,
+  type CapacityDecisionNeed,
+  type CapacityDecisionRecord,
+} from '@/features/service-users/initial-assessment/utils/capacity-decisions'
+import { IA_CALLOUT_AMBER_CLASS, IA_CALLOUT_NEUTRAL_CLASS } from '@/features/service-users/initial-assessment/utils/form-typography'
+import { cn } from '@/shared/lib/utils'
+import { formatDisplayDate } from '@/shared/lib/display-format.util'
+import type { LegalAuthorityRow } from '@/features/service-users/initial-assessment/utils/legal-authority-coverage'
+import { InitialAssessmentSpecialistTriggerNote } from '@/features/service-users/initial-assessment/components/InitialAssessmentSpecialistTriggerNote'
+import { InitialAssessmentAssessmentSummaryPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentAssessmentSummaryPanel'
+import type { AssessmentSummary } from '@/features/service-users/initial-assessment/utils/assessment-summary'
+import {
+  carePlanVisitIdsFromSections,
+  detectCarePlanEquipmentInUse,
+} from '@/features/service-users/initial-assessment/utils/care-plan-objectives'
+import { InitialAssessmentConditionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentConditionsPanel'
+import type { ConditionProposal } from '@/features/service-users/initial-assessment/utils/condition-proposals'
+import { InitialAssessmentCapacityDecisionsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentCapacityDecisionsPanel'
+import { findQuestionByFieldKey, isYesAnswer } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import { InitialAssessmentQuestionField } from '@/features/service-users/initial-assessment/components/InitialAssessmentQuestionField'
 import { InitialAssessmentSection12Content } from '@/features/service-users/initial-assessment/components/InitialAssessmentSection12Content'
 import { InitialAssessmentPaperSection4Block } from '@/features/service-users/initial-assessment/components/InitialAssessmentPaperSection4Block'
@@ -25,15 +49,27 @@ import { InitialAssessmentTotalSkinIntegrityCheckPanel } from '@/features/servic
 import { InitialAssessmentEquipmentSelectionPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentSelectionPanel'
 import { InitialAssessmentEquipmentChecklistPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentEquipmentChecklistPanel'
 import { InitialAssessmentFallsScreeningPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentFallsScreeningPanel'
+import { shouldShowQuestion } from '@/features/service-users/initial-assessment/utils/conditional-visibility'
+import { InitialAssessmentFallsHistoryPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentFallsHistoryPanel'
+import { fallsCaseFindingFromAnswers } from '@/features/service-users/initial-assessment/utils/falls-case-finding'
+import {
+  filterSection12Questions,
+  section12FallsHistoryQuestions,
+} from '@/features/service-users/initial-assessment/utils/section-12-mobility'
 import { InitialAssessmentMovingHandlingOperationsPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMovingHandlingOperationsPanel'
 import { InitialAssessmentMustPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentMustPanel'
 import { InitialAssessmentWaterlowPanel } from '@/features/service-users/initial-assessment/components/InitialAssessmentWaterlowPanel'
 import type { ServiceUserDetail } from '@/features/service-users/api'
 import {
+  FINAL_TAB_CONSENT_TO_CARE_SPEC_REFS,
+  FINAL_TAB_REVIEW_SPEC_REFS,
+  filterQuestionsForHolisticTab,
   holisticMultiSectionSliceKey,
+  holisticTabRef,
   type HolisticAssessmentTab,
   type SectionQuestionFilter,
 } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import { getVisibleSectionQuestions } from '@/features/service-users/initial-assessment/utils/visible-section-questions'
 import {
   isPaperSection4MainSlice,
   isPaperSection4TailSlice,
@@ -57,11 +93,18 @@ import type { AdvanceCarePlanningMetadata } from '@/features/service-users/initi
 import type { EndOfLifeAssessmentMetadata } from '@/features/service-users/initial-assessment/utils/end-of-life-assessment'
 import type { ClinicalAssessmentOutcomeSummaryMetadata } from '@/features/service-users/initial-assessment/utils/clinical-assessment-outcome-summary'
 import type { CarePlanObjectivesMetadata } from '@/features/service-users/initial-assessment/utils/care-plan-objectives'
-import type { MentalCapacityChecklistMetadata } from '@/features/service-users/initial-assessment/utils/mental-capacity-checklist'
+import {
+  MENTAL_CAPACITY_SCREENING_SYNCED_IDS,
+  type MentalCapacityChecklistMetadata,
+} from '@/features/service-users/initial-assessment/utils/mental-capacity-checklist'
 import type { PhotographyConsentMetadata } from '@/features/service-users/initial-assessment/utils/photography-consent'
 import type { EquipmentSelectionMetadata } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import type { MustMetadata } from '@/features/service-users/initial-assessment/utils/must-scoring'
-import type { WaterlowMetadata } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
+import {
+  WATERLOW_REVIEW_INTERVAL_MONTHS,
+  WATERLOW_REVIEW_SOURCE,
+  type WaterlowMetadata,
+} from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 import {
   findMcaCompletedQuestion,
   findMcaRequiredQuestion,
@@ -77,6 +120,8 @@ import type {
   InitialAssessmentQuestion,
   InitialAssessmentSection,
 } from '@/features/service-users/initial-assessment/types'
+import { movingHandlingUsesHoist } from '@/features/service-users/initial-assessment/utils/sync-hoist-from-moving-handling'
+import type { EnvironmentAssessmentLoneWorkerFactorId } from '@/features/service-users/initial-assessment/utils/environment-assessment'
 
 type Section12Bundle = {
   adl: AdlWorksheetMetadata
@@ -118,6 +163,7 @@ type Props = {
   endOfLifeAssessment: EndOfLifeAssessmentMetadata
   clinicalOutcomeSummary: ClinicalAssessmentOutcomeSummaryMetadata
   carePlanObjectives: CarePlanObjectivesMetadata
+  agreedGoals: AgreedGoalsMetadata
   mentalCapacityChecklist: MentalCapacityChecklistMetadata
   photographyConsent: PhotographyConsentMetadata
   equipmentSelection: EquipmentSelectionMetadata
@@ -140,6 +186,21 @@ type Props = {
   onOpenInfectionControlTab?: () => void
   onPainAssessmentChange: (next: PainAssessmentMetadata) => void
   onWaterlowChange: (next: WaterlowMetadata) => void
+  /** Decision-specific capacity records (`metadata.capacityDecisions`). */
+  capacityDecisions?: CapacityDecisionRecord[]
+  capacityDecisionNeeds?: CapacityDecisionNeed[]
+  /** Old IA that only has the global §2.mca screening. */
+  legacyCapacityScreening?: boolean
+  legacyCapacityScreeningAnswered?: boolean
+  capacityAssessorName?: string
+  /** Read-only overview shown on the outcome summary tab. */
+  assessmentSummary?: AssessmentSummary
+  /** Current conditions staged in the IA (`metadata.conditionProposals`). */
+  conditionProposals?: ConditionProposal[]
+  onConditionProposalsChange?: (next: ConditionProposal[]) => void
+  /** Legal authority register rows (for "who decides" coverage on capacity records). */
+  legalAuthorities?: LegalAuthorityRow[]
+  onCapacityDecisionsChange?: (next: CapacityDecisionRecord[]) => void
   onMustAssessmentChange: (next: MustMetadata) => void
   onFallsScreeningChange: (next: FallsScreeningMetadata) => void
   onMovingHandlingOperationsChange: (next: MovingHandlingOperationsMetadata) => void
@@ -148,6 +209,7 @@ type Props = {
   onEndOfLifeAssessmentChange: (next: EndOfLifeAssessmentMetadata) => void
   onClinicalOutcomeSummaryChange: (next: ClinicalAssessmentOutcomeSummaryMetadata) => void
   onCarePlanObjectivesChange: (next: CarePlanObjectivesMetadata) => void
+  onAgreedGoalsChange: (next: AgreedGoalsMetadata) => void
   onMentalCapacityChecklistChange: (
     updater:
       | MentalCapacityChecklistMetadata
@@ -163,7 +225,27 @@ type Props = {
   }) => void
   onChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void
   section12: Section12Bundle
+  /** Lone-worker factor context (system facts, other tabs) shown on the Environment tab. */
+  loneWorkerFactorHints?: Partial<Record<EnvironmentAssessmentLoneWorkerFactorId, string>>
 }
+
+/** §12.5 answers derived from the Moving & Handling tasks — never asked directly. */
+const MOBILITY_DERIVED_FIELD_KEYS = new Set(['usesHoistOrSling', 'transferSupportRequired'])
+
+/** Hoist recorded in the M&H tasks, or (older IAs) the §12.5a "Uses hoist or sling?" answer. */
+function hoistRecordedInUse(
+  sections: InitialAssessmentSection[],
+  answers: Record<string, InitialAssessmentAnswerInput>,
+  movingHandling: MovingHandlingOperationsMetadata,
+): boolean {
+  const fromTasks = movingHandlingUsesHoist(movingHandling)
+  if (fromTasks !== undefined) return fromTasks
+  const q = findQuestionByFieldKey(sections, 'usesHoistOrSling')
+  return Boolean(q && isYesAnswer(answers[q.id]))
+}
+
+const FINAL_TAB_PANEL_CLASS =
+  'mt-6 space-y-4 rounded-sm border border-slate-300 bg-white p-4 dark:border-slate-600 dark:bg-card'
 
 function toHolisticTabSlice(
   tab: HolisticAssessmentTab,
@@ -201,6 +283,7 @@ export function InitialAssessmentDocumentTabContent({
   endOfLifeAssessment,
   clinicalOutcomeSummary,
   carePlanObjectives,
+  agreedGoals,
   mentalCapacityChecklist,
   photographyConsent,
   equipmentSelection,
@@ -223,6 +306,16 @@ export function InitialAssessmentDocumentTabContent({
   onOpenInfectionControlTab,
   onPainAssessmentChange,
   onWaterlowChange,
+  capacityDecisions = [],
+  capacityDecisionNeeds = [],
+  legacyCapacityScreening = false,
+  legacyCapacityScreeningAnswered = false,
+  capacityAssessorName,
+  assessmentSummary,
+  conditionProposals = [],
+  onConditionProposalsChange,
+  legalAuthorities = [],
+  onCapacityDecisionsChange,
   onMustAssessmentChange,
   onFallsScreeningChange,
   onMovingHandlingOperationsChange,
@@ -231,6 +324,7 @@ export function InitialAssessmentDocumentTabContent({
   onEndOfLifeAssessmentChange,
   onClinicalOutcomeSummaryChange,
   onCarePlanObjectivesChange,
+  onAgreedGoalsChange,
   onMentalCapacityChecklistChange,
   onPhotographyConsentChange,
   onEquipmentSelectionChange,
@@ -238,6 +332,7 @@ export function InitialAssessmentDocumentTabContent({
   onSectionFooterChange,
   onChange,
   section12,
+  loneWorkerFactorHints,
 }: Props) {
   const footer = onSectionFooterChange ? (
     <HolisticFooterFields
@@ -262,6 +357,7 @@ export function InitialAssessmentDocumentTabContent({
   }
 
   const renderMcaField = (q: InitialAssessmentQuestion, fieldOptions?: { hideLabel?: boolean }) => (
+    <>
     <InitialAssessmentQuestionField
       question={q}
       value={mergePrefillAnswer(q, draftAnswers[q.id], prefillMap)}
@@ -274,7 +370,36 @@ export function InitialAssessmentDocumentTabContent({
       prefillHint={prefillHintForQuestion(q, prefillMap)}
       onChange={(patch) => onChange(q.id, patch)}
     />
+    <InitialAssessmentSpecialistTriggerNote questionId={q.id} />
+    </>
   )
+
+  const renderAppendedSection = (appended: NonNullable<HolisticAssessmentTab['appendedSection']>) => {
+    const { sectionNumber, ...filter } = appended
+    const section = sections.find((s) => s.sectionNumber === sectionNumber)
+    if (!section) return null
+    return (
+      <div className="mt-6">
+        <InitialAssessmentSectionQuestions
+          key={`${tab.id}-appended-${sectionNumber}`}
+          section={section}
+          allSections={sections}
+          draftAnswers={draftAnswers}
+          prefillMap={prefillMap}
+          questionErrors={questionErrors}
+          disabled={disabled}
+          serviceUserId={serviceUserId}
+          submissionId={submissionId}
+          serviceUserDetail={serviceUserDetail}
+          onSyncEmergencyContact={onSyncEmergencyContact}
+          onOpenEnvironmentAssessmentTab={onOpenEnvironmentAssessmentTab}
+          excludeQuestionIds={excludeQuestionIds}
+          holisticTab={toHolisticTabSlice(tab, sectionNumber, filter)}
+          onChange={onChange}
+        />
+      </div>
+    )
+  }
 
   if (tab.kind === 'mca-screening') {
     const section2 = sections.find((s) => s.sectionNumber === 2)
@@ -293,16 +418,33 @@ export function InitialAssessmentDocumentTabContent({
             <p className="text-sm font-semibold text-foreground">MCA requirement</p>
             <p className="text-sm text-muted-foreground">
               Answer here once. Screening questions appear when MCA is required; the full checklist
-              (Tab 17) is only needed when this is Yes.
+              ({holisticTabRef(17)}) is only needed when this is Yes.
             </p>
             {gateQuestions.map((q) => renderMcaField(q))}
           </div>
         ) : null}
-        <InitialAssessmentMcaScreeningPanel
-          allSections={sections}
-          renderField={renderMcaField}
-          disabled={disabled}
+        <InitialAssessmentCapacityDecisionsPanel
+          records={capacityDecisions}
+          needs={capacityDecisionNeeds}
+          disabled={disabled || !onCapacityDecisionsChange}
+          assessorName={capacityAssessorName}
+          legalAuthorities={legalAuthorities}
+          onChange={(next) => onCapacityDecisionsChange?.(next)}
         />
+        {/* Old IAs recorded one global screening — kept readable; editable only while still in use. */}
+        {legacyCapacityScreening || legacyCapacityScreeningAnswered ? (
+          <>
+            <p className={cn(IA_CALLOUT_NEUTRAL_CLASS, 'text-sm')} data-testid="ia-mca-legacy-note">
+              Earlier capacity screening (one screening for the whole assessment). New assessments record each
+              decision above.
+            </p>
+            <InitialAssessmentMcaScreeningPanel
+              allSections={sections}
+              renderField={renderMcaField}
+              disabled={disabled || !legacyCapacityScreening}
+            />
+          </>
+        ) : null}
         {section2 ? (
           <InitialAssessmentSectionQuestions
             section={section2}
@@ -321,7 +463,7 @@ export function InitialAssessmentDocumentTabContent({
               title: tab.title,
               kind: 'form-section',
               enterpriseSection: 2,
-              specRefs: ['2.9'],
+              specRefs: ['2.6', '2.9'],
             }}
             suppressIntro
           />
@@ -336,8 +478,8 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Measurements & MUST"
-          body="Use Tab 1 for height/weight/appetite narrative. Waterlow scores pressure risk here; MUST (Tab 7) scores malnutrition. Score also syncs to Equipment Selection."
-          actionLabel="Open MUST (Tab 7)"
+          body={`Use ${holisticTabRef(1)} for height/weight/appetite narrative. Waterlow scores pressure risk here; MUST (${holisticTabRef(7)}) scores malnutrition. Score also syncs to Equipment Selection.`}
+          actionLabel={`Open MUST (${holisticTabRef(7)})`}
           onAction={onOpenMustTab}
           testId="ia-waterlow-link-banner"
         />
@@ -345,6 +487,7 @@ export function InitialAssessmentDocumentTabContent({
           value={waterlow}
           disabled={disabled}
           onChange={onWaterlowChange}
+          nextReviewHint={`Filled as ${WATERLOW_REVIEW_INTERVAL_MONTHS} month after the assessment (${WATERLOW_REVIEW_SOURCE}); reassess sooner if the person's condition changes.`}
         />
       </>
     )
@@ -355,13 +498,14 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Waterlow score"
-          body="Pressure ulcer risk score comes from Tab 5 (Waterlow) and syncs into this form when available."
-          actionLabel="Open Waterlow (Tab 5)"
+          body={`Pressure ulcer risk score comes from ${holisticTabRef(5)} (Waterlow) and syncs into this form when available.`}
+          actionLabel={`Open Waterlow (${holisticTabRef(5)})`}
           onAction={onOpenWaterlowTab}
           testId="ia-equipment-waterlow-link-banner"
         />
         <InitialAssessmentEquipmentSelectionPanel
           value={equipmentSelection}
+          waterlow={waterlow}
           disabled={disabled}
           onChange={onEquipmentSelectionChange}
         />
@@ -370,6 +514,7 @@ export function InitialAssessmentDocumentTabContent({
             <InitialAssessmentEquipmentChecklistPanel
               visible
               embedded={false}
+              hoistInUse={hoistRecordedInUse(sections, draftAnswers, movingHandlingOperations)}
               value={section12.equipmentChecklist}
               disabled={disabled}
               onChange={section12.onEquipmentChecklistChange}
@@ -385,8 +530,8 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Weight & nutrition measurements"
-          body="Height, weight and appetite live on Tab 1. This MUST tool scores malnutrition risk — don’t re-enter kg/BMI here as free text."
-          actionLabel="Open Personal Details (Tab 1)"
+          body={`Height, weight and appetite live on ${holisticTabRef(1)}. This MUST tool scores malnutrition risk — don’t re-enter kg/BMI here as free text.`}
+          actionLabel={`Open Personal Details (${holisticTabRef(1)})`}
           onAction={onOpenPersonalDetailsTab}
           testId="ia-must-link-banner"
         />
@@ -400,22 +545,48 @@ export function InitialAssessmentDocumentTabContent({
   }
 
   if (tab.kind === 'falls-screening') {
+    const section12 = sections.find((s) => s.sectionNumber === 12)
+    const historyQuestions = section12
+      ? section12FallsHistoryQuestions(section12.questions).filter((q) =>
+          shouldShowQuestion(q, sections, draftAnswers),
+        )
+      : []
     return (
-      <InitialAssessmentFallsScreeningPanel
-        value={fallsScreening}
-        disabled={disabled}
-        onChange={onFallsScreeningChange}
-      />
+      <>
+        <InitialAssessmentFallsHistoryPanel
+          questions={historyQuestions}
+          caseFinding={fallsCaseFindingFromAnswers(sections, draftAnswers)}
+          renderField={(q) => renderMcaField(q)}
+        />
+        <InitialAssessmentFallsScreeningPanel
+          value={fallsScreening}
+          disabled={disabled}
+          onChange={onFallsScreeningChange}
+        />
+      </>
     )
   }
+
+  // §12.5 mobility facts (bed-bound, amputation, transfers, care locations) are read by care plans
+  // and risk generation; hoist use and transfer support stay hidden and derived from the tasks.
+  const mobilityFactQuestions =
+    tab.kind === 'moving-handling'
+      ? filterSection12Questions(
+          sections.find((s) => s.sectionNumber === 12)?.questions ?? [],
+        )
+          .filter((q) => typeof q.metadata?.specRef === 'string' && q.metadata.specRef.startsWith('12.5'))
+          .filter((q) => !MOBILITY_DERIVED_FIELD_KEYS.has(String(q.metadata?.fieldKey ?? '')))
+          .filter((q) => shouldShowQuestion(q, sections, draftAnswers))
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+      : []
 
   if (tab.kind === 'moving-handling') {
     return (
       <>
         <InitialAssessmentTabLinkBanner
           title="Fall history"
-          body="Recent falls and medicines-related fall risk are recorded on Tab 8 (Falls Screening). Answers sync into this risk filter when empty."
-          actionLabel="Open Falls Screening (Tab 8)"
+          body={`Recent falls and medicines-related fall risk are recorded on ${holisticTabRef(8)} (Falls Screening). Answers sync into this risk filter when empty.`}
+          actionLabel={`Open Falls Screening (${holisticTabRef(8)})`}
           onAction={onOpenFallsScreeningTab}
           testId="ia-mh-falls-link-banner"
         />
@@ -424,6 +595,22 @@ export function InitialAssessmentDocumentTabContent({
           disabled={disabled}
           onChange={onMovingHandlingOperationsChange}
         />
+        {mobilityFactQuestions.length > 0 ? (
+          <div
+            className="mt-6 space-y-4 rounded-sm border border-slate-300 bg-white p-4 dark:border-slate-600 dark:bg-card"
+            data-testid="ia-mh-mobility-facts"
+          >
+            <div>
+              <p className="text-sm font-semibold text-foreground">Mobility details</p>
+              <p className="text-sm text-muted-foreground">
+                Hoist use and transfer support are worked out from the tasks above.
+              </p>
+            </div>
+            {mobilityFactQuestions.map((q) => (
+              <div key={q.id}>{renderMcaField(q)}</div>
+            ))}
+          </div>
+        ) : null}
       </>
     )
   }
@@ -444,8 +631,8 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Swallow, mobility & care package"
-          body="Full swallow/SALT detail is on Tab 1 (§5/§8). Fall history on Tab 8. Care package existence on Tab 1 Social history; practical tasks on Tab 2. Use this aide-memoire for therapy referral flags only."
-          actionLabel="Open Falls Screening (Tab 8)"
+          body={`Full swallow/SALT detail is on ${holisticTabRef(1)} (§5/§8). Fall history on ${holisticTabRef(8)}. Care package existence on ${holisticTabRef(1)} Social history; practical tasks on ${holisticTabRef(2)}. Use this aide-memoire for therapy referral flags only.`}
+          actionLabel={`Open Falls Screening (${holisticTabRef(8)})`}
           onAction={onOpenFallsScreeningTab}
           testId="ia-therapy-link-banner"
         />
@@ -465,16 +652,18 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Pets & home hazards"
-          body="This worksheet is the master for pets/hazards. Answers sync to §3 template fields when those are empty. Infection detail → Tab 21; fire → Tab 22."
-          actionLabel="Open Infection Control (Tab 21)"
+          body={`This worksheet is the master for pets/hazards; the §3 home-safety questions are below it. Infection detail → ${holisticTabRef(21)}; fire → ${holisticTabRef(22)}.`}
+          actionLabel={`Open Infection Control (${holisticTabRef(21)})`}
           onAction={onOpenInfectionControlTab}
           testId="ia-env-link-banner"
         />
         <InitialAssessmentEnvironmentAssessmentPanel
           value={environmentAssessment}
+          factorHints={loneWorkerFactorHints}
           disabled={disabled}
           onChange={onEnvironmentAssessmentChange}
         />
+        {tab.appendedSection ? renderAppendedSection(tab.appendedSection) : null}
       </>
     )
   }
@@ -484,8 +673,8 @@ export function InitialAssessmentDocumentTabContent({
       <>
         <InitialAssessmentTabLinkBanner
           title="Identity, GP & LPA"
-          body="Name, DOB, NHS number, GP and LPA prefill from Tab 1 when empty. Resuscitation / DNACPR Yes-No is mastered on Tab 14 (EOL) and syncs to DNACPR template fields."
-          actionLabel="Open End of Life (Tab 14)"
+          body={`Name, DOB, NHS number, GP and LPA prefill from ${holisticTabRef(1)} when empty. Resuscitation / DNACPR Yes-No is mastered on ${holisticTabRef(14)} (EOL) and syncs to DNACPR template fields.`}
+          actionLabel={`Open End of Life (${holisticTabRef(14)})`}
           onAction={onOpenEndOfLifeTab}
           testId="ia-acp-link-banner"
         />
@@ -507,8 +696,8 @@ export function InitialAssessmentDocumentTabContent({
         />
         <InitialAssessmentTabLinkBanner
           title="DNACPR / resuscitation"
-          body="Record DNR status here. Advance wishes / ADRT stay on Tab 13 (ACP). DNACPR template fields sync from this answer."
-          actionLabel="Open Advance Care Planning (Tab 13)"
+          body={`Record DNR status here. Advance wishes / ADRT stay on ${holisticTabRef(13)} (ACP). DNACPR template fields sync from this answer.`}
+          actionLabel={`Open Advance Care Planning (${holisticTabRef(13)})`}
           onAction={onOpenAdvanceCarePlanningTab}
           testId="ia-eol-dnacpr-link-banner"
         />
@@ -522,24 +711,98 @@ export function InitialAssessmentDocumentTabContent({
   }
 
   if (tab.kind === 'clinical-outcome-summary') {
+    // Review columns belong to reviews / reassessments — hidden on an initial IA unless already used.
+    const reasonQ = findQuestionByFieldKey(sections, 'assessmentReason')
+    const reasonRaw = reasonQ ? draftAnswers[reasonQ.id]?.selectedOptions : undefined
+    const reason = Array.isArray(reasonRaw) ? reasonRaw[0] : reasonRaw
+    const reviewUsed =
+      (clinicalOutcomeSummary.reviews ?? []).some((c) => c.assessmentDate?.trim() || c.practitioner?.trim()) ||
+      Object.values(clinicalOutcomeSummary.rows ?? {}).some((r) => (r?.reviews ?? []).some((v) => v?.trim()))
+    const showReviewColumns = reviewUsed || (typeof reason === 'string' && reason !== '' && reason !== 'initial')
     return (
-      <InitialAssessmentClinicalOutcomeSummaryPanel
-        value={clinicalOutcomeSummary}
-        disabled={disabled}
-        onChange={onClinicalOutcomeSummaryChange}
-      />
+      <div className="space-y-6">
+        {assessmentSummary ? <InitialAssessmentAssessmentSummaryPanel summary={assessmentSummary} /> : null}
+        <InitialAssessmentClinicalOutcomeSummaryPanel
+          value={clinicalOutcomeSummary}
+          disabled={disabled}
+          onChange={onClinicalOutcomeSummaryChange}
+          showReviewColumns={showReviewColumns}
+        />
+      </div>
     )
   }
 
   if (tab.kind === 'care-plan-objectives') {
     const signOffSection = sections.find((s) => s.sectionNumber === 14)
+    const visibleIn = (sectionNumber: number, specRefs: readonly string[]) => {
+      const section = sections.find((s) => s.sectionNumber === sectionNumber)
+      if (!section) return []
+      return filterQuestionsForHolisticTab(getVisibleSectionQuestions(section, sections, draftAnswers), {
+        specRefs: [...specRefs],
+      })
+    }
+    const reviewQuestions = visibleIn(14, FINAL_TAB_REVIEW_SPEC_REFS)
+    const careConsentQuestions = visibleIn(2, FINAL_TAB_CONSENT_TO_CARE_SPEC_REFS)
+    const detectedEquipment = detectCarePlanEquipmentInUse({
+      hoistInUse: hoistRecordedInUse(sections, draftAnswers, movingHandlingOperations),
+      movingHandlingMethods: Object.values(movingHandlingOperations?.tasks ?? {}).flatMap((t) => t?.methods ?? []),
+      mobilityAidsText: section12.adl.mobilityAidsRequired === false ? undefined : section12.adl.mobilityAidsList,
+      dailyLivingAidsText:
+        section12.dailyLivingAids.aidsInUseOrRequired === false ? undefined : section12.dailyLivingAids.aidsList,
+    })
+    // Consent to care depends on capacity: a best-interests route replaces the person's own consent.
+    const capacityDoubtQ = findQuestionByFieldKey(sections, 'capacityDoubt')
+    const careCapacity = consentToCareCapacityState(
+      capacityDecisions,
+      Boolean(capacityDoubtQ && isYesAnswer(draftAnswers[capacityDoubtQ.id])),
+      legacyCapacityScreening,
+    )
     return (
       <>
+        <InitialAssessmentAgreedGoalsPanel value={agreedGoals} disabled={disabled} onChange={onAgreedGoalsChange} />
         <InitialAssessmentCarePlanObjectivesPanel
           value={carePlanObjectives}
           disabled={disabled}
           onChange={onCarePlanObjectivesChange}
+          visitIds={carePlanVisitIdsFromSections(sections, draftAnswers, carePlanObjectives)}
+          detectedEquipment={detectedEquipment}
+          servicing={section12.equipmentChecklist}
+          goals={(agreedGoals.goals ?? []).flatMap((g, i) =>
+            g.id && g.goal?.trim() ? [{ id: g.id, label: `Goal ${i + 1}: ${g.goal.trim()}` }] : [],
+          )}
         />
+        {reviewQuestions.length > 0 ? (
+          <div className={FINAL_TAB_PANEL_CLASS} data-testid="ia-final-review-schedule">
+            <p className="text-sm font-semibold text-foreground">Assessment &amp; review schedule</p>
+            {reviewQuestions.map((q) => (
+              <div key={q.id}>{renderMcaField(q)}</div>
+            ))}
+          </div>
+        ) : null}
+        {careConsentQuestions.length > 0 ? (
+          <div className={FINAL_TAB_PANEL_CLASS} data-testid="ia-final-consent-to-care">
+            <p className="text-sm font-semibold text-foreground">Consent to care</p>
+            <p className="text-sm text-muted-foreground">
+              Ask once the person has heard the proposed care and support plan.
+            </p>
+            {careCapacity?.state === 'lacks_capacity' ? (
+              <p className={cn(IA_CALLOUT_AMBER_CLASS, 'text-sm')} data-testid="ia-final-consent-lacks-capacity">
+                {careCapacity.assessedOn ? `On ${formatDisplayDate(careCapacity.assessedOn)} the` : 'The'} person was
+                assessed as lacking capacity to consent to this care. Consent is through the
+                best-interests decision / legal authority recorded in the Mental Capacity screening
+                ({holisticTabRef(3)}). Still record the person&apos;s own views and any objection.
+              </p>
+            ) : careCapacity?.state === 'assessment_pending' ? (
+              <p className={cn(IA_CALLOUT_AMBER_CLASS, 'text-sm')} data-testid="ia-final-consent-capacity-pending">
+                There is reason to doubt capacity. Complete the capacity assessment for &ldquo;Consent to the
+                proposed care&rdquo; ({holisticTabRef(3)}) before recording consent.
+              </p>
+            ) : null}
+            {careConsentQuestions.map((q) => (
+              <div key={q.id}>{renderMcaField(q)}</div>
+            ))}
+          </div>
+        ) : null}
         {signOffSection ? (
           <InitialAssessmentSignOffPanel
             section={signOffSection}
@@ -569,24 +832,48 @@ export function InitialAssessmentDocumentTabContent({
         <InitialAssessmentMentalCapacityChecklistPanel
           value={mentalCapacityChecklist}
           disabled={disabled || !mcaRequiredYes}
+          screeningSyncedIds={MENTAL_CAPACITY_SCREENING_SYNCED_IDS}
+          screeningTabLabel={holisticTabRef(3)}
           onChange={onMentalCapacityChecklistChange}
         />
       </>
     )
   }
 
-  if (tab.kind === 'photography-consent') {
+  if (tab.kind === 'consent') {
+    const consentSection = sections.find((s) => s.sectionNumber === 2)
     return (
       <>
-        <InitialAssessmentTabLinkBanner
-          title="Identity & LPA"
-          body="Name, DOB, NHS number and LPA prefill from Tab 1 when empty. Edit the master on Personal Details."
-          actionLabel="Open Personal Details (Tab 1)"
-          onAction={onOpenPersonalDetailsTab}
-          testId="ia-photo-identity-link-banner"
-        />
-        <InitialAssessmentPhotographyConsentPanel
+        {consentSection ? (
+          <InitialAssessmentSectionQuestions
+            key={`${tab.id}-sec-2`}
+            section={consentSection}
+            allSections={sections}
+            draftAnswers={draftAnswers}
+            prefillMap={prefillMap}
+            questionErrors={questionErrors}
+            disabled={disabled}
+            serviceUserId={serviceUserId}
+            submissionId={submissionId}
+            serviceUserDetail={serviceUserDetail}
+            excludeQuestionIds={excludeQuestionIds}
+            holisticTab={tab}
+            onChange={onChange}
+          />
+        ) : null}
+        <InitialAssessmentConsentPhotographyPanel
+          bare
           value={photographyConsent}
+          consentGiver={consentGiver(
+            sections,
+            draftAnswers,
+            legacyCapacityScreening ? undefined : completedDecisionFor(capacityDecisions, 'photography'),
+          )}
+          decisionMakerName={(() => {
+            const q = findQuestionByFieldKey(sections, 'legalAuthorityName')
+            return q ? draftAnswers[q.id]?.textValue?.trim() || undefined : undefined
+          })()}
+          serviceUserDetail={serviceUserDetail}
           disabled={disabled}
           onChange={onPhotographyConsentChange}
         />
@@ -697,6 +984,18 @@ export function InitialAssessmentDocumentTabContent({
     while (sliceIndex < slices.length) {
       const slice = slices[sliceIndex]!
 
+      if (tab.id === 1 && slice.groupHeading) {
+        sliceNodes.push(
+          <h2
+            key={`tab-${tab.id}-group-${sliceIndex}`}
+            className="border-b border-border pb-1 pt-4 text-base font-semibold text-foreground first:pt-0"
+            data-testid="ia-tab-group-heading"
+          >
+            {slice.groupHeading}
+          </h2>,
+        )
+      }
+
       if (tab.id === 1 && isPaperSection4MainSlice(slice.sectionNumber)) {
         const blockStart = sliceIndex
         while (
@@ -730,6 +1029,22 @@ export function InitialAssessmentDocumentTabContent({
             <InitialAssessmentMcaLinkBanner onOpenMcaScreeningTab={onOpenMcaScreeningTab} />
           </InitialAssessmentPaperSection5EmotionalBlock>,
         )
+        continue
+      }
+
+      if (tab.id === 1 && slice.conditionsRegisterEmbed) {
+        if (serviceUserId) {
+          sliceNodes.push(
+            <InitialAssessmentConditionsPanel
+              key={`tab-${tab.id}-conditions-register`}
+              serviceUserId={serviceUserId}
+              proposals={conditionProposals}
+              disabled={disabled || !onConditionProposalsChange}
+              onChange={(next) => onConditionProposalsChange?.(next)}
+            />,
+          )
+        }
+        sliceIndex += 1
         continue
       }
 

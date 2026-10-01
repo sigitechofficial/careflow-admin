@@ -4,6 +4,7 @@ import { useOrganisationDisplayFormat } from '@/shared/context/organisation-disp
 import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
 import { useSurveyResponses } from '@/features/surveys/hooks/useSurveys'
 import type { SurveyResponseItem } from '@/features/surveys/types'
+import { describeSurveyRespondent } from '@/features/surveys/survey-respondent'
 
 function ResponseRow({
   response,
@@ -35,6 +36,9 @@ function ResponseRow({
           <span className="mt-0.5 block text-xs text-muted-foreground">
             Submitted {formatInstant(response.submittedAt)} · {response.answerCount} answer
             {response.answerCount === 1 ? '' : 's'}
+            {response.respondentRelation
+              ? ` · ${describeSurveyRespondent(response.respondentRelation, response.respondentName)}`
+              : ''}
           </span>
         </span>
       </button>

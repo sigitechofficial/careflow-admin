@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { cn } from '@/shared/lib/utils'
+import { useAuthStore } from '@/features/auth/store'
+import { useOfficeUsers } from '@/features/settings/hooks/useUsersAccess'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import {
   useCreateInitialAssessmentRiskRecord,
@@ -74,6 +76,8 @@ type Props = {
   canUpdate: boolean
   editable: boolean
   compact?: boolean
+  /** IA manager review: show who is responsible for each risk. */
+  showOwner?: boolean
 }
 
 export function InitialAssessmentRiskRecordsPanel({
@@ -82,6 +86,7 @@ export function InitialAssessmentRiskRecordsPanel({
   canUpdate,
   editable,
   compact = false,
+  showOwner = false,
 }: Props) {
   const [showAdd, setShowAdd] = React.useState(false)
   const [newRisk, setNewRisk] = React.useState({
@@ -95,6 +100,15 @@ export function InitialAssessmentRiskRecordsPanel({
   const createMutation = useCreateInitialAssessmentRiskRecord(serviceUserId, submissionId ?? '')
   const updateMutation = useUpdateInitialAssessmentRiskRecord(serviceUserId, submissionId ?? '')
   const regenerateMutation = useRegenerateInitialAssessmentRiskRecords(serviceUserId, submissionId ?? '')
+
+  // Risk owner — who makes sure the controls happen. The user list needs users.read; otherwise
+  // "Assign to me" is offered.
+  const can = useAuthStore((s) => s.can)
+  const me = useAuthStore((s) => s.user)
+  const usersQuery = useOfficeUsers(showOwner && can('users.read') && canUpdate && editable)
+  const ownerOptions = (usersQuery.data ?? []).filter((u) => u.isActive)
+  const personName = (p?: { firstName: string | null; lastName: string | null; email: string } | null) =>
+    p ? [p.firstName, p.lastName].filter(Boolean).join(' ') || p.email : ''
 
   const records = recordsQuery.data ?? []
   const openHigh = records.filter((r) => r.status === 'OPEN' && r.riskLevel === 'HIGH').length
@@ -327,6 +341,7 @@ export function InitialAssessmentRiskRecordsPanel({
                 <th className="px-3 py-2">Likelihood</th>
                 <th className="px-3 py-2">Severity</th>
                 <th className="px-3 py-2">Controls</th>
+                {showOwner ? <th className="px-3 py-2">Owner</th> : null}
                 <th className="px-3 py-2">Review</th>
                 <th className="px-3 py-2">Status</th>
               </tr>
@@ -416,6 +431,50 @@ export function InitialAssessmentRiskRecordsPanel({
                       <span className="text-xs">{record.controlMeasures?.trim() || '—'}</span>
                     )}
                   </td>
+                  {showOwner ? (
+                  <td className="px-3 py-2 text-sm" data-testid="ia-risk-owner">
+                    {canUpdate && editable && ownerOptions.length ? (
+                      <Select
+                        value={record.responsiblePersonId ?? ''}
+                        onValueChange={(v) =>
+                          void updateMutation.mutateAsync({
+                            riskRecordId: record.id,
+                            body: { responsiblePersonId: v || null },
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[150px]" aria-label="Risk owner">
+                          <SelectValue placeholder="Choose owner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ownerOptions.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {personName(u)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : record.responsiblePerson ? (
+                      personName(record.responsiblePerson)
+                    ) : canUpdate && editable && me?.id ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void updateMutation.mutateAsync({
+                            riskRecordId: record.id,
+                            body: { responsiblePersonId: me.id },
+                          })
+                        }
+                      >
+                        Assign to me
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  ) : null}
                   <td className="px-3 py-2 text-sm text-muted-foreground">
                     {record.reviewDate ? record.reviewDate.slice(0, 10) : '—'}
                   </td>

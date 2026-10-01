@@ -517,6 +517,25 @@ export function computeWaterlowScoreFromSelections(meta: WaterlowMetadata): numb
   return total
 }
 
+export type WaterlowBreakdownItem = { sectionId: string; category: string; label: string; score: number }
+
+/** The chosen option(s) per category with their points (display only; the score itself is unchanged). */
+export function waterlowSelectionBreakdown(meta: WaterlowMetadata): WaterlowBreakdownItem[] {
+  const items: WaterlowBreakdownItem[] = []
+  for (const section of WATERLOW_TABLE_SECTIONS) {
+    const chosen =
+      section.kind === 'single'
+        ? section.options.filter((o) => o.id === resolveWaterlowSingleOptionId(meta, section))
+        : section.options.filter((o) => meta[section.field]?.includes(o.id))
+    for (const o of chosen) items.push({ sectionId: section.id, category: section.category, label: o.label, score: o.score })
+  }
+  const weightLoss = WATERLOW_WEIGHT_LOSS_OPTIONS.find((o) => o.id === resolveWaterlowWeightLossOptionId(meta))
+  if (weightLoss) {
+    items.push({ sectionId: 'weightLoss', category: 'Recent weight loss', label: weightLoss.label, score: weightLoss.score })
+  }
+  return items
+}
+
 export function computeWaterlowScore(meta: WaterlowMetadata | null | undefined): number {
   if (!meta) return 0
   if (hasWaterlowEnteredScores(meta)) {
@@ -569,6 +588,51 @@ export function waterlowManagerReviewSuggested(score: number, threshold = 15): b
 export function waterlowEquipmentGuidance(score: number): string {
   const row = WATERLOW_EQUIPMENT_GUIDANCE.find((g) => score <= g.maxScore)
   return row?.equipment ?? WATERLOW_EQUIPMENT_GUIDANCE[0]!.equipment
+}
+
+/**
+ * Waterlow reassessment interval: monthly — the form's own instruction ("update monthly"), and e.g. a
+ * Nourish provider policy (Kingsley Healthcare 03-18a): Waterlow reviewed "no less than every 1 month".
+ */
+export const WATERLOW_REVIEW_INTERVAL_MONTHS = 1
+export const WATERLOW_REVIEW_SOURCE = 'Waterlow form instruction and Kingsley Healthcare (Nourish) review policy'
+
+function addMonthsIso(isoDate: string, months: number): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate)
+  if (!m) return null
+  const y = Number(m[1])
+  const monthIndex = Number(m[2]) - 1 + months
+  const targetYear = y + Math.floor(monthIndex / 12)
+  const targetMonth = ((monthIndex % 12) + 12) % 12
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  const day = Math.min(Number(m[3]), lastDay)
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+const isBlank = (v: string | null | undefined) => !v || !v.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+
+/**
+ * Fill-empty defaults for the Waterlow follow-up fields once the score is complete: recommendation from
+ * the risk band, assessor, assessment date and the next review date. Returns null when nothing to fill.
+ */
+export function waterlowFollowUpPrefill(
+  meta: WaterlowMetadata,
+  ctx: { assessorName?: string | null; assessmentDate: string },
+): Partial<WaterlowMetadata> | null {
+  const score = computeWaterlowScore(meta)
+  if (score <= 0) return null
+  const patch: Partial<WaterlowMetadata> = {}
+  if (isBlank(meta.recommendation)) {
+    patch.recommendation = `${waterlowBand(score).label}: ${waterlowEquipmentGuidance(score)}.`
+  }
+  if (isBlank(meta.recommendationBy) && ctx.assessorName?.trim()) patch.recommendationBy = ctx.assessorName.trim()
+  const date = ctx.assessmentDate.slice(0, 10)
+  if (isBlank(meta.recommendationDate) && /^\d{4}-\d{2}-\d{2}$/.test(date)) patch.recommendationDate = date
+  if (isBlank(meta.nextReviewDate)) {
+    const next = addMonthsIso(date, WATERLOW_REVIEW_INTERVAL_MONTHS)
+    if (next) patch.nextReviewDate = next
+  }
+  return Object.keys(patch).length ? patch : null
 }
 
 export function enrichWaterlowMetadata(
@@ -625,4 +689,30 @@ export function scoreForOptionId(
 export function idForScore(options: WaterlowSelectOption[], score: number | undefined): string | undefined {
   if (score == null) return undefined
   return options.find((o) => o.score === score)?.id
+}
+
+/** Sections a complete Waterlow records (mirrors careflow-api `isWaterlowScoringComplete`). */
+const WATERLOW_COMPLETE_SECTIONS = [
+  'gender',
+  'age',
+  'build',
+  'appetite',
+  'mobility',
+  'continence',
+  'neurological',
+  'surgery',
+  'medication',
+] as const
+
+/** Every Waterlow section answered — the same rule the server uses to promote the assessment. */
+export function isWaterlowAllSectionsComplete(meta: WaterlowMetadata | null | undefined): boolean {
+  if (!meta) return false
+  if (hasWaterlowEnteredScores(meta)) {
+    const keys = Object.keys(meta.enteredScores ?? {})
+    return [...WATERLOW_COMPLETE_SECTIONS, 'weightLoss'].every((id) => keys.some((k) => k.startsWith(`${id}:`)))
+  }
+  const singles = meta.singleOptionIds ?? {}
+  const record = meta as Record<string, unknown>
+  const sectionsDone = WATERLOW_COMPLETE_SECTIONS.every((id) => singles[id] != null || record[id] != null)
+  return sectionsDone && (meta.weightLossOptionId != null || record.weightLoss != null)
 }

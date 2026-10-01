@@ -1,3 +1,9 @@
+import type {
+  InitialAssessmentAnswerInput,
+  InitialAssessmentSection,
+} from '@/features/service-users/initial-assessment/types'
+import { findMcaQuestionByFieldKey } from '@/features/service-users/initial-assessment/utils/mca-screening'
+
 /** Assessment of Mental Capacity Check List — paper form (holistic tab 17). */
 
 export type MentalCapacityAssessmentType = 'preliminary' | 'review' | null
@@ -17,7 +23,6 @@ export type MentalCapacityQuestionId =
   | 'oralCare'
   | 'grooming'
   | 'toilet'
-  | 'oralCareGrooming'
   | 'medication'
   | 'financialAffairs'
   | 'dailyLivingAids'
@@ -70,7 +75,6 @@ export const MENTAL_CAPACITY_DETAILED_QUESTION_IDS: MentalCapacityQuestionId[] =
   'oralCare',
   'grooming',
   'toilet',
-  'oralCareGrooming',
   'medication',
   'financialAffairs',
   'dailyLivingAids',
@@ -194,27 +198,20 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
   {
     kind: 'question',
     number: 15,
-    id: 'oralCareGrooming',
-    detailed: true,
-    label: 'Can the client make decisions about oral care and grooming (teeth, shaving etc)?',
-  },
-  {
-    kind: 'question',
-    number: 16,
     id: 'medication',
     detailed: true,
     label: 'Can the client manage his / her medication?',
   },
   {
     kind: 'question',
-    number: 17,
+    number: 16,
     id: 'financialAffairs',
     detailed: true,
     label: 'Can the client manage his / her financial affairs?',
   },
   {
     kind: 'question',
-    number: 18,
+    number: 17,
     id: 'dailyLivingAids',
     detailed: true,
     label:
@@ -222,14 +219,14 @@ export const MENTAL_CAPACITY_CHECKLIST_ROWS: MentalCapacityChecklistRow[] = [
   },
   {
     kind: 'question',
-    number: 19,
+    number: 18,
     id: 'walking',
     detailed: true,
     label: 'Can the client make decisions about walking',
   },
   {
     kind: 'question',
-    number: 20,
+    number: 19,
     id: 'seeDoctor',
     detailed: true,
     label: 'Can the client make decisions about the need to see a doctor',
@@ -345,4 +342,51 @@ export function isMentalCapacityChecklistComplete(
   return MENTAL_CAPACITY_DETAILED_QUESTION_IDS.every((id) =>
     boolAnswered(mentalCapacityAnswerValue(meta, id)),
   )
+}
+
+/**
+ * Rows 1–6 repeat the Tab 3 MCA screening (two-stage test + four functional questions) with the
+ * same Yes/No meaning. They are answered once there and mirrored here (read-only on this tab).
+ */
+export const MENTAL_CAPACITY_SCREENING_FIELD_KEYS: Readonly<Partial<Record<MentalCapacityQuestionId, string>>> = {
+  impairment: 'mcaStage1Impairment',
+  unableKeyDecision: 'mcaStage2UnableToDecide',
+  understandDecision: 'mcaFunctionalUnderstand',
+  retainInformation: 'mcaFunctionalRetain',
+  useInformation: 'mcaFunctionalWeigh',
+  communicateDecision: 'mcaFunctionalCommunicate',
+}
+
+export const MENTAL_CAPACITY_SCREENING_SYNCED_IDS: ReadonlySet<MentalCapacityQuestionId> = new Set(
+  Object.keys(MENTAL_CAPACITY_SCREENING_FIELD_KEYS) as MentalCapacityQuestionId[],
+)
+
+function screeningYesNo(answer: InitialAssessmentAnswerInput | undefined): boolean | undefined {
+  if (answer?.booleanValue === true || answer?.checked === true) return true
+  if (answer?.booleanValue === false || answer?.checked === false) return false
+  return undefined
+}
+
+/**
+ * Copies answered Tab 3 screening Yes/No values onto checklist rows 1–6. Unanswered screening
+ * questions leave the checklist value untouched. Returns `meta` itself when nothing changes.
+ */
+export function syncMentalCapacityChecklistFromScreening(
+  meta: MentalCapacityChecklistMetadata,
+  sections: InitialAssessmentSection[],
+  answers: Record<string, InitialAssessmentAnswerInput>,
+): MentalCapacityChecklistMetadata {
+  let next = meta
+  for (const [id, fieldKey] of Object.entries(MENTAL_CAPACITY_SCREENING_FIELD_KEYS) as Array<
+    [MentalCapacityQuestionId, string]
+  >) {
+    const question = findMcaQuestionByFieldKey(sections, fieldKey)
+    if (!question) continue
+    const value = screeningYesNo(answers[question.id])
+    if (value === undefined) continue
+    const key = mentalCapacityAnswerKey(id)
+    if (next[key] === value) continue
+    next = { ...next, [key]: value }
+  }
+  return next
 }

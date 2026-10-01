@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Textarea } from '@/shared/ui/form-field'
 import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display-format.store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { useCompleteIncidentAction, useMyIncidentActions } from '@/features/incidents/hooks/useIncidents'
 import {
   INCIDENT_ACTION_STATUS_BADGE,
@@ -13,6 +14,8 @@ import {
 } from '@/features/incidents/types'
 
 export default function MyActionsPage() {
+  // Re-render when the organisation timezone loads so due dates use it.
+  useOrganisationDisplayFormat()
   const { data: actions, isLoading } = useMyIncidentActions()
   const completeMutation = useCompleteIncidentAction()
   const [completingId, setCompletingId] = React.useState<string | null>(null)

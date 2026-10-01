@@ -56,6 +56,10 @@ import {
   serviceUserLabel,
 } from '@/features/scheduling/utils/scheduling-format'
 import { timelineJobVisitPlanSlot } from '@/features/scheduling/utils/scheduling-visit-plan.util'
+import {
+  isAbsentCoCarerAllocation,
+  jobLeadCarer,
+} from '@/features/scheduling/utils/schedule-job-lead-carer.util'
 import { assessVisitDeliveryFromJobLike } from '@/features/scheduling/utils/visit-delivery-assessment.util'
 import { VisitDeliveryStatusPanel } from '@/features/scheduling/components/VisitDeliveryStatusPanel'
 import { VisitCareConsentSection } from '@/features/scheduling/components/VisitCareConsentSection'
@@ -250,6 +254,8 @@ function allocationDisplayName(
 
 function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
   const allocations = job.allocations ?? []
+  // Same lead the carer app shows: flagged lead, else the first-assigned carer.
+  const lead = jobLeadCarer(job)
   return (
     <div className="mt-3 space-y-2" data-testid="visit-workspace-carers">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -258,17 +264,30 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
           Carers ({allocations.length}/{job.requiredCarers})
         </span>
       </p>
+      {lead && !lead.explicit ? (
+        <p className="text-xs font-medium text-destructive" role="alert">
+          No lead carer set — the carer app treats {allocationDisplayName(lead.allocation)} (first
+          assigned) as lead. Choose a lead in Manage carers.
+        </p>
+      ) : null}
       <ul className="space-y-2">
         {allocations.map((allocation) => {
           const name = allocationDisplayName(allocation)
-          const role =
-            allocation.isLeadCarer && job.requiredCarers > 1 ? 'Lead' : allocations.length > 1 ? 'Support' : null
+          const role = lead
+            ? allocation.id === lead.allocation.id
+              ? 'Lead'
+              : 'Support'
+            : null
           const clockedIn = allocation.actualStartDateTime
             ? formatOrganisationIsoTime(allocation.actualStartDateTime)
             : null
           const clockedOut = allocation.actualEndDateTime
             ? formatOrganisationIsoTime(allocation.actualEndDateTime)
             : null
+          // Shared visit closed and this carer never clocked in: pay held for review.
+          const absent = isAbsentCoCarerAllocation(job, allocation)
+          const plannedStart = allocation.resolvedStartDateTime ?? allocation.scheduledStartDateTime
+          const plannedEnd = allocation.resolvedEndDateTime ?? allocation.scheduledEndDateTime
           const presence = allocation.presence
           const arrivedAt = presence?.arrivedAt
             ? formatOrganisationIsoTime(presence.arrivedAt)
@@ -310,10 +329,34 @@ function VisitWorkspaceCarerPresence({ job }: { job: TimelineJob }) {
                   <>
                     <span className="text-muted-foreground"> · Clocked out: </span>
                     <span className="font-medium tabular-nums text-foreground">{clockedOut}</span>
+                    {allocation.actualEndAutoClosed ? (
+                      <span
+                        className="ml-1 text-xs text-muted-foreground"
+                        title="This support carer was still clocked in when the lead clocked out, so their clock-out was set to the lead's clock-out time."
+                      >
+                        (auto – lead clock-out)
+                      </span>
+                    ) : null}
                   </>
                 ) : null}
               </p>
-              <p className={cn('mt-0.5 text-sm font-medium', presenceClass)}>{presenceLabel}</p>
+              {absent ? (
+                <div
+                  className="mt-1 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs text-destructive"
+                  role="alert"
+                  data-testid="visit-workspace-absent-carer"
+                >
+                  <p className="font-semibold">Did not clock in — pay held for review</p>
+                  <p>
+                    Planned{' '}
+                    {plannedStart ? formatOrganisationIsoTime(plannedStart) : '—'}–
+                    {plannedEnd ? formatOrganisationIsoTime(plannedEnd) : '—'} · No clock-in
+                    recorded on this shared visit, so no pay line was built from the visit times.
+                  </p>
+                </div>
+              ) : (
+                <p className={cn('mt-0.5 text-sm font-medium', presenceClass)}>{presenceLabel}</p>
+              )}
             </li>
           )
         })}

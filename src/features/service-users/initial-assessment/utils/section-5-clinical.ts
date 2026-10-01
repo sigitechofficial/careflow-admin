@@ -25,7 +25,6 @@ export const SECTION_5_CANONICAL_QUESTION_TEXT = [
   'Current pain relief',
   'Pain assessment completed?',
   'Pain assessment date',
-  'Pain management plan documented?',
   'What pain management plan in place',
   'Swallowing concern options',
   'Swallowing or choking concerns?',
@@ -40,7 +39,6 @@ export const SECTION_5_CANONICAL_QUESTION_TEXT = [
   'SALT referral required?',
   'SALT referral made?',
   'SALT referral date',
-  'Breathing / pain / swallowing action plan notes',
 ] as const
 
 const CANONICAL = new Set<string>(SECTION_5_CANONICAL_QUESTION_TEXT)

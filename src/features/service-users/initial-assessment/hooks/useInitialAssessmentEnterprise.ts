@@ -28,6 +28,7 @@ import {
   createInitialAssessmentRiskRecord,
   updateInitialAssessmentRiskRecord,
   regenerateInitialAssessmentRiskRecords,
+  fetchLoneWorkerSystemFacts,
 } from '@/features/service-users/initial-assessment/api'
 import { initialAssessmentKeys } from '@/features/service-users/initial-assessment/keys'
 import type {
@@ -425,5 +426,14 @@ export function useReopenInitialAssessment(serviceUserId: string, submissionId: 
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: initialAssessmentKeys.submissions(serviceUserId) })
     },
+  })
+}
+
+export function useLoneWorkerSystemFacts(serviceUserId: string, enabled = true) {
+  return useQuery({
+    queryKey: initialAssessmentKeys.loneWorkerFacts(serviceUserId),
+    queryFn: ({ signal }) => fetchLoneWorkerSystemFacts(serviceUserId, { signal }),
+    staleTime: STALE,
+    enabled: enabled && Boolean(serviceUserId),
   })
 }

@@ -4,38 +4,27 @@ import { HOLISTIC_FOOTER_GRID_CLASS } from '@/features/service-users/initial-ass
 import type { ServiceUserDetail } from '@/features/service-users/api'
 
 type Props = {
+  /** Kept for existing callers; the name is no longer shown. */
   clientName?: string
   dateCompleted?: string
   assessorNameDesignation?: string
   disabled?: boolean
   onDateChange?: (iso: string) => void
   onAssessorChange?: (value: string) => void
+  /** Kept for existing callers; the name is no longer shown. */
   serviceUserDetail?: ServiceUserDetail | null
 }
 
-function displayName(detail: ServiceUserDetail | null | undefined, fallback?: string): string {
-  if (fallback?.trim()) return fallback.trim()
-  if (!detail) return ''
-  return [detail.firstName, detail.lastName].filter(Boolean).join(' ').trim()
-}
-
+/** "Completed on / by" for a specialist tool. The client's name is already in the page header. */
 export function HolisticFooterFields({
-  clientName,
   dateCompleted,
   assessorNameDesignation,
   disabled,
   onDateChange,
   onAssessorChange,
-  serviceUserDetail,
 }: Props) {
-  const name = displayName(serviceUserDetail, clientName)
-
   return (
     <footer className={HOLISTIC_FOOTER_GRID_CLASS} data-testid="ia-holistic-footer">
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground">Client name</Label>
-        <Input className="h-9 bg-background" value={name} readOnly disabled />
-      </div>
       <div className="space-y-1">
         <Label htmlFor="ia-holistic-footer-date" className="text-xs font-medium text-muted-foreground">
           Date completed

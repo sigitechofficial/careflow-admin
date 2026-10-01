@@ -19,7 +19,7 @@ function q(text: string, specRef: string, fieldKey?: string): InitialAssessmentQ
 
 describe('Phase 1 medication and fire UI wiring helpers', () => {
   it('keeps §9.2–§9.5 in the existing medication group order', () => {
-    expect(SECTION_9_GROUP_ORDER).toEqual(['9.1', '9.2', '9.3', '9.4', '9.5'])
+    expect(SECTION_9_GROUP_ORDER).toEqual(['9.1', '9.2', '9.3', '9.4', '9.5', '9.6'])
   })
 
   it('does not filter restored §9 medication support questions out of the IA UI', () => {

@@ -57,44 +57,36 @@ describe('Falls screening completeness and §12.7 sync', () => {
     ).toBe(true)
   })
 
-  it('does not dual-write §12.7 unless consent is true', () => {
-    const patches: Array<{ id: string; value: boolean }> = []
-    const adl: AdlWorksheetMetadata = { rows: [] }
-    syncFallsScreeningDerivedState(
-      [section12],
-      {
-        fallOrConcern: false,
-        firstScreenSinceLastFall: 'na',
-        consentToSixQuestions: false,
-        q1FallsNeedInvestigating: false,
-      },
-      adl,
-      () => undefined,
-      (questionId, patch) => {
-        patches.push({ id: questionId, value: patch.booleanValue === true })
-      },
-    )
-    expect(patches).toEqual([])
-
+  it('never writes §12.7 and derives the ADL completion status', () => {
+    const patches: string[] = []
+    let adlOut: AdlWorksheetMetadata | null = null
     syncFallsScreeningDerivedState(
       [section12],
       {
         fallOrConcern: true,
         firstScreenSinceLastFall: 'yes',
         consentToSixQuestions: true,
-        q1FallsNeedInvestigating: true,
+        q1FallsNeedInvestigating: false,
         q2DizzyOrBlackouts: false,
         q3WalkingBalanceUnassessed: false,
         q4FourPlusMedsNoReview: false,
         q5TrippingMore: false,
         q6FearOfFalling: false,
       },
-      adl,
-      () => undefined,
-      (questionId, patch) => {
-        patches.push({ id: questionId, value: patch.booleanValue === true })
+      { rows: [], fallsAssessmentCompleted: false },
+      (next) => {
+        adlOut = next
       },
+      (questionId) => patches.push(questionId),
     )
-    expect(patches).toEqual([{ id: 'falls-12-7', value: true }])
+    expect(patches).toEqual([])
+    expect(adlOut!.fallsAssessmentCompleted).toBe(true)
+    expect(adlOut!.fallsAssessmentDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+
+    syncFallsScreeningDerivedState([section12], {}, { rows: [], fallsAssessmentCompleted: true }, (next) => {
+      adlOut = next
+    })
+    expect(adlOut!.fallsAssessmentCompleted).toBe(false)
+    expect(adlOut!.fallsAssessmentDate).toBeNull()
   })
 })

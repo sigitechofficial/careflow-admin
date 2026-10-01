@@ -61,6 +61,7 @@ export default function IncidentAnalyticsPage() {
 
   const t = data?.totals
   const hasDateFilter = Boolean(filters.dateFrom || filters.dateTo)
+  const rangeReversed = Boolean(filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo)
 
   return (
     <div className="space-y-4">
@@ -81,6 +82,7 @@ export default function IncidentAnalyticsPage() {
           <Input
             type="date"
             value={filters.dateFrom ?? ''}
+            max={filters.dateTo || undefined}
             onChange={e =>
               setFilters(f => ({ ...f, dateFrom: e.target.value || undefined }))
             }
@@ -92,6 +94,7 @@ export default function IncidentAnalyticsPage() {
           <Input
             type="date"
             value={filters.dateTo ?? ''}
+            min={filters.dateFrom || undefined}
             onChange={e =>
               setFilters(f => ({ ...f, dateTo: e.target.value || undefined }))
             }
@@ -108,6 +111,11 @@ export default function IncidentAnalyticsPage() {
           </button>
         ) : null}
       </div>
+      {rangeReversed ? (
+        <p className="text-sm text-destructive">
+          “From” is after “To”, so no incidents can match. Adjust the dates.
+        </p>
+      ) : null}
 
       {data && data.warnings.length > 0 ? (
         <div className="space-y-1.5">

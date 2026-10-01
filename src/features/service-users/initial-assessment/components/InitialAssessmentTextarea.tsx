@@ -12,6 +12,13 @@ export function plainTextFromHtml(html: string): string {
   return (tmp.textContent ?? tmp.innerText ?? '').replace(/ /g, ' ').trim()
 }
 
+/** No visible text and no embedded media (e.g. "", "<p></p>", "<p><br></p>"). */
+export function isEmptyRichText(html: string | undefined): boolean {
+  if (!html?.trim()) return true
+  if (/<(img|iframe|video|audio|table)\b/i.test(html)) return false
+  return plainTextFromHtml(html) === ''
+}
+
 function rowsToMinHeight(rows?: number): number {
   if (rows == null) return 160
   return Math.max(96, rows * 28)
@@ -79,6 +86,10 @@ export const InitialAssessmentTextarea = React.forwardRef<HTMLDivElement, Initia
     }
 
     const handleChange = (html: string): void => {
+      // The editor normalises an empty field to "<p></p>" on mount. Reporting that as a change made
+      // worksheet panels save a block rebuilt from an empty value, wiping saved data when a tab was
+      // opened before the assessment finished loading. Empty → empty is not a change.
+      if (isEmptyRichText(html) && isEmptyRichText(value)) return
       if (maxLength != null && plainTextFromHtml(html).length > maxLength) return
       onChange?.({
         target: { value: html },

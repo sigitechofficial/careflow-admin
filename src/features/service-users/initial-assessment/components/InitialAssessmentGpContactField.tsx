@@ -182,9 +182,11 @@ export function InitialAssessmentGpContactField({
     if (disabled || savingRef.current) return
 
     const original = draftFromProfile(gpContact)
-    const nameChanged = original.name !== draft.name
-    const phoneChanged = original.phone !== draft.phone
-    const otherChanged = original.otherDetails !== draft.otherDetails
+    // Never overwrite the GP contact on the profile — only fill what is empty there.
+    const fill = (key: keyof GpContactDraft) => !original[key].trim() && Boolean(draft[key].trim())
+    const nameChanged = fill('name')
+    const phoneChanged = fill('phone')
+    const otherChanged = fill('otherDetails')
     if (!nameChanged && !phoneChanged && !otherChanged) return
     if (!draft.name.trim() && !draft.phone.trim() && !draft.otherDetails.trim()) return
 
@@ -201,7 +203,14 @@ export function InitialAssessmentGpContactField({
       }
 
       if (gpContact?.id) {
-        await updateContact.mutateAsync({ contactId: gpContact.id, body: payload })
+        await updateContact.mutateAsync({
+          contactId: gpContact.id,
+          body: {
+            ...(nameChanged ? { firstName: payload.firstName, lastName: payload.lastName } : {}),
+            ...(phoneChanged ? { phone: payload.phone } : {}),
+            ...(otherChanged ? { notes: payload.notes } : {}),
+          },
+        })
       } else if (firstName.trim()) {
         const relationshipTypeId = relationshipIdByCode(lookupsQuery.data?.relationshipTypes, 'GP')
         await createContact.mutateAsync({
@@ -229,6 +238,8 @@ export function InitialAssessmentGpContactField({
   }
 
   const label = holisticQuestionLabel(question.questionText)
+  const gpProfile = draftFromProfile(gpContact)
+  const gpLocked = (key: keyof GpContactDraft) => Boolean(gpContact?.id && gpProfile[key].trim())
 
   return (
     <div className={simple ? IA_SIMPLE_FIELD_CLASS : 'space-y-3 p-1'}>
@@ -236,7 +247,7 @@ export function InitialAssessmentGpContactField({
         <div>
           <p className={IA_QUESTION_LABEL_CLASS}>{label}</p>
           <p className={cn('mt-0.5 text-xs', IA_HINT_CLASS)}>
-            Saves to GP contact on the Contacts tab when you leave a field.
+            Details already on the GP contact are read-only — change them on the Contacts tab.
           </p>
         </div>
       ) : (
@@ -250,7 +261,10 @@ export function InitialAssessmentGpContactField({
               </span>
             ) : null}
           </Label>
-          <p className={IA_HINT_CLASS}>Name and phone also update the GP contact on the service user profile.</p>
+          <p className={IA_HINT_CLASS}>
+            Details already on the GP contact are read-only here — change them on the Contacts tab. Empty details you
+            add are saved there.
+          </p>
         </>
       )}
 
@@ -270,7 +284,7 @@ export function InitialAssessmentGpContactField({
             value={draft.name}
             onChange={(e) => setField('name', e.target.value)}
             onBlur={() => void persistProfile()}
-            disabled={disabled}
+            disabled={disabled || gpLocked('name')}
             placeholder="GP name"
             className={cn('h-10 text-base', simple && 'w-full')}
           />
@@ -290,7 +304,7 @@ export function InitialAssessmentGpContactField({
             value={draft.phone}
             onChange={(e) => setField('phone', e.target.value)}
             onBlur={() => void persistProfile()}
-            disabled={disabled}
+            disabled={disabled || gpLocked('phone')}
             placeholder="Phone number"
             className={cn('h-10 text-base', simple && 'w-full')}
           />
@@ -305,7 +319,7 @@ export function InitialAssessmentGpContactField({
               value={draft.otherDetails}
               onChange={(e) => setField('otherDetails', e.target.value)}
               onBlur={() => void persistProfile()}
-              disabled={disabled}
+              disabled={disabled || gpLocked('otherDetails')}
               rows={simple ? 2 : 3}
               compact={simple}
               placeholder={

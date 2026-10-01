@@ -9,6 +9,9 @@ import {
   createServiceUserAllergy,
   createServiceUserContact,
   createServiceUserDolsRecord,
+  createServiceUserLegalAuthority,
+  updateServiceUserLegalAuthority,
+  deleteServiceUserLegalAuthority,
   createServiceUserEnterpriseFunding,
   createServiceUserInventoryItem,
   createServiceUserLiveInProfile,
@@ -166,6 +169,35 @@ export function usePatchServiceUserLegalDocuments(serviceUserId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serviceUserKeys.documents(serviceUserId) })
       void qc.invalidateQueries({ queryKey: serviceUserKeys.documentStore(serviceUserId) })
+    },
+  })
+}
+
+export function useSaveServiceUserLegalAuthority(serviceUserId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      authorityId,
+      body,
+    }: {
+      authorityId?: string
+      body: Parameters<typeof createServiceUserLegalAuthority>[1]
+    }) =>
+      authorityId
+        ? updateServiceUserLegalAuthority(serviceUserId, authorityId, body)
+        : createServiceUserLegalAuthority(serviceUserId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.documents(serviceUserId) })
+    },
+  })
+}
+
+export function useDeleteServiceUserLegalAuthority(serviceUserId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (authorityId: string) => deleteServiceUserLegalAuthority(serviceUserId, authorityId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serviceUserKeys.documents(serviceUserId) })
     },
   })
 }

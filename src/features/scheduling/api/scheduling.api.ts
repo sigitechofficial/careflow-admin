@@ -346,6 +346,13 @@ export type VisitTimelineItem = {
   type: string
   occurredAt: string
   sourceType: string
+  /** Notes / handover / concerns / incidents: who wrote it and their role on the visit then. */
+  author?: {
+    employeeId: string
+    name: string
+    role: 'lead' | 'support' | null
+    label: string
+  } | null
   photos?: Array<{
     id: string
     fileUrl: string
@@ -679,6 +686,44 @@ export async function allocateJob(
   return { message: res.message, data: res.data! }
 }
 
+export type TeamCarerCheck = {
+  employeeId: string
+  name: string
+  hardBlocked: boolean
+  requiresConfirmation: boolean
+  warnings: Array<{ type: string; message: string; severity: string }>
+}
+
+/** Multi-carer visit: allocate all (or the missing) carers in one save, with one lead. */
+export async function allocateJobTeam(
+  jobId: string,
+  body: {
+    employeeIds: string[]
+    leadEmployeeId: string
+    scheduledVisitId?: string
+    force?: boolean
+    notes?: string
+    scheduledStartDateTime?: string
+    scheduledEndDateTime?: string
+  },
+) {
+  const res = await apiJson<ApiEnvelope<JobAllocationRow[]>>(
+    `/scheduled-jobs/${jobId}/allocate-team`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  const meta = (res.meta ?? {}) as {
+    requiresConfirmation?: boolean
+    leadEmployeeId?: string
+    carers?: TeamCarerCheck[]
+  }
+  return {
+    message: res.message,
+    data: res.data ?? [],
+    requiresConfirmation: Boolean(meta.requiresConfirmation),
+    leadEmployeeId: meta.leadEmployeeId ?? body.leadEmployeeId,
+  }
+}
+
 export async function updateJobAllocationTiming(
   jobId: string,
   allocationId: string,
@@ -708,11 +753,19 @@ export async function setJobLeadCarer(jobId: string, body: { employeeId: string 
 }
 
 export async function unallocateJob(jobId: string, body: { employeeId: string; reason?: string }) {
-  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(
-    `/scheduled-jobs/${jobId}/unallocate`,
-    { method: 'POST', body: JSON.stringify(body) },
-  )
-  return { message: res.message, data: res.data! }
+  const res = await apiJson<ApiEnvelope<JobAllocationRow>>(`/scheduled-jobs/${jobId}/unallocate`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  const meta = (res.meta ?? {}) as {
+    /** Set when the removed carer was lead and another carer was promoted. */
+    promotedLeadCarer?: { employeeId: string; name: string } | null
+  }
+  return {
+    message: res.message,
+    data: res.data!,
+    promotedLeadCarer: meta.promotedLeadCarer ?? null,
+  }
 }
 
 export async function confirmJobAllocation(

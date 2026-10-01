@@ -77,10 +77,8 @@ function personCentredCardLabel(q: InitialAssessmentQuestion): { title: string; 
     if (t.includes('what matters most')) return { title: 'What matters to me', subtitle: 'Required person-centred field' }
     if (t.includes('worried')) return { title: 'Worries', subtitle: 'Emotional planning' }
     if (t.includes('support to achieve')) return { title: 'My goals', subtitle: 'Outcome focused' }
-    if (t.includes('priorities')) return { title: 'Independence & priorities', subtitle: 'From About Me' }
     if (t.includes('keep doing independently')) return { title: 'What I can do myself', subtitle: 'Avoid over-support' }
     if (t.includes('do not want support')) return { title: 'What I need help with', subtitle: 'Boundaries for staff' }
-    if (t.includes('important routines')) return { title: 'Important routines', subtitle: 'Meals, prayer, medication' }
   }
   if (specRef === '1.4') {
     const t = q.questionText.toLowerCase()

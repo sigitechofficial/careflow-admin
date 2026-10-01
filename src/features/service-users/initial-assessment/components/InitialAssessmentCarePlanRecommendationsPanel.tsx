@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { cn } from '@/shared/lib/utils'
 import { AlertTriangle, FileText, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -40,7 +41,8 @@ type Props = {
    * `lifecycle` is used on the Care Plan page: pending recs only, quieter
    * review notice, card styling aligned with catalogue tiles.
    */
-  layout?: 'full' | 'lifecycle'
+  /** `grid`: compact two-column cards with collapsible triggers (IA "Actions & care plans" tab). */
+  layout?: 'full' | 'lifecycle' | 'grid'
   /** When set with layout=lifecycle, only pending recs for these forms (plus uncatalogued) are shown. */
   includePendingFormIds?: ReadonlySet<string>
   cataloguedFormIds?: ReadonlySet<string>
@@ -139,6 +141,15 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
   }
 
   const lifecycle = layout === 'lifecycle'
+  const grid = layout === 'grid'
+  const [openTriggers, setOpenTriggers] = React.useState<Set<string>>(() => new Set())
+  const toggleTriggers = (id: string) =>
+    setOpenTriggers((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   const visibleRecommendations = lifecycle
     ? includePendingFormIds && cataloguedFormIds
       ? recommendations.filter((rec) => {
@@ -214,7 +225,15 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
             ) : null}
           </div>
         ) : null}
-        <ul className={lifecycle ? 'grid items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-3' : 'space-y-3'}>
+        <ul
+          className={
+            lifecycle
+              ? 'grid items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-3'
+              : grid
+                ? 'grid items-start gap-3 md:grid-cols-2'
+                : 'space-y-3'
+          }
+        >
           {lifecycle
             ? lifecycleGroups.map((group) => {
                 const primary = group.recs[0]!
@@ -275,9 +294,13 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
             : visibleRecommendations.map((rec) => (
             <li
               key={rec.id}
-              className="rounded-xl border border-teal-200/80 bg-teal-50/40 p-4 dark:border-teal-900 dark:bg-teal-950/20"
+              className={cn(
+                'rounded-xl border border-teal-200/80 bg-teal-50/40 dark:border-teal-900 dark:bg-teal-950/20',
+                grid ? 'p-3' : 'p-4',
+              )}
+              data-testid="ia-care-plan-recommendation-card"
             >
-              <div className="flex flex-col gap-2">
+              <div className={cn('flex flex-col gap-2', grid && 'sm:flex-row sm:items-start sm:justify-between')}>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-medium text-sm">{rec.title}</p>
@@ -299,7 +322,21 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                     ) : null}
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {rec.triggerCount} trigger{rec.triggerCount > 1 ? 's' : ''} ·{' '}
+                    {grid ? (
+                      <button
+                        type="button"
+                        className="font-medium text-foreground underline-offset-2 hover:underline"
+                        aria-expanded={openTriggers.has(rec.id)}
+                        onClick={() => toggleTriggers(rec.id)}
+                      >
+                        {rec.triggerCount} trigger{rec.triggerCount > 1 ? 's' : ''} {openTriggers.has(rec.id) ? '▾' : '▸'}
+                      </button>
+                    ) : (
+                      <>
+                        {rec.triggerCount} trigger{rec.triggerCount > 1 ? 's' : ''}
+                      </>
+                    )}{' '}
+                    ·{' '}
                     {onGoToSection ? (
                       <button
                         type="button"
@@ -317,20 +354,22 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                   {rec.status === 'declined' && rec.declineReason ? (
                     <p className="mt-2 text-xs text-muted-foreground">Decline reason: {rec.declineReason}</p>
                   ) : null}
+                  {!grid || openTriggers.has(rec.id) ? (
                   <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {rec.triggers.slice(0, triggerLimit).map((t) => (
+                    {rec.triggers.slice(0, grid ? rec.triggers.length : triggerLimit).map((t) => (
                       <li key={t.questionId}>
                         {t.specRef ? `${t.specRef} · ` : ''}
                         {t.questionText}
                       </li>
                     ))}
-                    {rec.triggers.length > triggerLimit ? (
+                    {!grid && rec.triggers.length > triggerLimit ? (
                       <li>+{rec.triggers.length - triggerLimit} more</li>
                     ) : null}
                   </ul>
+                  ) : null}
                 </div>
                 {canDecide && submissionId && rec.status === 'pending' ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className={cn('flex flex-wrap gap-2', grid && 'sm:shrink-0 sm:justify-end')}>
                     <Button
                       type="button"
                       variant="outline"
@@ -352,12 +391,14 @@ export function InitialAssessmentCarePlanRecommendationsPanel({
                     ) : null}
                   </div>
                 ) : rec.status === 'declined' ? null : canCreate || rec.status === 'accepted' ? (
+                  <div className={cn(grid ? 'flex justify-end sm:shrink-0' : 'contents')}>
                   <CreateCarePlanButton
                     rec={rec}
                     pending={createDraftMutation.isPending && creatingFormId === rec.carePathwayFormId}
                     onCreate={requestCreate}
                     label={createLabel}
                   />
+                  </div>
                 ) : null}
               </div>
             </li>
