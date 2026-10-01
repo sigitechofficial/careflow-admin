@@ -23,6 +23,8 @@ type Props = {
   canReview: boolean
   canReopen: boolean
   reviewing?: boolean
+  /** DOM Care has no weekly contracted hours — the visit plan draft will be skipped (review still allowed). */
+  weeklyHoursMissing?: boolean
   onApprove: () => void
   onArchive: () => void
   onReopen: () => void
@@ -43,6 +45,7 @@ export function InitialAssessmentManagerReviewPanel({
   canReview,
   canReopen,
   reviewing,
+  weeklyHoursMissing,
   onApprove,
   onArchive,
   onReopen,
@@ -113,6 +116,15 @@ export function InitialAssessmentManagerReviewPanel({
                   </span>
                 </span>
               </label>
+              {approvedForCareStart && weeklyHoursMissing ? (
+                <p
+                  className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                  data-testid="ia-review-weekly-hours-warning"
+                >
+                  Weekly contracted hours are not set in DOM Care, so the visit plan draft will not be created yet. You
+                  can still mark this reviewed — add the hours in DOM Care, then create the visit plan.
+                </p>
+              ) : null}
               {approvedForCareStart ? (
                 <div className="mt-3">
                   <Label htmlFor="ia-care-conditions" className="text-xs">

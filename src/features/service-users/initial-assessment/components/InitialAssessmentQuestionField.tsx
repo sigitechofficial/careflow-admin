@@ -45,6 +45,9 @@ import {
   IA_CHECKBOX_CLASS,
   IA_SIMPLE_FIELD_CLASS,
   IA_SIMPLE_INPUT_CLASS,
+  IA_PAPER_ROW_LABEL_CLASS,
+  IA_RADIO_CLASS,
+  IA_YES_NO_CARD_CLASS,
 } from '@/features/service-users/initial-assessment/utils/form-typography'
 
 type Props = {
@@ -202,11 +205,11 @@ export function InitialAssessmentQuestionField({
       )}
     >
       {simple ? (
-        <>On file: {prefillHint}</>
+        <>From {prefillHint}</>
       ) : (
         <>
           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-600" aria-hidden />
-          On file: {prefillHint}
+          From {prefillHint}
         </>
       )}
     </p>
@@ -297,6 +300,47 @@ export function InitialAssessmentQuestionField({
     const current = selectedValues(value)[0] ?? ''
     const searchable = usesSearchableSingleSelect(question, options)
 
+    // `metadata.display: 'inline'` — short option lists (e.g. Yes / No / Unsure) as radios on the right,
+    // laid out like a Yes/No row instead of a dropdown.
+    if (question.metadata?.display === 'inline' && options.length > 0) {
+      return (
+        <div className={fieldShellClass}>
+          {srHelpEl}
+          <div className={cn(IA_YES_NO_CARD_CLASS, 'ia-yes-no-card')}>
+            <div className="flex min-h-10 items-center gap-3 sm:gap-4">
+              {questionLabel ? (
+                <span className={cn('min-w-0 flex-1', IA_PAPER_ROW_LABEL_CLASS)}>{questionLabel}</span>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label={displayText}>
+                {options.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-1.5',
+                      IA_OPTION_LABEL_CLASS,
+                      disabled && 'cursor-not-allowed opacity-60',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={`ia-inline-${id}`}
+                      className={IA_RADIO_CLASS}
+                      checked={current === opt.value}
+                      disabled={disabled}
+                      aria-describedby={describedBy}
+                      onChange={() => onChange(toInput(qid, { selectedOptions: [opt.value] }))}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          {fieldMetaFooter}
+        </div>
+      )
+    }
+
     if (searchable) {
       const comboboxOptions = questionOptionsForCombobox(options, current)
       return (
@@ -323,10 +367,7 @@ export function InitialAssessmentQuestionField({
 
     if (options.length === 0) return null
 
-    return (
-      <div className={fieldShellClass ?? 'space-y-1 p-1'}>
-        {labelEl}
-        <div className={cn(simple && 'w-full min-w-0')}>
+    const selectEl = (
           <Select
             value={current || '_none'}
             disabled={disabled}
@@ -349,7 +390,32 @@ export function InitialAssessmentQuestionField({
               ))}
             </SelectContent>
           </Select>
+    )
+
+    // `metadata.display: 'trailing'` — dropdown on the right of the question, in a row like Yes/No.
+    if (question.metadata?.display === 'trailing') {
+      return (
+        <div className={fieldShellClass}>
+          {srHelpEl}
+          <div className={cn(IA_YES_NO_CARD_CLASS, 'ia-yes-no-card')}>
+            <div className="flex min-h-10 flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-4">
+              {questionLabel ? (
+                <label htmlFor={id} className={cn('min-w-0 flex-1', IA_PAPER_ROW_LABEL_CLASS)}>
+                  {questionLabel}
+                </label>
+              ) : null}
+              <div className="w-full shrink-0 sm:w-72">{selectEl}</div>
+            </div>
+          </div>
+          {fieldMetaFooter}
         </div>
+      )
+    }
+
+    return (
+      <div className={fieldShellClass ?? 'space-y-1 p-1'}>
+        {labelEl}
+        <div className={cn(simple && 'w-full min-w-0')}>{selectEl}</div>
         {fieldMetaFooter}
       </div>
     )

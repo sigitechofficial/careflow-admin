@@ -242,13 +242,98 @@ function FieldError({ message }: { message?: string }) {
   )
 }
 
+function employeeDisplayName(r: EmployeeListRow): string {
+  return (r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()) || r.id
+}
+
+// Must stay at module scope: defined inside the page it remounts on every render and the input loses focus after each keystroke.
+function EmployeeSearch({
+  label,
+  search,
+  setSearch,
+  selectedId,
+  selectedLabel,
+  hits,
+  onPick,
+  onClear,
+}: {
+  label: string
+  search: string
+  setSearch: (v: string) => void
+  selectedId: string
+  selectedLabel: string
+  hits: EmployeeListRow[]
+  onPick: (r: EmployeeListRow) => void
+  /** Drops the selected employee; the search text is left to the caller. */
+  onClear: () => void
+}) {
+  return (
+    <div className="space-y-2">
+      <LabelWithTip tip={`Search employees for ${label}`}>{label}</LabelWithTip>
+      <Input
+        placeholder="Employee name…"
+        value={search}
+        onChange={(e) => {
+          const next = e.target.value
+          setSearch(next)
+          // Editing the picked name means the user is searching again.
+          if (selectedId && next !== selectedLabel) onClear()
+        }}
+      />
+      {selectedId ? (
+        <p className="text-xs text-muted-foreground">
+          Selected: {selectedLabel || selectedId}{' '}
+          <button
+            type="button"
+            className="text-primary underline"
+            onClick={() => {
+              onClear()
+              setSearch('')
+            }}
+          >
+            Clear
+          </button>
+        </p>
+      ) : null}
+      {hits.length > 0 && !selectedId ? (
+        <ul className="max-h-40 overflow-auto rounded border bg-popover text-sm">
+          {hits.map((r) => (
+            <li key={r.id}>
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left hover:bg-muted"
+                onClick={() => onPick(r)}
+              >
+                {employeeDisplayName(r)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
 type FieldErrors = Partial<Record<keyof FormState, string>>
+
+/** Fields marked * on the form, in on-screen order (drives inline errors and the summary). */
+const REQUIRED_FIELD_LABELS = {
+  statusId: 'Status',
+  firstName: 'First name',
+  lastName: 'Last name',
+  titleId: 'Title',
+  dateOfBirth: 'Date of birth',
+  genderId: 'Gender',
+  locationId: 'Location',
+} as const satisfies Partial<Record<keyof FormState, string>>
 
 function requiredFieldErrors(form: FormState): FieldErrors {
   const errors: FieldErrors = {}
-  if (!form.firstName.trim()) errors.firstName = 'First name is required'
-  if (!form.lastName.trim()) errors.lastName = 'Last name is required'
-  if (!form.statusId.trim()) errors.statusId = 'Status is required'
+  for (const [key, label] of Object.entries(REQUIRED_FIELD_LABELS)) {
+    if (!String(form[key as keyof FormState] ?? '').trim()) {
+      errors[key as keyof FormState] = `${label} is required`
+    }
+  }
   return errors
 }
 
@@ -534,11 +619,9 @@ export default function AddServiceUserPage() {
       return
     }
     const required = requiredFieldErrors(form)
-    const missing = [
-      required.firstName ? 'First name' : null,
-      required.lastName ? 'Last name' : null,
-      required.statusId ? 'Status' : null,
-    ].filter((label): label is string => Boolean(label))
+    const missing = Object.entries(REQUIRED_FIELD_LABELS)
+      .filter(([key]) => required[key as keyof FormState])
+      .map(([, label]) => label)
     if (missing.length) {
       setFieldErrors(required)
       const summary = `Please complete the required fields: ${missing.join(', ')}.`
@@ -582,63 +665,6 @@ export default function AddServiceUserPage() {
       setSubmitError(extractApiErrorMessage(err, 'Could not create service user'))
       toastApiError(err, 'Could not create service user')
     }
-  }
-
-  function EmployeeSearch({
-    label,
-    search,
-    setSearch,
-    selectedId,
-    selectedLabel,
-    hits,
-    onPick,
-    onClear,
-  }: {
-    label: string
-    search: string
-    setSearch: (v: string) => void
-    selectedId: string
-    selectedLabel: string
-    hits: EmployeeListRow[]
-    onPick: (r: EmployeeListRow) => void
-    onClear: () => void
-  }) {
-    return (
-      <div className="space-y-2">
-        <LabelWithTip tip={`Search employees for ${label}`}>{label}</LabelWithTip>
-        <Input
-          placeholder="Employee name…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            if (!e.target.value.trim()) onClear()
-          }}
-        />
-        {selectedId ? (
-          <p className="text-xs text-muted-foreground">
-            Selected: {selectedLabel || selectedId}{' '}
-            <button type="button" className="text-primary underline" onClick={onClear}>
-              Clear
-            </button>
-          </p>
-        ) : null}
-        {hits.length > 0 && !selectedId ? (
-          <ul className="max-h-40 overflow-auto rounded border bg-popover text-sm">
-            {hits.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-muted"
-                  onClick={() => onPick(r)}
-                >
-                  {(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()) || r.id}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    )
   }
 
   return (
@@ -792,9 +818,11 @@ export default function AddServiceUserPage() {
                   value={form.dateOfBirth}
                   onChange={(e) => set('dateOfBirth')(e.target.value)}
                   className="max-w-[11rem]"
+                  error={Boolean(fieldErrors.dateOfBirth)}
                 />
                 {age != null ? <span className="text-sm text-muted-foreground">{age} years</span> : null}
               </div>
+              <FieldError message={fieldErrors.dateOfBirth} />
             </div>
             <div>
               <LabelWithTip tip="Marital or civil partnership status.">Marital Status</LabelWithTip>
@@ -805,7 +833,7 @@ export default function AddServiceUserPage() {
               <Input
                 value={form.placeOfBirth}
                 onChange={(e) => set('placeOfBirth')(e.target.value)}
-                placeholder="Please select place of birth"
+                placeholder="e.g. Manchester"
               />
             </div>
 
@@ -820,7 +848,7 @@ export default function AddServiceUserPage() {
               <Input
                 value={form.religion}
                 onChange={(e) => set('religion')(e.target.value)}
-                placeholder="Please select a Religion"
+                placeholder="e.g. Christian, Muslim, None"
               />
             </div>
             <div>
@@ -866,7 +894,7 @@ export default function AddServiceUserPage() {
               <Input
                 value={form.sexualOrientation}
                 onChange={(e) => set('sexualOrientation')(e.target.value)}
-                placeholder="Please select a Sexual Orientation"
+                placeholder="Only if the person chooses to share"
               />
             </div>
           </div>
@@ -1049,11 +1077,13 @@ export default function AddServiceUserPage() {
                 value={form.locationId}
                 areaId={form.serviceUserAreaId}
                 mainPostcode={form.postcode}
-                onChange={({ locationId, serviceUserAreaId }) =>
-                  setForm((prev) => ({ ...prev, locationId, serviceUserAreaId }))
-                }
+                onChange={({ locationId, serviceUserAreaId }) => {
+                  set('locationId')(locationId)
+                  setForm((prev) => ({ ...prev, serviceUserAreaId }))
+                }}
                 onApplyMainPostcode={(postcode) => setForm((prev) => ({ ...prev, postcode }))}
               />
+              <FieldError message={fieldErrors.locationId} />
             </div>
 
             <div>
@@ -1090,14 +1120,14 @@ export default function AddServiceUserPage() {
               selectedLabel={keyWorkerLabel}
               hits={kwHits}
               onPick={(r) => {
+                const name = employeeDisplayName(r)
                 setForm((p) => ({ ...p, keyWorkerId: r.id }))
-                setKeyWorkerLabel(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim())
-                setKwSearch('')
+                setKeyWorkerLabel(name)
+                setKwSearch(name)
               }}
               onClear={() => {
                 setForm((p) => ({ ...p, keyWorkerId: '' }))
                 setKeyWorkerLabel('')
-                setKwSearch('')
               }}
             />
             <EmployeeSearch
@@ -1108,14 +1138,14 @@ export default function AddServiceUserPage() {
               selectedLabel={namedNurseLabel}
               hits={nnHits}
               onPick={(r) => {
+                const name = employeeDisplayName(r)
                 setForm((p) => ({ ...p, namedNurseId: r.id }))
-                setNamedNurseLabel(r.fullName ?? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim())
-                setNnSearch('')
+                setNamedNurseLabel(name)
+                setNnSearch(name)
               }}
               onClear={() => {
                 setForm((p) => ({ ...p, namedNurseId: '' }))
                 setNamedNurseLabel('')
-                setNnSearch('')
               }}
             />
             <div />

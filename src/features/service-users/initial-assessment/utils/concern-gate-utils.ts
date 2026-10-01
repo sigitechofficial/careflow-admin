@@ -1,20 +1,36 @@
-import { findQuestionByFieldKey, findQuestionByTextIncludes } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import { findQuestionByFieldKey, findQuestionByTextIncludes, fieldKeyOf } from '@/features/service-users/initial-assessment/utils/question-lookup'
 import type {
   InitialAssessmentAnswerInput,
   InitialAssessmentQuestion,
   InitialAssessmentSection,
 } from '@/features/service-users/initial-assessment/types'
 
-type DeriveKind = 'multi_no_concern' | 'appetite_poor' | 'emotional_mood' | 'sleeping_pattern'
+type DeriveKind =
+  | 'multi_no_concern'
+  | 'pain_present'
+  | 'appetite_poor'
+  | 'emotional_mood'
+  | 'sleeping_pattern'
+  | 'impairment_moderate_or_worse'
+  | 'nutrition_at_risk'
+  | 'doubly_incontinent'
+  | 'yes_no_mirror'
 
 type DerivedConcernGateRule = {
   sourceFieldKey: string
   gateTextIncludes: string
   derive: DeriveKind
+  /** Optional second multi-select source (e.g. bowel for double incontinence). */
+  secondarySourceFieldKey?: string
 }
 
+const MODERATE_OR_WORSE = new Set(['moderate', 'severe', 'very_severe'])
+const NUTRITION_AT_RISK = new Set(['malnourished', 'severely_malnourished'])
+// Waterlow treats catheter / stoma as continent and pads alone aren't proof of incontinence.
+const CONTINENCE_INCONTINENT = new Set(['incontinence', 'stress', 'nocturnal'])
+
 const DERIVED_CONCERN_GATES: DerivedConcernGateRule[] = [
-  { sourceFieldKey: 'painConcerns', gateTextIncludes: 'pain or distress identified', derive: 'multi_no_concern' },
+  { sourceFieldKey: 'painConcerns', gateTextIncludes: 'pain or distress identified', derive: 'pain_present' },
   {
     sourceFieldKey: 'swallowingConcerns',
     gateTextIncludes: 'swallowing or choking concerns',
@@ -43,6 +59,30 @@ const DERIVED_CONCERN_GATES: DerivedConcernGateRule[] = [
     derive: 'emotional_mood',
   },
   { sourceFieldKey: 'sleepingPattern', gateTextIncludes: 'sleeping pattern concern', derive: 'sleeping_pattern' },
+  // C40 — hide trigger Yes/No; derive from sensory level SELECTs
+  {
+    sourceFieldKey: 'hearingLevel',
+    gateTextIncludes: 'hearing impairment (moderate or worse)',
+    derive: 'impairment_moderate_or_worse',
+  },
+  {
+    sourceFieldKey: 'sightLevel',
+    gateTextIncludes: 'sight impairment (moderate or worse)',
+    derive: 'impairment_moderate_or_worse',
+  },
+  // C41
+  {
+    sourceFieldKey: 'nutritionStatus',
+    gateTextIncludes: 'malnourished or at nutrition risk',
+    derive: 'nutrition_at_risk',
+  },
+  // C44 — bladder + bowel both signal incontinence
+  {
+    sourceFieldKey: 'bladderContinenceOptions',
+    secondarySourceFieldKey: 'bowelContinenceOptions',
+    gateTextIncludes: 'doubly incontinent',
+    derive: 'doubly_incontinent',
+  },
 ]
 
 function selectedValues(answer: InitialAssessmentAnswerInput | undefined): string[] {
@@ -68,17 +108,13 @@ function deriveConcern(
   answer: InitialAssessmentAnswerInput | undefined,
   sections: InitialAssessmentSection[],
   answers: Record<string, InitialAssessmentAnswerInput>,
+  secondaryAnswer?: InitialAssessmentAnswerInput,
 ): boolean | undefined {
   if (kind === 'emotional_mood') {
-    const low = findQuestionByFieldKey(sections, 'feelsLowInMood')
     const depressed = findQuestionByFieldKey(sections, 'feelsDepressed')
     const wellbeing = findQuestionByFieldKey(sections, 'emotionalWellbeing')
 
     let hasSignal = false
-    if (low && answers[low.id] != null) {
-      hasSignal = true
-      if (isYes(answers[low.id])) return true
-    }
     if (depressed && answers[depressed.id] != null) {
       hasSignal = true
       if (isYes(answers[depressed.id])) return true
@@ -94,6 +130,35 @@ function deriveConcern(
     return hasSignal ? false : undefined
   }
 
+  if (kind === 'impairment_moderate_or_worse') {
+    const value = singleSelectValue(answer)
+    if (!value) return undefined
+    if (value === 'no_concern' || value === 'mild' || value === 'not_known') return false
+    return MODERATE_OR_WORSE.has(value) || value === 'onward_referral'
+  }
+
+  if (kind === 'nutrition_at_risk') {
+    const value = singleSelectValue(answer)
+    if (!value) return undefined
+    return NUTRITION_AT_RISK.has(value)
+  }
+
+  if (kind === 'doubly_incontinent') {
+    const bladder = selectedValues(answer)
+    const bowel = selectedValues(secondaryAnswer)
+    if (bladder.length === 0 && bowel.length === 0) return undefined
+    const bladderIncontinent = bladder.some((v) => CONTINENCE_INCONTINENT.has(v))
+    const bowelIncontinent = bowel.some((v) => CONTINENCE_INCONTINENT.has(v))
+    return bladderIncontinent && bowelIncontinent
+  }
+
+  if (kind === 'yes_no_mirror') {
+    if (!answer) return undefined
+    if (typeof answer.booleanValue === 'boolean') return answer.booleanValue
+    if (typeof answer.checked === 'boolean') return answer.checked
+    return undefined
+  }
+
   if (!answer) return undefined
 
   switch (kind) {
@@ -105,6 +170,16 @@ function deriveConcern(
       if (raw == null) return undefined
       const vals = selectedValues(answer)
       if (vals.length === 0) return undefined
+      return vals.some((v) => v !== 'no_concern')
+    }
+    case 'pain_present': {
+      // Pain is present only when a severity, "unable to self-report" or a GP review is chosen —
+      // ticking "Pain assessment completed" on its own is an admin note, not pain.
+      const raw = answer.selectedOptions
+      if (Array.isArray(raw) && raw.length === 0) return false
+      if (raw == null) return undefined
+      const vals = selectedValues(answer).filter((v) => v !== 'pain_assessment_completed')
+      if (vals.length === 0) return selectedValues(answer).length ? false : undefined
       return vals.some((v) => v !== 'no_concern')
     }
     case 'appetite_poor': {
@@ -145,9 +220,20 @@ export function isHiddenDerivedConcernGate(
 ): boolean {
   if (q.questionType !== 'YES_NO' && q.questionType !== 'CHECKBOX') return false
   const text = q.questionText.toLowerCase()
+  // C43 — Moving & Handling / Equipment Selection own hoist; hide template trigger.
+  if (fieldKeyOf(q) === 'usesHoistOrSling' || text.includes('uses hoist or sling')) {
+    return true
+  }
+  // §11 "Further pressure equipment required?" stays a visible question (its own pressure-relief
+  // care-plan trigger): daily-living "further equipment" (§12.10) is a different need, so it is not
+  // mirrored from there.
   return DERIVED_CONCERN_GATES.some((rule) => {
     if (!text.includes(rule.gateTextIncludes.toLowerCase())) return false
-    return Boolean(findQuestionByFieldKey(sections, rule.sourceFieldKey))
+    if (!findQuestionByFieldKey(sections, rule.sourceFieldKey)) return false
+    if (rule.secondarySourceFieldKey) {
+      return Boolean(findQuestionByFieldKey(sections, rule.secondarySourceFieldKey))
+    }
+    return true
   })
 }
 
@@ -163,7 +249,19 @@ export function syncDerivedConcernGates(
     const gate = findQuestionByTextIncludes(sections, rule.gateTextIncludes)
     if (!source || !gate) continue
 
-    const concern = deriveConcern(rule.derive, next[source.id], sections, next)
+    const secondary = rule.secondarySourceFieldKey
+      ? findQuestionByFieldKey(sections, rule.secondarySourceFieldKey)
+      : undefined
+    // For dual-source rules, both sources must exist.
+    if (rule.secondarySourceFieldKey && !secondary) continue
+
+    const concern = deriveConcern(
+      rule.derive,
+      next[source.id],
+      sections,
+      next,
+      secondary ? next[secondary.id] : undefined,
+    )
     if (concern === undefined) continue
     if (gateAnswerMatches(gate, concern, next)) continue
 

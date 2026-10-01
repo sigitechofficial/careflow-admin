@@ -33,6 +33,10 @@ import {
 type Props = {
   value: MentalCapacityChecklistMetadata
   disabled?: boolean
+  /** Rows answered on the MCA Screening tab — shown read-only here (comments stay editable). */
+  screeningSyncedIds?: ReadonlySet<MentalCapacityQuestionId>
+  /** e.g. "Tab 7" — where the synced rows are answered. */
+  screeningTabLabel?: string
   onChange: (
     updater:
       | MentalCapacityChecklistMetadata
@@ -125,7 +129,13 @@ function AssessmentTypeRow({
   )
 }
 
-export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled, onChange }: Props) {
+export function InitialAssessmentMentalCapacityChecklistPanel({
+  value,
+  disabled,
+  screeningSyncedIds,
+  screeningTabLabel = 'MCA Screening',
+  onChange,
+}: Props) {
   const patch = (partial: Partial<MentalCapacityChecklistMetadata>, immediate?: boolean) =>
     onChange((prev) => ({ ...prev, ...partial }), { immediate })
 
@@ -165,6 +175,13 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
               </p>
             ) : null}
 
+            {screeningSyncedIds && screeningSyncedIds.size > 0 ? (
+              <p className={cn('text-sm', IA_HINT_CLASS)} data-testid="ia-mca-checklist-synced-note">
+                Questions 1–6 are answered once on MCA Screening ({screeningTabLabel}) and shown here
+                read-only. Add comments below; change the answers on {screeningTabLabel}.
+              </p>
+            ) : null}
+
             {!detailedRequired && !shortCircuit ? (
               <p className={cn('text-sm', IA_HINT_CLASS)}>
                 Complete questions 1 and 2 to determine whether the detailed assessment below is
@@ -201,6 +218,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                 const name = `mca-checklist-${row.id}`
                 const rowDisabled =
                   disabled || (row.detailed === true && !detailedRequired)
+                const answerLocked = rowDisabled || screeningSyncedIds?.has(row.id) === true
 
                 return (
                   <HolisticAssessmentTableRow key={row.id}>
@@ -209,12 +227,17 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                     </HolisticAssessmentTableCell>
                     <HolisticAssessmentTableCell className="align-top text-sm">
                       {row.label}
+                      {screeningSyncedIds?.has(row.id) ? (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          From MCA Screening ({screeningTabLabel})
+                        </span>
+                      ) : null}
                     </HolisticAssessmentTableCell>
                     <YesNoColumnCell
                       name={name}
                       selected={answer}
                       column="yes"
-                      disabled={rowDisabled}
+                      disabled={answerLocked}
                       ariaLabel={row.label}
                       onSelect={(v) => patchQuestion(row.id, v)}
                     />
@@ -222,7 +245,7 @@ export function InitialAssessmentMentalCapacityChecklistPanel({ value, disabled,
                       name={name}
                       selected={answer}
                       column="no"
-                      disabled={rowDisabled}
+                      disabled={answerLocked}
                       ariaLabel={row.label}
                       onSelect={(v) => patchQuestion(row.id, v)}
                     />

@@ -14,11 +14,13 @@ import type { FallsScreeningMetadata } from '@/features/service-users/initial-as
 import type { MovingHandlingOperationsMetadata } from '@/features/service-users/initial-assessment/utils/moving-handling-operations'
 import type { PhotographyConsentMetadata } from '@/features/service-users/initial-assessment/utils/photography-consent'
 import type { WaterlowMetadata } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
-import { computeWaterlowScore } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
+import {
+  computeWaterlowScore,
+  waterlowBand,
+} from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 import {
   findQuestionByFieldKey,
   findQuestionByTextIncludes,
-  isYesAnswer,
 } from '@/features/service-users/initial-assessment/utils/question-lookup'
 
 function textOf(
@@ -31,6 +33,30 @@ function textOf(
 
 function empty(s: string | undefined | null): boolean {
   return !s?.trim()
+}
+
+/** DATE answers keep the value in `dateValue` (older rows may hold text). */
+function dateOf(
+  answers: Record<string, InitialAssessmentAnswerInput>,
+  q: { id: string } | undefined,
+): string {
+  if (!q) return ''
+  return answers[q.id]?.dateValue?.slice(0, 10) || textOf(answers, q)
+}
+
+/**
+ * Personal Details "LPA name" only stands for a Health & Welfare attorney when "LPA appointed?" says
+ * health (or both). A property & finance attorney is never offered for care decisions.
+ */
+function healthWelfareLpaName(
+  sections: InitialAssessmentSection[],
+  answers: Record<string, InitialAssessmentAnswerInput>,
+): string {
+  const appointedQ = findQuestionByFieldKey(sections, 'lpoaAppointed')
+  const raw = appointedQ ? answers[appointedQ.id]?.selectedOptions : undefined
+  const appointed = Array.isArray(raw) ? raw[0] : raw
+  if (appointed !== 'health' && appointed !== 'both') return ''
+  return textOf(answers, findQuestionByFieldKey(sections, 'lpoaName'))
 }
 
 /** Falls Tab 8 → Moving & Handling risk filter (history + meds flag). */
@@ -75,7 +101,6 @@ export function prefillAcpFromIdentityAnswers(
   const dob = findQuestionByFieldKey(sections, 'dateOfBirth') ?? findQuestionByTextIncludes(sections, 'date of birth')
   const nhs = findQuestionByFieldKey(sections, 'nhsNumber')
   const gp = findQuestionByFieldKey(sections, 'gpContactDetails')
-  const lpoaName = findQuestionByFieldKey(sections, 'lpoaName')
   const address =
     findQuestionByFieldKey(sections, 'addressContactDetails') ??
     findQuestionByTextIncludes(sections, 'address and contact')
@@ -88,8 +113,8 @@ export function prefillAcpFromIdentityAnswers(
     next.patientName = fullName
     changed = true
   }
-  if (empty(next.dateOfBirth) && textOf(answers, dob)) {
-    next.dateOfBirth = textOf(answers, dob)
+  if (empty(next.dateOfBirth) && dateOf(answers, dob)) {
+    next.dateOfBirth = dateOf(answers, dob)
     changed = true
   }
   if (empty(next.hospitalOrNhsNumber) && textOf(answers, nhs)) {
@@ -104,12 +129,10 @@ export function prefillAcpFromIdentityAnswers(
     next.address = textOf(answers, address)
     changed = true
   }
-  if (empty(next.proxyContact1?.name) && textOf(answers, lpoaName)) {
-    next.proxyContact1 = {
-      ...(next.proxyContact1 ?? {}),
-      name: textOf(answers, lpoaName),
-      lpoa: true,
-    }
+  // Name only: whether this person holds a valid LPA for the decision is never inferred from a name.
+  const hwLpaName = healthWelfareLpaName(sections, answers)
+  if (empty(next.proxyContact1?.name) && hwLpaName) {
+    next.proxyContact1 = { ...(next.proxyContact1 ?? {}), name: hwLpaName }
     changed = true
   }
 
@@ -126,7 +149,6 @@ export function prefillPhotographyFromIdentityAnswers(
   const last = findQuestionByFieldKey(sections, 'lastName')
   const dob = findQuestionByFieldKey(sections, 'dateOfBirth') ?? findQuestionByTextIncludes(sections, 'date of birth')
   const nhs = findQuestionByFieldKey(sections, 'nhsNumber')
-  const lpoaName = findQuestionByFieldKey(sections, 'lpoaName')
 
   const next: PhotographyConsentMetadata = { ...current }
   let changed = false
@@ -139,16 +161,17 @@ export function prefillPhotographyFromIdentityAnswers(
     next.surname = textOf(answers, last)
     changed = true
   }
-  if (empty(next.dateOfBirth) && textOf(answers, dob)) {
-    next.dateOfBirth = textOf(answers, dob)
+  if (empty(next.dateOfBirth) && dateOf(answers, dob)) {
+    next.dateOfBirth = dateOf(answers, dob)
     changed = true
   }
   if (empty(next.nhsNumber) && textOf(answers, nhs)) {
     next.nhsNumber = textOf(answers, nhs)
     changed = true
   }
-  if (empty(next.lpoaName) && textOf(answers, lpoaName)) {
-    next.lpoaName = textOf(answers, lpoaName)
+  const hwLpaName = healthWelfareLpaName(sections, answers)
+  if (empty(next.lpoaName) && hwLpaName) {
+    next.lpoaName = hwLpaName
     changed = true
   }
 
@@ -174,27 +197,6 @@ export function syncDnacprFromEndOfLife(
   })
 }
 
-/** BSL required (§1.8) → Sign language required (§8). */
-export function syncBslToSignLanguage(
-  sections: InitialAssessmentSection[],
-  sourceQuestionId: string,
-  patch: InitialAssessmentAnswerInput,
-  onAnswerChange: (questionId: string, patch: InitialAssessmentAnswerInput) => void,
-): void {
-  const bsl = findQuestionByTextIncludes(sections, 'bsl required')
-  if (!bsl || bsl.id !== sourceQuestionId) return
-  const yes = isYesAnswer(patch)
-  const no = patch.checked === false || patch.booleanValue === false
-  if (!yes && !no) return
-  const sign = findQuestionByTextIncludes(sections, 'sign language required')
-  if (!sign || sign.id === bsl.id) return
-  onAnswerChange(sign.id, {
-    questionId: sign.id,
-    checked: yes,
-    booleanValue: yes,
-  })
-}
-
 /** Env pets → §3 petsPresent (one-way when peer empty). */
 export function syncEnvPetsToSection3(
   sections: InitialAssessmentSection[],
@@ -214,15 +216,22 @@ export function syncEnvPetsToSection3(
   })
 }
 
-/** Waterlow score → Equipment Selection waterlowScore text (fill empty / refresh numeric). */
+/**
+ * The Waterlow tab is the single master for the pressure-ulcer score and band; Equipment Selection
+ * keeps a read-only copy (compose reads it). Cleared again when the Waterlow is reset.
+ */
 export function syncWaterlowScoreToEquipment(
   waterlow: WaterlowMetadata | undefined,
   current: EquipmentSelectionMetadata,
 ): EquipmentSelectionMetadata {
   const score = computeWaterlowScore(waterlow)
-  if (score <= 0) return current
-  const text = String(score)
-  if (current.waterlowScore?.trim() === text) return current
-  // Always keep equipment score aligned with Waterlow tool when score > 0
-  return { ...current, waterlowScore: text }
+  const waterlowScore = score > 0 ? String(score) : undefined
+  const selectedRiskLevel = score > 0 ? waterlowBand(score).label : undefined
+  if (
+    (current.waterlowScore?.trim() || undefined) === waterlowScore &&
+    (current.selectedRiskLevel?.trim() || undefined) === selectedRiskLevel
+  ) {
+    return current
+  }
+  return { ...current, waterlowScore, selectedRiskLevel }
 }

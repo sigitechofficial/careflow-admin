@@ -88,6 +88,13 @@ export function IncidentActionsSection({
 
   const [completingId, setCompletingId] = React.useState<string | null>(null)
   const [completionNotes, setCompletionNotes] = React.useState('')
+  // Dropping a mandatory measure (cancel or untick) must be justified — the backend enforces it too.
+  const [changeReason, setChangeReason] = React.useState('')
+  const editingOriginal = mode === 'edit' ? actions.find((a) => a.id === editingId) : undefined
+  const droppingMandatory = Boolean(
+    editingOriginal?.isMandatory &&
+      ((form.status === 'CANCELLED' && editingOriginal.status !== 'CANCELLED') || !form.isMandatory),
+  )
 
   const [empSearch, setEmpSearch] = React.useState('')
   const employeesQuery = useEmployees({ limit: 50, search: empSearch || undefined })
@@ -133,6 +140,7 @@ export function IncidentActionsSection({
     setEditingId(null)
     setForm(EMPTY_FORM)
     setEmpSearch('')
+    setChangeReason('')
   }
 
   function submitForm() {
@@ -149,6 +157,7 @@ export function IncidentActionsSection({
         assignedEmployeeId: form.assignedEmployeeId || null,
         isMandatory: form.isMandatory,
         status: form.status,
+        ...(droppingMandatory ? { reason: changeReason.trim() } : {}),
       }
       updateMutation.mutate(
         { actionId: editingId, input },
@@ -355,6 +364,21 @@ export function IncidentActionsSection({
                 Mandatory
               </label>
             </div>
+            {droppingMandatory && (
+              <div className="space-y-1">
+                <p className="text-xs text-warning">
+                  {form.status === 'CANCELLED'
+                    ? 'This is a mandatory measure. Give a reason for cancelling it — it will be recorded in the audit log.'
+                    : 'This is a mandatory measure. Give a reason for making it optional — it will be recorded in the audit log.'}
+                </p>
+                <Textarea
+                  rows={2}
+                  placeholder="Reason (required)"
+                  value={changeReason}
+                  onChange={(e) => setChangeReason(e.target.value)}
+                />
+              </div>
+            )}
             <div>
               <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
                 Assign to
@@ -376,7 +400,7 @@ export function IncidentActionsSection({
                 size="sm"
                 loading={formBusy}
                 onClick={submitForm}
-                disabled={!form.title.trim()}
+                disabled={!form.title.trim() || (droppingMandatory && !changeReason.trim())}
               >
                 {mode === 'edit' ? 'Save measure' : 'Add measure'}
               </Button>

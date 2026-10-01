@@ -201,12 +201,16 @@ export type TimelineJob = {
     employeeId: string
     status: string
     isLeadCarer?: boolean
+    /** When the carer was assigned — fallback lead order when no lead is set. */
+    allocatedAt?: string | null
     requiresConfirmation?: boolean
     scheduledStartDateTime?: string | null
     scheduledEndDateTime?: string | null
     durationMinutes?: number | null
     actualStartDateTime?: string | null
     actualEndDateTime?: string | null
+    /** Support clock-out set by the system at the lead's clock-out. */
+    actualEndAutoClosed?: boolean
     resolvedStartDateTime?: string | null
     resolvedEndDateTime?: string | null
     resolvedDurationMinutes?: number | null

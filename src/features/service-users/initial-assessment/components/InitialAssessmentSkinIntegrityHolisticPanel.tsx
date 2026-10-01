@@ -73,12 +73,15 @@ export function InitialAssessmentSkinIntegrityHolisticPanel({
 
       <div className="space-y-4">
         {SKIN_INTEGRITY_TABLE_ROWS.map((row) => {
-          const assessmentQ = row.assessmentQuestionText
+          // Conditional rows (e.g. dressings only with a wound, details only after Yes) follow showWhen.
+          const foundAssessmentQ = row.assessmentQuestionText
             ? findQuestionByExactText(allSections, row.assessmentQuestionText)
             : undefined
-          const commentQ = row.commentQuestionText
+          const assessmentQ = foundAssessmentQ && show(foundAssessmentQ) ? foundAssessmentQ : undefined
+          const foundCommentQ = row.commentQuestionText
             ? findQuestionByExactText(allSections, row.commentQuestionText)
             : undefined
+          const commentQ = foundCommentQ && show(foundCommentQ) ? foundCommentQ : undefined
           const showBodyMapInline =
             row.bodyMapGate && assessmentQ && isYesAnswer(draftAnswers[assessmentQ.id])
 

@@ -109,7 +109,8 @@ export default function HomePage() {
   const todayCompletedCount = todayJobs.filter(j => j.status === 'COMPLETED').length
 
   const unreadCount = useUnreadNotificationCount()
-  const incidentStats = useIncidentStats()
+  const canReadIncidents = useAuthStore(s => s.can('incidents.read'))
+  const incidentStats = useIncidentStats(undefined, canReadIncidents)
   const complianceBoard = useComplianceBoard()
   const learningDashboard = useLearningDashboard()
   const housekeepingJobs = useHousekeepingJobsNeedingAttention(1)
@@ -257,18 +258,20 @@ export default function HomePage() {
                   </>
                 }
               />
-              <ActionRow
-                icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
-                text={
-                  <>
-                    <strong>{incidentStats.data?.open ?? 0}</strong> open incident{(incidentStats.data?.open ?? 0) !== 1 ? 's' : ''},{' '}
-                    <strong>{incidentStats.data?.overdueActions ?? 0}</strong> overdue action{(incidentStats.data?.overdueActions ?? 0) !== 1 ? 's' : ''}.{' '}
-                    <Link to="/incidents/dashboard" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
-                      View incidents
-                    </Link>
-                  </>
-                }
-              />
+              {canReadIncidents ? (
+                <ActionRow
+                  icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
+                  text={
+                    <>
+                      <strong>{incidentStats.data?.open ?? 0}</strong> open incident{(incidentStats.data?.open ?? 0) !== 1 ? 's' : ''},{' '}
+                      <strong>{incidentStats.data?.overdueActions ?? 0}</strong> overdue action{(incidentStats.data?.overdueActions ?? 0) !== 1 ? 's' : ''}.{' '}
+                      <Link to="/incidents/dashboard" className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
+                        View incidents
+                      </Link>
+                    </>
+                  }
+                />
+              ) : null}
               <ActionRow
                 icon={<ShieldAlert className="h-5 w-5 text-red-500" />}
                 text={

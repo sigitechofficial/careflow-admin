@@ -21,6 +21,8 @@ type Props = {
   value: ClinicalAssessmentOutcomeSummaryMetadata
   disabled?: boolean
   onChange: (next: ClinicalAssessmentOutcomeSummaryMetadata) => void
+  /** Review columns are for reviews / reassessments; the initial IA shows the baseline only. */
+  showReviewColumns?: boolean
 }
 
 function ColumnHeaderFields({
@@ -79,7 +81,9 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
   value,
   disabled,
   onChange,
+  showReviewColumns = true,
 }: Props) {
+  const reviewColumnCount = showReviewColumns ? CLINICAL_OUTCOME_REVIEW_COLUMN_COUNT : 0
   const initial = value.initial ?? {}
   const reviews =
     value.reviews ??
@@ -130,10 +134,13 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-clinical-outcome-summary-panel">
       <div className={HOLISTIC_SECTION_SHELL_CLASS}>
-        <HolisticSectionHeader title="Social and Clinical assessment outcome summary" />
+        <HolisticSectionHeader
+          title="Clinical outcome summary (baseline)"
+          subtitle="Filled from the worksheets and baseline vitals in this assessment; empty cells only."
+        />
 
         <div className="overflow-x-auto border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
-          <table className={cn(HOLISTIC_TABLE_CLASS, 'min-w-[72rem]')}>
+          <table className={cn(HOLISTIC_TABLE_CLASS, reviewColumnCount ? 'min-w-[72rem]' : 'min-w-[32rem]')}>
             <thead>
               <tr>
                 <th className={cn(HOLISTIC_TABLE_HEAD_CLASS, 'w-[18rem] align-top')}>
@@ -149,7 +156,7 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
                     onChange={patchInitial}
                   />
                 </th>
-                {Array.from({ length: CLINICAL_OUTCOME_REVIEW_COLUMN_COUNT }, (_, index) => (
+                {Array.from({ length: reviewColumnCount }, (_, index) => (
                   <th
                     key={index}
                     className={cn(HOLISTIC_TABLE_HEAD_CLASS, 'min-w-[10rem] align-top')}
@@ -181,7 +188,7 @@ export function InitialAssessmentClinicalOutcomeSummaryPanel({
                       onChange={(e) => patchCell(row.id, 'initial', e.target.value)}
                     />
                   </td>
-                  {Array.from({ length: CLINICAL_OUTCOME_REVIEW_COLUMN_COUNT }, (_, index) => (
+                  {Array.from({ length: reviewColumnCount }, (_, index) => (
                     <td key={index} className={HOLISTIC_TABLE_CELL_CLASS}>
                       <Input
                         className="h-9 w-full text-sm"

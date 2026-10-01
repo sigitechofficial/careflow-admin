@@ -1,5 +1,8 @@
 import type { HubTabId } from '@/features/service-users/initial-assessment/components/InitialAssessmentHubTabs'
-import { isRegisteredHolisticTabId } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
+import {
+  firstHolisticTabForEnterpriseSection,
+  resolveHolisticTabId,
+} from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 
 const HUB_TAB_IDS = new Set<HubTabId>([
   'form',
@@ -22,12 +25,21 @@ export type InitialAssessmentEnterpriseSearch = {
 }
 
 function parseSection(raw: unknown): number | undefined {
-  if (typeof raw === 'number' && Number.isInteger(raw) && isRegisteredHolisticTabId(raw)) return raw
+  if (typeof raw === 'number' && Number.isInteger(raw)) return resolveHolisticTabId(raw)
   if (typeof raw === 'string' && /^\d{1,2}$/.test(raw.trim())) {
-    const n = Number.parseInt(raw.trim(), 10)
-    return isRegisteredHolisticTabId(n) ? n : undefined
+    return resolveHolisticTabId(Number.parseInt(raw.trim(), 10))
   }
   return undefined
+}
+
+/**
+ * `iaSection=<§ number>` comes from links built outside the admin (care-plan "complete the IA"
+ * fixes); it names the enterprise section, so open whichever tab shows that section.
+ */
+function parseEnterpriseSection(raw: unknown): number | undefined {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw.trim()) : NaN
+  if (!Number.isInteger(n) || n < 1 || n > 99) return undefined
+  return firstHolisticTabForEnterpriseSection(n)
 }
 
 function parseTab(raw: unknown): HubTabId | undefined {
@@ -43,7 +55,7 @@ export function parseInitialAssessmentEnterpriseSearch(
     typeof raw.serviceUserId === 'string' && raw.serviceUserId.trim()
       ? raw.serviceUserId.trim()
       : undefined
-  const section = parseSection(raw.section)
+  const section = parseSection(raw.section) ?? parseEnterpriseSection(raw.iaSection)
   const tab = parseTab(raw.tab)
   const submissionId =
     typeof raw.submissionId === 'string' && raw.submissionId.trim()

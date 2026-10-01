@@ -29,6 +29,10 @@ export function extractApiErrorMessage(
     }
     return e.message
   }
+  // fetch() rejects with a bare TypeError when the request never reaches the server.
+  if (e instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(e.message)) {
+    return 'Could not reach the server. Check your connection and try again.'
+  }
   if (e instanceof Error && e.message.trim()) return e.message
   if (typeof e === 'string' && e.trim()) return e
   return fallback

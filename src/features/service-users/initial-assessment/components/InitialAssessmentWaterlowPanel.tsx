@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { HolisticSectionHeader } from '@/features/service-users/initial-assessment/components/holistic/HolisticSectionHeader'
 import {
   HolisticAssessmentTable,
@@ -35,6 +36,7 @@ import {
   waterlowBand,
   waterlowCarePlanRequired,
   waterlowEquipmentGuidance,
+  waterlowSelectionBreakdown,
   type WaterlowMetadata,
   type WaterlowTableSection,
 } from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
@@ -43,6 +45,8 @@ type Props = {
   value: WaterlowMetadata
   disabled?: boolean
   onChange: (next: WaterlowMetadata) => void
+  /** Shown under the next review date (IA only: where the default interval comes from). */
+  nextReviewHint?: string
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -53,58 +57,96 @@ function ScoreBadge({ score }: { score: number }) {
   )
 }
 
+function CategoryCell({
+  category,
+  hint,
+  rowSpan,
+  points,
+}: {
+  category: string
+  hint?: string
+  rowSpan: number
+  points: number | null
+}) {
+  return (
+    <HolisticAssessmentTableCell rowSpan={rowSpan} className="align-top font-medium text-sm">
+      <div>{category}</div>
+      {points != null ? (
+        <p className="mt-1 text-xs font-semibold text-teal-800 dark:text-teal-300">Scored: {points}</p>
+      ) : null}
+      {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
+    </HolisticAssessmentTableCell>
+  )
+}
+
+function NothingChosenRow({ category }: { category: string }) {
+  return (
+    <HolisticAssessmentTableRow>
+      <HolisticAssessmentTableCell className="align-top font-medium text-sm">{category}</HolisticAssessmentTableCell>
+      <HolisticAssessmentTableCell className={cn('align-top', IA_HINT_CLASS)}>None selected</HolisticAssessmentTableCell>
+      <HolisticAssessmentTableCell className="align-top text-center">
+        <ScoreBadge score={0} />
+      </HolisticAssessmentTableCell>
+    </HolisticAssessmentTableRow>
+  )
+}
+
 function SingleSelectRows({
   section,
   value,
   disabled,
+  onlySelected,
   onSelect,
 }: {
   section: Extract<WaterlowTableSection, { kind: 'single' }>
   value: WaterlowMetadata
   disabled?: boolean
+  onlySelected?: boolean
   onSelect: (optionId: string) => void
 }) {
   const selectedId = resolveWaterlowSingleOptionId(value, section)
-  const { category, hint, options } = section
+  const { category, hint } = section
+  const options = onlySelected ? section.options.filter((o) => o.id === selectedId) : section.options
+  if (options.length === 0) return <NothingChosenRow category={category} />
+  const points = section.options.find((o) => o.id === selectedId)?.score ?? null
 
   return (
     <>
-      {options.map((option, index) => (
-        <HolisticAssessmentTableRow key={option.id}>
-          {index === 0 ? (
-            <HolisticAssessmentTableCell
-              rowSpan={options.length}
-              className="align-top font-medium text-sm"
-            >
-              <div>{category}</div>
-              {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
+      {options.map((option, index) => {
+        const selected = selectedId === option.id
+        return (
+          <HolisticAssessmentTableRow key={option.id} className={cn(selected && option.score > 0 && 'bg-teal-50 dark:bg-teal-950/40')}>
+            {index === 0 ? (
+              <CategoryCell category={category} hint={onlySelected ? undefined : hint} rowSpan={options.length} points={points} />
+            ) : null}
+            <HolisticAssessmentTableCell className="align-top">
+              <label
+                className={cn(
+                  'flex cursor-pointer items-start gap-2.5',
+                  IA_OPTION_LABEL_CLASS,
+                  selected && 'font-semibold',
+                  disabled && 'cursor-not-allowed',
+                  disabled && !selected && 'opacity-60',
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`wl-${section.id}`}
+                  className={cn('mt-0.5 shrink-0', IA_RADIO_CLASS)}
+                  checked={selected}
+                  disabled={disabled}
+                  aria-label={`${category} — ${option.label}`}
+                  onChange={() => onSelect(option.id)}
+                />
+                <span>{option.label}</span>
+              </label>
             </HolisticAssessmentTableCell>
-          ) : null}
-          <HolisticAssessmentTableCell className="align-top">
-            <label
-              className={cn(
-                'flex cursor-pointer items-start gap-2.5',
-                IA_OPTION_LABEL_CLASS,
-                disabled && 'cursor-not-allowed opacity-60',
-              )}
-            >
-              <input
-                type="radio"
-                name={`wl-${section.id}`}
-                className={cn('mt-0.5 shrink-0', IA_RADIO_CLASS)}
-                checked={selectedId === option.id}
-                disabled={disabled}
-                aria-label={`${category} — ${option.label}`}
-                onChange={() => onSelect(option.id)}
-              />
-              <span>{option.label}</span>
-            </label>
-          </HolisticAssessmentTableCell>
-          <HolisticAssessmentTableCell className="align-top text-center">
-            <ScoreBadge score={option.score} />
-          </HolisticAssessmentTableCell>
-        </HolisticAssessmentTableRow>
-      ))}
+            <HolisticAssessmentTableCell className="align-top text-center">
+              <ScoreBadge score={option.score} />
+            </HolisticAssessmentTableCell>
+          </HolisticAssessmentTableRow>
+        )
+      })}
     </>
   )
 }
@@ -113,52 +155,58 @@ function MultiSelectRows({
   section,
   value,
   disabled,
+  onlySelected,
   onToggle,
 }: {
   section: Extract<WaterlowTableSection, { kind: 'multi' }>
   value: WaterlowMetadata
   disabled?: boolean
+  onlySelected?: boolean
   onToggle: (optionId: string, checked: boolean) => void
 }) {
-  const { category, hint, options } = section
+  const { category, hint } = section
+  const isChosen = (id: string) => isWaterlowMultiOptionSelected(value, section.field, id)
+  const chosen = section.options.filter((o) => isChosen(o.id))
+  const options = onlySelected ? chosen : section.options
+  if (options.length === 0) return <NothingChosenRow category={category} />
+  const points = chosen.length ? chosen.reduce((sum, o) => sum + o.score, 0) : null
 
   return (
     <>
-      {options.map((option, index) => (
-        <HolisticAssessmentTableRow key={option.id}>
-          {index === 0 ? (
-            <HolisticAssessmentTableCell
-              rowSpan={options.length}
-              className="align-top font-medium text-sm"
-            >
-              <div>{category}</div>
-              {hint ? <p className={cn('mt-1 font-normal', IA_HINT_CLASS)}>{hint}</p> : null}
+      {options.map((option, index) => {
+        const selected = isChosen(option.id)
+        return (
+          <HolisticAssessmentTableRow key={option.id} className={cn(selected && option.score > 0 && 'bg-teal-50 dark:bg-teal-950/40')}>
+            {index === 0 ? (
+              <CategoryCell category={category} hint={onlySelected ? undefined : hint} rowSpan={options.length} points={points} />
+            ) : null}
+            <HolisticAssessmentTableCell className="align-top">
+              <label
+                className={cn(
+                  'flex cursor-pointer items-start gap-2.5',
+                  IA_OPTION_LABEL_CLASS,
+                  selected && 'font-semibold',
+                  disabled && 'cursor-not-allowed',
+                  disabled && !selected && 'opacity-60',
+                )}
+              >
+                <input
+                  type="checkbox"
+                  className={cn('mt-0.5 shrink-0', IA_CHECKBOX_CLASS)}
+                  checked={selected}
+                  disabled={disabled}
+                  aria-label={`${category} — ${option.label}`}
+                  onChange={(e) => onToggle(option.id, e.target.checked)}
+                />
+                <span>{option.label}</span>
+              </label>
             </HolisticAssessmentTableCell>
-          ) : null}
-          <HolisticAssessmentTableCell className="align-top">
-            <label
-              className={cn(
-                'flex cursor-pointer items-start gap-2.5',
-                IA_OPTION_LABEL_CLASS,
-                disabled && 'cursor-not-allowed opacity-60',
-              )}
-            >
-              <input
-                type="checkbox"
-                className={cn('mt-0.5 shrink-0', IA_CHECKBOX_CLASS)}
-                checked={isWaterlowMultiOptionSelected(value, section.field, option.id)}
-                disabled={disabled}
-                aria-label={`${category} — ${option.label}`}
-                onChange={(e) => onToggle(option.id, e.target.checked)}
-              />
-              <span>{option.label}</span>
-            </label>
-          </HolisticAssessmentTableCell>
-          <HolisticAssessmentTableCell className="align-top text-center">
-            <ScoreBadge score={option.score} />
-          </HolisticAssessmentTableCell>
-        </HolisticAssessmentTableRow>
-      ))}
+            <HolisticAssessmentTableCell className="align-top text-center">
+              <ScoreBadge score={option.score} />
+            </HolisticAssessmentTableCell>
+          </HolisticAssessmentTableRow>
+        )
+      })}
     </>
   )
 }
@@ -166,49 +214,66 @@ function MultiSelectRows({
 function WeightLossRows({
   value,
   disabled,
+  onlySelected,
   onSelect,
 }: {
   value: WaterlowMetadata
   disabled?: boolean
+  onlySelected?: boolean
   onSelect: (optionId: string) => void
 }) {
   const selectedId = resolveWaterlowWeightLossOptionId(value)
-  const options = WATERLOW_WEIGHT_LOSS_OPTIONS
+  const options = onlySelected
+    ? WATERLOW_WEIGHT_LOSS_OPTIONS.filter((o) => o.id === selectedId)
+    : WATERLOW_WEIGHT_LOSS_OPTIONS
 
   return (
     <>
-      {options.map((option) => (
-        <HolisticAssessmentTableRow key={option.id}>
-          <HolisticAssessmentTableCell className="align-top">
-            <label
-              className={cn(
-                'flex cursor-pointer items-start gap-2.5',
-                IA_OPTION_LABEL_CLASS,
-                disabled && 'cursor-not-allowed opacity-60',
-              )}
-            >
-              <input
-                type="radio"
-                name="wl-weight-loss"
-                className={cn('mt-0.5 shrink-0', IA_RADIO_CLASS)}
-                checked={selectedId === option.id}
-                disabled={disabled}
-                aria-label={`Recent weight loss — ${option.label}`}
-                onChange={() => onSelect(option.id)}
-              />
-              <span>{option.label}</span>
-            </label>
-          </HolisticAssessmentTableCell>
+      {options.map((option) => {
+        const selected = selectedId === option.id
+        return (
+          <HolisticAssessmentTableRow key={option.id} className={cn(selected && option.score > 0 && 'bg-teal-50 dark:bg-teal-950/40')}>
+            <HolisticAssessmentTableCell className="align-top">
+              <label
+                className={cn(
+                  'flex cursor-pointer items-start gap-2.5',
+                  IA_OPTION_LABEL_CLASS,
+                  selected && 'font-semibold',
+                  disabled && 'cursor-not-allowed',
+                  disabled && !selected && 'opacity-60',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="wl-weight-loss"
+                  className={cn('mt-0.5 shrink-0', IA_RADIO_CLASS)}
+                  checked={selected}
+                  disabled={disabled}
+                  aria-label={`Recent weight loss — ${option.label}`}
+                  onChange={() => onSelect(option.id)}
+                />
+                <span>{option.label}</span>
+              </label>
+            </HolisticAssessmentTableCell>
+            <HolisticAssessmentTableCell className="align-top text-center">
+              <ScoreBadge score={option.score} />
+            </HolisticAssessmentTableCell>
+          </HolisticAssessmentTableRow>
+        )
+      })}
+      {options.length === 0 ? (
+        <HolisticAssessmentTableRow>
+          <HolisticAssessmentTableCell className={cn('align-top', IA_HINT_CLASS)}>None selected</HolisticAssessmentTableCell>
           <HolisticAssessmentTableCell className="align-top text-center">
-            <ScoreBadge score={option.score} />
+            <ScoreBadge score={0} />
           </HolisticAssessmentTableCell>
         </HolisticAssessmentTableRow>
-      ))}
+      ) : null}
     </>
   )
 }
 
-export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Props) {
+export function InitialAssessmentWaterlowPanel({ value, disabled, onChange, nextReviewHint }: Props) {
   const patch = (partial: Partial<WaterlowMetadata>) => {
     onChange(enrichWaterlowMetadata({ ...value, ...partial }))
   }
@@ -216,6 +281,10 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
   const score = value.score ?? computeWaterlowScore(value)
   const band = waterlowBand(score)
   const carePlan = waterlowCarePlanRequired(score)
+  const breakdown = waterlowSelectionBreakdown(value)
+  // Read-only: show only what was chosen, with an option to see the full form.
+  const [showAllOptions, setShowAllOptions] = React.useState(false)
+  const onlySelected = Boolean(disabled) && !showAllOptions && breakdown.length > 0
 
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-waterlow-panel">
@@ -234,6 +303,16 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
             </ol>
           </div>
 
+          {disabled && breakdown.length > 0 ? (
+            <button
+              type="button"
+              className="text-sm font-medium text-teal-800 underline-offset-2 hover:underline dark:text-teal-300"
+              onClick={() => setShowAllOptions((v) => !v)}
+            >
+              {showAllOptions ? 'Show chosen options only' : 'Show all options'}
+            </button>
+          ) : null}
+
           <HolisticAssessmentTable
             columns={[
               { key: 'category', header: 'Category', className: 'w-[24%]' },
@@ -249,6 +328,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
                     section={section}
                     value={value}
                     disabled={disabled}
+                    onlySelected={onlySelected}
                     onSelect={(optionId) =>
                       onChange(selectWaterlowSingleOption(value, section, optionId))
                     }
@@ -262,6 +342,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
                   section={section}
                   value={value}
                   disabled={disabled}
+                  onlySelected={onlySelected}
                   onToggle={(optionId, checked) =>
                     onChange(toggleWaterlowMultiOption(value, section, optionId, checked))
                   }
@@ -281,32 +362,38 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
               <WeightLossRows
                 value={value}
                 disabled={disabled}
+                onlySelected={onlySelected}
                 onSelect={(optionId) => onChange(selectWaterlowWeightLossOption(value, optionId))}
               />
             </HolisticAssessmentTable>
-            <HolisticAssessmentTable
-              columns={[
-                { key: 'label', header: '', className: 'w-[70%]' },
-                { key: 'score', header: '', className: 'w-[30%] text-center' },
-              ]}
-            >
-              <HolisticAssessmentTableRow>
-                <HolisticAssessmentTableCell className="font-semibold uppercase tracking-wide">
-                  Total score
-                </HolisticAssessmentTableCell>
-                <HolisticAssessmentTableCell className="text-center font-mono text-lg font-semibold text-teal-800 dark:text-teal-300">
-                  {score}
-                </HolisticAssessmentTableCell>
-              </HolisticAssessmentTableRow>
-            </HolisticAssessmentTable>
           </div>
 
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            {WATERLOW_RISK_THRESHOLDS.map((row) => (
-              <p key={row.minScore} className="text-muted-foreground">
-                <span className="font-semibold text-foreground">{row.minScore}+</span> {row.label}
-              </p>
-            ))}
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-teal-300 bg-teal-50 px-4 py-3 dark:border-teal-800 dark:bg-teal-950/40"
+            data-testid="ia-waterlow-total"
+          >
+            <span className="text-sm font-semibold uppercase tracking-wide">Total score</span>
+            <span className="flex items-center gap-3">
+              <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', band.className)}>{band.label}</span>
+              <span className="font-mono text-2xl font-semibold tabular-nums text-teal-800 dark:text-teal-300">{score}</span>
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2" data-testid="ia-waterlow-thresholds">
+            {[{ minScore: 0, text: '0–9 Minimal risk' }, ...WATERLOW_RISK_THRESHOLDS.map((row) => ({ minScore: row.minScore, text: `${row.minScore}+ ${row.label}` }))].map((row) => {
+              const current = band.level === waterlowBand(row.minScore).level
+              return (
+                <span
+                  key={row.minScore}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 text-sm font-semibold',
+                    waterlowBand(row.minScore).className,
+                    current && 'ring-2 ring-current ring-offset-1 ring-offset-background',
+                  )}
+                >
+                  {row.text}
+                </span>
+              )
+            })}
           </div>
 
           <div className="space-y-6 border-t border-slate-200 pt-4 dark:border-slate-700">
@@ -449,6 +536,7 @@ export function InitialAssessmentWaterlowPanel({ value, disabled, onChange }: Pr
                 value={value.nextReviewDate?.slice(0, 10) ?? ''}
                 onChange={(e) => patch({ nextReviewDate: e.target.value || null })}
               />
+              {nextReviewHint ? <p className={cn('mt-1', IA_HINT_CLASS)}>{nextReviewHint}</p> : null}
             </div>
           </div>
         </div>

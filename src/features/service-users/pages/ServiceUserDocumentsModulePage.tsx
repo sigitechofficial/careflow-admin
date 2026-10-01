@@ -6,6 +6,7 @@ import {
 } from '@/features/service-users/components/ServiceUserModuleHeader'
 import { ServiceUserModuleTabs } from '@/features/service-users/components/ServiceUserModuleTabs'
 import { ServiceUserDocumentStorePanel } from '@/features/service-users/documents/components/ServiceUserDocumentStorePanel'
+import { ServiceUserLegalAuthoritySection } from '@/features/service-users/components/ServiceUserLegalAuthorityRegister'
 import { getApiBaseUrl } from '@/shared/lib/api-base'
 import { useServiceUser } from '@/features/service-users/hooks/useServiceUser'
 export default function ServiceUserDocumentsModulePage() {
@@ -36,6 +37,7 @@ export default function ServiceUserDocumentsModulePage() {
 
       <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
         <ServiceUserDocumentStorePanel serviceUserId={serviceUserId} />
+        <ServiceUserLegalAuthoritySection serviceUserId={serviceUserId} />
       </div>
     </div>
   )

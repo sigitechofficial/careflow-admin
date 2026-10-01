@@ -34,6 +34,8 @@ import {
 
 type Props = {
   value: EnvironmentAssessmentMetadata
+  /** Context shown under a factor (e.g. what another tab or the system already records). */
+  factorHints?: Partial<Record<EnvironmentAssessmentLoneWorkerFactorId, string>>
   disabled?: boolean
   onChange: (next: EnvironmentAssessmentMetadata) => void
 }
@@ -77,7 +79,7 @@ function YesNoColumnCell({
   )
 }
 
-export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, onChange }: Props) {
+export function InitialAssessmentEnvironmentAssessmentPanel({ value, factorHints, disabled, onChange }: Props) {
   const patch = (partial: Partial<EnvironmentAssessmentMetadata>) => onChange({ ...value, ...partial })
 
   const patchQuestion = (id: EnvironmentAssessmentQuestionId, answer: boolean) => {
@@ -196,6 +198,14 @@ export function InitialAssessmentEnvironmentAssessmentPanel({ value, disabled, o
                       <HolisticAssessmentTableRow>
                         <HolisticAssessmentTableCell className="align-top text-sm">
                           {q.label}
+                          {factorHints?.[q.id] ? (
+                            <span
+                              className="mt-1 block text-xs text-muted-foreground"
+                              data-testid={`ia-lone-worker-hint-${q.id}`}
+                            >
+                              {factorHints[q.id]}
+                            </span>
+                          ) : null}
                         </HolisticAssessmentTableCell>
                         <YesNoColumnCell
                           name={name}

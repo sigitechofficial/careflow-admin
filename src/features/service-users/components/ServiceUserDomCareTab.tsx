@@ -191,6 +191,13 @@ function CarerMultiField({
   )
 }
 
+/** Legacy DOM Care door code vs the Home & access key-safe code carers actually see. */
+function legacyDoorCodeDiffers(legacy: string | null | undefined, master: string | null | undefined): boolean {
+  const a = (legacy ?? '').replace(/\s+/g, '').toLowerCase()
+  const b = (master ?? '').replace(/\s+/g, '').toLowerCase()
+  return a !== '' && a !== b
+}
+
 export function ServiceUserDomCareTab({
   serviceUserId,
   detail,
@@ -354,16 +361,26 @@ export function ServiceUserDomCareTab({
               >
                 {doorVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-              <span>Key Safe Code</span>
+              <span>Legacy door code</span>
             </div>
-            <Input
-              type={doorVisible ? 'text' : 'password'}
-              autoComplete="off"
-              value={data.doorCode ?? ''}
-              onChange={(e) => setField('doorCode', e.target.value === '' ? null : e.target.value)}
-              disabled={!canUpdate}
-              className="max-w-md"
-            />
+            <div className="space-y-1.5">
+              <Input
+                type={doorVisible ? 'text' : 'password'}
+                autoComplete="off"
+                value={data.doorCode ?? ''}
+                onChange={(e) => setField('doorCode', e.target.value === '' ? null : e.target.value)}
+                disabled={!canUpdate}
+                className="max-w-md"
+              />
+              <p className="text-xs text-muted-foreground">
+                Not shown to carers. Carers see the key safe code in Home &amp; access above.
+              </p>
+              {legacyDoorCodeDiffers(data.doorCode, detail.address?.keySafeNumber) && (
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  This differs from the Home &amp; access key safe code — confirm which is correct.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </section>

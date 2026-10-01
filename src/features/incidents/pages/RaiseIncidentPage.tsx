@@ -8,7 +8,7 @@ import { FormField, Textarea } from '@/shared/ui/form-field'
 import { Input } from '@/shared/ui/input'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { Badge } from '@/shared/ui/badge'
-import { toastApiError } from '@/shared/lib/toast'
+import { toastApiError, toastWarning } from '@/shared/lib/toast'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
@@ -41,6 +41,10 @@ type PendingPhoto = {
   previewUrl: string
 }
 
+/** Matches the backend CreateIncidentDto @MaxLength(8000) on the free-text fields. */
+const TEXT_MAX_LENGTH = 8000
+const DESCRIPTION_COUNTER_FROM = 7000
+
 const SEVERITY_OPTIONS: { value: IncidentSeverity; label: string }[] = [
   { value: 'LOW', label: 'Low' },
   { value: 'MEDIUM', label: 'Medium' },
@@ -49,6 +53,8 @@ const SEVERITY_OPTIONS: { value: IncidentSeverity; label: string }[] = [
 ]
 
 import { createClientUuid } from '@/shared/lib/create-client-uuid'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { nowOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 
 const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' | 'destructive'> = {
   MINOR: 'info',
@@ -59,12 +65,6 @@ const INJURY_SEVERITY_BADGE: Record<IncidentInjurySeverity, 'info' | 'warning' |
 
 function newInjuryId(): string {
   return createClientUuid()
-}
-
-function nowLocalDatetime(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function Toggle({
@@ -180,7 +180,12 @@ export default function RaiseIncidentPage() {
 
   const [categoryId, setCategoryId] = React.useState('')
   const [subtypeId, setSubtypeId] = React.useState('')
-  const [occurredAtLocal, setOccurredAtLocal] = React.useState(nowLocalDatetime)
+  // null = not edited yet: default to "now" in the org timezone, recomputed so it stays correct once
+  // organisation settings (timezone) finish loading after mount. Subscribing to the display-format
+  // context re-renders this page when that timezone arrives.
+  useOrganisationDisplayFormat()
+  const [occurredAtEdited, setOccurredAtLocal] = React.useState<string | null>(null)
+  const occurredAtLocal = occurredAtEdited ?? nowOrgDatetimeLocal()
   const [serviceUserId, setServiceUserId] = React.useState('')
   const [specificArea, setSpecificArea] = React.useState('')
   const [description, setDescription] = React.useState('')
@@ -206,6 +211,15 @@ export default function RaiseIncidentPage() {
   const [shareHandover, setShareHandover] = React.useState(true)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [submitted, setSubmitted] = React.useState<IncidentListItem | null>(null)
+  const [savedInjuries, setSavedInjuries] = React.useState<{ count: number; withBodyMap: boolean }>({
+    count: 0,
+    withBodyMap: false,
+  })
+  const [saveWarning, setSaveWarning] = React.useState<string | null>(null)
+  // Covers the create call AND the follow-up injury/witness/photo uploads; the ref blocks rapid
+  // repeat clicks that land before React re-renders the disabled button.
+  const [submitting, setSubmitting] = React.useState(false)
+  const submittingRef = React.useRef(false)
 
   const categories = categoriesQuery.data ?? []
   const selectedCategory = categories.find((c) => c.id === categoryId) ?? null
@@ -316,11 +330,21 @@ export default function RaiseIncidentPage() {
     setInjuries((prev) => prev.filter((i) => i.id !== id))
   }
 
+  function clearError(key: string) {
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
   function validate(): boolean {
     const next: Record<string, string> = {}
     if (!categoryId) next.categoryId = 'Select what you are reporting'
-    if (!occurredAtLocal) next.occurredAt = 'Enter the date and time'
-    else if (new Date(occurredAtLocal).getTime() > Date.now() + 60_000)
+    const occurredIso = occurredAtLocal ? orgDatetimeLocalToIso(occurredAtLocal) : ''
+    if (!occurredIso) next.occurredAt = 'Enter the date and time'
+    else if (Date.parse(occurredIso) > Date.now() + 60_000)
       next.occurredAt = 'The date/time cannot be in the future'
     if (!description.trim()) next.description = 'Describe what happened'
     setErrors(next)
@@ -329,11 +353,14 @@ export default function RaiseIncidentPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!validate()) return
+    submittingRef.current = true
+    setSubmitting(true)
     const input: CreateIncidentInput = {
       categoryId,
       subtypeId: subtypeId || undefined,
-      occurredAt: new Date(occurredAtLocal).toISOString(),
+      occurredAt: orgDatetimeLocalToIso(occurredAtLocal),
       primaryServiceUserId: affectedKinds.includes('SERVICE_USER')
         ? serviceUserId || undefined
         : undefined,
@@ -363,9 +390,11 @@ export default function RaiseIncidentPage() {
       const created = await createMutation.mutateAsync(input)
       // The incident now exists, so persist each captured injury (with its body-map pin) against it.
       let injuryFailures = 0
+      const persistedInjuries: PendingIncidentInjury[] = []
       for (const injury of injuries) {
         try {
           await persistIncidentInjury(created.id, serviceUserId || null, injury)
+          persistedInjuries.push(injury)
         } catch {
           injuryFailures += 1
         }
@@ -392,17 +421,23 @@ export default function RaiseIncidentPage() {
       if (injuryFailures > 0) failureParts.push(`${injuryFailures} injury detail(s)`)
       if (witnessFailures > 0) failureParts.push(`${witnessFailures} witness(es)`)
       if (photoFailures > 0) failureParts.push(`${photoFailures} photo(s)`)
-      if (failureParts.length > 0) {
-        toastApiError(
-          new Error(
-            `Incident saved, but ${failureParts.join(', ')} could not be recorded. Add them on the incident record.`,
-          ),
-        )
-      }
+      const warning =
+        failureParts.length > 0
+          ? `${failureParts.join(', ')} could not be recorded. Add them on the incident record.`
+          : null
+      if (warning) toastWarning('Incident saved with missing details', warning)
+      setSaveWarning(warning)
       photos.forEach((p) => URL.revokeObjectURL(p.previewUrl))
+      setSavedInjuries({
+        count: persistedInjuries.length,
+        withBodyMap: persistedInjuries.some((i) => i.marker),
+      })
       setSubmitted(created)
     } catch (err) {
       toastApiError(err)
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
     }
   }
 
@@ -433,14 +468,20 @@ export default function RaiseIncidentPage() {
               {submitted.category.label}
               {submitted.subtype ? ` · ${submitted.subtype.label}` : ''} · {submitted.severityLabel} severity
             </p>
-            {injuries.length > 0 && (
+            {savedInjuries.count > 0 && (
               <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5" aria-hidden />
-                {injuries.length} injur{injuries.length === 1 ? 'y' : 'ies'} recorded
-                {injuries.some((i) => i.marker) ? ' (with body map)' : ''}
+                {savedInjuries.count} injur{savedInjuries.count === 1 ? 'y' : 'ies'} recorded
+                {savedInjuries.withBodyMap ? ' (with body map)' : ''}
               </p>
             )}
           </div>
+          {saveWarning && (
+            <p className="mt-4 rounded-md bg-warning/10 px-3 py-2 text-left text-sm text-warning">
+              <AlertTriangle className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden />
+              {saveWarning}
+            </p>
+          )}
         </div>
 
         <div className="mx-auto flex max-w-xl justify-center gap-3">
@@ -448,6 +489,7 @@ export default function RaiseIncidentPage() {
             variant="outline"
             onClick={() => {
               setSubmitted(null)
+              setSaveWarning(null)
               setCategoryId('')
               setSubtypeId('')
               setAffectedKinds(['SERVICE_USER'])
@@ -474,7 +516,8 @@ export default function RaiseIncidentPage() {
               setInjSeverity('MINOR')
               setSeverity('LOW')
               setKeepPrivate(false)
-              setOccurredAtLocal(nowLocalDatetime())
+              setShareHandover(true)
+              setOccurredAtLocal(null)
               setErrors({})
             }}
           >
@@ -516,6 +559,7 @@ export default function RaiseIncidentPage() {
                 onChange={(e) => {
                   setCategoryId(e.target.value)
                   setSubtypeId('')
+                  clearError('categoryId')
                 }}
                 className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
@@ -551,7 +595,10 @@ export default function RaiseIncidentPage() {
                 id="inc-when"
                 type="datetime-local"
                 value={occurredAtLocal}
-                onChange={(e) => setOccurredAtLocal(e.target.value)}
+                onChange={(e) => {
+                  setOccurredAtLocal(e.target.value)
+                  clearError('occurredAt')
+                }}
               />
             </FormField>
 
@@ -666,12 +713,27 @@ export default function RaiseIncidentPage() {
               />
             </FormField>
 
-            <FormField label="Description" htmlFor="inc-desc" required error={errors.description} className="sm:col-span-2">
+            <FormField
+              label="Description"
+              htmlFor="inc-desc"
+              required
+              error={errors.description}
+              hint={
+                description.length >= DESCRIPTION_COUNTER_FROM
+                  ? `${description.length.toLocaleString()} / ${TEXT_MAX_LENGTH.toLocaleString()} characters`
+                  : undefined
+              }
+              className="sm:col-span-2"
+            >
               <Textarea
                 id="inc-desc"
                 rows={3}
+                maxLength={TEXT_MAX_LENGTH}
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  clearError('description')
+                }}
                 placeholder="Describe what happened…"
               />
             </FormField>
@@ -684,6 +746,7 @@ export default function RaiseIncidentPage() {
               <Textarea
                 id="inc-before"
                 rows={2}
+                maxLength={TEXT_MAX_LENGTH}
                 value={contextBefore}
                 onChange={(e) => setContextBefore(e.target.value)}
               />
@@ -693,6 +756,7 @@ export default function RaiseIncidentPage() {
               <Textarea
                 id="inc-after"
                 rows={2}
+                maxLength={TEXT_MAX_LENGTH}
                 value={contextAfter}
                 onChange={(e) => setContextAfter(e.target.value)}
               />
@@ -722,6 +786,7 @@ export default function RaiseIncidentPage() {
             <Textarea
               id="inc-actions"
               rows={2}
+              maxLength={TEXT_MAX_LENGTH}
               value={immediateActions}
               onChange={(e) => setImmediateActions(e.target.value)}
             />
@@ -993,7 +1058,7 @@ export default function RaiseIncidentPage() {
           <Button type="button" variant="outline" onClick={() => navigate({ to: '/incidents/view' })}>
             Cancel
           </Button>
-          <Button type="submit" loading={createMutation.isPending}>
+          <Button type="submit" loading={submitting}>
             Submit report
           </Button>
         </div>

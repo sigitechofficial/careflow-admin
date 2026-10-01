@@ -23,6 +23,10 @@ import {
   isDragAllocationHardBlock,
   warningsFromAllocateError,
 } from '@/features/scheduling/utils/allocate-job-warnings.util'
+import {
+  clockedInRemovalMessage,
+  jobLeadCarer,
+} from '@/features/scheduling/utils/schedule-job-lead-carer.util'
 import { scheduleJobCarerRotaConflictMessage } from '@/features/scheduling/utils/schedule-job-carer-rota-conflict.util'
 import {
   rowsEqual,
@@ -176,6 +180,13 @@ export function useScheduleJobsPageActions({
     async (job: TimelineJob) => {
       const employeeIds = (job.allocations ?? []).map((allocation) => allocation.employeeId)
       if (employeeIds.length === 0) return
+      const clockedIn = (job.allocations ?? [])
+        .map((allocation) => clockedInRemovalMessage(job, allocation))
+        .find(Boolean)
+      if (clockedIn) {
+        toastWarning('Carer clocked in', clockedIn)
+        return
+      }
       setSavingJobId(job.id)
       try {
         for (const employeeId of employeeIds) {
@@ -332,6 +343,15 @@ export function useScheduleJobsPageActions({
       const sourceCarerId = sourceRow.kind === 'carer' ? sourceRow.employeeId : null
       const targetCarerId = targetRow.kind === 'carer' ? targetRow.employeeId : null
 
+      if (sourceCarerId && targetCarerId !== sourceCarerId) {
+        const sourceAllocation = (job.allocations ?? []).find((a) => a.employeeId === sourceCarerId)
+        const clockedIn = sourceAllocation ? clockedInRemovalMessage(job, sourceAllocation) : null
+        if (clockedIn) {
+          toastWarning('Carer clocked in', clockedIn)
+          return
+        }
+      }
+
       if (targetCarerId && targetCarerId !== sourceCarerId && targetRow.kind === 'carer') {
         const locationConflict = scheduleJobCarerLocationConflictMessage(
           job,
@@ -382,12 +402,24 @@ export function useScheduleJobsPageActions({
           })
         }
 
+        let promotedLeadName: string | null = null
         if (targetCarerId && targetCarerId !== sourceCarerId) {
+          // Moving the lead: the target carer takes the lead. Unallocating the source
+          // auto-promotes another carer; allocating the target with isLeadCarer clears it.
+          const sourceWasLead =
+            sourceCarerId != null &&
+            jobLeadCarer(job)?.allocation.employeeId === sourceCarerId
+          const leadFlag = sourceWasLead ? true : undefined
           if (sourceCarerId) {
             await unallocate.mutateAsync({ jobId: job.id, employeeId: sourceCarerId })
           }
           try {
-            await allocate.mutateAsync({ jobId: job.id, employeeId: targetCarerId, force: false })
+            await allocate.mutateAsync({
+              jobId: job.id,
+              employeeId: targetCarerId,
+              force: false,
+              isLeadCarer: leadFlag,
+            })
           } catch (allocateError) {
             const warnings = warningsFromAllocateError(allocateError)
             if (warnings.length > 0) {
@@ -396,6 +428,7 @@ export function useScheduleJobsPageActions({
                   jobId: job.id,
                   employeeId: targetCarerId,
                   force: true,
+                  isLeadCarer: leadFlag,
                 })
               } else {
                 toastWarning(
@@ -403,10 +436,12 @@ export function useScheduleJobsPageActions({
                   allocationWarningsSummary(warnings) || CARER_ROTA_CONFLICT_MESSAGE,
                 )
                 if (sourceCarerId) {
+                  // Put the source carer back, as lead again if they were.
                   await allocate.mutateAsync({
                     jobId: job.id,
                     employeeId: sourceCarerId,
                     force: true,
+                    isLeadCarer: leadFlag,
                   })
                 }
                 await refetchDayBoard()
@@ -417,10 +452,14 @@ export function useScheduleJobsPageActions({
             }
           }
         } else if (!targetCarerId && sourceCarerId) {
-          await unallocate.mutateAsync({ jobId: job.id, employeeId: sourceCarerId })
+          const res = await unallocate.mutateAsync({ jobId: job.id, employeeId: sourceCarerId })
+          promotedLeadName = res.promotedLeadCarer?.name ?? null
         }
 
-        toastSuccess('Schedule updated')
+        toastSuccess(
+          'Schedule updated',
+          promotedLeadName ? `${promotedLeadName} is now the lead carer.` : undefined,
+        )
         await refetchDayBoard()
       } catch (error) {
         toastApiError(error, 'Could not update schedule')

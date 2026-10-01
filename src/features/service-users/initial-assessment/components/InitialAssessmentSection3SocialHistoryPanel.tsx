@@ -29,8 +29,9 @@ const SOCIAL_HISTORY_ORDER = [
   'Does the client live alone?',
   'Is client able to answer front door?',
   'Key safe present?',
-  'Key safe code',
-  'Instructions for gaining access to client’s home',
+  'Access instructions for staff',
+  'Door entry code (secure — from DOM Care)',
+  'Key safe location',
   'Any identified risks to visiting staff members?',
   'Lifestyle, role and choices',
 ] as const
@@ -82,13 +83,19 @@ function renderQuestion(
 
 export function InitialAssessmentSection3SocialHistoryPanel({
   group,
+  allSections,
   renderField,
   renderMultiSelect,
 }: Props) {
   const questions = byPaperOrder(group.questions)
+  const section3Questions =
+    allSections.find((s) => s.sectionNumber === 3)?.questions ?? []
 
   const find = (text: string) =>
     questions.find((q) => normalizeQuestionText(q.questionText) === normalizeQuestionText(text))
+
+  const findSec3ByField = (fieldKey: string) =>
+    section3Questions.find((q) => fieldKeyOf(q) === fieldKey)
 
   const nextOfKin = find('Family, representative, next of kin, advocate, key contacts')
   const relationship = find('Representative relationship')
@@ -109,9 +116,13 @@ export function InitialAssessmentSection3SocialHistoryPanel({
   const frontDoor = find('Is client able to answer front door?')
   const keySafePresent =
     questions.find((q) => fieldKeyOf(q) === 'keySafePresentHolistic') ?? find('Key safe present?')
-  const keySafeCode =
-    questions.find((q) => fieldKeyOf(q) === 'keySafeCodeHolistic') ?? find('Key safe code')
-  const accessInstructions = find('Instructions for gaining access to client’s home')
+  const accessInstructions =
+    findSec3ByField('accessInstructions') ??
+    section3Questions.find((q) =>
+      normalizeQuestionText(q.questionText).includes('access instructions for staff'),
+    )
+  const doorCode = findSec3ByField('doorCode')
+  const keySafeLocation = findSec3ByField('keySafeLocation')
   const staffRisks = find('Any identified risks to visiting staff members?')
   const lifestyle = find('Lifestyle, role and choices')
 
@@ -135,8 +146,9 @@ export function InitialAssessmentSection3SocialHistoryPanel({
       livesAlone,
       frontDoor,
       keySafePresent,
-      keySafeCode,
       accessInstructions,
+      doorCode,
+      keySafeLocation,
       staffRisks,
       lifestyle,
     ].filter((q): q is InitialAssessmentQuestion => Boolean(q)),
@@ -215,7 +227,8 @@ export function InitialAssessmentSection3SocialHistoryPanel({
               )}
             </div>
           ) : null}
-          {keySafeCode ? <div>{renderQuestion(keySafeCode, renderField, renderMultiSelect)}</div> : null}
+          {keySafeLocation ? <div>{renderQuestion(keySafeLocation, renderField, renderMultiSelect)}</div> : null}
+          {doorCode ? <div>{renderQuestion(doorCode, renderField, renderMultiSelect)}</div> : null}
           {accessInstructions ? (
             <div>{renderQuestion(accessInstructions, renderField, renderMultiSelect)}</div>
           ) : null}

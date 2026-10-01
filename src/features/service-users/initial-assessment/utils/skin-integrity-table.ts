@@ -24,6 +24,17 @@ export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
     bodyMapGate: true,
   },
   {
+    label: 'Is there any bruising?',
+    assessmentQuestionText: 'Any bruising?',
+    commentQuestionText: 'Bruising — where, and how it happened (if known)',
+    bodyMapGate: true,
+  },
+  {
+    label: 'Are wound dressings needed?',
+    assessmentQuestionText: 'Are wound dressings needed?',
+    commentQuestionText: 'Wound dressings — who does them (e.g. district nurse, carers) and how often',
+  },
+  {
     label: 'Has a pressure ulcer risk assessment been completed? Including photography.',
     assessmentQuestionText: 'Pressure ulcer risk assessment completed (including photography)?',
     commentQuestionText: 'Pressure ulcer risk assessment comment',
@@ -48,6 +59,11 @@ export const SKIN_INTEGRITY_TABLE_ROWS: SkinIntegrityTableRow[] = [
     label: 'Does the client require any further pressure relieving equipment to be ordered?',
     assessmentQuestionText: 'Further pressure equipment required?',
     commentQuestionText: 'Further pressure equipment comment',
+  },
+  {
+    label: 'Does the person need help to change position (repositioning)?',
+    assessmentQuestionText: 'Does the person need help to change position (repositioning)?',
+    commentQuestionText: 'Repositioning — how often and how (e.g. every 2–4 hours, using a slide sheet)',
   },
 ]
 

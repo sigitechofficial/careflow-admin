@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Copy, Loader2, Pencil, Plus, Send, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Copy, Loader2, Lock, Pencil, Plus, Send, Trash2, Unlock, Users } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -33,10 +33,12 @@ import {
 } from '@/features/surveys/hooks/useSurveys'
 import { buildSurveyShareUrl } from '@/features/surveys/api/surveys.api'
 import { SurveyCompletionProgress } from '@/features/surveys/components/SurveyCompletionProgress'
+import { SurveySummaryPanel } from '@/features/surveys/components/SurveySummaryPanel'
 import {
   CHOICE_QUESTION_TYPES,
   SURVEY_QUESTION_TYPE_LABELS,
   SURVEY_RECURRENCE_LABELS,
+  SURVEY_TARGET_KIND_LABELS,
   type CreateQuestionInput,
   type SurveyQuestion,
   type SurveyQuestionType,
@@ -184,6 +186,9 @@ export default function SurveyBuilderPage() {
   const publishMut = usePublishSurvey(surveyId)
   const updateMutSurvey = useUpdateSurvey(surveyId)
   const alreadySent = (survey?.recipientCount ?? 0) > 0
+  const forServiceUsers = survey?.targetKind === 'SERVICE_USER'
+  /** e.g. "employees" / "service users" for sentences. */
+  const audienceLower = SURVEY_TARGET_KIND_LABELS[survey?.targetKind ?? 'EMPLOYEE'].toLowerCase()
   const { data: results } = useSurveyResults(surveyId, Boolean(surveyId))
 
   const [addDraft, setAddDraft] = React.useState<QuestionDraft>(emptyDraft())
@@ -203,6 +208,7 @@ export default function SurveyBuilderPage() {
   const [editAnonymous, setEditAnonymous] = React.useState(false)
   const [editOpensAt, setEditOpensAt] = React.useState('')
   const [editClosesAt, setEditClosesAt] = React.useState('')
+  const [closeConfirmOpen, setCloseConfirmOpen] = React.useState(false)
 
   const selectedZone = locationTree?.zones.find(z => z.id === selectedZoneId)
   const branchOptions = React.useMemo<MultiSelectOption[]>(() => {
@@ -310,7 +316,7 @@ export default function SurveyBuilderPage() {
                   res.distributeAt ? ` — first run ${new Date(res.distributeAt).toLocaleString()}` : ''
                 }. Each run creates a new survey.`
               : `Distribution scheduled${res.distributeAt ? ` for ${new Date(res.distributeAt).toLocaleString()}` : ''}.`
-            : `Sent to ${res.sent} employee(s).`,
+            : `Sent to ${res.sent} ${audienceLower}.`,
         )
         setSendOpen(false)
         resetSendState()
@@ -324,6 +330,18 @@ export default function SurveyBuilderPage() {
           : selectedZone
             ? selectedZone.branches.filter(b => b.locationId).map(b => b.locationId!)
             : []
+      if (forServiceUsers) {
+        // Backend picks service users with portal access in these branches.
+        const res = await sendMut.mutateAsync({ locationIds: locationIds.length ? locationIds : undefined })
+        const notes = [
+          res.skippedExisting ? `${res.skippedExisting} already had it` : '',
+          res.skippedNoPortal ? `${res.skippedNoPortal} without a portal account skipped` : '',
+        ].filter(Boolean)
+        toastSuccess(`Sent to ${res.sent} service user(s)${notes.length ? ` — ${notes.join(', ')}` : ''}.`)
+        setSendOpen(false)
+        resetSendState()
+        return
+      }
       if (locationIds.length > 0) {
         const employees = await listAllEmployees({ locationIds })
         employeeIds = employees.map(e => e.id)
@@ -387,6 +405,25 @@ export default function SurveyBuilderPage() {
     }
   }
 
+  const handleCloseSurvey = async () => {
+    try {
+      await updateMutSurvey.mutateAsync({ status: 'CLOSED', distributeAt: null, recurrence: null })
+      toastSuccess('Survey closed — new responses are blocked')
+      setCloseConfirmOpen(false)
+    } catch (e) {
+      toastApiError(e, 'Could not close survey')
+    }
+  }
+
+  const handleReopenSurvey = async () => {
+    try {
+      await updateMutSurvey.mutateAsync({ status: 'ACTIVE' })
+      toastSuccess('Survey reopened')
+    } catch (e) {
+      toastApiError(e, 'Could not reopen survey')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center gap-2 text-muted-foreground">
@@ -406,6 +443,7 @@ export default function SurveyBuilderPage() {
   }
 
   const questions = [...survey.questions].sort((a, b) => a.sortOrder - b.sortOrder)
+  const isClosed = survey.status === 'CLOSED'
 
   return (
     <div className="w-full flex-1 px-4 py-6 sm:px-6">
@@ -420,9 +458,14 @@ export default function SurveyBuilderPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-semibold text-foreground">{survey.title}</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {survey.status} · Employees{survey.isAnonymous ? ' · Anonymous' : ''} ·{' '}
+              {survey.status} · {SURVEY_TARGET_KIND_LABELS[survey.targetKind]}
+              {survey.isAnonymous ? ' · Anonymous' : ''} ·{' '}
               {questions.length} question{questions.length === 1 ? '' : 's'}
+              {survey.createdByName ? ` · Created by ${survey.createdByName}` : ''}
             </p>
+            {survey.description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{survey.description}</p>
+            ) : null}
           </div>
         </div>
         {canManage ? (
@@ -446,31 +489,60 @@ export default function SurveyBuilderPage() {
                   : ''}
               </Link>
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              disabled={questions.length === 0 || publishMut.isPending}
-              onClick={() => void copyShareLink()}
-            >
-              <Copy className="h-3.5 w-3.5" aria-hidden />
-              {publishMut.isPending
-                ? 'Preparing…'
-                : survey.status === 'DRAFT'
-                  ? 'Publish & copy link'
-                  : 'Copy shareable link'}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1.5"
-              disabled={questions.length === 0 || sendMut.isPending}
-              onClick={() => setSendOpen(true)}
-            >
-              <Send className="h-3.5 w-3.5" aria-hidden />
-              {alreadySent ? 'Send to new employees' : 'Send or schedule'}
-            </Button>
+            {!isClosed ? (
+              <>
+                {!forServiceUsers ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={questions.length === 0 || publishMut.isPending}
+                  onClick={() => void copyShareLink()}
+                >
+                  <Copy className="h-3.5 w-3.5" aria-hidden />
+                  {publishMut.isPending
+                    ? 'Preparing…'
+                    : survey.status === 'DRAFT'
+                      ? 'Publish & copy link'
+                      : 'Copy shareable link'}
+                </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={questions.length === 0 || sendMut.isPending}
+                  onClick={() => setSendOpen(true)}
+                >
+                  <Send className="h-3.5 w-3.5" aria-hidden />
+                  {alreadySent ? `Send to new ${audienceLower}` : 'Send or schedule'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-destructive hover:text-destructive"
+                  disabled={updateMutSurvey.isPending}
+                  onClick={() => setCloseConfirmOpen(true)}
+                >
+                  <Lock className="h-3.5 w-3.5" aria-hidden />
+                  Close survey
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={updateMutSurvey.isPending}
+                onClick={() => void handleReopenSurvey()}
+              >
+                <Unlock className="h-3.5 w-3.5" aria-hidden />
+                {updateMutSurvey.isPending ? 'Reopening…' : 'Reopen survey'}
+              </Button>
+            )}
           </div>
         ) : (
           <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
@@ -482,7 +554,23 @@ export default function SurveyBuilderPage() {
         )}
       </div>
 
-      {survey.shareToken ? (
+      {isClosed ? (
+        <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
+          This survey is closed and no longer accepts responses.
+          {canManage ? ' Use Reopen survey to accept responses again.' : ''}
+        </div>
+      ) : null}
+
+      {forServiceUsers ? (
+        <div className="mb-5 rounded-xl border border-border bg-card px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Answered in the Service User Portal</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Service users with a portal account see this survey under Surveys in their portal and get an
+            email. A family member or representative can answer on their behalf — each response records
+            who answered. There is no public link for service-user surveys.
+          </p>
+        </div>
+      ) : survey.shareToken ? (
         <div className="mb-5 rounded-xl border border-border bg-card px-4 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -532,7 +620,7 @@ export default function SurveyBuilderPage() {
                 </>
               ) : (
                 <>
-                  Employees will receive this survey automatically at{' '}
+                  {SURVEY_TARGET_KIND_LABELS[survey.targetKind]} will receive this survey automatically at{' '}
                   <span className="font-medium text-foreground">
                     {isoToDatetimeLocal(survey.distributeAt).replace('T', ' ')}
                   </span>
@@ -581,6 +669,10 @@ export default function SurveyBuilderPage() {
             </div>
           ))}
         </div>
+      ) : null}
+
+      {results?.questionSummaries && results.questionSummaries.length > 0 ? (
+        <SurveySummaryPanel className="mb-5" summaries={results.questionSummaries} />
       ) : null}
 
       {/* Questions */}
@@ -748,6 +840,32 @@ export default function SurveyBuilderPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Close survey confirm */}
+      <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close this survey?</AlertDialogTitle>
+            <AlertDialogDescription>
+              People will no longer be able to submit responses via the shareable link. You can
+              reopen it later. Any scheduled distribution will be cancelled.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateMutSurvey.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={updateMutSurvey.isPending}
+              onClick={e => {
+                e.preventDefault()
+                void handleCloseSurvey()
+              }}
+            >
+              {updateMutSurvey.isPending ? 'Closing…' : 'Close survey'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Remove question confirm */}
       <AlertDialog open={removeTarget != null} onOpenChange={o => !o && setRemoveTarget(null)}>
         <AlertDialogContent>
@@ -784,12 +902,17 @@ export default function SurveyBuilderPage() {
       >
         <DialogContent size="md">
           <DialogHeader>
-            <DialogTitle>Send this survey to employees</DialogTitle>
+            <DialogTitle>Send this survey to {audienceLower}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Send now to selected branches, or schedule a one-time or repeating distribution. Repeating
               runs create a new survey each period from this template.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {forServiceUsers
+                ? 'Service users with a portal account get it in their portal plus an email. Anyone without a portal account is skipped.'
+                : 'Each active employee gets a personal link by push notification and email.'}
             </p>
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Schedule for</span>
@@ -856,7 +979,7 @@ export default function SurveyBuilderPage() {
                   searchPlaceholder="Search branches…"
                 />
                 <span className="text-xs text-muted-foreground">
-                  Leave empty to send to all employees in this zone
+                  Leave empty to send to all {audienceLower} in this zone
                 </span>
               </label>
             ) : null}

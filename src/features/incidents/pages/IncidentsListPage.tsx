@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { AlertTriangle, ChevronLeft, ChevronRight, PlusCircle, Search } from 'lucide-react'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { AlertTriangle, ChevronLeft, ChevronRight, PlusCircle, Search, X } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -16,7 +16,11 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from '@/features/incidents/types'
-import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import {
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+} from '@/shared/lib/organisation-display-format.store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 
 const STATUS_OPTIONS: { value: IncidentStatus | ''; label: string }[] = [
   { value: '', label: 'All statuses' },
@@ -29,13 +33,19 @@ const STATUS_OPTIONS: { value: IncidentStatus | ''; label: string }[] = [
   { value: 'REOPENED', label: 'Reopened' },
 ]
 
-const SEVERITY_OPTIONS: { value: IncidentSeverity | ''; label: string }[] = [
+const HIGH_OR_CRITICAL = 'HIGH_CRITICAL'
+type SeverityFilter = IncidentSeverity | typeof HIGH_OR_CRITICAL | ''
+
+const SEVERITY_OPTIONS: { value: SeverityFilter; label: string }[] = [
   { value: '', label: 'All severities' },
   { value: 'LOW', label: 'Low' },
   { value: 'MEDIUM', label: 'Medium' },
   { value: 'HIGH', label: 'High' },
   { value: 'CRITICAL', label: 'Critical' },
+  { value: HIGH_OR_CRITICAL, label: 'High & Critical' },
 ]
+
+type ListSearch = { status?: string; severity?: string; open?: boolean; closedFrom?: string; overdue?: boolean }
 
 const selectClass =
   'h-9 rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
@@ -44,13 +54,38 @@ export default function IncidentsListPage() {
   const can = useAuthStore((s) => s.can)
   const { locationId } = useGlobalLocationScope()
   const navigate = useNavigate()
+  // Re-render when the organisation timezone loads so dates don't show in the fallback zone.
+  const { timezoneReady } = useOrganisationDisplayFormat()
+  // Presets from the URL (e.g. dashboard figures) set the filters; re-applied when the URL changes
+  // (back/forward, or another preset link while already on this page).
+  const preset = useSearch({ strict: false }) as ListSearch
+  const presetStatus: IncidentStatus | '' = STATUS_OPTIONS.some((o) => o.value && o.value === preset.status)
+    ? (preset.status as IncidentStatus)
+    : ''
+  const presetSeverity: SeverityFilter = SEVERITY_OPTIONS.some((o) => o.value && o.value === preset.severity)
+    ? (preset.severity as SeverityFilter)
+    : ''
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
-  const [status, setStatus] = React.useState<IncidentStatus | ''>('')
-  const [severity, setSeverity] = React.useState<IncidentSeverity | ''>('')
+  const [status, setStatus] = React.useState<IncidentStatus | ''>(presetStatus)
+  const [severity, setSeverity] = React.useState<SeverityFilter>(presetSeverity)
   const [categoryId, setCategoryId] = React.useState('')
-  const [openOnly, setOpenOnly] = React.useState(false)
+  const [openOnly, setOpenOnly] = React.useState(preset.open === true)
+  const [closedFrom, setClosedFrom] = React.useState(preset.closedFrom ?? '')
+  const [overdueOnly, setOverdueOnly] = React.useState(preset.overdue === true)
   const [page, setPage] = React.useState(1)
+
+  const presetKey = [presetStatus, presetSeverity, preset.open, preset.closedFrom, preset.overdue].join('|')
+  const appliedPresetKey = React.useRef(presetKey)
+  React.useEffect(() => {
+    if (appliedPresetKey.current === presetKey) return
+    appliedPresetKey.current = presetKey
+    setStatus(presetStatus)
+    setSeverity(presetSeverity)
+    setOpenOnly(preset.open === true)
+    setClosedFrom(preset.closedFrom ?? '')
+    setOverdueOnly(preset.overdue === true)
+  }, [presetKey, presetStatus, presetSeverity, preset.open, preset.closedFrom, preset.overdue])
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300)
@@ -59,13 +94,16 @@ export default function IncidentsListPage() {
 
   React.useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, status, severity, categoryId, openOnly, locationId])
+  }, [debouncedSearch, status, severity, categoryId, openOnly, closedFrom, overdueOnly, locationId])
 
   const categoriesQuery = useIncidentCategories()
   const filters: IncidentListFilters = {
     search: debouncedSearch || undefined,
     status: status || undefined,
-    severity: severity || undefined,
+    severity: severity && severity !== HIGH_OR_CRITICAL ? severity : undefined,
+    severities: severity === HIGH_OR_CRITICAL ? ['HIGH', 'CRITICAL'] : undefined,
+    closedFrom: closedFrom || undefined,
+    hasOverdueActions: overdueOnly || undefined,
     categoryId: categoryId || undefined,
     openOnly: openOnly || undefined,
     locationId: locationId ?? undefined,
@@ -120,7 +158,7 @@ export default function IncidentsListPage() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          <select className={selectClass} value={severity} onChange={(e) => setSeverity(e.target.value as IncidentSeverity | '')} aria-label="Severity filter">
+          <select className={selectClass} value={severity} onChange={(e) => setSeverity(e.target.value as SeverityFilter)} aria-label="Severity filter">
             {SEVERITY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
@@ -136,6 +174,26 @@ export default function IncidentsListPage() {
             Open only
           </label>
         </div>
+        {(closedFrom || overdueOnly) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {closedFrom && (
+              <Badge variant="muted" size="sm" className="gap-1">
+                Closed since {formatOrganisationDate(closedFrom)}
+                <button type="button" aria-label="Clear closed-since filter" onClick={() => setClosedFrom('')}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {overdueOnly && (
+              <Badge variant="muted" size="sm" className="gap-1">
+                With overdue corrective measures
+                <button type="button" aria-label="Clear overdue filter" onClick={() => setOverdueOnly(false)}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -182,8 +240,8 @@ export default function IncidentsListPage() {
                     <td className="px-3 py-2.5">
                       <Badge variant={INCIDENT_STATUS_BADGE[inc.status]} size="sm">{inc.statusLabel}</Badge>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.occurredAt)}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.reportedAt)}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{timezoneReady ? formatOrganisationDateTime(inc.occurredAt) : '…'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{timezoneReady ? formatOrganisationDateTime(inc.reportedAt) : '…'}</td>
                   </tr>
                 ))
               )}

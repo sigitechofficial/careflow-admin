@@ -139,17 +139,8 @@ export const ENVIRONMENT_ASSESSMENT_TABLE_QUESTIONS: ReadonlyArray<{
     label:
       'Do you have any potential external hazards near your home? (e.g. uneven paths/driveway, lighting, security i.e. burglar alarm/safety chain)',
   },
-  {
-    id: 'infectionControlRisks',
-    staffOnly: true,
-    label:
-      'Are there any infection control considerations, or risks that could result in accidents or incidents?',
-  },
-  {
-    id: 'carePlanCompleted',
-    staffOnly: true,
-    label: 'Care Plan completed?',
-  },
+  // Retired rows (answers kept in metadata): infection risks are owned by the Infection tab, and no
+  // care plan exists yet at assessment stage, so neither is asked or needed for completeness.
 ]
 
 export const ENVIRONMENT_ASSESSMENT_GOALS_PROMPTS = [
@@ -186,11 +177,27 @@ export const ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS: ReadonlyArray<{
   { id: 'aggression', label: 'Has the service user or anyone in the household shown aggression towards carers?', detailsKey: 'aggressionDetails' },
   { id: 'verbalAbuse', label: 'Any history of verbal abuse or threats towards staff?', detailsKey: 'verbalAbuseDetails' },
   { id: 'physicalViolence', label: 'Any history of physical violence?', detailsKey: 'physicalViolenceDetails' },
-  { id: 'unpredictable', label: 'Does the service user show unpredictable or challenging behaviour?', detailsKey: 'unpredictableDetails' },
-  { id: 'dementiaBehaviour', label: 'Does the service user have dementia / cognitive impairment affecting behaviour?', detailsKey: 'dementiaBehaviourDetails' },
-  { id: 'mentalHealthRisk', label: 'Any mental health condition that may pose a risk to staff?', detailsKey: 'mentalHealthRiskDetails' },
-  { id: 'substanceMisuse', label: 'Any substance / alcohol misuse in the household?', detailsKey: 'substanceMisuseDetails' },
-  { id: 'refusedCare', label: 'Has the service user previously refused care or prevented carers from leaving?', detailsKey: 'refusedCareDetails' },
+  { id: 'unpredictable', label: 'Does the person show unpredictable or challenging behaviour towards staff?', detailsKey: 'unpredictableDetails' },
+  {
+    id: 'dementiaBehaviour',
+    label:
+      'Does confusion or cognitive impairment lead to behaviour or situations that could put the person or staff at risk (e.g. hitting out during personal care)? Describe triggers and what helps.',
+    detailsKey: 'dementiaBehaviourDetails',
+  },
+  {
+    id: 'mentalHealthRisk',
+    label:
+      "Is there a current or recent risk to staff linked to the person's mental state (e.g. threats, paranoia towards carers, crisis episodes)? A diagnosis on its own is not a risk.",
+    detailsKey: 'mentalHealthRiskDetails',
+  },
+  {
+    id: 'substanceMisuse',
+    label:
+      'Has alcohol or drug use by anyone in the home led to behaviour or conditions that could put staff at risk (e.g. intoxication, aggression, needles)?',
+    detailsKey: 'substanceMisuseDetails',
+  },
+  // Refusing care is the person's right, not a staff-safety risk — only blocking an exit is.
+  { id: 'refusedCare', label: 'Has anyone prevented carers from leaving or blocked an exit?', detailsKey: 'refusedCareDetails' },
   { id: 'isolatedProperty', label: 'Is the property isolated / in a remote location?', detailsKey: 'isolatedPropertyDetails' },
   { id: 'poorLightingAccess', label: 'Any poor lighting or difficult access at the property?', detailsKey: 'poorLightingAccessDetails' },
   { id: 'unsafeArea', label: 'Is the property in an unsafe area / neighbourhood?', detailsKey: 'unsafeAreaDetails' },
@@ -209,12 +216,12 @@ export const ENVIRONMENT_ASSESSMENT_LONE_WORKER_FACTORS: ReadonlyArray<{
   { id: 'previousSosEvent', label: 'Any previous SOS / emergency event at this service user?', detailsKey: 'previousSosEventDetails' },
   {
     id: 'unsafeMovingHandlingAlone',
-    label: 'Does the service user require moving & handling support that needs two carers?',
+    label: 'Does the Moving and Handling assessment say a task needs two people?',
     detailsKey: 'unsafeMovingHandlingAloneDetails',
   },
   {
     id: 'twoCarerRecommended',
-    label: 'Is a two-carer (double-up) visit required?',
+    label: 'Is a two-carer (double-up) visit being recommended to the manager?',
     detailsKey: 'twoCarerRecommendedDetails',
   },
 ]
@@ -337,7 +344,8 @@ export function computeLoneWorkerRiskLevel(
 export const LONE_WORKER_SUGGESTED_MEASURES: Partial<
   Record<EnvironmentAssessmentLoneWorkerFactorId, string>
 > = {
-  physicalViolence: 'Two-carer (double-up) visits are mandatory — never attend alone.',
+  physicalViolence:
+    'Manager to review before any visit and decide the controls (e.g. double-up, timing, communication plan); do not attend if it feels unsafe.',
   aggression:
     'Approach calmly and avoid cornering; withdraw and call the office if the service user becomes aggressive.',
   verbalAbuse: 'Set clear boundaries and report/log any abusive incidents to the office.',
@@ -359,15 +367,16 @@ export const LONE_WORKER_SUGGESTED_MEASURES: Partial<
   nightVisits:
     'Avoid lone evening/night visits where possible; use a safety check-in or buddy call.',
   longDurationVisits: 'Agree periodic check-ins with the office during long visits.',
-  newServiceUser: 'Introductory visit with a second carer; review after the first few visits.',
+  newServiceUser: 'Consider an introductory visit with a senior or second carer; review after the first few visits.',
   pastSafeguardingIncident:
     'Manager to review before visits; document every visit and any concerns.',
   previousCarerComplaints:
     'Brief all carers on the reported concerns and escalate repeat issues to the manager.',
   previousSosEvent: 'Treat as high alert; confirm the SOS / on-call process before each visit.',
   unsafeMovingHandlingAlone:
-    'Two carers required for all transfers; follow the moving & handling plan.',
-  twoCarerRecommended: 'Schedule double-up visits for all personal care and transfers.',
+    'Follow the moving & handling plan; manager to decide staffing (double-up or equipment) for the tasks that need it.',
+  twoCarerRecommended:
+    'Manager to decide staffing (double-up, timing or other controls) and record it on the visit plan.',
 }
 
 /** Suggested control measures for the factors currently answered Yes (deduped, in display order). */

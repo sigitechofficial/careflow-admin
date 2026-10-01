@@ -132,16 +132,22 @@ export function InitialAssessmentAddressContactField({
     setDraft(draftFromDetail(serviceUserDetail))
   }, [detailStamp, serviceUserDetail, isDirty])
 
+  // Master data is never overwritten from the IA: details already on the profile are read-only here
+  // (change them on the profile); empty ones typed here fill the profile.
+  const profile = draftFromDetail(serviceUserDetail)
+  const addressLocked = Boolean(profile.addressLine1.trim() || profile.postcode.trim())
+  const contactLocked = (key: 'phone' | 'mobile' | 'email') => Boolean(profile[key].trim())
+
   const persistProfile = React.useCallback(async (override?: AddressContactDraft) => {
     if (disabled || savingRef.current) return
     const current = override ?? draft
     const original = draftFromDetail(serviceUserDetail)
-    const profileChanged =
-      original.phone !== current.phone ||
-      original.mobile !== current.mobile ||
-      original.email !== current.email
+    const fillable = (key: 'phone' | 'mobile' | 'email') => !original[key].trim() && Boolean(current[key].trim())
+    const profileChanged = fillable('phone') || fillable('mobile') || fillable('email')
+    const originalHasAddress = Boolean(original.addressLine1.trim() || original.postcode.trim())
     const addressChanged =
-      original.addressLine1 !== current.addressLine1 ||
+      !originalHasAddress &&
+      (original.addressLine1 !== current.addressLine1 ||
       original.addressLine2 !== current.addressLine2 ||
       original.town !== current.town ||
       original.county !== current.county ||
@@ -149,7 +155,7 @@ export function InitialAssessmentAddressContactField({
       original.postcode !== current.postcode ||
       original.secondaryPostcode !== current.secondaryPostcode ||
       original.latitude !== current.latitude ||
-      original.longitude !== current.longitude
+      original.longitude !== current.longitude)
 
     if (!profileChanged && !addressChanged) return
     savingRef.current = true
@@ -159,9 +165,9 @@ export function InitialAssessmentAddressContactField({
       await updateServiceUser.mutateAsync({
         body: profileChanged
           ? {
-              phone: valueOrNull(current.phone),
-              mobile: valueOrNull(current.mobile),
-              email: valueOrNull(current.email),
+              ...(fillable('phone') ? { phone: valueOrNull(current.phone) } : {}),
+              ...(fillable('mobile') ? { mobile: valueOrNull(current.mobile) } : {}),
+              ...(fillable('email') ? { email: valueOrNull(current.email) } : {}),
             }
           : {},
         address: addressChanged
@@ -219,7 +225,10 @@ export function InitialAssessmentAddressContactField({
               </span>
             ) : null}
           </Label>
-          <p className={IA_HINT_CLASS}>Updates here will also update the Service User profile.</p>
+          <p className={IA_HINT_CLASS}>
+            Details already on the profile are read-only here — change them on the profile. Empty details you add are
+            saved to the profile.
+          </p>
         </>
       ) : null}
 
@@ -252,7 +261,7 @@ export function InitialAssessmentAddressContactField({
 
       <AddressPlacesField
         postcodeLabel="Secondary postcode"
-        disabled={disabled}
+        disabled={disabled || addressLocked}
         value={{
           addressLine1: draft.addressLine1,
           addressLine2: draft.addressLine2,
@@ -282,7 +291,7 @@ export function InitialAssessmentAddressContactField({
             value={draft.postcode}
             onChange={(e) => applyDraft({ ...draft, postcode: e.target.value })}
             onBlur={() => void persistProfile()}
-            disabled={disabled}
+            disabled={disabled || addressLocked}
             placeholder="Main postcode"
             className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 text-base'}
           />
@@ -299,7 +308,8 @@ export function InitialAssessmentAddressContactField({
               value={draft[key]}
               onChange={(e) => setContactField(key, e.target.value)}
               onBlur={() => void persistProfile()}
-              disabled={disabled}
+              disabled={disabled || contactLocked(key)}
+              title={contactLocked(key) ? 'From the profile — change it on the profile' : undefined}
               placeholder={placeholder}
               className={simple ? IA_SIMPLE_INPUT_CLASS : 'h-10 text-base'}
               aria-label={label}
@@ -309,9 +319,11 @@ export function InitialAssessmentAddressContactField({
       </div>
 
       <p className={cn('text-xs', IA_HINT_CLASS)}>
-        {simple
-          ? 'Saves to the service user profile when you leave a field. Address search uses Google Places.'
-          : 'Leave a field to save. Address search uses Google Places and fills the secondary postcode.'}
+        {addressLocked
+          ? 'Address, phone and email already on the profile are shown read-only — change them on the profile.'
+          : simple
+            ? 'Empty details you add are saved to the service user profile when you leave a field. Address search uses Google Places.'
+            : 'Leave a field to save. Address search uses Google Places and fills the secondary postcode.'}
       </p>
       {errorMessage ? (
         <p className="text-xs font-medium text-destructive" role="alert">

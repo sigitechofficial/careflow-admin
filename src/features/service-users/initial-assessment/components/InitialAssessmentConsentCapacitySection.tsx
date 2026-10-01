@@ -9,10 +9,21 @@ import {
 } from '@/features/service-users/initial-assessment/hooks/useInitialAssessmentEnterprise'
 import {
   CONSENT_CAPACITY_STEPS,
-  consentStepSpecRefsLabel,
   questionsForConsentStep,
 } from '@/features/service-users/initial-assessment/utils/consent-capacity-steps'
-import { findQuestionBySpecRef, isExplicitNo } from '@/features/service-users/initial-assessment/utils/question-lookup'
+import {
+  consentSelectedAnswer,
+  hasLegalDecisionMaker,
+  isCapacityInDoubt,
+  understandingInDoubt,
+} from '@/features/service-users/initial-assessment/utils/consent-capacity'
+import {
+  fieldKeyOf,
+  findQuestionByFieldKey,
+  isExplicitNo,
+  specRefOf,
+} from '@/features/service-users/initial-assessment/utils/question-lookup'
+import { holisticTabRef } from '@/features/service-users/initial-assessment/utils/holistic-assessment-tabs'
 import {
   InitialAssessmentSection12FieldRow,
   InitialAssessmentSection12PanelShell,
@@ -40,7 +51,16 @@ type Props = {
   serviceUserId: string
   submissionId: string | null
   renderField: (q: InitialAssessmentQuestion) => React.ReactNode
+  /** Used to prefill the attorney's name from Personal Details. */
+  onChange?: (questionId: string, patch: InitialAssessmentAnswerInput) => void
+  /** Consent tab: questions in one plain list under the intro card (no panel headers / borders). */
+  flat?: boolean
 }
+
+const RED_NOTE_CLASS =
+  'mt-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100'
+const AMBER_NOTE_CLASS = cn(IA_CALLOUT_AMBER_CLASS, 'mt-2 text-sm text-amber-950 dark:text-amber-100')
+
 
 export function InitialAssessmentConsentCapacitySection({
   allSections,
@@ -50,6 +70,8 @@ export function InitialAssessmentConsentCapacitySection({
   serviceUserId,
   submissionId,
   renderField,
+  onChange,
+  flat = false,
 }: Props) {
   const fileRef = React.useRef<HTMLInputElement>(null)
 
@@ -57,10 +79,68 @@ export function InitialAssessmentConsentCapacitySection({
   const uploadMutation = useUploadInitialAssessmentAttachment(serviceUserId, submissionId ?? '')
   const mcaDocs = (attachmentsQuery.data ?? []).filter((a) => a.category === 'MCA_DOCUMENT')
 
-  const consentQ = findQuestionBySpecRef(allSections, '2.1')
-  const capacityQ = findQuestionBySpecRef(allSections, '2.4')
-  const consentBlocked = consentQ && isExplicitNo(draftAnswers[consentQ.id])
-  const capacityIssue = capacityQ && isExplicitNo(draftAnswers[capacityQ.id])
+  const consentQ = findQuestionByFieldKey(allSections, 'consentToAssessment')
+  const consentRefused = Boolean(consentQ && isExplicitNo(draftAnswers[consentQ.id]))
+  const capacityIssue = isCapacityInDoubt(allSections, draftAnswers)
+  const showMcaUpload = capacityIssue || hasLegalDecisionMaker(allSections, draftAnswers)
+
+  // Health & Welfare LPA chosen → the attorney's name starts from Personal Details' "LPA name", but only
+  // when that LPA is a health (or health and finance) one — a finance attorney is never offered here.
+  const legalAuthority = consentSelectedAnswer(allSections, draftAnswers, 'legalAuthority')
+  const personalLpaType = consentSelectedAnswer(allSections, draftAnswers, 'lpoaAppointed')
+  React.useEffect(() => {
+    if (legalAuthority !== 'hw_lpa' || disabled || !onChange) return
+    if (personalLpaType !== 'health' && personalLpaType !== 'both') return
+    const nameQ = findQuestionByFieldKey(allSections, 'legalAuthorityName')
+    const lpoaQ = findQuestionByFieldKey(allSections, 'lpoaName')
+    const lpoaName = lpoaQ ? draftAnswers[lpoaQ.id]?.textValue?.trim() : undefined
+    if (!nameQ || !lpoaName || draftAnswers[nameQ.id]?.textValue?.trim()) return
+    onChange(nameQ.id, { questionId: nameQ.id, textValue: lpoaName })
+  }, [legalAuthority, personalLpaType, disabled, onChange, allSections, draftAnswers])
+
+  // Flat: one continuous list (no gap between the former panels) and the Yes/No card shells dropped, so
+  // questions read as plain rows. Panels keep the section spacing and cards.
+  const wrapSteps = (steps: React.ReactNode[]) =>
+    flat ? (
+      <div className="[&_.ia-yes-no-card]:rounded-none [&_.ia-yes-no-card]:border-0 [&_.ia-yes-no-card]:bg-transparent [&_.ia-yes-no-card]:px-0">
+        {steps}
+      </div>
+    ) : (
+      steps
+    )
+
+  /** Guidance shown right under the answer it is about. */
+  const inlineNote = (q: InitialAssessmentQuestion): React.ReactNode => {
+    const key = fieldKeyOf(q)
+    if (key === 'understandsAssessmentInfo' && understandingInDoubt(allSections, draftAnswers)) {
+      return (
+        <p className={AMBER_NOTE_CLASS} role="status" data-testid="ia-consent-understanding-flag">
+          Flag: a Mental Capacity Assessment may be needed — answer the capacity question below.
+        </p>
+      )
+    }
+    if (key === 'consentToAssessment' && consentRefused) {
+      return capacityIssue ? (
+        <p className={AMBER_NOTE_CLASS} role="status" data-testid="ia-consent-refused-capacity">
+          Their refusal is recorded and must be considered. Because capacity is in doubt, complete the MCA
+          for this decision ({holisticTabRef(3)}); if they lack capacity, record a best-interests decision
+          (including their wishes and objection) or a covering legal authority. A manager will review it.
+        </p>
+      ) : (
+        <p className={RED_NOTE_CLASS} role="alert" data-testid="ia-consent-refused">
+          The service user does not consent — the assessment cannot be submitted.
+        </p>
+      )
+    }
+    if (key === 'capacityDoubt' && capacityIssue) {
+      return (
+        <p className={AMBER_NOTE_CLASS} role="status" data-testid="ia-capacity-doubt-mca">
+          Complete MCA Screening ({holisticTabRef(3)}) and attach documentation before submit.
+        </p>
+      )
+    }
+    return null
+  }
 
   const onMcaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -84,48 +164,27 @@ export function InitialAssessmentConsentCapacitySection({
               Consent, capacity and information sharing
             </p>
             <p className={cn('mt-1', IA_HINT_CLASS)}>
-              Consent must be Yes to submit. If capacity is not intact, complete the MCA block and attach
-              documentation.
+              Capacity is presumed. If there is reason to doubt it, complete the MCA and a best interest
+              decision before submitting.
             </p>
           </div>
         </div>
       </div>
 
-      {consentBlocked ? (
-        <div
-          className={cn(
-            IA_CALLOUT_AMBER_CLASS,
-            'border-red-300 bg-red-50 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100',
-          )}
-          role="alert"
-        >
-          Consent to assessment is No — assessment cannot be submitted until consent is obtained or a valid
-          best-interest process is recorded.
-        </div>
-      ) : null}
-
-      {capacityIssue ? (
-        <div className={cn(IA_CALLOUT_AMBER_CLASS, 'text-sm text-amber-950 dark:text-amber-100')} role="status">
-          Capacity not intact — complete the MCA section below and attach documentation before submit.
-        </div>
-      ) : null}
-
-      {CONSENT_CAPACITY_STEPS.map((step) => {
+      {wrapSteps(CONSENT_CAPACITY_STEPS.map((step) => {
         const qs = questionsForConsentStep(visibleQuestions, step)
         if (qs.length === 0) return null
-        return (
-          <InitialAssessmentSection12PanelShell
-            key={step.id}
-            title={consentStepSpecRefsLabel(step)}
-            hint={step.description}
-            bodyVariant="content"
-            testId={`ia-consent-step-${step.id}`}
-          >
+        const body = (
+          <>
             {qs.map((q) => (
-                <InitialAssessmentSection12FieldRow key={q.id}>{renderField(q)}</InitialAssessmentSection12FieldRow>
+                <InitialAssessmentSection12FieldRow key={q.id}>
+                  {renderField(q)}
+                  {inlineNote(q)}
+                </InitialAssessmentSection12FieldRow>
               ))}
 
-            {step.id === 'capacity' ? (
+            {/* On the Consent tab MCA / LPA papers only matter once capacity is in doubt or someone holds authority. */}
+            {step.id === 'capacity' && (showMcaUpload || qs.some((q) => specRefOf(q) !== '2.4')) ? (
               <div className={IA_CALLOUT_VIOLET_CLASS}>
                 <p className={cn(IA_QUESTION_LABEL_CLASS, 'text-violet-950 dark:text-violet-100')}>
                   MCA documentation
@@ -165,9 +224,24 @@ export function InitialAssessmentConsentCapacitySection({
                 </div>
               </div>
             ) : null}
+          </>
+        )
+        return flat ? (
+          <div key={step.id} data-testid={`ia-consent-step-${step.id}`}>
+            {body}
+          </div>
+        ) : (
+          <InitialAssessmentSection12PanelShell
+            key={step.id}
+            title={step.title}
+            hint={step.description}
+            bodyVariant="content"
+            testId={`ia-consent-step-${step.id}`}
+          >
+            {body}
           </InitialAssessmentSection12PanelShell>
         )
-      })}
+      }))}
     </div>
   )
 }

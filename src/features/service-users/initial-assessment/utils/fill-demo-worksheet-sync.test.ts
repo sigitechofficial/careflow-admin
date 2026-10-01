@@ -104,7 +104,7 @@ describe('syncFillDemoCatalogueAnswers', () => {
     expect(patches['falls-12-7']).toBeUndefined()
   })
 
-  it('writes §12.7 from Q1 only when Falls consent is Yes', () => {
+  it('never writes §12.7 from the paper Q1 — falls history is its own always-asked question', () => {
     const patches: Record<string, InitialAssessmentAnswerInput> = {}
     syncFillDemoCatalogueAnswers(
       sections,
@@ -127,6 +127,6 @@ describe('syncFillDemoCatalogueAnswers', () => {
         patches[id] = patch
       },
     )
-    expect(patches['falls-12-7']?.booleanValue).toBe(true)
+    expect(patches['falls-12-7']).toBeUndefined()
   })
 })

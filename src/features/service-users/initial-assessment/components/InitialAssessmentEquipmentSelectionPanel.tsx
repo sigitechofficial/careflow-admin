@@ -11,8 +11,13 @@ import { InitialAssessmentTextarea as Textarea } from '@/features/service-users/
 import {
   EQUIPMENT_PRODUCT_GUIDE_ROWS,
   EQUIPMENT_SELECTION_ADVISORY_NOTES,
-  PRESSURE_RISK_EQUIPMENT_ROWS,
 } from '@/features/service-users/initial-assessment/utils/equipment-selection-guide'
+import {
+  computeWaterlowScore,
+  WATERLOW_EQUIPMENT_CATALOG,
+  waterlowBand,
+  type WaterlowMetadata,
+} from '@/features/service-users/initial-assessment/utils/waterlow-scoring'
 import type { EquipmentSelectionMetadata } from '@/features/service-users/initial-assessment/utils/equipment-selection'
 import { HOLISTIC_SECTION_SHELL_CLASS } from '@/features/service-users/initial-assessment/utils/holistic-form-typography'
 import {
@@ -25,6 +30,7 @@ import { cn } from '@/shared/lib/utils'
 
 type Props = {
   value: EquipmentSelectionMetadata
+  waterlow?: WaterlowMetadata
   disabled?: boolean
   onChange: (next: EquipmentSelectionMetadata) => void
 }
@@ -53,8 +59,12 @@ function YesNoField({
   )
 }
 
-export function InitialAssessmentEquipmentSelectionPanel({ value, disabled, onChange }: Props) {
+export function InitialAssessmentEquipmentSelectionPanel({ value, waterlow, disabled, onChange }: Props) {
   const patch = (partial: Partial<EquipmentSelectionMetadata>) => onChange({ ...value, ...partial })
+  // The Waterlow tab is the only master for the score and band — shown here read-only.
+  const waterlowScore = computeWaterlowScore(waterlow)
+  const band = waterlowBand(waterlowScore)
+  const currentCatalogRow = WATERLOW_EQUIPMENT_CATALOG.find((row) => band.label.startsWith(row.riskLevel))
 
   return (
     <div className={IA_SECTION_BODY_CLASS} data-testid="ia-equipment-selection-panel">
@@ -66,35 +76,20 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, disabled, onCh
 
         <div className="space-y-6 border-t border-slate-200 bg-white p-4 dark:bg-card dark:border-slate-700">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="equipment-selection-waterlow" className={IA_QUESTION_LABEL_CLASS}>
-                Waterlow score (if known)
-              </Label>
-              <Input
-                id="equipment-selection-waterlow"
-                className="h-9 bg-background"
-                disabled={disabled}
-                value={value.waterlowScore ?? ''}
-                onChange={(e) => patch({ waterlowScore: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="equipment-selection-risk" className={IA_QUESTION_LABEL_CLASS}>
-                Selected risk level
-              </Label>
-              <Input
-                id="equipment-selection-risk"
-                className="h-9 bg-background"
-                disabled={disabled}
-                list="equipment-risk-levels"
-                value={value.selectedRiskLevel ?? ''}
-                onChange={(e) => patch({ selectedRiskLevel: e.target.value })}
-              />
-              <datalist id="equipment-risk-levels">
-                {PRESSURE_RISK_EQUIPMENT_ROWS.map((row) => (
-                  <option key={row.riskLevel} value={row.riskLevel} />
-                ))}
-              </datalist>
+            <div className="space-y-1 sm:col-span-2" data-testid="ia-equipment-waterlow-readonly">
+              <p className={IA_QUESTION_LABEL_CLASS}>Waterlow score and risk band</p>
+              {waterlowScore > 0 ? (
+                <p className="text-sm">
+                  <span className={cn('rounded px-2 py-0.5 font-medium', band.className)}>
+                    {waterlowScore} — {band.label}
+                  </span>
+                  <span className={cn('ml-2', IA_HINT_CLASS)}>From the Waterlow tab (read-only)</span>
+                </p>
+              ) : (
+                <p className={IA_HINT_CLASS}>
+                  Not scored yet — complete the Waterlow tab; the score and band appear here automatically.
+                </p>
+              )}
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="equipment-selection-equipment" className={IA_QUESTION_LABEL_CLASS}>
@@ -146,23 +141,29 @@ export function InitialAssessmentEquipmentSelectionPanel({ value, disabled, onCh
             </p>
             <HolisticAssessmentTable
               columns={[
-                { key: 'risk', header: 'Risk level & score', className: 'w-[32%]' },
-                { key: 'equipment', header: 'Recommended equipment', className: 'w-[68%]' },
+                { key: 'risk', header: 'Waterlow band & score', className: 'w-[32%]' },
+                { key: 'equipment', header: 'Equipment to consider', className: 'w-[68%]' },
               ]}
             >
-              {PRESSURE_RISK_EQUIPMENT_ROWS.map((row) => (
-                <HolisticAssessmentTableRow key={row.riskLevel}>
-                  <HolisticAssessmentTableCell className="align-top font-medium text-sm">
-                    {row.riskLevel}
-                    <span className="mt-0.5 block font-normal text-muted-foreground">
-                      ({row.scoreRange})
-                    </span>
-                  </HolisticAssessmentTableCell>
-                  <HolisticAssessmentTableCell className="align-top text-sm">
-                    {row.recommendedEquipment}
-                  </HolisticAssessmentTableCell>
-                </HolisticAssessmentTableRow>
-              ))}
+              {WATERLOW_EQUIPMENT_CATALOG.map((row) => {
+                const current = waterlowScore > 0 && row.riskLevel === currentCatalogRow?.riskLevel
+                return (
+                  <HolisticAssessmentTableRow
+                    key={row.riskLevel}
+                    className={current ? 'bg-amber-50/70 dark:bg-amber-950/30' : undefined}
+                  >
+                    <HolisticAssessmentTableCell className="align-top font-medium text-sm">
+                      {row.riskLevel}
+                      <span className="mt-0.5 block font-normal text-muted-foreground">
+                        ({row.scoreRange}){current ? ' — this person' : ''}
+                      </span>
+                    </HolisticAssessmentTableCell>
+                    <HolisticAssessmentTableCell className="align-top text-sm">
+                      {row.products.join(' · ')}
+                    </HolisticAssessmentTableCell>
+                  </HolisticAssessmentTableRow>
+                )
+              })}
             </HolisticAssessmentTable>
           </div>
 

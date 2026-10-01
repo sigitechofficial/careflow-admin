@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  firstHolisticTabForEnterpriseSection,
+  holisticTabForValidationIssue,
+  holisticTabRef,
+  resolveHolisticTabId,
+  retiredHolisticTabIdsFor,
   HOLISTIC_ASSESSMENT_TABS,
   HOLISTIC_MAX_TAB_ID,
   HOLISTIC_REGISTERED_TAB_IDS,
@@ -73,13 +78,18 @@ describe('questionsForDocumentTab', () => {
     expect(ids.has('manage')).toBe(false)
   })
 
-  it('keeps frozen tab ids 1–18 and registers 19 / 20 / 21 / 22', () => {
+  it('keeps frozen tab ids, adds Consent (23) + Safeguarding (24) and retires Photography (18)', () => {
     const ids = HOLISTIC_ASSESSMENT_TABS.map((t) => t.id)
-    expect(ids).toEqual(expect.arrayContaining([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]))
+    expect(ids).toEqual(
+      expect.arrayContaining([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 24]),
+    )
+    expect(ids).not.toContain(18)
     expect(HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 19)?.enterpriseSection).toBe(16)
     expect(HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 20)?.enterpriseSection).toBe(17)
     expect(HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 21)?.enterpriseSection).toBe(15)
     expect(HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 22)?.enterpriseSection).toBe(18)
+    expect(HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 23)?.enterpriseSection).toBe(2)
+    expect(HOLISTIC_ASSESSMENT_TABS.find((t) => t.id === 24)?.enterpriseSection).toBe(13)
   })
 
   it('owns fire safety questions on holistic tab 22', () => {
@@ -126,97 +136,83 @@ describe('questionsForDocumentTab', () => {
     expect(ids.has('su-agrees')).toBe(true)
   })
 
-  it('iterates registered tab ids instead of 1..18', () => {
+  it('iterates registered tab ids instead of 1..N', () => {
     expect(HOLISTIC_REGISTERED_TAB_IDS).toEqual(HOLISTIC_ASSESSMENT_TABS.map((tab) => tab.id))
     expect(HOLISTIC_TAB_COUNT).toBe(HOLISTIC_ASSESSMENT_TABS.length)
-    expect(HOLISTIC_MAX_TAB_ID).toBe(22)
-    expect(HOLISTIC_REGISTERED_TAB_IDS).toEqual(expect.arrayContaining([19, 20, 21, 22]))
-    expect(HOLISTIC_REGISTERED_TAB_IDS).not.toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18])
+    expect(HOLISTIC_TAB_COUNT).toBe(23)
+    expect(HOLISTIC_MAX_TAB_ID).toBe(24)
   })
 })
 
 describe('holistic tab display numbering and navigation order', () => {
-  const HISTORICAL_TITLES: Array<[number, string]> = [
+  // Home-visit order: consent → the person → health tools → home & safety → future planning → sign-off.
+  // A. Core → B. Specialist / conditional → C. Outcome & sign-off
+  const NAV_ORDER: Array<[number, string]> = [
+    [23, 'Consent'],
     [1, 'Personal Details & Medical History'],
     [2, 'Practical Task'],
-    [3, 'Initial Mental Capacity Act Screening Tool'],
-    [4, 'Total Skin Integrity Check'],
-    [5, 'Waterlow Pressure Score'],
-    [6, 'Equipment Selection'],
-    [7, 'Alternative to MUST'],
-    [8, 'Falls Screening'],
-    [9, 'Moving and Handling Operations'],
+    [12, 'Environment & Home Safety'],
+    [24, 'Safeguarding & Emergency'],
     [10, 'Pain Assessment Tool'],
     [11, 'Aide Memorie to Establish Therapy Needs'],
-    [12, 'Environment Assessment'],
+    [7, 'Alternative to MUST'],
+    [3, 'Initial Mental Capacity Act Screening Tool'],
+    [17, 'Mental Capacity Assessment Identified'],
+    [4, 'Total Skin Integrity Check'],
+    [5, 'Waterlow Pressure Score'],
+    [8, 'Falls Screening'],
+    [9, 'Moving and Handling Operations'],
+    [6, 'Equipment Selection'],
+    [22, 'Fire Safety'],
+    [21, 'Infection and Clinical Precautions'],
+    [20, 'Bed Rails'],
+    [19, 'Personal Emergency Evacuation Plan (PEEP)'],
     [13, 'Advance Care Planning'],
     [14, 'End of Life Assessment'],
-    [15, 'Social and Clinical assessment outcome summary'],
-    [16, 'Personalised Care/Support Plan'],
-    [17, 'Mental Capacity Assessment Identified'],
-    [18, 'Photography Consent Form'],
+    [15, 'Clinical outcome summary (baseline)'],
+    [16, 'Care Plan, Consent to Care & Sign-off'],
   ]
 
-  it('existing tabs still display 1–18 with historical titles', () => {
-    for (const [id, title] of HISTORICAL_TITLES) {
-      const tab = holisticTabById(id)!
-      expect(tab.title).toBe(title)
-      expect(holisticTabDisplayNumber(tab)).toBe(id)
-      expect(holisticTabDisplayNumber(id)).toBe(id)
+  it('navigates in home-visit order with display numbers 1–23', () => {
+    expect(HOLISTIC_ASSESSMENT_TABS.map((tab) => [tab.id, tab.title])).toEqual(NAV_ORDER)
+    expect(HOLISTIC_ASSESSMENT_TABS.map((tab) => holisticTabDisplayNumber(tab))).toEqual(
+      NAV_ORDER.map((_, index) => index + 1),
+    )
+    for (const [id] of NAV_ORDER) {
+      expect(holisticTabDisplayNumber(id)).toBe(NAV_ORDER.findIndex(([tabId]) => tabId === id) + 1)
     }
   })
 
-  it('PEEP displays 19, Bed Rails 20, Infection 21, Fire Safety 22', () => {
-    expect(holisticTabById(19)?.title).toBe('Personal Emergency Evacuation Plan (PEEP)')
-    expect(holisticTabDisplayNumber(19)).toBe(19)
-    expect(holisticTabById(20)?.title).toBe('Bed Rails')
-    expect(holisticTabDisplayNumber(20)).toBe(20)
-    expect(holisticTabById(21)?.title).toBe('Infection and Clinical Precautions')
-    expect(holisticTabDisplayNumber(21)).toBe(21)
-    expect(holisticTabById(22)?.title).toBe('Fire Safety')
-    expect(holisticTabDisplayNumber(22)).toBe(22)
-  })
-
-  it('navigation order is exactly 1–22 and is not enterpriseSection order', () => {
-    expect(HOLISTIC_ASSESSMENT_TABS.map((tab) => tab.id)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+  it('starts with Consent and ends with sign-off', () => {
+    expect(HOLISTIC_ASSESSMENT_TABS[0]?.id).toBe(23)
+    expect(HOLISTIC_ASSESSMENT_TABS.at(-1)?.id).toBe(16)
+    expect(holisticTabRef(16)).toBe('Tab 23')
+    expect(holisticTabRef(3)).toBe('Tab 9')
+    expect(HOLISTIC_ASSESSMENT_TABS.map((t) => t.group)).toEqual([
+      ...Array(5).fill('core'),
+      ...Array(16).fill('specialist'),
+      'finalisation',
+      'finalisation',
     ])
-    expect(HOLISTIC_ASSESSMENT_TABS.map((tab) => holisticTabDisplayNumber(tab))).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-    ])
-    expect(HOLISTIC_ASSESSMENT_TABS.map((tab) => tab.enterpriseSection)).not.toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-    ])
-    expect(HOLISTIC_ASSESSMENT_TABS[18]?.title).toBe('Personal Emergency Evacuation Plan (PEEP)')
-    expect(HOLISTIC_ASSESSMENT_TABS[19]?.title).toBe('Bed Rails')
-    expect(HOLISTIC_ASSESSMENT_TABS[20]?.title).toBe('Infection and Clinical Precautions')
-    expect(HOLISTIC_ASSESSMENT_TABS[21]?.title).toBe('Fire Safety')
   })
 
   it('keeps persisted internal holisticTabId and enterpriseSection mappings unchanged', () => {
-    expect(holisticTabById(19)).toEqual(
-      expect.objectContaining({ id: 19, displayNumber: 19, enterpriseSection: 16 }),
-    )
-    expect(holisticTabById(20)).toEqual(
-      expect.objectContaining({ id: 20, displayNumber: 20, enterpriseSection: 17 }),
-    )
-    expect(holisticTabById(21)).toEqual(
-      expect.objectContaining({ id: 21, displayNumber: 21, enterpriseSection: 15 }),
-    )
-    expect(holisticTabById(22)).toEqual(
-      expect.objectContaining({ id: 22, displayNumber: 22, enterpriseSection: 18 }),
-    )
-    expect(holisticTabDisplayNumber(21)).not.toBe(holisticTabById(21)!.enterpriseSection)
-    expect(holisticTabDisplayNumber(19)).not.toBe(holisticTabById(19)!.enterpriseSection)
+    expect(holisticTabById(19)).toEqual(expect.objectContaining({ id: 19, enterpriseSection: 16 }))
+    expect(holisticTabById(20)).toEqual(expect.objectContaining({ id: 20, enterpriseSection: 17 }))
+    expect(holisticTabById(21)).toEqual(expect.objectContaining({ id: 21, enterpriseSection: 15 }))
+    expect(holisticTabById(22)).toEqual(expect.objectContaining({ id: 22, enterpriseSection: 18 }))
+    expect(holisticTabById(15)?.enterpriseSection).toBe(14)
   })
 
-  it('URL/tab selection still opens the underlying internal tab', () => {
-    expect(holisticTabById(21)?.enterpriseSection).toBe(15)
-    expect(holisticTabById(15)?.title).toBe('Social and Clinical assessment outcome summary')
-    expect(holisticTabById(15)?.enterpriseSection).toBe(14)
-    for (const id of [1, 18, 19, 20, 21, 22]) {
+  it('URL/tab selection still opens the underlying internal tab; retired 18 resolves to Consent', () => {
+    for (const id of [1, 3, 16, 19, 20, 21, 22, 23, 24]) {
       expect(holisticTabById(id)?.id).toBe(id)
+      expect(resolveHolisticTabId(id)).toBe(id)
     }
+    expect(holisticTabById(18)).toBeUndefined()
+    expect(resolveHolisticTabId(18)).toBe(23)
+    expect(retiredHolisticTabIdsFor(23)).toEqual([18])
+    expect(resolveHolisticTabId(99)).toBeUndefined()
   })
 
   it('save/reload still scopes questions by frozen internal tab id', () => {
@@ -292,7 +288,7 @@ function tab1Section10Fixture(): {
       fieldKey: 'emotionalWellbeing',
       sortOrder: 7,
     }),
-    section10Question('low-mood', 'Feels low in mood?', '10.2', { fieldKey: 'feelsLowInMood', sortOrder: 8 }),
+    section10Question('depressed', 'Feels depressed?', '10.2', { fieldKey: 'feelsDepressed', sortOrder: 8 }),
     section10Question('cog-level', 'Cognitive impairment level', '10.6', {
       fieldKey: 'cognitiveImpairment',
       sortOrder: 20,
@@ -370,7 +366,7 @@ describe('Tab 1 §10.6a cognition / dementia', () => {
 
     expect(groups).toHaveLength(1)
     expect(groups[0]!.specRef).toBe('10.6a')
-    expect(groups[0]!.label).toBe('10.6a Cognition and behaviour checklist')
+    expect(groups[0]!.label).toBe('Cognition and behaviour checklist')
     expect(groups[0]!.questions.map((q) => q.metadata?.fieldKey ?? q.questionText)).toEqual(
       expect.arrayContaining(['diagnosedDementia', 'wanderingOrExitSeeking', 'wanderingSupportNotes']),
     )
@@ -388,7 +384,7 @@ describe('Tab 1 §10.6a cognition / dementia', () => {
         'Community Psychiatric Nurse involved?',
         'Previous mental health issues reported?',
         'Emotional wellbeing status',
-        'Feels low in mood?',
+        'Feels depressed?',
         'Cognitive impairment level',
         'Sleeping pattern',
         'Emotional health comments',
@@ -449,5 +445,82 @@ describe('Tab 1 §10.6a cognition / dementia', () => {
     expect(reloaded[dementia.id]?.booleanValue).toBe(true)
     expect(reloaded[wandering.id]?.booleanValue).toBe(true)
     expect(reloaded[notes.id]?.textValue).toBe('Door sensors and supervised outdoor time')
+  })
+})
+
+describe('tab re-order: hidden sections now have a home', () => {
+  const q = (id: string, text: string, specRef: string, fieldKey?: string) => yesNoQ(id, text, specRef, fieldKey)
+  const consent = q('c21', 'Has the Service User consented to this assessment?', '2.1')
+  const careConsent = q('c22', 'Has the Service User consented to receive care and support?', '2.2')
+  const explained = q('c23', 'Information explained in a way they understand?', '2.3')
+  const capacity = q('c24', 'Capacity to consent appears intact?', '2.4')
+  const bestInterest = q('c26', 'Best interest decision required?', '2.6')
+  const sharing = q('c28', 'Consent to share with GP', '2.8')
+  const dol = q('c29', 'Deprivation of liberty authorisation in place?', '2.9')
+  const manageHome = q('h33', 'Can client manage home environment safely?', '3.3')
+  const access = q('h35', 'Access instructions for staff', '3.5', 'accessInstructions')
+  const keySafe = q('h36', 'Key safe location', '3.6', 'keySafeLocation')
+  const safeguarding = q('s131', 'Any safeguarding concerns identified?', '13.1', 'safeguardingConcern')
+  const nextReview = q('r141', 'Next review date', '14.1', 'nextReviewDate')
+  const assessorName = q('a148', 'Assessor name', '14.8', 'assessorName')
+
+  const section = (n: number, questions: InitialAssessmentQuestion[]): InitialAssessmentSection => ({
+    id: `s${n}`,
+    sectionNumber: n,
+    title: `Section ${n}`,
+    sortOrder: n,
+    questions,
+  })
+  const sections = [
+    section(1, []),
+    section(2, [consent, careConsent, explained, capacity, bestInterest, sharing, dol]),
+    section(3, [manageHome, access, keySafe]),
+    section(13, [safeguarding]),
+    section(14, [nextReview, assessorName]),
+  ]
+  const visible = new Map<number, InitialAssessmentQuestion[]>(sections.map((s) => [s.sectionNumber, s.questions]))
+  const idsOn = (tabId: number) =>
+    questionsForDocumentTab(holisticTabById(tabId)!, sections, visible).map((x) => x.id)
+
+  it('Consent tab shows §2.1 / 2.3 / 2.4 / 2.8 — not consent to care, best interest or DoL', () => {
+    expect(idsOn(23)).toEqual(['c21', 'c23', 'c24', 'c28'])
+  })
+
+  it('MCA Screening tab owns best interest (2.6) and deprivation of liberty (2.9)', () => {
+    expect(idsOn(3)).toEqual(expect.arrayContaining(['c26', 'c29']))
+    expect(idsOn(3)).not.toContain('c21')
+  })
+
+  it('final tab carries §14.1 review schedule, §2.2 consent to care and the sign-off', () => {
+    expect(idsOn(16)).toEqual(['r141', 'c22', 'a148'])
+  })
+
+  it('Environment tab renders §3 except the access fields already on Tab 1', () => {
+    expect(idsOn(12)).toEqual(['h33'])
+    expect(idsOn(1)).toEqual(expect.arrayContaining(['h35', 'h36']))
+  })
+
+  it('Safeguarding & Emergency tab owns §13', () => {
+    expect(idsOn(24)).toEqual(['s131'])
+  })
+
+  it('routes validation issues to the tab that shows the question', () => {
+    const route = (sectionNumber: number, message: string) =>
+      holisticTabForValidationIssue({ sectionNumber, message }, sections, visible)
+    expect(route(2, `Required: ${careConsent.questionText}`)).toBe(16)
+    expect(route(2, `Required: ${consent.questionText}`)).toBe(23)
+    expect(route(3, `Required: ${access.questionText}`)).toBe(1)
+    expect(route(13, `Required: ${safeguarding.questionText}`)).toBe(24)
+    expect(route(14, 'Next review date is required (section 14)')).toBe(16)
+    expect(route(2, 'MCA required but the MCA has not been completed')).toBe(3)
+    expect(route(2, 'Consent to assessment is No')).toBe(23)
+  })
+
+  it('maps enterprise sections to the new tabs', () => {
+    expect(firstHolisticTabForEnterpriseSection(2)).toBe(23)
+    expect(firstHolisticTabForEnterpriseSection(3)).toBe(12)
+    expect(firstHolisticTabForEnterpriseSection(13)).toBe(24)
+    expect(firstHolisticTabForEnterpriseSection(14)).toBe(16)
+    expect(firstHolisticTabForEnterpriseSection(11)).toBe(1)
   })
 })

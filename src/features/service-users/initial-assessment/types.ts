@@ -50,7 +50,14 @@ export type InitialAssessmentTemplate = {
   sections: InitialAssessmentSection[]
 }
 
+/** Returned by the review endpoint when an IA is approved for care start. */
+export type VisitPlanDraftOutcome =
+  | { status: 'created' | 'exists' }
+  | { status: 'skipped'; message: string }
+
 export type InitialAssessmentSubmission = {
+  /** Only on the review response — what happened to the auto-created visit-plan draft. */
+  visitPlanDraft?: VisitPlanDraftOutcome | null
   id: string
   serviceUserId: string
   templateId: string
@@ -215,9 +222,14 @@ export type InitialAssessmentClinicalSnapshot = {
     numberOfFalls: number | null
     mostRecentFallDate: string | null
     injuryCaused: boolean | null
+    unsteadiness?: boolean | null
+    fearOfFalling?: boolean | null
+    clinicalConcern?: boolean | null
+    caseFinding?: { status: 'required' | 'suggested' | 'not_needed' | 'pending'; reasons: string[] }
     assessmentCompleted: boolean | null
     assessmentDate: string | null
-    riskScore: number
+    /** Legacy score on older submissions only — never used to predict falls. */
+    riskScore: number | null
     riskLevel: InitialAssessmentRiskLevel | null
     adlMobilityScore: number | null
     observationId?: string

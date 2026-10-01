@@ -385,8 +385,8 @@ export function buildClinicalGates(input: BuildClinicalGatesInput): ClinicalGate
     },
     {
       id: 'dols',
-      title: 'DoLS',
-      question: 'Is a DoLS / LPS authorisation in place?',
+      title: 'Deprivation of liberty',
+      question: 'Is a deprivation of liberty authorisation (Court of Protection / DoLS) in place?',
       ...dols,
       sourceLabel: 'Legal documents',
       icon: <Scale className="h-3.5 w-3.5" />,

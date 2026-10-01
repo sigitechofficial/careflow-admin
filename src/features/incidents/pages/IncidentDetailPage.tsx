@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { useAuthStore } from '@/features/auth/store'
 import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import {
   useIncident,
   useChangeIncidentSeverity,
@@ -34,6 +35,7 @@ import {
   INCIDENT_SEVERITY_BADGE,
   INCIDENT_STATUS_BADGE,
   INCIDENT_STATUS_LABELS,
+  INCIDENT_PERSON_KIND_OPTIONS,
   INCIDENT_STATUS_TRANSITIONS,
   WHO_INFORMED_LABELS,
   isReinvestigateTransition,
@@ -75,6 +77,8 @@ function SubBlock({ title, children }: { title: string; children: React.ReactNod
 export default function IncidentDetailPage() {
   const { incidentId } = useParams({ strict: false }) as { incidentId: string }
   const can = useAuthStore((s) => s.can)
+  // Re-render when the organisation timezone loads so dates/timeline use it.
+  useOrganisationDisplayFormat()
   const { data: incident, isLoading, isError } = useIncident(incidentId)
 
   const statusMutation = useChangeIncidentStatus(incidentId)
@@ -108,6 +112,13 @@ export default function IncidentDetailPage() {
       </div>
     )
   }
+
+  // Closed incidents are read-only (the API enforces this); changes require reopening first.
+  const isClosed = incident.status === 'CLOSED'
+  const canEditRecord = canEdit && !isClosed
+  const canInvestigateRecord = canInvestigate && !isClosed
+  const canReviewRecord = canReview && !isClosed
+  const canManageActionsRecord = canManageActions && !isClosed
 
   const validNext = (INCIDENT_STATUS_TRANSITIONS[incident.status] ?? []).filter(
     (s) => s !== 'CLOSED',
@@ -220,8 +231,14 @@ export default function IncidentDetailPage() {
         </ol>
         {currentHint && (
           <p className="mt-2 text-sm text-foreground">
-            <span className="font-medium">Next: </span>
-            {currentHint}
+            {!isClosed && <span className="font-medium">Next: </span>}
+            {currentHint.replace(/^Next:\s*/i, '')}
+          </p>
+        )}
+        {isClosed && (
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" aria-hidden />
+            This incident is closed and read-only. Submit it for re-investigation or reopen it to make changes.
           </p>
         )}
       </div>
@@ -253,8 +270,48 @@ export default function IncidentDetailPage() {
           <dl className="grid grid-cols-2 gap-4">
             <Field label="Incident date & time" value={formatOrganisationDateTime(incident.occurredAt)} />
             <Field label="Reported" value={formatOrganisationDateTime(incident.reportedAt)} />
+            <Field
+              label="Who was affected"
+              value={incident.affectedPersonKinds
+                .map((k) => INCIDENT_PERSON_KIND_OPTIONS.find((o) => o.value === k)?.label ?? k)
+                .join(', ')}
+            />
+            {incident.primaryServiceUser && (
+              <Field
+                label="Service user"
+                value={
+                  <Link
+                    to="/service-users/$serviceUserId"
+                    params={{ serviceUserId: incident.primaryServiceUser.id }}
+                    className="text-primary underline underline-offset-2 hover:no-underline"
+                  >
+                    {incident.primaryServiceUser.name ?? 'Service user'}
+                    {incident.primaryServiceUser.serviceUserNumber
+                      ? ` (${incident.primaryServiceUser.serviceUserNumber})`
+                      : ''}
+                  </Link>
+                }
+              />
+            )}
+            {incident.primaryEmployee && (
+              <Field
+                label="Staff member"
+                value={
+                  <Link
+                    to="/hr/employees/$employeeId"
+                    params={{ employeeId: incident.primaryEmployee.id }}
+                    className="text-primary underline underline-offset-2 hover:no-underline"
+                  >
+                    {incident.primaryEmployee.name ?? 'Staff member'}
+                  </Link>
+                }
+              />
+            )}
+            {incident.primaryPersonName && <Field label="Other person" value={incident.primaryPersonName} />}
+            <Field label="Branch" value={incident.location?.name} />
             <Field label="Specific area" value={incident.specificArea} />
             <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
+            <Field label="Shared with handover" value={incident.shareWithHandover ? 'Yes' : 'No'} />
             {incident.scheduledJobId && (
               <Field
                 label="Reported during visit"
@@ -345,7 +402,7 @@ export default function IncidentDetailPage() {
             )}
           </SubBlock>
 
-          {(incident.injuryOccurred || incident.injuries.length > 0 || canEdit) && (
+          {(incident.injuryOccurred || incident.injuries.length > 0 || canEditRecord) && (
             <SubBlock title="Injuries">
               {incident.injuryDetails && (
                 <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">{incident.injuryDetails}</p>
@@ -353,7 +410,7 @@ export default function IncidentDetailPage() {
               <IncidentInjuriesPanel
                 incidentId={incident.id}
                 injuries={incident.injuries}
-                canManage={canEdit}
+                canManage={canEditRecord}
                 serviceUserId={incident.primaryServiceUserId}
               />
             </SubBlock>
@@ -363,7 +420,7 @@ export default function IncidentDetailPage() {
             <IncidentWitnessesPanel
               incidentId={incident.id}
               witnesses={incident.witnesses}
-              canManage={canEdit}
+              canManage={canEditRecord}
             />
           </SubBlock>
         </IncidentWorkflowStepCard>
@@ -391,25 +448,25 @@ export default function IncidentDetailPage() {
             ) : undefined
           }
         >
-          {(canInvestigate || incident.investigation) && (
+          {(canInvestigateRecord || incident.investigation) && (
             <IncidentInvestigationSection
               incidentId={incident.id}
               investigation={incident.investigation}
               carerSuspensions={incident.carerSuspensions ?? []}
               courseRecommendations={incident.courseRecommendations ?? []}
-              canEdit={canInvestigate}
+              canEdit={canInvestigateRecord}
               primaryEmployeeId={incident.primaryEmployeeId}
             />
           )}
-          {!canInvestigate && !incident.investigation && (
+          {!canInvestigateRecord && !incident.investigation && (
             <p className="text-sm text-muted-foreground">No investigation recorded yet.</p>
           )}
-          {(canReview || incident.review) && (
+          {(canReviewRecord || incident.review) && (
             <SubBlock title="Manager review">
               <IncidentReviewSection
                 incidentId={incident.id}
                 review={incident.review}
-                canEdit={canReview}
+                canEdit={canReviewRecord}
               />
             </SubBlock>
           )}
@@ -441,7 +498,7 @@ export default function IncidentDetailPage() {
           <IncidentActionsSection
             incidentId={incident.id}
             actions={incident.actions}
-            canManage={canManageActions}
+            canManage={canManageActionsRecord}
           />
         </IncidentWorkflowStepCard>
 
@@ -451,31 +508,17 @@ export default function IncidentDetailPage() {
           title="Outcome & close"
           hint={stepState.outcome.hint}
           state={stepState.outcome.state}
-          nextAction={
-            canSubmitReinvestigate ? (
-              <Button
-                size="sm"
-                variant="outline"
-                loading={statusMutation.isPending}
-                onClick={() => {
-                  const reason = window.prompt('Reason for re-investigation?')
-                  if (!reason?.trim()) return
-                  statusMutation.mutate({
-                    status: 'UNDER_INVESTIGATION',
-                    reason: reason.trim(),
-                  })
-                }}
-              >
-                Submit for re-investigation
-              </Button>
-            ) : undefined
-          }
         >
-          {canReview || incident.outcome || incident.status === 'CLOSED' || incident.status === 'AWAITING_CLOSURE' ? (
+          {/* The outcome section owns the "Submit for re-investigation" button. */}
+          {canReview ||
+          incident.outcome ||
+          canSubmitReinvestigate ||
+          incident.status === 'CLOSED' ||
+          incident.status === 'AWAITING_CLOSURE' ? (
             <IncidentOutcomeSection
               incident={incident}
               outcome={incident.outcome}
-              canEditOutcome={canReview}
+              canEditOutcome={canReviewRecord}
               canClose={canClose}
               canReopen={canReopen}
             />
@@ -489,18 +532,18 @@ export default function IncidentDetailPage() {
         <Section title="Supporting records">
           <div className="space-y-4">
             <SubBlock title="Documents & attachments">
-              <IncidentAttachmentsPanel incidentId={incident.id} canManage={canEdit} />
+              <IncidentAttachmentsPanel incidentId={incident.id} canManage={canEditRecord} />
             </SubBlock>
             <SubBlock title="Related care records">
               <IncidentCareRecordsPanel
                 incidentId={incident.id}
                 records={incident.relatedCareRecords ?? []}
-                canManage={canEdit}
+                canManage={canEditRecord}
                 serviceUserId={incident.primaryServiceUserId}
               />
             </SubBlock>
             <SubBlock title="Related incidents">
-              <IncidentRelatedPanel incidentId={incident.id} canManage={canEdit} />
+              <IncidentRelatedPanel incidentId={incident.id} canManage={canEditRecord} />
             </SubBlock>
             {incident.primaryServiceUserId && (
               <SubBlock title="This service user's incidents">
@@ -600,6 +643,7 @@ export default function IncidentDetailPage() {
                 </div>
               )}
 
+              {!isClosed && (
               <div className={legacyNext.length > 0 ? 'border-t border-border pt-4' : undefined}>
                 <label className="text-xs uppercase tracking-wide text-muted-foreground">
                   Change severity
@@ -644,6 +688,7 @@ export default function IncidentDetailPage() {
                   Update severity
                 </Button>
               </div>
+              )}
             </div>
           </Section>
         )}

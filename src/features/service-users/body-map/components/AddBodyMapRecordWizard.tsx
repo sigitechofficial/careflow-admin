@@ -29,6 +29,7 @@ import {
 import { useBodyMapSiteMedications } from '@/features/service-users/body-map/hooks/useBodyMapSiteMedications'
 import { usePatchRotationWarning } from '@/features/service-users/body-map/hooks/usePatchRotationWarning'
 import { recordViewToApiBodyView } from '@/features/service-users/body-map/utils/body-map-coords'
+import { nowOrgDatetimeLocal } from '@/shared/lib/operational-day.util'
 import { Button } from '@/shared/ui/button'
 import {
   Dialog,
@@ -162,11 +163,7 @@ export function AddBodyMapRecordWizard({
     setMedSiteState(emptyMedicationSiteWizardState())
     setSubType(typeDef?.subTypes[0] ?? '')
     if (!firstNoticedAt) {
-      const d = new Date()
-      const pad = (n: number) => String(n).padStart(2, '0')
-      setFirstNoticedAt(
-        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
-      )
+      setFirstNoticedAt(nowOrgDatetimeLocal())
     }
   }, [open, recordType, typeDef?.subTypes, firstNoticedAt])
 
