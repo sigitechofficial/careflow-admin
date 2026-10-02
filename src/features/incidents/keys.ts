@@ -3,6 +3,8 @@ import type { IncidentAnalyticsFilters, IncidentListFilters } from '@/features/i
 export const incidentKeys = {
   all: () => ['incidents'] as const,
   categories: () => [...incidentKeys.all(), 'categories'] as const,
+  visitOptions: (params: { date: string; serviceUserId?: string; employeeId?: string }) =>
+    [...incidentKeys.all(), 'visit-options', params] as const,
   stats: (locationId?: string | null) =>
     [...incidentKeys.all(), 'stats', locationId ?? 'all'] as const,
   analytics: (filters: IncidentAnalyticsFilters) => [...incidentKeys.all(), 'analytics', filters] as const,

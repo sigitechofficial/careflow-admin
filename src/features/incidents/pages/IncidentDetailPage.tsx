@@ -292,7 +292,7 @@ export default function IncidentDetailPage() {
             )}
           </div>
 
-          <SubBlock title="Immediate actions taken">
+          <SubBlock title="Immediate response">
             {incident.immediateActionCodes.length === 0 &&
             !incident.immediateActions &&
             incident.whoInformedKeys.length === 0 &&
@@ -301,12 +301,17 @@ export default function IncidentDetailPage() {
             ) : (
               <>
                 {incident.immediateActionCodes.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1.5">
+                  <div className="mb-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      What was done
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
                     {incident.immediateActionCodes.map((code) => (
                       <Badge key={code} variant="muted" size="sm">
                         {actionLabel(code)}
                       </Badge>
                     ))}
+                    </div>
                   </div>
                 )}
                 {incident.immediateActions && (

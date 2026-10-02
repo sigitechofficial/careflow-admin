@@ -27,6 +27,31 @@ export type IncidentCategoryOption = {
   subtypes: IncidentSubtypeOption[]
 }
 
+export type IncidentReportedBy = {
+  name: string | null
+  /** OFFICE = raised by a logged-in user in admin; CARER_APP = raised by a carer during a visit. */
+  source: 'OFFICE' | 'CARER_APP' | null
+  /** Office user's role names (empty for carer-app reports). */
+  roles: string[]
+  /** Office user who keyed it in on the carer's behalf (null for carer-app reports). */
+  recordedByName?: string | null
+}
+
+/** A visit a new incident can be linked to (GET /incidents/visit-options). */
+export type IncidentVisitOption = {
+  scheduledJobId: string
+  scheduledVisitId: string
+  visitName: string
+  /** Operational day YYYY-MM-DD */
+  date: string
+  startsAt: string
+  endsAt: string | null
+  status: string
+  visitRef: string | null
+  serviceUserName: string
+  carers: { employeeId: string; name: string }[]
+}
+
 export type IncidentListItem = {
   id: string
   referenceNumber: string
@@ -49,6 +74,12 @@ export type IncidentListItem = {
   affectedPersonKinds: IncidentPersonKind[]
   scheduledJobId: string | null
   reportedById: string | null
+  reporterEmployeeId?: string | null
+  involvedEmployeeIds?: string[]
+  /** Resolved reporter — returned by the list endpoint only. */
+  reportedBy?: IncidentReportedBy
+  /** Readable visit reference (VIS-…) when raised during a visit — list endpoint only. */
+  visitRef?: string | null
   ownerId: string | null
   description: string
   contextBefore: string | null
@@ -336,7 +367,7 @@ export type IncidentDetail = IncidentListItem & {
 
 export const INCIDENT_PERSON_KIND_OPTIONS: { value: IncidentPersonKind; label: string }[] = [
   { value: 'SERVICE_USER', label: 'Service User' },
-  { value: 'EMPLOYEE', label: 'Employee' },
+  { value: 'EMPLOYEE', label: 'Staff member' },
   { value: 'FAMILY', label: 'Family Member' },
   { value: 'VISITOR', label: 'Visitor' },
   { value: 'HEALTHCARE_PROFESSIONAL', label: 'Healthcare Professional' },
@@ -344,11 +375,35 @@ export const INCIDENT_PERSON_KIND_OPTIONS: { value: IncidentPersonKind; label: s
   { value: 'OTHER', label: 'Other' },
 ]
 
-export const INCIDENT_INJURY_SEVERITY_OPTIONS: { value: IncidentInjurySeverity; label: string }[] = [
-  { value: 'MINOR', label: 'Minor' },
-  { value: 'MODERATE', label: 'Moderate' },
-  { value: 'SERIOUS', label: 'Serious' },
-  { value: 'FATAL', label: 'Fatal' },
+/** Display labels for every stored value (FATAL only exists on older / carer-app records). */
+export const INCIDENT_INJURY_SEVERITY_LABELS: Record<IncidentInjurySeverity, string> = {
+  MINOR: 'Minor',
+  MODERATE: 'Moderate',
+  SERIOUS: 'Serious',
+  FATAL: 'Fatal',
+}
+
+/**
+ * Severities offered when recording an injury. A death is an incident outcome, not an injury
+ * grade, so FATAL is deliberately not offered.
+ */
+export const INCIDENT_INJURY_SEVERITY_OPTIONS: { value: IncidentInjurySeverity; label: string }[] = (
+  ['MINOR', 'MODERATE', 'SERIOUS'] as const
+).map((value) => ({ value, label: INCIDENT_INJURY_SEVERITY_LABELS[value] }))
+
+/** Injury types offered on the raise form ("Other" asks for a description). */
+export const INCIDENT_INJURY_TYPE_OPTIONS: string[] = [
+  'Bruise',
+  'Graze / abrasion',
+  'Cut / laceration',
+  'Skin tear',
+  'Burn / scald',
+  'Suspected fracture',
+  'Head injury',
+  'Sprain / strain',
+  'Swelling',
+  'Pain (no visible injury)',
+  'Bite',
 ]
 
 export const INCIDENT_RELATED_RECORD_TYPE_OPTIONS: { value: IncidentRelatedRecordType; label: string }[] = [
@@ -521,12 +576,18 @@ export type CreateIncidentInput = {
   primaryPersonKind?: IncidentPersonKind
   primaryPersonName?: string
   affectedPersonKinds?: IncidentPersonKind[]
+  /** Carer who reported it — required; the office only records on their behalf. */
   reporterEmployeeId?: string
+  /** Visit during which it happened or was discovered. */
+  scheduledJobId?: string
+  /** Staff involved (made the error, alleged person, second carer…) — employee ids. */
+  involvedEmployeeIds?: string[]
   description: string
   contextBefore?: string
   contextAfter?: string
   immediateActions?: string
   immediateActionCodes?: string[]
+  whoInformedKeys?: string[]
   injuryOccurred?: boolean
   severity?: IncidentSeverity
   privacyLevel?: IncidentPrivacyLevel
@@ -537,10 +598,20 @@ export type IncidentListFilters = {
   search?: string
   status?: IncidentStatus
   severity?: IncidentSeverity
+  /** Any of these severities (e.g. High + Critical). */
+  severities?: IncidentSeverity[]
   categoryId?: string
   serviceUserId?: string
+  /** Staff member recorded as affected. */
+  employeeId?: string
   locationId?: string
   openOnly?: boolean
+  /** Which date the range filter and newest-first sort use (API default: occurredAt). */
+  dateField?: 'occurredAt' | 'reportedAt'
+  /** Date from (YYYY-MM-DD, inclusive). */
+  dateFrom?: string
+  /** Date to (YYYY-MM-DD, inclusive). */
+  dateTo?: string
   page?: number
   limit?: number
 }
@@ -628,14 +699,15 @@ export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   REOPENED: 'Reopened',
 }
 
+/** "What was done?" — must match IMMEDIATE_ACTION_CODES in careflow-api incident-workflow.util.ts. */
 export const IMMEDIATE_ACTION_OPTIONS: { value: string; label: string }[] = [
-  { value: 'FIRST_AID', label: 'First aid provided' },
-  { value: 'EMERGENCY_SERVICES', label: 'Emergency services contacted' },
-  { value: 'GP_CONTACTED', label: 'GP contacted' },
-  { value: 'MANAGER_CONTACTED', label: 'Manager contacted' },
-  { value: 'FAMILY_INFORMED', label: 'Family / NOK informed' },
+  { value: 'FIRST_AID', label: 'First aid given' },
+  { value: 'INJURY_CHECK', label: 'Person checked for injuries' },
   { value: 'AREA_MADE_SAFE', label: 'Area made safe' },
+  { value: 'EQUIPMENT_OUT_OF_USE', label: 'Equipment taken out of use' },
   { value: 'MEDICATION_WITHHELD', label: 'Medication withheld' },
+  { value: 'EVIDENCE_PRESERVED', label: 'Evidence preserved' },
+  { value: 'NO_ACTION_NEEDED', label: 'No action needed' },
   { value: 'OTHER', label: 'Other' },
 ]
 
@@ -644,7 +716,24 @@ export const WHO_INFORMED_LABELS: Record<string, string> = {
   on_call_manager: 'On-call manager',
   family_nok: 'Family / NOK',
   gp: 'GP',
-  emergency_999: '999',
+  emergency_999: '999 / ambulance',
   safeguarding_lead: 'Safeguarding lead',
   local_authority: 'Local authority',
+  nhs_111: '111',
+  police: 'Police',
+  no_one_yet: 'No one informed yet',
 }
+
+/** Office raise form "Who was informed?" (static for now) — must match OFFICE_WHO_INFORMED_KEYS in the API. */
+export const OFFICE_WHO_INFORMED_OPTIONS: { value: string; label: string }[] = [
+  { value: 'office', label: 'Office' },
+  { value: 'on_call_manager', label: 'On-call manager' },
+  { value: 'family_nok', label: 'Family / NOK' },
+  { value: 'gp', label: 'GP' },
+  { value: 'emergency_999', label: '999 / ambulance' },
+  { value: 'nhs_111', label: '111' },
+  { value: 'police', label: 'Police' },
+  { value: 'safeguarding_lead', label: 'Safeguarding lead' },
+  { value: 'local_authority', label: 'Local authority' },
+  { value: 'no_one_yet', label: 'No one informed yet' },
+]

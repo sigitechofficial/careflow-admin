@@ -47,6 +47,8 @@ export async function addIncidentWitness(
   incidentId: string,
   input: {
     personKind: IncidentPersonKind
+    personServiceUserId?: string
+    personEmployeeId?: string
     personName?: string
     statement?: string
     statementDate?: string

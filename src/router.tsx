@@ -205,6 +205,7 @@ import {
   parseServiceUsersListSearch,
   validateServiceUsersListSearch,
 } from '@/features/service-users/utils/service-users-list-url-state.util'
+import { validateIncidentsListSearch } from '@/features/incidents/utils/incidents-list-url-state'
 import { fetchEmployeeLookups } from '@/features/employees/api'
 import { fetchGeneralSettings } from '@/features/settings/api/general-settings-api'
 import { fetchCompanyProfile } from '@/features/settings/api/company-settings-api'
@@ -1513,6 +1514,7 @@ const incidentsListRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/incidents/view',
   beforeLoad: requirePermission('incidents.read'),
+  validateSearch: validateIncidentsListSearch,
   component: IncidentsListPage,
 })
 

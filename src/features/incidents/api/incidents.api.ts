@@ -12,6 +12,7 @@ import type {
   IncidentInvestigation,
   IncidentListFilters,
   IncidentListItem,
+  IncidentVisitOption,
   IncidentListResponse,
   IncidentOutcome,
   IncidentReview,
@@ -35,6 +36,18 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return s ? `?${s}` : ''
 }
 
+export async function fetchIncidentVisitOptions(
+  params: { date: string; serviceUserId?: string; employeeId?: string },
+  init?: RequestInit,
+): Promise<IncidentVisitOption[]> {
+  const query = buildQuery(params)
+  const res = await apiJson<ApiEnvelope<IncidentVisitOption[]>>(`/incidents/visit-options${query}`, {
+    method: 'GET',
+    ...init,
+  })
+  return res.data ?? []
+}
+
 export async function fetchIncidentCategories(init?: RequestInit): Promise<IncidentCategoryOption[]> {
   const res = await apiJson<ApiEnvelope<IncidentCategoryOption[]>>('/incidents/categories', {
     method: 'GET',
@@ -51,10 +64,15 @@ export async function fetchIncidents(
     search: filters.search,
     status: filters.status,
     severity: filters.severity,
+    severities: filters.severities?.length ? filters.severities.join(',') : undefined,
     categoryId: filters.categoryId,
     serviceUserId: filters.serviceUserId,
+    employeeId: filters.employeeId,
     locationId: filters.locationId,
     openOnly: filters.openOnly,
+    dateField: filters.dateField,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
     page: filters.page ?? 1,
     limit: filters.limit ?? 25,
   })

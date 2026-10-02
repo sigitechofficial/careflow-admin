@@ -10,6 +10,7 @@ import {
   fetchIncident,
   fetchIncidentActions,
   fetchIncidentAnalytics,
+  fetchIncidentVisitOptions,
   fetchIncidentCategories,
   fetchIncidentStats,
   fetchIncidents,
@@ -35,6 +36,16 @@ import type {
   UpsertIncidentOutcomeInput,
   UpsertIncidentReviewInput,
 } from '@/features/incidents/types'
+
+/** Visits a new incident can be linked to (date ± 1 day). Disabled until a date and a person are known. */
+export function useIncidentVisitOptions(params: { date: string; serviceUserId?: string; employeeId?: string }) {
+  return useQuery({
+    queryKey: incidentKeys.visitOptions(params),
+    queryFn: ({ signal }) => fetchIncidentVisitOptions(params, { signal }),
+    enabled: Boolean(params.date && (params.serviceUserId || params.employeeId)),
+    staleTime: 60 * 1000,
+  })
+}
 
 export function useIncidentCategories() {
   return useQuery({

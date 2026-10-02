@@ -1,5 +1,5 @@
 import { addIncidentInjury } from '@/features/incidents/api/incidents-care.api'
-import type { IncidentInjurySeverity } from '@/features/incidents/types'
+import type { IncidentInjurySeverity, IncidentPersonKind } from '@/features/incidents/types'
 import type { PlaceMarkerPayload } from '@/features/service-users/body-map/components/BodyMapCanvas'
 import {
   prototypeSideToApi,
@@ -18,6 +18,14 @@ export type PendingIncidentInjury = {
   notes?: string
   /** Body-map placement; when present (with a service user) the injury is pinned on the body map. */
   marker?: PlaceMarkerPayload | null
+  /** Who was injured. Defaults to the service user passed to `persistIncidentInjury`. */
+  personKind?: IncidentPersonKind
+  personServiceUserId?: string | null
+  personEmployeeId?: string | null
+  /** Name for people who are not service users or staff (family, visitor…). */
+  personName?: string | null
+  /** Display only, e.g. "Enid Morrison (Service user)" — not sent to the API. */
+  personLabel?: string
 }
 
 const SEVERITY_TO_RISK: Record<IncidentInjurySeverity, BodyMapRiskLevel> = {
@@ -40,12 +48,16 @@ export async function persistIncidentInjury(
   const injuryType = pending.injuryType.trim()
   if (!injuryType) return
   const notes = pending.notes?.trim() || undefined
-  const marker = pending.marker
+  const personKind = pending.personKind ?? 'SERVICE_USER'
+  // Only service users have a body map; staff and other people never get a pin.
+  const injuredServiceUserId =
+    personKind === 'SERVICE_USER' ? pending.personServiceUserId ?? serviceUserId ?? null : null
+  const marker = personKind === 'SERVICE_USER' ? pending.marker : null
 
-  if (marker && serviceUserId) {
+  if (marker && injuredServiceUserId) {
     const bodyPart = marker.bodyPart || marker.summaryLabel || 'Unspecified'
     const record = await createBodyMapRecord({
-      serviceUserId,
+      serviceUserId: injuredServiceUserId,
       recordType: 'INJURY' as BodyMapRecordTypeCode,
       subType: injuryType,
       description: notes || injuryType,
@@ -71,7 +83,7 @@ export async function persistIncidentInjury(
     })
     await addIncidentInjury(incidentId, {
       personKind: 'SERVICE_USER',
-      personServiceUserId: serviceUserId,
+      personServiceUserId: injuredServiceUserId,
       injurySeverity: pending.severity,
       injuryType,
       bodyRegion: bodyPart,
@@ -83,8 +95,13 @@ export async function persistIncidentInjury(
   }
 
   await addIncidentInjury(incidentId, {
-    personKind: 'SERVICE_USER',
-    personServiceUserId: serviceUserId || undefined,
+    personKind,
+    personServiceUserId: injuredServiceUserId || undefined,
+    personEmployeeId: personKind === 'EMPLOYEE' ? pending.personEmployeeId || undefined : undefined,
+    personName:
+      personKind !== 'SERVICE_USER' && personKind !== 'EMPLOYEE'
+        ? pending.personName?.trim() || undefined
+        : undefined,
     injurySeverity: pending.severity,
     injuryType,
     bodyRegion: marker?.bodyPart || marker?.summaryLabel || undefined,
