@@ -109,6 +109,8 @@ import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
 import AzurePricingPage from '@/features/azure-pricing/pages/AzurePricingPage'
 import { isAzurePricingTabId, type AzurePricingTabId } from '@/features/azure-pricing/types'
+import SystemJobsPage from '@/features/system-jobs/pages/SystemJobsPage'
+import { validateSystemJobsSearch } from '@/features/system-jobs/types'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
@@ -292,6 +294,7 @@ const pageTitles: Record<string, string> = {
   '/admin/security': 'Security administration',
   '/admin/audit': 'Audit log',
   '/azure-pricing': 'Azure Pricing',
+  '/system-jobs': 'System jobs',
   '/in-progress': 'Page in progress',
   '/showcase': 'UI showcase',
   '/settings': 'Settings',
@@ -1599,6 +1602,14 @@ const azurePricingRoute = createRoute({
   component: AzurePricingPage,
 })
 
+const systemJobsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/system-jobs',
+  validateSearch: validateSystemJobsSearch,
+  beforeLoad: requirePermission('system_jobs.read'),
+  component: SystemJobsPage,
+})
+
 const adminAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/admin/audit',
@@ -2249,6 +2260,7 @@ const routeTree = rootRoute.addChildren([
     adminSecurityRoute,
     adminAuditRoute,
     azurePricingRoute,
+    systemJobsRoute,
     adminServiceUserPortalRoute,
     inProgressRoute,
     showcaseRoute,
