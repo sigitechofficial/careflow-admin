@@ -254,6 +254,8 @@ export type Permission =
   | 'security.admin'
   | 'platform_costs.read'
   | 'platform_costs.manage'
+  | 'system_jobs.read'
+  | 'system_jobs.manage'
   | 'sso.configure'
   | 'temporary_inspector.session'
   | 'service_user.portal.session'

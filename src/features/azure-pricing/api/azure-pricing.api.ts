@@ -1,4 +1,5 @@
 import { apiJson } from '@/shared/api/api-client'
+import { buildQueryString as buildQuery, unwrapEnvelope } from '@/shared/api/envelope'
 import type {
   AdvisorRecommendations,
   AnomalyStatusFilter,
@@ -22,24 +23,7 @@ import type {
 
 const BASE = '/platform-costs'
 
-function buildQuery(params?: Record<string, string | number | boolean | undefined | null>): string {
-  const qs = new URLSearchParams()
-  if (!params) return ''
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null || value === '') continue
-    qs.set(key, String(value))
-  }
-  const s = qs.toString()
-  return s ? `?${s}` : ''
-}
-
-/** The Nest ResponseInterceptor wraps JSON as `{ success, message, data }`; tolerate a bare body too. */
-export function unwrapEnvelope<T>(body: unknown): T {
-  if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
-    return (body as { data: T }).data
-  }
-  return body as T
-}
+export { unwrapEnvelope }
 
 async function getData<T>(path: string): Promise<T> {
   return unwrapEnvelope<T>(await apiJson<unknown>(path, { method: 'GET' }))

@@ -52,6 +52,7 @@ import {
   CalendarOff,
   Landmark,
   MessagesSquare,
+  Timer,
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
 } from 'lucide-react'
@@ -761,6 +762,13 @@ const navItems: NavItem[] = [
         navTestId: 'nav-admin-service-user-portal',
       },
       { label: 'Security', icon: <ShieldCheck className="h-4 w-4" />, href: '/admin/security', permission: 'security.admin' },
+      {
+        label: 'System jobs',
+        icon: <Timer className="h-4 w-4" />,
+        href: '/system-jobs',
+        permission: 'system_jobs.read',
+        navTestId: 'nav-admin-system-jobs',
+      },
     ],
   },
 ]
