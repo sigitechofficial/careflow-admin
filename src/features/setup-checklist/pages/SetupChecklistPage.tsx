@@ -113,8 +113,8 @@ export default function SetupChecklistPage() {
           </p>
           <Progress value={percent} className="mt-2 h-2" />
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Everything needed for service users, billing, payroll, invoicing, scheduling, incidents, surveys and office
-            salaries. Missing items show a Fix button.
+            Everything needed for service users, billing, payroll, invoicing, scheduling, incidents, surveys, office
+            salaries, staff compliance, the carer app, reviews and user access. Missing items show a Fix button.
           </p>
         </div>
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void refetch()} disabled={isFetching}>

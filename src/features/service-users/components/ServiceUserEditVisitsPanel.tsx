@@ -1,5 +1,15 @@
 import * as React from 'react'
-import { ClipboardList, ExternalLink, Eye, Loader2, PoundSterling, Receipt, Trash2 } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  ExternalLink,
+  Eye,
+  Loader2,
+  PoundSterling,
+  Receipt,
+  Trash2,
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
@@ -13,6 +23,10 @@ import {
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationStatus } from '@/features/billing/types/billing.types'
+import { EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
+import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
+import { useEcmVisitsTable } from '@/features/ecm/hooks/useEcm'
+import { operationalTodayIso } from '@/shared/lib/operational-day.util'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { ContentCard, ContentSectionHeader } from '@/shared/ui/content-section'
@@ -53,6 +67,62 @@ function effectiveFunderCharge(row: VisitReconciliationRow): number {
   return parseMoney(row.billableAmount)
 }
 
+function shiftMonth(month: string, delta: number): string {
+  const [y = 1970, m = 1] = month.split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function monthLabel(month: string): string {
+  const [y = 1970, m = 1] = month.split('-').map(Number)
+  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(y, m - 1, 1)),
+  )
+}
+
+function monthDateRange(month: string): { dateFrom: string; dateTo: string } {
+  const [y = 1970, m = 1] = month.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return { dateFrom: `${month}-01`, dateTo: `${month}-${String(lastDay).padStart(2, '0')}` }
+}
+
+function FunderChargeCell({ row }: { row: VisitReconciliationRow }) {
+  if (isFunderNotCharged(row.status)) {
+    return (
+      <div>
+        <span className="font-medium tabular-nums text-foreground">£0.00</span>
+        <div className="text-[11px] text-muted-foreground">
+          Not billed
+          {row.billableAmount ? ` · priced ${row.billableAmount}` : ''}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <>
+      <span className="font-medium tabular-nums text-foreground">{row.billableAmount ?? '—'}</span>
+      {row.approvedBillable && row.approvedBillable !== '—' ? (
+        <div className="text-[11px] text-muted-foreground">{row.approvedBillable}</div>
+      ) : null}
+    </>
+  )
+}
+
+function CarerPayCell({ row }: { row: VisitReconciliationRow }) {
+  if (isCarerNotPaid(row.status)) {
+    return (
+      <div>
+        <span className="font-medium text-foreground">£0.00</span>
+        <div className="text-[11px]">
+          Not paid
+          {row.payableAmount ? ` · priced ${row.payableAmount}` : ''}
+        </div>
+      </div>
+    )
+  }
+  return <>{row.payableAmount ?? '—'}</>
+}
+
 function StatCard({
   title,
   value,
@@ -85,7 +155,11 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
     s.can('billing.visit_reconciliations.manage' as never),
   )
 
+  const canReadEcm = useAuthStore(s => s.can('ecm.read') || s.can('ecm.monitor'))
+
   const [detailRow, setDetailRow] = React.useState<VisitReconciliationRow | null>(null)
+  const [month, setMonth] = React.useState(() => operationalTodayIso().slice(0, 7))
+  const [ecmJobId, setEcmJobId] = React.useState<string | null>(null)
   const [deleteAllOpen, setDeleteAllOpen] = React.useState(false)
   const clearAllMutation = useClearAllVisitReconciliations()
 
@@ -125,6 +199,19 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
 
   const visitTotal = query.data?.meta.total ?? rows.length
 
+  // Same columns and timings as ECM live monitoring.
+  const ecmQuery = useEcmVisitsTable(
+    { serviceUserId, ...monthDateRange(month) },
+    canRead && canReadEcm,
+  )
+  const reconByJob = React.useMemo(() => {
+    const map = new Map<string, VisitReconciliationRow>()
+    for (const row of rows) {
+      if (row.scheduledJobId && !map.has(row.scheduledJobId)) map.set(row.scheduledJobId, row)
+    }
+    return map
+  }, [rows])
+
   const handleDeleteAll = async () => {
     try {
       const data = await clearAllMutation.mutateAsync({ serviceUserId })
@@ -152,7 +239,7 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
     <div className="space-y-6" data-testid="service-user-visits-panel">
       <ContentSectionHeader
         title="Visits"
-        description="Completed visits for this client with funder (client) charge amounts from visit reconciliation."
+        description="Visits for this client with the same columns as ECM live monitoring, plus funder charge and carer pay from visit reconciliation."
         action={
           <div className="flex flex-wrap items-center gap-2">
             {canManage && visitTotal > 0 ? (
@@ -243,130 +330,132 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
             />
           </div>
 
-          {rows.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                <ClipboardList className="h-5 w-5 text-muted-foreground" aria-hidden />
-              </div>
-              <p>No reconciled visits yet for this service user.</p>
-              <p className="mt-1 text-xs">
-                Completed visits appear here after they are synced in Visit reconciliation.
-              </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Previous month"
+              onClick={() => setMonth(m => shiftMonth(m, -1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[9rem] text-center text-sm font-medium text-foreground">
+              {monthLabel(month)}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Next month"
+              onClick={() => setMonth(m => shiftMonth(m, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {ecmQuery.isFetching ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+            ) : null}
+          </div>
+
+          {!canReadEcm ? (
+            <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              You need ECM access to see the visit table for this service user.
+            </p>
+          ) : ecmQuery.isError ? (
+            <p className="text-sm text-destructive">Could not load visits for this month.</p>
+          ) : ecmQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading visits…
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[980px] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Visit</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Date</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Carer</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Planned</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Actual</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Receipt className="h-3.5 w-3.5" aria-hidden />
-                        Funder charge
-                      </span>
-                    </th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        <PoundSterling className="h-3.5 w-3.5" aria-hidden />
-                        Carer pay
-                      </span>
-                    </th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Status</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Exceptions</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(row => (
-                    <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/20">
-                      <td className="px-3 py-2.5 font-mono text-xs font-medium whitespace-nowrap">
-                        {row.visitRef || '—'}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">{row.date || '—'}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">{row.carerName || '—'}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                        {row.planned || '—'}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                        {row.actual || '—'}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {isFunderNotCharged(row.status) ? (
-                          <div>
-                            <span className="font-medium tabular-nums text-foreground">£0.00</span>
-                            <div className="text-[11px] text-muted-foreground">
-                              Not billed
-                              {row.billableAmount ? ` · priced ${row.billableAmount}` : ''}
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="font-medium tabular-nums text-foreground">
-                              {row.billableAmount ?? '—'}
-                            </span>
-                            {row.approvedBillable && row.approvedBillable !== '—' ? (
-                              <div className="text-[11px] text-muted-foreground">
-                                {row.approvedBillable}
-                              </div>
-                            ) : null}
-                          </>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground">
-                        {isCarerNotPaid(row.status) ? (
-                          <div>
-                            <span className="font-medium text-foreground">£0.00</span>
-                            <div className="text-[11px]">
-                              Not paid
-                              {row.payableAmount ? ` · priced ${row.payableAmount}` : ''}
-                            </div>
-                          </div>
-                        ) : (
-                          (row.payableAmount ?? '—')
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <VisitReconStatusBadge status={row.status} />
-                      </td>
-                      <td className="px-3 py-2.5">
-                        {row.exceptions?.length ? (
+            <EcmVisitsTable
+              rows={ecmQuery.data?.rows ?? []}
+              onOpen={row => setEcmJobId(row.scheduledJobId)}
+              emptyState={
+                <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <ClipboardList className="h-5 w-5" aria-hidden />
+                  </span>
+                  No visits for this service user in {monthLabel(month)}.
+                </div>
+              }
+              extraColumns={[
+                {
+                  key: 'funder-charge',
+                  header: (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Receipt className="h-3.5 w-3.5" aria-hidden />
+                      Funder charge
+                    </span>
+                  ),
+                  className: 'whitespace-nowrap',
+                  render: row => {
+                    const recon = reconByJob.get(row.scheduledJobId)
+                    return recon ? (
+                      <FunderChargeCell row={recon} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )
+                  },
+                },
+                {
+                  key: 'carer-pay',
+                  header: (
+                    <span className="inline-flex items-center gap-1.5">
+                      <PoundSterling className="h-3.5 w-3.5" aria-hidden />
+                      Carer pay
+                    </span>
+                  ),
+                  className: 'whitespace-nowrap tabular-nums text-muted-foreground',
+                  render: row => {
+                    const recon = reconByJob.get(row.scheduledJobId)
+                    return recon ? <CarerPayCell row={recon} /> : '—'
+                  },
+                },
+                {
+                  key: 'billing',
+                  header: 'Billing',
+                  render: row => {
+                    const recon = reconByJob.get(row.scheduledJobId)
+                    return recon ? (
+                      <div className="flex flex-col items-start gap-1">
+                        <VisitReconStatusBadge status={recon.status} />
+                        {recon.exceptions?.length ? (
                           <div className="flex flex-wrap gap-1">
-                            {row.exceptions.slice(0, 3).map(ex => (
-                              <BillingExceptionBadge key={`${row.id}-${ex.code}`} code={ex.code} />
+                            {recon.exceptions.slice(0, 2).map(ex => (
+                              <BillingExceptionBadge key={`${recon.id}-${ex.code}`} code={ex.code} />
                             ))}
-                            {row.exceptions.length > 3 ? (
-                              <span className="text-xs text-muted-foreground">
-                                +{row.exceptions.length - 3}
-                              </span>
-                            ) : null}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5">
+                        ) : null}
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           leftIcon={<Eye className="h-3.5 w-3.5" />}
-                          onClick={() => setDetailRow(row)}
+                          onClick={() => setDetailRow(recon)}
                         >
                           View
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Not reconciled</span>
+                    )
+                  },
+                },
+              ]}
+            />
           )}
         </>
       )}
+
+      <EcmVisitDetailDialog
+        open={Boolean(ecmJobId)}
+        onOpenChange={open => {
+          if (!open) setEcmJobId(null)
+        }}
+        jobId={ecmJobId}
+      />
 
       <VisitReconciliationDetailDialog
         open={Boolean(detailRow)}

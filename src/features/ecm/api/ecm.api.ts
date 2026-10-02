@@ -5,6 +5,7 @@ import type {
   EcmLiveDashboardData,
   EcmReasonCode,
   EcmVisitDetail,
+  EcmVisitsTableData,
 } from '@/features/ecm/types/ecm.types'
 
 export type EcmAuditEventRow = {
@@ -182,6 +183,23 @@ export async function fetchEcmLiveDashboard(params?: {
     { method: 'GET' },
   )
   return res.data
+}
+
+/** ECM rows for one service user or employee (read-only; nothing is saved). */
+export async function fetchEcmVisitsTable(params: {
+  dateFrom: string
+  dateTo: string
+  serviceUserId?: string
+  employeeId?: string
+}): Promise<EcmVisitsTableData> {
+  const qs = new URLSearchParams({ dateFrom: params.dateFrom, dateTo: params.dateTo })
+  if (params.serviceUserId) qs.set('serviceUserId', params.serviceUserId)
+  if (params.employeeId) qs.set('employeeId', params.employeeId)
+  const res = await apiJson<ApiEnvelope<EcmVisitsTableData>>(
+    `/ecm/visits/table?${qs.toString()}`,
+    { method: 'GET' },
+  )
+  return res.data as EcmVisitsTableData
 }
 
 export async function fetchEcmVisitDetail(jobId: string): Promise<EcmVisitDetail> {
