@@ -14,6 +14,7 @@ import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
 import { useIncidentCategories, useCreateIncident } from '@/features/incidents/hooks/useIncidents'
 import { IncidentInjuryCaptureDialog } from '@/features/incidents/components/IncidentInjuryCaptureDialog'
+import { PickedChips } from '@/features/incidents/components/PickedChips'
 import {
   persistIncidentInjury,
   type PendingIncidentInjury,
@@ -173,7 +174,9 @@ export default function RaiseIncidentPage() {
 
   // Who was primarily affected — service user, staff, or another person (family/visitor/etc.).
   const [affectedKinds, setAffectedKinds] = React.useState<IncidentPersonKind[]>(['SERVICE_USER'])
-  const [employeeId, setEmployeeId] = React.useState('')
+  // Everyone involved (multi-pick); the first picked is sent as the primary person.
+  const [employeeIds, setEmployeeIds] = React.useState<string[]>([])
+  const [personLabels, setPersonLabels] = React.useState<Record<string, string>>({})
   const [affectedPersonName, setAffectedPersonName] = React.useState('')
   const [zoneId, setZoneId] = React.useState('')
   const [locationId, setLocationId] = React.useState('')
@@ -186,7 +189,9 @@ export default function RaiseIncidentPage() {
   useOrganisationDisplayFormat()
   const [occurredAtEdited, setOccurredAtLocal] = React.useState<string | null>(null)
   const occurredAtLocal = occurredAtEdited ?? nowOrgDatetimeLocal()
-  const [serviceUserId, setServiceUserId] = React.useState('')
+  const [serviceUserIds, setServiceUserIds] = React.useState<string[]>([])
+  // Body-map injuries are recorded against the first service user picked.
+  const serviceUserId = serviceUserIds[0] ?? ''
   const [specificArea, setSpecificArea] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [contextBefore, setContextBefore] = React.useState('')
@@ -245,6 +250,17 @@ export default function RaiseIncidentPage() {
       })),
     [employeesQuery.data],
   )
+
+  function addPerson(
+    id: string,
+    options: ComboboxOption[],
+    setIds: React.Dispatch<React.SetStateAction<string[]>>,
+  ) {
+    if (!id) return
+    const label = options.find((o) => o.value === id)?.label
+    if (label) setPersonLabels((prev) => ({ ...prev, [id]: label }))
+    setIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+  }
 
   const zoneOptions = React.useMemo(
     () => locationsQuery.data?.zones ?? [],
@@ -362,11 +378,12 @@ export default function RaiseIncidentPage() {
       subtypeId: subtypeId || undefined,
       occurredAt: orgDatetimeLocalToIso(occurredAtLocal),
       primaryServiceUserId: affectedKinds.includes('SERVICE_USER')
-        ? serviceUserId || undefined
+        ? serviceUserIds[0]
         : undefined,
-      primaryEmployeeId: affectedKinds.includes('EMPLOYEE')
-        ? employeeId || undefined
-        : undefined,
+      serviceUserIds:
+        affectedKinds.includes('SERVICE_USER') && serviceUserIds.length ? serviceUserIds : undefined,
+      primaryEmployeeId: affectedKinds.includes('EMPLOYEE') ? employeeIds[0] : undefined,
+      employeeIds: affectedKinds.includes('EMPLOYEE') && employeeIds.length ? employeeIds : undefined,
       affectedPersonKinds: affectedKinds.length ? affectedKinds : undefined,
       primaryPersonKind: affectedKinds[0],
       primaryPersonName: affectedKinds.some(
@@ -493,8 +510,8 @@ export default function RaiseIncidentPage() {
               setCategoryId('')
               setSubtypeId('')
               setAffectedKinds(['SERVICE_USER'])
-              setServiceUserId('')
-              setEmployeeId('')
+              setServiceUserIds([])
+              setEmployeeIds([])
               setAffectedPersonName('')
               setZoneId('')
               setLocationId('')
@@ -609,8 +626,8 @@ export default function RaiseIncidentPage() {
                 onChange={(next) => {
                   setAffectedKinds(next as IncidentPersonKind[])
                   // Clear fields that no longer apply so we never send stale values.
-                  if (!next.includes('SERVICE_USER')) setServiceUserId('')
-                  if (!next.includes('EMPLOYEE')) setEmployeeId('')
+                  if (!next.includes('SERVICE_USER')) setServiceUserIds([])
+                  if (!next.includes('EMPLOYEE')) setEmployeeIds([])
                   if (!next.some((k) => k !== 'SERVICE_USER' && k !== 'EMPLOYEE'))
                     setAffectedPersonName('')
                 }}
@@ -619,31 +636,37 @@ export default function RaiseIncidentPage() {
             </FormField>
 
             {affectedKinds.includes('SERVICE_USER') && (
-              <FormField label="Service user affected" hint="Search by name">
+              <FormField label="Service users involved" hint="Search and add one or more">
                 <Combobox
-                  options={serviceUserOptions}
-                  value={serviceUserId}
-                  onChange={setServiceUserId}
+                  options={serviceUserOptions.filter((o) => !serviceUserIds.includes(o.value))}
+                  value=""
+                  onChange={(id) => addPerson(id, serviceUserOptions, setServiceUserIds)}
                   onSearchChange={setSuSearch}
                   loading={serviceUsersQuery.isLoading}
-                  placeholder="Select service user (optional)"
+                  placeholder={serviceUserIds.length ? 'Add another service user…' : 'Add service user…'}
                   searchPlaceholder="Search service users…"
-                  allowDeselect
+                />
+                <PickedChips
+                  items={serviceUserIds.map((id) => ({ id, label: personLabels[id] ?? 'Selected' }))}
+                  onRemove={(id) => setServiceUserIds((prev) => prev.filter((x) => x !== id))}
                 />
               </FormField>
             )}
 
             {affectedKinds.includes('EMPLOYEE') && (
-              <FormField label="Staff member affected" hint="Search by name">
+              <FormField label="Staff involved" hint="Search and add one or more">
                 <Combobox
-                  options={employeeOptions}
-                  value={employeeId}
-                  onChange={setEmployeeId}
+                  options={employeeOptions.filter((o) => !employeeIds.includes(o.value))}
+                  value=""
+                  onChange={(id) => addPerson(id, employeeOptions, setEmployeeIds)}
                   onSearchChange={setEmpSearch}
                   loading={employeesQuery.isLoading}
-                  placeholder="Select staff member (optional)"
+                  placeholder={employeeIds.length ? 'Add another staff member…' : 'Add staff member…'}
                   searchPlaceholder="Search staff…"
-                  allowDeselect
+                />
+                <PickedChips
+                  items={employeeIds.map((id) => ({ id, label: personLabels[id] ?? 'Selected' }))}
+                  onRemove={(id) => setEmployeeIds((prev) => prev.filter((x) => x !== id))}
                 />
               </FormField>
             )}
@@ -854,9 +877,16 @@ export default function RaiseIncidentPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 {serviceUserId ? (
-                  <Button type="button" variant="outline" size="sm" onClick={() => setBodyMapOpen(true)}>
-                    <MapPin className="mr-1 h-3.5 w-3.5" /> Add on body map
-                  </Button>
+                  <>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setBodyMapOpen(true)}>
+                      <MapPin className="mr-1 h-3.5 w-3.5" /> Add on body map
+                    </Button>
+                    {serviceUserIds.length > 1 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Body map injuries are recorded for {personLabels[serviceUserId] ?? 'the first service user'}.
+                      </p>
+                    ) : null}
+                  </>
                 ) : (
                   <p className="text-xs text-warning">
                     Select a “Person affected (service user)” above to place injuries on the body map.

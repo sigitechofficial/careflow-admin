@@ -496,6 +496,8 @@ export function buildServiceUsersListParams(
     statusFilter: StatusFilterValue
     onHoldOnly: boolean
     locationId?: string
+    /** Zone / branch filter on the page; overrides the header location when set. */
+    locationIds?: string[]
     riskLevelCode?: string | null
     unassignedKeyWorker?: boolean
     advanced?: ServiceUsersAdvancedFilters
@@ -517,7 +519,8 @@ export function buildServiceUsersListParams(
     showDeleted: query.showDeleted,
     sortBy: 'createdAt',
     sortOrder: 'desc',
-    locationId: options.locationId || undefined,
+    locationId: options.locationIds?.length ? undefined : options.locationId || undefined,
+    locationIds: options.locationIds?.length ? options.locationIds : undefined,
     riskLevelId: riskLevelIdForCode(lookups, options.riskLevelCode),
     unassignedKeyWorker: options.unassignedKeyWorker === true ? true : undefined,
     careTypeId: advanced.careTypeId || undefined,

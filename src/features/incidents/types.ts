@@ -107,12 +107,20 @@ export type IncidentInvestigation = {
   whatHappened: string | null
   whyHappened: string | null
   contributingFactors: string[]
+  contributingFactorDetails?: ContributingFactorDetails | null
   rootCause: string | null
   preventable: IncidentPreventability | null
   conclusion: string | null
   completedAt: string | null
   updatedAt: string
 }
+
+/** Per contributing factor: the records it relates to (name kept as at save time) and a note. */
+export type ContributingFactorDetail = {
+  items?: { id: string; label: string }[]
+  note?: string
+}
+export type ContributingFactorDetails = Record<string, ContributingFactorDetail>
 
 export type IncidentCarerSuspension = {
   id: string
@@ -248,6 +256,7 @@ export type IncidentOutcome = {
   lessonsLearned: string | null
   preventability: IncidentPreventability | null
   changesMade: string[]
+  changesMadeDetails?: ContributingFactorDetails | null
   informationSharedWithStaff: boolean | null
   serviceUserInformed: boolean | null
   nokInformed: boolean | null
@@ -260,6 +269,7 @@ export type UpsertIncidentOutcomeInput = {
   lessonsLearned?: string
   preventability?: IncidentPreventability
   changesMade?: string[]
+  changesMadeDetails?: ContributingFactorDetails
   informationSharedWithStaff?: boolean
   serviceUserInformed?: boolean
   nokInformed?: boolean
@@ -277,6 +287,22 @@ export const INCIDENT_OUTCOME_CHANGE_OPTIONS: { value: string; label: string }[]
   { value: 'ENVIRONMENT', label: 'Environment' },
   { value: 'OTHER', label: 'Other' },
 ]
+
+/** What each "change made" asks for once ticked (same pickers as contributing factors). */
+export const INCIDENT_OUTCOME_CHANGE_DETAIL: Record<
+  string,
+  { pick: ContributingFactorPick; question: string }
+> = {
+  CARE_PLAN: { pick: 'carePlan', question: 'Which care plan was updated?' },
+  RISK_ASSESSMENT: { pick: 'riskAssessment', question: 'Which risk assessment was updated?' },
+  POLICY: { pick: 'policy', question: 'Which policy changed?' },
+  PROCEDURE: { pick: 'policy', question: 'Which procedure changed?' },
+  STAFF_TRAINING: { pick: 'staff', question: 'Which staff were trained?' },
+  STAFFING: { pick: 'staff', question: 'Which staff does the change involve?' },
+  EQUIPMENT: { pick: 'note', question: 'What equipment was added or changed?' },
+  ENVIRONMENT: { pick: 'note', question: 'What changed in the environment?' },
+  OTHER: { pick: 'note', question: 'Describe the change' },
+}
 
 export type IncidentAnalytics = {
   totals: {
@@ -320,6 +346,9 @@ export type IncidentAnalyticsFilters = {
 export type IncidentDetail = IncidentListItem & {
   primaryServiceUser: { id: string; name: string | null; serviceUserNumber: string | null } | null
   primaryEmployee: { id: string; name: string | null } | null
+  /** Everyone involved, primary first. */
+  involvedServiceUsers?: { id: string; name: string | null; serviceUserNumber: string | null }[]
+  involvedEmployees?: { id: string; name: string | null }[]
   location: { id: string; name: string } | null
   history: IncidentTimelineEvent[]
   review: IncidentReview | null
@@ -462,6 +491,7 @@ export type UpsertIncidentInvestigationInput = {
   whatHappened?: string
   whyHappened?: string
   contributingFactors?: string[]
+  contributingFactorDetails?: ContributingFactorDetails
   rootCause?: string
   preventable?: IncidentPreventability
   conclusion?: string
@@ -502,6 +532,36 @@ export const INCIDENT_CONTRIBUTING_FACTOR_OPTIONS: { value: string; label: strin
   { value: 'OTHER', label: 'Other' },
 ]
 
+/** What each contributing factor asks for once ticked. */
+export type ContributingFactorPick =
+  | 'carePlan'
+  | 'riskAssessment'
+  | 'medication'
+  | 'staff'
+  | 'policy'
+  | 'note'
+  | 'none'
+
+export const INCIDENT_CONTRIBUTING_FACTOR_DETAIL: Record<
+  string,
+  { pick: ContributingFactorPick; question: string }
+> = {
+  CARE_PLAN: { pick: 'carePlan', question: 'Which care plan?' },
+  RISK_ASSESSMENT: { pick: 'riskAssessment', question: 'Which risk assessment?' },
+  MEDICATION: { pick: 'medication', question: 'Which medication?' },
+  STAFFING: { pick: 'staff', question: 'Which staff?' },
+  TRAINING: { pick: 'staff', question: 'Which staff needed training?' },
+  HUMAN_ERROR: { pick: 'staff', question: 'Who made the error?' },
+  PROCEDURE_NOT_FOLLOWED: { pick: 'policy', question: 'Which procedure or policy?' },
+  COMMUNICATION: { pick: 'note', question: 'What went wrong with communication?' },
+  ENVIRONMENT: { pick: 'note', question: 'What in the environment contributed?' },
+  EQUIPMENT: { pick: 'note', question: 'Which equipment, and what was wrong?' },
+  BEHAVIOURAL_TRIGGER: { pick: 'note', question: 'What was the trigger?' },
+  HEALTH_DETERIORATION: { pick: 'note', question: 'What changed in their health?' },
+  OTHER: { pick: 'note', question: 'Describe the other factor' },
+  UNKNOWN: { pick: 'none', question: '' },
+}
+
 export const INCIDENT_PREVENTABILITY_OPTIONS: { value: IncidentPreventability; label: string }[] = [
   { value: 'YES', label: 'Yes' },
   { value: 'NO', label: 'No' },
@@ -525,6 +585,9 @@ export type CreateIncidentInput = {
   specificArea?: string
   primaryServiceUserId?: string
   primaryEmployeeId?: string
+  /** Everyone involved; the first is the primary person. */
+  serviceUserIds?: string[]
+  employeeIds?: string[]
   primaryPersonKind?: IncidentPersonKind
   primaryPersonName?: string
   affectedPersonKinds?: IncidentPersonKind[]

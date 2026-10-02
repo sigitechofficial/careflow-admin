@@ -31,6 +31,15 @@ import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useDeleteServiceUser } from '@/features/service-users/hooks/useServiceUserMutations'
 import { useUploadServiceUserPhoto } from '@/features/service-users/hooks/useServiceUserPhoto'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
+import { useLocationManagementTree } from '@/features/settings/hooks/useLocationManagement'
+import { MultiSelect, type MultiSelectOption } from '@/shared/ui/multi-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select'
 import { serviceUserKeys } from '@/features/service-users/keys'
 import {
   buildServiceUsersListParams,
@@ -291,7 +300,25 @@ export default function ServiceUsersPage() {
     onHoldOnly,
     page,
     advanced: advancedFilters,
+    zoneId,
+    branchIds,
   } = urlState
+
+  // Zone / branch filter: chosen branches, else every branch in the chosen zone.
+  const locationTreeQuery = useLocationManagementTree()
+  const zones = locationTreeQuery.data?.zones ?? []
+  const selectedZone = zones.find((z) => z.id === zoneId)
+  const branchOptions = React.useMemo<MultiSelectOption[]>(
+    () =>
+      (selectedZone?.branches ?? [])
+        .filter((b): b is typeof b & { locationId: string } => b.locationId != null)
+        .map((b) => ({ value: b.locationId, label: b.name })),
+    [selectedZone],
+  )
+  const filterLocationIds = React.useMemo(
+    () => (branchIds.length ? branchIds : branchOptions.map((o) => o.value)),
+    [branchIds, branchOptions],
+  )
 
   const [searchInput, setSearchInput] = React.useState(searchApi)
   const [kwSearchInput, setKwSearchInput] = React.useState(kwSearch)
@@ -374,6 +401,7 @@ export default function ServiceUsersPage() {
         statusFilter,
         onHoldOnly,
         locationId: globalLocationId ?? undefined,
+        locationIds: zoneId ? filterLocationIds : undefined,
         riskLevelCode: riskFilter,
         unassignedKeyWorker: unassignedOnly,
         advanced: advancedFilters,
@@ -386,6 +414,8 @@ export default function ServiceUsersPage() {
       page,
       searchApi,
       globalLocationId,
+      zoneId,
+      filterLocationIds,
       riskFilter,
       unassignedOnly,
       advancedFilters,
@@ -601,6 +631,37 @@ export default function ServiceUsersPage() {
               leftElement={<Search className="h-4 w-4" aria-hidden />}
             />
           </div>
+
+          <div className="w-full sm:w-44" data-testid="service-users-zone-filter">
+            <Select
+              value={zoneId || 'all'}
+              onValueChange={(v) => patchUrlState({ zoneId: v === 'all' ? '' : v, branchIds: [] })}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="All zones" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All zones</SelectItem>
+                {zones.map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {zoneId ? (
+            <div className="w-full sm:w-56" data-testid="service-users-branch-filter">
+              <MultiSelect
+                options={branchOptions}
+                value={branchIds}
+                onChange={(next) => patchUrlState({ branchIds: next })}
+                placeholder="All branches in zone"
+                searchPlaceholder="Search branches…"
+              />
+            </div>
+          ) : null}
 
           <div className="w-full sm:ml-auto sm:w-auto sm:shrink-0">
             <ServiceUsersStatusFilter

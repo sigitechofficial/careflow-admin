@@ -283,3 +283,12 @@ export type PortalSurveyItem = {
   completedAt: string | null
   respondentRelation: SurveyRespondentRelation | null
 }
+
+/** Portal: the answers the signed-in service user submitted for one survey. */
+export type PortalSurveyAnswers = {
+  title: string
+  submittedAt: string
+  respondentRelation: SurveyRespondentRelation | null
+  respondentName: string | null
+  answers: { questionId: string; questionText: string; displayValue: string }[]
+}

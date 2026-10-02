@@ -7,14 +7,26 @@ import {
   useChangeIncidentStatus,
   useUpsertIncidentOutcome,
 } from '@/features/incidents/hooks/useIncidents'
+import { useContributingFactorOptions } from '@/features/incidents/hooks/useContributingFactorOptions'
 import {
+  ContributingFactorDetailEditor,
+  ContributingFactorsReadView,
+} from '@/features/incidents/components/ContributingFactorDetail'
+import {
+  INCIDENT_CONTRIBUTING_FACTOR_OPTIONS,
+  INCIDENT_OUTCOME_CHANGE_DETAIL,
   INCIDENT_OUTCOME_CHANGE_OPTIONS,
   INCIDENT_PREVENTABILITY_OPTIONS,
+  type ContributingFactorDetail,
+  type ContributingFactorDetails,
   type IncidentDetail,
   type IncidentOutcome,
   type IncidentPreventability,
   type UpsertIncidentOutcomeInput,
 } from '@/features/incidents/types'
+
+const changeLabel = (code: string) =>
+  INCIDENT_OUTCOME_CHANGE_OPTIONS.find((o) => o.value === code)?.label ?? code
 
 const selectClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
@@ -49,6 +61,27 @@ export function IncidentOutcomeSection({
   const [lessons, setLessons] = React.useState(outcome?.lessonsLearned ?? '')
   const [preventability, setPreventability] = React.useState<string>(outcome?.preventability ?? '')
   const [changes, setChanges] = React.useState<string[]>(outcome?.changesMade ?? [])
+  const [changeDetails, setChangeDetails] = React.useState<ContributingFactorDetails>(
+    outcome?.changesMadeDetails ?? {},
+  )
+  // People involved in the incident (older incidents only have the primary person).
+  const serviceUsers = incident.involvedServiceUsers?.length
+    ? incident.involvedServiceUsers
+    : incident.primaryServiceUser
+      ? [incident.primaryServiceUser]
+      : []
+  const involvedEmployees = incident.involvedEmployees?.length
+    ? incident.involvedEmployees
+    : incident.primaryEmployee
+      ? [incident.primaryEmployee]
+      : []
+  const changeOptions = useContributingFactorOptions(serviceUsers, {
+    carePlans: canEditOutcome && changes.includes('CARE_PLAN'),
+    assessments: canEditOutcome && changes.includes('RISK_ASSESSMENT'),
+    medications: false,
+  })
+  const setChangeDetail = (code: string, detail: ContributingFactorDetail) =>
+    setChangeDetails((prev) => ({ ...prev, [code]: detail }))
   const [sharedStaff, setSharedStaff] = React.useState(triToValue(outcome?.informationSharedWithStaff))
   const [suInformed, setSuInformed] = React.useState(triToValue(outcome?.serviceUserInformed))
   const [nokInformed, setNokInformed] = React.useState(triToValue(outcome?.nokInformed))
@@ -84,6 +117,12 @@ export function IncidentOutcomeSection({
       lessonsLearned: lessons.trim() || undefined,
       preventability: (preventability || undefined) as IncidentPreventability | undefined,
       changesMade: changes,
+      // Only ticked changes are kept (the server drops the rest).
+      changesMadeDetails: changes.reduce<ContributingFactorDetails>((acc, c) => {
+        const detail = changeDetails[c]
+        if (detail) acc[c] = detail
+        return acc
+      }, {}),
       informationSharedWithStaff: valueToTri(sharedStaff),
       serviceUserInformed: valueToTri(suInformed),
       nokInformed: valueToTri(nokInformed),
@@ -123,6 +162,16 @@ export function IncidentOutcomeSection({
         )}
         {outcome?.finalOutcome && <ReadField label="Final outcome" value={outcome.finalOutcome} />}
         {outcome?.lessonsLearned && <ReadField label="Lessons learned" value={outcome.lessonsLearned} />}
+        {outcome && outcome.changesMade.length > 0 && (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Changes made</p>
+            <ContributingFactorsReadView
+              factors={outcome.changesMade}
+              details={outcome.changesMadeDetails}
+              labelFor={changeLabel}
+            />
+          </div>
+        )}
         {canReinvestigate && (
           <Button
             size="sm"
@@ -187,6 +236,23 @@ export function IncidentOutcomeSection({
         </select>
       </FieldLabel>
 
+      {/* Reminder of the causes found, so each one can be matched with a change below. */}
+      {incident.investigation && incident.investigation.contributingFactors.length > 0 && (
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3">
+          <p className="text-xs font-semibold text-foreground">Causes found in the investigation</p>
+          <p className="text-xs text-muted-foreground">
+            Check that each cause has a matching change below.
+          </p>
+          <ContributingFactorsReadView
+            factors={incident.investigation.contributingFactors}
+            details={incident.investigation.contributingFactorDetails}
+            labelFor={(code) =>
+              INCIDENT_CONTRIBUTING_FACTOR_OPTIONS.find((f) => f.value === code)?.label ?? code
+            }
+          />
+        </div>
+      )}
+
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Changes made</p>
         <div className="mt-1 grid grid-cols-2 gap-1.5">
@@ -197,6 +263,29 @@ export function IncidentOutcomeSection({
             </label>
           ))}
         </div>
+        {changes.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {INCIDENT_OUTCOME_CHANGE_OPTIONS.filter((o) => changes.includes(o.value)).map((o) => (
+              <ContributingFactorDetailEditor
+                key={o.value}
+                label={o.label}
+                config={INCIDENT_OUTCOME_CHANGE_DETAIL[o.value] ?? { pick: 'note', question: '' }}
+                detail={changeDetails[o.value] ?? {}}
+                onChange={(d) => setChangeDetail(o.value, d)}
+                recordOptions={{
+                  carePlan: { options: changeOptions.carePlanOptions, loading: changeOptions.loading.carePlans },
+                  riskAssessment: {
+                    options: changeOptions.assessmentOptions,
+                    loading: changeOptions.loading.assessments,
+                  },
+                  medication: { options: [], loading: false },
+                }}
+                involvedEmployees={involvedEmployees}
+                hasServiceUser={serviceUsers.length > 0}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <TriField label="Information shared with staff?" value={sharedStaff} onChange={setSharedStaff} />

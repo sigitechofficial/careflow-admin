@@ -50,6 +50,7 @@ import {
   GraduationCap,
   CalendarOff,
   Landmark,
+  ListChecks,
   MessagesSquare,
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
@@ -156,6 +157,21 @@ const inspectorOnlyNavItems: NavItem[] = [
 /* ─── Nav data ─────────────────────────────────────────────── */
 const navItems: NavItem[] = [
   { label: 'Home', icon: <Home className="h-5 w-5" />, href: '/' },
+  {
+    // Setup checklist — hidden entirely without setup_checklist.read (Super Admin / Admin).
+    label: 'Checklist',
+    icon: <ListChecks className="h-5 w-5" />,
+    href: '/checklist',
+    children: [
+      {
+        label: 'Setup checklist',
+        icon: <ListChecks className="h-4 w-4" />,
+        href: '/checklist',
+        permission: 'setup_checklist.read',
+        navTestId: 'nav-setup-checklist',
+      },
+    ],
+  },
   {
     label: 'Service Users',
     icon: <Users className="h-5 w-5" />,
@@ -589,6 +605,21 @@ const navItems: NavItem[] = [
         href: '/payroll/tax-years',
         permission: 'payroll.settings.read',
         navTestId: 'nav-payroll-tax-years',
+      },
+    ],
+  },
+  {
+    // Separate from carer payroll; hidden entirely without office_salaries.manage (Super Admin / Admin).
+    label: 'Office salaries',
+    icon: <Banknote className="h-5 w-5" />,
+    href: '/office-salaries',
+    children: [
+      {
+        label: 'Salaries & payments',
+        icon: <Wallet className="h-4 w-4" />,
+        href: '/office-salaries',
+        permission: 'office_salaries.manage',
+        navTestId: 'nav-office-salaries',
       },
     ],
   },

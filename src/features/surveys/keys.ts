@@ -9,4 +9,5 @@ export const surveyKeys = {
   recipients: (id: string) => [...surveyKeys.all(), 'recipients', id] as const,
   publicForm: (token: string) => [...surveyKeys.all(), 'public', token] as const,
   portal: () => [...surveyKeys.all(), 'portal'] as const,
+  portalAnswers: (token: string) => [...surveyKeys.all(), 'portal', 'answers', token] as const,
 }

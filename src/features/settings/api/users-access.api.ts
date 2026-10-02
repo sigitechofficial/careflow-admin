@@ -14,6 +14,10 @@ export type OfficeUserRow = {
   roles: OfficeUserRole[]
   locations: OfficeUserLocation[]
   scopeType: 'platform' | 'company' | 'branch'
+  /** Linked HR employee record (for payroll), if any. */
+  employee?: { id: string; name: string } | null
+  /** Unlinked users: an employee with the same email, offered as a one-click link. */
+  suggestedEmployee?: { id: string; name: string } | null
 }
 
 export async function fetchOfficeUsers(signal?: AbortSignal): Promise<OfficeUserRow[]> {
@@ -55,6 +59,14 @@ export async function setOfficeUserRoles(
     { method: 'PUT', body: JSON.stringify({ roleNames }) },
   )
   return res.data ?? {}
+}
+
+/** Link an office user to their employee record (for payroll), or unlink with null. */
+export async function setOfficeUserEmployee(userId: string, employeeId: string | null): Promise<void> {
+  await apiJson(`/users/${userId}/employee`, {
+    method: 'PUT',
+    body: JSON.stringify({ employeeId }),
+  })
 }
 
 export async function setOfficeUserLocations(userId: string, locationIds: string[]): Promise<void> {

@@ -4,6 +4,7 @@ import {
   addSurveyQuestion,
   createSurvey,
   deleteSurvey,
+  fetchPortalSurveyAnswers,
   fetchPortalSurveys,
   fetchPublicSurvey,
   fetchSurvey,
@@ -175,5 +176,14 @@ export function usePortalSurveys() {
   return useQuery({
     queryKey: surveyKeys.portal(),
     queryFn: ({ signal }) => fetchPortalSurveys({ signal }),
+  })
+}
+
+/** Portal: answers the signed-in service user submitted for one survey. */
+export function usePortalSurveyAnswers(token: string | null) {
+  return useQuery({
+    queryKey: surveyKeys.portalAnswers(token ?? ''),
+    queryFn: ({ signal }) => fetchPortalSurveyAnswers(token!, { signal }),
+    enabled: Boolean(token),
   })
 }

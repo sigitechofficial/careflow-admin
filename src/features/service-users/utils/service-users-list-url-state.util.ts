@@ -46,6 +46,10 @@ export type ServiceUsersListSearch = {
   physicalAbuseSu?: string
   domestic?: string
   safeguarding?: string
+  /** Zone id (filters to all its branches unless `branches` narrows it). */
+  zone?: string
+  /** Comma-separated branch (location) ids. */
+  branches?: string
 }
 
 export type ServiceUsersListUrlState = {
@@ -58,6 +62,8 @@ export type ServiceUsersListUrlState = {
   onHoldOnly: boolean
   page: number
   advanced: ServiceUsersAdvancedFilters
+  zoneId: string
+  branchIds: string[]
 }
 
 const LIST_IDS = new Set<QuickSelectListId>(['all', 'active', 'discharged', 'deleted'])
@@ -152,6 +158,8 @@ export function defaultServiceUsersListUrlState(): ServiceUsersListUrlState {
     onHoldOnly: false,
     page: 1,
     advanced: { ...EMPTY_SERVICE_USERS_ADVANCED_FILTERS },
+    zoneId: '',
+    branchIds: [],
   }
 }
 
@@ -182,6 +190,8 @@ export function parseServiceUsersListSearch(
     unassignedOnly: parseFlag(asString(raw.unassigned)),
     onHoldOnly: parseFlag(asString(raw.onHold)),
     page,
+    zoneId: asString(raw.zone)?.trim() ?? '',
+    branchIds: parseCommaIds(asString(raw.branches)),
     advanced: {
       ...EMPTY_SERVICE_USERS_ADVANCED_FILTERS,
       ageMin,
@@ -246,6 +256,9 @@ export function buildServiceUsersListSearch(
   if (state.unassignedOnly) out.unassigned = '1'
   if (state.onHoldOnly) out.onHold = '1'
   if (state.page > 1) out.page = String(state.page)
+  if (state.zoneId) out.zone = state.zoneId
+  const branches = idsToComma(state.branchIds)
+  if (branches) out.branches = branches
 
   const a = state.advanced
   if (a.ageMin != null) out.ageMin = String(a.ageMin)
@@ -314,6 +327,8 @@ export function validateServiceUsersListSearch(
     'physicalAbuseSu',
     'domestic',
     'safeguarding',
+    'zone',
+    'branches',
   ]
   const out: ServiceUsersListSearch = {}
   for (const key of keys) {

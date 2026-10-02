@@ -2,6 +2,7 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   CreateQuestionInput,
   CreateSurveyInput,
+  PortalSurveyAnswers,
   PortalSurveyItem,
   PublicSurveyForm,
   SendSurveyResult,
@@ -144,6 +145,18 @@ export async function fetchPortalSurveys(init?: RequestInit): Promise<PortalSurv
     ...init,
   })
   return res.data ?? []
+}
+
+/** Portal: answers the signed-in service user submitted for one survey. */
+export async function fetchPortalSurveyAnswers(
+  token: string,
+  init?: RequestInit,
+): Promise<PortalSurveyAnswers> {
+  const res = await apiJson<ApiEnvelope<PortalSurveyAnswers>>(
+    `/portal/surveys/${encodeURIComponent(token)}/answers`,
+    { method: 'GET', ...init },
+  )
+  return res.data as PortalSurveyAnswers
 }
 
 export async function publishSurvey(
