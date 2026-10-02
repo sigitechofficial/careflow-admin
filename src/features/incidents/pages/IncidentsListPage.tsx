@@ -60,11 +60,10 @@ const SEVERITY_OPTIONS: { value: string; label: string }[] = [
 
 const HIGH_OR_CRITICAL: IncidentSeverity[] = ['HIGH', 'CRITICAL']
 
-function reportedBySubtitle(reportedBy: IncidentReportedBy | undefined): string {
+/** Who keyed it into the system: the office user, or the carer themselves via the app. */
+function recordedByLabel(reportedBy: IncidentReportedBy | undefined): string {
   if (reportedBy?.source === 'CARER_APP') return 'Carer app'
-  if (reportedBy?.source === 'OFFICE') {
-    return reportedBy.recordedByName ? `Recorded by office · ${reportedBy.recordedByName}` : 'Recorded by office'
-  }
+  if (reportedBy?.source === 'OFFICE') return reportedBy.recordedByName ?? 'Office'
   return '—'
 }
 
@@ -182,8 +181,8 @@ export default function IncidentsListPage() {
     severities: urlState.severities.length ? urlState.severities : undefined,
     categoryId: urlState.categoryId || undefined,
     openOnly: urlState.openOnly || undefined,
-    // The table shows when each incident was reported, so sort and date-filter on that too.
-    dateField: 'reportedAt',
+    // "Reported time" is when it happened (as the carer reports it) — sort and date-filter on that.
+    dateField: 'occurredAt',
     dateFrom: urlState.dateFrom || undefined,
     dateTo: urlState.dateTo || undefined,
     serviceUserId: urlState.serviceUserId || undefined,
@@ -411,13 +410,15 @@ export default function IncidentsListPage() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-sm">
+          <table className="w-full min-w-[1240px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-3 py-2.5 font-medium">Reference</th>
                 <th className="px-3 py-2.5 font-medium">Event</th>
                 <th className="px-3 py-2.5 font-medium">Reported time</th>
                 <th className="px-3 py-2.5 font-medium">Reported by</th>
+                <th className="px-3 py-2.5 font-medium">Recorded time</th>
+                <th className="px-3 py-2.5 font-medium">Recorded by</th>
                 <th className="px-3 py-2.5 font-medium">Severity</th>
                 <th className="px-3 py-2.5 font-medium">Status</th>
                 <th className="px-3 py-2.5 font-medium">Visit</th>
@@ -426,15 +427,15 @@ export default function IncidentsListPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">Loading…</td>
+                  <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">Loading…</td>
                 </tr>
               ) : isError ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-destructive">Could not load incidents.</td>
+                  <td colSpan={9} className="px-3 py-10 text-center text-destructive">Could not load incidents.</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No incidents match your filters.</td>
+                  <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">No incidents match your filters.</td>
                 </tr>
               ) : (
                 items.map((inc) => (
@@ -448,11 +449,10 @@ export default function IncidentsListPage() {
                       {inc.category.label}
                       {inc.subtype ? <span className="text-muted-foreground"> · {inc.subtype.label}</span> : null}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.reportedAt)}</td>
-                    <td className="px-3 py-2.5">
-                      <div>{inc.reportedBy?.name ?? 'Unknown'}</div>
-                      <div className="text-xs text-muted-foreground">{reportedBySubtitle(inc.reportedBy)}</div>
-                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.occurredAt)}</td>
+                    <td className="px-3 py-2.5">{inc.reportedBy?.name ?? 'Unknown'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.createdAt)}</td>
+                    <td className="px-3 py-2.5">{recordedByLabel(inc.reportedBy)}</td>
                     <td className="px-3 py-2.5">
                       <Badge variant={INCIDENT_SEVERITY_BADGE[inc.severity]} size="sm">{inc.severityLabel}</Badge>
                     </td>

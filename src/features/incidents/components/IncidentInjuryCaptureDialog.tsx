@@ -63,6 +63,7 @@ export function IncidentInjuryCaptureDialog({
   onOpenChange,
   people,
   initial,
+  preset,
   onCapture,
 }: {
   open: boolean
@@ -70,6 +71,8 @@ export function IncidentInjuryCaptureDialog({
   people: InjuredPersonOption[]
   /** When set, the dialog edits this injury instead of adding a new one. */
   initial?: PendingIncidentInjury | null
+  /** Pre-fill a NEW injury (e.g. from a skin / wound subtype): person key and injury type. */
+  preset?: { personKey?: string; injuryType?: string } | null
   onCapture: (pending: PendingIncidentInjury) => void
 }) {
   const [personKeyValue, setPersonKeyValue] = React.useState('')
@@ -82,10 +85,17 @@ export function IncidentInjuryCaptureDialog({
 
   React.useEffect(() => {
     if (!open) return
-    const startPerson = initial ? findInjuredPerson(initial, people) : people.length === 1 ? people[0] : null
+    const presetPerson = preset?.personKey ? people.find((p) => p.key === preset.personKey) : undefined
+    const startPerson = initial
+      ? findInjuredPerson(initial, people)
+      : (presetPerson ?? (people.length === 1 ? people[0] : null))
     setPersonKeyValue(startPerson?.key ?? '')
     const knownType = initial && INCIDENT_INJURY_TYPE_OPTIONS.includes(initial.injuryType)
-    setTypeChoice(initial ? (knownType ? initial.injuryType : OTHER_TYPE) : '')
+    const presetType =
+      !initial && preset?.injuryType && INCIDENT_INJURY_TYPE_OPTIONS.includes(preset.injuryType)
+        ? preset.injuryType
+        : ''
+    setTypeChoice(initial ? (knownType ? initial.injuryType : OTHER_TYPE) : presetType)
     setOtherType(initial && !knownType ? initial.injuryType : '')
     setSeverity(initial?.severity ?? 'MINOR')
     setNotes(initial?.notes ?? '')

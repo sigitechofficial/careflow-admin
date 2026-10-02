@@ -46,6 +46,10 @@ export type IncidentVisitOption = {
   date: string
   startsAt: string
   endsAt: string | null
+  actualStartsAt: string | null
+  actualEndsAt: string | null
+  /** A carer SOS was raised during this visit (ECM). */
+  sosRaised: boolean
   status: string
   visitRef: string | null
   serviceUserName: string
@@ -76,6 +80,12 @@ export type IncidentListItem = {
   reportedById: string | null
   reporterEmployeeId?: string | null
   involvedEmployeeIds?: string[]
+  /** Office user who keyed it in (null for carer-app reports). */
+  createdById?: string | null
+  ambulanceAttended?: boolean | null
+  takenToAe?: boolean | null
+  admittedToHospital?: boolean | null
+  categoryDetails?: Record<string, unknown> | null
   /** Resolved reporter — returned by the list endpoint only. */
   reportedBy?: IncidentReportedBy
   /** Readable visit reference (VIS-…) when raised during a visit — list endpoint only. */
@@ -404,6 +414,9 @@ export const INCIDENT_INJURY_TYPE_OPTIONS: string[] = [
   'Swelling',
   'Pain (no visible injury)',
   'Bite',
+  'Pressure ulcer',
+  'Moisture damage',
+  'Wound',
 ]
 
 export const INCIDENT_RELATED_RECORD_TYPE_OPTIONS: { value: IncidentRelatedRecordType; label: string }[] = [
@@ -582,6 +595,12 @@ export type CreateIncidentInput = {
   scheduledJobId?: string
   /** Staff involved (made the error, alleged person, second carer…) — employee ids. */
   involvedEmployeeIds?: string[]
+  /** Category-specific answers (see category-details.ts). */
+  categoryDetails?: Record<string, unknown>
+  /** Hospital outcome — null = not known. */
+  ambulanceAttended?: boolean | null
+  takenToAe?: boolean | null
+  admittedToHospital?: boolean | null
   description: string
   contextBefore?: string
   contextAfter?: string

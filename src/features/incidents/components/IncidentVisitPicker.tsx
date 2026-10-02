@@ -56,6 +56,7 @@ export function IncidentVisitPicker({
   value,
   onChange,
   onSelectedVisitChange,
+  noVisitLabel = 'Not during a visit',
   error,
 }: {
   serviceUserId?: string
@@ -68,6 +69,8 @@ export function IncidentVisitPicker({
   onChange: (value: string) => void
   /** Called with the chosen visit (or null) so the form can suggest its carers. */
   onSelectedVisitChange?: (visit: IncidentVisitOption | null) => void
+  /** Label for the "no visit" option (Care Delivery uses "No matching visit found"). */
+  noVisitLabel?: string
   error?: string
 }) {
   const today = todayIso()
@@ -211,7 +214,7 @@ export function IncidentVisitPicker({
             onChange={() => onChange(NOT_DURING_VISIT)}
             className="h-4 w-4 shrink-0"
           />
-          <span className="text-foreground">Not during a visit</span>
+          <span className="text-foreground">{noVisitLabel}</span>
         </label>
       </div>
       {suggested && value === suggested.scheduledJobId && (

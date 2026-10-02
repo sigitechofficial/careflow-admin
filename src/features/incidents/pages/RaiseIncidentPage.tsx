@@ -19,6 +19,19 @@ import { IncidentWitnessDialog } from '@/features/incidents/components/IncidentW
 import { IncidentVisitPicker, NOT_DURING_VISIT } from '@/features/incidents/components/IncidentVisitPicker'
 import { IncidentStaffMultiSelect } from '@/features/incidents/components/IncidentStaffMultiSelect'
 import {
+  IncidentCategoryDetailsFields,
+  YesNoField,
+} from '@/features/incidents/components/IncidentCategoryDetailsFields'
+import {
+  CATEGORY_DETAILS_TITLE,
+  NO_HOSPITAL_OUTCOME_CATEGORIES,
+  SKIN_SUBTYPE_INJURY_TYPE,
+  SUBTYPE_HINTS,
+  categoryDetailsForSubmit,
+  validateCategoryDetails,
+  type CategoryDetails,
+} from '@/features/incidents/category-details'
+import {
   INCIDENT_EVIDENCE_ACCEPT,
   canPreviewEvidence,
   formatFileSize,
@@ -236,6 +249,18 @@ export default function RaiseIncidentPage() {
   const categories = categoriesQuery.data ?? []
   const selectedCategory = categories.find((c) => c.id === categoryId) ?? null
   const isBehaviour = selectedCategory?.key === 'BEHAVIOUR'
+  const categoryKey = selectedCategory?.key
+  const subtypeKey = selectedCategory?.subtypes.find((s) => s.id === subtypeId)?.key
+  // Category-specific answers — cleared whenever the category changes.
+  const [categoryDetails, setCategoryDetails] = React.useState<CategoryDetails>({})
+  const [detailErrors, setDetailErrors] = React.useState<Record<string, string>>({})
+  // Hospital outcome at raise: null = "Not known" (e.g. reported by phone).
+  const [ambulanceAttended, setAmbulanceAttended] = React.useState<boolean | null>(null)
+  const [takenToAe, setTakenToAe] = React.useState<boolean | null>(null)
+  const [admittedToHospital, setAdmittedToHospital] = React.useState<boolean | null>(null)
+  const [injuryPreset, setInjuryPreset] = React.useState<{ personKey?: string; injuryType?: string } | null>(null)
+  const showHospitalOutcome =
+    affectedKinds.length > 0 && !(categoryKey && NO_HOSPITAL_OUTCOME_CATEGORIES.has(categoryKey))
 
   const serviceUserOptions: ComboboxOption[] = React.useMemo(
     () =>
@@ -377,6 +402,19 @@ export default function RaiseIncidentPage() {
 
   function openInjuryDialog(injury: PendingIncidentInjury | null) {
     setEditingInjury(injury)
+    setInjuryPreset(null)
+    setInjuryDialogOpen(true)
+  }
+
+  // Skin / wound subtypes need a body-map pin for the service user (body map is SU-only).
+  const skinInjuryType = categoryKey === 'SKIN_WOUND' && subtypeKey ? SKIN_SUBTYPE_INJURY_TYPE[subtypeKey] : undefined
+  const bodyMapNeeded = Boolean(skinInjuryType && affectedKinds.includes('SERVICE_USER') && serviceUserId)
+  const bodyMapPinned = injuries.some(
+    (i) => (i.personKind ?? 'SERVICE_USER') === 'SERVICE_USER' && i.personServiceUserId === serviceUserId && i.marker,
+  )
+  function openSkinBodyMap() {
+    setEditingInjury(null)
+    setInjuryPreset({ personKey: `SERVICE_USER:${serviceUserId}`, injuryType: skinInjuryType })
     setInjuryDialogOpen(true)
   }
 
@@ -404,8 +442,14 @@ export default function RaiseIncidentPage() {
       next.injuries = 'An injury is linked to someone no longer listed under "Who was affected?". Edit or remove it.'
     if (actionCodes.includes('OTHER') && !immediateActions.trim())
       next.immediateActions = 'Describe the other action taken'
+    const cdErrors = validateCategoryDetails(categoryKey, subtypeKey, categoryDetails, {
+      hasLinkedVisit: Boolean(visitChoice && visitChoice !== NOT_DURING_VISIT),
+      today: new Date().toISOString().slice(0, 10),
+    })
+    if (bodyMapNeeded && !bodyMapPinned) cdErrors.bodyMap = 'Mark it on the body map'
+    setDetailErrors(cdErrors)
     setErrors(next)
-    return Object.keys(next).length === 0
+    return Object.keys(next).length === 0 && Object.keys(cdErrors).length === 0
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -442,6 +486,13 @@ export default function RaiseIncidentPage() {
       reporterEmployeeId: reporterId,
       scheduledJobId: visitChoice && visitChoice !== NOT_DURING_VISIT ? visitChoice : undefined,
       involvedEmployeeIds: involvedStaff.length ? involvedStaff.map((p) => p.id) : undefined,
+      categoryDetails: categoryDetailsForSubmit(categoryKey, {
+        ...categoryDetails,
+        // Only meaningful when no visit was linked.
+        noMatchingVisitReason:
+          visitChoice === NOT_DURING_VISIT ? categoryDetails.noMatchingVisitReason : undefined,
+      }),
+      ...(showHospitalOutcome ? { ambulanceAttended, takenToAe, admittedToHospital } : {}),
     }
     try {
       const created = await createMutation.mutateAsync(input)
@@ -560,6 +611,11 @@ export default function RaiseIncidentPage() {
               setReporterId('')
               setVisitChoice('')
               setInvolvedStaff([])
+              setCategoryDetails({})
+              setDetailErrors({})
+              setAmbulanceAttended(null)
+              setTakenToAe(null)
+              setAdmittedToHospital(null)
               setOccurredAtLocal(nowLocalDatetime())
               setErrors({})
             }}
@@ -624,6 +680,8 @@ export default function RaiseIncidentPage() {
                 value={categoryId}
                 onChange={(e) => {
                   setCategoryId(e.target.value)
+                  setCategoryDetails({})
+                  setDetailErrors({})
                   setSubtypeId('')
                 }}
                 className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -652,6 +710,15 @@ export default function RaiseIncidentPage() {
                     </option>
                   ))}
                 </select>
+                {categoryKey && SUBTYPE_HINTS[categoryKey] && (
+                  <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                    {Object.entries(SUBTYPE_HINTS[categoryKey])
+                      .filter(([key]) => !subtypeKey || key === subtypeKey)
+                      .map(([key, hint]) => (
+                        <li key={key}>{hint}</li>
+                      ))}
+                  </ul>
+                )}
               </FormField>
             )}
 
@@ -766,6 +833,7 @@ export default function RaiseIncidentPage() {
                   value={visitChoice}
                   onChange={setVisitChoice}
                   onSelectedVisitChange={setSelectedVisit}
+                  noVisitLabel={categoryKey === 'CARE_DELIVERY' ? 'No matching visit found' : undefined}
                   error={errors.visit}
                 />
               ) : (
@@ -902,8 +970,51 @@ export default function RaiseIncidentPage() {
                 placeholder="e.g. person calm and settled, resting in bed, taken to hospital"
               />
             </FormField>
+
+            {showHospitalOutcome && (
+              <div className="space-y-3 sm:col-span-2">
+                <p className="text-sm font-medium text-foreground">Hospital outcome</p>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                  <FormField label="Ambulance attended?">
+                    <YesNoField name="inc-ambulance" allowUnknown value={ambulanceAttended} onChange={setAmbulanceAttended} />
+                  </FormField>
+                  <FormField label="Taken to A&E?">
+                    <YesNoField name="inc-ae" allowUnknown value={takenToAe} onChange={setTakenToAe} />
+                  </FormField>
+                  <FormField label="Admitted to hospital?">
+                    <YesNoField
+                      name="inc-admitted"
+                      allowUnknown
+                      value={admittedToHospital}
+                      onChange={setAdmittedToHospital}
+                    />
+                  </FormField>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {categoryKey && CATEGORY_DETAILS_TITLE[categoryKey] && (
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+            <h3 className="mb-4 text-sm font-semibold text-foreground">{CATEGORY_DETAILS_TITLE[categoryKey]}</h3>
+            <IncidentCategoryDetailsFields
+              categoryKey={categoryKey}
+              subtypeKey={subtypeKey}
+              value={categoryDetails}
+              onChange={setCategoryDetails}
+              errors={detailErrors}
+              serviceUserId={affectedKinds.includes('SERVICE_USER') ? serviceUserId || undefined : undefined}
+              selectedVisit={selectedVisit && visitChoice === selectedVisit.scheduledJobId ? selectedVisit : null}
+              visitLinked={visitChoice !== NOT_DURING_VISIT}
+              bodyMap={
+                bodyMapNeeded
+                  ? { needed: true, pinned: bodyMapPinned, onAdd: openSkinBodyMap, error: detailErrors.bodyMap }
+                  : undefined
+              }
+            />
+          </div>
+        )}
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-sm font-semibold text-foreground">Injuries</h3>
@@ -1212,6 +1323,7 @@ export default function RaiseIncidentPage() {
         onOpenChange={setInjuryDialogOpen}
         people={injuredPeople}
         initial={editingInjury}
+        preset={injuryPreset}
         onCapture={saveInjury}
       />
     </div>

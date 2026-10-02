@@ -23,6 +23,9 @@ import {
   IncidentWitnessesPanel,
 } from '@/features/incidents/components/IncidentCarePanels'
 import { ServiceUserIncidentHistoryPanel } from '@/features/incidents/components/ServiceUserIncidentHistoryPanel'
+import { IncidentCategoryDetailsView } from '@/features/incidents/components/IncidentCategoryDetailsView'
+import { CATEGORY_DETAILS_TITLE } from '@/features/incidents/category-details'
+import { useEmployee } from '@/features/employees/hooks/useEmployees'
 import { IncidentOutcomeSection } from '@/features/incidents/components/IncidentOutcomeSection'
 import { IncidentTimeline } from '@/features/incidents/components/IncidentTimeline'
 import {
@@ -63,6 +66,8 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+const yesNoUnknown = (v: boolean | null | undefined) => (v === true ? 'Yes' : v === false ? 'No' : 'Not known')
+
 function SubBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border/80 bg-muted/20 p-3 sm:p-4">
@@ -76,6 +81,14 @@ export default function IncidentDetailPage() {
   const { incidentId } = useParams({ strict: false }) as { incidentId: string }
   const can = useAuthStore((s) => s.can)
   const { data: incident, isLoading, isError } = useIncident(incidentId)
+
+  const allegedStaffId =
+    ((incident?.categoryDetails?.allegedPerson as { employeeId?: string } | undefined)?.employeeId) ?? ''
+  const allegedStaffQuery = useEmployee(allegedStaffId, Boolean(allegedStaffId))
+  const staffName = (id: string) => {
+    const pd = id === allegedStaffId ? allegedStaffQuery.data?.personalDetail : undefined
+    return pd ? [pd.firstName, pd.lastName].filter(Boolean).join(' ') || undefined : undefined
+  }
 
   const statusMutation = useChangeIncidentStatus(incidentId)
   const severityMutation = useChangeIncidentSeverity(incidentId)
@@ -252,7 +265,16 @@ export default function IncidentDetailPage() {
         >
           <dl className="grid grid-cols-2 gap-4">
             <Field label="Incident date & time" value={formatOrganisationDateTime(incident.occurredAt)} />
-            <Field label="Reported" value={formatOrganisationDateTime(incident.reportedAt)} />
+            <Field label="Reported time" value={formatOrganisationDateTime(incident.reportedAt)} />
+            <Field label="Reported by" value={incident.reportedBy?.name} />
+            <Field
+              label="Recorded by"
+              value={
+                incident.reportedBy?.source === 'CARER_APP'
+                  ? 'Carer app (self-reported)'
+                  : incident.reportedBy?.recordedByName
+              }
+            />
             <Field label="Specific area" value={incident.specificArea} />
             <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
             {incident.scheduledJobId && (
@@ -291,6 +313,25 @@ export default function IncidentDetailPage() {
               />
             )}
           </div>
+
+          {(incident.affectedPersonKinds.length > 0 ||
+            incident.ambulanceAttended != null ||
+            incident.takenToAe != null ||
+            incident.admittedToHospital != null) && (
+            <SubBlock title="Hospital outcome">
+              <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Field label="Ambulance attended" value={yesNoUnknown(incident.ambulanceAttended)} />
+                <Field label="Taken to A&E" value={yesNoUnknown(incident.takenToAe)} />
+                <Field label="Admitted to hospital" value={yesNoUnknown(incident.admittedToHospital)} />
+              </dl>
+            </SubBlock>
+          )}
+
+          {incident.categoryDetails && Object.keys(incident.categoryDetails).length > 0 && (
+            <SubBlock title={CATEGORY_DETAILS_TITLE[incident.category.key] ?? 'Category details'}>
+              <IncidentCategoryDetailsView details={incident.categoryDetails} staffNameById={staffName} />
+            </SubBlock>
+          )}
 
           <SubBlock title="Immediate response">
             {incident.immediateActionCodes.length === 0 &&
