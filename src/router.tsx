@@ -21,7 +21,10 @@ import { ScrollToTopOnNavigate } from '@/components/layout/ScrollToTopOnNavigate
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { SessionRefresh } from '@/features/auth/components/SessionRefresh'
 import { CompanyBrandingBootstrap } from '@/components/company/CompanyBrandingBootstrap'
-import { OrganisationDisplayFormatProvider } from '@/shared/context/organisation-display-format.context'
+import {
+  OrganisationDisplayFormatProvider,
+  useOrganisationDisplayFormat,
+} from '@/shared/context/organisation-display-format.context'
 import { useCompanyStore } from '@/store/company.store'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { UrgentOfficeAlertHost } from '@/features/ecm/components/UrgentOfficeAlertHost'
@@ -604,6 +607,13 @@ const publicTakeSurveyRoute = createRoute({
   component: TakeSurveyPage,
 })
 
+/** Portal pages format dates with plain helpers, so render them once org settings have loaded. */
+function PortalOutlet() {
+  const { timezoneReady } = useOrganisationDisplayFormat()
+  if (!timezoneReady) return null
+  return <Outlet />
+}
+
 function PortalRootShell() {
   const companyDisplayName = useCompanyStore(s => s.branding?.displayName)
   const pathname = useRouterState({ select: s => s.location.pathname })
@@ -614,10 +624,10 @@ function PortalRootShell() {
     <>
       <SessionRefresh />
       <CompanyBrandingBootstrap />
-      <OrganisationDisplayFormatProvider>
+      <OrganisationDisplayFormatProvider portal>
         <AppToaster />
         <AppLayout pageTitle={pageTitle} variant="portal">
-          <Outlet />
+          <PortalOutlet />
         </AppLayout>
       </OrganisationDisplayFormatProvider>
     </>

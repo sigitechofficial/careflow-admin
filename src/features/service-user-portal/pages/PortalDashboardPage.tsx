@@ -24,7 +24,12 @@ import {
 import { resolveMediaUrl } from '@/shared/lib/media-url'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatTime } from '@/shared/lib/utils'
+import { dayKeyFromInstant } from '@/shared/lib/operational-day.util'
+import {
+  formatOrganisationIsoDate,
+  formatOrganisationWeekdayShort,
+} from '@/shared/lib/organisation-display-format.store'
 
 const VISIT_STATUS_LABELS: Record<string, string> = {
   PLANNED: 'Scheduled',
@@ -44,11 +49,11 @@ function visitStatusClass(status: string): string {
 }
 
 function formatVisitWhen(iso: string): { date: string; time: string } {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return { date: '—', time: '' }
+  const day = dayKeyFromInstant(iso)
+  if (!day) return { date: '—', time: '' }
   return {
-    date: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
-    time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+    date: `${formatOrganisationWeekdayShort(day)} ${formatOrganisationIsoDate(day)}`,
+    time: formatTime(iso),
   }
 }
 

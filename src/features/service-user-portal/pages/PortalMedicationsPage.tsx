@@ -5,14 +5,14 @@ import type { PortalMedicationTimelineItem } from '@/features/service-user-porta
 import { PortalSection } from '@/features/service-user-portal/components/portal-display.util'
 import { formatPortalDateTime } from '@/features/service-user-portal/components/portal-display.util'
 import { Timeline, type TimelineEvent } from '@/shared/ui/timeline'
-import { cn } from '@/shared/lib/utils'
+import { cn, formatTime } from '@/shared/lib/utils'
+import { formatOrganisationTimeHm } from '@/shared/lib/organisation-display-format.store'
 
 function formatScheduleTime(value: string | null): string {
   if (!value) return '—'
-  if (/^\d{2}:\d{2}$/.test(value)) return value
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  if (/^\d{2}:\d{2}$/.test(value)) return formatOrganisationTimeHm(value)
+  if (Number.isNaN(new Date(value).getTime())) return value
+  return formatTime(value)
 }
 
 function timelineType(status: string): TimelineEvent['type'] {
