@@ -8,10 +8,12 @@ export type WorkflowStepState = 'complete' | 'current' | 'upcoming'
 
 export type IncidentDetailWorkflowStepId =
   | 'raise'
+  | 'review'
   | 'investigate'
   | 'actions'
   | 'outcome'
 
+/** Maps the status onto the five detail-page steps (Raise → Review → Investigate → Actions → Outcome). */
 export function resolveIncidentDetailWorkflow(
   status: IncidentStatus,
   hasFinalOutcome: boolean,
@@ -22,49 +24,30 @@ export function resolveIncidentDetailWorkflow(
   const currentId: IncidentDetailWorkflowStepId =
     status === 'REPORTED'
       ? 'raise'
-      : status === 'ACTIONS_REQUIRED'
-        ? 'actions'
-        : status === 'AWAITING_CLOSURE' || status === 'CLOSED'
-          ? 'outcome'
-          : 'investigate'
+      : status === 'UNDER_REVIEW' || status === 'REOPENED'
+        ? 'review'
+        : status === 'UNDER_INVESTIGATION'
+          ? 'investigate'
+          : status === 'ACTIONS_REQUIRED'
+            ? 'actions'
+            : 'outcome'
 
-  const order: IncidentDetailWorkflowStepId[] = ['raise', 'investigate', 'actions', 'outcome']
+  const order: IncidentDetailWorkflowStepId[] = ['raise', 'review', 'investigate', 'actions', 'outcome']
   const currentIndex = order.indexOf(currentId)
 
   const meta: Record<IncidentDetailWorkflowStepId, { label: string; hint: string }> = {
-    raise: {
-      label: '1. Raise',
-      hint:
-        status === 'REPORTED'
-          ? 'Next: start the investigation.'
-          : 'Incident has been raised.',
-    },
-    investigate: {
-      label: '2. Investigate',
-      hint:
-        currentId === 'investigate'
-          ? 'Complete the investigation, then move to corrective measures.'
-          : 'Internal or external investigation.',
-    },
-    actions: {
-      label: '3. Corrective measures',
-      hint:
-        currentId === 'actions'
-          ? 'Complete corrective measures, then choose Ready to close.'
-          : currentId === 'investigate'
-            ? 'After investigation: add measures if needed, then Ready to close.'
-            : 'Track and complete corrective measures, then Ready to close.',
-    },
+    raise: { label: 'Raise', hint: 'What was reported.' },
+    review: { label: 'Review', hint: 'Manager triage: confirm severity and decide whether to investigate.' },
+    investigate: { label: 'Investigate', hint: 'What happened, why, and whether it was preventable.' },
+    actions: { label: 'Corrective measures', hint: 'Actions to stop it happening again.' },
     outcome: {
-      label: '4. Outcome & close',
+      label: 'Outcome & close',
       hint:
-        status === 'AWAITING_CLOSURE'
-          ? hasFinalOutcome
-            ? 'Next: close the incident.'
-            : 'Next: record the final outcome, then close.'
-          : status === 'CLOSED'
-            ? 'Incident closed.'
-            : 'After Ready to close: record outcome and close.',
+        status === 'CLOSED'
+          ? 'Incident closed.'
+          : hasFinalOutcome
+            ? 'Final outcome recorded.'
+            : 'Record the final outcome, then close.',
     },
   }
 
@@ -74,7 +57,7 @@ export function resolveIncidentDetailWorkflow(
       id,
       ...meta[id],
       state:
-        status === 'CLOSED' && hasFinalOutcome
+        status === 'CLOSED'
           ? 'complete'
           : index < currentIndex
             ? 'complete'

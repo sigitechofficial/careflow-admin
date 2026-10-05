@@ -1,10 +1,11 @@
 export type IncidentStatus =
   | 'REPORTED'
-  | 'AWAITING_REVIEW'
+  | 'UNDER_REVIEW'
   | 'UNDER_INVESTIGATION'
   | 'ACTIONS_REQUIRED'
   | 'AWAITING_CLOSURE'
   | 'CLOSED'
+  /** Legacy — reopening is now an event (reopenCount / lastReopenedAt), never set by new changes. */
   | 'REOPENED'
 
 export type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
@@ -82,6 +83,11 @@ export type IncidentListItem = {
   involvedEmployeeIds?: string[]
   /** Office user who keyed it in (null for carer-app reports). */
   createdById?: string | null
+  /** When a manager started the review (Reported → Under Review). */
+  reviewStartedAt?: string | null
+  /** Reopening is an event: how many times, and when last. */
+  reopenCount?: number
+  lastReopenedAt?: string | null
   ambulanceAttended?: boolean | null
   takenToAe?: boolean | null
   admittedToHospital?: boolean | null
@@ -324,7 +330,8 @@ export type IncidentAnalytics = {
     total: number
     open: number
     closed: number
-    awaitingReview: number
+    underReview: number
+    notPickedUp: number
     underInvestigation: number
     highCritical: number
     falls: number
@@ -435,7 +442,9 @@ export type IncidentStats = {
   open: number
   closedThisMonth: number
   overdueActions: number
-  awaitingReview: number
+  /** Reported and not yet picked up by a manager. */
+  notPickedUp: number
+  underReview: number
   underInvestigation: number
   actionsRequired: number
   highOrCritical: number
@@ -650,7 +659,7 @@ export const INCIDENT_STATUS_BADGE: Record<
   'default' | 'info' | 'warning' | 'success' | 'muted' | 'destructive'
 > = {
   REPORTED: 'info',
-  AWAITING_REVIEW: 'warning',
+  UNDER_REVIEW: 'warning',
   UNDER_INVESTIGATION: 'warning',
   ACTIONS_REQUIRED: 'destructive',
   AWAITING_CLOSURE: 'default',
@@ -660,24 +669,23 @@ export const INCIDENT_STATUS_BADGE: Record<
 
 /** Mirrors the backend workflow rules for UX (backend still enforces authoritatively). */
 export const INCIDENT_STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  REPORTED: ['UNDER_INVESTIGATION', 'AWAITING_REVIEW'],
-  AWAITING_REVIEW: ['UNDER_INVESTIGATION', 'ACTIONS_REQUIRED', 'AWAITING_CLOSURE'],
-  UNDER_INVESTIGATION: ['AWAITING_CLOSURE', 'ACTIONS_REQUIRED'],
-  ACTIONS_REQUIRED: ['UNDER_INVESTIGATION', 'AWAITING_CLOSURE'],
-  AWAITING_CLOSURE: ['CLOSED', 'UNDER_INVESTIGATION', 'ACTIONS_REQUIRED'],
-  CLOSED: ['UNDER_INVESTIGATION', 'REOPENED'],
-  REOPENED: ['UNDER_INVESTIGATION', 'AWAITING_CLOSURE', 'ACTIONS_REQUIRED'],
+  REPORTED: ['UNDER_REVIEW'],
+  UNDER_REVIEW: ['UNDER_INVESTIGATION', 'AWAITING_CLOSURE'],
+  UNDER_INVESTIGATION: ['ACTIONS_REQUIRED', 'AWAITING_CLOSURE'],
+  ACTIONS_REQUIRED: ['AWAITING_CLOSURE', 'UNDER_INVESTIGATION'],
+  AWAITING_CLOSURE: ['CLOSED', 'UNDER_INVESTIGATION'],
+  CLOSED: ['UNDER_REVIEW'],
+  REOPENED: ['UNDER_INVESTIGATION', 'AWAITING_CLOSURE'],
 }
 
-/** Statuses from which moving to UNDER_INVESTIGATION is a re-investigate. */
-export const REINVESTIGATE_FROM_STATUSES: IncidentStatus[] = [
-  'CLOSED',
-  'AWAITING_CLOSURE',
-  'REOPENED',
-]
+/** Closed → Under Review (needs incidents.reopen + a reason). */
+export function isReopenTransition(from: IncidentStatus, to: IncidentStatus): boolean {
+  return from === 'CLOSED' && to === 'UNDER_REVIEW'
+}
 
-export function isReinvestigateTransition(from: IncidentStatus, to: IncidentStatus): boolean {
-  return to === 'UNDER_INVESTIGATION' && REINVESTIGATE_FROM_STATUSES.includes(from)
+/** Back to Under Investigation from a later stage (reason required). */
+export function isSendBackTransition(from: IncidentStatus, to: IncidentStatus): boolean {
+  return to === 'UNDER_INVESTIGATION' && (from === 'AWAITING_CLOSURE' || from === 'ACTIONS_REQUIRED')
 }
 
 export type IncidentWorkflowStage = 'raise' | 'investigate' | 'close' | 'outcome'
@@ -696,7 +704,7 @@ export function incidentWorkflowStageIndex(
 ): number {
   if (status === 'REPORTED') return 0
   if (
-    status === 'AWAITING_REVIEW' ||
+    status === 'UNDER_REVIEW' ||
     status === 'UNDER_INVESTIGATION' ||
     status === 'ACTIONS_REQUIRED' ||
     status === 'REOPENED'
@@ -710,7 +718,7 @@ export function incidentWorkflowStageIndex(
 
 export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   REPORTED: 'Reported',
-  AWAITING_REVIEW: 'Awaiting Review',
+  UNDER_REVIEW: 'Under Review',
   UNDER_INVESTIGATION: 'Under Investigation',
   ACTIONS_REQUIRED: 'Actions Required',
   AWAITING_CLOSURE: 'Awaiting Closure',

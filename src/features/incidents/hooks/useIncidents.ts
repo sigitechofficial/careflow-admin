@@ -3,6 +3,7 @@ import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { incidentKeys } from '@/features/incidents/keys'
 import {
   changeIncidentSeverity,
+  startIncidentReview,
   changeIncidentStatus,
   completeIncidentAction,
   createIncident,
@@ -251,6 +252,18 @@ export function useChangeIncidentStatus(id: string) {
       changeIncidentStatus(id, vars.status, vars.reason),
     onSuccess: () => {
       toastSuccess('Incident status updated')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useStartIncidentReview(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => startIncidentReview(id),
+    onSuccess: () => {
+      toastSuccess('Review started')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
     },
     onError: (e) => toastApiError(e),

@@ -43,7 +43,7 @@ export const EMPTY_INCIDENTS_LIST_URL_STATE: IncidentsListUrlState = {
 
 const STATUSES = new Set<IncidentStatus>([
   'REPORTED',
-  'AWAITING_REVIEW',
+  'UNDER_REVIEW',
   'UNDER_INVESTIGATION',
   'ACTIONS_REQUIRED',
   'AWAITING_CLOSURE',

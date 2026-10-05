@@ -40,12 +40,11 @@ import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
 const STATUS_OPTIONS: { value: IncidentStatus | ''; label: string }[] = [
   { value: '', label: 'All statuses' },
   { value: 'REPORTED', label: 'Reported' },
-  { value: 'AWAITING_REVIEW', label: 'Awaiting Review' },
+  { value: 'UNDER_REVIEW', label: 'Under Review' },
   { value: 'UNDER_INVESTIGATION', label: 'Under Investigation' },
   { value: 'ACTIONS_REQUIRED', label: 'Actions Required' },
   { value: 'AWAITING_CLOSURE', label: 'Awaiting Closure' },
   { value: 'CLOSED', label: 'Closed' },
-  { value: 'REOPENED', label: 'Reopened' },
 ]
 
 /** Values are comma lists so "High & Critical" can share the same filter as the summary chip. */
@@ -213,12 +212,18 @@ export default function IncidentsListPage() {
       onClick: () => patchUrlState({ severities: highOrCriticalActive ? [] : HIGH_OR_CRITICAL }),
     },
     {
+      key: 'not-picked-up',
+      label: 'Not picked up',
+      count: statsQuery.data?.notPickedUp,
+      active: urlState.status === 'REPORTED',
+      onClick: () => patchUrlState({ status: urlState.status === 'REPORTED' ? '' : 'REPORTED' }),
+    },
+    {
       key: 'review',
-      label: 'Awaiting review',
-      count: statsQuery.data?.awaitingReview,
-      active: urlState.status === 'AWAITING_REVIEW',
-      onClick: () =>
-        patchUrlState({ status: urlState.status === 'AWAITING_REVIEW' ? '' : 'AWAITING_REVIEW' }),
+      label: 'Under review',
+      count: statsQuery.data?.underReview,
+      active: urlState.status === 'UNDER_REVIEW',
+      onClick: () => patchUrlState({ status: urlState.status === 'UNDER_REVIEW' ? '' : 'UNDER_REVIEW' }),
     },
   ]
 

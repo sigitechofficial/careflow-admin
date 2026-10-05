@@ -9,7 +9,6 @@ import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-fo
 import {
   useIncident,
   useChangeIncidentSeverity,
-  useChangeIncidentStatus,
 } from '@/features/incidents/hooks/useIncidents'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { IncidentReviewSection } from '@/features/incidents/components/IncidentReviewSection'
@@ -24,6 +23,7 @@ import {
 } from '@/features/incidents/components/IncidentCarePanels'
 import { ServiceUserIncidentHistoryPanel } from '@/features/incidents/components/ServiceUserIncidentHistoryPanel'
 import { IncidentCategoryDetailsView } from '@/features/incidents/components/IncidentCategoryDetailsView'
+import { IncidentNextStepBar } from '@/features/incidents/components/IncidentNextStepBar'
 import { CATEGORY_DETAILS_TITLE } from '@/features/incidents/category-details'
 import { useEmployee } from '@/features/employees/hooks/useEmployees'
 import { IncidentOutcomeSection } from '@/features/incidents/components/IncidentOutcomeSection'
@@ -36,12 +36,8 @@ import {
   IMMEDIATE_ACTION_OPTIONS,
   INCIDENT_SEVERITY_BADGE,
   INCIDENT_STATUS_BADGE,
-  INCIDENT_STATUS_LABELS,
-  INCIDENT_STATUS_TRANSITIONS,
   WHO_INFORMED_LABELS,
-  isReinvestigateTransition,
   type IncidentSeverity,
-  type IncidentStatus,
 } from '@/features/incidents/types'
 
 const SEVERITIES: IncidentSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
@@ -90,11 +86,8 @@ export default function IncidentDetailPage() {
     return pd ? [pd.firstName, pd.lastName].filter(Boolean).join(' ') || undefined : undefined
   }
 
-  const statusMutation = useChangeIncidentStatus(incidentId)
   const severityMutation = useChangeIncidentSeverity(incidentId)
 
-  const [nextStatus, setNextStatus] = React.useState<IncidentStatus | ''>('')
-  const [statusReason, setStatusReason] = React.useState('')
   const [nextSeverity, setNextSeverity] = React.useState<IncidentSeverity | ''>('')
   const [severityReason, setSeverityReason] = React.useState('')
 
@@ -122,45 +115,15 @@ export default function IncidentDetailPage() {
     )
   }
 
-  const validNext = (INCIDENT_STATUS_TRANSITIONS[incident.status] ?? []).filter(
-    (s) => s !== 'CLOSED',
-  )
   const hasFinalOutcome = Boolean(incident.outcome?.finalOutcome?.trim())
   const workflow = resolveIncidentDetailWorkflow(incident.status, hasFinalOutcome)
   const stepState = Object.fromEntries(workflow.steps.map((s) => [s.id, s])) as Record<
     (typeof workflow.steps)[number]['id'],
     (typeof workflow.steps)[number]
   >
-
-  const canStartInvestigation =
-    canReview && incident.status === 'REPORTED' && validNext.includes('UNDER_INVESTIGATION')
-  const canMarkActionsRequired =
-    canReview &&
-    (incident.status === 'UNDER_INVESTIGATION' ||
-      incident.status === 'AWAITING_REVIEW' ||
-      incident.status === 'REOPENED' ||
-      incident.status === 'AWAITING_CLOSURE') &&
-    validNext.includes('ACTIONS_REQUIRED')
-  const canMarkReadyToClose =
-    canReview &&
-    (incident.status === 'UNDER_INVESTIGATION' ||
-      incident.status === 'ACTIONS_REQUIRED' ||
-      incident.status === 'AWAITING_REVIEW' ||
-      incident.status === 'REOPENED') &&
-    validNext.includes('AWAITING_CLOSURE')
-  const canSubmitReinvestigate =
-    canReopen &&
-    validNext.includes('UNDER_INVESTIGATION') &&
-    isReinvestigateTransition(incident.status, 'UNDER_INVESTIGATION')
-
-  const legacyNext = validNext.filter((s) => {
-    if (s === 'UNDER_INVESTIGATION' && (canStartInvestigation || canSubmitReinvestigate)) return false
-    if (s === 'AWAITING_CLOSURE' && canMarkReadyToClose) return false
-    if (s === 'ACTIONS_REQUIRED' && canMarkActionsRequired) return false
-    return true
-  })
-
-  const currentHint = stepState[workflow.currentId]?.hint
+  const openMandatoryActions = incident.actions.filter(
+    (a) => a.isMandatory && a.status !== 'COMPLETED' && a.status !== 'CANCELLED',
+  ).length
 
   return (
     <div className="space-y-4">
@@ -202,7 +165,22 @@ export default function IncidentDetailPage() {
           </Badge>
         )}
         {incident.followUpRequired && <Badge variant="warning">Follow-up required</Badge>}
+        {(incident.reopenCount ?? 0) > 0 && (
+          <Badge variant="warning" title={incident.lastReopenedAt ? `Last reopened ${formatOrganisationDateTime(incident.lastReopenedAt)}` : undefined}>
+            Reopened{(incident.reopenCount ?? 0) > 1 ? ` ×${incident.reopenCount}` : ''}
+          </Badge>
+        )}
       </div>
+
+      <IncidentNextStepBar
+        incidentId={incident.id}
+        status={incident.status}
+        hasFinalOutcome={hasFinalOutcome}
+        openMandatoryActions={openMandatoryActions}
+        canReview={canReview}
+        canClose={canClose}
+        canReopen={canReopen}
+      />
 
       <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -231,12 +209,6 @@ export default function IncidentDetailPage() {
             </li>
           ))}
         </ol>
-        {currentHint && (
-          <p className="mt-2 text-sm text-foreground">
-            <span className="font-medium">Next: </span>
-            {currentHint}
-          </p>
-        )}
       </div>
 
       <div className="space-y-4">
@@ -246,22 +218,6 @@ export default function IncidentDetailPage() {
           title="Raise"
           hint={stepState.raise.hint}
           state={stepState.raise.state}
-          nextAction={
-            canStartInvestigation ? (
-              <Button
-                size="sm"
-                loading={statusMutation.isPending}
-                onClick={() =>
-                  statusMutation.mutate({
-                    status: 'UNDER_INVESTIGATION',
-                    reason: 'Started investigation',
-                  })
-                }
-              >
-                Start investigation
-              </Button>
-            ) : undefined
-          }
         >
           <dl className="grid grid-cols-2 gap-4">
             <Field label="Incident date & time" value={formatOrganisationDateTime(incident.occurredAt)} />
@@ -414,28 +370,26 @@ export default function IncidentDetailPage() {
           </SubBlock>
         </IncidentWorkflowStepCard>
 
-        {/* Step 2 — Investigate */}
+        {/* Step 2 — Review */}
         <IncidentWorkflowStepCard
           stepNumber={2}
+          title="Review"
+          hint={stepState.review.hint}
+          state={stepState.review.state}
+        >
+          {canReview || incident.review ? (
+            <IncidentReviewSection incidentId={incident.id} review={incident.review} canEdit={canReview} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No review recorded yet.</p>
+          )}
+        </IncidentWorkflowStepCard>
+
+        {/* Step 3 — Investigate */}
+        <IncidentWorkflowStepCard
+          stepNumber={3}
           title="Investigate"
           hint={stepState.investigate.hint}
           state={stepState.investigate.state}
-          nextAction={
-            canMarkActionsRequired ? (
-              <Button
-                size="sm"
-                loading={statusMutation.isPending}
-                onClick={() =>
-                  statusMutation.mutate({
-                    status: 'ACTIONS_REQUIRED',
-                    reason: 'Corrective measures required',
-                  })
-                }
-              >
-                Actions required
-              </Button>
-            ) : undefined
-          }
         >
           {(canInvestigate || incident.investigation) && (
             <IncidentInvestigationSection
@@ -450,39 +404,14 @@ export default function IncidentDetailPage() {
           {!canInvestigate && !incident.investigation && (
             <p className="text-sm text-muted-foreground">No investigation recorded yet.</p>
           )}
-          {(canReview || incident.review) && (
-            <SubBlock title="Manager review">
-              <IncidentReviewSection
-                incidentId={incident.id}
-                review={incident.review}
-                canEdit={canReview}
-              />
-            </SubBlock>
-          )}
         </IncidentWorkflowStepCard>
 
-        {/* Step 3 — Corrective measures */}
+        {/* Step 4 — Corrective measures */}
         <IncidentWorkflowStepCard
-          stepNumber={3}
+          stepNumber={4}
           title="Corrective measures"
           hint={stepState.actions.hint}
           state={stepState.actions.state}
-          nextAction={
-            canMarkReadyToClose ? (
-              <Button
-                size="sm"
-                loading={statusMutation.isPending}
-                onClick={() =>
-                  statusMutation.mutate({
-                    status: 'AWAITING_CLOSURE',
-                    reason: 'Ready to close',
-                  })
-                }
-              >
-                Ready to close
-              </Button>
-            ) : undefined
-          }
         >
           <IncidentActionsSection
             incidentId={incident.id}
@@ -491,39 +420,18 @@ export default function IncidentDetailPage() {
           />
         </IncidentWorkflowStepCard>
 
-        {/* Step 4 — Outcome & close */}
+        {/* Step 5 — Outcome & close */}
         <IncidentWorkflowStepCard
-          stepNumber={4}
+          stepNumber={5}
           title="Outcome & close"
           hint={stepState.outcome.hint}
           state={stepState.outcome.state}
-          nextAction={
-            canSubmitReinvestigate ? (
-              <Button
-                size="sm"
-                variant="outline"
-                loading={statusMutation.isPending}
-                onClick={() => {
-                  const reason = window.prompt('Reason for re-investigation?')
-                  if (!reason?.trim()) return
-                  statusMutation.mutate({
-                    status: 'UNDER_INVESTIGATION',
-                    reason: reason.trim(),
-                  })
-                }}
-              >
-                Submit for re-investigation
-              </Button>
-            ) : undefined
-          }
         >
           {canReview || incident.outcome || incident.status === 'CLOSED' || incident.status === 'AWAITING_CLOSURE' ? (
             <IncidentOutcomeSection
               incident={incident}
               outcome={incident.outcome}
               canEditOutcome={canReview}
-              canClose={canClose}
-              canReopen={canReopen}
             />
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -591,62 +499,7 @@ export default function IncidentDetailPage() {
         {canReview && (
           <Section title="Admin controls">
             <div className="space-y-4">
-              {legacyNext.length > 0 && (
-                <div>
-                  <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Other status
-                  </label>
-                  <select
-                    className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    value={nextStatus}
-                    onChange={(e) => setNextStatus(e.target.value as IncidentStatus | '')}
-                  >
-                    <option value="">Select…</option>
-                    {legacyNext.map((s) => (
-                      <option key={s} value={s}>
-                        {INCIDENT_STATUS_LABELS[s]}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    className="mt-2 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder={
-                      nextStatus && isReinvestigateTransition(incident.status, nextStatus)
-                        ? 'Reason (required)'
-                        : 'Reason (optional)'
-                    }
-                    value={statusReason}
-                    onChange={(e) => setStatusReason(e.target.value)}
-                  />
-                  <Button
-                    className="mt-2"
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      !nextStatus ||
-                      (isReinvestigateTransition(incident.status, nextStatus) &&
-                        !statusReason.trim())
-                    }
-                    loading={statusMutation.isPending}
-                    onClick={() => {
-                      if (!nextStatus) return
-                      statusMutation.mutate(
-                        { status: nextStatus, reason: statusReason || undefined },
-                        {
-                          onSuccess: () => {
-                            setNextStatus('')
-                            setStatusReason('')
-                          },
-                        },
-                      )
-                    }}
-                  >
-                    Update status
-                  </Button>
-                </div>
-              )}
-
-              <div className={legacyNext.length > 0 ? 'border-t border-border pt-4' : undefined}>
+              <div>
                 <label className="text-xs uppercase tracking-wide text-muted-foreground">
                   Change severity
                 </label>

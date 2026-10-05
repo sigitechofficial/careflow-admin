@@ -108,6 +108,12 @@ export async function changeIncidentStatus(
   return res.data
 }
 
+/** Reported → Under Review; the manager becomes the owner. */
+export async function startIncidentReview(id: string): Promise<IncidentListItem> {
+  const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/start-review`, { method: 'POST' })
+  return res.data
+}
+
 export async function changeIncidentSeverity(
   id: string,
   severity: IncidentSeverity,

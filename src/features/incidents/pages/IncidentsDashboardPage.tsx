@@ -120,8 +120,8 @@ export default function IncidentsDashboardPage() {
             to="/incidents/view"
           />
           <StatCard
-            label="Awaiting review"
-            value={stats?.awaitingReview ?? 0}
+            label="Not picked up"
+            value={stats?.notPickedUp ?? 0}
             icon={<Search className="h-5 w-5" aria-hidden />}
             tone="amber"
             loading={loading}
