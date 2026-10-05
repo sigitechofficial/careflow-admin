@@ -1,4 +1,8 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
+import type {
+  RoleResponsibilitiesData,
+  RoleResponsibility,
+} from '@/features/settings/roles-permissions/roles-permissions.types'
 
 export type PermissionRow = {
   id: string
@@ -58,4 +62,21 @@ export async function setRolePermissions(
 export async function fetchPermissionsCatalog(signal?: AbortSignal): Promise<PermissionRow[]> {
   const res = await apiJson<{ data: PermissionRow[] }>('/permissions', { method: 'GET', signal })
   return res.data ?? []
+}
+
+export async function fetchRoleResponsibilities(signal?: AbortSignal): Promise<RoleResponsibilitiesData> {
+  const res = await apiJson<ApiEnvelope<RoleResponsibilitiesData>>('/role-responsibilities', {
+    method: 'GET',
+    signal,
+  })
+  return res.data as RoleResponsibilitiesData
+}
+
+/** Give a job to roles; other roles lose the ability (admins always keep it). */
+export async function assignRoleResponsibility(key: string, roleIds: string[]): Promise<RoleResponsibility> {
+  const res = await apiJson<ApiEnvelope<RoleResponsibility>>(`/role-responsibilities/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ roleIds }),
+  })
+  return res.data as RoleResponsibility
 }

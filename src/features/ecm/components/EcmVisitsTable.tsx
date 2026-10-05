@@ -5,7 +5,11 @@ import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { EcmStatusBadge } from '@/features/ecm/components/EcmStatusBadge'
 import type { EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
-import { formatOpsCalendarDate, formatOpsClockTime } from '@/shared/lib/operational-day.util'
+import {
+  dayKeyFromInstant,
+  formatOpsCalendarDate,
+  formatOpsClockTime,
+} from '@/shared/lib/operational-day.util'
 
 function formatVisitDate(iso: string): string {
   return formatOpsCalendarDate(iso)
@@ -159,6 +163,101 @@ function formatEcmVisitAddress(address?: string | null, postcode?: string | null
   if (parts.length > 0 && norm(parts[parts.length - 1]!) === norm(pc)) return addr
   if (norm(addr).endsWith(norm(pc))) return addr
   return `${addr}, ${pc}`
+}
+
+function csvEscape(value: string | number | null | undefined): string {
+  const s = value == null ? '' : String(value)
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/** Same wording as the status badges (LATE_ARRIVAL → Late Arrival). */
+function codeLabel(code: string | null | undefined): string {
+  if (!code || code === 'NONE' || code === 'NOT_ASSESSED') return ''
+  if (code === 'OUTSIDE_AREA_CHECK_IN_REQUEST') return 'Outside area check-in'
+  return code
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function assessedLabel(label: string): string {
+  return label === 'Not assessed' ? '' : label
+}
+
+/** Extra CSV column appended after Address (e.g. billing amounts on a service user). */
+export type EcmVisitsCsvExtraColumn = {
+  header: string
+  value: (row: EcmLiveVisitRow) => string | number | null | undefined
+}
+
+/** CSV of the visits table rows (dates and times in the organisation timezone). */
+export function buildEcmVisitsCsv(
+  rows: EcmLiveVisitRow[],
+  extraColumns: EcmVisitsCsvExtraColumn[] = [],
+): string {
+  const header = [
+    'Date',
+    'Slot',
+    'Service user',
+    'Visit ID',
+    'Carer',
+    'Planned start',
+    'Planned end',
+    'Actual start',
+    'Actual end',
+    'Start punctuality',
+    'Start variance (min)',
+    'End punctuality',
+    'End variance (min)',
+    'Planned duration (min)',
+    'Actual duration (min)',
+    'Duration variance',
+    'Duration variance (min)',
+    'Status',
+    'Missed',
+    'Exceptions',
+    'Address',
+    ...extraColumns.map((col) => col.header),
+  ]
+  const clock = (iso: string | null | undefined) => {
+    const t = iso ? formatClockTime(iso) : ''
+    return t === '—' ? '' : t
+  }
+  const lines = rows.map((row) => {
+    const exceptions = [
+      row.arrivalClassification !== 'ON_TIME' ? codeLabel(row.arrivalClassification) : '',
+      row.durationClassification !== 'ON_TIME' ? codeLabel(row.durationClassification) : '',
+      ...row.operationalExceptionCodes.map(codeLabel),
+    ].filter(Boolean)
+    const address = formatEcmVisitAddress(row.address, row.postcode)
+    return [
+      dayKeyFromInstant(row.plannedStartDateTime) || row.plannedStartDateTime.slice(0, 10),
+      row.slotLabel?.trim() || 'Visit',
+      row.serviceUserName,
+      row.visitRef?.trim() ?? '',
+      (row.carers ?? []).map((c) => c.name || c.employeeId).join('; '),
+      clock(row.plannedStartDateTime),
+      clock(row.plannedEndDateTime),
+      clock(row.actualCheckInAt),
+      clock(row.actualCheckOutAt),
+      assessedLabel(punctualityLabel(row.arrivalClassification)),
+      row.startVarianceMinutes,
+      assessedLabel(punctualityLabel(row.departureClassification)),
+      row.endVarianceMinutes,
+      plannedDurationOf(row),
+      actualDurationOf(row),
+      assessedLabel(durationVarianceLabel(row.durationClassification)),
+      row.durationVarianceMinutes,
+      codeLabel(row.lifecycleStatus),
+      codeLabel(row.missedClassification),
+      exceptions.join('; '),
+      address === '—' ? '' : address,
+      ...extraColumns.map((col) => col.value(row)),
+    ]
+      .map(csvEscape)
+      .join(',')
+  })
+  return [header.join(','), ...lines].join('\n')
 }
 
 /** Extra column shown after Address (before Action), e.g. billing amounts on a service user. */

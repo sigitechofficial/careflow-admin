@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Download,
   ExternalLink,
   Eye,
   Loader2,
@@ -14,6 +15,7 @@ import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/features/auth/store'
 import {
   BillingExceptionBadge,
+  formatBillingLabel,
   VisitReconStatusBadge,
 } from '@/features/billing/components/BillingStatusBadge'
 import { VisitReconciliationDetailDialog } from '@/features/billing/components/VisitReconciliationDetailDialog'
@@ -23,7 +25,7 @@ import {
 } from '@/features/billing/hooks/useVisitReconciliations'
 import type { VisitReconciliationRow } from '@/features/billing/types/visit-reconciliation.types'
 import type { VisitReconciliationStatus } from '@/features/billing/types/billing.types'
-import { EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
+import { buildEcmVisitsCsv, EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
 import { EcmVisitDetailDialog } from '@/features/ecm/components/EcmVisitDetailDialog'
 import { useEcmVisitsTable } from '@/features/ecm/hooks/useEcm'
 import { operationalTodayIso } from '@/shared/lib/operational-day.util'
@@ -212,6 +214,44 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
     return map
   }, [rows])
 
+  const ecmRows = ecmQuery.data?.rows ?? []
+  const downloadCsv = () => {
+    const recon = (jobId: string) => reconByJob.get(jobId)
+    const csv = buildEcmVisitsCsv(ecmRows, [
+      {
+        header: 'Funder charge',
+        value: row => {
+          const r = recon(row.scheduledJobId)
+          if (!r) return ''
+          return isFunderNotCharged(r.status) ? '£0.00' : (r.billableAmount ?? '')
+        },
+      },
+      {
+        header: 'Carer pay',
+        value: row => {
+          const r = recon(row.scheduledJobId)
+          if (!r) return ''
+          return isCarerNotPaid(r.status) ? '£0.00' : (r.payableAmount ?? '')
+        },
+      },
+      {
+        header: 'Billing status',
+        value: row => {
+          const r = recon(row.scheduledJobId)
+          return r ? formatBillingLabel(r.status) : 'Not reconciled'
+        },
+      },
+    ])
+    // BOM so Excel reads £ and other UTF-8 characters correctly.
+    const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `service-user-visits-${month}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleDeleteAll = async () => {
     try {
       const data = await clearAllMutation.mutateAsync({ serviceUserId })
@@ -355,6 +395,20 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
             {ecmQuery.isFetching ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
             ) : null}
+            {canReadEcm ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                disabled={ecmRows.length === 0 || ecmQuery.isFetching}
+                onClick={downloadCsv}
+                data-testid="service-user-visits-export-csv"
+              >
+                Export CSV
+              </Button>
+            ) : null}
           </div>
 
           {!canReadEcm ? (
@@ -370,7 +424,7 @@ export function ServiceUserEditVisitsPanel({ serviceUserId }: { serviceUserId: s
             </div>
           ) : (
             <EcmVisitsTable
-              rows={ecmQuery.data?.rows ?? []}
+              rows={ecmRows}
               onOpen={row => setEcmJobId(row.scheduledJobId)}
               emptyState={
                 <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">

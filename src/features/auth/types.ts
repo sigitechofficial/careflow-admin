@@ -238,6 +238,7 @@ export type Permission =
   | 'hours_approvals.manage'
   | 'office_salaries.manage'
   | 'setup_checklist.read'
+  | 'role_tasks.manage'
   | 'incidents.read'
   | 'incidents.write'
   | 'incidents.create'

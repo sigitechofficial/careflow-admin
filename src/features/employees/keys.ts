@@ -69,6 +69,9 @@ export const employeeKeys = {
   /** Weekly working patterns for one employee. */
   workingPatterns: (id: string) => [...employeeKeys.detail(id), 'working-patterns'] as const,
 
+  /** Carer reports (activity, compliance, roles, leaving, details, holidays). */
+  carerReport: (slug: string, params: object) => [...employeeKeys.all(), 'carer-report', slug, params] as const,
+
   /** Organisation weekly hours overview. */
   hoursWeekly: (params?: Record<string, string | boolean | undefined>) =>
     [...employeeKeys.all(), 'hours-weekly', params ?? {}] as const,

@@ -144,6 +144,9 @@ import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
 import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
 import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
+import MyTasksPage from '@/features/role-tasks/pages/MyTasksPage'
+import CarerReportsPage from '@/features/employees/pages/CarerReportsPage'
+import RoleTasksManagePage from '@/features/role-tasks/pages/RoleTasksManagePage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
 import UkPayrollPayslipsPage from '@/features/payroll/pages/UkPayrollPayslipsPage'
@@ -322,6 +325,9 @@ const pageTitles: Record<string, string> = {
   '/payroll/employees': 'Employee payroll setup',
   '/office-salaries': 'Office salaries',
   '/checklist': 'Checklist',
+  '/my-tasks': 'My tasks',
+  '/reports/carers': 'Carer reports',
+  '/role-tasks': 'Role tasks',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
   '/payroll/payslips': 'Payslips',
@@ -1966,6 +1972,27 @@ const setupChecklistRoute = createRoute({
   component: SetupChecklistPage,
 })
 
+const carerReportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/reports/carers',
+  beforeLoad: requirePermission('employees.reports.read'),
+  component: CarerReportsPage,
+})
+
+// Any office user: tasks given to their roles.
+const myTasksRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/my-tasks',
+  component: MyTasksPage,
+})
+
+const roleTasksRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/role-tasks',
+  beforeLoad: requirePermission('role_tasks.manage'),
+  component: RoleTasksManagePage,
+})
+
 const officeSalariesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/office-salaries',
@@ -2285,6 +2312,9 @@ const routeTree = rootRoute.addChildren([
     payrollEmployeesRoute,
     officeSalariesRoute,
     setupChecklistRoute,
+    myTasksRoute,
+    carerReportsRoute,
+    roleTasksRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
     payrollPayslipsRoute,

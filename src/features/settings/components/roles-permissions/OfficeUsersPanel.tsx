@@ -1,9 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Plus } from 'lucide-react'
-import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
-import { useEmployees } from '@/features/employees/hooks/useEmployees'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -18,9 +15,9 @@ import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateOfficeUser,
   useOfficeUsers,
-  useSetOfficeUserEmployee,
   useSetOfficeUserLocations,
   useSetOfficeUserRoles,
+  useUpdateOfficeUser,
 } from '@/features/settings/hooks/useUsersAccess'
 import {
   assignableRolesForActor,
@@ -44,99 +41,6 @@ function rolesNeedBranches(roleNames: string[]): boolean {
   )
 }
 
-/** Link an office user to their HR employee record so they can be paid through Payroll. */
-function EmployeeLinkSection({ user, canEdit }: { user: OfficeUserRow; canEdit: boolean }) {
-  const canSeePayroll = useAuthStore(s => s.can('payroll.employees.read'))
-  const setEmployee = useSetOfficeUserEmployee()
-  const [search, setSearch] = React.useState('')
-  const [pickedId, setPickedId] = React.useState('')
-  const employeesQuery = useEmployees({ limit: 50, search: search || undefined }, canEdit && !user.employee)
-  const options: ComboboxOption[] = (employeesQuery.data?.rows ?? []).map(r => ({
-    value: r.id,
-    label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
-    description: r.jobTitle?.name ?? undefined,
-  }))
-  React.useEffect(() => {
-    setPickedId('')
-    setSearch('')
-  }, [user.id])
-  const link = (employeeId: string | null) => setEmployee.mutate({ userId: user.id, employeeId })
-
-  return (
-    <fieldset disabled={!canEdit || setEmployee.isPending} className="space-y-2">
-      <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Employee record (for payroll)
-      </legend>
-      {user.employee ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
-          <div className="text-sm">
-            Linked to{' '}
-            <Link
-              to="/hr/employees/$employeeId"
-              params={{ employeeId: user.employee.id }}
-              className="font-medium text-primary underline underline-offset-2 hover:no-underline"
-            >
-              {user.employee.name}
-            </Link>
-            {canSeePayroll ? (
-              <>
-                {' · '}
-                <Link to="/payroll/employees" className="text-primary underline underline-offset-2 hover:no-underline">
-                  Set up salary in Payroll
-                </Link>
-              </>
-            ) : null}
-          </div>
-          {canEdit ? (
-            <Button type="button" size="sm" variant="ghost" onClick={() => link(null)}>
-              Unlink
-            </Button>
-          ) : null}
-        </div>
-      ) : (
-        <>
-          <p className="text-xs text-muted-foreground">
-            Link this login to the person&apos;s employee record so they can be paid through Payroll. Not on
-            your payroll? Leave it unlinked. No employee record yet? Create one with Add employee first.
-          </p>
-          {canEdit && user.suggestedEmployee ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm">
-              <span>
-                Suggested: <span className="font-medium">{user.suggestedEmployee.name}</span>
-                <span className="text-xs text-muted-foreground"> (same email)</span>
-              </span>
-              <Button type="button" size="sm" onClick={() => link(user.suggestedEmployee!.id)}>
-                Link
-              </Button>
-            </div>
-          ) : null}
-          {canEdit ? (
-            <div className="flex flex-wrap gap-2">
-              <div className="min-w-[220px] flex-1">
-                <Combobox
-                  options={options}
-                  value={pickedId}
-                  onChange={setPickedId}
-                  onSearchChange={setSearch}
-                  loading={employeesQuery.isLoading}
-                  placeholder="Find employee…"
-                  searchPlaceholder="Search employees…"
-                  emptyText="No employees match your search."
-                />
-              </div>
-              <Button type="button" size="sm" disabled={!pickedId} onClick={() => link(pickedId)}>
-                Link employee
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Not linked.</p>
-          )}
-        </>
-      )}
-    </fieldset>
-  )
-}
-
 const emptyCreateForm = {
   email: '',
   username: '',
@@ -150,6 +54,7 @@ const emptyCreateForm = {
 export function OfficeUsersPanel() {
   const canManage = useAuthStore(s => s.can('roles.manage'))
   const canCreate = useAuthStore(s => s.can('users.create'))
+  const [editOpen, setEditOpen] = React.useState(false)
   const actorRoles = useAuthStore(s => s.user?.backendRoles ?? [])
   const actorBranchScoped = useAuthStore(s => isBranchScoped(s.user))
   const actorBranchIds = useAuthStore(s => accessibleBranchIds(s.user))
@@ -298,9 +203,6 @@ export function OfficeUsersPanel() {
                       <span className="text-sm font-medium">{displayName(u)}</span>
                       <span className="text-xs text-muted-foreground">{u.email}</span>
                       <span className="text-xs text-muted-foreground">
-                        {u.employee ? `Employee: ${u.employee.name}` : 'No employee record linked'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
                         {u.roles.map(r => r.name).join(', ') || 'No roles'}
                         {' · '}
                         {u.scopeType}
@@ -327,12 +229,30 @@ export function OfficeUsersPanel() {
             </p>
           ) : (
             <>
-              <div>
-                <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
-                <p className="text-xs text-muted-foreground">{selected.email}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
+                  <p className="truncate text-xs text-muted-foreground">{selected.email}</p>
+                </div>
+                {canCreate ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Pencil className="h-3.5 w-3.5" />}
+                    onClick={() => setEditOpen(true)}
+                    data-testid="office-user-edit"
+                  >
+                    Edit details
+                  </Button>
+                ) : null}
               </div>
-
-              <EmployeeLinkSection user={selected} canEdit={canCreate} />
+              <EditOfficeUserDialog
+                key={selected.id}
+                user={selected}
+                open={editOpen}
+                onClose={() => setEditOpen(false)}
+              />
 
               <fieldset disabled={!canManage || setRoles.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -644,5 +564,112 @@ export function OfficeUsersPanel() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+/** Admin edit of an office user: name, sign-in email and an optional new password. */
+function EditOfficeUserDialog({
+  user,
+  open,
+  onClose,
+}: {
+  user: OfficeUserRow
+  open: boolean
+  onClose: () => void
+}) {
+  const update = useUpdateOfficeUser()
+  const [firstName, setFirstName] = React.useState(user.firstName ?? '')
+  const [lastName, setLastName] = React.useState(user.lastName ?? '')
+  const [email, setEmail] = React.useState(user.email)
+  const [password, setPassword] = React.useState('')
+  const [confirm, setConfirm] = React.useState('')
+
+  React.useEffect(() => {
+    if (!open) return
+    setFirstName(user.firstName ?? '')
+    setLastName(user.lastName ?? '')
+    setEmail(user.email)
+    setPassword('')
+    setConfirm('')
+  }, [open, user])
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const passwordError =
+    password && password.length < 8
+      ? 'Use at least 8 characters.'
+      : password && password !== confirm
+        ? 'Passwords do not match.'
+        : null
+  const canSave = emailValid && !passwordError && !update.isPending
+
+  const save = () => {
+    update.mutate(
+      {
+        userId: user.id,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        ...(email.trim() !== user.email ? { email: email.trim() } : {}),
+        ...(password ? { password } : {}),
+      },
+      { onSuccess: onClose },
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={o => (o ? undefined : onClose())}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit office user</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">First name</span>
+              <Input value={firstName} onChange={e => setFirstName(e.target.value)} maxLength={100} />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Last name</span>
+              <Input value={lastName} onChange={e => setLastName(e.target.value)} maxLength={100} />
+            </label>
+          </div>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Email (used to sign in)</span>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} maxLength={254} />
+            {!emailValid ? <span className="text-xs text-destructive">Enter a valid email.</span> : null}
+          </label>
+          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs font-medium text-foreground">Set a new password (optional)</p>
+            <p className="text-xs text-muted-foreground">
+              Leave blank to keep the current password. A new password signs them out of other sessions.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="New password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Confirm new password"
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+              />
+            </div>
+            {passwordError ? <p className="text-xs text-destructive">{passwordError}</p> : null}
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={!canSave} onClick={save}>
+            {update.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
