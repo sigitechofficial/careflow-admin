@@ -8,6 +8,11 @@ import { formatOrganisationIsoDateLong } from '@/shared/lib/organisation-display
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useEmployeeNameMap } from '@/features/employees/hooks/useEmployeeNameMap'
 import { useLearningCourses } from '@/features/learning/hooks/useLearning'
+import { useContributingFactorOptions } from '@/features/incidents/hooks/useContributingFactorOptions'
+import {
+  ContributingFactorDetailEditor,
+  ContributingFactorsReadView,
+} from '@/features/incidents/components/ContributingFactorDetail'
 import {
   useRecommendIncidentCarerCourse,
   useRemoveIncidentCarerCourseRecommendation,
@@ -16,10 +21,13 @@ import {
   useUpsertIncidentInvestigation,
 } from '@/features/incidents/hooks/useIncidents'
 import {
+  INCIDENT_CONTRIBUTING_FACTOR_DETAIL,
   INCIDENT_CONTRIBUTING_FACTOR_OPTIONS,
   INCIDENT_EXTERNAL_INVESTIGATION_TYPE_OPTIONS,
   INCIDENT_INVESTIGATION_SCOPE_OPTIONS,
   INCIDENT_PREVENTABILITY_OPTIONS,
+  type ContributingFactorDetail,
+  type ContributingFactorDetails,
   type IncidentCarerCourseRecommendation,
   type IncidentCarerSuspension,
   type IncidentExternalInvestigationType,
@@ -31,9 +39,6 @@ import {
 
 const selectClass =
   'mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
-
-const factorLabel = (code: string) =>
-  INCIDENT_CONTRIBUTING_FACTOR_OPTIONS.find((f) => f.value === code)?.label ?? code
 
 const scopeLabel = (v: string) =>
   INCIDENT_INVESTIGATION_SCOPE_OPTIONS.find((o) => o.value === v)?.label ?? v
@@ -55,6 +60,8 @@ export function IncidentInvestigationSection({
   courseRecommendations,
   canEdit,
   primaryEmployeeId,
+  serviceUsers = [],
+  involvedEmployees = [],
 }: {
   incidentId: string
   investigation: IncidentInvestigation | null
@@ -62,6 +69,9 @@ export function IncidentInvestigationSection({
   courseRecommendations: IncidentCarerCourseRecommendation[]
   canEdit: boolean
   primaryEmployeeId?: string | null
+  /** People involved in the incident — contributing factors can point at their records. */
+  serviceUsers?: { id: string; name: string | null }[]
+  involvedEmployees?: { id: string; name: string | null }[]
 }) {
   const mutation = useUpsertIncidentInvestigation(incidentId)
   const suspendMutation = useSuspendIncidentCarer(incidentId)
@@ -76,6 +86,16 @@ export function IncidentInvestigationSection({
   const [conclusion, setConclusion] = React.useState(investigation?.conclusion ?? '')
   const [preventable, setPreventable] = React.useState<string>(investigation?.preventable ?? '')
   const [factors, setFactors] = React.useState<string[]>(investigation?.contributingFactors ?? [])
+  const [factorDetails, setFactorDetails] = React.useState<ContributingFactorDetails>(
+    investigation?.contributingFactorDetails ?? {},
+  )
+  const factorOptions = useContributingFactorOptions(serviceUsers, {
+    carePlans: canEdit && factors.includes('CARE_PLAN'),
+    assessments: canEdit && factors.includes('RISK_ASSESSMENT'),
+    medications: canEdit && factors.includes('MEDICATION'),
+  })
+  const setFactorDetail = (code: string, detail: ContributingFactorDetail) =>
+    setFactorDetails((prev) => ({ ...prev, [code]: detail }))
 
   const suspendedIds = React.useMemo(
     () => new Set(carerSuspensions.map((s) => s.employeeId)),
@@ -191,6 +211,12 @@ export function IncidentInvestigationSection({
       conclusion: conclusion.trim() || undefined,
       preventable: (preventable || undefined) as IncidentPreventability | undefined,
       contributingFactors: factors,
+      // Only ticked factors are kept (the server drops the rest).
+      contributingFactorDetails: factors.reduce<ContributingFactorDetails>((acc, f) => {
+        const detail = factorDetails[f]
+        if (detail) acc[f] = detail
+        return acc
+      }, {}),
       markComplete,
     }
     mutation.mutate(input)
@@ -306,7 +332,8 @@ export function IncidentInvestigationSection({
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   For {nameMap.get(r.employeeId) ?? 'carer'}
-                  {r.dueAt ? ` · Due ${formatOrganisationIsoDateLong(r.dueAt)}` : ''}
+                  {/* dueAt is the picked calendar day stored as UTC midnight — format its date part. */}
+                  {r.dueAt ? ` · Due ${formatOrganisationIsoDateLong(r.dueAt.slice(0, 10))}` : ''}
                 </p>
                 {r.reason && (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{r.reason}</p>
@@ -353,11 +380,13 @@ export function IncidentInvestigationSection({
         {investigation && investigation.contributingFactors.length > 0 && (
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Contributing factors</p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {investigation.contributingFactors.map((f) => (
-                <Badge key={f} variant="muted" size="sm">{factorLabel(f)}</Badge>
-              ))}
-            </div>
+            <ContributingFactorsReadView
+              factors={investigation.contributingFactors}
+              details={investigation.contributingFactorDetails}
+              labelFor={(code) =>
+                INCIDENT_CONTRIBUTING_FACTOR_OPTIONS.find((f) => f.value === code)?.label ?? code
+              }
+            />
           </div>
         )}
         {investigation?.rootCause && <ReadField label="Root cause" value={investigation.rootCause} />}
@@ -427,6 +456,32 @@ export function IncidentInvestigationSection({
             </label>
           ))}
         </div>
+        {factors.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {INCIDENT_CONTRIBUTING_FACTOR_OPTIONS.filter((f) => factors.includes(f.value)).map((f) => (
+              <ContributingFactorDetailEditor
+                key={f.value}
+                label={f.label}
+                config={INCIDENT_CONTRIBUTING_FACTOR_DETAIL[f.value] ?? { pick: 'note', question: '' }}
+                detail={factorDetails[f.value] ?? {}}
+                onChange={(d) => setFactorDetail(f.value, d)}
+                recordOptions={{
+                  carePlan: { options: factorOptions.carePlanOptions, loading: factorOptions.loading.carePlans },
+                  riskAssessment: {
+                    options: factorOptions.assessmentOptions,
+                    loading: factorOptions.loading.assessments,
+                  },
+                  medication: {
+                    options: factorOptions.medicationOptions,
+                    loading: factorOptions.loading.medications,
+                  },
+                }}
+                involvedEmployees={involvedEmployees}
+                hasServiceUser={serviceUsers.length > 0}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <TextField label="Root cause" value={rootCause} onChange={setRootCause} />
       <div>

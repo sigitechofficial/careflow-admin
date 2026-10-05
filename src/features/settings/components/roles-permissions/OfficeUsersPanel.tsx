@@ -1,6 +1,9 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
+import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
+import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import {
@@ -15,6 +18,7 @@ import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateOfficeUser,
   useOfficeUsers,
+  useSetOfficeUserEmployee,
   useSetOfficeUserLocations,
   useSetOfficeUserRoles,
 } from '@/features/settings/hooks/useUsersAccess'
@@ -37,6 +41,99 @@ function rolesNeedBranches(roleNames: string[]): boolean {
   return (
     roleNames.some(r => BRANCH_SCOPED_ROLE_NAMES.has(r))
     && !roleNames.some(r => COMPANY_WIDE_ROLE_NAMES.has(r))
+  )
+}
+
+/** Link an office user to their HR employee record so they can be paid through Payroll. */
+function EmployeeLinkSection({ user, canEdit }: { user: OfficeUserRow; canEdit: boolean }) {
+  const canSeePayroll = useAuthStore(s => s.can('payroll.employees.read'))
+  const setEmployee = useSetOfficeUserEmployee()
+  const [search, setSearch] = React.useState('')
+  const [pickedId, setPickedId] = React.useState('')
+  const employeesQuery = useEmployees({ limit: 50, search: search || undefined }, canEdit && !user.employee)
+  const options: ComboboxOption[] = (employeesQuery.data?.rows ?? []).map(r => ({
+    value: r.id,
+    label: r.fullName || [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
+    description: r.jobTitle?.name ?? undefined,
+  }))
+  React.useEffect(() => {
+    setPickedId('')
+    setSearch('')
+  }, [user.id])
+  const link = (employeeId: string | null) => setEmployee.mutate({ userId: user.id, employeeId })
+
+  return (
+    <fieldset disabled={!canEdit || setEmployee.isPending} className="space-y-2">
+      <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Employee record (for payroll)
+      </legend>
+      {user.employee ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+          <div className="text-sm">
+            Linked to{' '}
+            <Link
+              to="/hr/employees/$employeeId"
+              params={{ employeeId: user.employee.id }}
+              className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+            >
+              {user.employee.name}
+            </Link>
+            {canSeePayroll ? (
+              <>
+                {' · '}
+                <Link to="/payroll/employees" className="text-primary underline underline-offset-2 hover:no-underline">
+                  Set up salary in Payroll
+                </Link>
+              </>
+            ) : null}
+          </div>
+          {canEdit ? (
+            <Button type="button" size="sm" variant="ghost" onClick={() => link(null)}>
+              Unlink
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Link this login to the person&apos;s employee record so they can be paid through Payroll. Not on
+            your payroll? Leave it unlinked. No employee record yet? Create one with Add employee first.
+          </p>
+          {canEdit && user.suggestedEmployee ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm">
+              <span>
+                Suggested: <span className="font-medium">{user.suggestedEmployee.name}</span>
+                <span className="text-xs text-muted-foreground"> (same email)</span>
+              </span>
+              <Button type="button" size="sm" onClick={() => link(user.suggestedEmployee!.id)}>
+                Link
+              </Button>
+            </div>
+          ) : null}
+          {canEdit ? (
+            <div className="flex flex-wrap gap-2">
+              <div className="min-w-[220px] flex-1">
+                <Combobox
+                  options={options}
+                  value={pickedId}
+                  onChange={setPickedId}
+                  onSearchChange={setSearch}
+                  loading={employeesQuery.isLoading}
+                  placeholder="Find employee…"
+                  searchPlaceholder="Search employees…"
+                  emptyText="No employees match your search."
+                />
+              </div>
+              <Button type="button" size="sm" disabled={!pickedId} onClick={() => link(pickedId)}>
+                Link employee
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Not linked.</p>
+          )}
+        </>
+      )}
+    </fieldset>
   )
 }
 
@@ -201,6 +298,9 @@ export function OfficeUsersPanel() {
                       <span className="text-sm font-medium">{displayName(u)}</span>
                       <span className="text-xs text-muted-foreground">{u.email}</span>
                       <span className="text-xs text-muted-foreground">
+                        {u.employee ? `Employee: ${u.employee.name}` : 'No employee record linked'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
                         {u.roles.map(r => r.name).join(', ') || 'No roles'}
                         {' · '}
                         {u.scopeType}
@@ -231,6 +331,8 @@ export function OfficeUsersPanel() {
                 <h2 className="text-sm font-semibold">{displayName(selected)}</h2>
                 <p className="text-xs text-muted-foreground">{selected.email}</p>
               </div>
+
+              <EmployeeLinkSection user={selected} canEdit={canCreate} />
 
               <fieldset disabled={!canManage || setRoles.isPending} className="space-y-2">
                 <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

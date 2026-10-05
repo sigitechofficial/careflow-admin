@@ -9,6 +9,12 @@ export const ecmKeys = {
     locationId?: string
     serviceUserId?: string
   }) => [...ecmKeys.all, 'live-dashboard', filters ?? {}] as const,
+  visitsTable: (filters: {
+    dateFrom: string
+    dateTo: string
+    serviceUserId?: string
+    employeeId?: string
+  }) => [...ecmKeys.all, 'visits-table', filters] as const,
   visitDetail: (jobId: string) => [...ecmKeys.all, 'visit', jobId] as const,
   exceptions: (filters?: { limit?: number; serviceUserId?: string; locationId?: string }) =>
     [...ecmKeys.all, 'exceptions', filters ?? {}] as const,

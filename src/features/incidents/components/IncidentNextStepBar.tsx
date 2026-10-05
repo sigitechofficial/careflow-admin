@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog'
 import { useChangeIncidentStatus, useStartIncidentReview } from '@/features/incidents/hooks/useIncidents'
-import type { IncidentStatus } from '@/features/incidents/types'
+import type { IncidentSeverity, IncidentStatus } from '@/features/incidents/types'
 
 type StepAction = {
   key: string
@@ -22,6 +22,8 @@ type StepAction = {
   startReview?: boolean
   /** Ask for a reason before moving (reopen / send back). */
   reasonTitle?: string
+  /** Close despite incomplete mandatory measures (audited, needs a reason). */
+  overrideMandatory?: boolean
   primary?: boolean
   disabledReason?: string
   hidden?: boolean
@@ -34,6 +36,7 @@ type StepAction = {
 export function IncidentNextStepBar({
   incidentId,
   status,
+  severity,
   hasFinalOutcome,
   openMandatoryActions,
   canReview,
@@ -42,6 +45,7 @@ export function IncidentNextStepBar({
 }: {
   incidentId: string
   status: IncidentStatus
+  severity: IncidentSeverity
   hasFinalOutcome: boolean
   /** Mandatory corrective actions not yet completed. */
   openMandatoryActions: number
@@ -55,8 +59,12 @@ export function IncidentNextStepBar({
   const [reason, setReason] = React.useState('')
   const busy = statusMutation.isPending || startReview.isPending
 
+  // Mirrors the API: incomplete mandatory measures block High/Critical closure unless overridden.
+  const blockingMandatory =
+    severity === 'HIGH' || severity === 'CRITICAL' ? openMandatoryActions : 0
   const { hint, actions } = describe(status, {
     hasFinalOutcome,
+    blockingMandatory,
     openMandatoryActions,
     canReview,
     canClose,
@@ -80,7 +88,11 @@ export function IncidentNextStepBar({
   function confirmReason() {
     if (!reasonFor?.to || !reason.trim()) return
     statusMutation.mutate(
-      { status: reasonFor.to, reason: reason.trim() },
+      {
+        status: reasonFor.to,
+        reason: reason.trim(),
+        ...(reasonFor.overrideMandatory ? { overrideMandatoryActions: true } : {}),
+      },
       { onSuccess: () => setReasonFor(null) },
     )
   }
@@ -121,6 +133,13 @@ export function IncidentNextStepBar({
             <DialogTitle>{reasonFor?.reasonTitle}</DialogTitle>
           </DialogHeader>
           <DialogBody>
+            {reasonFor?.overrideMandatory && (
+              <p className="mb-3 rounded-md border border-warning/40 bg-warning/10 p-2 text-sm text-warning">
+                {blockingMandatory} mandatory corrective measure{blockingMandatory === 1 ? ' is' : 's are'} not
+                complete. Closing now overrides {blockingMandatory === 1 ? 'it' : 'them'}; the reason is kept in the
+                audit log.
+              </p>
+            )}
             <label htmlFor="next-step-reason" className="mb-1 block text-sm font-medium text-foreground">
               Reason<span className="ml-0.5 text-destructive dark:text-red-400">*</span>
             </label>
@@ -150,6 +169,8 @@ function describe(
   status: IncidentStatus,
   ctx: {
     hasFinalOutcome: boolean
+    /** Incomplete mandatory measures that block closing (High / Critical only). */
+    blockingMandatory: number
     openMandatoryActions: number
     canReview: boolean
     canClose: boolean
@@ -197,9 +218,11 @@ function describe(
       }
     case 'AWAITING_CLOSURE':
       return {
-        hint: ctx.hasFinalOutcome
-          ? 'The final outcome is recorded. Close the incident.'
-          : 'Record the final outcome below, then close the incident.',
+        hint: !ctx.hasFinalOutcome
+          ? 'Record the final outcome below, then close the incident.'
+          : ctx.blockingMandatory > 0
+            ? `${ctx.blockingMandatory} mandatory corrective measure${ctx.blockingMandatory === 1 ? ' is' : 's are'} still open. Complete ${ctx.blockingMandatory === 1 ? 'it' : 'them'}, or close with a reason.`
+            : 'The final outcome is recorded. Close the incident.',
         actions: [
           {
             key: 'close',
@@ -209,13 +232,16 @@ function describe(
             primary: true,
             hidden: !ctx.canClose,
             disabledReason: ctx.hasFinalOutcome ? undefined : 'Save the final outcome first (Outcome & close section).',
+            ...(ctx.blockingMandatory > 0
+              ? { reasonTitle: 'Close with incomplete mandatory measures', overrideMandatory: true }
+              : {}),
           },
           { key: 'back', label: 'Send back for investigation', icon: back, to: 'UNDER_INVESTIGATION', reasonTitle: 'Send back for investigation', hidden: noReview },
         ],
       }
     case 'CLOSED':
       return {
-        hint: 'This incident is closed.',
+        hint: 'This incident is closed and read-only. Reopen it to make changes.',
         actions: [
           { key: 'reopen', label: 'Reopen', icon: <RotateCcw className="mr-1 h-4 w-4" />, to: 'UNDER_REVIEW', reasonTitle: 'Reopen incident', hidden: !ctx.canReopen },
         ],

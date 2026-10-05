@@ -30,7 +30,11 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from '@/features/incidents/types'
-import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import {
+  formatOrganisationDate,
+  formatOrganisationDateTime,
+} from '@/shared/lib/organisation-display-format.store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { dayKeyInTimeZone } from '@/shared/lib/operational-day.util'
 import { toastApiError } from '@/shared/lib/toast'
 import { useFetchScheduledJob } from '@/features/scheduling/hooks/useScheduling'
@@ -73,6 +77,8 @@ export default function IncidentsListPage() {
   const can = useAuthStore((s) => s.can)
   const { locationId } = useGlobalLocationScope()
   const navigate = useNavigate()
+  // Re-render when the organisation timezone loads so dates don't show in the fallback zone.
+  const { timezoneReady } = useOrganisationDisplayFormat()
   const routeSearch = useSearch({ strict: false }) as IncidentsListSearch
   const urlState = React.useMemo(() => parseIncidentsListSearch(routeSearch), [routeSearch])
 
@@ -186,6 +192,8 @@ export default function IncidentsListPage() {
     dateTo: urlState.dateTo || undefined,
     serviceUserId: urlState.serviceUserId || undefined,
     employeeId: urlState.employeeId || undefined,
+    closedFrom: urlState.closedFrom || undefined,
+    hasOverdueActions: urlState.overdueOnly || undefined,
     locationId: locationId ?? undefined,
     page: urlState.page,
     limit: 25,
@@ -396,6 +404,22 @@ export default function IncidentsListPage() {
               />
             </div>
           )}
+          {urlState.closedFrom && (
+            <Badge variant="muted" size="sm" className="gap-1">
+              Closed since {formatOrganisationDate(urlState.closedFrom)}
+              <button type="button" aria-label="Clear closed-since filter" onClick={() => patchUrlState({ closedFrom: '' })}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {urlState.overdueOnly && (
+            <Badge variant="muted" size="sm" className="gap-1">
+              With overdue corrective measures
+              <button type="button" aria-label="Clear overdue filter" onClick={() => patchUrlState({ overdueOnly: false })}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
           {filtersActive && (
             <Button
               variant="ghost"
@@ -454,9 +478,9 @@ export default function IncidentsListPage() {
                       {inc.category.label}
                       {inc.subtype ? <span className="text-muted-foreground"> · {inc.subtype.label}</span> : null}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.occurredAt)}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{timezoneReady ? formatOrganisationDateTime(inc.occurredAt) : '…'}</td>
                     <td className="px-3 py-2.5">{inc.reportedBy?.name ?? 'Unknown'}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{formatOrganisationDateTime(inc.createdAt)}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{timezoneReady ? formatOrganisationDateTime(inc.createdAt) : '…'}</td>
                     <td className="px-3 py-2.5">{recordedByLabel(inc.reportedBy)}</td>
                     <td className="px-3 py-2.5">
                       <Badge variant={INCIDENT_SEVERITY_BADGE[inc.severity]} size="sm">{inc.severityLabel}</Badge>

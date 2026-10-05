@@ -113,7 +113,7 @@ export function MedicationTimeSlotRow({
         <Input
           value={slot.dose}
           onChange={e => onChange({ dose: e.target.value })}
-          placeholder={dosePlaceholder || 'e.g. 2 tablets'}
+          placeholder={dosePlaceholder || 'No of tablets'}
           disabled={disabled}
         />
       </div>

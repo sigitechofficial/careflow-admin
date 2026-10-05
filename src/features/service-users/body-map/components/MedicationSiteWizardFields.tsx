@@ -10,6 +10,7 @@ import { resolveBodyMapMedicationSubType } from '@/features/service-users/utils/
 import { patchMedicationSiteValidationErrors } from '@/features/service-users/body-map/utils/patch-safety'
 import type { BodyMapEmollientFireRisk, BodyMapMedicationSitePayload } from '@/features/service-users/body-map/types'
 import type { ServiceUserMedicationRow } from '@/features/service-users/api/service-users.api'
+import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/form-field'
 
@@ -68,12 +69,12 @@ export function buildMedicationSitePayload(
     oldPatchPresent: state.oldPatchPresent === 'yes' ? true : state.oldPatchPresent === 'no' ? false : undefined,
     oldPatchRemoved: state.oldPatchPresent === 'yes' ? state.oldPatchRemoved : undefined,
     oldPatchRemovalAt: state.oldPatchRemovalAt
-      ? new Date(state.oldPatchRemovalAt).toISOString()
+      ? orgDatetimeLocalToIso(state.oldPatchRemovalAt)
       : undefined,
     oldPatchBodyPart: state.oldPatchBodyPart.trim() || undefined,
     oldPatchNotes: state.oldPatchNotes.trim() || undefined,
     disposalRecorded: state.oldPatchPresent === 'yes' ? state.disposalRecorded : undefined,
-    nextChangeDue: state.nextChangeDue ? new Date(state.nextChangeDue).toISOString() : undefined,
+    nextChangeDue: state.nextChangeDue ? orgDatetimeLocalToIso(state.nextChangeDue) : undefined,
     siteRotationChecked: state.siteRotationChecked,
     secondStaffCheck: state.secondStaffCheck,
     siteRotationNotes: state.siteRotationNotes.trim() || undefined,

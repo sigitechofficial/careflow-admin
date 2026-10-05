@@ -7,6 +7,10 @@ const KIND_META: Record<string, { label: string; variant: 'info' | 'warning' | '
   REPORTED: { label: 'Reported', variant: 'info' },
   STATUS: { label: 'Status', variant: 'muted' },
   SEVERITY: { label: 'Severity', variant: 'warning' },
+  REVIEW: { label: 'Review', variant: 'muted' },
+  INVESTIGATION: { label: 'Investigation', variant: 'muted' },
+  ACTION: { label: 'Measure', variant: 'muted' },
+  OUTCOME: { label: 'Outcome', variant: 'muted' },
 }
 
 export function IncidentTimeline({ events }: { events: IncidentTimelineEvent[] }) {

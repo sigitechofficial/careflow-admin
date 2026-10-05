@@ -100,6 +100,7 @@ import PortalCalendarPage from '@/features/service-user-portal/pages/PortalCalen
 import PortalPhotosPage from '@/features/service-user-portal/pages/PortalPhotosPage'
 import PortalVisitPlansPage from '@/features/service-user-portal/pages/PortalVisitPlansPage'
 import PortalCompletedVisitsPage from '@/features/service-user-portal/pages/PortalCompletedVisitsPage'
+import PortalSurveysPage from '@/features/service-user-portal/pages/PortalSurveysPage'
 import { portalPageTitles } from '@/features/service-user-portal/portal-nav'
 import AccountPage from '@/features/account/pages/AccountPage'
 import HomePage from '@/features/home/pages/HomePage'
@@ -108,8 +109,6 @@ import ComponentShowcase from '@/features/home/pages/ComponentShowcase'
 import SecurityAdminPage from '@/features/admin/pages/SecurityAdminPage'
 import AuditLogPage from '@/features/admin/pages/AuditLogPage'
 import ServiceUserPortalAdminPage from '@/features/service-user-portal/pages/ServiceUserPortalAdminPage'
-import ViewAccidentsIncidentsPage from '@/features/accidents/pages/ViewAccidentsIncidentsPage'
-import RaiseAccidentsIncidentsPage from '@/features/accidents/pages/RaiseAccidentsIncidentsPage'
 import IncidentsListPage from '@/features/incidents/pages/IncidentsListPage'
 import SurveysPage from '@/features/surveys/pages/SurveysPage'
 import SurveyBuilderPage from '@/features/surveys/pages/SurveyBuilderPage'
@@ -143,6 +142,8 @@ import PayrollTaxesPage from '@/features/payroll/pages/PayrollTaxesPage'
 import PayrollEmployerSettingsPage from '@/features/payroll/pages/PayrollEmployerSettingsPage'
 import PayrollSchedulesPage from '@/features/payroll/pages/PayrollSchedulesPage'
 import PayrollEmployeesPage from '@/features/payroll/pages/PayrollEmployeesPage'
+import OfficeSalariesPage from '@/features/office-salaries/pages/OfficeSalariesPage'
+import SetupChecklistPage from '@/features/setup-checklist/pages/SetupChecklistPage'
 import UkPayrollRunsPage from '@/features/payroll/pages/UkPayrollRunsPage'
 import UkPayrollRunDetailPage from '@/features/payroll/pages/UkPayrollRunDetailPage'
 import UkPayrollPayslipsPage from '@/features/payroll/pages/UkPayrollPayslipsPage'
@@ -320,6 +321,8 @@ const pageTitles: Record<string, string> = {
   '/payroll/employer': 'Employer PAYE',
   '/payroll/schedules': 'Schedules & periods',
   '/payroll/employees': 'Employee payroll setup',
+  '/office-salaries': 'Office salaries',
+  '/checklist': 'Checklist',
   '/payroll/runs': 'UK payroll runs',
   '/payroll/runs/$runId': 'UK payroll run',
   '/payroll/payslips': 'Payslips',
@@ -686,6 +689,12 @@ const portalCompletedVisitsRoute = createRoute({
   getParentRoute: () => portalShellRoute,
   path: '/portal/completed-visits',
   component: PortalCompletedVisitsPage,
+})
+
+const portalSurveysRoute = createRoute({
+  getParentRoute: () => portalShellRoute,
+  path: '/portal/surveys',
+  component: PortalSurveysPage,
 })
 
 const appShellRoute = createRoute({
@@ -1458,20 +1467,21 @@ const hrCandidateDetailRoute = createRoute({
   component: CandidateDetailPage,
 })
 
+// Legacy URLs kept for old bookmarks/links; the API-backed Incident module replaces these pages.
 const accidentsIncidentsViewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/view',
-  beforeLoad: requirePermission('incidents.read'),
-  // UI-only register page ΓÇö no list API to prefetch yet
-  component: ViewAccidentsIncidentsPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/incidents/view' })
+  },
 })
 
 const accidentsIncidentsRaiseRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/accidents-incidents/raise',
-  beforeLoad: requirePermission('incidents.read'),
-  // UI-only form page ΓÇö no lookup API to prefetch yet
-  component: RaiseAccidentsIncidentsPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/incidents/raise' })
+  },
 })
 
 // Incident Management module (real, API-backed).
@@ -1937,6 +1947,20 @@ const payrollSchedulesRoute = createRoute({
   component: PayrollSchedulesPage,
 })
 
+const setupChecklistRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/checklist',
+  beforeLoad: requirePermission('setup_checklist.read'),
+  component: SetupChecklistPage,
+})
+
+const officeSalariesRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/office-salaries',
+  beforeLoad: requirePermission('office_salaries.manage'),
+  component: OfficeSalariesPage,
+})
+
 const payrollEmployeesRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/payroll/employees',
@@ -2140,6 +2164,7 @@ const routeTree = rootRoute.addChildren([
     portalCalendarRoute,
     portalVisitPlansRoute,
     portalCompletedVisitsRoute,
+    portalSurveysRoute,
     portalPhotosRoute,
   ]),
   appShellRoute.addChildren([
@@ -2246,6 +2271,8 @@ const routeTree = rootRoute.addChildren([
     payrollEmployerRoute,
     payrollSchedulesRoute,
     payrollEmployeesRoute,
+    officeSalariesRoute,
+    setupChecklistRoute,
     payrollRunsRoute,
     payrollRunDetailRoute,
     payrollPayslipsRoute,

@@ -9,7 +9,7 @@ import { Input } from '@/shared/ui/input'
 import { Combobox, type ComboboxOption } from '@/shared/ui/combobox'
 import { Badge } from '@/shared/ui/badge'
 import { InlineConfirm } from '@/shared/ui/inline-confirm'
-import { toastApiError } from '@/shared/lib/toast'
+import { toastApiError, toastWarning } from '@/shared/lib/toast'
 import { useServiceUsers } from '@/features/service-users/hooks/useServiceUsers'
 import { useEmployees } from '@/features/employees/hooks/useEmployees'
 import { useServiceUserLocations } from '@/features/settings/hooks/useLocationManagement'
@@ -18,6 +18,9 @@ import { useIncidentCategories, useCreateIncident } from '@/features/incidents/h
 import { IncidentWitnessDialog } from '@/features/incidents/components/IncidentWitnessDialog'
 import { IncidentVisitPicker, NOT_DURING_VISIT } from '@/features/incidents/components/IncidentVisitPicker'
 import { IncidentStaffMultiSelect } from '@/features/incidents/components/IncidentStaffMultiSelect'
+import { PickedChips } from '@/features/incidents/components/PickedChips'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
+import { nowOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import {
   IncidentCategoryDetailsFields,
   YesNoField,
@@ -96,11 +99,8 @@ function newInjuryId(): string {
   return createClientUuid()
 }
 
-function nowLocalDatetime(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+/** Matches the backend CreateIncidentDto @MaxLength(8000) on the free-text fields. */
+const TEXT_MAX_LENGTH = 8000
 
 /** A dropdown that opens a checkbox list for multi-selection. */
 function MultiSelectDropdown({
@@ -218,8 +218,26 @@ export default function RaiseIncidentPage() {
 
   const [categoryId, setCategoryId] = React.useState('')
   const [subtypeId, setSubtypeId] = React.useState('')
-  const [occurredAtLocal, setOccurredAtLocal] = React.useState(nowLocalDatetime)
+  // null = not edited yet: default to "now" in the org timezone (recomputed once the org timezone
+  // loads; the display-format context re-renders this page when it arrives).
+  useOrganisationDisplayFormat()
+  const [occurredAtEdited, setOccurredAtLocal] = React.useState<string | null>(null)
+  const occurredAtLocal = occurredAtEdited ?? nowOrgDatetimeLocal()
   const [serviceUserId, setServiceUserId] = React.useState('')
+  // Other service users involved (the first / primary one is `serviceUserId`).
+  const [otherServiceUsers, setOtherServiceUsers] = React.useState<{ id: string; name: string }[]>([])
+  const [otherSuSearch, setOtherSuSearch] = React.useState('')
+  const otherSuQuery = useServiceUsers({ limit: 50, search: otherSuSearch || undefined })
+  const otherSuOptions: ComboboxOption[] = React.useMemo(
+    () =>
+      (otherSuQuery.data?.rows ?? [])
+        .filter((r) => r.id !== serviceUserId && !otherServiceUsers.some((p) => p.id === r.id))
+        .map((r) => ({
+          value: r.id,
+          label: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unnamed',
+        })),
+    [otherSuQuery.data, serviceUserId, otherServiceUsers],
+  )
   const [description, setDescription] = React.useState('')
   const [contextBefore, setContextBefore] = React.useState('')
   const [contextAfter, setContextAfter] = React.useState('')
@@ -242,6 +260,8 @@ export default function RaiseIncidentPage() {
   const photoInputRef = React.useRef<HTMLInputElement>(null)
   // Covers the whole save (incident + injuries + witnesses + uploads) so Submit can't be clicked twice.
   const [submitting, setSubmitting] = React.useState(false)
+  // Blocks rapid repeat clicks that land before React re-renders the disabled button.
+  const submittingRef = React.useRef(false)
   const [severity, setSeverity] = React.useState<IncidentSeverity | ''>('')
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [submitted, setSubmitted] = React.useState<IncidentListItem | null>(null)
@@ -426,8 +446,9 @@ export default function RaiseIncidentPage() {
     const next: Record<string, string> = {}
     if (!reporterId) next.reporterId = 'Select the carer who reported it'
     if (!categoryId) next.categoryId = 'Select what you are reporting'
-    if (!occurredAtLocal) next.occurredAt = 'Enter the date and time'
-    else if (new Date(occurredAtLocal).getTime() > Date.now() + 60_000)
+    const occurredIso = occurredAtLocal ? orgDatetimeLocalToIso(occurredAtLocal) : ''
+    if (!occurredIso) next.occurredAt = 'Enter the date and time'
+    else if (Date.parse(occurredIso) > Date.now() + 60_000)
       next.occurredAt = 'The date/time cannot be in the future'
     if (affectedKinds.includes('SERVICE_USER') && !serviceUserId)
       next.serviceUserId = 'Select the service user'
@@ -454,18 +475,22 @@ export default function RaiseIncidentPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (submitting || !validate()) return
+    if (submittingRef.current || !validate()) return
+    submittingRef.current = true
     setSubmitting(true)
+    const affectedSu = affectedKinds.includes('SERVICE_USER') ? serviceUserId : ''
+    const affectedStaff = affectedKinds.includes('EMPLOYEE') ? employeeId : ''
+    // Everyone involved, primary person first (other staff / service users follow).
+    const allServiceUserIds = [...new Set([affectedSu, ...otherServiceUsers.map((p) => p.id)].filter(Boolean))]
+    const allEmployeeIds = [...new Set([affectedStaff, ...involvedStaff.map((p) => p.id)].filter(Boolean))]
     const input: CreateIncidentInput = {
       categoryId,
       subtypeId: subtypeId || undefined,
-      occurredAt: new Date(occurredAtLocal).toISOString(),
-      primaryServiceUserId: affectedKinds.includes('SERVICE_USER')
-        ? serviceUserId || undefined
-        : undefined,
-      primaryEmployeeId: affectedKinds.includes('EMPLOYEE')
-        ? employeeId || undefined
-        : undefined,
+      occurredAt: orgDatetimeLocalToIso(occurredAtLocal),
+      primaryServiceUserId: affectedSu || undefined,
+      primaryEmployeeId: affectedStaff || undefined,
+      serviceUserIds: allServiceUserIds.length ? allServiceUserIds : undefined,
+      employeeIds: allEmployeeIds.length ? allEmployeeIds : undefined,
       affectedPersonKinds: affectedKinds.length ? affectedKinds : undefined,
       primaryPersonKind: affectedKinds[0],
       primaryPersonName: affectedKinds.some(
@@ -485,7 +510,6 @@ export default function RaiseIncidentPage() {
       severity: severity || undefined,
       reporterEmployeeId: reporterId,
       scheduledJobId: visitChoice && visitChoice !== NOT_DURING_VISIT ? visitChoice : undefined,
-      involvedEmployeeIds: involvedStaff.length ? involvedStaff.map((p) => p.id) : undefined,
       categoryDetails: categoryDetailsForSubmit(categoryKey, {
         ...categoryDetails,
         // Only meaningful when no visit was linked.
@@ -531,10 +555,9 @@ export default function RaiseIncidentPage() {
           `${failedPhotos.length} file${failedPhotos.length === 1 ? '' : 's'} (${failedPhotos.join(', ')})`,
         )
       if (failureParts.length > 0) {
-        toastApiError(
-          new Error(
-            `Incident saved, but ${failureParts.join(', ')} could not be recorded. Add them on the incident record.`,
-          ),
+        toastWarning(
+          'Incident saved with missing details',
+          `${failureParts.join(', ')} could not be recorded. Add them on the incident record.`,
         )
       }
       photos.forEach((p) => URL.revokeObjectURL(p.previewUrl))
@@ -542,6 +565,7 @@ export default function RaiseIncidentPage() {
     } catch (err) {
       toastApiError(err)
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -616,7 +640,8 @@ export default function RaiseIncidentPage() {
               setAmbulanceAttended(null)
               setTakenToAe(null)
               setAdmittedToHospital(null)
-              setOccurredAtLocal(nowLocalDatetime())
+              setOccurredAtLocal(null)
+              setOtherServiceUsers([])
               setErrors({})
             }}
           >
@@ -892,9 +917,31 @@ export default function RaiseIncidentPage() {
               </div>
             </FormField>
 
+            <FormField label="Other service users involved" className="sm:col-span-2">
+              <div className="sm:max-w-md">
+                <Combobox
+                  options={otherSuOptions}
+                  value=""
+                  onChange={(id) => {
+                    const name = otherSuOptions.find((o) => o.value === id)?.label
+                    if (id && name) setOtherServiceUsers((prev) => [...prev, { id, name }])
+                  }}
+                  onSearchChange={setOtherSuSearch}
+                  loading={otherSuQuery.isLoading}
+                  placeholder="Add service user…"
+                  searchPlaceholder="Search service users…"
+                />
+              </div>
+              <PickedChips
+                items={otherServiceUsers.map((p) => ({ id: p.id, label: p.name }))}
+                onRemove={(id) => setOtherServiceUsers((prev) => prev.filter((p) => p.id !== id))}
+              />
+            </FormField>
+
             <FormField label="What happened?" htmlFor="inc-desc" required error={errors.description} className="sm:col-span-2">
               <Textarea
                 id="inc-desc"
+                maxLength={TEXT_MAX_LENGTH}
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -909,6 +956,7 @@ export default function RaiseIncidentPage() {
             >
               <Textarea
                 id="inc-before"
+                maxLength={TEXT_MAX_LENGTH}
                 rows={2}
                 value={contextBefore}
                 onChange={(e) => setContextBefore(e.target.value)}
@@ -954,6 +1002,7 @@ export default function RaiseIncidentPage() {
             >
               <Textarea
                 id="inc-actions"
+                maxLength={TEXT_MAX_LENGTH}
                 rows={2}
                 value={immediateActions}
                 onChange={(e) => setImmediateActions(e.target.value)}
@@ -964,6 +1013,7 @@ export default function RaiseIncidentPage() {
             <FormField label="What happened afterwards?" htmlFor="inc-after" className="sm:col-span-2">
               <Textarea
                 id="inc-after"
+                maxLength={TEXT_MAX_LENGTH}
                 rows={2}
                 value={contextAfter}
                 onChange={(e) => setContextAfter(e.target.value)}

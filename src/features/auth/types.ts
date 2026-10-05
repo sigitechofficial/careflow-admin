@@ -236,6 +236,8 @@ export type Permission =
   | 'surveys.respond'
   | 'hours_approvals.read'
   | 'hours_approvals.manage'
+  | 'office_salaries.manage'
+  | 'setup_checklist.read'
   | 'incidents.read'
   | 'incidents.write'
   | 'incidents.create'

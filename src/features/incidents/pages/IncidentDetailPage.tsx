@@ -1,11 +1,14 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, Lock, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, Lock, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { cn } from '@/shared/lib/utils'
 import { useAuthStore } from '@/features/auth/store'
 import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import {
   useIncident,
   useChangeIncidentSeverity,
@@ -31,11 +34,13 @@ import { IncidentTimeline } from '@/features/incidents/components/IncidentTimeli
 import {
   IncidentWorkflowStepCard,
   resolveIncidentDetailWorkflow,
+  type WorkflowStepState,
 } from '@/features/incidents/components/IncidentWorkflowStepCard'
 import {
   IMMEDIATE_ACTION_OPTIONS,
   INCIDENT_SEVERITY_BADGE,
   INCIDENT_STATUS_BADGE,
+  INCIDENT_PERSON_KIND_OPTIONS,
   WHO_INFORMED_LABELS,
   type IncidentSeverity,
 } from '@/features/incidents/types'
@@ -64,6 +69,31 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 const yesNoUnknown = (v: boolean | null | undefined) => (v === true ? 'Yes' : v === false ? 'No' : 'Not known')
 
+/** Tab label for a workflow step: tick when done, number otherwise, "Now" on the current step. */
+function StepTabLabel({ n, label, state }: { n: number; label: string; state: WorkflowStepState }) {
+  return (
+    <>
+      <span
+        className={cn(
+          'flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-semibold',
+          state === 'complete' && 'border-success bg-success text-white',
+          state === 'current' && 'border-primary text-primary',
+          state === 'upcoming' && 'border-muted-foreground/40 text-muted-foreground',
+        )}
+        aria-hidden
+      >
+        {state === 'complete' ? <Check className="h-3 w-3" /> : n}
+      </span>
+      {label}
+      {state === 'current' ? (
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
+          Now
+        </span>
+      ) : null}
+    </>
+  )
+}
+
 function SubBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border/80 bg-muted/20 p-3 sm:p-4">
@@ -76,6 +106,8 @@ function SubBlock({ title, children }: { title: string; children: React.ReactNod
 export default function IncidentDetailPage() {
   const { incidentId } = useParams({ strict: false }) as { incidentId: string }
   const can = useAuthStore((s) => s.can)
+  // Re-render when the organisation timezone loads so dates/timeline use it.
+  useOrganisationDisplayFormat()
   const { data: incident, isLoading, isError } = useIncident(incidentId)
 
   const allegedStaffId =
@@ -90,6 +122,15 @@ export default function IncidentDetailPage() {
 
   const [nextSeverity, setNextSeverity] = React.useState<IncidentSeverity | ''>('')
   const [severityReason, setSeverityReason] = React.useState('')
+  // Selected tab; null = follow the current workflow step (and jump there when the step changes).
+  const [tab, setTab] = React.useState<string | null>(null)
+  const currentStepId = incident
+    ? resolveIncidentDetailWorkflow(incident.status, Boolean(incident.outcome?.finalOutcome?.trim()))
+        .currentId
+    : null
+  React.useEffect(() => {
+    setTab(null)
+  }, [currentStepId])
 
   const canReview = can('incidents.review')
   const canInvestigate = can('incidents.investigate')
@@ -115,15 +156,34 @@ export default function IncidentDetailPage() {
     )
   }
 
+  // Closed incidents are read-only (the API enforces this); changes require reopening first.
+  const isClosed = incident.status === 'CLOSED'
+  const canEditRecord = canEdit && !isClosed
+  const canInvestigateRecord = canInvestigate && !isClosed
+  const canReviewRecord = canReview && !isClosed
+  const canManageActionsRecord = canManageActions && !isClosed
+
   const hasFinalOutcome = Boolean(incident.outcome?.finalOutcome?.trim())
   const workflow = resolveIncidentDetailWorkflow(incident.status, hasFinalOutcome)
   const stepState = Object.fromEntries(workflow.steps.map((s) => [s.id, s])) as Record<
     (typeof workflow.steps)[number]['id'],
     (typeof workflow.steps)[number]
   >
+
   const openMandatoryActions = incident.actions.filter(
     (a) => a.isMandatory && a.status !== 'COMPLETED' && a.status !== 'CANCELLED',
   ).length
+  // Everyone involved (older incidents only have the primary person).
+  const involvedServiceUsers = incident.involvedServiceUsers?.length
+    ? incident.involvedServiceUsers
+    : incident.primaryServiceUser
+      ? [incident.primaryServiceUser]
+      : []
+  const involvedEmployees = incident.involvedEmployees?.length
+    ? incident.involvedEmployees
+    : incident.primaryEmployee
+      ? [incident.primaryEmployee]
+      : []
 
   return (
     <div className="space-y-4">
@@ -175,6 +235,7 @@ export default function IncidentDetailPage() {
       <IncidentNextStepBar
         incidentId={incident.id}
         status={incident.status}
+        severity={incident.severity}
         hasFinalOutcome={hasFinalOutcome}
         openMandatoryActions={openMandatoryActions}
         canReview={canReview}
@@ -182,36 +243,30 @@ export default function IncidentDetailPage() {
         canReopen={canReopen}
       />
 
-      <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Workflow
-        </p>
-        <ol className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
-          {workflow.steps.map((step, index) => (
-            <li key={step.id} className="flex items-center gap-2 text-sm">
-              {index > 0 ? (
-                <span className="hidden text-muted-foreground sm:inline" aria-hidden>
-                  →
-                </span>
-              ) : null}
-              <span
-                className={
-                  step.state === 'current'
-                    ? 'font-semibold text-foreground'
-                    : step.state === 'complete'
-                      ? 'text-muted-foreground'
-                      : 'text-muted-foreground/70'
-                }
-              >
-                {step.label.replace(/^\d+\.\s*/, '')}
-                {step.state === 'current' ? ' (now)' : ''}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <Tabs value={tab ?? workflow.currentId} onValueChange={setTab}>
+        <div className="overflow-x-auto">
+          <TabsList variant="underline" className="h-auto min-w-max justify-start">
+            {workflow.steps.map((step, index) => (
+              <TabsTrigger key={step.id} value={step.id} variant="underline">
+                <StepTabLabel n={index + 1} label={step.label.replace(/^\d+\.\s*/, '')} state={step.state} />
+              </TabsTrigger>
+            ))}
+            <TabsTrigger value="records" variant="underline">
+              Supporting records
+            </TabsTrigger>
+            <TabsTrigger value="timeline" variant="underline">
+              Timeline
+            </TabsTrigger>
+            {canReview && (
+              <TabsTrigger value="admin" variant="underline">
+                Admin controls
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
-      <div className="space-y-4">
+        {/* forceMount keeps unsaved form input when switching tabs (inactive tabs are hidden). */}
+        <TabsContent value="raise" forceMount>
         {/* Step 1 — Raise */}
         <IncidentWorkflowStepCard
           stepNumber={1}
@@ -231,6 +286,53 @@ export default function IncidentDetailPage() {
                   : incident.reportedBy?.recordedByName
               }
             />
+            <Field
+              label="Who was affected"
+              value={incident.affectedPersonKinds
+                .map((k) => INCIDENT_PERSON_KIND_OPTIONS.find((o) => o.value === k)?.label ?? k)
+                .join(', ')}
+            />
+            {involvedServiceUsers.length > 0 && (
+              <Field
+                label={involvedServiceUsers.length > 1 ? 'Service users' : 'Service user'}
+                value={
+                  <span className="flex flex-col gap-0.5">
+                    {involvedServiceUsers.map((su) => (
+                      <Link
+                        key={su.id}
+                        to="/service-users/$serviceUserId"
+                        params={{ serviceUserId: su.id }}
+                        className="text-primary underline underline-offset-2 hover:no-underline"
+                      >
+                        {su.name ?? 'Service user'}
+                        {su.serviceUserNumber ? ` (${su.serviceUserNumber})` : ''}
+                      </Link>
+                    ))}
+                  </span>
+                }
+              />
+            )}
+            {involvedEmployees.length > 0 && (
+              <Field
+                label="Staff involved"
+                value={
+                  <span className="flex flex-col gap-0.5">
+                    {involvedEmployees.map((emp) => (
+                      <Link
+                        key={emp.id}
+                        to="/hr/employees/$employeeId"
+                        params={{ employeeId: emp.id }}
+                        className="text-primary underline underline-offset-2 hover:no-underline"
+                      >
+                        {emp.name ?? 'Staff member'}
+                      </Link>
+                    ))}
+                  </span>
+                }
+              />
+            )}
+            {incident.primaryPersonName && <Field label="Other person" value={incident.primaryPersonName} />}
+            <Field label="Branch" value={incident.location?.name} />
             <Field label="Specific area" value={incident.specificArea} />
             <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
             {incident.scheduledJobId && (
@@ -303,11 +405,11 @@ export default function IncidentDetailPage() {
                       What was done
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                    {incident.immediateActionCodes.map((code) => (
-                      <Badge key={code} variant="muted" size="sm">
-                        {actionLabel(code)}
-                      </Badge>
-                    ))}
+                      {incident.immediateActionCodes.map((code) => (
+                        <Badge key={code} variant="muted" size="sm">
+                          {actionLabel(code)}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -347,7 +449,7 @@ export default function IncidentDetailPage() {
             )}
           </SubBlock>
 
-          {(incident.injuryOccurred || incident.injuries.length > 0 || canEdit) && (
+          {(incident.injuryOccurred || incident.injuries.length > 0 || canEditRecord) && (
             <SubBlock title="Injuries">
               {incident.injuryDetails && (
                 <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">{incident.injuryDetails}</p>
@@ -355,7 +457,7 @@ export default function IncidentDetailPage() {
               <IncidentInjuriesPanel
                 incidentId={incident.id}
                 injuries={incident.injuries}
-                canManage={canEdit}
+                canManage={canEditRecord}
                 serviceUserId={incident.primaryServiceUserId}
               />
             </SubBlock>
@@ -365,11 +467,13 @@ export default function IncidentDetailPage() {
             <IncidentWitnessesPanel
               incidentId={incident.id}
               witnesses={incident.witnesses}
-              canManage={canEdit}
+              canManage={canEditRecord}
             />
           </SubBlock>
         </IncidentWorkflowStepCard>
+        </TabsContent>
 
+        <TabsContent value="review" forceMount>
         {/* Step 2 — Review */}
         <IncidentWorkflowStepCard
           stepNumber={2}
@@ -377,13 +481,15 @@ export default function IncidentDetailPage() {
           hint={stepState.review.hint}
           state={stepState.review.state}
         >
-          {canReview || incident.review ? (
-            <IncidentReviewSection incidentId={incident.id} review={incident.review} canEdit={canReview} />
+          {canReviewRecord || incident.review ? (
+            <IncidentReviewSection incidentId={incident.id} review={incident.review} canEdit={canReviewRecord} />
           ) : (
             <p className="text-sm text-muted-foreground">No review recorded yet.</p>
           )}
         </IncidentWorkflowStepCard>
+        </TabsContent>
 
+        <TabsContent value="investigate" forceMount>
         {/* Step 3 — Investigate */}
         <IncidentWorkflowStepCard
           stepNumber={3}
@@ -391,21 +497,25 @@ export default function IncidentDetailPage() {
           hint={stepState.investigate.hint}
           state={stepState.investigate.state}
         >
-          {(canInvestigate || incident.investigation) && (
+          {(canInvestigateRecord || incident.investigation) && (
             <IncidentInvestigationSection
               incidentId={incident.id}
               investigation={incident.investigation}
               carerSuspensions={incident.carerSuspensions ?? []}
               courseRecommendations={incident.courseRecommendations ?? []}
-              canEdit={canInvestigate}
+              canEdit={canInvestigateRecord}
               primaryEmployeeId={incident.primaryEmployeeId}
+              serviceUsers={involvedServiceUsers}
+              involvedEmployees={involvedEmployees}
             />
           )}
-          {!canInvestigate && !incident.investigation && (
+          {!canInvestigateRecord && !incident.investigation && (
             <p className="text-sm text-muted-foreground">No investigation recorded yet.</p>
           )}
         </IncidentWorkflowStepCard>
+        </TabsContent>
 
+        <TabsContent value="actions" forceMount>
         {/* Step 4 — Corrective measures */}
         <IncidentWorkflowStepCard
           stepNumber={4}
@@ -416,10 +526,12 @@ export default function IncidentDetailPage() {
           <IncidentActionsSection
             incidentId={incident.id}
             actions={incident.actions}
-            canManage={canManageActions}
+            canManage={canManageActionsRecord}
           />
         </IncidentWorkflowStepCard>
+        </TabsContent>
 
+        <TabsContent value="outcome" forceMount>
         {/* Step 5 — Outcome & close */}
         <IncidentWorkflowStepCard
           stepNumber={5}
@@ -427,11 +539,12 @@ export default function IncidentDetailPage() {
           hint={stepState.outcome.hint}
           state={stepState.outcome.state}
         >
+          {/* Closing and reopening happen in the "Next step" bar; this section only records the outcome. */}
           {canReview || incident.outcome || incident.status === 'CLOSED' || incident.status === 'AWAITING_CLOSURE' ? (
             <IncidentOutcomeSection
               incident={incident}
               outcome={incident.outcome}
-              canEditOutcome={canReview}
+              canEditOutcome={canReviewRecord}
             />
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -439,22 +552,24 @@ export default function IncidentDetailPage() {
             </p>
           )}
         </IncidentWorkflowStepCard>
+        </TabsContent>
 
+        <TabsContent value="records" forceMount>
         <Section title="Supporting records">
           <div className="space-y-4">
             <SubBlock title="Documents & attachments">
-              <IncidentAttachmentsPanel incidentId={incident.id} canManage={canEdit} />
+              <IncidentAttachmentsPanel incidentId={incident.id} canManage={canEditRecord} />
             </SubBlock>
             <SubBlock title="Related care records">
               <IncidentCareRecordsPanel
                 incidentId={incident.id}
                 records={incident.relatedCareRecords ?? []}
-                canManage={canEdit}
+                canManage={canEditRecord}
                 serviceUserId={incident.primaryServiceUserId}
               />
             </SubBlock>
             <SubBlock title="Related incidents">
-              <IncidentRelatedPanel incidentId={incident.id} canManage={canEdit} />
+              <IncidentRelatedPanel incidentId={incident.id} canManage={canEditRecord} />
             </SubBlock>
             {incident.primaryServiceUserId && (
               <SubBlock title="This service user's incidents">
@@ -491,14 +606,19 @@ export default function IncidentDetailPage() {
             </SubBlock>
           </div>
         </Section>
+        </TabsContent>
 
+        <TabsContent value="timeline" forceMount>
         <Section title="Timeline">
           <IncidentTimeline events={incident.history ?? []} />
         </Section>
+        </TabsContent>
 
         {canReview && (
+          <TabsContent value="admin" forceMount>
           <Section title="Admin controls">
             <div className="space-y-4">
+              {!isClosed && (
               <div>
                 <label className="text-xs uppercase tracking-wide text-muted-foreground">
                   Change severity
@@ -543,10 +663,12 @@ export default function IncidentDetailPage() {
                   Update severity
                 </Button>
               </div>
+              )}
             </div>
           </Section>
+          </TabsContent>
         )}
-      </div>
+      </Tabs>
     </div>
   )
 }

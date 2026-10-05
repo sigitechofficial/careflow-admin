@@ -65,6 +65,8 @@ export async function fetchIncidents(
     status: filters.status,
     severity: filters.severity,
     severities: filters.severities?.length ? filters.severities.join(',') : undefined,
+    closedFrom: filters.closedFrom,
+    hasOverdueActions: filters.hasOverdueActions || undefined,
     categoryId: filters.categoryId,
     serviceUserId: filters.serviceUserId,
     employeeId: filters.employeeId,
@@ -100,10 +102,11 @@ export async function changeIncidentStatus(
   id: string,
   status: IncidentStatus,
   reason?: string,
+  overrideMandatoryActions?: boolean,
 ): Promise<IncidentListItem> {
   const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/status`, {
     method: 'POST',
-    body: JSON.stringify({ status, reason }),
+    body: JSON.stringify({ status, reason, overrideMandatoryActions }),
   })
   return res.data
 }

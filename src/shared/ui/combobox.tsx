@@ -59,15 +59,30 @@ export function Combobox({
     )
   })
 
-  const selected = options.find((o) => o.value === value)
+  // Server-searched option lists may not contain the current value (filtered or paged out), so keep
+  // the last matching option to avoid the trigger looking empty while a value is still set.
+  const lastSelectedRef = React.useRef<ComboboxOption | undefined>(undefined)
+  const matched = value ? options.find((o) => o.value === value) : undefined
+  if (matched) lastSelectedRef.current = matched
+  const selected =
+    matched ?? (value && lastSelectedRef.current?.value === value ? lastSelectedRef.current : undefined)
 
   const handleSearch = (v: string) => {
     setSearch(v)
     onSearchChange?.(v)
   }
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) {
+      // Reset on every close (select, Escape, outside click) so the parent's search filter doesn't linger.
+      setSearch('')
+      onSearchChange?.('')
+    }
+  }
+
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen} modal={false}>
+    <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange} modal={false}>
       <PopoverPrimitive.Trigger asChild>
         <button
           id={id}
@@ -159,8 +174,7 @@ export function Combobox({
                     } else {
                       onChange?.(opt.value)
                     }
-                    setOpen(false)
-                    setSearch('')
+                    handleOpenChange(false)
                   }}
                   className={cn(
                     'flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors',

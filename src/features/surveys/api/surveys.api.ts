@@ -2,6 +2,8 @@ import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
   CreateQuestionInput,
   CreateSurveyInput,
+  PortalSurveyAnswers,
+  PortalSurveyItem,
   PublicSurveyForm,
   SendSurveyResult,
   SurveyDetail,
@@ -122,16 +124,39 @@ export async function sendSurvey(
   employeeIds?: string[],
   distributeAt?: string,
   recurrence?: string | null,
+  locationIds?: string[],
 ): Promise<SendSurveyResult> {
   const res = await apiJson<ApiEnvelope<SendSurveyResult>>(`/surveys/${surveyId}/send`, {
     method: 'POST',
     body: JSON.stringify({
       ...(employeeIds?.length ? { employeeIds } : {}),
+      ...(locationIds?.length ? { locationIds } : {}),
       ...(distributeAt ? { distributeAt } : {}),
       ...(recurrence !== undefined ? { recurrence } : {}),
     }),
   })
   return res.data as SendSurveyResult
+}
+
+/** Portal: surveys sent to the signed-in service user. */
+export async function fetchPortalSurveys(init?: RequestInit): Promise<PortalSurveyItem[]> {
+  const res = await apiJson<ApiEnvelope<PortalSurveyItem[]>>('/portal/surveys', {
+    method: 'GET',
+    ...init,
+  })
+  return res.data ?? []
+}
+
+/** Portal: answers the signed-in service user submitted for one survey. */
+export async function fetchPortalSurveyAnswers(
+  token: string,
+  init?: RequestInit,
+): Promise<PortalSurveyAnswers> {
+  const res = await apiJson<ApiEnvelope<PortalSurveyAnswers>>(
+    `/portal/surveys/${encodeURIComponent(token)}/answers`,
+    { method: 'GET', ...init },
+  )
+  return res.data as PortalSurveyAnswers
 }
 
 export async function publishSurvey(

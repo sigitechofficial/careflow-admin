@@ -37,15 +37,19 @@ export type OrganisationDisplayFormatters = {
   formatTimeRangeHm: (start: string, end: string) => string
   formatHourLabel: (hour: number) => string
   formatPeriodRange: (band: ScheduleJobsDayPeriodBand) => string
+  /** False until organisation settings (timezone) have loaded — lets pages avoid a fallback-zone flash. */
+  timezoneReady: boolean
 }
 
 function buildFormatters(
   dateDisplayFormat: DateDisplayFormat,
   timeDisplayFormat: TimeDisplayFormat,
+  timezoneReady = true,
 ): OrganisationDisplayFormatters {
   return {
     dateDisplayFormat,
     timeDisplayFormat,
+    timezoneReady,
     formatDate: (isoDate) => formatDisplayDateShort(isoDate, dateDisplayFormat),
     formatDateLong: (isoDate) => formatDisplayDateLong(isoDate, dateDisplayFormat),
     formatWeekdayShort: formatDisplayWeekdayShort,
@@ -66,7 +70,9 @@ const OrganisationDisplayFormatContext = React.createContext<OrganisationDisplay
 
 export function OrganisationDisplayFormatProvider({ children }: { children: React.ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken)
-  const { data } = useGeneralSettings(Boolean(accessToken))
+  const { data, isError } = useGeneralSettings(Boolean(accessToken))
+  // Treat a failed settings load as ready (fallback zone) so pages never wait forever.
+  const timezoneReady = Boolean(data) || isError
   const dateDisplayFormat = data?.dateDisplayFormat ?? DEFAULT_DATE_DISPLAY_FORMAT
   const timeDisplayFormat = data?.timeDisplayFormat ?? DEFAULT_TIME_DISPLAY_FORMAT
   const operationalTimezone = data?.timezone ?? DEFAULT_OPERATIONAL_TIMEZONE
@@ -80,8 +86,8 @@ export function OrganisationDisplayFormatProvider({ children }: { children: Reac
   syncOrganisationOperationalTimezone(operationalTimezone)
 
   const value = React.useMemo(
-    () => buildFormatters(dateDisplayFormat, timeDisplayFormat),
-    [dateDisplayFormat, timeDisplayFormat, operationalTimezone],
+    () => buildFormatters(dateDisplayFormat, timeDisplayFormat, timezoneReady),
+    [dateDisplayFormat, timeDisplayFormat, operationalTimezone, timezoneReady],
   )
 
   return (

@@ -12,6 +12,10 @@ export type IncidentsListSearch = {
   to?: string
   su?: string
   emp?: string
+  /** Closed on or after this day (YYYY-MM-DD). */
+  closed?: string
+  /** Only incidents with overdue corrective measures. */
+  overdue?: boolean
   page?: number
 }
 
@@ -25,6 +29,8 @@ export type IncidentsListUrlState = {
   dateTo: string
   serviceUserId: string
   employeeId: string
+  closedFrom: string
+  overdueOnly: boolean
   page: number
 }
 
@@ -38,6 +44,8 @@ export const EMPTY_INCIDENTS_LIST_URL_STATE: IncidentsListUrlState = {
   dateTo: '',
   serviceUserId: '',
   employeeId: '',
+  closedFrom: '',
+  overdueOnly: false,
   page: 1,
 }
 
@@ -48,7 +56,6 @@ const STATUSES = new Set<IncidentStatus>([
   'ACTIONS_REQUIRED',
   'AWAITING_CLOSURE',
   'CLOSED',
-  'REOPENED',
 ])
 const SEVERITY_ORDER: IncidentSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
@@ -74,6 +81,8 @@ function parseSeverities(value: unknown): IncidentSeverity[] {
   const s = asString(value)
   if (!s) return []
   const wanted = new Set(s.split(',').map((p) => p.trim().toUpperCase()))
+  // Older dashboard links use `HIGH_CRITICAL`.
+  if (wanted.has('HIGH_CRITICAL')) wanted.add('HIGH').add('CRITICAL')
   return SEVERITY_ORDER.filter((sev) => wanted.has(sev))
 }
 
@@ -98,6 +107,10 @@ export function validateIncidentsListSearch(raw: Record<string, unknown>): Incid
   if (su) out.su = su
   const emp = asUuid(raw.emp)
   if (emp) out.emp = emp
+  const closed = asIsoDay(raw.closed ?? raw.closedFrom)
+  if (closed) out.closed = closed
+  const overdue = raw.overdue === true ? 'true' : asString(raw.overdue)
+  if (overdue === 'true' || overdue === '1') out.overdue = true
   const page = Number(asString(raw.page))
   if (Number.isInteger(page) && page > 1) out.page = page
   return out
@@ -115,6 +128,8 @@ export function parseIncidentsListSearch(search: IncidentsListSearch): Incidents
     dateTo: v.to ?? '',
     serviceUserId: v.su ?? '',
     employeeId: v.emp ?? '',
+    closedFrom: v.closed ?? '',
+    overdueOnly: v.overdue === true,
     page: v.page ?? 1,
   }
 }
@@ -130,6 +145,8 @@ export function buildIncidentsListSearch(state: IncidentsListUrlState): Incident
     to: state.dateTo,
     su: state.serviceUserId,
     emp: state.employeeId,
+    closed: state.closedFrom,
+    overdue: state.overdueOnly ? true : undefined,
     page: state.page > 1 ? state.page : undefined,
   })
 }
@@ -145,6 +162,8 @@ export function hasActiveIncidentsListFilters(state: IncidentsListUrlState): boo
       state.dateFrom ||
       state.dateTo ||
       state.serviceUserId ||
-      state.employeeId,
+      state.employeeId ||
+      state.closedFrom ||
+      state.overdueOnly,
   )
 }

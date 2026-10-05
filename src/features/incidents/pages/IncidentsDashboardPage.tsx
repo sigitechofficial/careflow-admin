@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, StatCard } from '@/shared/ui/
 import { useAuthStore } from '@/features/auth/store'
 import { useGlobalLocationScope } from '@/features/locations/hooks/useGlobalLocationScope'
 import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-format.store'
+import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import { useIncidents, useIncidentStats } from '@/features/incidents/hooks/useIncidents'
 import { INCIDENT_SEVERITY_BADGE, INCIDENT_STATUS_BADGE } from '@/features/incidents/types'
 
@@ -26,6 +27,8 @@ export default function IncidentsDashboardPage() {
   const can = useAuthStore(s => s.can)
   const { locationId } = useGlobalLocationScope()
   const navigate = useNavigate()
+  // Re-render when the organisation timezone loads so recent-incident dates use it.
+  const { timezoneReady } = useOrganisationDisplayFormat()
   const statsQuery = useIncidentStats(locationId)
   const recentQuery = useIncidents({
     page: 1,
@@ -84,7 +87,8 @@ export default function IncidentsDashboardPage() {
             tone="destructive"
             emphasize={(stats?.overdueActions ?? 0) > 0}
             loading={loading}
-            to="/incidents/my-actions"
+            to="/incidents/view"
+            search={{ overdue: true }}
           />
           <StatCard
             label="High / Critical"
@@ -95,6 +99,7 @@ export default function IncidentsDashboardPage() {
             emphasize={(stats?.highOrCritical ?? 0) > 0}
             loading={loading}
             to="/incidents/view"
+            search={{ open: true, severity: 'HIGH,CRITICAL' }}
           />
           <StatCard
             label="Actions required"
@@ -104,6 +109,7 @@ export default function IncidentsDashboardPage() {
             tone="amber"
             loading={loading}
             to="/incidents/view"
+            search={{ status: 'ACTIONS_REQUIRED' }}
           />
         </div>
       </section>
@@ -118,6 +124,7 @@ export default function IncidentsDashboardPage() {
             tone="sky"
             loading={loading}
             to="/incidents/view"
+            search={{ open: true }}
           />
           <StatCard
             label="Not picked up"
@@ -126,6 +133,7 @@ export default function IncidentsDashboardPage() {
             tone="amber"
             loading={loading}
             to="/incidents/view"
+            search={{ status: 'REPORTED' }}
           />
           <StatCard
             label="Under investigation"
@@ -134,6 +142,7 @@ export default function IncidentsDashboardPage() {
             tone="violet"
             loading={loading}
             to="/incidents/view"
+            search={{ status: 'UNDER_INVESTIGATION' }}
           />
           <StatCard
             label="Closed this month"
@@ -142,6 +151,7 @@ export default function IncidentsDashboardPage() {
             tone="emerald"
             loading={loading}
             to="/incidents/view"
+            search={{ status: 'CLOSED', closed: stats?.monthStart }}
           />
         </div>
       </section>
@@ -218,7 +228,7 @@ export default function IncidentsDashboardPage() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                          {formatOrganisationDateTime(inc.occurredAt)}
+                          {timezoneReady ? formatOrganisationDateTime(inc.occurredAt) : '…'}
                         </td>
                       </tr>
                     ))}

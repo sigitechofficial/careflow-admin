@@ -18,6 +18,7 @@ import {
   fetchEcmGraphDashboard,
   fetchEcmHealth,
   fetchEcmLiveDashboard,
+  fetchEcmVisitsTable,
   fetchEcmNotifications,
   fetchEcmReasonCodes,
   fetchEcmVisitDetail,
@@ -60,6 +61,18 @@ export function useEcmLiveDashboard(filters?: {
     // schedule-board completion immediately shows cleared exceptions / tiles.
     refetchOnWindowFocus: true,
     staleTime: 0,
+  })
+}
+
+/** ECM visit rows for one service user or employee (Visits tabs). */
+export function useEcmVisitsTable(
+  params: { dateFrom: string; dateTo: string; serviceUserId?: string; employeeId?: string },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ecmKeys.visitsTable(params),
+    queryFn: () => fetchEcmVisitsTable(params),
+    enabled: enabled && Boolean(params.serviceUserId || params.employeeId),
   })
 }
 

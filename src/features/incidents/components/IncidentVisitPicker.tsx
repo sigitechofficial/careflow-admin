@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -86,7 +87,7 @@ export function IncidentVisitPicker({
     employeeId: serviceUserId ? undefined : employeeId || undefined,
   })
   const options = React.useMemo(() => query.data ?? [], [query.data])
-  const suggested = React.useMemo(() => suggestVisit(options, new Date(incidentAt)), [options, incidentAt])
+  const suggested = React.useMemo(() => suggestVisit(options, new Date(orgDatetimeLocalToIso(incidentAt) || incidentAt)), [options, incidentAt])
 
   // Pre-select the visit that covers the incident time, but never override a choice.
   React.useEffect(() => {

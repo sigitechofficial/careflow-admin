@@ -1,27 +1,29 @@
+import {
+  dayKeyFromInstant,
+  formatOpsHm,
+  isoToOrgDatetimeLocal,
+  orgDatetimeLocalToIso,
+} from '@/shared/lib/operational-day.util'
+
+// Dates and times are shown and entered in the organisation timezone, not the device's.
+
 export function formatCommunicationNoteDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = d.getFullYear()
-  return `${day}-${month}-${year}`
+  const day = dayKeyFromInstant(iso)
+  if (!day) return '—'
+  return `${day.slice(8, 10)}-${day.slice(5, 7)}-${day.slice(0, 4)}`
 }
 
 export function formatCommunicationNoteTime(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  return `${hours}:${minutes}`
+  return formatOpsHm(iso) || '—'
 }
 
 export function toDatetimeLocalValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (Number.isNaN(d.getTime())) return ''
+  return isoToOrgDatetimeLocal(d.toISOString())
 }
 
 export function datetimeLocalToIso(value: string): string {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) throw new Error('Invalid date')
-  return d.toISOString()
+  const iso = orgDatetimeLocalToIso(value)
+  if (!iso) throw new Error('Invalid date')
+  return iso
 }

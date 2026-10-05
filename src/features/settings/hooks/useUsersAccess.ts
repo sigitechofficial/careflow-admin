@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createOfficeUser,
   fetchOfficeUsers,
+  setOfficeUserEmployee,
   setOfficeUserLocations,
   setOfficeUserRoles,
   BRANCH_SCOPED_ROLE_NAMES,
@@ -80,6 +81,28 @@ export function useSetOfficeUserRoles() {
     onError: (err) => {
       useToastStore.getState().push({
         title: 'Could not update roles',
+        description: apiErrorMessage(err),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useSetOfficeUserEmployee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, employeeId }: { userId: string; employeeId: string | null }) =>
+      setOfficeUserEmployee(userId, employeeId),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
+      useToastStore.getState().push({
+        title: vars.employeeId ? 'Employee record linked' : 'Employee record unlinked',
+        variant: 'success',
+      })
+    },
+    onError: (err) => {
+      useToastStore.getState().push({
+        title: 'Could not update employee link',
         description: apiErrorMessage(err),
         variant: 'destructive',
       })
