@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
 import { incidentKeys } from '@/features/incidents/keys'
 import {
+  addIncidentClarification,
   changeIncidentSeverity,
+  correctIncident,
   startIncidentReview,
   changeIncidentStatus,
   completeIncidentAction,
@@ -26,8 +28,10 @@ import {
   removeIncidentCarerCourseRecommendation,
 } from '@/features/incidents/api/incidents.api'
 import type {
+  CorrectIncidentInput,
   CreateIncidentActionInput,
   CreateIncidentInput,
+  IncidentClarificationField,
   IncidentAnalyticsFilters,
   IncidentListFilters,
   IncidentSeverity,
@@ -265,6 +269,31 @@ export function useStartIncidentReview(id: string) {
     mutationFn: () => startIncidentReview(id),
     onSuccess: () => {
       toastSuccess('Review started')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useCorrectIncident(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CorrectIncidentInput) => correctIncident(id, input),
+    onSuccess: () => {
+      toastSuccess('Details corrected')
+      void qc.invalidateQueries({ queryKey: incidentKeys.all() })
+    },
+    onError: (e) => toastApiError(e),
+  })
+}
+
+export function useAddIncidentClarification(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { field: IncidentClarificationField; note: string }) =>
+      addIncidentClarification(id, input),
+    onSuccess: () => {
+      toastSuccess('Clarification added')
       void qc.invalidateQueries({ queryKey: incidentKeys.all() })
     },
     onError: (e) => toastApiError(e),

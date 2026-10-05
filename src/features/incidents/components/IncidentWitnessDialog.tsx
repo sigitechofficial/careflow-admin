@@ -29,12 +29,18 @@ export function IncidentWitnessDialog({
   open,
   onOpenChange,
   initial,
+  saving = false,
+  closeOnSave = true,
   onSave,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   /** When set, the dialog edits this witness instead of adding a new one. */
   initial?: PendingWitness | null
+  /** Show the save button as busy (the parent is saving). */
+  saving?: boolean
+  /** False when the parent saves straight away and closes the dialog once the save succeeds. */
+  closeOnSave?: boolean
   onSave: (witness: PendingWitness) => void
 }) {
   const [kind, setKind] = React.useState<IncidentPersonKind | ''>('')
@@ -120,7 +126,7 @@ export function IncidentWitnessDialog({
       personName: isLinked ? pickedName : name.trim(),
       statement: statement.trim(),
     })
-    onOpenChange(false)
+    if (closeOnSave) onOpenChange(false)
   }
 
   return (
@@ -202,7 +208,9 @@ export function IncidentWitnessDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save}>{initial ? 'Save witness' : 'Add witness'}</Button>
+          <Button loading={saving} onClick={save}>
+            {initial ? 'Save witness' : 'Add witness'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -20,6 +20,8 @@ type StepAction = {
   to?: IncidentStatus
   /** Start review uses its own endpoint (owner + reviewStartedAt). */
   startReview?: boolean
+  /** Opens the Review tab instead of changing the status. */
+  goToReview?: boolean
   /** Ask for a reason before moving (reopen / send back). */
   reasonTitle?: string
   /** Close despite incomplete mandatory measures (audited, needs a reason). */
@@ -42,6 +44,8 @@ export function IncidentNextStepBar({
   canReview,
   canClose,
   canReopen,
+  onGoToReview,
+  onReviewTab = false,
 }: {
   incidentId: string
   status: IncidentStatus
@@ -52,6 +56,9 @@ export function IncidentNextStepBar({
   canReview: boolean
   canClose: boolean
   canReopen: boolean
+  onGoToReview?: () => void
+  /** The Review tab is already open, so "Go to review" is not needed. */
+  onReviewTab?: boolean
 }) {
   const statusMutation = useChangeIncidentStatus(incidentId)
   const startReview = useStartIncidentReview(incidentId)
@@ -69,10 +76,15 @@ export function IncidentNextStepBar({
     canReview,
     canClose,
     canReopen,
+    onReviewTab,
   })
   const visible = actions.filter((a) => !a.hidden)
 
   function run(action: StepAction) {
+    if (action.goToReview) {
+      onGoToReview?.()
+      return
+    }
     if (action.startReview) {
       startReview.mutate()
       return
@@ -175,6 +187,7 @@ function describe(
     canReview: boolean
     canClose: boolean
     canReopen: boolean
+    onReviewTab: boolean
   },
 ): { hint: string; actions: StepAction[] } {
   const arrow = <ArrowRight className="mr-1 h-4 w-4" />
@@ -190,13 +203,15 @@ function describe(
       }
     case 'UNDER_REVIEW':
     case 'REOPENED':
-      return {
-        hint: 'Review the incident, then decide whether it needs an investigation.',
-        actions: [
-          { key: 'investigate', label: 'Start investigation', icon: arrow, to: 'UNDER_INVESTIGATION', primary: true, hidden: noReview },
-          { key: 'no-investigation', label: 'No investigation needed — ready to close', icon: arrow, to: 'AWAITING_CLOSURE', hidden: noReview },
-        ],
-      }
+      // The decision is made in the review itself, so it is recorded with the review.
+      return ctx.onReviewTab
+        ? { hint: 'Complete the review below and choose whether to investigate.', actions: [] }
+        : {
+            hint: 'Complete the review and choose whether to investigate.',
+            actions: [
+              { key: 'go-review', label: 'Go to review', icon: arrow, goToReview: true, primary: true, hidden: noReview },
+            ],
+          }
     case 'UNDER_INVESTIGATION':
       return {
         hint: 'Complete the investigation. Add corrective actions if needed, otherwise move it to ready to close.',

@@ -1,5 +1,6 @@
 import { apiJson, type ApiEnvelope } from '@/shared/api/api-client'
 import type {
+  CorrectIncidentInput,
   CreateIncidentActionInput,
   CreateIncidentInput,
   IncidentAction,
@@ -8,6 +9,7 @@ import type {
   IncidentCategoryOption,
   IncidentCarerSuspension,
   IncidentCarerCourseRecommendation,
+  IncidentClarificationField,
   IncidentDetail,
   IncidentInvestigation,
   IncidentListFilters,
@@ -115,6 +117,26 @@ export async function changeIncidentStatus(
 export async function startIncidentReview(id: string): Promise<IncidentListItem> {
   const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/start-review`, { method: 'POST' })
   return res.data
+}
+
+/** Correct raised details (manager, with a reason; closed incidents must be reopened first). */
+export async function correctIncident(id: string, input: CorrectIncidentInput): Promise<IncidentListItem> {
+  const res = await apiJson<ApiEnvelope<IncidentListItem>>(`/incidents/${id}/corrections`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return res.data
+}
+
+/** Add a clarification note to the reporter's account (the original text is never changed). */
+export async function addIncidentClarification(
+  id: string,
+  input: { field: IncidentClarificationField; note: string },
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/incidents/${id}/clarifications`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }
 
 export async function changeIncidentSeverity(

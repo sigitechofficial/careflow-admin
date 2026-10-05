@@ -55,11 +55,11 @@ describe('schedule-job-travel-distance', () => {
   })
 
   it('builds next-visit travel detail for the following job on the row', () => {
-    const first = job('su-1', new Date('2026-06-15T09:00:00').toISOString(), 51.5074, -0.1278, {
+    const first = job('su-1', '2026-06-15T08:00:00.000Z', 51.5074, -0.1278, {
       firstName: 'Danish',
       lastName: 'Ali',
     })
-    const second = job('su-2', new Date('2026-06-15T11:00:00').toISOString(), 51.5074, -0.06333, {
+    const second = job('su-2', '2026-06-15T10:00:00.000Z', 51.5074, -0.06333, {
       firstName: 'Margaret',
       lastName: 'Hughes',
     })
@@ -135,15 +135,15 @@ describe('schedule-job-travel-distance', () => {
   })
 
   it('sums row travel distance across consecutive visits', () => {
-    const first = job('su-1', new Date('2026-06-15T09:00:00').toISOString(), 51.5074, -0.1278, {
+    const first = job('su-1', '2026-06-15T08:00:00.000Z', 51.5074, -0.1278, {
       firstName: 'Danish',
       lastName: 'Ali',
     })
-    const second = job('su-2', new Date('2026-06-15T11:00:00').toISOString(), 51.5074, -0.06333, {
+    const second = job('su-2', '2026-06-15T10:00:00.000Z', 51.5074, -0.06333, {
       firstName: 'Margaret',
       lastName: 'Hughes',
     })
-    const third = job('su-3', new Date('2026-06-15T13:00:00').toISOString(), 51.52, -0.1, {
+    const third = job('su-3', '2026-06-15T12:00:00.000Z', 51.52, -0.1, {
       firstName: 'George',
       lastName: 'Morrison',
     })

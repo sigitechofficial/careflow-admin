@@ -9,7 +9,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { FormField } from '@/shared/ui/form-field'
+import { FormField, Textarea } from '@/shared/ui/form-field'
 import {
   INCIDENT_INJURY_SEVERITY_OPTIONS,
   INCIDENT_INJURY_TYPE_OPTIONS,
@@ -64,6 +64,10 @@ export function IncidentInjuryCaptureDialog({
   people,
   initial,
   preset,
+  reasonRequired = false,
+  existingPin = false,
+  saving = false,
+  closeOnCapture = true,
   onCapture,
 }: {
   open: boolean
@@ -73,7 +77,15 @@ export function IncidentInjuryCaptureDialog({
   initial?: PendingIncidentInjury | null
   /** Pre-fill a NEW injury (e.g. from a skin / wound subtype): person key and injury type. */
   preset?: { personKey?: string; injuryType?: string } | null
-  onCapture: (pending: PendingIncidentInjury) => void
+  /** Editing a saved injury: ask why (kept in the audit log). */
+  reasonRequired?: boolean
+  /** The saved injury already has a body-map pin (changed in the body map, not here). */
+  existingPin?: boolean
+  /** Show the save button as busy (the parent is saving). */
+  saving?: boolean
+  /** False when the parent saves straight away and closes the dialog once the save succeeds. */
+  closeOnCapture?: boolean
+  onCapture: (pending: PendingIncidentInjury, reason?: string) => void
 }) {
   const [personKeyValue, setPersonKeyValue] = React.useState('')
   const [typeChoice, setTypeChoice] = React.useState('')
@@ -82,6 +94,7 @@ export function IncidentInjuryCaptureDialog({
   const [notes, setNotes] = React.useState('')
   const [marker, setMarker] = React.useState<PlaceMarkerPayload | null>(null)
   const [tried, setTried] = React.useState(false)
+  const [reason, setReason] = React.useState('')
 
   React.useEffect(() => {
     if (!open) return
@@ -100,6 +113,7 @@ export function IncidentInjuryCaptureDialog({
     setSeverity(initial?.severity ?? 'MINOR')
     setNotes(initial?.notes ?? '')
     setMarker(initial?.marker ?? null)
+    setReason('')
     setTried(false)
     // Reset only when the dialog opens; `people` changing mid-edit must not wipe the form.
   }, [open])
@@ -112,6 +126,7 @@ export function IncidentInjuryCaptureDialog({
   const errors = {
     person: !person ? 'Select who was injured' : '',
     type: !typeChoice ? 'Select the injury type' : typeChoice === OTHER_TYPE && !otherType.trim() ? 'Describe the injury' : '',
+    reason: reasonRequired && !reason.trim() ? 'Say why the injury is being changed' : '',
   }
 
   function selectPerson(key: string) {
@@ -122,7 +137,7 @@ export function IncidentInjuryCaptureDialog({
 
   function confirm() {
     setTried(true)
-    if (!person || errors.type) return
+    if (!person || errors.type || errors.reason) return
     onCapture({
       id: initial?.id ?? createClientUuid(),
       injuryType,
@@ -134,8 +149,8 @@ export function IncidentInjuryCaptureDialog({
       personEmployeeId: person.employeeId ?? null,
       personName: person.name ?? null,
       personLabel: person.label,
-    })
-    onOpenChange(false)
+    }, reasonRequired ? reason.trim() : undefined)
+    if (closeOnCapture) onOpenChange(false)
   }
 
   return (
@@ -206,11 +221,15 @@ export function IncidentInjuryCaptureDialog({
             </FormField>
           </div>
 
-          {person?.kind === 'SERVICE_USER' && bodyMapServiceUserId ? (
+          {person?.kind === 'SERVICE_USER' && existingPin && initial && findInjuredPerson(initial, people)?.key === person.key ? (
+            <p className="text-sm text-muted-foreground">
+              This injury is already on the service user&apos;s body map. Change the pin from the body map.
+            </p>
+          ) : person?.kind === 'SERVICE_USER' && bodyMapServiceUserId ? (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
                 Body map (optional): tap where the injury is. It is added to this service user&apos;s body
-                map when the report is submitted.
+                map when saved.
               </p>
               <div className="rounded-lg border border-border">
                 <BodyMapCanvas
@@ -240,12 +259,27 @@ export function IncidentInjuryCaptureDialog({
               Body map is only available for service users.
             </p>
           ) : null}
+
+          {reasonRequired && (
+            <FormField label="Reason for the change" htmlFor="inj-reason" required error={tried ? errors.reason : undefined}>
+              <Textarea
+                id="inj-reason"
+                rows={2}
+                maxLength={2000}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Nurse confirmed it is a skin tear, not a bruise"
+              />
+            </FormField>
+          )}
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={confirm}>{initial ? 'Save injury' : 'Add injury'}</Button>
+          <Button loading={saving} onClick={confirm}>
+            {initial ? 'Save injury' : 'Add injury'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

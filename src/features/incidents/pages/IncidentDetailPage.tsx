@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, Check, Lock, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, Lock, PencilLine, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/shared/ui/page-elements'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -11,7 +11,6 @@ import { formatOrganisationDateTime } from '@/shared/lib/organisation-display-fo
 import { useOrganisationDisplayFormat } from '@/shared/context/organisation-display-format.context'
 import {
   useIncident,
-  useChangeIncidentSeverity,
 } from '@/features/incidents/hooks/useIncidents'
 import { PolicyContextPanel } from '@/features/policies/components/PolicyContextPanel'
 import { IncidentReviewSection } from '@/features/incidents/components/IncidentReviewSection'
@@ -20,14 +19,25 @@ import { IncidentActionsSection } from '@/features/incidents/components/Incident
 import {
   IncidentAttachmentsPanel,
   IncidentCareRecordsPanel,
-  IncidentInjuriesPanel,
   IncidentRelatedPanel,
-  IncidentWitnessesPanel,
 } from '@/features/incidents/components/IncidentCarePanels'
 import { ServiceUserIncidentHistoryPanel } from '@/features/incidents/components/ServiceUserIncidentHistoryPanel'
 import { IncidentCategoryDetailsView } from '@/features/incidents/components/IncidentCategoryDetailsView'
 import { IncidentNextStepBar } from '@/features/incidents/components/IncidentNextStepBar'
-import { CATEGORY_DETAILS_TITLE } from '@/features/incidents/category-details'
+import { IncidentCorrectionDialog } from '@/features/incidents/components/IncidentCorrectionDialog'
+import {
+  IncidentInjuriesSection,
+  IncidentWitnessesSection,
+} from '@/features/incidents/components/IncidentPeopleRecords'
+import {
+  ClarificationNotes,
+  CorrectedBadge,
+  CorrectionMarksProvider,
+  LockedMark,
+  REPORTER_ACCOUNT_LOCK,
+  SYSTEM_FIELD_LOCK,
+} from '@/features/incidents/components/IncidentCorrectionMarks'
+import { CATEGORY_DETAILS_TITLE, NO_HOSPITAL_OUTCOME_CATEGORIES } from '@/features/incidents/category-details'
 import { useEmployee } from '@/features/employees/hooks/useEmployees'
 import { IncidentOutcomeSection } from '@/features/incidents/components/IncidentOutcomeSection'
 import { IncidentTimeline } from '@/features/incidents/components/IncidentTimeline'
@@ -42,10 +52,8 @@ import {
   INCIDENT_STATUS_BADGE,
   INCIDENT_PERSON_KIND_OPTIONS,
   WHO_INFORMED_LABELS,
-  type IncidentSeverity,
 } from '@/features/incidents/types'
 
-const SEVERITIES: IncidentSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 const actionLabel = (code: string) =>
   IMMEDIATE_ACTION_OPTIONS.find((o) => o.value === code)?.label ?? code
 
@@ -58,7 +66,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function Field({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
@@ -94,7 +102,7 @@ function StepTabLabel({ n, label, state }: { n: number; label: string; state: Wo
   )
 }
 
-function SubBlock({ title, children }: { title: string; children: React.ReactNode }) {
+function SubBlock({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border/80 bg-muted/20 p-3 sm:p-4">
       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h4>
@@ -118,10 +126,7 @@ export default function IncidentDetailPage() {
     return pd ? [pd.firstName, pd.lastName].filter(Boolean).join(' ') || undefined : undefined
   }
 
-  const severityMutation = useChangeIncidentSeverity(incidentId)
-
-  const [nextSeverity, setNextSeverity] = React.useState<IncidentSeverity | ''>('')
-  const [severityReason, setSeverityReason] = React.useState('')
+  const [correctOpen, setCorrectOpen] = React.useState(false)
   // Selected tab; null = follow the current workflow step (and jump there when the step changes).
   const [tab, setTab] = React.useState<string | null>(null)
   const currentStepId = incident
@@ -138,6 +143,7 @@ export default function IncidentDetailPage() {
   const canEdit = can('incidents.update')
   const canClose = can('incidents.close')
   const canReopen = can('incidents.reopen')
+  const canCorrect = can('incidents.correct')
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading incident…</div>
@@ -162,6 +168,21 @@ export default function IncidentDetailPage() {
   const canInvestigateRecord = canInvestigate && !isClosed
   const canReviewRecord = canReview && !isClosed
   const canManageActionsRecord = canManageActions && !isClosed
+  const corrections = incident.corrections
+  const clarifications = incident.clarifications
+  /** Label with the "Corrected" badge for the given incident fields. */
+  const corrected = (label: string, ...fieldKeys: string[]) => (
+    <>
+      {label}
+      <CorrectedBadge corrections={corrections} fieldKeys={fieldKeys} />
+    </>
+  )
+  const locked = (label: string, reason: string) => (
+    <>
+      {label}
+      <LockedMark reason={reason} />
+    </>
+  )
 
   const hasFinalOutcome = Boolean(incident.outcome?.finalOutcome?.trim())
   const workflow = resolveIncidentDetailWorkflow(incident.status, hasFinalOutcome)
@@ -186,6 +207,7 @@ export default function IncidentDetailPage() {
       : []
 
   return (
+    <CorrectionMarksProvider>
     <div className="space-y-4">
       <PageHeader
         title={incident.referenceNumber}
@@ -209,8 +231,10 @@ export default function IncidentDetailPage() {
         <span className="text-sm font-medium text-foreground">
           {incident.category.label}
           {incident.subtype ? ` · ${incident.subtype.label}` : ''}
+          <CorrectedBadge corrections={incident.corrections} fieldKeys={['categoryId', 'subtypeId']} />
         </span>
         <Badge variant={INCIDENT_SEVERITY_BADGE[incident.severity]}>{incident.severityLabel}</Badge>
+        <CorrectedBadge corrections={incident.corrections} fieldKeys={['severity']} />
         <Badge variant={INCIDENT_STATUS_BADGE[incident.status]}>{incident.statusLabel}</Badge>
         {incident.privacyLevel !== 'NORMAL' && (
           <Badge variant="destructive">
@@ -241,6 +265,8 @@ export default function IncidentDetailPage() {
         canReview={canReview}
         canClose={canClose}
         canReopen={canReopen}
+        onGoToReview={() => setTab('review')}
+        onReviewTab={(tab ?? workflow.currentId) === 'review'}
       />
 
       <Tabs value={tab ?? workflow.currentId} onValueChange={setTab}>
@@ -257,11 +283,6 @@ export default function IncidentDetailPage() {
             <TabsTrigger value="timeline" variant="underline">
               Timeline
             </TabsTrigger>
-            {canReview && (
-              <TabsTrigger value="admin" variant="underline">
-                Admin controls
-              </TabsTrigger>
-            )}
           </TabsList>
         </div>
 
@@ -273,13 +294,28 @@ export default function IncidentDetailPage() {
           title="Raise"
           hint={stepState.raise.hint}
           state={stepState.raise.state}
+          nextAction={
+            canCorrect ? (
+              <span title={isClosed ? 'Reopen the incident to correct details.' : undefined}>
+                <Button size="sm" variant="outline" disabled={isClosed} onClick={() => setCorrectOpen(true)}>
+                  <PencilLine className="mr-1 h-4 w-4" /> Correct details
+                </Button>
+              </span>
+            ) : undefined
+          }
         >
           <dl className="grid grid-cols-2 gap-4">
-            <Field label="Incident date & time" value={formatOrganisationDateTime(incident.occurredAt)} />
-            <Field label="Reported time" value={formatOrganisationDateTime(incident.reportedAt)} />
-            <Field label="Reported by" value={incident.reportedBy?.name} />
             <Field
-              label="Recorded by"
+              label={corrected('Reported time (when it happened)', 'occurredAt')}
+              value={formatOrganisationDateTime(incident.occurredAt)}
+            />
+            <Field
+              label={locked('Recorded time', SYSTEM_FIELD_LOCK)}
+              value={formatOrganisationDateTime(incident.createdAt ?? incident.reportedAt)}
+            />
+            <Field label={locked('Reported by', SYSTEM_FIELD_LOCK)} value={incident.reportedBy?.name} />
+            <Field
+              label={locked('Recorded by', SYSTEM_FIELD_LOCK)}
               value={
                 incident.reportedBy?.source === 'CARER_APP'
                   ? 'Carer app (self-reported)'
@@ -287,14 +323,18 @@ export default function IncidentDetailPage() {
               }
             />
             <Field
-              label="Who was affected"
+              label={corrected('Who was affected', 'affectedPersonKinds')}
               value={incident.affectedPersonKinds
                 .map((k) => INCIDENT_PERSON_KIND_OPTIONS.find((o) => o.value === k)?.label ?? k)
                 .join(', ')}
             />
             {involvedServiceUsers.length > 0 && (
               <Field
-                label={involvedServiceUsers.length > 1 ? 'Service users' : 'Service user'}
+                label={corrected(
+                  involvedServiceUsers.length > 1 ? 'Service users' : 'Service user',
+                  'primaryServiceUserId',
+                  'involvedServiceUserIds',
+                )}
                 value={
                   <span className="flex flex-col gap-0.5">
                     {involvedServiceUsers.map((su) => (
@@ -314,7 +354,7 @@ export default function IncidentDetailPage() {
             )}
             {involvedEmployees.length > 0 && (
               <Field
-                label="Staff involved"
+                label={corrected('Staff involved', 'primaryEmployeeId', 'involvedEmployeeIds')}
                 value={
                   <span className="flex flex-col gap-0.5">
                     {involvedEmployees.map((emp) => (
@@ -331,62 +371,84 @@ export default function IncidentDetailPage() {
                 }
               />
             )}
-            {incident.primaryPersonName && <Field label="Other person" value={incident.primaryPersonName} />}
-            <Field label="Branch" value={incident.location?.name} />
-            <Field label="Specific area" value={incident.specificArea} />
+            {incident.primaryPersonName && (
+              <Field label={corrected('Other person', 'primaryPersonName')} value={incident.primaryPersonName} />
+            )}
+            <Field label={corrected('Branch', 'locationId')} value={incident.location?.name} />
+            {incident.specificArea && (
+              <Field label={locked('Specific area', REPORTER_ACCOUNT_LOCK)} value={incident.specificArea} />
+            )}
             <Field label="Injury" value={incident.injuryOccurred ? 'Yes' : 'No'} />
-            {incident.scheduledJobId && (
-              <Field
-                label="Reported during visit"
-                value={
+            <Field
+              label={corrected('Visit', 'scheduledJobId')}
+              value={
+                incident.scheduledJobId ? (
                   <Link
                     to="/scheduling/visits/$jobId"
                     params={{ jobId: incident.scheduledJobId }}
                     className="text-primary underline underline-offset-2 hover:no-underline"
                   >
-                    Open visit
+                    {incident.visitRef ?? 'Open visit'}
                   </Link>
-                }
-              />
-            )}
+                ) : (
+                  'Not during a visit'
+                )
+              }
+            />
           </dl>
           <div className="mt-4 space-y-3">
-            <Field label="What happened" value={<p className="whitespace-pre-wrap">{incident.description}</p>} />
-            {incident.contextBefore && (
-              <Field
-                label="Immediately before"
-                value={<p className="whitespace-pre-wrap">{incident.contextBefore}</p>}
-              />
-            )}
-            {incident.contextAfter && (
-              <Field
-                label="Afterwards"
-                value={<p className="whitespace-pre-wrap">{incident.contextAfter}</p>}
-              />
-            )}
-            {incident.peopleInvolved && (
-              <Field
-                label="People involved"
-                value={<p className="whitespace-pre-wrap">{incident.peopleInvolved}</p>}
-              />
-            )}
+            {(
+              [
+                ['DESCRIPTION', 'What happened', incident.description],
+                ['CONTEXT_BEFORE', 'Immediately before', incident.contextBefore],
+                ['CONTEXT_AFTER', 'Afterwards', incident.contextAfter],
+                ['PEOPLE_INVOLVED', 'People involved', incident.peopleInvolved],
+              ] as const
+            )
+              .filter(
+                ([field, , text]) =>
+                  field === 'DESCRIPTION' || text || clarifications?.some((n) => n.field === field),
+              )
+              .map(([field, label, text]) => (
+                <div key={field}>
+                  <Field
+                    label={locked(label, REPORTER_ACCOUNT_LOCK)}
+                    value={<p className="whitespace-pre-wrap">{text}</p>}
+                  />
+                  <ClarificationNotes
+                    incidentId={incident.id}
+                    field={field}
+                    notes={clarifications}
+                    canAdd={canCorrect}
+                  />
+                </div>
+              ))}
           </div>
 
-          {(incident.affectedPersonKinds.length > 0 ||
+          {!NO_HOSPITAL_OUTCOME_CATEGORIES.has(incident.category.key) &&
+            (incident.affectedPersonKinds.length > 0 ||
             incident.ambulanceAttended != null ||
             incident.takenToAe != null ||
             incident.admittedToHospital != null) && (
             <SubBlock title="Hospital outcome">
               <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Field label="Ambulance attended" value={yesNoUnknown(incident.ambulanceAttended)} />
-                <Field label="Taken to A&E" value={yesNoUnknown(incident.takenToAe)} />
-                <Field label="Admitted to hospital" value={yesNoUnknown(incident.admittedToHospital)} />
+                <Field
+                  label={corrected('Ambulance attended', 'ambulanceAttended')}
+                  value={yesNoUnknown(incident.ambulanceAttended)}
+                />
+                <Field label={corrected('Taken to A&E', 'takenToAe')} value={yesNoUnknown(incident.takenToAe)} />
+                <Field
+                  label={corrected('Admitted to hospital', 'admittedToHospital')}
+                  value={yesNoUnknown(incident.admittedToHospital)}
+                />
               </dl>
             </SubBlock>
           )}
 
           {incident.categoryDetails && Object.keys(incident.categoryDetails).length > 0 && (
-            <SubBlock title={CATEGORY_DETAILS_TITLE[incident.category.key] ?? 'Category details'}>
+            <SubBlock
+              title={corrected(CATEGORY_DETAILS_TITLE[incident.category.key] ?? 'Category details', 'categoryDetails')}
+            >
               <IncidentCategoryDetailsView details={incident.categoryDetails} staffNameById={staffName} />
             </SubBlock>
           )}
@@ -402,7 +464,7 @@ export default function IncidentDetailPage() {
                 {incident.immediateActionCodes.length > 0 && (
                   <div className="mb-3">
                     <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      What was done
+                      {corrected('What was done', 'immediateActionCodes')}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {incident.immediateActionCodes.map((code) => (
@@ -414,12 +476,23 @@ export default function IncidentDetailPage() {
                   </div>
                 )}
                 {incident.immediateActions && (
-                  <p className="whitespace-pre-wrap text-sm text-foreground">{incident.immediateActions}</p>
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {locked('Actions described by the reporter', REPORTER_ACCOUNT_LOCK)}
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{incident.immediateActions}</p>
+                    <ClarificationNotes
+                      incidentId={incident.id}
+                      field="IMMEDIATE_ACTIONS"
+                      notes={clarifications}
+                      canAdd={canCorrect}
+                    />
+                  </div>
                 )}
                 {incident.whoInformedKeys.length > 0 && (
                   <div className="mt-3">
                     <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Who was informed
+                      {corrected('Who was informed', 'whoInformedKeys')}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {incident.whoInformedKeys.map((key) => (
@@ -438,37 +511,37 @@ export default function IncidentDetailPage() {
                 {incident.emergencyServicesDetails && (
                   <div className="mt-3">
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Emergency services
+                      {locked('Emergency services', REPORTER_ACCOUNT_LOCK)}
                     </p>
                     <p className="whitespace-pre-wrap text-sm text-foreground">
                       {incident.emergencyServicesDetails}
                     </p>
+                    <ClarificationNotes
+                      incidentId={incident.id}
+                      field="EMERGENCY_SERVICES"
+                      notes={clarifications}
+                      canAdd={canCorrect}
+                    />
                   </div>
                 )}
               </>
             )}
           </SubBlock>
 
-          {(incident.injuryOccurred || incident.injuries.length > 0 || canEditRecord) && (
-            <SubBlock title="Injuries">
-              {incident.injuryDetails && (
-                <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">{incident.injuryDetails}</p>
-              )}
-              <IncidentInjuriesPanel
-                incidentId={incident.id}
-                injuries={incident.injuries}
-                canManage={canEditRecord}
-                serviceUserId={incident.primaryServiceUserId}
-              />
-            </SubBlock>
-          )}
+          <SubBlock title="Injuries">
+            {incident.injuryDetails && (
+              <div className="mb-3">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {locked('Injury details from the reporter', REPORTER_ACCOUNT_LOCK)}
+                </p>
+                <p className="whitespace-pre-wrap text-sm text-foreground">{incident.injuryDetails}</p>
+              </div>
+            )}
+            <IncidentInjuriesSection incident={incident} canManage={canEditRecord} />
+          </SubBlock>
 
           <SubBlock title="Witnesses">
-            <IncidentWitnessesPanel
-              incidentId={incident.id}
-              witnesses={incident.witnesses}
-              canManage={canEditRecord}
-            />
+            <IncidentWitnessesSection incident={incident} canManage={canEditRecord} />
           </SubBlock>
         </IncidentWorkflowStepCard>
         </TabsContent>
@@ -482,7 +555,17 @@ export default function IncidentDetailPage() {
           state={stepState.review.state}
         >
           {canReviewRecord || incident.review ? (
-            <IncidentReviewSection incidentId={incident.id} review={incident.review} canEdit={canReviewRecord} />
+            <IncidentReviewSection
+              incidentId={incident.id}
+              review={incident.review}
+              canEdit={canReviewRecord}
+              currentSeverity={incident.severity}
+              reportedByName={incident.reportedBy?.name}
+              corrections={incident.corrections}
+              status={incident.status}
+              severityDecision={incident.reviewSeverity}
+              severityChanges={incident.severityChanges}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">No review recorded yet.</p>
           )}
@@ -614,61 +697,9 @@ export default function IncidentDetailPage() {
         </Section>
         </TabsContent>
 
-        {canReview && (
-          <TabsContent value="admin" forceMount>
-          <Section title="Admin controls">
-            <div className="space-y-4">
-              {!isClosed && (
-              <div>
-                <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Change severity
-                </label>
-                <select
-                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={nextSeverity}
-                  onChange={(e) => setNextSeverity(e.target.value as IncidentSeverity | '')}
-                >
-                  <option value="">Select…</option>
-                  {SEVERITIES.filter((s) => s !== incident.severity).map((s) => (
-                    <option key={s} value={s}>
-                      {s.charAt(0) + s.slice(1).toLowerCase()}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="mt-2 h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Reason (optional)"
-                  value={severityReason}
-                  onChange={(e) => setSeverityReason(e.target.value)}
-                />
-                <Button
-                  className="mt-2"
-                  size="sm"
-                  variant="outline"
-                  disabled={!nextSeverity}
-                  loading={severityMutation.isPending}
-                  onClick={() => {
-                    if (!nextSeverity) return
-                    severityMutation.mutate(
-                      { severity: nextSeverity, reason: severityReason || undefined },
-                      {
-                        onSuccess: () => {
-                          setNextSeverity('')
-                          setSeverityReason('')
-                        },
-                      },
-                    )
-                  }}
-                >
-                  Update severity
-                </Button>
-              </div>
-              )}
-            </div>
-          </Section>
-          </TabsContent>
-        )}
       </Tabs>
+      <IncidentCorrectionDialog incident={incident} open={correctOpen} onOpenChange={setCorrectOpen} />
     </div>
+    </CorrectionMarksProvider>
   )
 }

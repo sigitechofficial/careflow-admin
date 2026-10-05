@@ -141,6 +141,10 @@ export type IncidentReview = {
   reviewedById: string | null
   reviewedAt: string | null
   updatedAt: string
+  updatedById?: string | null
+  /** Who first reviewed it, and who last changed it. */
+  reviewedByName?: string | null
+  updatedByName?: string | null
 }
 
 export type IncidentInvestigationScope = 'INTERNAL' | 'EXTERNAL'
@@ -226,6 +230,8 @@ export type IncidentWitness = {
   id: string
   incidentId: string
   personKind: IncidentPersonKind
+  personServiceUserId?: string | null
+  personEmployeeId?: string | null
   personName: string | null
   statement: string | null
   statementDate: string | null
@@ -412,6 +418,87 @@ export type IncidentDetail = IncidentListItem & {
   relatedIncidentCount: number
   closedAt: string | null
   closedById: string | null
+  /** Readable visit ref (VIS-…) for scheduledJobId. */
+  visitRef?: string | null
+  /** Corrections to raised details, oldest first (each keeps the old value and the reason). */
+  corrections?: IncidentCorrectionEntry[]
+  /** Manager notes added to the reporter's own account (the original text never changes). */
+  clarifications?: IncidentClarificationNote[]
+  /** The severity decision made at review (null until the review decides it). */
+  reviewSeverity?: IncidentReviewSeverityDecision | null
+  /** Every severity step from what was reported to now (confirmations left out). */
+  severityChanges?: IncidentSeverityStep[]
+}
+
+export type IncidentSeverityStep = {
+  fromSeverity: IncidentSeverity | null
+  toSeverity: IncidentSeverity
+  source: 'REPORTED' | 'CORRECTION' | 'REVIEW' | 'OTHER'
+  reason: string | null
+  byName: string | null
+  at: string
+}
+
+export type IncidentReviewSeverityDecision = {
+  fromSeverity: IncidentSeverity | null
+  toSeverity: IncidentSeverity
+  changed: boolean
+  reason: string | null
+  byName: string | null
+  at: string
+}
+
+export type IncidentCorrectionEntry = {
+  id: string
+  batchId: string
+  /** Incident field key (occurredAt, categoryId, involvedServiceUserIds, …). */
+  fieldKey: string
+  fieldLabel: string
+  fromLabel: string | null
+  toLabel: string | null
+  reason: string
+  correctedByName: string | null
+  createdAt: string
+}
+
+export type IncidentClarificationField =
+  | 'DESCRIPTION'
+  | 'CONTEXT_BEFORE'
+  | 'CONTEXT_AFTER'
+  | 'IMMEDIATE_ACTIONS'
+  | 'PEOPLE_INVOLVED'
+  | 'EMERGENCY_SERVICES'
+
+export type IncidentClarificationNote = {
+  id: string
+  field: IncidentClarificationField
+  note: string
+  createdByName: string | null
+  createdAt: string
+}
+
+/** Correct raised details: only the fields sent change (null clears); the reason is required. */
+export type CorrectIncidentInput = {
+  reason: string
+  occurredAt?: string
+  categoryId?: string
+  subtypeId?: string | null
+  affectedPersonKinds?: IncidentPersonKind[]
+  primaryServiceUserId?: string | null
+  primaryEmployeeId?: string | null
+  primaryPersonName?: string | null
+  /** Everyone else involved (the affected person is added first by the API). */
+  serviceUserIds?: string[]
+  employeeIds?: string[]
+  locationId?: string | null
+  scheduledJobId?: string | null
+  categoryDetails?: Record<string, unknown> | null
+  ambulanceAttended?: boolean | null
+  takenToAe?: boolean | null
+  admittedToHospital?: boolean | null
+  immediateActionCodes?: string[]
+  whoInformedKeys?: string[]
+  severity?: IncidentSeverity
 }
 
 export const INCIDENT_PERSON_KIND_OPTIONS: { value: IncidentPersonKind; label: string }[] = [
@@ -552,7 +639,16 @@ export const INCIDENT_ACTION_STATUS_LABELS: Record<IncidentActionDisplayStatus, 
 }
 
 export type UpsertIncidentReviewInput = {
+  /** Required on the first review: same as the current severity confirms it, different changes it. */
   confirmedSeverity?: IncidentSeverity
+  /** Required when the severity is changed at review. */
+  severityReason?: string
+  /** The review decision: moves the incident to Under Investigation or Awaiting Closure. */
+  decision?: 'INVESTIGATE' | 'NO_INVESTIGATION'
+  /** Required for NO_INVESTIGATION. */
+  decisionReason?: string
+  /** Required when the review is changed after its decision was made. */
+  changeReason?: string
   investigationRequired?: boolean
   safeguardingConcern?: boolean
   possibleAbuseOrNeglect?: boolean

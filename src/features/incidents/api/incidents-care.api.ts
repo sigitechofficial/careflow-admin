@@ -38,8 +38,22 @@ export async function addIncidentInjury(
   return res.data
 }
 
-export async function deleteIncidentInjury(injuryId: string): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>(`/incidents/injuries/${injuryId}`, { method: 'DELETE' })
+/** Change a recorded injury; the reason is kept in the audit log. */
+export async function updateIncidentInjury(
+  injuryId: string,
+  input: Partial<Parameters<typeof addIncidentInjury>[1]> & { reason: string },
+): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/incidents/injuries/${injuryId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteIncidentInjury(injuryId: string, reason: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/incidents/injuries/${injuryId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
+  })
 }
 
 // --- witnesses ---
@@ -61,8 +75,11 @@ export async function addIncidentWitness(
   return res.data
 }
 
-export async function deleteIncidentWitness(witnessId: string): Promise<void> {
-  await apiJson<ApiEnvelope<unknown>>(`/incidents/witnesses/${witnessId}`, { method: 'DELETE' })
+export async function deleteIncidentWitness(witnessId: string, reason: string): Promise<void> {
+  await apiJson<ApiEnvelope<unknown>>(`/incidents/witnesses/${witnessId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
+  })
 }
 
 // --- related care records ---
