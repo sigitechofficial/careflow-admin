@@ -105,13 +105,6 @@ export function IncidentInvestigationSection({
   const patchSetup = (patch: Partial<InvestigationSetupValues>) =>
     setSetup((prev) => ({ ...prev, ...patch }))
   const investigatorsQuery = useIncidentInvestigators(incidentId, canEdit)
-  // Suggest the signed-in user's own staff record (visibly, in the field) when no lead is saved.
-  const suggestedLeadId = (investigatorsQuery.data ?? []).find((u) => u.isCurrentUser)?.id ?? null
-  React.useEffect(() => {
-    if (suggestedLeadId && !investigation?.leadInvestigatorEmployeeId) {
-      setSetup((prev) => (prev.leadInvestigatorEmployeeId ? prev : { ...prev, leadInvestigatorEmployeeId: suggestedLeadId }))
-    }
-  }, [suggestedLeadId, investigation?.leadInvestigatorEmployeeId])
   const [factors, setFactors] = React.useState<string[]>(investigation?.contributingFactors ?? [])
   const [factorDetails, setFactorDetails] = React.useState<ContributingFactorDetails>(
     investigation?.contributingFactorDetails ?? {},
@@ -292,7 +285,6 @@ export function IncidentInvestigationSection({
         errors={completeErrors}
         investigators={investigatorsQuery.data ?? []}
         investigatorsLoading={investigatorsQuery.isLoading}
-        suggestedLeadId={suggestedLeadId}
         suggestHigherLevel={suggestHigherLevel}
       />
       <TextField

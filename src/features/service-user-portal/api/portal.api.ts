@@ -4,6 +4,7 @@ import { fetchWithResilience } from '@/shared/api/http-client'
 import { useAuthStore } from '@/features/auth/store'
 import type { AboutMeV1 } from '@/features/service-users/service-user-about-me'
 import { defaultAboutMe } from '@/features/service-users/service-user-about-me'
+import type { DateDisplayFormat, TimeDisplayFormat } from '@/shared/lib/display-format.util'
 
 function nestErrorMessage(body: unknown, fallback: string): string {
   if (typeof body !== 'object' || body === null) return fallback
@@ -333,6 +334,17 @@ export type PortalAccountStatus = {
   isEnabled: boolean
   email: string | null
   lastLoginAt: string | null
+}
+
+export type PortalDisplaySettings = {
+  timezone: string
+  dateDisplayFormat: DateDisplayFormat
+  timeDisplayFormat: TimeDisplayFormat
+}
+
+export async function fetchPortalDisplaySettings(): Promise<PortalDisplaySettings> {
+  const res = await apiJson<ApiEnvelope<PortalDisplaySettings>>('/portal/display-settings')
+  return res.data
 }
 
 export async function fetchPortalDashboard(): Promise<PortalDashboard> {

@@ -221,8 +221,6 @@ export type IncidentInvestigatorOption = {
   name: string
   /** Job title, or null when none is set. */
   designation: string | null
-  /** The signed-in user's own staff record. */
-  isCurrentUser: boolean
 }
 
 export const INVESTIGATION_LEVEL_OPTIONS: {

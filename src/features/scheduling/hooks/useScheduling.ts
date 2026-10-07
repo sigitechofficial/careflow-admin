@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getEmployeesDayTimeline,
   getScheduledJob,
@@ -84,18 +84,47 @@ export function useScheduleReportTypes(enabled = true) {
   })
 }
 
-export function useScheduleReport(
-  endpoint: string,
-  from: string,
-  to: string,
-  generate: boolean,
-  enabled = true,
-) {
+export type ScheduleReportParams = {
+  dateFrom: string
+  dateTo: string
+  page: number
+  limit: number
+  locationId?: string
+}
+
+export function useScheduleReport(endpoint: string, params: ScheduleReportParams, enabled = true) {
   return useQuery({
-    queryKey: schedulingKeys.report(endpoint, from, to, generate),
-    queryFn: ({ signal }) =>
-      getScheduleReport(endpoint, { dateFrom: from, dateTo: to, page: 1, limit: 100 }, { signal }),
-    enabled: enabled && generate && Boolean(endpoint),
+    queryKey: schedulingKeys.report(endpoint, params),
+    queryFn: ({ signal }) => getScheduleReport(endpoint, params, { signal }),
+    enabled: enabled && Boolean(endpoint),
+    // Keep the old page while paging, but never show another report's rows (different shape).
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[2] === endpoint ? prev : undefined),
+  })
+}
+
+/** Every page of a report (for CSV export), capped so a huge range cannot run away. */
+export function useScheduleReportAllPages() {
+  return useMutation({
+    mutationFn: async ({
+      endpoint,
+      params,
+      rowsOf,
+    }: {
+      endpoint: string
+      params: Omit<ScheduleReportParams, 'page' | 'limit'>
+      rowsOf: (data: unknown) => unknown[]
+    }) => {
+      const limit = 200
+      const rows: unknown[] = []
+      let first: unknown
+      for (let page = 1; page <= 50; page++) {
+        const res = await getScheduleReport(endpoint, { ...params, page, limit })
+        if (page === 1) first = res.data
+        rows.push(...rowsOf(res.data))
+        if (!res.meta?.hasNextPage) break
+      }
+      return { first, rows }
+    },
   })
 }
 

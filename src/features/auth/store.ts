@@ -199,7 +199,11 @@ interface AuthState {
   resetPassword: (token: string, password: string) => { ok: boolean; error?: string }
   changePassword: (current: string, next: string) => Promise<{ ok: boolean; error?: string }>
   updateProfile: (
-    patch: Partial<Pick<AuthUser, 'displayName' | 'jobTitle' | 'firstName' | 'lastName'>>,
+    patch: Partial<Pick<AuthUser, 'displayName' | 'jobTitle' | 'firstName' | 'lastName'>> & {
+      /** New sign-in email (API mode); needs currentPassword. */
+      email?: string
+      currentPassword?: string
+    },
   ) => Promise<{ ok: boolean; error?: string }>
   applyMeUser: (me: BackendMeUser) => void
   setTwoFactorEnabled: (on: boolean) => void
@@ -829,6 +833,7 @@ export const useAuthStore = create<AuthState>()(
             const me = await backendUpdateProfile({
               firstName: patch.firstName ?? patch.displayName?.split(/\s+/)[0],
               lastName: patch.lastName ?? patch.displayName?.split(/\s+/).slice(1).join(' '),
+              ...(patch.email ? { email: patch.email, currentPassword: patch.currentPassword } : {}),
             })
             set({ user: userFromMe(me, { ...u, jobTitle: patch.jobTitle ?? u.jobTitle }) })
             get().appendLocalAudit({
@@ -837,7 +842,7 @@ export const useAuthStore = create<AuthState>()(
               actorEmail: u.email,
               action: 'profile.updated',
               ip: nowIp(),
-              meta: { mode: 'api', ...patch },
+              meta: { mode: 'api', firstName: patch.firstName, lastName: patch.lastName, email: patch.email },
             })
             return { ok: true }
           } catch (e) {

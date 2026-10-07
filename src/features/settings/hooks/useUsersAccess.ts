@@ -2,12 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createOfficeUser,
   fetchOfficeUsers,
-  setOfficeUserEmployee,
   setOfficeUserLocations,
   setOfficeUserRoles,
+  updateOfficeUser,
   BRANCH_SCOPED_ROLE_NAMES,
   COMPANY_WIDE_ROLE_NAMES,
   type CreateOfficeUserInput,
+  type UpdateOfficeUserInput,
 } from '@/features/settings/api/users-access.api'
 import { settingsKeys } from '@/features/settings/keys'
 import { apiErrorMessage } from '@/shared/lib/api-error-message'
@@ -63,6 +64,29 @@ export function useCreateOfficeUser() {
   })
 }
 
+export function useUpdateOfficeUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, ...input }: UpdateOfficeUserInput & { userId: string }) =>
+      updateOfficeUser(userId, input),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
+      useToastStore.getState().push({
+        title: 'Office user updated',
+        description: vars.password ? 'The new password works from their next sign-in.' : undefined,
+        variant: 'success',
+      })
+    },
+    onError: (err) => {
+      useToastStore.getState().push({
+        title: 'Could not update user',
+        description: apiErrorMessage(err),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
 export function useSetOfficeUserRoles() {
   const qc = useQueryClient()
   return useMutation({
@@ -81,28 +105,6 @@ export function useSetOfficeUserRoles() {
     onError: (err) => {
       useToastStore.getState().push({
         title: 'Could not update roles',
-        description: apiErrorMessage(err),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-export function useSetOfficeUserEmployee() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ userId, employeeId }: { userId: string; employeeId: string | null }) =>
-      setOfficeUserEmployee(userId, employeeId),
-    onSuccess: (_data, vars) => {
-      void qc.invalidateQueries({ queryKey: settingsKeys.officeUsers() })
-      useToastStore.getState().push({
-        title: vars.employeeId ? 'Employee record linked' : 'Employee record unlinked',
-        variant: 'success',
-      })
-    },
-    onError: (err) => {
-      useToastStore.getState().push({
-        title: 'Could not update employee link',
         description: apiErrorMessage(err),
         variant: 'destructive',
       })

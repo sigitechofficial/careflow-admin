@@ -324,7 +324,6 @@ export function InvestigationSetupForm({
   errors,
   investigators,
   investigatorsLoading,
-  suggestedLeadId,
   suggestHigherLevel,
 }: {
   incidentId: string
@@ -334,8 +333,6 @@ export function InvestigationSetupForm({
   errors: Record<string, string>
   investigators: IncidentInvestigatorOption[]
   investigatorsLoading: boolean
-  /** Shown as a visible suggestion when no lead is saved yet. */
-  suggestedLeadId: string | null
   /** High / Critical severity or a death. */
   suggestHigherLevel: boolean
 }) {
@@ -353,7 +350,6 @@ export function InvestigationSetupForm({
         id: investigation.leadInvestigatorEmployeeId,
         name: `${investigation.leadInvestigatorName ?? 'Unknown staff member'} (no longer eligible)`,
         designation: null,
-        isCurrentUser: false,
       })
     }
     return rows
@@ -425,9 +421,6 @@ export function InvestigationSetupForm({
           ))}
         </select>
         <p className="mt-1 text-xs text-muted-foreground">
-          {suggestedLeadId && values.leadInvestigatorEmployeeId === suggestedLeadId && !investigation?.leadInvestigatorEmployeeId
-            ? 'Suggested: you. Change it if someone else will lead. '
-            : ''}
           Active carers and managers. This is separate from the incident owner.
         </p>
         <FieldError message={errors.leadInvestigatorEmployeeId} />

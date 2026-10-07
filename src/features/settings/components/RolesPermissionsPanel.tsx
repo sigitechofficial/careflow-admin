@@ -4,12 +4,14 @@ import type { RolesPermissionsSubTab } from '@/features/settings/roles-permissio
 import { OfficeUsersPanel } from '@/features/settings/components/roles-permissions/OfficeUsersPanel'
 import { RolesPanel } from '@/features/settings/components/roles-permissions/RolesPanel'
 import { PermissionsCatalogPanel } from '@/features/settings/components/roles-permissions/PermissionsCatalogPanel'
+import { ResponsibilitiesPanel } from '@/features/settings/components/roles-permissions/ResponsibilitiesPanel'
 import { usePermissionsCatalog } from '@/features/settings/hooks/useRolesPermissions'
 import { useAuthStore } from '@/features/auth/store'
 
 const SUB_TABS: { id: RolesPermissionsSubTab; label: string }[] = [
   { id: 'office-users', label: 'Office users' },
   { id: 'roles', label: 'Roles' },
+  { id: 'responsibilities', label: 'Responsibilities' },
   { id: 'permissions', label: 'Permissions' },
 ]
 
@@ -19,7 +21,9 @@ export function RolesPermissionsPanel() {
     select: s => s.location.search as { sub?: string },
   })
   const activeSub: RolesPermissionsSubTab =
-    search.sub === 'roles' || search.sub === 'permissions' ? search.sub : 'office-users'
+    search.sub === 'roles' || search.sub === 'permissions' || search.sub === 'responsibilities'
+      ? search.sub
+      : 'office-users'
 
   const canViewCatalog = useAuthStore(s => s.can('permissions.manage') || s.can('roles.manage'))
   const catalogQuery = usePermissionsCatalog(canViewCatalog)
@@ -67,6 +71,7 @@ export function RolesPermissionsPanel() {
 
       {activeSub === 'office-users' && <OfficeUsersPanel />}
       {activeSub === 'roles' && <RolesPanel />}
+      {activeSub === 'responsibilities' && <ResponsibilitiesPanel />}
       {activeSub === 'permissions' && <PermissionsCatalogPanel />}
     </div>
   )

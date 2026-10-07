@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Download,
   ExternalLink,
   Filter,
   FlaskConical,
@@ -45,7 +46,7 @@ import {
   syncOrganisationOperationalTimezone,
 } from '@/shared/lib/operational-day.util'
 import { formatTimezoneUtcOffset } from '@/features/settings/organisation-timezone'
-import { EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
+import { buildEcmVisitsCsv, EcmVisitsTable } from '@/features/ecm/components/EcmVisitsTable'
 import { useEcmVisitsTable } from '@/features/ecm/hooks/useEcm'
 import type { EcmLiveVisitRow } from '@/features/ecm/types/ecm.types'
 import type { TimelineJob } from '@/features/scheduling/types/scheduling.types'
@@ -319,6 +320,20 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
     () => new Set(visible.filter((r) => r.isSample).map((r) => r.job.id)),
     [visible],
   )
+  // Sample visits are demo rows — never exported.
+  const exportRows = tableRows.filter((row) => !sampleJobIds.has(row.scheduledJobId))
+  const downloadCsv = () => {
+    // BOM so Excel reads UTF-8 characters correctly.
+    const blob = new Blob(['﻿', buildEcmVisitsCsv(exportRows)], {
+      type: 'text/csv;charset=utf-8;',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `employee-visits-${month}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   if (!canRead) {
     return (
@@ -570,6 +585,17 @@ export function EmployeeEditVisitsPanel({ employeeId }: { employeeId: string }) 
                     : ''}
                 </p>
               </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                disabled={exportRows.length === 0 || ecmQuery.isLoading}
+                onClick={downloadCsv}
+                data-testid="employee-visits-export-csv"
+              >
+                Export CSV
+              </Button>
             </div>
 
             {visible.length === 0 ? (

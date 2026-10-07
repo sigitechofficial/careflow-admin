@@ -57,6 +57,7 @@ import {
 import { pruneStaffListFiltersToFacets } from '@/features/employees/utils/staff-list-facet.util'
 import { Switch } from '@/shared/ui/toggle-controls'
 import { toastApiError, toastSuccess } from '@/shared/lib/toast'
+import { CarerReportsPanel } from '@/features/employees/pages/CarerReportsPage'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/shared/ui/dialog'
@@ -71,18 +72,6 @@ interface EmployeePageProps {
   activeTab?: TabId
   onTabChange?: (tab: TabId) => void
 }
-
-/* --- Sample Data --------------------------------------------- */
-const employeeReports = [
-  { title: 'Carer Activity Summary Report',      desc: 'reports on the actions completed by Employee and the notes they left' },
-  { title: 'Compliance Report',                 desc: 'shows certifications/skills that are nearing or past their expiry date' },
-  { title: 'Employee Compliance Detail report', desc: 'Shows all employees compliance documentation, highlighting missing and expired compliance.' },
-  { title: 'Staff Analysis Reports',            desc: 'this highlights all items that are overdue or nearing like Reviews, Skills, Work Certification and Compliance.' },
-  { title: 'Employee Role Reports',             desc: 'provide role detail for each member of Employee' },
-  { title: 'Employee Leaving Report',           desc: 'Provide Employee leaving details' },
-  { title: 'Employee Detail Report',            desc: 'show detailed information about all non deleted Employee.' },
-  { title: 'Holiday Reports',                   desc: 'Shows Holiday Records of all Employee' },
-]
 
 /* --- Tab config ----------------------------------------------- */
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -992,23 +981,5 @@ function ReviewStatusTab() {
 
 /* --- Reports Tab --------------------------------------------- */
 function ReportsTab() {
-  return (
-    <div data-testid="employee-reports-panel">
-      <h2 className="font-bold text-base mb-4">Employee Reports</h2>
-      <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
-        {employeeReports.map(report => (
-          <div key={report.title} className="px-4 py-3 hover:bg-muted/30 transition-colors flex items-start gap-1.5 text-sm">
-            <button
-              type="button"
-              className="text-primary hover:underline font-medium shrink-0 text-left"
-              aria-label={`Open report: ${report.title}`}
-            >
-              {report.title}
-            </button>
-            <span className="text-muted-foreground">- {report.desc}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+  return <CarerReportsPanel />
 }

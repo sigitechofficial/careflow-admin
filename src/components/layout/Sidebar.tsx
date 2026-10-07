@@ -51,6 +51,7 @@ import {
   CalendarOff,
   Landmark,
   ListChecks,
+  ClipboardCheck,
   MessagesSquare,
   // Briefcase, // TODO(later): restore with HR sidebar tab
 
@@ -172,6 +173,8 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  // Tasks given to the user's roles — every office user (managers open Role tasks from the page).
+  { label: 'My tasks', icon: <ClipboardCheck className="h-5 w-5" />, href: '/my-tasks' },
   {
     label: 'Service Users',
     icon: <Users className="h-5 w-5" />,
@@ -263,22 +266,6 @@ const navItems: NavItem[] = [
           'scheduling.generate_from_visit_plan',
           'schedules.build',
           'scheduled_visits.create',
-        ],
-      },
-      {
-        label: 'Report',
-        icon: <FileText className="h-4 w-4" />,
-        href: '/scheduling/report',
-        anyPermission: [
-          'schedule.read',
-          'schedules.read',
-          'schedules.build',
-          'scheduled_jobs.read',
-          'scheduled_visits.read',
-          'job_allocations.read',
-          'job_allocations.confirm',
-          'scheduled_jobs_housekeeping.read',
-          'schedule_timelines.read',
         ],
       },
       {
@@ -407,12 +394,56 @@ const navItems: NavItem[] = [
   //   ],
   // },
   {
+    // Reporting — every report page in one place (each link keeps its module permission).
     label: 'Reports',
     icon: <BarChart3 className="h-5 w-5" />,
-    href: '/in-progress',
-    ready: false,
+    href: '/scheduling/report',
     children: [
-      { label: 'Run Report', icon: <TrendingUp className="h-4 w-4" />, href: '/in-progress', ready: false },
+      {
+        label: 'Scheduling reports',
+        icon: <FileText className="h-4 w-4" />,
+        href: '/scheduling/report',
+        anyPermission: [
+          'schedule.read',
+          'schedules.read',
+          'schedules.build',
+          'scheduled_jobs.read',
+          'scheduled_visits.read',
+          'job_allocations.read',
+          'job_allocations.confirm',
+          'scheduled_jobs_housekeeping.read',
+          'schedule_timelines.read',
+        ],
+        navTestId: 'nav-reports-scheduling',
+      },
+      {
+        label: 'Carer reports',
+        icon: <Users className="h-4 w-4" />,
+        href: '/reports/carers',
+        permission: 'employees.reports.read',
+        navTestId: 'nav-reports-carers',
+      },
+      {
+        label: 'ECM reports',
+        icon: <FileBarChart2 className="h-4 w-4" />,
+        href: '/ecm/reports',
+        anyPermission: ['ecm.read', 'ecm.reports.export'],
+        navTestId: 'nav-ecm-reports',
+      },
+      {
+        label: 'Incident analytics',
+        icon: <TrendingUp className="h-4 w-4" />,
+        href: '/incidents/analytics',
+        permission: 'incidents.view_analytics',
+        navTestId: 'nav-reports-incidents',
+      },
+      {
+        label: 'Learning reports',
+        icon: <FileBarChart2 className="h-4 w-4" />,
+        href: '/learning/reports',
+        permission: 'learning.reports.read',
+        navTestId: 'nav-learning-reports',
+      },
     ],
   },
   {
@@ -433,13 +464,6 @@ const navItems: NavItem[] = [
         href: '/ecm/graph',
         anyPermission: ['ecm.read', 'ecm.monitor'],
         navTestId: 'nav-ecm-graph',
-      },
-      {
-        label: 'Reports',
-        icon: <FileBarChart2 className="h-4 w-4" />,
-        href: '/ecm/reports',
-        anyPermission: ['ecm.read', 'ecm.reports.export'],
-        navTestId: 'nav-ecm-reports',
       },
     ],
   },
@@ -496,13 +520,6 @@ const navItems: NavItem[] = [
         href: '/learning/external-training',
         permission: 'learning.external_training.read',
         navTestId: 'nav-learning-external-training',
-      },
-      {
-        label: 'Reports',
-        icon: <FileBarChart2 className="h-4 w-4" />,
-        href: '/learning/reports',
-        permission: 'learning.reports.read',
-        navTestId: 'nav-learning-reports',
       },
       {
         label: 'Settings',
@@ -693,7 +710,6 @@ const navItems: NavItem[] = [
       { label: 'All Incidents', icon: <Eye className="h-4 w-4" />, href: '/incidents/view', permission: 'incidents.read' },
       { label: 'Raise Incident', icon: <PlusCircle className="h-4 w-4" />, href: '/incidents/raise', permission: 'incidents.create' },
       { label: 'My Actions', icon: <ClipboardList className="h-4 w-4" />, href: '/incidents/my-actions', permission: 'incidents.read', hideForRoles: ['super_admin'] },
-      { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/incidents/analytics', permission: 'incidents.view_analytics' },
     ],
   },
   {

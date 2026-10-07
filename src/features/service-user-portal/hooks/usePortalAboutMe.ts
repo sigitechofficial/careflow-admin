@@ -6,6 +6,7 @@ import {
   fetchPortalCompletedVisits,
   fetchPortalContacts,
   fetchPortalDashboard,
+  fetchPortalDisplaySettings,
   fetchPortalLookups,
   fetchPortalMedications,
   fetchPortalProfile,
@@ -32,6 +33,17 @@ export const portalKeys = {
   calendar: () => [...portalKeys.all, 'calendar'] as const,
   completedVisits: () => [...portalKeys.all, 'completed-visits'] as const,
   visitPlans: () => [...portalKeys.all, 'visit-plans'] as const,
+  displaySettings: () => [...portalKeys.all, 'display-settings'] as const,
+}
+
+/** Organisation timezone + date/time formats chosen in admin General settings. */
+export function usePortalDisplaySettings(enabled = true) {
+  return useQuery({
+    queryKey: portalKeys.displaySettings(),
+    queryFn: fetchPortalDisplaySettings,
+    enabled,
+    staleTime: 60_000,
+  })
 }
 
 export function usePortalDashboard() {
