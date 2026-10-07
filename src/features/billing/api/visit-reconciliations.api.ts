@@ -176,7 +176,13 @@ export async function rejectVisitReconciliation(
 
 export async function approveVisitOverrun(
   id: string,
-  body?: { notes?: string },
+  body?: {
+    notes?: string
+    /** Price on the planned slot or the actual clock times. */
+    timeBasis?: 'PLANNED' | 'ACTUAL'
+    /** Which side(s) the time basis applies to; the other side stays planned. */
+    applyTo?: 'PAY' | 'CHARGE' | 'BOTH'
+  },
 ): Promise<VisitReconciliationDetail> {
   const res = await apiJson<ApiEnvelope<VisitReconciliationDetail>>(
     `/billing/visit-reconciliations/${id}/overrun/approve`,
