@@ -30,6 +30,20 @@ import {
 } from '@/shared/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
+import { isoToOrgDatetimeLocal, orgDatetimeLocalToIso } from '@/shared/lib/operational-day.util'
+import {
+  ContactAddressList,
+  ContactEmailRows,
+  ContactOtherMethodRows,
+  ContactPhoneRows,
+  firstMobileNumber,
+  preferenceText,
+  readContactExtras,
+  withContactExtraReferences,
+  type ContactAddress,
+  type ContactEmailRow,
+  type ContactPhoneRow,
+} from '@/features/service-users/components/ServiceUserContactRows'
 import {
   profileLookupSelectRows,
   resolveStoredLookupCode,
@@ -68,7 +82,7 @@ const FIELD_HELP = {
   county: 'County, region, or state if used in your address format.',
   country: 'Country for the service address.',
   postcode: 'Main postcode from the assigned service area (monitoring).',
-  secondaryPostcode: 'Secondary postcode from the home / searched street address.',
+  secondaryPostcode: 'Postcode from the home / searched street address.',
   latitude: 'Optional latitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   longitude: 'Optional longitude in decimal degrees for mapping or integrations; leave blank if unknown.',
   keySafeNumber:
@@ -84,7 +98,7 @@ const FIELD_HELP = {
   serviceUserNumber: 'Your organisation’s own reference or case number for this person.',
   location: 'Zone and branch (e.g. Croydon) for rosters, location tree, and bulk scheduling.',
   serviceStartDate: 'Date the person became eligible for or started receiving this service.',
-  serviceEndDate: 'Last day of service if known; leave blank while still active.',
+  serviceEndDate: 'Last day and time of service if known; tick Ongoing while the service is still active.',
   dateOfDeath: 'If applicable, date of death for record closure and statutory reporting. Only record when verified.',
   keyWorker: 'Search for the employee who coordinates this person’s care. Type at least two characters of their name.',
   namedNurse: 'Search for the named nurse where your care model uses one. Type at least two characters of their name.',
@@ -151,14 +165,11 @@ type FormState = {
   maternity: string
   language: string
   preferredContactMethod: string
-  emailType: string
-  phoneType: string
-  phonePreference: boolean
-  emailPreference: boolean
-  otherContactMethod: string
-  email: string
-  phone: string
-  mobile: string
+  /** First row = core phone / email / other method; the rest are saved as extras. */
+  phones: ContactPhoneRow[]
+  emails: ContactEmailRow[]
+  otherMethods: string[]
+  extraAddresses: ContactAddress[]
   addressLine1: string
   addressLine2: string
   town: string
@@ -177,6 +188,8 @@ type FormState = {
   serviceUserAreaId: string
   serviceStartDate: string
   serviceEndDate: string
+  /** No end date — saving clears serviceEndDate. */
+  serviceOngoing: boolean
   dateOfDeath: string
   keyWorkerId: string
   namedNurseId: string
@@ -203,6 +216,46 @@ type FormState = {
   referralRecordedAt: string
 }
 
+/** Rebuild the phone / email / other-method rows and extra addresses from the saved record. */
+function contactRowsFromDetail(
+  d: ServiceUserDetail,
+): Pick<FormState, 'phones' | 'emails' | 'otherMethods' | 'extraAddresses'> {
+  const r = d.references
+  const extras = readContactExtras(r)
+  const phones: ContactPhoneRow[] = []
+  const phone = d.phone?.trim() ?? ''
+  const mobile = d.mobile?.trim() ?? ''
+  if (phone) {
+    phones.push({
+      number: phone,
+      type: extValue(r, PROFILE_REF.phoneType),
+      preference: preferenceText(extValue(r, PROFILE_REF.phonePreference)),
+    })
+  }
+  if (mobile && mobile !== phone && !extras.phones.some((p) => p.number.trim() === mobile)) {
+    phones.push({ number: mobile, type: 'Mobile', preference: '' })
+  }
+  phones.push(...extras.phones)
+
+  const emails: ContactEmailRow[] = []
+  if (d.email?.trim()) {
+    emails.push({
+      email: d.email.trim(),
+      type: extValue(r, PROFILE_REF.emailType),
+      preference: preferenceText(extValue(r, PROFILE_REF.emailPreference)),
+    })
+  }
+  emails.push(...extras.emails)
+
+  const other = extValue(r, PROFILE_REF.otherContactMethod)
+  return {
+    phones,
+    emails,
+    otherMethods: [...(other ? [other] : []), ...extras.otherMethods],
+    extraAddresses: extras.addresses,
+  }
+}
+
 function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle): FormState {
   const r = d.references
   return {
@@ -224,22 +277,19 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     ethnicity: lookups
       ? resolveStoredLookupCode(extValue(r, PROFILE_REF.ethnicity), lookups.ethnicities)
       : extValue(r, PROFILE_REF.ethnicity),
-    sex: extValue(r, PROFILE_REF.sex),
-    sexualOrientation: extValue(r, PROFILE_REF.sexualOrientation),
+    sex: lookups
+      ? resolveStoredLookupCode(extValue(r, PROFILE_REF.sex), lookups.sexes)
+      : extValue(r, PROFILE_REF.sex),
+    sexualOrientation: lookups
+      ? resolveStoredLookupCode(extValue(r, PROFILE_REF.sexualOrientation), lookups.sexualOrientations)
+      : extValue(r, PROFILE_REF.sexualOrientation),
     disability: extValue(r, PROFILE_REF.disability),
     maternity: extValue(r, PROFILE_REF.maternity),
     language: lookups
       ? resolveStoredLookupCode(extValue(r, PROFILE_REF.language), lookups.languages)
       : extValue(r, PROFILE_REF.language),
     preferredContactMethod: extValue(r, PROFILE_REF.preferredContactMethod),
-    emailType: extValue(r, PROFILE_REF.emailType),
-    phoneType: extValue(r, PROFILE_REF.phoneType),
-    phonePreference: extValue(r, PROFILE_REF.phonePreference) === 'true',
-    emailPreference: extValue(r, PROFILE_REF.emailPreference) === 'true',
-    otherContactMethod: extValue(r, PROFILE_REF.otherContactMethod),
-    email: d.email ?? '',
-    phone: d.phone ?? '',
-    mobile: d.mobile ?? '',
+    ...contactRowsFromDetail(d),
     addressLine1: d.address?.addressLine1 ?? '',
     addressLine2: d.address?.addressLine2 ?? '',
     town: d.address?.town ?? '',
@@ -256,8 +306,9 @@ function detailToForm(d: ServiceUserDetail, lookups?: ServiceUserLookupsBundle):
     serviceUserNumber: d.serviceUserNumber ?? '',
     locationId: d.location?.id ?? '',
     serviceUserAreaId: d.serviceUserAreaId ?? d.serviceUserArea?.id ?? '',
-    serviceStartDate: toInputDate(d.serviceStartDate),
-    serviceEndDate: toInputDate(d.serviceEndDate),
+    serviceStartDate: isoToOrgDatetimeLocal(d.serviceStartDate),
+    serviceEndDate: isoToOrgDatetimeLocal(d.serviceEndDate),
+    serviceOngoing: !d.serviceEndDate,
     dateOfDeath: extValue(r, PROFILE_REF.dateOfDeath),
     keyWorkerId: d.keyWorker?.id ?? '',
     namedNurseId: d.namedNurse?.id ?? '',
@@ -496,6 +547,14 @@ export function ServiceUserPersonalDetailsForm({
     () => profileLookupSelectRows(lookups.ethnicities, form.ethnicity),
     [lookups.ethnicities, form.ethnicity],
   )
+  const sexLookupRows = React.useMemo(
+    () => profileLookupSelectRows(lookups.sexes, form.sex),
+    [lookups.sexes, form.sex],
+  )
+  const sexualOrientationLookupRows = React.useMemo(
+    () => profileLookupSelectRows(lookups.sexualOrientations, form.sexualOrientation),
+    [lookups.sexualOrientations, form.sexualOrientation],
+  )
   const languageLookupRows = React.useMemo(
     () => profileLookupSelectRows(lookups.languages, form.language),
     [lookups.languages, form.language],
@@ -542,14 +601,14 @@ export function ServiceUserPersonalDetailsForm({
           [PROFILE_REF.maternity]: form.maternity,
           [PROFILE_REF.language]: form.language,
           [PROFILE_REF.preferredContactMethod]: form.preferredContactMethod,
-          [PROFILE_REF.emailType]: form.emailType,
-          [PROFILE_REF.otherContactMethod]: form.otherContactMethod,
+          [PROFILE_REF.emailType]: form.emails[0]?.type ?? '',
+          [PROFILE_REF.otherContactMethod]: form.otherMethods[0] ?? '',
           [PROFILE_REF.dateOfDeath]: form.dateOfDeath,
           [PROFILE_REF.nhsNumberStatus]: form.nhsNumberStatus,
           [PROFILE_REF.sex]: form.sex,
-          [PROFILE_REF.phoneType]: form.phoneType,
-          [PROFILE_REF.phonePreference]: form.phonePreference ? 'true' : '',
-          [PROFILE_REF.emailPreference]: form.emailPreference ? 'true' : '',
+          [PROFILE_REF.phoneType]: form.phones[0]?.type ?? '',
+          [PROFILE_REF.phonePreference]: form.phones[0]?.preference ?? '',
+          [PROFILE_REF.emailPreference]: form.emails[0]?.preference ?? '',
           [PROFILE_REF.changePreference]: form.changePreference,
           [PROFILE_REF.orderNumber]: form.orderNumber,
           [PROFILE_REF.scanType]: form.scanType === 'None' ? '' : form.scanType,
@@ -575,13 +634,13 @@ export function ServiceUserPersonalDetailsForm({
         middleName: form.middleName.trim() || undefined,
         preferredName: form.preferredName.trim() || undefined,
         dateOfBirth: form.dateOfBirth.trim() || undefined,
-        email: form.email.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        mobile: form.mobile.trim() || undefined,
+        email: form.emails[0]?.email.trim() || null,
+        phone: form.phones[0]?.number.trim() || null,
+        mobile: firstMobileNumber(form.phones) || null,
         nhsNumber: form.nhsNumber.trim() || undefined,
         nationalInsuranceNumber: form.nationalInsuranceNumber.trim() || undefined,
-        serviceStartDate: form.serviceStartDate.trim() || undefined,
-        serviceEndDate: form.serviceEndDate.trim() || undefined,
+        serviceStartDate: orgDatetimeLocalToIso(form.serviceStartDate) || undefined,
+        serviceEndDate: form.serviceOngoing ? null : orgDatetimeLocalToIso(form.serviceEndDate) || undefined,
         serviceUserNumber: form.serviceUserNumber.trim() || undefined,
         residentId: form.residentId.trim() || undefined,
         residentGuid: form.residentGuid.trim() || undefined,
@@ -594,7 +653,12 @@ export function ServiceUserPersonalDetailsForm({
         riskLevelId: form.riskLevelId || undefined,
         keyWorkerId: form.keyWorkerId || undefined,
         namedNurseId: form.namedNurseId || undefined,
-        references: withoutAs,
+        references: withContactExtraReferences(withoutAs, {
+          phones: form.phones.slice(1),
+          emails: form.emails.slice(1),
+          otherMethods: form.otherMethods.slice(1),
+          addresses: form.extraAddresses,
+        }),
       }
 
       // Address, service location and home-access are edited on the DOM Care tab
@@ -750,17 +814,23 @@ export function ServiceUserPersonalDetailsForm({
             value={form.maternity}
             onChange={set('maternity')}
           />
-          <FieldEditable
+          <LookupSelect
             label="Sex"
-            tooltip="Sex recorded separately from gender identity where collected."
+            tooltip="Sex recorded separately from gender identity where collected. Options are managed in Settings → Lookup data → Sex."
             value={form.sex}
             onChange={set('sex')}
+            rows={sexLookupRows}
+            placeholder="Select sex"
+            emptyHint="No sex options yet. Add them in Settings → Lookup data → Sex."
           />
-          <FieldEditable
+          <LookupSelect
             label="Sexual Orientation"
             tooltip={FIELD_HELP.sexualOrientation}
             value={form.sexualOrientation}
             onChange={set('sexualOrientation')}
+            rows={sexualOrientationLookupRows}
+            placeholder="Select sexual orientation"
+            emptyHint="No sexual orientations yet. Add them in Settings → Lookup data → Sexual orientation."
           />
         </div>
       </section>
@@ -774,43 +844,28 @@ export function ServiceUserPersonalDetailsForm({
             value={form.preferredContactMethod}
             onChange={set('preferredContactMethod')}
           />
-          <FieldEditable label="Phone Number" tooltip={FIELD_HELP.phone} value={form.phone} onChange={set('phone')} />
-          <FieldEditable
-            label="Phone Type"
-            tooltip="Classifies the phone number (mobile, home, work)."
-            value={form.phoneType}
-            onChange={set('phoneType')}
+        </div>
+        <div className="mt-4 space-y-4">
+          <ContactAddressList
+            primary={{
+              addressLine1: form.addressLine1,
+              addressLine2: form.addressLine2,
+              town: form.town,
+              county: form.county,
+              country: form.country,
+              postcode: form.secondaryPostcode,
+              latitude: form.latitude,
+              longitude: form.longitude,
+            }}
+            primaryReadOnlyHint="Main address is edited in Domiciliary / Home Care → Home & access."
+            extras={form.extraAddresses}
+            onExtrasChange={(extraAddresses) => setForm((p) => ({ ...p, extraAddresses }))}
           />
-          <div className="flex items-end gap-2 pb-1">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={form.phonePreference}
-                onChange={(e) => setForm((p) => ({ ...p, phonePreference: e.target.checked }))}
-                className="h-4 w-4 rounded border-border"
-              />
-              Phone preference
-            </label>
-          </div>
-          <FieldEditable label="Mobile" tooltip={FIELD_HELP.mobile} value={form.mobile} onChange={set('mobile')} />
-          <FieldEditable label="Email" tooltip={FIELD_HELP.email} value={form.email} onChange={set('email')} type="email" />
-          <FieldEditable label="Email type" tooltip={FIELD_HELP.emailType} value={form.emailType} onChange={set('emailType')} />
-          <div className="flex items-end gap-2 pb-1">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={form.emailPreference}
-                onChange={(e) => setForm((p) => ({ ...p, emailPreference: e.target.checked }))}
-                className="h-4 w-4 rounded border-border"
-              />
-              Email preference
-            </label>
-          </div>
-          <FieldEditable
-            label="Other Contact Method"
-            tooltip={FIELD_HELP.otherContactMethod}
-            value={form.otherContactMethod}
-            onChange={set('otherContactMethod')}
+          <ContactPhoneRows rows={form.phones} onChange={(phones) => setForm((p) => ({ ...p, phones }))} />
+          <ContactEmailRows rows={form.emails} onChange={(emails) => setForm((p) => ({ ...p, emails }))} />
+          <ContactOtherMethodRows
+            rows={form.otherMethods}
+            onChange={(otherMethods) => setForm((p) => ({ ...p, otherMethods }))}
           />
         </div>
       </section>
@@ -829,20 +884,38 @@ export function ServiceUserPersonalDetailsForm({
             onChange={set('serviceUserNumber')}
           />
           <FieldEditable
-            label="Service Start Date"
+            label="Service Start Date/Time"
             tooltip={FIELD_HELP.serviceStartDate}
             value={form.serviceStartDate}
             onChange={set('serviceStartDate')}
-            type="date"
+            type="datetime-local"
             required
           />
-          <FieldEditable
-            label="Service End Date"
-            tooltip={FIELD_HELP.serviceEndDate}
-            value={form.serviceEndDate}
-            onChange={set('serviceEndDate')}
-            type="date"
-          />
+          <div>
+            <FieldEditable
+              label="Service End Date/Time"
+              tooltip={FIELD_HELP.serviceEndDate}
+              value={form.serviceOngoing ? '' : form.serviceEndDate}
+              onChange={set('serviceEndDate')}
+              type="datetime-local"
+              disabled={form.serviceOngoing}
+            />
+            <label className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={form.serviceOngoing}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    serviceOngoing: e.target.checked,
+                    serviceEndDate: e.target.checked ? '' : p.serviceEndDate,
+                  }))
+                }
+                className="h-4 w-4 rounded border-border"
+              />
+              Ongoing
+            </label>
+          </div>
           <FieldEditable
             label="Date of Death"
             tooltip={FIELD_HELP.dateOfDeath}

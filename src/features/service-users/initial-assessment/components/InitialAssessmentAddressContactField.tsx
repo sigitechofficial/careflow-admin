@@ -260,7 +260,7 @@ export function InitialAssessmentAddressContactField({
       ) : null}
 
       <AddressPlacesField
-        postcodeLabel="Secondary postcode"
+        postcodeLabel="Postcode"
         disabled={disabled || addressLocked}
         value={{
           addressLine1: draft.addressLine1,
@@ -323,7 +323,7 @@ export function InitialAssessmentAddressContactField({
           ? 'Address, phone and email already on the profile are shown read-only — change them on the profile.'
           : simple
             ? 'Empty details you add are saved to the service user profile when you leave a field. Address search uses Google Places.'
-            : 'Leave a field to save. Address search uses Google Places and fills the secondary postcode.'}
+            : 'Leave a field to save. Address search uses Google Places and fills the postcode.'}
       </p>
       {errorMessage ? (
         <p className="text-xs font-medium text-destructive" role="alert">

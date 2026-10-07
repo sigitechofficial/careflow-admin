@@ -9,6 +9,9 @@ import {
   createServiceUserEthnicity,
   createServiceUserFundingType,
   createServiceUserLanguage,
+  createServiceUserGender,
+  createServiceUserSex,
+  createServiceUserSexualOrientation,
   deleteAllergyCatalog,
   deleteBodyMapRecordType,
   deleteMedicalConditionCatalog,
@@ -49,6 +52,9 @@ import {
   deleteServiceUserEthnicity,
   deleteServiceUserFundingType,
   deleteServiceUserLanguage,
+  deleteServiceUserGender,
+  deleteServiceUserSex,
+  deleteServiceUserSexualOrientation,
   fetchAllergyCatalogList,
   fetchBodyMapRecordTypesList,
   fetchMedicalConditionCatalogList,
@@ -59,6 +65,9 @@ import {
   fetchServiceUserEthnicitiesList,
   fetchServiceUserFundingTypesList,
   fetchServiceUserLanguagesList,
+  fetchServiceUserGendersList,
+  fetchServiceUserSexesList,
+  fetchServiceUserSexualOrientationsList,
   fetchVitalAcceptedRangesCatalog,
   updateAllergyCatalog,
   updateBodyMapRecordType,
@@ -70,6 +79,9 @@ import {
   updateServiceUserEthnicity,
   updateServiceUserFundingType,
   updateServiceUserLanguage,
+  updateServiceUserGender,
+  updateServiceUserSex,
+  updateServiceUserSexualOrientation,
   updateVitalAcceptedRangeCatalog,
   type ComplianceCategory,
   type IntervalLookupResource,
@@ -223,6 +235,9 @@ function invalidateServiceUserLookupCaches(qc: ReturnType<typeof useQueryClient>
   void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserFundingTypes() })
   void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserEthnicities() })
   void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserLanguages() })
+  void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserGenders() })
+  void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserSexes() })
+  void qc.invalidateQueries({ queryKey: settingsKeys.serviceUserSexualOrientations() })
   void qc.invalidateQueries({ queryKey: settingsKeys.allergyCatalog() })
   void qc.invalidateQueries({ queryKey: serviceUserKeys.lookups() })
 }
@@ -364,6 +379,108 @@ export function useDeleteServiceUserLanguage() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteServiceUserLanguage(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useServiceUserGenders(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.serviceUserGenders(),
+    queryFn: () => fetchServiceUserGendersList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateServiceUserGender() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; code: string }) => createServiceUserGender(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateServiceUserGender() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+      updateServiceUserGender(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteServiceUserGender() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteServiceUserGender(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useServiceUserSexes(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.serviceUserSexes(),
+    queryFn: () => fetchServiceUserSexesList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateServiceUserSex() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; code: string }) => createServiceUserSex(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateServiceUserSex() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+      updateServiceUserSex(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteServiceUserSex() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteServiceUserSex(id),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useServiceUserSexualOrientations(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.serviceUserSexualOrientations(),
+    queryFn: () => fetchServiceUserSexualOrientationsList(),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateServiceUserSexualOrientation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; code: string }) => createServiceUserSexualOrientation(body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useUpdateServiceUserSexualOrientation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; code?: string } }) =>
+      updateServiceUserSexualOrientation(id, body),
+    onSuccess: () => invalidateServiceUserLookupCaches(qc),
+  })
+}
+
+export function useDeleteServiceUserSexualOrientation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteServiceUserSexualOrientation(id),
     onSuccess: () => invalidateServiceUserLookupCaches(qc),
   })
 }

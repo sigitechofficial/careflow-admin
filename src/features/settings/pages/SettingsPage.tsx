@@ -27,6 +27,7 @@ import {
   Stethoscope,
   Timer,
   UserCheck,
+  UserRound,
   Users,
 } from 'lucide-react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
@@ -77,6 +78,9 @@ export type SettingsTabId =
   | 'funding-types'
   | 'ethnicities'
   | 'languages'
+  | 'genders'
+  | 'sexes'
+  | 'sexual-orientations'
   | 'record-types'
   | 'allergies'
   | 'medical-conditions'
@@ -113,6 +117,9 @@ const SETTINGS_TABS: { id: SettingsTabId; label: string; Icon: LucideIcon }[] = 
   { id: 'funding-types', label: 'Funding types', Icon: Scale },
   { id: 'ethnicities', label: 'Ethnicities', Icon: Users },
   { id: 'languages', label: 'Languages', Icon: Languages },
+  { id: 'genders', label: 'Genders', Icon: UserRound },
+  { id: 'sexes', label: 'Sex', Icon: UserRound },
+  { id: 'sexual-orientations', label: 'Sexual orientation', Icon: UserRound },
   { id: 'record-types', label: 'Record types', Icon: Stethoscope },
   { id: 'allergies', label: 'Allergies', Icon: AlertTriangle },
   { id: 'medical-conditions', label: 'Medical conditions', Icon: ClipboardList },
@@ -289,6 +296,11 @@ export default function SettingsPage() {
           {activeTab === 'funding-types' && <ServiceUserFundingTypesSettingsPanel />}
           {activeTab === 'ethnicities' && <ServiceUserCodeNameLookupSettingsPanel variant="ethnicities" />}
           {activeTab === 'languages' && <ServiceUserCodeNameLookupSettingsPanel variant="languages" />}
+          {activeTab === 'genders' && <ServiceUserCodeNameLookupSettingsPanel variant="genders" />}
+          {activeTab === 'sexes' && <ServiceUserCodeNameLookupSettingsPanel variant="sexes" />}
+          {activeTab === 'sexual-orientations' && (
+            <ServiceUserCodeNameLookupSettingsPanel variant="sexualOrientations" />
+          )}
           {activeTab === 'record-types' && <BodyMapRecordTypesSettingsPanel />}
           {activeTab === 'allergies' && <AllergiesCatalogSettingsPanel />}
           {activeTab === 'medical-conditions' && <MedicalConditionsCatalogSettingsPanel />}

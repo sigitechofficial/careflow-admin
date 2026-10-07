@@ -209,7 +209,7 @@ export function useBackfillVisitReconciliations() {
 export function useRecalculateVisitReconciliationAmounts() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body?: { ids?: string[]; dateFrom?: string; dateTo?: string }) =>
+    mutationFn: (body: { ids?: string[]; dateFrom?: string; dateTo?: string; reason: string }) =>
       recalculateVisitReconciliationAmounts(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: billingKeys.all })

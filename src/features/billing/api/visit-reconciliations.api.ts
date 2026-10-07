@@ -229,16 +229,50 @@ export async function backfillVisitReconciliations(body?: {
   return res.data
 }
 
-export async function recalculateVisitReconciliationAmounts(body?: {
+export type VisitReconciliationRecalculateSummary = {
+  reEvaluated: number
+  /** Visits whose pay or charge amount changed. */
+  changed: number
+  unchanged: number
+  failed: number
+  /** Selected rows skipped because they are locked. */
+  skippedLocked: number
+  /** Only the first 1000 rows are processed per run. */
+  limitReached: boolean
+  totals: {
+    payableBefore: number
+    payableAfter: number
+    billableBefore: number
+    billableAfter: number
+  }
+  /** Each recalculated visit with its amounts before and after. */
+  visits: Array<{
+    id: string
+    visitRef: string
+    plannedStartDateTime: string
+    serviceUserName: string | null
+    employeeName: string | null
+    payableBefore: number | null
+    payableAfter: number | null
+    billableBefore: number | null
+    billableAfter: number | null
+    changed: boolean
+    failed: boolean
+  }>
+  ids: string[]
+}
+
+export async function recalculateVisitReconciliationAmounts(body: {
   ids?: string[]
   dateFrom?: string
   dateTo?: string
-}): Promise<{ reEvaluated: number; ids: string[] }> {
-  const res = await apiJson<ApiEnvelope<{ reEvaluated: number; ids: string[] }>>(
+  reason: string
+}): Promise<VisitReconciliationRecalculateSummary> {
+  const res = await apiJson<ApiEnvelope<VisitReconciliationRecalculateSummary>>(
     '/billing/visit-reconciliations/recalculate-amounts',
     {
       method: 'POST',
-      body: JSON.stringify(body ?? {}),
+      body: JSON.stringify(body),
     },
   )
   return res.data

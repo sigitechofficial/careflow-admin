@@ -15,6 +15,8 @@ export type ServiceUserLookupsBundle = {
   statuses: Array<SuLookupRow & { description?: string | null }>
   titles: SuLookupRow[]
   genders: SuLookupRow[]
+  sexes: SuLookupRow[]
+  sexualOrientations: SuLookupRow[]
   maritalStatuses: SuLookupRow[]
   careTypes: SuLookupRow[]
   fundingTypes: SuLookupRow[]
